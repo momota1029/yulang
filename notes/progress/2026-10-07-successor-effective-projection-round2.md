@@ -323,6 +323,9 @@ construction above supplies such a law for its exact observer class.
 
 ## 5. Checks, resources, dependencies, and commit packet
 
+This section preserves the producer's pre-review execution and handoff record.
+Independent review subsequently closed at the exact scope linked in the header.
+
 The standard-library checker compares direct finite-domain quantifier
 evaluation with equality-orbit evaluation over all 8 alternations of three
 binders, both public equality patterns, and every signed equality literal or

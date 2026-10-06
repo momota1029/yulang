@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-10-07",
-  "baseline": "ac2864a48868b017a8b6fedc6a665f24d0c2daff",
-  "revalidated_remote_head": "475036233423ac6e6e3d56c7e710db5ca3f03e54",
+  "baseline": "ad514061de2792c374a4b5c224dff7f4772906e8",
+  "revalidated_remote_head": "3cf6bb70b7514e6a17a3d3adb8fce0f4e7676c38",
   "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
   "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
   "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
@@ -400,10 +400,12 @@
       "gate": "Decidable alpha-isomorphism of supplied finite interfaces",
       "requires": [],
       "premises": "Finite complete faithfully serialized typed presentation; finite sort/scope/binder preserving renamings with rigid identities fixed.",
-      "minimal_lemma_or_closed_scope": "Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Factorial bound; not all semantic equivalence or a production algorithm selection.",
+      "minimal_lemma_or_closed_scope": "Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Reviewed default-off Rust now implements the supplied-record slice with inverse certificates and explicit node/candidate exhaustion. Complete actual interface generation and semantic equivalence are not certified.",
       "references": [
         "newrec",
-        "review"
+        "review",
+        "alphaimpl",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -570,7 +572,7 @@
         "TRANSPORT"
       ],
       "premises": "Caller-supplied finite typed graph and normalized receipt endpoints, canonical nonzero-sized identity tokens, one original context, exact current activation sets.",
-      "minimal_lemma_or_closed_scope": "Finite reachability and exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented and focused-tested; repaired compiler/spec delta review must be recorded before final promotion. Source facts and grant/release remain assumptions.",
+      "minimal_lemma_or_closed_scope": "Finite reachability and the exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented, focused-tested and independently reviewed after the event-token and zero-sized-witness repairs. Source facts, normalized receipt correspondence, canonical identities and activity sets remain supplied premises; grant, release, handler selection and source-wide completeness are outside scope.",
       "references": [
         "shadow",
         "shadowtest",
@@ -684,12 +686,14 @@
         "INTRO"
       ],
       "premises": "Original beta=(formal,root), typed positions, scope/binder/own-upper/inherited-provider arms; current direction fixed.",
-      "minimal_lemma_or_closed_scope": "Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.",
+      "minimal_lemma_or_closed_scope": "Give comparison-independent original owner/contribution/incidence introductions and exhaustive licensing last-rule elimination, including own-upper, provider, annotation, mixed-use, certified transport, conservative-contract and reference origins. The reviewed candidate calculus reduces assembly to explicit K-Leaf/K-Image/K-Owner/K-Incidence and original licensing sequents; their original-domain validity and exhaustivity remain unproved. Slots and I_orig are not new labels or a chosen assembly image.",
       "references": [
         "sig",
         "profile",
         "lic",
-        "fview"
+        "fview",
+        "kernel2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -978,21 +982,23 @@
     {
       "id": "REC_DESC",
       "status": "OPEN-PROOF",
-      "gate": "Independent recursive descriptor finite-elimination law",
+      "gate": "Independent recursive descriptor introduction",
       "requires": [
         "REC_K",
         "FH",
         "SEM_JOINT"
       ],
       "premises": "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Establish semantic adequacy of each captured Name lookup at that same scope/assignment as a static/root premise or a complete local check; Gamma identity alone is insufficient. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
-      "minimal_lemma_or_closed_scope": "Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, lookup adequacy, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.",
+      "minimal_lemma_or_closed_scope": "For the listed FH route, prove exact finite-failure reflection at the original scoped (xi,w), including static/zero-step checks, captured lookup, actual returned handles and all independent future admissions. If FH is forall h exists e. L(h,e), failure must yield exists h forall e. not L(h,e); one failing extension is insufficient. Alternatively derive the ordinary two-closure introduction for the actual K certificate, with all inlet/world/static checks and original shared witnesses, without assuming opposite member validity. Unfolding D=F(D) and postfixedness do not prove absorption, even for F(Z)_f=Z_g,F(Z)_g=Z_f. This alternative replaces the descriptor proof method only; neither route supplies M_E, carrier/world or CompleteMem discharge.",
       "references": [
         "newrec",
         "k",
         "source",
         "recdreflection",
         "recbridge",
-        "reclookup"
+        "reclookup",
+        "coind2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1105,12 +1111,14 @@
         "SIG_RULES"
       ],
       "premises": "Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.",
-      "minimal_lemma_or_closed_scope": "Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.",
+      "minimal_lemma_or_closed_scope": "Derive one original slot/contribution/incidence before the universal over the complete family: exists a in I_orig(X). forall z in F_C(X). Cover(a,z). The explicit OC-Call-Intro cut requires original contribution-domain closure under the full typed invocation image, static source-owner introduction and joint incidence coherence at the same beta,p0,upper,xi and scope. Complete whole-carrier inlet R_U_all is independent of the selected source diagonal Delay(Name_x). All original license witnesses survive; H_gen, H_typed, IDs and assembly-image replacement supply none of these introductions.",
       "references": [
         "assoc",
         "newassoc",
         "assocctor",
-        "assockernel"
+        "assockernel",
+        "kernel2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1341,11 +1349,13 @@
         "INIT_VALID"
       ],
       "premises": "Fixed common predicate interpretation, actual valid initial source world, all pointwise member/transition checks and compatible extensions at the original assignment.",
-      "minimal_lemma_or_closed_scope": "Apply the independently proved finite-elimination law to the all-finite-history invariant and establish every emitted original KV/CompleteMem member and simultaneous environment judgment on the same providers. No separately chosen member worlds or witnesses.",
+      "minimal_lemma_or_closed_scope": "Combine independently proved ordinary descriptor introduction (the listed FH/reflection route or a sound actual two-closure rule) with every original KV/CompleteMem conjunct and simultaneous environment judgment on the same providers. Initial validity and compatible local/history witnesses must be actual, not separately chosen member worlds. The direct certificate changes no non-descriptor obligation.",
       "references": [
         "newrec",
         "k",
-        "core"
+        "core",
+        "coind2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1742,10 +1752,12 @@
         "RAW_SOURCE"
       ],
       "premises": "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
-      "minimal_lemma_or_closed_scope": "Construct finite J_T and meaning-preserving A_T from source; prove rule/guard closure and terminating dependency updates. The Draft theorem merely assumes them and proves |B||J_T||P|^2.",
+      "minimal_lemma_or_closed_scope": "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. Remaining: enumerate every actual source child-context operation and identity observer in that syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.",
       "references": [
         "contexts",
-        "newglobal"
+        "newglobal",
+        "projection2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1764,12 +1776,14 @@
         "ALL_WORLD"
       ],
       "premises": "Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.",
-      "minimal_lemma_or_closed_scope": "Construct finite effective candidates/quotient with preservation AND reflection for every active primitive, terminating checks and simultaneous witness completeness, or prove an exact effective residual decision route. Pure FMP cannot reflect arbitrary Phi.",
+      "minimal_lemma_or_closed_scope": "Construct finite effective candidates/quotient with preservation AND reflection for every actual active primitive and simultaneous original-witness completeness, or an exact effective residual decision route. The reviewed Record-chain halting extension proves that finite syntax, finite nominal support and decidable individual candidate checks do not supply a computable joint bound from pure FMP. This is not Yulang undecidability; the missing actual primitive reflection/decision law is still required.",
       "references": [
         "puredec",
         "contexts",
         "residual",
-        "newglobal"
+        "newglobal",
+        "projection2",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1792,11 +1806,14 @@
         "EQ_RES"
       ],
       "premises": "Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.",
-      "minimal_lemma_or_closed_scope": "Compute a legal exported constrained scheme with exact original-fiber projection and complete ordinary use factorization, rather than printing independent root bounds.",
+      "minimal_lemma_or_closed_scope": "Compute a legal exported constrained scheme with exact original-fiber projection and ordinary-use factorization. Equality-only eligible atom coordinates now have a reviewed exact orbit-elimination and witness-strategy theorem at the original binders; the bounded shadow evaluator implements only pointwise truth. Remaining: prove every actual eliminated-name observer's exact expansion, preserve non-name/recursive predicates and their original quantifiers, construct the residual/exported scheme and actual ordinary-use evidence. Neither equivariance nor separate root marginals supplies these laws.",
       "references": [
         "residual",
         "scoped",
-        "pg"
+        "pg",
+        "projection2",
+        "orbitimpl",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1937,10 +1954,13 @@
         "IFACE_FORM"
       ],
       "premises": "Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.",
-      "minimal_lemma_or_closed_scope": "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.",
+      "minimal_lemma_or_closed_scope": "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. The reviewed multiplicity-aware bound for one current constrain_live drain retains fixed closed endpoint inventories containing the initial task, finite bounds, stable memo/inventory, a constructor DAG and diagnostic boundary. It bounds neither source-size expansion, complete generalization/freshening, successor contexts nor total work. Shadow alpha/orbit exhaustion is not a production limit or UNSAT.",
       "references": [
         "charter",
-        "newglobal"
+        "newglobal",
+        "livedrain",
+        "alphaimpl",
+        "orbitimpl"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2052,7 +2072,7 @@
         "RESOURCE"
       ],
       "premises": "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
-      "minimal_lemma_or_closed_scope": "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.",
+      "minimal_lemma_or_closed_scope": "Implement the complete source coverage and lower/emitter/solver/generalizer/instantiator/publisher correspondence. Reviewed shadow plumbing retains solved Apply operands, nested/grouped topology, annotation/header joins, SCC endpoints/outgoing uses and pending instantiation. The exact local-Bind sidecar now retains captured apply/step identities and one unresolved inner Call through solve and the existing Core projection; ordinary refusal and outer bookkeeping remain. Alpha comparison and equality-orbit evaluation have separate supplied-input implementations. None supplies complete semantic dependencies, Generalize, profiles, contribution formation or ordinary Call inference.",
       "references": [
         "hir",
         "solver",
@@ -2060,7 +2080,17 @@
         "owner",
         "retention",
         "bindergroups",
-        "sourceuses"
+        "sourceuses",
+        "solveduse",
+        "applycross",
+        "headerjoin",
+        "sccendpoints",
+        "sccoutgoing",
+        "pendinguse",
+        "localbind",
+        "alphaimpl",
+        "orbitimpl",
+        "round2review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2392,6 +2422,35 @@
         "JOINT_DEC"
       ],
       "reason": "Draft conditional finite state-key theorem supplies no all-world quotient."
+    },
+    {
+      "old": "Repaired finite typed query still awaits compiler/spec review",
+      "replaced_by": [
+        "PATH_QUERY"
+      ],
+      "reason": "The previous full-attack record already closes both repaired independent reviews; only supplied-input conditions remain."
+    },
+    {
+      "old": "No constructive context/name-projection procedure in any fragment",
+      "replaced_by": [
+        "CTX_FINITE",
+        "PROJECTION"
+      ],
+      "reason": "Reviewed finite relational context syntax and equality-only original-binder orbits are constructive; actual source observers and full projection remain open."
+    },
+    {
+      "old": "No current live-drain work bound",
+      "replaced_by": [
+        "RESOURCE"
+      ],
+      "reason": "The reviewed conditional multiplicity-aware single-drain bound exists; it is not a source-size or complete successor bound."
+    },
+    {
+      "old": "Approved captured local Bind cannot retain its inner pending Call through solve",
+      "replaced_by": [
+        "HIR_WIRING"
+      ],
+      "reason": "The exact opt-in local-binding sidecar and Core differential now retain it; ordinary HIR refusal and all semantic premises remain."
     }
   ],
   "references": {
@@ -2450,6 +2509,20 @@
     "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
+    "round2review": "notes/progress/2026-10-07-successor-round2-review.md",
+    "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
+    "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
+    "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",
+    "alphaimpl": "notes/progress/2026-10-07-shadow-interface-alpha-round2.md",
+    "orbitimpl": "notes/progress/2026-10-07-shadow-atom-orbits-round2.md",
+    "livedrain": "notes/progress/2026-10-06-bounded-live-closure-work-count.md",
+    "solveduse": "notes/progress/2026-10-07-shadow-solved-application-use-retention.md",
+    "applycross": "notes/progress/2026-10-08-shadow-apply-endpoint-crosswalk.md",
+    "headerjoin": "notes/progress/2026-10-07-shadow-annotation-header-membership.md",
+    "sccendpoints": "notes/progress/2026-10-07-shadow-scc-use-definition-endpoints.md",
+    "sccoutgoing": "notes/progress/2026-10-07-shadow-scc-outgoing-use-view.md",
+    "pendinguse": "notes/progress/2026-10-08-shadow-pending-use-instantiation.md",
+    "localbind": "notes/progress/2026-10-09-shadow-local-binding-source-identity.md",
     "shadow": "crates/yu-core/src/shadow_typed_evidence.rs",
     "shadowtest": "crates/yu-core/tests/shadow_typed_evidence.rs",
     "shadowhir": "crates/yu-hir/src/shadow.rs",

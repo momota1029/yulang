@@ -14,8 +14,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = "ac2864a48868b017a8b6fedc6a665f24d0c2daff"
-REVALIDATED = "475036233423ac6e6e3d56c7e710db5ca3f03e54"
+BASELINE = "ad514061de2792c374a4b5c224dff7f4772906e8"
+REVALIDATED = "3cf6bb70b7514e6a17a3d3adb8fce0f4e7676c38"
 STATUSES = {
     "CLOSED", "CONDITIONAL-CLOSED", "IMPLEMENTATION-ONLY", "OPEN-PROOF",
     "OPEN-SEMANTIC", "BLOCKED-BY-USER-DECISION",
@@ -76,6 +76,20 @@ REFS = {
     "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
+    "round2review": "notes/progress/2026-10-07-successor-round2-review.md",
+    "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
+    "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
+    "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",
+    "alphaimpl": "notes/progress/2026-10-07-shadow-interface-alpha-round2.md",
+    "orbitimpl": "notes/progress/2026-10-07-shadow-atom-orbits-round2.md",
+    "livedrain": "notes/progress/2026-10-06-bounded-live-closure-work-count.md",
+    "solveduse": "notes/progress/2026-10-07-shadow-solved-application-use-retention.md",
+    "applycross": "notes/progress/2026-10-08-shadow-apply-endpoint-crosswalk.md",
+    "headerjoin": "notes/progress/2026-10-07-shadow-annotation-header-membership.md",
+    "sccendpoints": "notes/progress/2026-10-07-shadow-scc-use-definition-endpoints.md",
+    "sccoutgoing": "notes/progress/2026-10-07-shadow-scc-outgoing-use-view.md",
+    "pendinguse": "notes/progress/2026-10-08-shadow-pending-use-instantiation.md",
+    "localbind": "notes/progress/2026-10-09-shadow-local-binding-source-identity.md",
     "shadow": "crates/yu-core/src/shadow_typed_evidence.rs",
     "shadowtest": "crates/yu-core/tests/shadow_typed_evidence.rs",
     "shadowhir": "crates/yu-hir/src/shadow.rs",
@@ -160,13 +174,13 @@ n("FH", "CONDITIONAL-CLOSED", "Simultaneous finite-history local invariant", "RE
   "Induction on finite derivation size preserves W/local checks for both actual members without an already validated CompleteMem environment. Does not construct local certificates or derive ordinary DescMem.", "newrec review")
 n("CI_ALPHA", "CLOSED", "Decidable alpha-isomorphism of supplied finite interfaces", "",
   "Finite complete faithfully serialized typed presentation; finite sort/scope/binder preserving renamings with rigid identities fixed.",
-  "Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Factorial bound; not all semantic equivalence or a production algorithm selection.", "newrec review")
+  "Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Reviewed default-off Rust now implements the supplied-record slice with inverse certificates and explicit node/candidate exhaustion. Complete actual interface generation and semantic equivalence are not certified.", "newrec review alphaimpl round2review")
 n("CI_USE", "CONDITIONAL-CLOSED", "Alpha-equal interface preserves arbitrary finite joint fresh uses", "CI_ALPHA",
   "Independent equivariance/covariance for every primitive/admission/constructor/evidence/recursive/query operation; complete identity-observer accounting; original and client coordinates rigid.",
   "Operator conjugacy and coherent (use,local) renaming preserve/refelect the whole jointly constrained finite use family and unchanged Direct queries. No all-view query existence or source interface producer.", "newrec review")
 n("PATH_QUERY", "CONDITIONAL-CLOSED", "Finite supplied typed Path/Inc query", "TRANSPORT",
   "Caller-supplied finite typed graph and normalized receipt endpoints, canonical nonzero-sized identity tokens, one original context, exact current activation sets.",
-  "Finite reachability and exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented and focused-tested; repaired compiler/spec delta review must be recorded before final promotion. Source facts and grant/release remain assumptions.", "shadow shadowtest review", "shadow-only; no production authority")
+  "Finite reachability and the exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented, focused-tested and independently reviewed after the event-token and zero-sized-witness repairs. Source facts, normalized receipt correspondence, canonical identities and activity sets remain supplied premises; grant, release, handler selection and source-wide completeness are outside scope.", "shadow shadowtest review", "shadow-only; no production authority")
 
 # Atomic open judgments: no large completed-profile or validated-environment placeholder.
 n("SEED_SOURCE", "OPEN-PROOF", "Directional applicability over all source introductions/uses", "DIR_LOCAL RS_LX",
@@ -193,9 +207,9 @@ n("ADMISSION_CLAUSES", "OPEN-SEMANTIC", "Independent source response/resume/futu
 n("SEM_JOINT", "OPEN-PROOF", "Joint independent interpretation of descriptor/world/admission clauses", "DESC_CLAUSES ADMISSION_CLAUSES INIT_WORLD",
   "Complete original clause specifications and their original scopes/quantifiers; mutually referencing predicates remain one semantic family.",
   "Construct a common independently justified interpretation of descriptor, carrier, world, local constructor and admission predicates satisfying every clause, with any required guarded/step-indexed or other realization proof. Do not pick per-node predicates, define membership as source image, or assume a greatest fixed point. This interprets definitions, not source-world inhabitance.", "source compat newrec newglobal")
-n("REC_DESC", "OPEN-PROOF", "Independent recursive descriptor finite-elimination law", "REC_K FH SEM_JOINT",
+n("REC_DESC", "OPEN-PROOF", "Independent recursive descriptor introduction", "REC_K FH SEM_JOINT",
   "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Establish semantic adequacy of each captured Name lookup at that same scope/assignment as a static/root premise or a complete local check; Gamma identity alone is insufficient. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
-  "Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, lookup adequacy, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.", "newrec k source recdreflection recbridge reclookup")
+  "For the listed FH route, prove exact finite-failure reflection at the original scoped (xi,w), including static/zero-step checks, captured lookup, actual returned handles and all independent future admissions. If FH is forall h exists e. L(h,e), failure must yield exists h forall e. not L(h,e); one failing extension is insufficient. Alternatively derive the ordinary two-closure introduction for the actual K certificate, with all inlet/world/static checks and original shared witnesses, without assuming opposite member validity. Unfolding D=F(D) and postfixedness do not prove absorption, even for F(Z)_f=Z_g,F(Z)_g=Z_f. This alternative replaces the descriptor proof method only; neither route supplies M_E, carrier/world or CompleteMem discharge.", "newrec k source recdreflection recbridge reclookup coind2 round2review")
 n("REC_LOCAL", "OPEN-PROOF", "Actual pointwise simultaneous local member certificates", "SEM_JOINT INTRO GUARD_COVER",
   "Same actual provider knot and original scoped (xi,w); the predicates are fixed by SEM_JOINT; this local theorem quantifies over every independently valid initial world without assuming such a world is inhabited.",
   "Construct actual receipt/entry/rebind/body/returned-handle local preservation checks and compatible event extensions pointwise for every member in the fixed independent admission domain. This is not initial-world existence or complete KV satisfaction; INIT_VALID and MEMBER_DISCHARGE are separate.", "newrec k core")
@@ -204,7 +218,7 @@ n("INIT_VALID", "OPEN-PROOF", "Actual initial world and environment realization"
   "Construct the actual initial punctured-world/alias/environment witnesses at original scope and show Init/EnvStore/JointWF, including recursive captures where present. Derive this base without assuming completed member membership or defining admission by source-solution existence; returned-only/empty-world fixtures do not suffice.", "init compat k")
 n("MEMBER_DISCHARGE", "OPEN-PROOF", "Actual simultaneous recursive member/environment discharge", "REC_KV FH REC_DESC REC_LOCAL INIT_VALID",
   "Fixed common predicate interpretation, actual valid initial source world, all pointwise member/transition checks and compatible extensions at the original assignment.",
-  "Apply the independently proved finite-elimination law to the all-finite-history invariant and establish every emitted original KV/CompleteMem member and simultaneous environment judgment on the same providers. No separately chosen member worlds or witnesses.", "newrec k core")
+  "Combine independently proved ordinary descriptor introduction (the listed FH/reflection route or a sound actual two-closure rule) with every original KV/CompleteMem conjunct and simultaneous environment judgment on the same providers. Initial validity and compatible local/history witnesses must be actual, not separately chosen member worlds. The direct certificate changes no non-descriptor obligation.", "newrec k core coind2 round2review")
 n("REC_INIT", "OPEN-SEMANTIC", "Recursive source initialization beyond guarded immutable closures", "REC_K",
   "Included recursive source forms and their initializer order/world access, distinct from lexical preallocation.",
   "Specify source evaluation/admissibility of non-constructor-guarded initializers, with concrete read-before-initialization/re-entry obligations and actual provider construction. No allocator freshness or final scheme shape substitutes.", "k charter core")
@@ -216,10 +230,10 @@ n("CALL_TYPE", "OPEN-PROOF", "Independent complete Call constructor typing", "CA
   "Prove the pointwise local Call typing law for every complete output/pending observation, preserving callee-prefix vs receiver-invocation incidence, without assuming a TypedCallCert containing original attachment. Actual operand/world inhabitance and whole-source coverage remain later separate obligations.", "source core newassoc")
 n("SIG_RULES", "OPEN-SEMANTIC", "Exhaustive original signature licensing judgment", "SEED_SOURCE INTRO",
   "Original beta=(formal,root), typed positions, scope/binder/own-upper/inherited-provider arms; current direction fixed.",
-  "Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.", "sig profile lic fview")
+  "Give comparison-independent original owner/contribution/incidence introductions and exhaustive licensing last-rule elimination, including own-upper, provider, annotation, mixed-use, certified transport, conservative-contract and reference origins. The reviewed candidate calculus reduces assembly to explicit K-Leaf/K-Image/K-Owner/K-Incidence and original licensing sequents; their original-domain validity and exhaustivity remain unproved. Slots and I_orig are not new labels or a chosen assembly image.", "sig profile lic fview kernel2 round2review")
 n("ORIGINAL_ASSOC", "OPEN-SEMANTIC", "OriginalAssocType_X inhabited original source-owned fiber", "CALL_TYPE SIG_RULES",
   "Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.",
-  "Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.", "assoc newassoc assocctor assockernel")
+  "Derive one original slot/contribution/incidence before the universal over the complete family: exists a in I_orig(X). forall z in F_C(X). Cover(a,z). The explicit OC-Call-Intro cut requires original contribution-domain closure under the full typed invocation image, static source-owner introduction and joint incidence coherence at the same beta,p0,upper,xi and scope. Complete whole-carrier inlet R_U_all is independent of the selected source diagonal Delay(Name_x). All original license witnesses survive; H_gen, H_typed, IDs and assembly-image replacement supply none of these introductions.", "assoc newassoc assocctor assockernel kernel2 round2review")
 n("ATTACH", "OPEN-PROOF", "Attach_C source constructor correspondence", "ORIGINAL_ASSOC",
   "The inhabited original fiber and exact source constructor/transport derivation, at the same X.",
   "Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.", "assoc newassoc")
@@ -296,16 +310,16 @@ n("REF_WORLD", "OPEN-PROOF", "Reference/import alias plugging and world transiti
   "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.", "compat state")
 n("CTX_FINITE", "OPEN-PROOF", "Finite source guard-context canonicalization", "GUARD_COVER RAW_SOURCE",
   "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
-  "Construct finite J_T and meaning-preserving A_T from source; prove rule/guard closure and terminating dependency updates. The Draft theorem merely assumes them and proves |B||J_T||P|^2.", "contexts newglobal")
+  "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. Remaining: enumerate every actual source child-context operation and identity observer in that syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.", "contexts newglobal projection2 round2review")
 n("PRIMITIVES", "OPEN-SEMANTIC", "Complete independent Guard/Phi/K,D operand semantics", "SIG_RULES MIXED_EFFECT INTRO",
   "All primitive original operand tuples and original binder placements, including projected/grafted endpoint variation.",
   "Give exhaustive comparison-independent primitive relations and any varied-endpoint transport law; retaining an old operand does not prove substituting a different endpoint preserves admission.", "phi residual newglobal")
 n("JOINT_DEC", "OPEN-PROOF", "Effective complete joint solver/residual decision", "PURE_DEC CTX_FINITE PRIMITIVES ALL_WORLD",
   "Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.",
-  "Construct finite effective candidates/quotient with preservation AND reflection for every active primitive, terminating checks and simultaneous witness completeness, or prove an exact effective residual decision route. Pure FMP cannot reflect arbitrary Phi.", "puredec contexts residual newglobal")
+  "Construct finite effective candidates/quotient with preservation AND reflection for every actual active primitive and simultaneous original-witness completeness, or an exact effective residual decision route. The reviewed Record-chain halting extension proves that finite syntax, finite nominal support and decidable individual candidate checks do not supply a computable joint bound from pure FMP. This is not Yulang undecidability; the missing actual primitive reflection/decision law is still required.", "puredec contexts residual newglobal projection2 round2review")
 n("PROJECTION", "OPEN-PROOF", "Effective principal public projection", "JOINT_DEC GENERALIZE EQ_RES",
   "Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.",
-  "Compute a legal exported constrained scheme with exact original-fiber projection and complete ordinary use factorization, rather than printing independent root bounds.", "residual scoped pg")
+  "Compute a legal exported constrained scheme with exact original-fiber projection and ordinary-use factorization. Equality-only eligible atom coordinates now have a reviewed exact orbit-elimination and witness-strategy theorem at the original binders; the bounded shadow evaluator implements only pointwise truth. Remaining: prove every actual eliminated-name observer's exact expansion, preserve non-name/recursive predicates and their original quantifiers, construct the residual/exported scheme and actual ordinary-use evidence. Neither equivariance nor separate root marginals supplies these laws.", "residual scoped pg projection2 orbitimpl round2review")
 n("COMMON_DESC", "OPEN-PROOF", "Legal common descriptor and all-path realization", "PROFILE ALL_WORLD ALLOC_COMMON",
   "One original source solution, every typed Function path and independent compatible carriers/contexts.",
   "Construct one legal descriptor realizing common output allowance while admitting every required original challenge, not merely a pointwise union over incompatible descriptors.", "common source")
@@ -347,10 +361,10 @@ n("FRESH_LIFE", "OPEN-PROOF", "Internal/fresh use and SCC lifecycle corresponden
   "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse.", "rebuild lifecycle")
 n("RESOURCE", "OPEN-SEMANTIC", "Exact practical resource/admission and failure boundary", "JOINT_DEC IFACE_FORM",
   "Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.",
-  "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.", "charter newglobal")
+  "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. The reviewed multiplicity-aware bound for one current constrain_live drain retains fixed closed endpoint inventories containing the initial task, finite bounds, stable memo/inventory, a constructor DAG and diagnostic boundary. It bounds neither source-size expansion, complete generalization/freshening, successor contexts nor total work. Shadow alpha/orbit exhaustion is not a production limit or UNSAT.", "charter newglobal livedrain alphaimpl orbitimpl")
 n("HIR_WIRING", "IMPLEMENTATION-ONLY", "Settled source-to-HIR and complete production pipeline wiring", "RAW_SOURCE PROJECTION FRESH_LIFE RESOURCE",
   "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
-  "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.", "hir solver shadowcore owner retention bindergroups sourceuses")
+  "Implement the complete source coverage and lower/emitter/solver/generalizer/instantiator/publisher correspondence. Reviewed shadow plumbing retains solved Apply operands, nested/grouped topology, annotation/header joins, SCC endpoints/outgoing uses and pending instantiation. The exact local-Bind sidecar now retains captured apply/step identities and one unresolved inner Call through solve and the existing Core projection; ordinary refusal and outer bookkeeping remain. Alpha comparison and equality-orbit evaluation have separate supplied-input implementations. None supplies complete semantic dependencies, Generalize, profiles, contribution formation or ordinary Call inference.", "hir solver shadowcore owner retention bindergroups sourceuses solveduse applycross headerjoin sccendpoints sccoutgoing pendinguse localbind alphaimpl orbitimpl round2review")
 n("ORACLE_COMPAT", "OPEN-PROOF", "Successor capability and observation compatibility", "RAW_SOURCE RESOLVE_FP OBS_INCLUSION",
   "Declared final well-typed source envelope and current Authority; Frozen Oracle is historical evidence only.",
   "Prove required final acceptance/observations and justify each intended delta; use differential fixtures as evidence. Oracle algorithms/projections/IDs do not define successor typing or licensing.", "charter oracle newglobal")
@@ -423,6 +437,10 @@ RETIRED = [
     ("E/R choice or blanket normalized Function effect protection", "DIR_LOCAL SEED_SOURCE", "Superseded by current directional user decision; no question reopened."),
     ("Production members must all have source constructors", "SAT_A OBS_INCLUSION", "Incompatible with approved Option 2; extra licensed members require full containment."),
     ("Finite-context theorem selects finite semantic worlds", "CTX_FINITE JOINT_DEC", "Draft conditional finite state-key theorem supplies no all-world quotient."),
+    ("Repaired finite typed query still awaits compiler/spec review", "PATH_QUERY", "The previous full-attack record already closes both repaired independent reviews; only supplied-input conditions remain."),
+    ("No constructive context/name-projection procedure in any fragment", "CTX_FINITE PROJECTION", "Reviewed finite relational context syntax and equality-only original-binder orbits are constructive; actual source observers and full projection remain open."),
+    ("No current live-drain work bound", "RESOURCE", "The reviewed conditional multiplicity-aware single-drain bound exists; it is not a source-size or complete successor bound."),
+    ("Approved captured local Bind cannot retain its inner pending Call through solve", "HIR_WIRING", "The exact opt-in local-binding sidecar and Core differential now retain it; ordinary HIR refusal and all semantic premises remain."),
 ]
 
 
@@ -530,11 +548,11 @@ def render(doc):
     out += [f"| {row['old']} | {', '.join(row['replaced_by'])} | {row['reason']} |" for row in doc["retired"]]
     out += ["", "## Direct next proof cuts", "",
             "1. On the original Call chain, independently type the full invocation and construct the original source-owned incidence fiber; then invert the actual original licensing rules, assemble the complete profile and construct one complete joint row. No new ID or source position supplies that fiber.",
-            "2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. On recursion, derive the ordinary descriptor finite-elimination law and actual pointwise local checks, construct initial validity, then discharge the whole member conjunction. FH alone supplies none of these meanings or witnesses.",
+            "2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. For the listed recursive FH route derive exact finite-failure reflection, or prove the alternative ordinary two-closure introduction with all independent guards. Unfolding and a postfixed graph alone do not prove absorption. Construct initial validity and every non-descriptor member conjunct separately.",
             "3. Supply semantic eligible Generalize views and origin-relative insertion/terminal laws; use the closed provenance machinery and finite alpha equality only after their actual premises hold.",
             "4. Extend actual typed source incidence and history/world admission beyond SV; the finite Path query computes consequences of supplied evidence and cannot create it.",
             "5. Complete the shared primitive/world/source predicates, source-derived finite context presentation, effective joint solving/projection, legal common descriptor and universal actual-export Direct lifting. Prove both production inclusions, including Option 2 extra observations, before cutover.",
-            "", "The full-attack [review and integration record](../progress/2026-10-07-successor-full-attack-review.md) identifies what was actually proved, repaired, implemented and checked in this continuation. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.", ""]
+            "", "The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md) and current [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md) identify actual proofs, implementations and checks. Round 2 keeps all 89 node statuses and 194 edges unchanged; restricted new results refine existing leaves rather than inflating conditional closure counts. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.", ""]
     return "\n".join(out)
 
 

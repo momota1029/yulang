@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `475036233423ac6e6e3d56c7e710db5ca3f03e54`.
+Audit baseline: `ad514061de2792c374a4b5c224dff7f4772906e8`; read-only dependency revalidation through `3cf6bb70b7514e6a17a3d3adb8fce0f4e7676c38`.
 
 Status: canonical **research navigation**, not an Authoritative semantic design.
 
@@ -225,9 +225,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: None.
 - Premises retained: Finite complete faithfully serialized typed presentation; finite sort/scope/binder preserving renamings with rigid identities fixed.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Factorial bound; not all semantic equivalence or a production algorithm selection.
+- Minimal remaining lemma / exact closed scope: Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Reviewed default-off Rust now implements the supplied-record slice with inverse certificates and explicit node/candidate exhaustion. Complete actual interface generation and semantic equivalence are not certified.
 - Unblocks: [CI_USE](#ci-use).
-- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md); [alphaimpl](../../notes/progress/2026-10-07-shadow-interface-alpha-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### SELECT
 
@@ -313,7 +313,7 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [TRANSPORT](#transport).
 - Premises retained: Caller-supplied finite typed graph and normalized receipt endpoints, canonical nonzero-sized identity tokens, one original context, exact current activation sets.
 - Already closed lemmas reused directly: [TRANSPORT](#transport).
-- Minimal remaining lemma / exact closed scope: Finite reachability and exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented and focused-tested; repaired compiler/spec delta review must be recorded before final promotion. Source facts and grant/release remain assumptions.
+- Minimal remaining lemma / exact closed scope: Finite reachability and the exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented, focused-tested and independently reviewed after the event-token and zero-sized-witness repairs. Source facts, normalized receipt correspondence, canonical identities and activity sets remain supplied premises; grant, release, handler selection and source-wide completeness are outside scope.
 - Unblocks: None.
 - Sources: [shadow](../../crates/yu-core/src/shadow_typed_evidence.rs); [shadowtest](../../crates/yu-core/tests/shadow_typed_evidence.rs); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
 
@@ -368,9 +368,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [SEED_SOURCE](#seed-source), [INTRO](#intro).
 - Premises retained: Original beta=(formal,root), typed positions, scope/binder/own-upper/inherited-provider arms; current direction fixed.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.
+- Minimal remaining lemma / exact closed scope: Give comparison-independent original owner/contribution/incidence introductions and exhaustive licensing last-rule elimination, including own-upper, provider, annotation, mixed-use, certified transport, conservative-contract and reference origins. The reviewed candidate calculus reduces assembly to explicit K-Leaf/K-Image/K-Owner/K-Incidence and original licensing sequents; their original-domain validity and exhaustivity remain unproved. Slots and I_orig are not new labels or a chosen assembly image.
 - Unblocks: [DESC_CLAUSES](#desc-clauses), [ORIGINAL_ASSOC](#original-assoc), [LIC_FORWARD](#lic-forward), [LIC_INVERT](#lic-invert), [MIXED_EFFECT](#mixed-effect), [PRIMITIVES](#primitives), [SAT_A](#sat-a).
-- Sources: [sig](../../notes/progress/2026-10-06-original-signature-constructor-derivation.md); [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md); [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md).
+- Sources: [sig](../../notes/progress/2026-10-06-original-signature-constructor-derivation.md); [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md); [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md); [kernel2](../../notes/progress/2026-10-07-successor-original-kernel-construction-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### STATE-ID
 
@@ -506,14 +506,14 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 
 ### REC-DESC
 
-**Independent recursive descriptor finite-elimination law — OPEN-PROOF**. Production relevance: required-before-cutover.
+**Independent recursive descriptor introduction — OPEN-PROOF**. Production relevance: required-before-cutover.
 
 - Direct prerequisite gates: [REC_K](#rec-k), [FH](#fh), [SEM_JOINT](#sem-joint).
 - Premises retained: Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Establish semantic adequacy of each captured Name lookup at that same scope/assignment as a static/root premise or a complete local check; Gamma identity alone is insufficient. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.
 - Already closed lemmas reused directly: [REC_K](#rec-k), [FH](#fh).
-- Minimal remaining lemma / exact closed scope: Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, lookup adequacy, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.
+- Minimal remaining lemma / exact closed scope: For the listed FH route, prove exact finite-failure reflection at the original scoped (xi,w), including static/zero-step checks, captured lookup, actual returned handles and all independent future admissions. If FH is forall h exists e. L(h,e), failure must yield exists h forall e. not L(h,e); one failing extension is insufficient. Alternatively derive the ordinary two-closure introduction for the actual K certificate, with all inlet/world/static checks and original shared witnesses, without assuming opposite member validity. Unfolding D=F(D) and postfixedness do not prove absorption, even for F(Z)_f=Z_g,F(Z)_g=Z_f. This alternative replaces the descriptor proof method only; neither route supplies M_E, carrier/world or CompleteMem discharge.
 - Unblocks: [MEMBER_DISCHARGE](#member-discharge).
-- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [recdreflection](../../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md); [recbridge](../../notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md); [reclookup](../../notes/progress/2026-10-07-rec-desc-captured-name-lookup-stop.md).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [recdreflection](../../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md); [recbridge](../../notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md); [reclookup](../../notes/progress/2026-10-07-rec-desc-captured-name-lookup-stop.md); [coind2](../../notes/progress/2026-10-07-successor-recursive-coinduction-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### REC-LOCAL
 
@@ -566,9 +566,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [CALL_TYPE](#call-type), [SIG_RULES](#sig-rules).
 - Premises retained: Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.
+- Minimal remaining lemma / exact closed scope: Derive one original slot/contribution/incidence before the universal over the complete family: exists a in I_orig(X). forall z in F_C(X). Cover(a,z). The explicit OC-Call-Intro cut requires original contribution-domain closure under the full typed invocation image, static source-owner introduction and joint incidence coherence at the same beta,p0,upper,xi and scope. Complete whole-carrier inlet R_U_all is independent of the selected source diagonal Delay(Name_x). All original license witnesses survive; H_gen, H_typed, IDs and assembly-image replacement supply none of these introductions.
 - Unblocks: [ATTACH](#attach), [TYPED_SOURCE_INCIDENCE](#typed-source-incidence).
-- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [assocctor](../../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md).
+- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [assocctor](../../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md); [kernel2](../../notes/progress/2026-10-07-successor-original-kernel-construction-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### ATTACH
 
@@ -676,9 +676,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [REC_KV](#rec-kv), [FH](#fh), [REC_DESC](#rec-desc), [REC_LOCAL](#rec-local), [INIT_VALID](#init-valid).
 - Premises retained: Fixed common predicate interpretation, actual valid initial source world, all pointwise member/transition checks and compatible extensions at the original assignment.
 - Already closed lemmas reused directly: [REC_KV](#rec-kv), [FH](#fh).
-- Minimal remaining lemma / exact closed scope: Apply the independently proved finite-elimination law to the all-finite-history invariant and establish every emitted original KV/CompleteMem member and simultaneous environment judgment on the same providers. No separately chosen member worlds or witnesses.
+- Minimal remaining lemma / exact closed scope: Combine independently proved ordinary descriptor introduction (the listed FH/reflection route or a sound actual two-closure rule) with every original KV/CompleteMem conjunct and simultaneous environment judgment on the same providers. Initial validity and compatible local/history witnesses must be actual, not separately chosen member worlds. The direct certificate changes no non-descriptor obligation.
 - Unblocks: [GENERALIZE](#generalize), [ROWS](#rows), [HISTORY](#history), [RAW_SOURCE](#raw-source).
-- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [coind2](../../notes/progress/2026-10-07-successor-recursive-coinduction-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### GENERALIZE
 
@@ -852,9 +852,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [GUARD_COVER](#guard-cover), [RAW_SOURCE](#raw-source).
 - Premises retained: Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Construct finite J_T and meaning-preserving A_T from source; prove rule/guard closure and terminating dependency updates. The Draft theorem merely assumes them and proves |B||J_T||P|^2.
+- Minimal remaining lemma / exact closed scope: The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. Remaining: enumerate every actual source child-context operation and identity observer in that syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.
 - Unblocks: [JOINT_DEC](#joint-dec).
-- Sources: [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+- Sources: [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md); [projection2](../../notes/progress/2026-10-07-successor-effective-projection-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### JOINT-DEC
 
@@ -863,9 +863,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [PURE_DEC](#pure-dec), [CTX_FINITE](#ctx-finite), [PRIMITIVES](#primitives), [ALL_WORLD](#all-world).
 - Premises retained: Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.
 - Already closed lemmas reused directly: [PURE_DEC](#pure-dec).
-- Minimal remaining lemma / exact closed scope: Construct finite effective candidates/quotient with preservation AND reflection for every active primitive, terminating checks and simultaneous witness completeness, or prove an exact effective residual decision route. Pure FMP cannot reflect arbitrary Phi.
+- Minimal remaining lemma / exact closed scope: Construct finite effective candidates/quotient with preservation AND reflection for every actual active primitive and simultaneous original-witness completeness, or an exact effective residual decision route. The reviewed Record-chain halting extension proves that finite syntax, finite nominal support and decidable individual candidate checks do not supply a computable joint bound from pure FMP. This is not Yulang undecidability; the missing actual primitive reflection/decision law is still required.
 - Unblocks: [PROJECTION](#projection), [RESOLVE_FP](#resolve-fp), [RESOURCE](#resource), [SOUND](#sound).
-- Sources: [puredec](../../notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md); [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+- Sources: [puredec](../../notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md); [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md); [projection2](../../notes/progress/2026-10-07-successor-effective-projection-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### PROJECTION
 
@@ -874,9 +874,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [JOINT_DEC](#joint-dec), [GENERALIZE](#generalize), [EQ_RES](#eq-res).
 - Premises retained: Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.
 - Already closed lemmas reused directly: [EQ_RES](#eq-res).
-- Minimal remaining lemma / exact closed scope: Compute a legal exported constrained scheme with exact original-fiber projection and complete ordinary use factorization, rather than printing independent root bounds.
+- Minimal remaining lemma / exact closed scope: Compute a legal exported constrained scheme with exact original-fiber projection and ordinary-use factorization. Equality-only eligible atom coordinates now have a reviewed exact orbit-elimination and witness-strategy theorem at the original binders; the bounded shadow evaluator implements only pointwise truth. Remaining: prove every actual eliminated-name observer's exact expansion, preserve non-name/recursive predicates and their original quantifiers, construct the residual/exported scheme and actual ordinary-use evidence. Neither equivariance nor separate root marginals supplies these laws.
 - Unblocks: [IFACE_FORM](#iface-form), [HIR_WIRING](#hir-wiring), [PRINCIPAL](#principal).
-- Sources: [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [scoped](../../notes/design/2026-10-03-scoped-constraint-solving.md); [pg](../../notes/progress/2026-10-06-source-generalization-eligibility-attack.md).
+- Sources: [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [scoped](../../notes/design/2026-10-03-scoped-constraint-solving.md); [pg](../../notes/progress/2026-10-06-source-generalization-eligibility-attack.md); [projection2](../../notes/progress/2026-10-07-successor-effective-projection-round2.md); [orbitimpl](../../notes/progress/2026-10-07-shadow-atom-orbits-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### RESOLVE-FP
 
@@ -940,9 +940,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [JOINT_DEC](#joint-dec), [IFACE_FORM](#iface-form).
 - Premises retained: Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.
+- Minimal remaining lemma / exact closed scope: Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. The reviewed multiplicity-aware bound for one current constrain_live drain retains fixed closed endpoint inventories containing the initial task, finite bounds, stable memo/inventory, a constructor DAG and diagnostic boundary. It bounds neither source-size expansion, complete generalization/freshening, successor contexts nor total work. Shadow alpha/orbit exhaustion is not a production limit or UNSAT.
 - Unblocks: [HIR_WIRING](#hir-wiring), [CUTOVER](#cutover).
-- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md); [livedrain](../../notes/progress/2026-10-06-bounded-live-closure-work-count.md); [alphaimpl](../../notes/progress/2026-10-07-shadow-interface-alpha-round2.md); [orbitimpl](../../notes/progress/2026-10-07-shadow-atom-orbits-round2.md).
 
 ### PROD-CONFORMANCE
 
@@ -995,9 +995,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [RAW_SOURCE](#raw-source), [PROJECTION](#projection), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource).
 - Premises retained: Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.
+- Minimal remaining lemma / exact closed scope: Implement the complete source coverage and lower/emitter/solver/generalizer/instantiator/publisher correspondence. Reviewed shadow plumbing retains solved Apply operands, nested/grouped topology, annotation/header joins, SCC endpoints/outgoing uses and pending instantiation. The exact local-Bind sidecar now retains captured apply/step identities and one unresolved inner Call through solve and the existing Core projection; ordinary refusal and outer bookkeeping remain. Alpha comparison and equality-orbit evaluation have separate supplied-input implementations. None supplies complete semantic dependencies, Generalize, profiles, contribution formation or ordinary Call inference.
 - Unblocks: [CUTOVER](#cutover).
-- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md); [sourceuses](../../notes/progress/2026-10-07-shadow-retained-source-use-groups.md).
+- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md); [sourceuses](../../notes/progress/2026-10-07-shadow-retained-source-use-groups.md); [solveduse](../../notes/progress/2026-10-07-shadow-solved-application-use-retention.md); [applycross](../../notes/progress/2026-10-08-shadow-apply-endpoint-crosswalk.md); [headerjoin](../../notes/progress/2026-10-07-shadow-annotation-header-membership.md); [sccendpoints](../../notes/progress/2026-10-07-shadow-scc-use-definition-endpoints.md); [sccoutgoing](../../notes/progress/2026-10-07-shadow-scc-outgoing-use-view.md); [pendinguse](../../notes/progress/2026-10-08-shadow-pending-use-instantiation.md); [localbind](../../notes/progress/2026-10-09-shadow-local-binding-source-identity.md); [alphaimpl](../../notes/progress/2026-10-07-shadow-interface-alpha-round2.md); [orbitimpl](../../notes/progress/2026-10-07-shadow-atom-orbits-round2.md); [round2review](../../notes/progress/2026-10-07-successor-round2-review.md).
 
 ### CUTOVER
 
@@ -1066,13 +1066,17 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 | E/R choice or blanket normalized Function effect protection | DIR_LOCAL, SEED_SOURCE | Superseded by current directional user decision; no question reopened. |
 | Production members must all have source constructors | SAT_A, OBS_INCLUSION | Incompatible with approved Option 2; extra licensed members require full containment. |
 | Finite-context theorem selects finite semantic worlds | CTX_FINITE, JOINT_DEC | Draft conditional finite state-key theorem supplies no all-world quotient. |
+| Repaired finite typed query still awaits compiler/spec review | PATH_QUERY | The previous full-attack record already closes both repaired independent reviews; only supplied-input conditions remain. |
+| No constructive context/name-projection procedure in any fragment | CTX_FINITE, PROJECTION | Reviewed finite relational context syntax and equality-only original-binder orbits are constructive; actual source observers and full projection remain open. |
+| No current live-drain work bound | RESOURCE | The reviewed conditional multiplicity-aware single-drain bound exists; it is not a source-size or complete successor bound. |
+| Approved captured local Bind cannot retain its inner pending Call through solve | HIR_WIRING | The exact opt-in local-binding sidecar and Core differential now retain it; ordinary HIR refusal and all semantic premises remain. |
 
 ## Direct next proof cuts
 
 1. On the original Call chain, independently type the full invocation and construct the original source-owned incidence fiber; then invert the actual original licensing rules, assemble the complete profile and construct one complete joint row. No new ID or source position supplies that fiber.
-2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. On recursion, derive the ordinary descriptor finite-elimination law and actual pointwise local checks, construct initial validity, then discharge the whole member conjunction. FH alone supplies none of these meanings or witnesses.
+2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. For the listed recursive FH route derive exact finite-failure reflection, or prove the alternative ordinary two-closure introduction with all independent guards. Unfolding and a postfixed graph alone do not prove absorption. Construct initial validity and every non-descriptor member conjunct separately.
 3. Supply semantic eligible Generalize views and origin-relative insertion/terminal laws; use the closed provenance machinery and finite alpha equality only after their actual premises hold.
 4. Extend actual typed source incidence and history/world admission beyond SV; the finite Path query computes consequences of supplied evidence and cannot create it.
 5. Complete the shared primitive/world/source predicates, source-derived finite context presentation, effective joint solving/projection, legal common descriptor and universal actual-export Direct lifting. Prove both production inclusions, including Option 2 extra observations, before cutover.
 
-The full-attack [review and integration record](../progress/2026-10-07-successor-full-attack-review.md) identifies what was actually proved, repaired, implemented and checked in this continuation. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.
+The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md) and current [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md) identify actual proofs, implementations and checks. Round 2 keeps all 89 node statuses and 194 edges unchanged; restricted new results refine existing leaves rather than inflating conditional closure counts. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.

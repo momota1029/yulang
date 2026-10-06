@@ -498,6 +498,9 @@ membership.
 
 ## 8. Verification, omissions and commit packet
 
+This section preserves the producer's pre-review execution and handoff record.
+Independent review subsequently closed at the exact scope linked in the header.
+
 One deterministic single-process Python probe was run exactly once:
 
 ```text

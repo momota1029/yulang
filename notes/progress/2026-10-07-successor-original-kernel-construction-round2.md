@@ -688,6 +688,9 @@ Probe freeze SHA-256:
 
 ## 8. Commit packet
 
+This is the historical producer handoff, before independent review. The
+current review and integration status is given at the top of this note.
+
 - Exact leased paths: this note and `tools/research_successor_original_kernel_round2.py`.
 - Baseline SHA: `ad514061de2792c374a4b5c224dff7f4772906e8`.
 - Claim/review status: unreviewed conditional local-rule construction and

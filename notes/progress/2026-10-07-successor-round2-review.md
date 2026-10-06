@@ -118,8 +118,8 @@ is separate executable evidence, not an additional semantic reviewer.
 
 ## Frozen submitted fingerprints
 
-Paths are repository relative. Status/link curation after review may change
-the progress headers only; the submitted bodies are identified here.
+Paths are repository relative. Post-review curation changes only progress
+status/link and historical-handoff labels; submitted proof bodies are identified here.
 
 | Artifact | SHA-256 |
 | --- | --- |
@@ -228,3 +228,73 @@ tests** at these checkpoints. Both are independently reviewed implementations
 of their stated mathematical slices. Neither closes PROJECTION, IFACE_FORM,
 JOINT_DEC, Generalize, source adequacy or production inference. Production
 cutover remains explicitly excluded by the current user instruction.
+
+## Complete inventory audit and remote integration
+
+An independent read-only researcher (`remaining_dag_delta_audit_round2`) read
+the entire preserved 2,124-line pre-correction ledger, current task, canonical
+JSON/Markdown DAG and theorem maps, then checked the later reviewed progress
+through the original `ad514061` baseline. Its audit accounts for all 32
+requested families, including less prominent §22/Generalize, State/reference,
+method/role/associated/visible-impl, resource, HIR and final production gates.
+No additional status promotion or prerequisite-edge correction was justified.
+
+Three stale evidence accounts were corrected: PATH_QUERY's repaired independent
+reviews are already complete; the current single `constrain_live` drain has a
+reviewed conditional multiplicity-aware work bound; later HIR/SCC/solve-retained
+identity slices have closed their exact structural plumbing gaps. None of
+these supplies missing source semantics. The canonical DAG keeps 89 nodes,
+194 direct edges and 32 request families, with 6 CLOSED, 17 CONDITIONAL-CLOSED,
+1 IMPLEMENTATION-ONLY, 46 OPEN-PROOF and 19 OPEN-SEMANTIC. No user-decision
+blocker is justified by two complete competing same-source interpretations.
+
+The primary checkpointed the first reviewed packet at `af5521cf` and the
+orbit follow-through at `8943cec8`. During the work, origin advanced from
+`ad514061` to `3cf6bb70` through the two local-binding shadow commits
+`3209e890` and `3cf6bb70`. The primary fetched and merged them at `a67c5a0d`
+without conflicts, preserving both checkpoint history and the remote changes.
+
+The same read-only researcher audited this exact seven-file remote delta.
+It adds the opt-in local `HirLocalId`/parameter/capture/occurrence sidecar and
+one unresolved inner `f x` row through collection, finish and the existing
+Core structural projection. Ordinary refusal and outer-parameter bookkeeping
+remain; there are no local semantic recipes, typed facts or original profile
+judgments. No rule/design/question/theory primitive changed. The new Core
+utilities and their proof operands are disjoint from this additive delta.
+
+The primary additionally verified **281 rule/design/question authority files**
+still match their frozen baseline hashes, all three preserved historical
+ledgers remain byte-identical, and every DAG ID/status/direct prerequisite is
+unchanged. The regenerated DAG passes its exact-data, acyclicity, reference,
+reachability and 32-family checks. The checker explicitly reports
+`semantic_proof_checked=false`; these are navigation checks.
+
+Focused merged verification used the one primary build owner and two Cargo
+jobs, sequentially:
+
+```sh
+timeout 120s cargo test -p yu-solver --features shadow-f5 shadow_local_bind --offline -- --test-threads=1
+timeout 60s cargo check -p yu-core -p yu-hir -p yu-solver --offline
+python3 tools/research_successor_obligation_dag.py --write
+python3 tools/research_successor_obligation_dag.py
+git diff --check
+```
+
+The local-binding filter passed **three tests**: one solver unit test and
+two retained-source integration tests. Build/test completed in 18.80 seconds;
+the two test binaries each reported 0.01 seconds of execution. The combined
+default-feature checks passed in 14.78 seconds with shadow disabled. There
+are **17 distinct focused Rust tests** passed in this continuation, counting
+the 14 new utility tests and these three integration cases; filtered tests
+were not run. A bounded link audit found all 434 checked local Markdown link
+targets and no trailing whitespace. No full workspace suite or live Oracle
+execution was performed.
+
+The task and both theory maps now point to the normalized round-2 cuts and
+accurate review/evidence status. The canonical generator is the only source
+of its JSON/Markdown inventory. Remaining original-domain introduction,
+ordinary recursive typing, actual context/observer completeness, all-view
+Direct, production containment and final cutover obligations stay open at
+their explicitly stated minimum lemmas. Publication uses ordinary descendant
+commits and a non-forced expected-head branch update; final published object
+identity is reported after fetch verification in the user-facing completion.
