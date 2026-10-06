@@ -393,6 +393,7 @@ impl<'a> RawStructuralArena<'a> {
                 occurrence,
                 position: artifact.position(occurrence.position()).ok()?,
                 parameter: None,
+                header_parameter: None,
             });
         }
         for incidence in skeleton.parameter_annotations() {
@@ -400,14 +401,12 @@ impl<'a> RawStructuralArena<'a> {
             artifact.position(binder.position()).ok()?;
             let occurrence = artifact.annotation(incidence.annotation()).ok()?;
             let offset = *annotation_offsets.get(&std::ptr::from_ref(occurrence))?;
-            if annotations
-                .get_mut(offset)?
-                .parameter
-                .replace(incidence)
-                .is_some()
-            {
+            let annotation = annotations.get_mut(offset)?;
+            if annotation.parameter.replace(incidence).is_some() {
                 return None;
             }
+            annotation.header_parameter =
+                header_parameters.get(&std::ptr::from_ref(binder)).copied();
         }
         let mut nodes = skeleton
             .retained_expressions()
@@ -720,6 +719,8 @@ pub struct RawAnnotation<'a> {
     pub occurrence: &'a AnnotationOccurrence,
     pub position: &'a Position,
     pub parameter: Option<&'a ParameterAnnotationIncidence>,
+    /// Exact root header membership of the existing incidence's binder only.
+    pub header_parameter: Option<RawHeaderParameter<'a>>,
 }
 
 #[derive(Debug)]
@@ -773,6 +774,7 @@ impl<'artifact> RawNode<'artifact> {
             application: self.form,
             source_use_input,
             parameter_declaration: call.parameter_declaration.as_ref(),
+            header_parameter: call.header_parameter.as_ref(),
             application_premises: &call.application_premises,
             capture: call.capture,
             captured_input: call.captured_input.as_ref(),
@@ -789,6 +791,7 @@ pub struct PendingSourceCallRegistration<'registration, 'artifact> {
     pub application: &'artifact Form,
     pub source_use_input: &'registration SourceCallUseInput<'artifact>,
     pub parameter_declaration: Option<&'registration RawParameterDeclaration<'artifact>>,
+    pub header_parameter: Option<&'registration RawHeaderParameter<'artifact>>,
     pub application_premises: &'registration [&'artifact PendingPremise],
     pub capture: Option<&'artifact CaptureUseIncidence>,
     pub captured_input: Option<&'registration CapturedCallInput<'artifact>>,
