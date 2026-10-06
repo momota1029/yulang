@@ -118,3 +118,82 @@ fn raw_inventory_attaches_only_the_existing_capture_and_preserves_parse_identity
     let unsupported = artifact("my constant x = \"unsupported\"");
     assert!(RawStructuralArena::from_artifact(&unsupported).is_none());
 }
+
+#[test]
+fn frozen_oracle_nested_apply_provenance_joins_raw_shadow_occurrences() {
+    // Frozen Oracle a58eefc31e22141574b6f20c6a5748151c6d79f1 recorded
+    // these old source spans with a 20-byte implicit prelude. This is a source
+    // provenance join only; the two inference results are not compared.
+    const SOURCE: &str = "my repeated f x = f (f x)";
+    const OLD_PRELUDE_BYTES: usize = 20;
+    let artifact = artifact(SOURCE);
+    let skeleton = artifact.skeleton().unwrap();
+    let arena = RawStructuralArena::from_artifact(&artifact).unwrap();
+
+    let mut current_apps = skeleton
+        .application_source_occurrences()
+        .map(|application| {
+            let whole = skeleton
+                .expression(application.expression())
+                .unwrap()
+                .range()
+                .clone();
+            let callee = skeleton
+                .expression(application.callee())
+                .unwrap()
+                .range()
+                .clone();
+            (whole, callee, application.expression().clone())
+        })
+        .collect::<Vec<_>>();
+    current_apps.sort_by_key(|(whole, _, _)| whole.start);
+    let old_spans = [(38..45, 38..39), (41..44, 41..42)];
+    assert_eq!(current_apps.len(), old_spans.len());
+    for ((whole, callee, _), (old_whole, old_callee)) in current_apps.iter().zip(old_spans) {
+        assert_eq!(
+            whole,
+            &(old_whole.start - OLD_PRELUDE_BYTES..old_whole.end - OLD_PRELUDE_BYTES)
+        );
+        assert_eq!(
+            callee,
+            &(old_callee.start - OLD_PRELUDE_BYTES..old_callee.end - OLD_PRELUDE_BYTES)
+        );
+    }
+
+    // Old poly erases the grouping layer; current HIR keeps it around the
+    // inner call. The retained spans still distinguish both source Apps.
+    let Form::Apply { argument, .. } = skeleton.expression(&current_apps[0].2).unwrap().form()
+    else {
+        panic!("outer source application")
+    };
+    assert!(matches!(
+        skeleton.expression(argument).unwrap().form(),
+        Form::Group { inner }
+            if matches!(skeleton.expression(inner).unwrap().form(), Form::Apply { .. })
+    ));
+
+    let mut direct_uses = arena
+        .nodes()
+        .iter()
+        .filter_map(|node| {
+            let call = node.call.as_ref()?;
+            let direct = call.direct_use.as_ref()?;
+            let Form::Apply { .. } = node.form else {
+                return None;
+            };
+            Some((
+                node.source.clone(),
+                direct.binder().clone(),
+                direct.occurrence().clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(direct_uses.len(), 2);
+    direct_uses.sort_by_key(|(source, _, _)| skeleton.expression(source).unwrap().range().start);
+    assert_eq!(direct_uses[0].1, direct_uses[1].1);
+    assert_ne!(direct_uses[0].2, direct_uses[1].2);
+    assert_eq!(skeleton.binder(&direct_uses[0].1).unwrap().name(), "f");
+    for ((call, _, _), (_, _, current_call)) in direct_uses.iter().zip(current_apps.iter()) {
+        assert_eq!(call, current_call);
+    }
+}
