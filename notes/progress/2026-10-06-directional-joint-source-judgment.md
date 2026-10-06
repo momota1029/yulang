@@ -427,11 +427,11 @@ annotation-boundary rules remain unchanged. There is no per-port witness
 selection, latent-result traversal, Q-created admission, new source acceptance
 boundary or production implementation.
 
-Recommended next proof gate: independently review S1's exact source-instance
-scope and S2's retention distinction, then construct the source-specific
-refinement bridge on the full relation and the recursive/generalized supplier
-certificate. Treat late-seed applicability as a separate missing clause;
-do not ask E/R or insert replay by analogy.
+With S1's exact source-instance scope and S2's retention distinction now
+independently reviewed, the next proof gate is the source-specific refinement
+bridge on the full relation and the recursive/generalized supplier certificate.
+Treat late-seed applicability as a separate missing clause; do not ask E/R
+or insert replay by analogy.
 
 ## 9. Checks, omissions and commit packet
 
