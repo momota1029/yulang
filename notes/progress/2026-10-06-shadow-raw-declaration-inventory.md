@@ -55,5 +55,6 @@ principality and production cutover remain open.
 
 `tasks/current.md` synchronization is deferred because that shared path has an
 unresolved staged reverse diff from its committed version. The primary did not
-overwrite or stage that concurrent state. No Git index or branch mutation was
-performed for this slice.
+overwrite or include that state. The primary committed only this slice's two
+implementation/test files and this note in `4108a8fdb`; no branch rewrite or
+push was performed.
