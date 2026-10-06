@@ -385,6 +385,15 @@ impl<'a> RawStructuralArena<'a> {
         &self.annotations
     }
 
+    /// Groups only retained direct-use registrations by exact source binder.
+    /// Missing registrations establish neither semantic absence nor completeness.
+    pub fn pending_binder_use_groups(&self) -> PendingBinderUseGroups<'_, 'a> {
+        PendingBinderUseGroups {
+            skeleton: self.skeleton,
+            nodes: &self.nodes,
+        }
+    }
+
     /// Borrows candidate bookkeeping positions for one exact retained Apply.
     /// Foreign identities and retained expressions of other forms are rejected.
     /// This performs no typing, inference, semantic association or admission.
@@ -574,6 +583,31 @@ pub struct PendingSourceCallRegistration<'registration, 'artifact> {
     pub application_premises: &'registration [&'artifact PendingPremise],
     pub capture: Option<&'artifact CaptureUseIncidence>,
     pub captured_input: Option<&'registration CapturedCallInput<'artifact>>,
+}
+
+/// Lazy borrowed grouping of existing registrations, with no semantic interface,
+/// slot inventory or applicability judgment. Querying a binder scans the retained
+/// nodes once; yielded registrations preserve the arena's retained-node order.
+#[derive(Debug)]
+pub struct PendingBinderUseGroups<'registration, 'artifact> {
+    skeleton: &'artifact Skeleton,
+    nodes: &'registration [RawNode<'artifact>],
+}
+
+impl<'artifact> PendingBinderUseGroups<'_, 'artifact> {
+    /// Foreign or invalid identities are rejected. An empty valid group means
+    /// only that no existing direct-use registration is attached to this binder.
+    pub fn registrations_for_binder<'query>(
+        &'query self,
+        binder: &'query BinderId,
+    ) -> Option<impl Iterator<Item = PendingSourceCallRegistration<'query, 'artifact>> + 'query>
+    {
+        self.skeleton.binder(binder).ok()?;
+        Some(self.nodes.iter().filter_map(move |node| {
+            let registration = node.pending_source_call_registration()?;
+            (registration.source_use_input.binder() == binder).then_some(registration)
+        }))
+    }
 }
 
 impl PendingSourceCallRegistration<'_, '_> {
