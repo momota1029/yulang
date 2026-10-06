@@ -1,7 +1,7 @@
 # Formal-profile formation: source rule shape and exact conditional cut
 
 Date: 2026-10-06
-Status: Frozen conditional research attempt; unreviewed; no semantic or implementation authority
+Status: Compiler-referee and spec-auditor reviewed conditional research; no findings within scope; no semantic or implementation authority
 Baseline: `f19fb4f473344e8f4478ae145d0915e04d250b09`
 Lease: this file only
 Method: manual constructive factorization and finite proof-tree inversion; no executable model
@@ -249,6 +249,14 @@ admission, principality, effective finite solver construction, production
 Option A/2 alternatives and conformance. No `FVIEW -> SRC` edge is promoted.
 No attempt to enlarge a toy probe addresses these missing source leaves.
 
+Independent review found no findings within this conditional artifact scope.
+The compiler-referee specifically requires hypothesis 1 to be genuine source-
+introduction soundness, not merely descriptor well-typedness; hypothesis 2
+(`I-exhaust`) remains unproved. The spec auditor confirmed that no exhaustive
+rule, annotation prerequisite, Q-derived position, role rewrite or production
+authority was introduced. Neither review certifies source completeness or the
+full inference replacement.
+
 Recommended next action: supply a proposed **local original first-introduction
 table** for the implicit formal binder and Call-result cases, with independent
 source justification, then review its negative inversion on this exact tree.
@@ -285,7 +293,7 @@ jobs or generated side outputs. CPU/RAM/elapsed time were not instrumented.
 - Exact leased paths: `notes/progress/2026-10-06-formal-profile-formation-rule-attempt.md`.
 - Baseline SHA: `f19fb4f473344e8f4478ae145d0915e04d250b09`.
 - Changed dependency hashes: none; snapshot above must be revalidated by the primary before integration.
-- Claim/review status: frozen unreviewed conditional derivation; no original-profile completeness, gate closure or implementation authority.
+- Claim/review status: compiler-referee and spec-auditor reviewed conditional derivation, no findings within scope; original-profile completeness, gate closure and implementation authority remain absent.
 - Checks already run: narrow reads, baseline equality/hash checks, leased-note whitespace/link checks and final dependency recheck; no tests/builds/Oracle/search.
 - Proposed checkpoint message: `research: factor formal-profile formation into explicit introduction obligations`.
 - Shared-record deltas left to primary/curator: link this conditional attempt if useful; record the local `I-formal/I-call-rest/I-exhaust` cut without promoting P, admission, principality, source adequacy or production conformance.
