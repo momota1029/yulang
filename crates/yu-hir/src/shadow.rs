@@ -416,6 +416,7 @@ impl ShadowArtifact {
                         | SyntaxKind::CallTail
                         | SyntaxKind::PatternTypeAnnotation
                         | SyntaxKind::BindingStatement
+                        | SyntaxKind::BindingHeader
                         | SyntaxKind::BracedStatementBlockExpression
                 )
             {
@@ -558,8 +559,36 @@ impl ParameterAnnotationIncidence {
     }
 }
 
+/// Ordered root header syntax only; no callable stages or parameter roles.
+#[derive(Debug)]
+pub struct RootDeclarationHeader {
+    statement: PositionId,
+    header: PositionId,
+    name: PositionId,
+    parameters: Vec<BinderId>,
+    body: ExprId,
+}
+impl RootDeclarationHeader {
+    pub fn statement(&self) -> &PositionId {
+        &self.statement
+    }
+    pub fn header(&self) -> &PositionId {
+        &self.header
+    }
+    pub fn name(&self) -> &PositionId {
+        &self.name
+    }
+    pub fn parameters(&self) -> &[BinderId] {
+        &self.parameters
+    }
+    pub fn body(&self) -> &ExprId {
+        &self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct Skeleton {
+    root_header: Option<RootDeclarationHeader>,
     identity: Arc<()>,
     pub(crate) binders: Vec<Binder>,
     pub(crate) expressions: Vec<Expression>,
@@ -998,6 +1027,7 @@ fn build_skeleton(
     let body = only_child(statement, SyntaxKind::BindingBody)?;
     let chain = only_child(&body, SyntaxKind::OperatorChain)?;
     let mut artifact = Skeleton {
+        root_header: None,
         body: ExprId(LocalId {
             artifact: identity.clone(),
             index: 0,
@@ -1097,6 +1127,15 @@ fn build_skeleton(
             })
         })
         .collect::<Vec<_>>();
+    artifact.root_header = Some(RootDeclarationHeader {
+        statement: retained_position(positions, statement)?,
+        header: retained_position(positions, &header)?,
+        name: retained_position(positions, name)?,
+        parameters: (0..parameters.len())
+            .map(|index| BinderId(artifact.id(index)))
+            .collect(),
+        body: artifact.body.clone(),
+    });
     artifact.pending.extend(source_use_stubs);
     artifact.validate()?;
     artifact.validate_positions(raw_positions)?;
@@ -1175,6 +1214,10 @@ fn identifier(node: &SyntaxNode, source: &str) -> Result<(String, Range<usize>),
 }
 
 impl Skeleton {
+    pub fn root_declaration_header(&self) -> Option<&RootDeclarationHeader> {
+        self.root_header.as_ref()
+    }
+
     fn id(&self, index: usize) -> LocalId {
         LocalId {
             artifact: self.identity.clone(),

@@ -4,8 +4,8 @@
 use yu_hir::shadow::{
     AnnotationOccurrence, BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence,
     ExprId, Expression, Form, ParameterAnnotationIncidence, PendingPremise, Position,
-    ResolvedCallIncidence, ShadowArtifact, Skeleton, SourceCallUseInput, SourceViewPremiseLocator,
-    UnresolvedSourceViewPremise, UseId,
+    ResolvedCallIncidence, RootDeclarationHeader, ShadowArtifact, Skeleton, SourceCallUseInput,
+    SourceViewPremiseLocator, UnresolvedSourceViewPremise, UseId,
 };
 
 /// Flat, immutable arena. Child offsets are local storage addresses, not lexical IDs.
@@ -180,7 +180,26 @@ pub struct PendingStructuralProjection<'view, 'artifact> {
 }
 
 impl<'view, 'artifact> PendingStructuralProjection<'view, 'artifact> {
+    /// Opt-in flat projection retaining an exact root syntactic header.
+    /// This creates no Lambda, currying, callable stage or typed formal.
+    pub fn from_raw_with_header(raw: &'view RawStructuralArena<'artifact>) -> Option<Self> {
+        let header = raw.root_header?;
+        raw.skeleton.expression(header.body()).ok()?;
+        for parameter in header.parameters() {
+            raw.skeleton.binder(parameter).ok()?;
+        }
+        Self::project(raw, true)
+    }
+
+    pub fn root_declaration_header(&self) -> Option<&'artifact RootDeclarationHeader> {
+        self.raw.root_header
+    }
+
     pub fn from_raw(raw: &'view RawStructuralArena<'artifact>) -> Option<Self> {
+        Self::project(raw, false)
+    }
+
+    fn project(raw: &'view RawStructuralArena<'artifact>, with_header: bool) -> Option<Self> {
         let offset = |id: &ExprId| {
             let offset = raw.skeleton.expression_offset(id).ok()?;
             (raw.nodes.get(offset)?.source == *id).then_some(offset)
@@ -242,7 +261,7 @@ impl<'view, 'artifact> PendingStructuralProjection<'view, 'artifact> {
                 form,
             });
         }
-        if declarations.is_empty() {
+        if declarations.is_empty() && !with_header {
             return None;
         }
         Some(Self {
@@ -316,6 +335,7 @@ pub enum PendingStructuralForm<'view, 'artifact> {
 
 /// Raw retained structure only; no value/computation or typing judgment is made.
 pub struct RawStructuralArena<'a> {
+    root_header: Option<&'a RootDeclarationHeader>,
     skeleton: &'a Skeleton,
     body: &'a ExprId,
     nodes: Vec<RawNode<'a>>,
@@ -337,6 +357,26 @@ impl<'a> RawStructuralArena<'a> {
     pub fn from_artifact(artifact: &'a ShadowArtifact) -> Option<Self> {
         let skeleton = artifact.skeleton().ok()?;
         skeleton.expression(skeleton.body()).ok()?;
+        let root_header = skeleton.root_declaration_header();
+        let mut header_parameters = std::collections::HashMap::new();
+        if let Some(header) = root_header {
+            artifact.position(header.statement()).ok()?;
+            artifact.position(header.header()).ok()?;
+            artifact.position(header.name()).ok()?;
+            skeleton.expression(header.body()).ok()?;
+            for parameter in header.parameters() {
+                let binder = skeleton.binder(parameter).ok()?;
+                if header_parameters
+                    .insert(
+                        std::ptr::from_ref(binder),
+                        RawHeaderParameter { header, parameter },
+                    )
+                    .is_some()
+                {
+                    return None;
+                }
+            }
+        }
         let crosswalk = artifact.skeleton_source_crosswalk();
         let mut annotation_offsets = std::collections::HashMap::new();
         let mut annotations = Vec::with_capacity(artifact.annotations().len());
@@ -379,6 +419,7 @@ impl<'a> RawStructuralArena<'a> {
                     direct_use: None,
                     source_use_input: None,
                     parameter_declaration: None,
+                    header_parameter: None,
                     capture: None,
                     captured_input: None,
                 }),
@@ -481,6 +522,7 @@ impl<'a> RawStructuralArena<'a> {
                 return None;
             }
             raw_call.parameter_declaration = parameter_declaration;
+            raw_call.header_parameter = header_parameters.get(&std::ptr::from_ref(binder)).copied();
         }
         for capture in skeleton.capture_uses() {
             let call = skeleton.capture_call(capture).ok()?;
@@ -514,6 +556,7 @@ impl<'a> RawStructuralArena<'a> {
             raw_call.captured_input = Some(input);
         }
         Some(Self {
+            root_header,
             skeleton,
             body: skeleton.body(),
             nodes,
@@ -696,8 +739,17 @@ pub struct RawCall<'a> {
     pub source_use_input: Option<SourceCallUseInput<'a>>,
     /// Exact source Lambda declaration only; no semantic formal or annotation claim.
     pub parameter_declaration: Option<RawParameterDeclaration<'a>>,
+    /// Exact syntactic membership only, distinct from a retained Lambda owner.
+    pub header_parameter: Option<RawHeaderParameter<'a>>,
     pub capture: Option<&'a CaptureUseIncidence>,
     captured_input: Option<CapturedCallInput<'a>>,
+}
+
+/// Existing root header parameter membership, without callable interpretation.
+#[derive(Clone, Copy, Debug)]
+pub struct RawHeaderParameter<'a> {
+    pub header: &'a RootDeclarationHeader,
+    pub parameter: &'a BinderId,
 }
 
 /// Borrowed declaration ownership for an exact resolved BinderId. This supplies

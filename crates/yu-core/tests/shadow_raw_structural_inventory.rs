@@ -719,3 +719,29 @@ fn pending_source_registration_preserves_exact_references_and_scoped_locator() {
         }
     }
 }
+
+#[test]
+fn header_membership_is_distinct_from_lambda_declaration_and_foreign_identity() {
+    let first = artifact("my apply f x = f x");
+    let foreign = artifact("my apply f x = f x");
+    let raw = RawStructuralArena::from_artifact(&first).unwrap();
+    let call = raw
+        .nodes()
+        .iter()
+        .find_map(|node| node.call.as_ref())
+        .unwrap();
+    let member = call.header_parameter.as_ref().unwrap();
+    assert!(call.parameter_declaration.is_none());
+    assert_eq!(member.parameter, &member.header.parameters()[0]);
+    let foreign_skeleton = foreign.skeleton().unwrap();
+    let foreign_parameter = &foreign_skeleton
+        .root_declaration_header()
+        .unwrap()
+        .parameters()[0];
+    assert!(
+        raw.pending_binder_use_groups()
+            .registrations_for_binder(foreign_parameter)
+            .is_none()
+    );
+    assert!(RawStructuralArena::from_artifact(&artifact("my absent = 1")).is_none());
+}

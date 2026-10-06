@@ -1190,3 +1190,47 @@ fn shadow_source_core_crosswalk_retains_nested_candidates_without_module_members
         assert!(empty.definition_at_position(&position).unwrap().is_none());
     }
 }
+
+#[test]
+fn ordered_root_header_retains_exact_syntax_and_existing_binders() {
+    let artifact = ShadowArtifact::from_parsed(parsed("my apply f x = f x")).unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    let header = skeleton.root_declaration_header().unwrap();
+    assert_eq!(
+        artifact.position(header.statement()).unwrap().kind(),
+        SyntaxKind::BindingStatement
+    );
+    assert_eq!(
+        artifact.position(header.header()).unwrap().kind(),
+        SyntaxKind::BindingHeader
+    );
+    assert_eq!(
+        artifact.position(header.name()).unwrap().kind(),
+        SyntaxKind::IdentifierPattern
+    );
+    assert_eq!(header.body(), skeleton.body());
+    assert_eq!(header.parameters().len(), 2);
+    assert_eq!(
+        skeleton.binder(&header.parameters()[0]).unwrap().name(),
+        "f"
+    );
+    assert_eq!(
+        skeleton.binder(&header.parameters()[1]).unwrap().name(),
+        "x"
+    );
+    assert!(
+        !skeleton
+            .expressions()
+            .iter()
+            .any(|expression| matches!(expression.form(), Form::Lambda { .. }))
+    );
+    let foreign = ShadowArtifact::from_parsed(parsed("my apply f x = f x")).unwrap();
+    assert!(foreign.position(header.header()).is_err());
+    assert!(
+        foreign
+            .skeleton()
+            .unwrap()
+            .binder(&header.parameters()[0])
+            .is_err()
+    );
+}

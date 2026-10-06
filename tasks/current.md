@@ -232,11 +232,18 @@ The [pending structural source-core projection](../notes/progress/2026-10-07-sha
 extends the default-off lane over retained unary Lambda/Bind/Use/Group/Integer/
 Apply forms using flat same-arena offsets. It preserves declaration entries,
 annotation metadata and call-local premise joins; Use normalization remains
-pending on `Gamma`, and unsupported forms or absent declarations reject. The
-exact-candidate constructor stays unchanged. Compiler-referee and regression
-reviews passed after coverage repairs. Seven focused tests and all 35 tests in
-the ten-target merged `yu-core` shadow suite pass. No typed derivation, semantic
-acceptance, inference result or production route is claimed.
+pending on `Gamma`; its existing `from_raw` entrypoint still rejects sources
+without a retained unary Lambda. The additive header-aware projection now
+retains ordered root statement/header/name positions, existing parameter
+identities and body identity for the approved two-parameter shape, including
+exact direct-Use membership without creating Lambda or currying stages.
+Annotations remain uninterpreted; application premises and capture joins stay
+borrowed. Compiler-referee and regression reviews passed; the regression
+review's header-membership coverage gap was repaired with unary/captured and
+grouped/computed controls. Focused verification: 15 `yu-hir` tests, 10
+`shadow_derivation` tests, 10 raw-inventory tests, and default-feature-off
+`cargo check -p yu-core` pass. No typed derivation, semantic acceptance,
+inference result or production route is claimed.
 
 The new [finite typed evidence query](../notes/progress/2026-10-07-successor-typed-evidence-query.md)
 computes supplied `Path`/`Inc_C` by typed reachability and exact current

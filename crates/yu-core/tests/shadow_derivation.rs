@@ -373,3 +373,219 @@ fn bounded_flat_application_chain_projects_without_recursive_traversal() {
     );
     assert_eq!(projection.nodes().len(), raw.nodes().len());
 }
+
+#[test]
+fn ordered_header_projection_preserves_parameters_calls_and_annotations() {
+    for source in [
+        "my apply f x = f x",
+        "my apply f x = f (f x)",
+        "my apply (f: T) (x: U) = f x",
+    ] {
+        let artifact = artifact(source);
+        let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+        assert!(PendingStructuralProjection::from_raw(&raw).is_none());
+        let projection = PendingStructuralProjection::from_raw_with_header(&raw).unwrap();
+        let header = projection.root_declaration_header().unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        assert_eq!(header.parameters().len(), 2);
+        assert_eq!(
+            skeleton.binder(&header.parameters()[0]).unwrap().name(),
+            "f"
+        );
+        assert_eq!(
+            skeleton.binder(&header.parameters()[1]).unwrap().name(),
+            "x"
+        );
+        assert_eq!(header.body(), skeleton.body());
+        assert!(projection.declarations().is_empty());
+        let calls = raw
+            .nodes()
+            .iter()
+            .filter_map(|node| node.call.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), if source.contains("(f x)") { 2 } else { 1 });
+        for call in &calls {
+            let membership = call.header_parameter.as_ref().unwrap();
+            assert!(std::ptr::eq(membership.header, header));
+            assert_eq!(membership.parameter, &header.parameters()[0]);
+            assert!(call.parameter_declaration.is_none());
+            assert!(!call.application_premises.is_empty());
+        }
+        if calls.len() == 2 {
+            let first = calls[0].source_use_input.as_ref().unwrap();
+            let second = calls[1].source_use_input.as_ref().unwrap();
+            assert_ne!(
+                first.application().expression(),
+                second.application().expression()
+            );
+            assert_ne!(first.occurrence(), second.occurrence());
+            assert_eq!(first.binder(), second.binder());
+        }
+        if source.contains(": T") {
+            assert_eq!(projection.annotations().len(), 2);
+            for (annotation, parameter) in projection.annotations().iter().zip(header.parameters())
+            {
+                assert_eq!(annotation.parameter.unwrap().parameter(), parameter);
+            }
+        } else {
+            assert!(projection.annotations().is_empty());
+        }
+    }
+}
+
+#[test]
+fn header_aware_unary_and_captured_calls_preserve_distinct_membership_and_owner() {
+    for source in ["my call f = f 1", SOURCE] {
+        let artifact = artifact(source);
+        let skeleton = artifact.skeleton().unwrap();
+        let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let projection = PendingStructuralProjection::from_raw_with_header(&raw).unwrap();
+        let header = projection.root_declaration_header().unwrap();
+        assert_eq!(header.parameters().len(), 1);
+        let calls = raw
+            .nodes()
+            .iter()
+            .filter(|node| node.call.is_some())
+            .collect::<Vec<_>>();
+        let [node] = calls.as_slice() else {
+            panic!("one retained call")
+        };
+        let call = node.call.as_ref().unwrap();
+        let membership = call.header_parameter.as_ref().unwrap();
+        assert!(std::ptr::eq(membership.header, header));
+        assert!(std::ptr::eq(membership.parameter, &header.parameters()[0]));
+        let owner = call.parameter_declaration.as_ref().unwrap();
+        let Form::Lambda { parameter, .. } = owner.lambda.form() else {
+            panic!("retained Lambda owner")
+        };
+        assert!(std::ptr::eq(owner.parameter, parameter));
+        assert_eq!(owner.parameter, membership.parameter);
+        let crosswalk = artifact.skeleton_source_crosswalk();
+        let (retained_owner, retained_parameter) = crosswalk
+            .parameter_at_position(skeleton.binder(membership.parameter).unwrap().position())
+            .unwrap()
+            .unwrap();
+        assert!(std::ptr::eq(owner.lambda, retained_owner));
+        assert!(std::ptr::eq(owner.parameter, retained_parameter));
+        let input = call.source_use_input.as_ref().unwrap();
+        let direct = call.direct_use.as_ref().unwrap();
+        assert_eq!(input.application().expression(), &node.source);
+        assert_eq!(direct.application().expression(), &node.source);
+        assert_eq!(input.binder(), membership.parameter);
+        assert_eq!(direct.binder(), input.binder());
+        assert_eq!(direct.occurrence(), input.occurrence());
+        let Form::Apply {
+            callee, argument, ..
+        } = node.form
+        else {
+            panic!("retained Apply")
+        };
+        assert_eq!(input.application().callee(), callee);
+        assert_eq!(input.argument(), argument);
+        let Form::Use { binder, occurrence } = skeleton.expression(callee).unwrap().form() else {
+            panic!("direct retained Use")
+        };
+        assert_eq!(input.binder(), binder);
+        assert_eq!(input.occurrence(), occurrence);
+        assert!(std::ptr::eq(
+            artifact.position(input.application().position()).unwrap(),
+            artifact
+                .position(skeleton.expression(&node.source).unwrap().position())
+                .unwrap()
+        ));
+        let expected_rows = skeleton
+            .pending()
+            .iter()
+            .filter(|row| row.call() == &node.source)
+            .collect::<Vec<_>>();
+        assert_eq!(call.application_premises.len(), 7);
+        assert_eq!(call.application_premises.len(), expected_rows.len());
+        for (actual, expected) in call.application_premises.iter().zip(expected_rows) {
+            assert!(std::ptr::eq(*actual, expected));
+        }
+        if source == SOURCE {
+            let captured = skeleton.captured_call_input().unwrap();
+            let capture = call.capture.unwrap();
+            assert_eq!(captured.call(), &node.source);
+            assert_eq!(captured.outer_parameter(), membership.parameter);
+            assert_eq!(capture.lambda(), captured.local_lambda());
+            assert_eq!(capture.captured(), membership.parameter);
+            assert_eq!(capture.occurrence(), input.occurrence());
+            assert_eq!(capture.position(), captured.capture_position());
+            assert!(
+                skeleton
+                    .capture_uses()
+                    .iter()
+                    .any(|retained| std::ptr::eq(capture, retained))
+            );
+            let registration = node.pending_source_call_registration().unwrap();
+            assert_eq!(
+                registration.captured_input.unwrap().callee_use(),
+                input.occurrence()
+            );
+            assert_eq!(
+                registration
+                    .source_view_premise_locator()
+                    .unwrap()
+                    .unresolved_premises()
+                    .len(),
+                7
+            );
+        } else {
+            assert!(call.capture.is_none());
+        }
+    }
+}
+
+#[test]
+fn header_aware_grouped_and_computed_callees_do_not_invent_membership() {
+    for (source, expected_calls) in [("my grouped f = (f) 1", 1), ("my computed f = (f 1) 2", 2)] {
+        let artifact = artifact(source);
+        let skeleton = artifact.skeleton().unwrap();
+        let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let projection = PendingStructuralProjection::from_raw_with_header(&raw).unwrap();
+        let header = projection.root_declaration_header().unwrap();
+        let calls = raw
+            .nodes()
+            .iter()
+            .filter(|node| node.call.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), expected_calls);
+        let outer = calls
+            .iter()
+            .find(|node| &node.source == header.body())
+            .unwrap();
+        let call = outer.call.as_ref().unwrap();
+        assert!(call.header_parameter.is_none());
+        assert!(call.direct_use.is_none());
+        assert!(call.source_use_input.is_none());
+        assert!(call.parameter_declaration.is_none());
+        assert!(call.capture.is_none());
+        assert!(outer.pending_source_call_registration().is_none());
+        for node in calls {
+            let call = node.call.as_ref().unwrap();
+            let expected_rows = skeleton
+                .pending()
+                .iter()
+                .filter(|row| row.call() == &node.source)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                call.application_premises.len(),
+                if call.direct_use.is_some() { 7 } else { 5 }
+            );
+            assert_eq!(call.application_premises.len(), expected_rows.len());
+            for (actual, expected) in call.application_premises.iter().zip(expected_rows) {
+                assert!(std::ptr::eq(*actual, expected));
+            }
+            if &node.source != header.body() {
+                let input = call.source_use_input.as_ref().unwrap();
+                let membership = call.header_parameter.as_ref().unwrap();
+                assert!(std::ptr::eq(membership.header, header));
+                assert_eq!(membership.parameter, &header.parameters()[0]);
+                assert_eq!(input.application().expression(), &node.source);
+                assert_eq!(input.binder(), membership.parameter);
+                assert!(call.parameter_declaration.is_some());
+            }
+        }
+    }
+}
