@@ -427,6 +427,13 @@ pub enum Premise {
     /// is a separate obligation. Pending `Q`/comparison success cannot discharge
     /// this premise; recording it supplies no fact or semantic acceptance.
     QIndependentSourceCallViewFormation,
+    /// Named source-producer stub only: both rule applicability and interpretation
+    /// remain pending. A direct resolved use need not denote a formal. Formal status,
+    /// the relevant component, annotation status and ordinary-Value typing are
+    /// unresolved, as is interpretation of the whole original xi = (nu, K, D).
+    /// Actual role/entry, typed paths, profiles, receipts and independent admission
+    /// remain unresolved. No semantic judgment or Q success discharges this stub.
+    SourceFormalUseRuleApplicabilityAndInterpretation,
 }
 
 #[derive(Debug)]
@@ -629,6 +636,14 @@ fn build_skeleton(
         );
         artifact.validate_nested_scope(&root)?;
     }
+    let formal_use_stubs = artifact
+        .resolved_call_incidences()
+        .map(|incidence| PendingPremise {
+            call: incidence.application().expression().clone(),
+            premise: Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+        })
+        .collect::<Vec<_>>();
+    artifact.pending.extend(formal_use_stubs);
     artifact.validate()?;
     artifact.validate_positions(raw_positions)?;
     Ok(artifact)
@@ -1608,12 +1623,13 @@ mod tests {
             );
         }
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 4);
+        assert_eq!(skeleton.pending().len(), 5);
         for (pending, expected) in skeleton.pending().iter().zip([
             Premise::CallableRole,
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
+            Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
         ]) {
             assert_eq!(pending.call(), call);
             assert_eq!(pending.premise(), expected);
@@ -1668,7 +1684,7 @@ mod tests {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 7);
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 4);
+        assert_eq!(skeleton.pending().len(), 5);
         assert_eq!(
             skeleton
                 .binders()
@@ -1907,7 +1923,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(&source)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 17);
-        assert_eq!(skeleton.pending().len(), 32);
+        assert_eq!(skeleton.pending().len(), 33);
         assert_eq!(skeleton.uses().len(), 9);
         drop(artifact);
     }
@@ -1970,7 +1986,7 @@ mod tests {
             skeleton.expression(argument).unwrap().form(),
             Form::Use { .. }
         ));
-        assert_eq!(skeleton.pending().len(), 4);
+        assert_eq!(skeleton.pending().len(), 5);
     }
 
     #[test]

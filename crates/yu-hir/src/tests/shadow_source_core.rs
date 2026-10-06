@@ -335,25 +335,32 @@ fn shadow_source_core_unary_application_retains_declaration_and_pending_calls() 
         if let Form::IntegerLiteral { spelling } = skeleton.expression(argument).unwrap().form() {
             assert_eq!(spelling, "42");
         }
-        assert_eq!(skeleton.pending().len(), 4);
+        assert_eq!(
+            skeleton.pending().len(),
+            4 + skeleton.resolved_call_incidences().count()
+        );
         assert!(
             skeleton
                 .pending()
                 .iter()
                 .all(|pending| &pending.call == body)
         );
+        let mut expected = vec![
+            Premise::CallableRole,
+            Premise::FullFunctionMembership,
+            Premise::CallViewRealization,
+            Premise::QIndependentSourceCallViewFormation,
+        ];
+        if callee_kind == SyntaxKind::IdentifierExpression {
+            expected.push(Premise::SourceFormalUseRuleApplicabilityAndInterpretation);
+        }
         assert_eq!(
             skeleton
                 .pending()
                 .iter()
                 .map(|pending| pending.premise)
                 .collect::<Vec<_>>(),
-            vec![
-                Premise::CallableRole,
-                Premise::FullFunctionMembership,
-                Premise::CallViewRealization,
-                Premise::QIndependentSourceCallViewFormation
-            ]
+            expected
         );
     }
 }
@@ -409,7 +416,7 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
     }
     // FVIEW §§2,5 require unresolved shared-component source formation; counting
     // its per-call reference records that obligation without semantic acceptance.
-    assert_eq!(artifact.pending.len(), 8);
+    assert_eq!(artifact.pending.len(), 10);
     for call in [&artifact.body, inner] {
         let premises = artifact
             .pending
@@ -423,7 +430,8 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
                 Premise::CallableRole,
                 Premise::FullFunctionMembership,
                 Premise::CallViewRealization,
-                Premise::QIndependentSourceCallViewFormation
+                Premise::QIndependentSourceCallViewFormation,
+                Premise::SourceFormalUseRuleApplicabilityAndInterpretation
             ]
         );
     }
@@ -911,12 +919,16 @@ fn shadow_source_core_nested_candidate_matches_independent_cst_projection() {
         nested_shadow_locator(&artifact, incidence.position()),
         nested_source_locator(&callee)
     );
-    assert_eq!(skeleton.pending().len(), 4);
+    assert_eq!(
+        skeleton.pending().len(),
+        4 + skeleton.resolved_call_incidences().count()
+    );
     for (pending, premise) in skeleton.pending().iter().zip([
         Premise::CallableRole,
         Premise::FullFunctionMembership,
         Premise::CallViewRealization,
         Premise::QIndependentSourceCallViewFormation,
+        Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
     ]) {
         assert_eq!(pending.premise(), premise);
         assert_eq!(

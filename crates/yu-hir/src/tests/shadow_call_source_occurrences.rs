@@ -16,7 +16,10 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             .count(),
         expected_calls
     );
-    assert_eq!(skeleton.pending().len(), expected_calls * 4);
+    assert_eq!(
+        skeleton.pending().len(),
+        expected_calls * 4 + skeleton.resolved_call_incidences().count()
+    );
     for (index, occurrence) in occurrences.iter().enumerate() {
         let expression = skeleton.expression(occurrence.expression()).unwrap();
         assert_eq!(expression.position(), occurrence.position());
@@ -38,6 +41,18 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             assert_ne!(previous.expression(), occurrence.expression());
             assert_ne!(previous.position(), occurrence.position());
         }
+        let mut expected = vec![
+            Premise::CallableRole,
+            Premise::FullFunctionMembership,
+            Premise::CallViewRealization,
+            Premise::QIndependentSourceCallViewFormation,
+        ];
+        if matches!(
+            skeleton.expression(occurrence.callee()).unwrap().form(),
+            Form::Use { .. }
+        ) {
+            expected.push(Premise::SourceFormalUseRuleApplicabilityAndInterpretation);
+        }
         assert_eq!(
             skeleton
                 .pending()
@@ -45,12 +60,7 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
                 .filter(|pending| pending.call() == occurrence.expression())
                 .map(PendingPremise::premise)
                 .collect::<Vec<_>>(),
-            [
-                Premise::CallableRole,
-                Premise::FullFunctionMembership,
-                Premise::CallViewRealization,
-                Premise::QIndependentSourceCallViewFormation
-            ]
+            expected
         );
     }
     // Every pending reference still targets one existing source occurrence.

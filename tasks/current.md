@@ -261,6 +261,14 @@ semantic judgment, and all call premises remain pending. Two focused HIR tests,
 the existing call-source tests, and a `yu-core` shadow-feature check pass;
 compiler-referee review found no issues. See the
 [resolved call-use incidence slice](../notes/progress/2026-10-06-shadow-resolved-call-incidence.md).
+The shadow API now adds an explicitly pending applicability-and-interpretation
+stub for Apply occurrences with direct resolved Use callees. It records no
+fact that the binder is a formal or that the argument is an ordinary Value;
+the four original call premises and this additional premise remain unresolved,
+and integer/grouped/computed callees do not receive this stub. Spec review and
+focused shadow/core checks pass. This is source-producer plumbing only, with
+production routing untouched.
+See the [shadow formal-use stub](../notes/progress/2026-10-06-shadow-formal-use-applicability-stub.md).
 The conditional principality note on strict input-domain views finds that
 typed-core Function inclusion can validate a narrower target under explicit
 same-scope admission and observation premises, while the displayed A-allocation
