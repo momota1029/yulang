@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `1d29aafb1a89568ac61bc6bf007398db2b31cc23`
-Status: frozen, unreviewed research-only constructive derivation
+Status: frozen, compiler-referee-reviewed research-only constructive derivation; no findings in scope
 Lease: this new note only
 Scope: `my apply f = { my step x = f x; step }`, its one direct Call exposure
 Authority and implementation permission: none
@@ -321,7 +321,8 @@ No tests/builds, Oracle, checker, Git mutation, formatting, scratch files or
 delegation. Resource budget: one new note, consumed; zero heavyweight processes.
 No numeric CPU/RAM/wall-time ceiling was supplied. CPU time, peak RSS and
 elapsed wall time were not instrumented. Only short shell/read/hash processes
-were used. Independent review of this note has not occurred.
+were used. The independent compiler-referee review found no issue within the
+bounded construction and its authority boundary.
 
 Unverified scope: original contribution/slot interpretation and its source
 introduction; complete licensing inverse; complete Slots/profile and row
@@ -365,8 +366,8 @@ their own snapshots.
 - Baseline SHA: `1d29aafb1a89568ac61bc6bf007398db2b31cc23`.
 - Changed dependency hashes: none; all nine direct inputs matched the pinned
   bytes. Primary must recheck at integration if the branch moves.
-- Review status: frozen unreviewed bounded source-prefix derivation and
-  candidate attachment; no independent certification or gate closure.
+- Review status: compiler-referee-reviewed bounded source-prefix derivation
+  and candidate attachment, with no findings in scope; no source-gate closure.
 - Checks already run: governing-rule/source reads; complete Call/suffix and
   same-row/source-sort audit; nine hashes and pinned-byte comparisons;
   lease-path absence and note-local integrity/dependency recheck. No runtime
@@ -378,5 +379,5 @@ their own snapshots.
   retain A_sound/A_invert, full profile/admission/principality/production gates.
   No task, theory-map, index, authority or question-board bundle was edited.
 
-Writing stops before submission for frozen review. Primary owns adjudication
-and integration.
+Research writing stopped before submission for independent review. Primary
+owns adjudication and integration.
