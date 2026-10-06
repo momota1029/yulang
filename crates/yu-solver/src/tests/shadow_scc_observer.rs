@@ -1,6 +1,178 @@
 use super::{collect, module};
 
 #[test]
+fn outgoing_uses_preserve_reverse_chain_and_repeated_occurrences_without_shadow() {
+    use crate::shadow_scc::PendingSccGeneralizationPremise;
+    let parsed = parsed(
+        "my head = middle; my middle = tail; my tail = 42; my repeat = head; my again = head",
+    );
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
+    assert!(shadow.skeleton().is_err());
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let components = topology.components().collect::<Vec<_>>();
+    let mut observed = Vec::new();
+    for component in &components {
+        let outgoing = topology
+            .outgoing_uses(*component)
+            .unwrap()
+            .collect::<Vec<_>>();
+        let mut endpoints = Vec::new();
+        for occurrence in &outgoing {
+            let (parent, target) = topology.use_definitions(*occurrence).unwrap();
+            assert!(component.same_identity(topology.component_of(parent).unwrap()));
+            let target_component = topology.component_of(target).unwrap();
+            assert!(!component.same_identity(target_component));
+            assert!(
+                target_component
+                    .incoming_uses()
+                    .any(|u| u.same_identity(*occurrence))
+            );
+            assert!(
+                topology
+                    .use_shadow_ref(&crosswalk, *occurrence)
+                    .unwrap()
+                    .is_none()
+            );
+            endpoints.push((parent.collection_ordinal(), target.collection_ordinal()));
+        }
+        for (index, occurrence) in outgoing.iter().enumerate() {
+            assert!(
+                !outgoing[..index]
+                    .iter()
+                    .any(|u| u.same_identity(*occurrence))
+            );
+        }
+        assert_eq!(
+            component.pending_successor_generalization().premise(),
+            PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+        );
+        observed.push((
+            component.canonical_definition().collection_ordinal(),
+            endpoints,
+        ));
+    }
+    assert_eq!(
+        observed,
+        vec![
+            (2, vec![]),
+            (1, vec![(1, 2)]),
+            (0, vec![(0, 1)]),
+            (3, vec![(3, 0)]),
+            (4, vec![(4, 0)])
+        ]
+    );
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn outgoing_uses_preserve_distinct_occurrences_in_a_synthetic_shared_parent_inventory() {
+    let source = collect(module(
+        "my a = 42; my b = a; my c = a",
+        "shadow-scc-outgoing-synthetic-repeat.yu",
+    ));
+    let mut batch = source.clone();
+    assert_eq!(batch.definition_uses.len(), 2);
+    assert_eq!(
+        batch.definition_uses[0].target,
+        batch.definition_uses[1].target
+    );
+    assert_ne!(
+        batch.definition_uses[0].parent,
+        batch.definition_uses[1].parent
+    );
+    // This synthetic retained inventory isolates occurrence preservation:
+    // current source collection emits at most one use per parent. The frozen
+    // plan is deliberately unchanged; this is not a source-collection fixture.
+    batch.definition_uses[1].parent = batch.definition_uses[0].parent.clone();
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let parent = topology
+        .definitions()
+        .find(|d| d.collection_identity() == &batch.definition_uses[0].parent)
+        .unwrap();
+    let component = topology.component_of(parent).unwrap();
+    let outgoing = topology
+        .outgoing_uses(component)
+        .unwrap()
+        .collect::<Vec<_>>();
+    assert_eq!(outgoing.len(), 2);
+    assert!(!outgoing[0].same_identity(outgoing[1]));
+    for (occurrence, record) in outgoing.iter().zip(&batch.definition_uses) {
+        assert_eq!(occurrence.collection_identity(), record.id());
+        let (observed_parent, target) = topology.use_definitions(*occurrence).unwrap();
+        assert!(observed_parent.same_identity(parent));
+        assert_eq!(target.collection_identity(), record.target());
+    }
+    assert_eq!(batch.definition_uses[0].id, source.definition_uses[0].id);
+    assert_eq!(batch.definition_uses[1].id, source.definition_uses[1].id);
+    assert_eq!(
+        batch.definition_uses[0].occurrence,
+        source.definition_uses[0].occurrence
+    );
+    assert_eq!(
+        batch.definition_uses[1].occurrence,
+        source.definition_uses[1].occurrence
+    );
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn outgoing_uses_exclude_mutual_and_isolated_components_and_reject_foreign() {
+    use crate::shadow_scc::SccTopologyLookupError;
+    let hir = module(
+        "my a = b; my b = a; my c = 42; my d = a",
+        "shadow-scc-outgoing.yu",
+    );
+    let batch = collect(hir.clone());
+    let foreign = collect(hir);
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let components = topology.components().collect::<Vec<_>>();
+    assert_eq!(topology.outgoing_uses(components[0]).unwrap().count(), 0);
+    assert_eq!(topology.outgoing_uses(components[1]).unwrap().count(), 0);
+    let outgoing = topology
+        .outgoing_uses(components[2])
+        .unwrap()
+        .collect::<Vec<_>>();
+    assert_eq!(outgoing.len(), 1);
+    assert!(outgoing[0].same_identity(components[0].incoming_uses().next().unwrap()));
+    let foreign_component = foreign.shadow_scc_topology().components().next().unwrap();
+    assert!(matches!(
+        topology.outgoing_uses(foreign_component),
+        Err(SccTopologyLookupError::ForeignArtifact)
+    ));
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn outgoing_uses_reject_missing_endpoint_identity_before_iteration() {
+    use crate::shadow_scc::SccTopologyLookupError;
+    let batch = collect(module(
+        "my a = 42; my b = a",
+        "shadow-scc-outgoing-missing.yu",
+    ));
+    let component = batch.shadow_scc_topology().components().last().unwrap();
+    for parent in [true, false] {
+        let mut missing = batch.clone();
+        let absent = crate::DefinitionOrderId::new(missing.collection_artifact.clone(), u32::MAX);
+        if parent {
+            missing.definition_uses[0].parent = absent;
+        } else {
+            missing.definition_uses[0].target = absent;
+        }
+        let before = missing.counters();
+        assert!(matches!(
+            missing.shadow_scc_topology().outgoing_uses(component),
+            Err(SccTopologyLookupError::MissingIdentity)
+        ));
+        assert_eq!(before, missing.counters());
+    }
+}
+
+#[test]
 fn pending_successor_generalization_preserves_singleton_without_uses() {
     use crate::shadow_scc::{PendingSccGeneralizationPremise, SccTopologyLookupError};
     let hir = module("my a = 42", "shadow-scc-pending-singleton.yu");

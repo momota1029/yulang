@@ -154,6 +154,29 @@ impl<'a> SccTopology<'a> {
         self.components().flat_map(SccComponentRef::members)
     }
 
+    /// Exact retained occurrences leaving this component for another component.
+    /// Validate the complete inventory before returning the borrowed iterator;
+    /// an absent endpoint must not appear to be an absent dependency.
+    pub fn outgoing_uses(
+        &self,
+        component: SccComponentRef<'_>,
+    ) -> Result<impl Iterator<Item = SccUseRef<'a>> + '_, SccTopologyLookupError> {
+        let component = self.component_of(component.canonical_definition())?;
+        for record in &self.batch.definition_uses {
+            self.use_definitions(SccUseRef { id: &record.id })?;
+        }
+        Ok(self.batch.definition_uses.iter().filter_map(move |record| {
+            let parent = self
+                .component_of(SccDefinitionRef { id: &record.parent })
+                .expect("outgoing inventory endpoints were validated");
+            let target = self
+                .component_of(SccDefinitionRef { id: &record.target })
+                .expect("outgoing inventory endpoints were validated");
+            (parent.same_identity(component) && !target.same_identity(component))
+                .then_some(SccUseRef { id: &record.id })
+        }))
+    }
+
     /// Exact retained `(parent, target)` definitions of one resolved use.
     /// Both endpoints must belong to this batch's frozen plan.
     pub fn use_definitions(

@@ -175,6 +175,15 @@ and available spans still provide no original owner/view-kernel witness, typed
 path, `beta`/`Slots(beta)`, contribution or shared `xi`; `ORIGINAL_ASSOC`
 remains open.
 
+The bounded [Frozen Oracle Function derivation/path trace](../notes/progress/2026-10-07-frozen-oracle-function-derivation-paths.md)
+connects that origin to labelled Function child constraints and explanation
+parents, then finds a separate generalized-projection collector for typed
+paths. The passthrough branch can connect an argument-effect label to an upper
+return-effect endpoint, and projected paths are not reconstructed from
+explanation labels. This is historical preservation/attribution evidence,
+not the missing original source producer or current typed-path rule;
+`ORIGINAL_ASSOC` remains open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
@@ -438,6 +447,20 @@ endpoints and artifact identity even for empty-use components or absent source
 skeletons. Compiler-referee review and the focused 12-test observer run passed;
 feature-off solver check passed. It introduces no successor eligibility,
 generalized interface, Q/R mapping, beta/Slots, freshening or production route.
+
+The default-off [SCC outgoing-use view](../notes/progress/2026-10-07-shadow-scc-outgoing-use-view.md)
+adds a borrowed query for every retained dependency occurrence leaving an
+exact current component. It validates component and endpoint identities,
+keeps each UseId in retained order, and leaves the unconditional successor
+generalization premise intact for empty results and absent source skeletons.
+Compiler-referee review passed after adding a synthetic retained-inventory
+test for two UseIds sharing one `(parent,target)` pair; current source
+collection emits at most one use per parent, so that test does not claim such
+a source-produced shape. The focused 16-test observer run, targeted formatting,
+and whitespace check passed. No broad/default-feature check or measurement was
+run. Querying one component scans retained uses for validation and lazily
+again for selection (`O(U)`); querying all `C` components is `O(C·U)`. No
+production SCC plan, counters, generalization or inference path changed.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
