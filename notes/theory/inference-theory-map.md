@@ -66,6 +66,24 @@ The reviewed [source-registration derivation](../progress/2026-10-06-source-regi
 
 ### 2. Source to finite constrained presentation
 
+**Reviewed bounded non-derivation — first source interpretation rule.** The
+[main-gate localization](../progress/2026-10-06-main-source-generation-minimal-clause.md)
+constructs the exact candidate's ordinary shared-endpoint/whole-argument
+obligation prefix and proves that the named rule inventory has no first
+original inferred-formal interpretation at `A_f`. The smallest missing local
+head is an independently interpreted `U_c` from one unannotated formal/use,
+not another decorated `J_call` constructor. The singleton role outcome is
+already selected; typed footprint and independent typed-hole/environment
+admission remain separate missing definitions. Finite symbolic presentation,
+admitted-entry coverage, capture association, production containment and
+all-view principality remain open. Minimality is dependency-order within the
+named inventory, not a global impossibility or cardinal-minimum axiom theorem.
+The [reviewed Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
+characterizes separate formal annotation and Scheme/freshening channels;
+equal Function boundary types do not erase the old annotation certificate in
+the inspected adapter branch. No `FVIEW -> SRC` closure or implementation
+authority follows. See the [review record](../progress/2026-10-06-main-source-generation-review.md).
+
 **Conditional theorem — source adequacy target.** The source-interface adequacy draft defines fiberwise forward coverage from source executions into a complete interface, under the same `nu` and retained joint `K,D`, including future uses, latent closures/thunks, requests and resumptions. Its exact complete-interface embedding is a semantic reference construction, not a finite solver or proof that current HIR generation emits such a presentation. See [source-to-complete-interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md) and [typed source owner realization](../design/2026-10-02-typed-source-owner-realization.md).
 
 **Contract — callback literal B.** Expected context chooses Handler/boundary before visiting the inline literal body. Parameter, body, and result endpoints are synthesized independently; the completed Function is checked once by ordinary `F_lit <: F_cb`. Endpoint copying/equality is not permitted. A is allowed only as B-equivalent constraint scheduling/partial evaluation preserving acceptance, principal solutions, method/adapter choice, and residual/evidence behavior. Prebuilt Pure values take their distinct actual-role path. This is a source contract, not a claim that current HIR implements Apply or inline lambdas. See [callback context delivery](../design/2026-10-03-callback-context-delivery.md) §2 and [production callback endpoint-generation draft](../design/2026-10-04-production-callback-endpoint-generation-draft.md).

@@ -9,6 +9,19 @@ Solid arrows are **logical dependencies**: the downstream result is proved using
 
 ## Dependency graph
 
+The reviewed [main-source localization](../progress/2026-10-06-main-source-generation-minimal-clause.md)
+does not add a closed `FVIEW -> SRC` edge. It derives only the exact ordinary
+skeleton and proves bounded non-derivation of the first original formal-use
+interpretation in the named rule inventory. The missing local source rule is
+`U_c` from shared formal/call/ordinary-argument/annotation/scope evidence;
+typed footprint and independent typed-hole/environment admission remain
+separate definitions, with finite symbolic presentation and source-entry
+coverage as further proof obligations. The already selected singleton role
+outcome is not reopened. The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
+is historical mechanism evidence only, including the separate annotation
+certificate and Scheme-freshening channels. Claim classes, limits and the
+two independent reviews are in the [review record](../progress/2026-10-06-main-source-generation-review.md).
+
 ```mermaid
 flowchart TD
   SEM[Semantic core: one A <: B; complete Function and coupled effects]
