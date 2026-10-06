@@ -11,6 +11,25 @@ E/R introduction-table adoption as the next decision. Read the
 before the historical table proposal below. The selected local rule leaves
 full source generation, soundness, principality, and production cutover open.
 
+**Reviewed continuation (`71f0cd46`):** the
+[joint source judgment](../progress/2026-10-06-directional-joint-source-judgment.md)
+derives the selected registration/upper-use instance and retains lower-first
+provenance. The [active-relation specialization](../progress/2026-10-06-directional-full-relation-and-gate-delta.md)
+preserves independently interpreted protection-sensitive relations under
+directional inlining/materialization; its full-source primitive obligation
+remains open. The [typed fragment bridge](../progress/2026-10-06-directional-typed-contribution-bridge.md)
+and [replay/falsification model](../progress/2026-10-06-directional-source-relation-falsification.md)
+retain explicit source-to-view and applicability premises. These received
+[new independent review](../progress/2026-10-06-directional-whole-source-review.md).
+They close no unrestricted source/admission/principality/production node.
+
+The independently reviewed [DFRAG follow-up](../progress/2026-10-06-directional-profile-completion-factorization.md)
+factors unrelated full-profile completion out of this directional fragment's
+conditional realization/transport proof. Original source-view/receipt and
+typed capture association, compatible-completion existence and full-profile
+coverage remain open; one original joint row and shared-contract completion
+serve all uses. This is no equality of full profiles or handler visibility.
+
 This is a snapshot of a fast-moving research branch. “Current” below means supported by the cited reviewed/Authoritative source as of the date above, not that every upstream compiler path conforms to it. Bounded checkers and finite probes remain characterization evidence. Drafts, failed routes, and older progress descriptions are retained in place as research history.
 
 ## Reading the result labels

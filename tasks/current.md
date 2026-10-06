@@ -1,6 +1,6 @@
 # Current task: SCC-intrusion inference replacement
 
-Updated: 2026-10-06, after the direct directional-protection clarification.
+Updated: 2026-10-06, after independently reviewed directional whole-relation research and fragment factorization.
 Branch: `research/simple-sub-intrusion`.
 
 ## Objective and authority
@@ -62,9 +62,12 @@ for this local introduction. The provider-lower edge cannot trigger the rule.
 The bounded [ordinary Apply output bridge](../notes/progress/2026-10-06-directional-apply-output-bridge-attempt.md)
 is independently compiler-referee reviewed with no findings. It links the
 source-call's emitted upper `VIncl` occurrence and complete-invocation output
-address to the selected rule, conditional on the seed-at-exposure witness.
-It establishes the static `NewProtection` record only; contribution, actual
-event membership, typed receipt and live receiver remain open.
+address to the selected rule, conditional on the seed-at-exposure witness
+and reviewed Call premises. It establishes the static `NewProtection` record
+only; complete original profile, contribution, actual event membership, typed
+receipt and live receiver remain open. The new continuation review below
+also inspected this narrow dependency; neither review claims a source-wide
+or production result.
 
 The new author-checked arguments are local soundness/completeness of this
 incidence producer, no-backflow, coherent-renaming invariance, deterministic
@@ -88,6 +91,53 @@ reviewed rule conformance and repaired theory-map navigation. Both found no
 remaining substantive issue within scope. This is not full theorem certification
 or closure; source-wide generation and every downstream proof gate remain open.
 
+### Whole-relation continuation, reviewed independently
+
+Research checkpoint: `71f0cd46d1a8a60b3a15255e3bf3c6f283e58373`, based on the
+then-latest origin `e12738d4f1452d87883516dfa5b709a4a5c38230`. The new
+[review record](../notes/progress/2026-10-06-directional-whole-source-review.md)
+records compiler-referee and spec-auditor reviews; no blocking or major finding
+remains. One minor checker-coverage count was corrected. These are new reviews,
+not reuse of the previous local-rule or E/R reviews.
+
+| Result | Exact closed scope | Remaining source premise |
+| --- | --- | --- |
+| [Joint source S1/S2](../notes/progress/2026-10-06-directional-joint-source-judgment.md) | Selected unannotated-formal registration, same-root Name/capture and ordinary Call derive the seed-at-exposure/upper-output witness; lower-first information remains present and receives no backflow; compliant role refinement retains protection | General source seed/use coverage, recursive generalized-interface supplier, and full semantic role-refinement coverage; no mixed-use aggregation is selected |
+| Certified replay S3 | Fixed source/proof facts and whole-use certificates saturate independently of physical delivery order | A genuinely later semantic seed still needs source applicability at an earlier exposure; mere final component membership does not derive it |
+| [Active whole relation DREL-1](../notes/progress/2026-10-06-directional-full-relation-and-gate-delta.md) | Directional inlining/materialization preserves the full independently interpreted relation, even when active predicates read protection, at original scopes and shared recursive operators | DREL-2's independent seed/refined primitive correspondence; this normalization is not source adequacy by definition |
+| [Typed fragment/packet bridge](../notes/progress/2026-10-06-directional-typed-contribution-bridge.md) | The exact static upper fragment needs no completed original profile; after actual formal-boundary/view and typed capture association are supplied, the common indexed image preserves upper/provider tags, receipt lineage, original `xi` and receiver | Source realization of that fragment in the actual received view, typed environment attachment/read, event observation and actual liveness |
+| [Completion-parametric DFRAG](../notes/progress/2026-10-06-directional-profile-completion-factorization.md) | Conditional fragment realization and provenance-tagged image transport are uniform over independently compatible full-profile completions, using one completion for the original shared contract | `SourceViewInst` and typed capture association; no compatible-completion existence, complete-profile coverage or full handler-visibility equality is proved |
+| [Falsification/model](../notes/progress/2026-10-06-directional-source-relation-falsification.md) | 5,040 seven-input delivery schedules plus one opposite-use-order check, ten rejected shortcuts, explicit shared-`xi`, active-lower and protection-sensitive predicate countermodels | Model facts, applicability and closed-scheme certificates are supplied; no raw-source trace or production inference is tested |
+
+The new checker is `tools/research_directional_source_relation.py`. Both it
+and the unchanged local checker pass. No four-endpoint-valuation coverage is
+claimed: that redundant loop was removed after review. Source annotations,
+inferred public types and internal evidence-rich views remain distinct.
+
+The separately compiler-referee-reviewed DFRAG follow-up has no findings.
+It factors full-profile completion out of this fragment's transport proof.
+The first source cut is the exact association
+`SourceViewInst(r_A,d_f,e_f; k,beta,u,p0,sigma)` between the original formal
+receipt, its received/rebound evidence view and the original upper occurrence.
+It is a required source judgment, not a new flag or a derivation from value
+identity. The following closure-environment/read association is still required.
+All completions and uses retain the same original joint relation and packets.
+
+For A/admission, the all-world domain remains independently defined; the new
+transport is uniform over an already supplied domain, including contexts not
+reached by this source. Common-allowance totality and `V_alloc` factorization
+keep their old hypotheses and view classes. Neither unrestricted all-view
+principality nor either production inclusion `D_C subseteq D_A`,
+`P_A subseteq P_C` closes. Option A/2 still permits independently licensed
+production-only members without reference source constructors.
+
+Concurrent origin additions
+[event-output construction](../notes/progress/2026-10-06-directional-event-output-link-construction.md)
+and [its conditional falsification](../notes/progress/2026-10-06-directional-event-output-link-falsification.md)
+were retained. Their `P_output` cut is consistent with the typed-fragment
+realization frontier; their independent reviews and conditional negative
+premises retain their own scopes.
+
 <a id="open-gates-at-this-snapshot"></a>
 
 ## Active unrestricted proof gates
@@ -101,7 +151,7 @@ converse as a prerequisite. Instead:
    original scope through recursive formation, generalization and use. The
    new rule does not choose all variable-to-variable, nested-result or late-seed
    propagation policies by analogy.
-2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. Derive the source `P_output` contribution-to-executing-view incidence and actual typed capture/rebind/read, receipt/receiver and live observation. Lexical capture and equal endpoint shapes alone do not supply those facts.
+2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. DFRAG reduces the first fragment obligation to source-view instantiation and capture association, without requiring a completed profile for the transport proof. Derive the source `P_output` contribution-to-executing-view incidence and actual typed capture/rebind/read, receipt/receiver and live observation. Lexical capture and equal endpoint shapes alone do not supply those facts.
 3. Preserve the full seed/refined source solution relation, not just its
    deterministic record extension. Keep one original `xi=(nu,K,D)` throughout.
 4. Complete independently interpreted descriptor/context/world admission,

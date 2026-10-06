@@ -15,6 +15,27 @@ Read the [directional-protection dependency delta](2026-10-06-directional-protec
 before the historical introduction-table discussion below. The selected local
 directional rule does not close full source generation or any end-to-end theorem.
 
+**Reviewed continuation (`71f0cd46`):** source-instance S1, compliant-refinement
+retention S2 and certified-fact replay S3 are in the
+[joint judgment](../progress/2026-10-06-directional-joint-source-judgment.md).
+[DREL-1](../progress/2026-10-06-directional-full-relation-and-gate-delta.md)
+is checked normalization inside active independently interpreted predicates;
+DREL-2 is the still-required full-source semantic leaf correspondence. The
+[typed bridge](../progress/2026-10-06-directional-typed-contribution-bridge.md)
+starts with the exact static upper fragment and conditionally composes actual
+receipt/capture/read packets. Original source-to-view association, recursive
+generalized supplier, genuine late applicability and all full gates stay open.
+The [new reviews](../progress/2026-10-06-directional-whole-source-review.md)
+do not promote any `FVIEW -> SRC`, `PRIN` or `PROD` edge. See the updated
+directional delta for exact claim classes and the 5,040-schedule finite model.
+
+The independently reviewed [DFRAG factorization](../progress/2026-10-06-directional-profile-completion-factorization.md)
+is uniform over independently compatible original profile completions at one
+joint row; it leaves `SourceViewInst`, typed capture attachment, completion
+existence and full-profile coverage open. Those source associations are
+premises of the fragment proof. Completion of unrelated profile positions is
+not a dependency of its tagged transport lemma. No full gate is promoted.
+
 The reviewed [source-call construction](../progress/2026-10-06-source-call-generation-construction.md)
 closes only the exact singleton's static role/address/source-incidence schema
 and exhibits interpreted existential Call constraints on the existing
