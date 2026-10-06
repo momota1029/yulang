@@ -88,7 +88,63 @@ pub fn lower_module_with_captured_source(
     Ok(hir)
 }
 
+/// Retains the exact approved local binding and its unresolved inner application.
+pub fn lower_module_with_shadow_local_binding(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    artifact: Arc<ShadowArtifact>,
+) -> Result<HirModule, HirAvailabilityError> {
+    let hir = lower_module_with_captured_source(identity, parsed, imports, artifact.clone())?;
+    crate::module::retain_shadow_local_binding(hir, &artifact)
+}
+
+/// Cold sequential source carrier; its initializer never enters semantic collection.
+#[derive(Clone, Debug)]
+pub struct ShadowLocalBind {
+    pub occurrence: HirOccurrenceId,
+    pub local: crate::HirLocalId,
+    pub initializer: crate::ResolvedExpr,
+    pub continuation: ShadowLocalUse,
+    pub captures: Box<[HirParameterId]>,
+    pub range: Range<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ShadowLocalUse {
+    pub occurrence: HirOccurrenceId,
+    pub local: crate::HirLocalId,
+    pub range: Range<usize>,
+}
+
 impl HirModule {
+    pub fn shadow_local_binding(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<Option<&ShadowLocalBind>, SourceIdentityError> {
+        if !self.owns_definition_root(root) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        Ok(self
+            .source_identity
+            .as_ref()
+            .and_then(|source| source.local_binding.as_ref())
+            .filter(|binding| binding.local.definition_root() == root))
+    }
+
+    pub fn shadow_parameter_local_owner(
+        &self,
+        parameter: &HirParameterId,
+    ) -> Result<Option<&crate::HirLocalId>, SourceIdentityError> {
+        if !self.owns_definition_root(parameter.definition_root()) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        Ok(self
+            .source_identity
+            .as_ref()
+            .and_then(|source| source.local_parameter_owners.get(parameter)))
+    }
+
     /// Borrows the validated carrier for this exact HIR root. Artifact-local
     /// call premises remain separate from solver pending-application rows.
     pub fn shadow_captured_source(
@@ -119,6 +175,9 @@ pub(crate) struct HirSourceIdentity {
     definitions: HashMap<DefinitionRootId, SourceNodeKey>,
     occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
     parameters: HashMap<HirParameterId, SourceNodeKey>,
+    locals: HashMap<crate::HirLocalId, SourceNodeKey>,
+    pub(crate) local_binding: Option<ShadowLocalBind>,
+    pub(crate) local_parameter_owners: HashMap<HirParameterId, crate::HirLocalId>,
 }
 
 pub(crate) fn source_keys(parsed: &ParsedFile) -> HashMap<SyntaxNode, SourceNodeKey> {
@@ -138,7 +197,27 @@ impl HirSourceIdentity {
             definitions: HashMap::new(),
             occurrences: HashMap::new(),
             parameters: HashMap::new(),
+            locals: HashMap::new(),
+            local_binding: None,
+            local_parameter_owners: HashMap::new(),
         }
+    }
+    pub(crate) fn record_local(&mut self, id: crate::HirLocalId, key: SourceNodeKey) {
+        self.locals.insert(id, key);
+    }
+    pub(crate) fn maximum_occurrence_ordinal(&self) -> Option<u32> {
+        self.occurrences.keys().map(HirOccurrenceId::ordinal).max()
+    }
+    pub(crate) fn record_unique_occurrence(
+        &mut self,
+        id: HirOccurrenceId,
+        key: SourceNodeKey,
+    ) -> bool {
+        let std::collections::hash_map::Entry::Vacant(entry) = self.occurrences.entry(id) else {
+            return false;
+        };
+        entry.insert(key);
+        true
     }
     pub(crate) fn record_definition(&mut self, id: DefinitionRootId, key: SourceNodeKey) {
         self.definitions.insert(id, key);
@@ -377,7 +456,13 @@ impl ShadowArtifact {
         hir: &HirModule,
         id: &HirParameterId,
     ) -> Result<PositionId, SourceIdentityError> {
-        if !hir.owns_parameter(id) {
+        if !hir.owns_parameter(id)
+            && !(hir.owns_definition_root(id.definition_root())
+                && hir
+                    .source_identity
+                    .as_ref()
+                    .is_some_and(|source| source.local_parameter_owners.contains_key(id)))
+        {
             return Err(SourceIdentityError::ForeignHirArtifact);
         }
         let source = hir
@@ -392,6 +477,44 @@ impl ShadowArtifact {
                 .ok_or(SourceIdentityError::MissingSource)?,
         )
     }
+    pub fn local_source_position(
+        &self,
+        hir: &HirModule,
+        id: &crate::HirLocalId,
+    ) -> Result<PositionId, SourceIdentityError> {
+        if !hir.owns_definition_root(id.definition_root()) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        let source = hir
+            .source_identity
+            .as_ref()
+            .ok_or(SourceIdentityError::MissingSource)?;
+        self.check_source_parse(source)?;
+        self.source_position(
+            source
+                .locals
+                .get(id)
+                .ok_or(SourceIdentityError::MissingSource)?,
+        )
+    }
+
+    pub(crate) fn exact_source_key(
+        &self,
+        position: &PositionId,
+    ) -> Result<SourceNodeKey, SourceIdentityError> {
+        self.position(position)
+            .map_err(|_| SourceIdentityError::ForeignParse)?;
+        let mut keys = self
+            .source_positions
+            .iter()
+            .filter_map(|(key, candidate)| (candidate.as_ref() == Some(position)).then_some(key));
+        let key = keys.next().ok_or(SourceIdentityError::MissingSource)?;
+        if keys.next().is_some() {
+            return Err(SourceIdentityError::AmbiguousSource);
+        }
+        Ok(key.clone())
+    }
+
     fn check_source_parse(&self, source: &HirSourceIdentity) -> Result<(), SourceIdentityError> {
         if self.parsed.owns_source_key(&source.parse_root) {
             Ok(())

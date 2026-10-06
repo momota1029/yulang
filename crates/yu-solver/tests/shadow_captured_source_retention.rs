@@ -246,3 +246,83 @@ fn captured_source_wrapper_rejects_adjacent_structural_shapes() {
         );
     }
 }
+
+#[test]
+fn shadow_local_bind_rejects_foreign_parse_and_adjacent_candidates() {
+    use yu_hir::shadow::lower_module_with_shadow_local_binding;
+    let parse = |source: &str| {
+        let text: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(text.clone()));
+        parse_file(text, header, Arc::new(SyntaxEnvironment::empty()))
+    };
+    let identity = || ModuleIdentity::source_root(FileId::new(FileKey::new("shadow", "local.yu")));
+    let source = "my apply f = { my step x = f x; step }";
+    let parsed = parse(source);
+    let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = lower_module_with_shadow_local_binding(
+        identity(),
+        &parsed,
+        SemanticImports::empty(),
+        artifact.clone(),
+    )
+    .unwrap();
+    let foreign = lower_module_with_shadow_local_binding(
+        identity(),
+        &parsed,
+        SemanticImports::empty(),
+        artifact.clone(),
+    )
+    .unwrap();
+    let local = |hir: &yu_hir::HirModule| {
+        let HirItem::Binding(binding) = &hir.items()[0] else {
+            panic!("binding");
+        };
+        let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+            panic!("lambda");
+        };
+        assert!(matches!(body.as_ref(), ResolvedExpr::Error { .. }));
+        hir.shadow_local_binding(binding.definition_root())
+            .unwrap()
+            .unwrap()
+            .local
+            .clone()
+    };
+    assert_ne!(local(&hir), local(&foreign));
+    assert!(matches!(
+        artifact.local_source_position(&hir, &local(&foreign)),
+        Err(SourceIdentityError::ForeignHirArtifact)
+    ));
+    let foreign_artifact = Arc::new(ShadowArtifact::from_parsed(parse(source)).unwrap());
+    assert!(matches!(
+        lower_module_with_shadow_local_binding(
+            identity(),
+            &parsed,
+            SemanticImports::empty(),
+            foreign_artifact
+        ),
+        Err(HirAvailabilityError::StructuralProjection)
+    ));
+    for source in [
+        "my apply f x = f x",
+        "my apply f g = { my step x = f x; step }",
+        "my apply f = { my step x y = f x; step }",
+        "my apply f = { my step x = f(x); step }",
+        "my apply f = { my step x = f x x; step }",
+        "my apply f = { my step x = f x; step x }",
+    ] {
+        let parsed = parse(source);
+        let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+        assert!(
+            matches!(
+                lower_module_with_shadow_local_binding(
+                    identity(),
+                    &parsed,
+                    SemanticImports::empty(),
+                    artifact
+                ),
+                Err(HirAvailabilityError::StructuralProjection)
+            ),
+            "{source}"
+        );
+    }
+}

@@ -1088,6 +1088,17 @@ impl ConstraintBatch {
                 },
             ) = (definition.as_ref(), definition_root.as_ref(), expression)
             {
+                #[cfg(feature = "shadow-f5")]
+                if let Some(local) = batch
+                    .hir
+                    .shadow_local_binding(root)
+                    .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                    .cloned()
+                {
+                    // Visit the initializer before the terminal local use. That
+                    // use is a value reference and contributes no application.
+                    batch.retain_pending_applications(&local.initializer, Some(root));
+                }
                 let parameter_position = batch.parameter_recipes.len();
                 batch.parameter_recipes.push(parameter.clone());
                 batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
@@ -16444,6 +16455,203 @@ mod tests {
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    #[cfg(feature = "shadow-f5")]
+    #[test]
+    fn shadow_local_bind_retains_only_one_unresolved_application() {
+        let source: Arc<yu_syntax::SourceText> =
+            Arc::from("my apply f = { my step x = f x; step }");
+        let header = Arc::new(yu_syntax::scan_header(source.clone()));
+        let parsed = yu_syntax::parse_file(
+            source,
+            header,
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity = || {
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "test",
+                "shadow-local.yu",
+            )))
+        };
+        let artifact =
+            Arc::new(yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+        let hir = Arc::new(
+            yu_hir::shadow::lower_module_with_shadow_local_binding(
+                identity(),
+                &parsed,
+                yu_hir::SemanticImports::empty(),
+                artifact.clone(),
+            )
+            .unwrap(),
+        );
+        let [HirItem::Binding(binding)] = hir.items() else {
+            panic!("root binding");
+        };
+        let ResolvedExpr::Lambda {
+            parameter: f, body, ..
+        } = binding.value()
+        else {
+            panic!("outer lambda");
+        };
+        assert!(matches!(body.as_ref(), ResolvedExpr::Error { .. }));
+        let local = hir
+            .shadow_local_binding(binding.definition_root())
+            .unwrap()
+            .unwrap();
+        let step = &local.local;
+        let initializer = &local.initializer;
+        let continuation = &local.continuation;
+        let captures = &local.captures;
+        let ResolvedExpr::Lambda {
+            parameter: x,
+            body: call,
+            ..
+        } = initializer
+        else {
+            panic!("local lambda");
+        };
+        assert_ne!(f, x);
+        assert_eq!(hir.shadow_parameter_local_owner(x).unwrap(), Some(step));
+        assert_eq!(captures.as_ref(), std::slice::from_ref(f));
+        assert_eq!(&continuation.local, step);
+        let ResolvedExpr::Apply {
+            callee, argument, ..
+        } = call.as_ref()
+        else {
+            panic!("inner application");
+        };
+        assert!(
+            matches!(callee.as_ref(), ResolvedExpr::Name { resolution: NameResolution::Parameter(id), .. } if id == f)
+        );
+        assert!(
+            matches!(argument.as_ref(), ResolvedExpr::Name { resolution: NameResolution::Parameter(id), .. } if id == x)
+        );
+        let skeleton = artifact.skeleton().unwrap();
+        let input = skeleton.captured_call_input().unwrap();
+        assert_eq!(
+            artifact.local_source_position(&hir, step).unwrap(),
+            *skeleton.binder(input.local_binding()).unwrap().position()
+        );
+        assert_eq!(
+            artifact
+                .occurrence_source_position(&hir, callee.occurrence())
+                .unwrap(),
+            *input.capture_position()
+        );
+        assert!(artifact.parameter_source_position(&hir, x).is_ok());
+        for expression in [
+            initializer,
+            call.as_ref(),
+            callee.as_ref(),
+            argument.as_ref(),
+        ] {
+            assert!(
+                artifact
+                    .occurrence_source_position(&hir, expression.occurrence())
+                    .is_ok()
+            );
+        }
+        let all_occurrences = [
+            binding.value().occurrence(),
+            body.occurrence(),
+            &local.occurrence,
+            initializer.occurrence(),
+            call.occurrence(),
+            callee.occurrence(),
+            argument.occurrence(),
+            &continuation.occurrence,
+        ];
+        let unique: std::collections::HashSet<_> =
+            all_occurrences.iter().cloned().cloned().collect();
+        assert_eq!(unique.len(), all_occurrences.len());
+        assert_eq!(
+            artifact.occurrence_source_position(&hir, body.occurrence()),
+            Err(yu_hir::shadow::SourceIdentityError::MissingSource)
+        );
+        let root = binding.definition_root().clone();
+        let sidecar_owner = local as *const _;
+        let expected_occurrence = call.occurrence().clone();
+        let expected_callee = callee.occurrence().clone();
+        let expected_argument = argument.occurrence().clone();
+        let expected_f = f.clone();
+        let expected_x = x.clone();
+        let assert_row = |row: &PendingApplicationOccurrence| {
+            assert_eq!(row.occurrence, expected_occurrence);
+            assert_eq!(row.enclosing_root.as_ref(), Some(&root));
+            assert_eq!(row.callee.occurrence, expected_callee);
+            assert_eq!(row.argument.occurrence, expected_argument);
+            assert!(matches!(
+                &row.callee.direct_name_resolution,
+                Some(NameResolution::Parameter(id)) if id == &expected_f
+            ));
+            assert!(matches!(
+                &row.argument.direct_name_resolution,
+                Some(NameResolution::Parameter(id)) if id == &expected_x
+            ));
+            assert_eq!(
+                row.state,
+                PendingApplicationState::ApplicationTypingRuleUnresolved
+            );
+        };
+        let ordinary =
+            yu_hir::lower_module(identity(), &parsed, yu_hir::SemanticImports::empty()).unwrap();
+        assert_eq!(ordinary.diagnostics(), hir.diagnostics());
+        let HirItem::Binding(ordinary_binding) = &ordinary.items()[0] else {
+            panic!("ordinary root binding");
+        };
+        let ResolvedExpr::Lambda {
+            parameter: ordinary_f,
+            ..
+        } = ordinary_binding.value()
+        else {
+            panic!("ordinary outer lambda");
+        };
+        let ordinary_f = ordinary_f.clone();
+        let baseline = collect(Arc::new(ordinary));
+        let batch = collect(hir.clone());
+        assert_row(&batch.pending_applications()[0]);
+        assert!(Arc::ptr_eq(batch.hir(), &hir));
+        assert_eq!(
+            batch.hir().shadow_local_binding(&root).unwrap().unwrap() as *const _,
+            sidecar_owner
+        );
+        assert_eq!(batch.definitions.len(), baseline.definitions.len());
+        assert_eq!(batch.definition_uses.len(), baseline.definition_uses.len());
+        assert_eq!(batch.pending_applications().len(), 1);
+        assert_eq!(
+            batch.pending_applications()[0].state,
+            PendingApplicationState::ApplicationTypingRuleUnresolved
+        );
+        assert!(batch.occurrences().is_empty());
+        assert!(batch.lambda_recipes.is_empty());
+        // Preserve ordinary outer-Lambda bookkeeping: emit_lambda receives
+        // the unchanged Error body and exits before facts. Local x/step stay
+        // entirely within the shadow sidecar.
+        assert_eq!(batch.parameter_recipes, vec![expected_f.clone()]);
+        assert_eq!(baseline.parameter_recipes, vec![ordinary_f]);
+        assert_eq!(
+            batch.parameter_recipes.len(),
+            baseline.parameter_recipes.len()
+        );
+        assert!(batch.definition_uses.is_empty());
+        assert_eq!(batch.definitions.len(), 1);
+        assert_eq!(batch.counters.collected_complete_bodies, 0);
+        let solved = SolvedModule::solve(batch).unwrap();
+        let refused = SolvedModule::solve(baseline).unwrap();
+        assert!(solved.store().facts().is_empty());
+        assert_eq!(solved.schemes.len(), refused.schemes.len());
+        assert_eq!(solved.pending_applications().len(), 1);
+        assert_row(&solved.pending_applications()[0]);
+        assert!(Arc::ptr_eq(solved.hir(), &hir));
+        assert_eq!(
+            solved.hir().shadow_local_binding(&root).unwrap().unwrap() as *const _,
+            sidecar_owner
+        );
+        assert_eq!(
+            solved.pending_applications()[0].state,
+            PendingApplicationState::ApplicationTypingRuleUnresolved
+        );
+    }
 
     #[cfg(feature = "shadow-f5")]
     #[test]
