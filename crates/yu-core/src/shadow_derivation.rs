@@ -394,6 +394,15 @@ impl<'a> RawStructuralArena<'a> {
         }
     }
 
+    /// Groups every retained resolved source Use by exact binder identity.
+    /// This inventory supplies no semantic completeness or absence judgment.
+    pub fn source_binder_use_groups(&self) -> SourceBinderUseGroups<'_, 'a> {
+        SourceBinderUseGroups {
+            skeleton: self.skeleton,
+            nodes: &self.nodes,
+        }
+    }
+
     /// Borrows candidate bookkeeping positions for one exact retained Apply.
     /// Foreign identities and retained expressions of other forms are rejected.
     /// This performs no typing, inference, semantic association or admission.
@@ -592,6 +601,49 @@ pub struct PendingSourceCallRegistration<'registration, 'artifact> {
 pub struct PendingBinderUseGroups<'registration, 'artifact> {
     skeleton: &'artifact Skeleton,
     nodes: &'registration [RawNode<'artifact>],
+}
+
+/// Existing source identities only, borrowed without interpreting the use's role.
+#[derive(Debug)]
+pub struct SourceUse<'view, 'artifact> {
+    pub source: &'view ExprId,
+    pub binder: &'artifact BinderId,
+    pub occurrence: &'artifact UseId,
+}
+
+/// Lazy inventory of all retained Form::Use occurrences, including uses without
+/// direct-call registrations. Each exhausted query scans O(E) retained nodes
+/// with O(1) extra memory and preserves arena order. This supplies no typing,
+/// applicability, completeness, semantic absence, beta, slot, profile or role
+/// judgment and does not discharge any pending premise.
+#[derive(Debug)]
+pub struct SourceBinderUseGroups<'view, 'artifact> {
+    skeleton: &'artifact Skeleton,
+    nodes: &'view [RawNode<'artifact>],
+}
+
+impl<'artifact> SourceBinderUseGroups<'_, 'artifact> {
+    /// Rejects foreign or invalid binders before scanning retained occurrences.
+    pub fn uses_for_binder<'query>(
+        &'query self,
+        binder: &'query BinderId,
+    ) -> Option<impl Iterator<Item = SourceUse<'query, 'artifact>> + 'query> {
+        self.skeleton.binder(binder).ok()?;
+        Some(self.nodes.iter().filter_map(move |node| {
+            let Form::Use {
+                binder: retained,
+                occurrence,
+            } = node.form
+            else {
+                return None;
+            };
+            (retained == binder).then_some(SourceUse {
+                source: &node.source,
+                binder: retained,
+                occurrence,
+            })
+        }))
+    }
 }
 
 impl<'artifact> PendingBinderUseGroups<'_, 'artifact> {
