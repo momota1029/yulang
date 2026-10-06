@@ -761,6 +761,31 @@ struct LiveVariableMetadata {
     non_generic: bool,
 }
 
+/// A retained application has no approved application typing rule.
+#[cfg(feature = "shadow-f5")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingApplicationState {
+    ApplicationTypingRuleUnresolved,
+}
+
+/// Exact HIR operand identity, with resolution only for a direct Name operand.
+#[cfg(feature = "shadow-f5")]
+#[derive(Clone, Debug)]
+pub struct PendingApplicationOperand {
+    pub occurrence: HirOccurrenceId,
+    pub direct_name_resolution: Option<NameResolution>,
+}
+
+/// Structural evidence only: this row is never a constraint or Function recipe.
+#[cfg(feature = "shadow-f5")]
+#[derive(Clone, Debug)]
+pub struct PendingApplicationOccurrence {
+    pub occurrence: HirOccurrenceId,
+    pub callee: PendingApplicationOperand,
+    pub argument: PendingApplicationOperand,
+    pub state: PendingApplicationState,
+}
+
 /// Ordered source occurrences and compact component indexes, never semantic facts.
 #[derive(Clone, Debug)]
 pub struct ConstraintBatch {
@@ -803,6 +828,8 @@ pub struct ConstraintBatch {
     /// execution itself never hashes source-bearing roots.
     root_scheme_identity_payload_bytes: Vec<usize>,
     occurrences: Vec<ConstraintOccurrence>,
+    #[cfg(feature = "shadow-f5")]
+    pending_applications: Vec<PendingApplicationOccurrence>,
     #[cfg(test)]
     synthetic_seed_value_pair_probes: usize,
     counters: ProductionCounters,
@@ -846,6 +873,8 @@ impl ConstraintBatch {
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
+            #[cfg(feature = "shadow-f5")]
+            pending_applications: Vec::new(),
             #[cfg(test)]
             synthetic_seed_value_pair_probes: 0,
             definition_query_probes: Arc::new(AtomicUsize::new(0)),
@@ -1007,6 +1036,8 @@ impl ConstraintBatch {
                 HirItem::Error { .. } => continue,
             };
             batch.projection_order.push(expression.occurrence().clone());
+            #[cfg(feature = "shadow-f5")]
+            batch.retain_pending_applications(expression);
             batch.counters.occurrence_allocations += 1;
             if matches!(expression, ResolvedExpr::Integer { .. }) {
                 batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
@@ -1249,6 +1280,48 @@ impl ConstraintBatch {
     }
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
+    }
+    #[cfg(feature = "shadow-f5")]
+    pub fn pending_applications(&self) -> &[PendingApplicationOccurrence] {
+        &self.pending_applications
+    }
+
+    #[cfg(feature = "shadow-f5")]
+    fn retain_pending_applications(&mut self, expression: &ResolvedExpr) {
+        let operand = |expression: &ResolvedExpr| PendingApplicationOperand {
+            occurrence: expression.occurrence().clone(),
+            direct_name_resolution: match expression {
+                ResolvedExpr::Name { resolution, .. } => Some(resolution.clone()),
+                _ => None,
+            },
+        };
+        // Borrow the existing HIR tree; never reconstruct source identities or
+        // feed retained operands into semantic collection.
+        let mut pending = vec![expression];
+        while let Some(expression) = pending.pop() {
+            match expression {
+                ResolvedExpr::Apply {
+                    occurrence,
+                    callee,
+                    argument,
+                    ..
+                } => {
+                    self.pending_applications
+                        .push(PendingApplicationOccurrence {
+                            occurrence: occurrence.clone(),
+                            callee: operand(callee),
+                            argument: operand(argument),
+                            state: PendingApplicationState::ApplicationTypingRuleUnresolved,
+                        });
+                    pending.push(argument);
+                    pending.push(callee);
+                }
+                ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                ResolvedExpr::Integer { .. }
+                | ResolvedExpr::Name { .. }
+                | ResolvedExpr::Error { .. } => {}
+            }
+        }
     }
     pub fn term_view(&self, term: Term) -> Result<TermView<'_>, TermLookupError> {
         view_prefix(
@@ -16354,7 +16427,21 @@ mod tests {
     #[cfg(feature = "shadow-f5")]
     #[test]
     fn shadow_application_collection_remains_unsupported_without_facts() {
-        for text in ["my invoke f = f 1", "my invoke x = x(x)", "missing 1"] {
+        fn same_name_resolution_exact(left: &NameResolution, right: &NameResolution) -> bool {
+            match (left, right) {
+                (NameResolution::Parameter(left), NameResolution::Parameter(right)) => {
+                    left == right
+                }
+                _ => left == right,
+            }
+        }
+
+        for text in [
+            "my invoke f = f 1",
+            "my invoke x = x(x)",
+            "missing 1",
+            "my invoke f = f(f 1)",
+        ] {
             let source: Arc<SourceText> = Arc::from(text);
             let header = Arc::new(scan_header(source.clone()));
             let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
@@ -16379,9 +16466,73 @@ mod tests {
                 HirItem::Expression(_) | HirItem::Error { .. } => false,
             });
             assert!(retains_apply, "shadow lowering must retain Apply: {text}");
-            let batch = collect(hir);
+            let batch = collect(hir.clone());
+            let expression = match &hir.items()[0] {
+                HirItem::Binding(binding) => match binding.value() {
+                    ResolvedExpr::Lambda { body, .. } => body.as_ref(),
+                    _ => panic!("expected lambda"),
+                },
+                HirItem::Expression(expression) => expression,
+                HirItem::Error { .. } => panic!("expected retained application"),
+            };
+            let ResolvedExpr::Apply {
+                occurrence,
+                callee,
+                argument,
+                ..
+            } = expression
+            else {
+                panic!("expected retained application");
+            };
+            let rows = batch.pending_applications();
+            let outer = &rows[0];
+            assert_eq!(&outer.occurrence, occurrence);
+            assert_eq!(&outer.callee.occurrence, callee.occurrence());
+            assert_eq!(&outer.argument.occurrence, argument.occurrence());
+            assert_ne!(outer.callee.occurrence, outer.argument.occurrence);
+            for (retained, source) in [(&outer.callee, callee), (&outer.argument, argument)] {
+                match source.as_ref() {
+                    ResolvedExpr::Name { resolution, .. } => {
+                        assert!(same_name_resolution_exact(
+                            retained.direct_name_resolution.as_ref().unwrap(),
+                            resolution,
+                        ));
+                    }
+                    _ => assert!(retained.direct_name_resolution.is_none()),
+                }
+            }
+            if let ResolvedExpr::Apply {
+                occurrence,
+                callee,
+                argument,
+                ..
+            } = argument.as_ref()
+            {
+                assert_eq!(rows.len(), 2);
+                let inner = &rows[1];
+                assert_eq!(&inner.occurrence, occurrence);
+                assert_eq!(outer.argument.occurrence, inner.occurrence);
+                assert_eq!(&inner.callee.occurrence, callee.occurrence());
+                assert_eq!(&inner.argument.occurrence, argument.occurrence());
+                assert_ne!(outer.callee.occurrence, inner.callee.occurrence);
+                assert!(same_name_resolution_exact(
+                    outer.callee.direct_name_resolution.as_ref().unwrap(),
+                    inner.callee.direct_name_resolution.as_ref().unwrap(),
+                ));
+                assert!(inner.argument.direct_name_resolution.is_none());
+            } else {
+                assert_eq!(rows.len(), 1);
+            }
+            assert!(
+                rows.iter().all(
+                    |row| row.state == PendingApplicationState::ApplicationTypingRuleUnresolved
+                )
+            );
             assert!(batch.occurrences().is_empty(), "{text}");
             assert!(batch.lambda_recipes.is_empty(), "{text}");
+            // Existing definition-root bookkeeping remains; Apply and its
+            // operands introduce no components.
+            assert_eq!(batch.components.len(), batch.root_component_positions.len());
             assert!(batch.occurrence_component_positions.is_empty(), "{text}");
             assert_eq!(batch.counters.collected_complete_bodies, 0);
             for definition in batch.definitions() {

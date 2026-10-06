@@ -327,6 +327,21 @@ deeper/grouped/computed shapes remain atomic. Default and identity-only
 lowering remain unchanged. Nested solver parity, typing, inference, semantic
 acceptance, soundness, principality and source adequacy remain pending.
 
+The default-off `shadow-f5` solver boundary now retains an explicit
+`ApplicationTypingRuleUnresolved` row for each application it sees, carrying
+the exact HIR Apply/callee/argument occurrence identities and direct Name
+resolution where available. Collection remains a refusal characterization:
+these rows create no application facts, Function recipes or operand
+components; existing definition-root bookkeeping stays intact. The feature-on
+focused test covers a nested `f(f 1)` identity join and unchanged refusal, and
+the feature-off solver check passes. Compiler-referee review found a test-only
+identity assertion weakness; it was repaired to compare full parameter
+identities and the focused test passed again. The row does not retain shadow
+UseId, typed endpoints, a callable role, `beta`/`Slots(beta)`, or any semantic
+judgment. This is source identity plumbing, not successor/current-infer parity
+or application inference. See the
+[pending solver application identity record](../notes/progress/2026-10-07-shadow-solver-pending-application-identity.md).
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
