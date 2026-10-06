@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `f1fc1a6eb700b1406d6bedebb46aec7cad082774`
-Status: frozen, unreviewed research-only characterization
+Status: frozen, independently compiler-referee-reviewed research-only characterization; no findings
 Scope: adversarial analysis of aggregation at one inferred higher-order formal;
 no source rule, accepted-program counterexample, or implementation authority
 

@@ -100,6 +100,13 @@ position and contain no typed endpoint/receipt; the exact unannotated captured
 formal does not use this channel. This is mechanism evidence only and does not
 close the current source producer or authorize Oracle semantics. See the
 [argument-effect contract channel](../notes/progress/2026-10-06-frozen-oracle-argument-effect-contract-channel.md).
+Further frozen-Oracle archaeology traced multi-use accumulation: no-scheme
+formal occurrences reuse one value endpoint, each application keeps its own
+Function-upper constraint, and guarded per-`DefId` call-upper/frame state
+retains distinct occurrence IDs while reusing a frame-local subtraction ID.
+This is conditional routine-level history, not current Handler semantics or a
+source rule; public/erased endpoint selection remains untraced. See the
+[multi-use Oracle archaeology](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-archaeology.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
@@ -122,6 +129,18 @@ admissible fibers; receipt instantiation receives a source-derived satisfying
 admitted `xi`, never a valuation selected while generating the relation. This
 is a research proposal only: its constructor clauses and preservation proofs
 remain open, and it adds no implementation authority.
+For a nested two-call expression with one shared formal, the conditional
+ordinary-core prefix produces two whole-argument obligations against the same
+endpoint, but the source rule lifting an eligible ordinary-Value use into the shared
+role-indexed relation remains missing. A separate implication audit shows
+`any eligible use` refinement entails `all eligible uses` refinement on a
+nonempty inventory; failed all-use eligibility alone says nothing negative,
+so this does not distinguish completed alternatives or validate a two-call
+program. Both notes were independently compiler-referee-reviewed without
+findings. Conditional proofs can continue with the lifting clause as a premise;
+adopting a concrete general aggregation rule remains a design decision. See
+the [constructive two-use boundary](../notes/progress/2026-10-06-role-aggregation-constructive.md)
+and [aggregation discriminator audit](../notes/progress/2026-10-06-role-aggregation-falsification.md).
 The independently compiler-referee-reviewed [exact-candidate relation
 construction](../notes/progress/2026-10-06-source-formal-relation-constructive-attempt.md)
 derives the conditional Name/Call/Lambda/Bind composition and shows the block
@@ -181,6 +200,15 @@ delta; compiler-referee and regression reviews found no remaining issues.
 Production HIR/F5 still has no resolved ordinary Apply, and this does not claim
 call-semantic differential parity. See the
 [unary application shadow slice](../notes/progress/2026-10-06-shadow-unary-application-root.md).
+The default-off shadow API now also lazily exposes a resolved call incidence
+when an Apply's direct callee is an existing Use, preserving its binder/use,
+call and source identities. Two nested calls share one binder while retaining
+distinct occurrences; integer callees remain in the general Apply inventory
+and are excluded from this Use-specific view. This adds no aggregation or
+semantic judgment, and all call premises remain pending. Two focused HIR tests,
+the existing call-source tests, and a `yu-core` shadow-feature check pass;
+compiler-referee review found no issues. See the
+[resolved call-use incidence slice](../notes/progress/2026-10-06-shadow-resolved-call-incidence.md).
 The conditional principality note on strict input-domain views finds that
 typed-core Function inclusion can validate a narrower target under explicit
 same-scope admission and observation premises, while the displayed A-allocation
