@@ -61,24 +61,40 @@ impl ConstraintBatch {
     pub fn shadow_pending_application_source_uses(
         &self,
     ) -> impl Iterator<Item = PendingApplicationSourceUseRef<'_>> {
-        self.pending_applications().iter().flat_map(|row| {
-            [
-                (PendingApplicationOperandPosition::Callee, &row.callee),
-                (PendingApplicationOperandPosition::Argument, &row.argument),
-            ]
-            .into_iter()
-            .filter_map(move |(position, operand)| {
-                operand.direct_name_resolution.as_ref().map(|resolution| {
-                    PendingApplicationSourceUseRef {
-                        row,
-                        position,
-                        occurrence: &operand.occurrence,
-                        resolution,
-                    }
-                })
+        pending_application_source_uses(self.pending_applications())
+    }
+}
+
+impl SolvedModule {
+    /// Borrow the same ordered direct Name inventory after collection is solved.
+    /// Rows remain unresolved structural evidence owned by this frozen result.
+    pub fn shadow_pending_application_source_uses(
+        &self,
+    ) -> impl Iterator<Item = PendingApplicationSourceUseRef<'_>> {
+        pending_application_source_uses(self.pending_applications())
+    }
+}
+
+fn pending_application_source_uses(
+    rows: &[PendingApplicationOccurrence],
+) -> impl Iterator<Item = PendingApplicationSourceUseRef<'_>> {
+    rows.iter().flat_map(|row| {
+        [
+            (PendingApplicationOperandPosition::Callee, &row.callee),
+            (PendingApplicationOperandPosition::Argument, &row.argument),
+        ]
+        .into_iter()
+        .filter_map(move |(position, operand)| {
+            operand.direct_name_resolution.as_ref().map(|resolution| {
+                PendingApplicationSourceUseRef {
+                    row,
+                    position,
+                    occurrence: &operand.occurrence,
+                    resolution,
+                }
             })
         })
-    }
+    })
 }
 
 /// Borrowed inventory of the solve result's already finalized member schemes.

@@ -7263,6 +7263,8 @@ impl OrderingObserver {
 /// prevent later independent components from solving.
 #[derive(Debug)]
 pub struct SolvedModule {
+    #[cfg(feature = "shadow-f5")]
+    pending_applications: Vec<PendingApplicationOccurrence>,
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
     collection_artifact: Arc<CollectionArtifactToken>,
     hir: Arc<HirModule>,
@@ -15804,6 +15806,8 @@ impl InferenceSession {
             self.store.terms.transfer_owner_events_to_solved_store();
         }
         Ok(SolvedModule {
+            #[cfg(feature = "shadow-f5")]
+            pending_applications: self.batch.pending_applications,
             #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
             collection_artifact: self.batch.collection_artifact,
             hir: self.batch.hir,
@@ -15831,6 +15835,12 @@ impl InferenceSession {
     }
 }
 impl SolvedModule {
+    /// Exact retained application rows from this result's collected HIR.
+    /// Solving does not resolve their application typing premise.
+    #[cfg(feature = "shadow-f5")]
+    pub fn pending_applications(&self) -> &[PendingApplicationOccurrence] {
+        &self.pending_applications
+    }
     /// Borrow finalized current F5 schemes without observing use-time freshening.
     #[cfg(feature = "shadow-f5")]
     pub fn shadow_closed_schemes(&self) -> shadow_f5::ClosedSchemes<'_> {
@@ -16564,8 +16574,17 @@ mod tests {
             assert_eq!(batch.definition_uses.len(), dependency_count);
             let mut without_sidecar = collect(hir.clone());
             without_sidecar.pending_applications.clear();
+            assert_eq!(format!("{:?}", without_sidecar.scc_plan), topology);
             let solved = SolvedModule::solve(batch).unwrap();
             let baseline = SolvedModule::solve(without_sidecar).unwrap();
+            assert!(baseline.pending_applications().is_empty());
+            assert!(
+                baseline
+                    .shadow_pending_application_source_uses()
+                    .next()
+                    .is_none()
+            );
+            assert!(!solved.pending_applications().is_empty());
             assert_eq!(solved.counters(), baseline.counters());
             assert_eq!(solved.schemes.len(), baseline.schemes.len());
             for (with, without) in solved.schemes.iter().zip(&baseline.schemes) {

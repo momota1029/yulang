@@ -262,13 +262,24 @@ fn assert_pending_solver_application_source_join(text: &str) {
         .expect("the same source artifact retains its raw structural inventory");
     let batch = ConstraintBatch::collect(shadow_hir.clone())
         .expect("shadow applications remain collectible as pending structure");
-    let rows = batch.pending_applications();
+    assert!(batch.occurrences().is_empty());
+    let retained_row_addresses: Vec<_> = batch
+        .pending_applications()
+        .iter()
+        .map(|row| row as *const _)
+        .collect();
+    let solved = SolvedModule::solve(batch).unwrap();
+    assert!(Arc::ptr_eq(solved.hir(), &shadow_hir));
+    let rows = solved.pending_applications();
+    assert_eq!(
+        rows.iter().map(|row| row as *const _).collect::<Vec<_>>(),
+        retained_row_addresses
+    );
     assert_eq!(rows.len(), 2);
     assert!(
         rows.iter()
             .all(|row| { row.state == PendingApplicationState::ApplicationTypingRuleUnresolved })
     );
-    assert!(batch.occurrences().is_empty());
 
     let [HirItem::Binding(binding)] = shadow_hir.items() else {
         panic!("binding");
@@ -277,8 +288,8 @@ fn assert_pending_solver_application_source_join(text: &str) {
     let root_position = shadow
         .definition_source_position(&shadow_hir, root)
         .unwrap();
-    let counters = batch.counters();
-    let direct_uses: Vec<_> = batch.shadow_pending_application_source_uses().collect();
+    let counters = solved.counters();
+    let direct_uses: Vec<_> = solved.shadow_pending_application_source_uses().collect();
     assert_eq!(direct_uses.len(), 2);
     for (row, source_use) in rows.iter().zip(&direct_uses) {
         assert_eq!(row.enclosing_root.as_ref(), Some(root));
@@ -304,7 +315,7 @@ fn assert_pending_solver_application_source_join(text: &str) {
     }
     assert!(!direct_uses[0].same_identity(direct_uses[1]));
     assert_ne!(direct_uses[0].occurrence(), direct_uses[1].occurrence());
-    assert_eq!(batch.counters(), counters);
+    assert_eq!(solved.counters(), counters);
 
     if text.contains("x (x") {
         let [HirItem::Binding(binding)] = shadow_hir.items() else {
@@ -407,8 +418,7 @@ fn assert_pending_solver_application_source_join(text: &str) {
     assert_ne!(use_ids[0], use_ids[1]);
     assert_eq!(parameter_ids[0], parameter_ids[1]);
     assert!(
-        SolvedModule::solve(batch)
-            .unwrap()
+        solved
             .hir()
             .errors()
             .iter()
@@ -427,14 +437,61 @@ fn pending_application_direct_names_preserve_positions_and_resolution_variants()
             "direct-name-operands.yu",
         )));
         let hir = Arc::new(
+            lower_module_with_shadow_applications(
+                identity.clone(),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        let foreign_hir = Arc::new(
             lower_module_with_shadow_applications(identity, &parsed, SemanticImports::empty())
                 .unwrap(),
         );
         let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
         let batch = ConstraintBatch::collect(hir.clone()).unwrap();
-        let rows = batch.pending_applications();
+        let cloned = batch.clone();
+        let recollected = ConstraintBatch::collect(hir.clone()).unwrap();
+        let retained_row_address = &batch.pending_applications()[0] as *const _;
+        let solved = SolvedModule::solve(batch).unwrap();
+        let rows = solved.pending_applications();
         assert_eq!(rows.len(), 1);
-        let uses: Vec<_> = batch.shadow_pending_application_source_uses().collect();
+        assert_eq!(&rows[0] as *const _, retained_row_address);
+        assert_eq!(
+            rows[0].state,
+            PendingApplicationState::ApplicationTypingRuleUnresolved
+        );
+        let uses: Vec<_> = solved.shadow_pending_application_source_uses().collect();
+        let foreign = SolvedModule::solve(ConstraintBatch::collect(foreign_hir).unwrap()).unwrap();
+        let foreign_uses: Vec<_> = foreign.shadow_pending_application_source_uses().collect();
+        assert_eq!(uses.len(), foreign_uses.len());
+        for (retained, other) in uses.iter().zip(foreign_uses) {
+            assert!(!retained.same_identity(other));
+            assert_ne!(retained.occurrence(), other.occurrence());
+            assert!(
+                shadow
+                    .occurrence_source_position(solved.hir(), other.occurrence())
+                    .is_err()
+            );
+            // Independently lowered rows still describe the same parsed position.
+            assert_eq!(
+                shadow
+                    .occurrence_source_position(solved.hir(), retained.occurrence())
+                    .unwrap(),
+                shadow
+                    .occurrence_source_position(foreign.hir(), other.occurrence())
+                    .unwrap()
+            );
+        }
+        for other in [&cloned, &recollected] {
+            let other_uses: Vec<_> = other.shadow_pending_application_source_uses().collect();
+            assert_eq!(uses.len(), other_uses.len());
+            for (retained, other) in uses.iter().zip(other_uses) {
+                // Shared HIR coordinates do not identify another retained row.
+                assert_eq!(retained.occurrence(), other.occurrence());
+                assert!(!retained.same_identity(other));
+            }
+        }
         assert_eq!(
             uses[0].position(),
             PendingApplicationOperandPosition::Callee
