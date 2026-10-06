@@ -92,6 +92,14 @@ These are concrete historical producer shapes, but neither constructs the
 missing complete original relation/profile or selects current Handler,
 annotation, receipt, or admission rules. See the
 [annotation/call mechanism archaeology](../notes/progress/2026-10-06-frozen-oracle-annotation-call-producer-archaeology.md).
+An additional independently compiler-referee-reviewed archaeology located a
+separate annotation-derived argument-effect channel: markers are associated
+with parameter `DefId`, looked up for selected call arguments, and consumed by
+adapter hygiene. Its `(path, depth, policy)` markers erase directed port
+position and contain no typed endpoint/receipt; the exact unannotated captured
+formal does not use this channel. This is mechanism evidence only and does not
+close the current source producer or authorize Oracle semantics. See the
+[argument-effect contract channel](../notes/progress/2026-10-06-frozen-oracle-argument-effect-contract-channel.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
