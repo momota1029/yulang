@@ -511,7 +511,10 @@ their Binder. Production refusal is checked by error kind, not exact diagnostic
 text or span. Compiler-referee review found a test-only identity assertion
 weakness; it was repaired to compare full parameter identities and the focused
 test passed again. Regression review found no major issue and notes that a
-complete row reorder would still pass. The row does not retain shadow
+complete row reorder would still pass. The later compiler-referee-reviewed
+endpoint crosswalk below adds an outer/inner topology discriminator for the
+nested/grouped fixtures, closing that specific reorder gap there. The row does
+not retain shadow
 UseId, typed endpoints, a callable role, `beta`/`Slots(beta)`, or any semantic
 judgment. This is source identity plumbing, not successor/current-infer parity
 or application inference. See the
