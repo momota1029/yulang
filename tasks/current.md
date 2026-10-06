@@ -136,6 +136,15 @@ original pre-query `(beta,p0,j_call;s,c)` association, `Slots(beta)`, a complete
 contribution, or the shared `(nu,K,D)`; Oracle remains non-authoritative and
 `ORIGINAL_ASSOC` stays open.
 
+A focused reread of the already documented application-boundary producer adds
+its per-argument CST range and the origin-before-demand / eager-drain /
+conditional-span-after-demand ordering. The compiler-referee-reviewed
+[source-boundary timing refinement](../notes/progress/2026-10-07-frozen-oracle-application-source-boundary-producer.md)
+is cumulative archaeology, not a newly found semantic producer. Source origin
+and available spans still provide no original owner/view-kernel witness, typed
+path, `beta`/`Slots(beta)`, contribution or shared `xi`; `ORIGINAL_ASSOC`
+remains open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
