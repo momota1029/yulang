@@ -16,6 +16,33 @@ pub struct SccTopology<'a> {
 }
 
 impl<'a> SccTopology<'a> {
+    /// Retain current use-time evidence without establishing successor instantiation.
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    pub fn pending_use_instantiation<'s>(
+        &self,
+        solved: &'s crate::SolvedModule,
+        occurrence: SccUseRef<'_>,
+    ) -> Result<PendingUseInstantiationRef<'a, 's>, PendingUseInstantiationLookupError> {
+        let (parent, target) = self
+            .use_definitions(occurrence)
+            .map_err(PendingUseInstantiationLookupError::Topology)?;
+        let component = self
+            .component_of(target)
+            .map_err(PendingUseInstantiationLookupError::Topology)?;
+        let current_scheme = self
+            .use_closed_scheme(solved, occurrence)
+            .map_err(PendingUseInstantiationLookupError::ClosedScheme)?;
+        let record =
+            &self.batch.definition_uses[self.batch.definition_use_positions[occurrence.id]];
+        Ok(PendingUseInstantiationRef {
+            occurrence: SccUseRef { id: &record.id },
+            parent,
+            target,
+            generalization: component.pending_successor_generalization(),
+            current_scheme,
+        })
+    }
+
     /// Join an exact retained use to its target's finalized current-local scheme.
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
     pub fn use_closed_scheme<'s>(
@@ -298,6 +325,62 @@ impl<'a> PendingSccGeneralizationRef<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PendingSccGeneralizationPremise {
     SuccessorGeneralizationRuleUnresolved,
+}
+
+/// Borrowed current evidence; internal recursive uses have the same open premises.
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy)]
+pub struct PendingUseInstantiationRef<'a, 's> {
+    occurrence: SccUseRef<'a>,
+    parent: SccDefinitionRef<'a>,
+    target: SccDefinitionRef<'a>,
+    generalization: PendingSccGeneralizationRef<'a>,
+    current_scheme: crate::shadow_f5::ClosedSchemeRef<'s>,
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+impl<'a, 's> PendingUseInstantiationRef<'a, 's> {
+    pub fn occurrence(self) -> SccUseRef<'a> {
+        self.occurrence
+    }
+    pub fn parent(self) -> SccDefinitionRef<'a> {
+        self.parent
+    }
+    pub fn target(self) -> SccDefinitionRef<'a> {
+        self.target
+    }
+    pub fn target_component(self) -> SccComponentRef<'a> {
+        self.generalization.component()
+    }
+    pub fn pending_generalization(self) -> PendingSccGeneralizationRef<'a> {
+        self.generalization
+    }
+    pub fn current_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'s> {
+        self.current_scheme
+    }
+
+    /// Current Q/R inventories, including empty ones, cannot establish correspondence.
+    pub fn qr_correspondence_premise(self) -> PendingUseInstantiationPremise {
+        PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+    }
+
+    pub fn shared_contract_transport_premise(self) -> PendingUseInstantiationPremise {
+        PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+    }
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingUseInstantiationPremise {
+    CurrentToSuccessorQrCorrespondenceUnresolved,
+    UseTimeSharedContractTransportUnresolved,
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingUseInstantiationLookupError {
+    Topology(SccTopologyLookupError),
+    ClosedScheme(SccClosedSchemeLookupError),
 }
 
 /// Opaque definition identity borrowed from a collected batch.

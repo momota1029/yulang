@@ -1026,3 +1026,149 @@ fn closed_scheme_join_does_not_supply_absent_mutual_recursive_skeleton() {
     assert_eq!(before, batch.counters());
     assert_eq!(solved_before, solved.counters());
 }
+
+#[cfg(feature = "shadow-f5")]
+#[test]
+fn pending_use_instantiation_preserves_distinct_uses_and_empty_premises() {
+    use crate::shadow_scc::{PendingSccGeneralizationPremise, PendingUseInstantiationPremise};
+    for source in ["my a = 42; my b = a; my c = a", "my a = b; my b = a"] {
+        let parsed = parsed(source);
+        let batch = source_batch(&parsed);
+        let solved = crate::SolvedModule::solve(batch.clone()).unwrap();
+        let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
+        assert!(shadow.skeleton().is_err());
+        let crosswalk = shadow.skeleton_source_crosswalk();
+        let before = batch.counters();
+        let solved_before = solved.counters();
+        let topology = batch.shadow_scc_topology();
+        let carriers = topology
+            .components()
+            .flat_map(|c| c.internal_uses().chain(c.incoming_uses()))
+            .map(|u| topology.pending_use_instantiation(&solved, u).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(carriers.len(), 2);
+        assert!(
+            !carriers[0]
+                .occurrence()
+                .same_identity(carriers[1].occurrence())
+        );
+        for carrier in &carriers {
+            let (parent, target) = topology.use_definitions(carrier.occurrence()).unwrap();
+            assert!(carrier.parent().same_identity(parent));
+            assert!(carrier.target().same_identity(target));
+            assert!(
+                carrier
+                    .target_component()
+                    .same_identity(topology.component_of(target).unwrap())
+            );
+            assert!(
+                carrier.current_scheme().same_identity(
+                    topology
+                        .use_closed_scheme(&solved, carrier.occurrence())
+                        .unwrap()
+                )
+            );
+            assert_eq!(carrier.current_scheme().quantifiers().count(), 0);
+            assert_eq!(carrier.current_scheme().recursive_binders().count(), 0);
+            assert_eq!(
+                carrier.pending_generalization().premise(),
+                PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+            );
+            assert_eq!(
+                carrier.qr_correspondence_premise(),
+                PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+            );
+            assert_eq!(
+                carrier.shared_contract_transport_premise(),
+                PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+            );
+            assert!(
+                topology
+                    .use_shadow_ref(&crosswalk, carrier.occurrence())
+                    .unwrap()
+                    .is_none()
+            );
+        }
+        assert!(
+            carriers[0]
+                .target_component()
+                .same_identity(carriers[1].target_component())
+        );
+        if source.starts_with("my a = 42") {
+            assert!(carriers[0].target().same_identity(carriers[1].target()));
+            assert!(
+                carriers[0]
+                    .current_scheme()
+                    .same_identity(carriers[1].current_scheme())
+            );
+        }
+        assert_eq!(before, batch.counters());
+        assert_eq!(solved_before, solved.counters());
+    }
+}
+
+#[cfg(feature = "shadow-f5")]
+#[test]
+fn pending_use_instantiation_rejects_foreign_and_missing_evidence() {
+    use crate::shadow_scc::{
+        PendingUseInstantiationLookupError as Error, SccClosedSchemeLookupError,
+        SccTopologyLookupError,
+    };
+    let batch = source_batch(&parsed("my a = 42; my b = a"));
+    let foreign = collect(batch.hir().clone());
+    let solved = crate::SolvedModule::solve(batch.clone()).unwrap();
+    let foreign_solved = crate::SolvedModule::solve(foreign.clone()).unwrap();
+    let topology = batch.shadow_scc_topology();
+    let occurrence = topology
+        .components()
+        .flat_map(|c| c.incoming_uses())
+        .next()
+        .unwrap();
+    let foreign_use = foreign
+        .shadow_scc_topology()
+        .components()
+        .flat_map(|c| c.incoming_uses())
+        .next()
+        .unwrap();
+    assert!(matches!(
+        topology.pending_use_instantiation(&solved, foreign_use),
+        Err(Error::Topology(SccTopologyLookupError::ForeignArtifact))
+    ));
+    assert!(matches!(
+        topology.pending_use_instantiation(&foreign_solved, occurrence),
+        Err(Error::ClosedScheme(
+            SccClosedSchemeLookupError::ForeignCollection
+        ))
+    ));
+    let mut missing = batch.clone();
+    missing
+        .definition_use_positions
+        .remove(occurrence.collection_identity());
+    assert!(matches!(
+        missing
+            .shadow_scc_topology()
+            .pending_use_instantiation(&solved, occurrence),
+        Err(Error::Topology(SccTopologyLookupError::MissingIdentity))
+    ));
+    let mut missing = batch.clone();
+    missing.definition_uses[0].target =
+        crate::DefinitionOrderId::new(missing.collection_artifact.clone(), u32::MAX);
+    assert!(matches!(
+        missing
+            .shadow_scc_topology()
+            .pending_use_instantiation(&solved, occurrence),
+        Err(Error::Topology(SccTopologyLookupError::MissingIdentity))
+    ));
+    let mut missing = batch.clone();
+    missing
+        .definition_positions
+        .remove(&batch.definition_uses[0].target);
+    assert!(matches!(
+        missing
+            .shadow_scc_topology()
+            .pending_use_instantiation(&solved, occurrence),
+        Err(Error::ClosedScheme(
+            SccClosedSchemeLookupError::MissingIdentity
+        ))
+    ));
+}

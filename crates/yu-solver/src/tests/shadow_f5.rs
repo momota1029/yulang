@@ -266,7 +266,21 @@ fn fresh_capture_routes_join_exact_scc_use_target_scheme_in_same_session() {
                 .definitions()
                 .find(|definition| definition.collection_identity() == &use_record.target)
                 .unwrap();
-            let scheme = topology.use_closed_scheme(&solved, occurrence).unwrap();
+            let pending = topology
+                .pending_use_instantiation(&solved, occurrence)
+                .unwrap();
+            assert!(pending.occurrence().same_identity(occurrence));
+            assert_eq!(pending.parent().collection_identity(), &use_record.parent);
+            assert!(pending.target().same_identity(target));
+            assert!(
+                pending
+                    .target_component()
+                    .same_identity(topology.component_of(target).unwrap())
+            );
+            assert_eq!(pending.pending_generalization().premise(), crate::shadow_scc::PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved);
+            assert_eq!(pending.qr_correspondence_premise(), crate::shadow_scc::PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved);
+            assert_eq!(pending.shared_contract_transport_premise(), crate::shadow_scc::PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved);
+            let scheme = pending.current_scheme();
             assert!(
                 scheme.same_identity(topology.definition_closed_scheme(&solved, target).unwrap())
             );
