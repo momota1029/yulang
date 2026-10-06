@@ -264,9 +264,11 @@ The [opt-in resolved application slice](../notes/progress/2026-10-07-shadow-appl
 adds a leaf-only ordinary `Apply` to the experimental HIR route, joined to
 exact application/operand source identities and existing name resolution. It
 retains an explicit unsupported semantic diagnostic; solver collection emits
-no facts. Default lowering remains unchanged. The additive public enum variant
-and feature-unification boundary are reviewed; nested/computed application,
-typing and inference remain pending.
+no facts. A focused HIR-to-core crosswalk now follows the same identities into
+raw and pending structural projections, preserving call-local premise rows.
+Default and identity-only lowering remain unchanged. The additive public enum
+variant and feature-unification boundary are reviewed; nested/computed
+application, typing and inference remain pending.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme

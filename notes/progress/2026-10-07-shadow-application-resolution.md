@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 Baseline: `327c3a72ec8fed7b67321fe5f9e909dc06167190`
-Status: implemented M2 shadow slice; compiler-referee review passed; regression minor findings repaired and focused checks passed
+Status: implemented M2 shadow slice plus M1 HIR-to-core structural crosswalk; reviews passed; focused checks passed
 Claim class: exact source/occurrence structure for one leaf-only application
 Semantic and production inference authority: none
 
@@ -36,6 +36,19 @@ interface, endpoint, `beta`, profile, Q result, scheme, or inference result is
 produced. Soundness, principality, source adequacy and production cutover remain
 open.
 
+## HIR-to-core crosswalk
+
+The follow-up M1 test `opt_in_leaf_application_joins_exact_shadow_and_pending_core_identities`
+uses `my apply x = x(x)` from one `ParsedFile`. It joins the opt-in HIR Apply
+and both distinct operand occurrences to the exact shadow CallTail and
+Identifier positions, verifies the two Use records share the parameter Binder,
+and follows the same Apply/operand identities through `RawStructuralArena`
+and `PendingStructuralProjection`. Borrowed per-call pending rows remain
+attached. The ordinary and identity-only routes retain equal HIR and
+diagnostics, including `UnsupportedExpression` on this call. The test's
+positive output remains structural and pending; it does not establish a typed
+invocation, inference parity or semantic discharge.
+
 ## Review and repair
 
 The M2 compiler-referee review found no correctness issue in identity
@@ -53,6 +66,9 @@ added those assertions. The reviewed implementation itself did not change.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo check -p yu-solver --features yu-hir/shadow` — passed, covering HIR shadow feature unification without solver shadow features.
 - `rustfmt --check --edition 2024 --config skip_children=true` on the HIR module, shadow facade and new HIR test — passed.
 - `git diff --check` on all four implementation/test paths — passed.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-core --features shadow --test shadow_current_inference_correspondence opt_in_leaf_application_joins_exact_shadow_and_pending_core_identities -- --test-threads=1` — 1 passed.
+- `rustfmt --check --edition 2024 --config skip_children=true crates/yu-core/tests/shadow_current_inference_correspondence.rs` — passed.
+- The compiler-referee and regression-auditor reviews of the M1 test found no correctness issues; regression review's minor scope-comment mismatch was repaired in the companion test comment.
 
 No broad suite or performance measurement was run. The validation only covers
 the opt-in leaf-only shape, direct solver refusal, and the stated HIR feature
