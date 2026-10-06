@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use yu_core::shadow::{Form, ShadowArtifact};
-use yu_core::shadow_derivation::{IncompleteDerivation, Node};
+use yu_core::shadow_derivation::{IncompleteDerivation, Node, RawStructuralArena};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
 // Frozen Oracle a58eefc31e22141574b6f20c6a5748151c6d79f1, old infer:
@@ -96,6 +96,103 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
             .iter()
             .all(|p| p.call() == input.call())
     );
+
+    // Carry the same historical source crosswalk into the raw registration;
+    // these borrowed inputs and unresolved rows supply no inferred call view.
+    let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+    let registrations = raw
+        .nodes()
+        .iter()
+        .filter_map(|node| node.pending_source_call_registration())
+        .collect::<Vec<_>>();
+    let [registration] = registrations.as_slice() else {
+        panic!("one historical application joins one pending source registration")
+    };
+    assert_eq!(registration.source, application.expression());
+    assert_eq!(registration.source, input.call());
+    assert_eq!(registration.source, call.source);
+    assert!(std::ptr::eq(registration.application, apply.form()));
+    let source_input = registration.source_use_input;
+    assert_eq!(source_input.application().expression(), registration.source);
+    assert!(std::ptr::eq(
+        source_input.application().position(),
+        application.position()
+    ));
+    assert!(std::ptr::eq(
+        source_input.application().callee(),
+        application.callee()
+    ));
+    assert!(std::ptr::eq(source_input.occurrence(), occurrence));
+    assert!(std::ptr::eq(source_input.binder(), binder));
+    assert!(std::ptr::eq(
+        source_input.argument(),
+        application.argument()
+    ));
+    let Node::Result { value } = &arena.nodes()[call.argument] else {
+        panic!("argument result wrapper")
+    };
+    let Node::Name { source, .. } = &arena.nodes()[*value] else {
+        panic!("direct argument name")
+    };
+    assert_eq!(source_input.argument(), *source);
+    assert!(std::ptr::eq(registration.capture.unwrap(), call.capture));
+    assert_eq!(registration.application_premises.len(), 7);
+    for (registered, original) in registration
+        .application_premises
+        .iter()
+        .zip(call.application_premises)
+    {
+        assert!(std::ptr::eq(*registered, original));
+    }
+    let locator = registration.source_view_premise_locator().unwrap();
+    let registered_input = locator.input();
+    assert!(std::ptr::eq(
+        registered_input,
+        registration.captured_input.unwrap()
+    ));
+    assert!(std::ptr::eq(registered_input.call(), input.call()));
+    assert!(std::ptr::eq(
+        registered_input.callee_use(),
+        input.callee_use()
+    ));
+    assert!(std::ptr::eq(
+        registered_input.outer_parameter(),
+        input.outer_parameter()
+    ));
+    assert!(std::ptr::eq(
+        registered_input.local_lambda(),
+        input.local_lambda()
+    ));
+    assert!(std::ptr::eq(
+        registered_input.local_binding(),
+        input.local_binding()
+    ));
+    assert!(std::ptr::eq(
+        registered_input.returned_use(),
+        input.returned_use()
+    ));
+    assert!(std::ptr::eq(
+        registered_input.capture_position(),
+        input.capture_position()
+    ));
+    use yu_hir::shadow::UnresolvedSourceViewPremise::*;
+    assert_eq!(
+        locator.unresolved_premises(),
+        &[
+            CompatibleCompleteOriginalRoleIndexedProfile,
+            IndependentlyTypedOriginalInvocationAndWholeRowCarrierPrefixResumptionInterpretation,
+            JointlyScopedOriginalConstraints,
+            SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
+            IndependentInitialCallerProviderWorldAdmission,
+            SourceSeedRefinedRelationExistenceAndCoverage,
+            OriginalSignatureApplicabilityAndContributionFormation,
+        ]
+    );
+    assert_eq!(
+        locator.unresolved_premises(),
+        input.source_view_premise_locator().unresolved_premises()
+    );
+    assert_eq!(locator.unresolved_premises(), call.source_view_premises);
     assert_eq!(
         pending_before,
         skeleton
