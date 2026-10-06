@@ -117,6 +117,16 @@ finds no association introduction in its displayed inventory, without proving
 repository-wide nonderivability. These reviewed localizations sharpen the
 existing open nodes and close no gate.
 
+The independently reviewed [Frozen Oracle selection-incidence trace](../notes/progress/2026-10-07-frozen-oracle-selection-incidence-producer.md)
+adds a distinct historical source-to-hidden-port mechanism: a dot-selection
+occurrence is registered before resolution, retained with separate receiver,
+method-demand and selected-result endpoints, then consumed by method
+resolution and source hover. Its resolved artifact omits a recursive-self
+field that changes the method-use route, so the retained result cannot by
+itself invert that introduction. This is historical characterization only;
+dot selection does not construct the original `(s,c)` fiber for the fixed
+ordinary `f x` Call, and `ORIGINAL_ASSOC` remains open.
+
 No real same-X licensing counterexample or competing complete-semantics
 witness was found. The remaining clause is research-side OPEN-SEMANTIC,
 not BLOCKED-BY-USER-DECISION.
