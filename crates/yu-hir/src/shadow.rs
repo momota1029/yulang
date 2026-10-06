@@ -578,6 +578,43 @@ impl<'a> SourceCallUseInput<'a> {
     }
 }
 
+/// Borrowed references along the retained root-Lambda/local-Bind/captured-call
+/// topology. This structural projection leaves every pending premise unchanged.
+#[derive(Debug)]
+pub struct CapturedCallInput<'a> {
+    outer_parameter: &'a BinderId,
+    local_lambda: &'a ExprId,
+    local_binding: &'a BinderId,
+    returned_use: &'a UseId,
+    call: &'a ExprId,
+    callee_use: &'a UseId,
+    capture_position: &'a PositionId,
+}
+
+impl CapturedCallInput<'_> {
+    pub fn outer_parameter(&self) -> &BinderId {
+        self.outer_parameter
+    }
+    pub fn local_lambda(&self) -> &ExprId {
+        self.local_lambda
+    }
+    pub fn local_binding(&self) -> &BinderId {
+        self.local_binding
+    }
+    pub fn returned_use(&self) -> &UseId {
+        self.returned_use
+    }
+    pub fn call(&self) -> &ExprId {
+        self.call
+    }
+    pub fn callee_use(&self) -> &UseId {
+        self.callee_use
+    }
+    pub fn capture_position(&self) -> &PositionId {
+        self.capture_position
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BinderId(LocalId);
 
@@ -1328,6 +1365,104 @@ impl Skeleton {
                 call,
                 parameter_annotations: &self.parameter_annotations,
             })
+    }
+
+    /// Joins only exact retained structural edges. Different topology or an
+    /// invalid/foreign reference produces absence, without following wrappers.
+    pub fn captured_call_input(&self) -> Option<CapturedCallInput<'_>> {
+        let Form::Lambda {
+            parameter, body, ..
+        } = self.expression(&self.body).ok()?.form()
+        else {
+            return None;
+        };
+        self.binder(parameter).ok()?;
+        let Form::Bind {
+            binder,
+            value,
+            body: returned,
+        } = self.expression(body).ok()?.form()
+        else {
+            return None;
+        };
+        self.binder(binder).ok()?;
+        let Form::Lambda {
+            binding,
+            parameter: local_parameter,
+            body: call,
+            captures,
+            ..
+        } = self.expression(value).ok()?.form()
+        else {
+            return None;
+        };
+        if binding != binder || captures.as_slice() != std::slice::from_ref(parameter) {
+            return None;
+        }
+        let returned_expression = self.expression(returned).ok()?;
+        let Form::Use {
+            binder: returned_binder,
+            occurrence: returned_use,
+        } = returned_expression.form()
+        else {
+            return None;
+        };
+        if returned_binder != binder
+            || !std::ptr::eq(self.use_expression(returned_use).ok()?, returned_expression)
+            || self.use_position(returned_use).ok()? != returned_expression.position()
+        {
+            return None;
+        }
+        let Form::Apply {
+            callee, argument, ..
+        } = self.expression(call).ok()?.form()
+        else {
+            return None;
+        };
+        self.binder(local_parameter).ok()?;
+        let argument_expression = self.expression(argument).ok()?;
+        let Form::Use {
+            binder: argument_binder,
+            occurrence: argument_use,
+        } = argument_expression.form()
+        else {
+            return None;
+        };
+        if argument_binder != local_parameter
+            || !std::ptr::eq(self.use_expression(argument_use).ok()?, argument_expression)
+            || self.use_position(argument_use).ok()? != argument_expression.position()
+        {
+            return None;
+        }
+        let callee_expression = self.expression(callee).ok()?;
+        let Form::Use {
+            binder: callee_binder,
+            occurrence,
+        } = callee_expression.form()
+        else {
+            return None;
+        };
+        if callee_binder != parameter
+            || !std::ptr::eq(self.use_expression(occurrence).ok()?, callee_expression)
+            || self.use_position(occurrence).ok()? != callee_expression.position()
+        {
+            return None;
+        }
+        let capture = self.capture_uses.iter().find(|capture| {
+            capture.lambda() == value
+                && capture.captured() == parameter
+                && capture.occurrence() == occurrence
+                && capture.position() == callee_expression.position()
+        })?;
+        Some(CapturedCallInput {
+            outer_parameter: parameter,
+            local_lambda: value,
+            local_binding: binder,
+            returned_use,
+            call,
+            callee_use: occurrence,
+            capture_position: capture.position(),
+        })
     }
 
     pub fn body(&self) -> &ExprId {
