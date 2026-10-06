@@ -52,7 +52,11 @@ remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. No pair
 of conformant complete alternatives was established, so no new user decision or
 implementation authority is inferred from the remaining proof gap. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
-remains historical mechanism evidence only.
+remains historical mechanism evidence only. A separate bounded source/production
+crosswalk inventories formal, call, annotation, capture and generalization
+routes for this exact candidate. It finds no second source-valid applicable
+position, while leaving the missing original profile introduction unproved.
+See the [formal profile producer crosswalk](../notes/progress/2026-10-06-profile-position-producer-crosswalk.md).
 
 Two reviewed follow-ups further bound this stop. The conditional local
 seed/refinement theorem preserves an independently supplied original relation
@@ -318,6 +322,14 @@ and integer/grouped/computed callees do not receive this stub. Spec review and
 focused shadow/core checks pass. This is source-producer plumbing only, with
 production routing untouched.
 See the [shadow formal-use stub](../notes/progress/2026-10-06-shadow-formal-use-applicability-stub.md). A bounded baseline audit records which source references can be joined from the existing artifact and which semantic coordinates are still absent; its recommendation predates the stub and remains a baseline-limited inventory, not current design authority. See the [shadow U_c input audit](../notes/progress/2026-10-06-shadow-uc-premise-interface-audit.md).
+The next default-off shadow interface lazily joins each direct resolved-Use Apply
+to its existing call/use/binder/whole-argument IDs and retained same-binder
+annotation incidences, then re-exports the reference view through
+`yu-core/shadow`. It classifies no binder as a formal, infers no annotation
+absence/completeness, and adds no typed or semantic judgment; all five per-call
+premises remain pending. Four focused HIR tests and a core shadow-feature check
+pass. Spec review and facade regression review found no issues. See the
+[shadow source call/use input join](../notes/progress/2026-10-06-shadow-call-use-inputs.md).
 The conditional principality note on strict input-domain views finds that
 typed-core Function inclusion can validate a narrower target under explicit
 same-scope admission and observation premises, while the displayed A-allocation

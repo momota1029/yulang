@@ -332,6 +332,40 @@ impl<'a> ResolvedCallIncidence<'a> {
     }
 }
 
+/// Read-only source references for one application of an already resolved direct Use.
+/// This does not classify the binder as a formal or supply any source/semantic
+/// judgment. Retained annotation incidences make no completeness or absence claim.
+#[derive(Debug)]
+pub struct SourceCallUseInput<'a> {
+    call: ResolvedCallIncidence<'a>,
+    parameter_annotations: &'a [ParameterAnnotationIncidence],
+}
+
+impl<'a> SourceCallUseInput<'a> {
+    pub fn application(&self) -> &ApplicationSourceOccurrence<'a> {
+        self.call.application()
+    }
+    pub fn occurrence(&self) -> &UseId {
+        self.call.occurrence()
+    }
+    pub fn binder(&self) -> &BinderId {
+        self.call.binder()
+    }
+    /// Whole retained argument expression, without value/computation typing.
+    pub fn argument(&self) -> &ExprId {
+        self.call.application().argument()
+    }
+    /// Only existing incidences for this exact binder. An empty iterator does
+    /// not establish that the source binder has no annotation.
+    pub fn parameter_annotations(
+        &self,
+    ) -> impl Iterator<Item = &'a ParameterAnnotationIncidence> + '_ {
+        self.parameter_annotations
+            .iter()
+            .filter(|incidence| incidence.parameter() == self.binder())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BinderId(LocalId);
 
@@ -1051,6 +1085,17 @@ impl Skeleton {
                     occurrence,
                     binder,
                 })
+            })
+    }
+
+    /// Lazily joins retained direct-call references and same-binder annotation
+    /// incidences. This supplies no judgment and leaves every premise pending;
+    /// comparison Q cannot discharge any premise through this projection.
+    pub fn source_call_use_inputs(&self) -> impl Iterator<Item = SourceCallUseInput<'_>> + '_ {
+        self.resolved_call_incidences()
+            .map(|call| SourceCallUseInput {
+                call,
+                parameter_annotations: &self.parameter_annotations,
             })
     }
 

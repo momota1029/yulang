@@ -695,6 +695,7 @@ fn range_of_token(token: &SyntaxToken) -> Range<usize> {
 mod tests {
     mod shadow_annotation_positions;
     mod shadow_call_source_occurrences;
+    mod shadow_call_use_source_inputs;
     mod shadow_resolved_call_incidence;
     mod shadow_source_core;
 
