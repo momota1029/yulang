@@ -580,6 +580,40 @@ fn frozen_oracle_nested_apply_provenance_joins_raw_shadow_occurrences() {
 }
 
 #[test]
+fn direct_source_registration_enumerates_unresolved_premises_without_captured_topology() {
+    let captured = artifact("my apply f = { my step x = f x; step }");
+    let captured_arena = RawStructuralArena::from_artifact(&captured).unwrap();
+    let captured_registration = captured_arena
+        .nodes()
+        .iter()
+        .filter_map(|node| node.pending_source_call_registration())
+        .find(|registration| registration.source_view_premise_locator().is_some())
+        .unwrap();
+    let locator = captured_registration.source_view_premise_locator().unwrap();
+
+    let direct = artifact("my apply f x = f x");
+    let direct_arena = RawStructuralArena::from_artifact(&direct).unwrap();
+    let registrations = direct_arena
+        .nodes()
+        .iter()
+        .filter_map(|node| node.pending_source_call_registration())
+        .collect::<Vec<_>>();
+    assert_eq!(registrations.len(), 1);
+    let registration = &registrations[0];
+    assert!(registration.captured_input.is_none());
+    assert!(registration.source_view_premise_locator().is_none());
+    // Inventory equality supplies no source-view judgment or semantic evidence.
+    assert_eq!(
+        registration.unresolved_source_view_premises(),
+        locator.unresolved_premises()
+    );
+    assert!(std::ptr::eq(
+        registration.unresolved_source_view_premises(),
+        captured_registration.unresolved_source_view_premises()
+    ));
+}
+
+#[test]
 fn pending_source_registration_preserves_exact_references_and_scoped_locator() {
     use yu_hir::shadow::UnresolvedSourceViewPremise::*;
     let categories = [

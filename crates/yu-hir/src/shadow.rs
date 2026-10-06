@@ -784,6 +784,12 @@ impl<'input, 'artifact> SourceViewPremiseLocator<'input, 'artifact> {
     /// Exact upstream inventory for the scoped construction, separate from
     /// the existing seven PendingPremise rows and from broader production gates.
     pub fn unresolved_premises(&self) -> &'static [UnresolvedSourceViewPremise] {
+        Self::unresolved_premise_inventory()
+    }
+
+    /// Enumerates requirements without asserting topology, applicability,
+    /// input existence, semantic evidence, a Q result or source acceptance.
+    pub fn unresolved_premise_inventory() -> &'static [UnresolvedSourceViewPremise] {
         use UnresolvedSourceViewPremise::*;
         &[
             CompatibleCompleteOriginalRoleIndexedProfile,

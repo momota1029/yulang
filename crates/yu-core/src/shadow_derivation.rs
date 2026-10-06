@@ -866,6 +866,14 @@ impl<'artifact> PendingBinderUseGroups<'_, 'artifact> {
 }
 
 impl PendingSourceCallRegistration<'_, '_> {
+    /// Enumerates the unresolved source-view requirements independently of
+    /// captured topology. Supplies no judgment, semantic evidence, Q result or
+    /// source acceptance, and implies neither annotation absence nor formal
+    /// applicability. No requirement is discharged by this inventory.
+    pub fn unresolved_source_view_premises(&self) -> &'static [UnresolvedSourceViewPremise] {
+        SourceViewPremiseLocator::unresolved_premise_inventory()
+    }
+
     pub fn source_view_premise_locator(&self) -> Option<SourceViewPremiseLocator<'_, '_>> {
         Some(self.captured_input?.source_view_premise_locator())
     }

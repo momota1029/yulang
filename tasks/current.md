@@ -346,6 +346,16 @@ scope/xi transport, receipt, receiver, admission or semantic acceptance.
 Focused shadow tests and the exact pending inventories passed; this remains
 default-off bookkeeping.
 
+The unresolved source-view premise inventory is now directly available from
+every retained direct-Use call registration, including registrations without
+the exact captured nested-block topology. The captured-call locator still
+requires that topology; the inventory only lists the existing seven open
+requirements and supplies no judgment, applicability, annotation-absence
+claim, Q result or evidence. The focused regression is in
+`crates/yu-core/tests/shadow_raw_structural_inventory.rs`; its direct-call
+filter passed (1 test, 10 filtered). Rustfmt and `git diff --check` passed for
+the three implementation/test files.
+
 The [current-inference shadow correspondence](../notes/progress/2026-10-07-shadow-current-inference-correspondence.md)
 joins admitted unary Name/Integer leaves through exact source sidecar keys and
 characterizes the present HIR support boundary for applications. Production
