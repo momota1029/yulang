@@ -30,6 +30,52 @@ records actual proof/review/repair/check results. The
 and [theory map](../notes/theory/inference-theory-map.md) are synchronized
 navigation into this ledger, not independent duplicate gate lists.
 
+### Latest reviewed continuation: round 2
+
+The [round-2 review/integration record](../notes/progress/2026-10-07-successor-round2-review.md)
+starts from `ad514061` and revalidates the additive remote through `3cf6bb70`.
+The full preserved ledger and all 32 requested families were re-audited.
+The canonical inventory remains **89 nodes / 194 edges**: 6 CLOSED,
+17 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 46 OPEN-PROOF,
+19 OPEN-SEMANTIC and 0 BLOCKED-BY-USER-DECISION. New restricted results
+refine existing leaves rather than adding conditional gate names.
+
+- [Original kernel construction](../notes/progress/2026-10-07-successor-original-kernel-construction-round2.md)
+  constructs one whole contract before observation choice from explicit local
+  lifts, retaining all original licensing witnesses. The direct OC-Call-Intro
+  attack leaves original contribution-domain realization of the complete
+  invocation image, static owner introduction and joint incidence coherence.
+  Complete independent whole-carrier admission is distinct from the selected
+  `Delay(Name_x)` source diagonal. These are actual additional semantic
+  clauses, not association supplied by IDs or successful Q.
+- [Recursive direct certificate](../notes/progress/2026-10-07-successor-recursive-coinduction-round2.md)
+  retains the actual captured pair and saved suffix. An ordinary two-closure
+  introduction with all original local/inlet/world checks could replace
+  finite-failure reflection as the descriptor proof method. Unfolding and
+  postfixedness do not prove its absorption: the two-member swap has both
+  empty and full fixed points. This is an algebraic method obstruction, not
+  an admitted-source counterexample; non-descriptor discharge stays separate.
+- [Finite incidence and scoped orbits](../notes/progress/2026-10-07-successor-effective-projection-round2.md)
+  construct a finite context carrier for explicit relational source-port
+  operations and exact equality-only projection at the original binders.
+  Actual source operations/observers still need correspondence. A decidable
+  Record-chain primitive refutes the general claim that pure FMP plus finite
+  syntax/pointwise checking yields a computable complete joint bound; no
+  Yulang undecidability is claimed.
+- Reviewed default-off [alpha comparison](../notes/progress/2026-10-07-shadow-interface-alpha-round2.md)
+  and [atom-orbit evaluation](../notes/progress/2026-10-07-shadow-atom-orbits-round2.md)
+  implement their supplied-input mathematical slices. Their 14 focused tests
+  pass, including 28,800 direct/orbit comparisons. Exhaustion is explicit;
+  complete semantic interfaces, actual source predicates and production
+  inference are not supplied by these utilities.
+
+Both independent compiler-referee/spec-auditor panels passed, including the
+later orbit implementation panel. The old pending-review text for PATH_QUERY
+is retired; its repaired reviews were already closed. The current single
+`constrain_live` work bound and later HIR/SCC/source-retention slices are
+preserved at their exact reviewed scopes. No remaining semantic node has a
+qualifying pair of complete competing same-admitted-source meanings.
+
 ## Binding authority: directional source protection
 
 Preserve the current explicit user decision:

@@ -20,6 +20,17 @@ practice. The current directional upper-output policy is fixed. Internal
 inferred views do not change actual callable role/entry; provider-owned
 protection is retained. No E/R or normalized blanket policy is selected.
 
+Latest reviewed continuation: [round-2 review and integration](../progress/2026-10-07-successor-round2-review.md).
+The original kernel has explicit whole-contract and OC-Call-Intro candidate
+clauses; the actual recursive knot has a direct certificate and an exact
+absorption obstruction; finite relational contexts and equality-only scoped
+atom projection have constructive restricted proofs. Both compiler/spec
+reviews are clean. These results refine the existing 89-node / 194-edge DAG
+without promoting any original semantic leaf or adding conditional gate names.
+Two independently reviewed default-off Rust utilities now implement supplied
+finite-interface alpha comparison and pointwise atom-orbit evaluation; their
+14 focused tests pass. The latest local-binding sidecar remains structural.
+
 ## 1. Structural carrier, residual relation and effects
 
 | Package | Current meaning | Exact remaining edge |

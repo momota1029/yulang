@@ -24,6 +24,40 @@ The previous expanding ledger is preserved as
 Its old open wording is superseded by the explicitly scoped current nodes,
 not merged into a second active inventory.
 
+## Round-2 revalidation and constructive delta
+
+The current continuation starts at `ad514061` and revalidates the additive
+remote through `3cf6bb70`. Both independent compiler/spec reviews accepted
+the [round-2 packet](../progress/2026-10-07-successor-round2-review.md).
+Its restricted results refine existing minimum obligations; all 89 node
+statuses and 194 edges remain unchanged. No original source semantic leaf
+is closed by a supplied-input implementation or candidate clause.
+
+The [original-kernel construction](../progress/2026-10-07-successor-original-kernel-construction-round2.md)
+derives uniform assembly from explicit local whole-contract lifts, before
+observation choice. The remaining OC-Call-Intro clause must realize the full
+typed invocation in the original contribution domain, introduce the static
+owner and prove joint incidence coherence. Exhaustive licensing inversion
+must recover every actual original witness. A source argument diagonal does
+not replace independent whole-carrier inlet admission.
+
+The [recursive certificate](../progress/2026-10-07-successor-recursive-coinduction-round2.md)
+offers an alternative to the listed FH/reflection method inside REC_DESC.
+Its ordinary two-closure introduction/absorption law remains unproved;
+unfolding has both empty and full solutions for the returned-handle swap.
+No new gate is added, and initial/local/non-descriptor discharge remains.
+
+The [effective projection construction](../progress/2026-10-07-successor-effective-projection-round2.md)
+constructs finite contexts from a specified relational syntax and exact
+equality-only atom projection at the original binders. Actual source rule and
+observer coverage, recursive/non-name predicates and full export remain.
+Finite syntax plus pointwise decidability cannot supply arbitrary primitive
+joint reflection, as its explicit mathematical Record-chain extension shows.
+The reviewed shadow [alpha comparator](../progress/2026-10-07-shadow-interface-alpha-round2.md)
+and [atom evaluator](../progress/2026-10-07-shadow-atom-orbits-round2.md)
+implement their supplied-input slices, with explicit exhaustion and no
+production caller. Complete semantic interface generation is still IFACE_FORM.
+
 ## Independent semantic specifications and realization
 
 DESC_CLAUSES and ADMISSION_CLAUSES specify the complete descriptor/carrier/
