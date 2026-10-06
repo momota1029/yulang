@@ -3,7 +3,8 @@
 Date: 2026-10-06
 Baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: independently spec-audited bounded research construction; surface-brace realization remains open
+Status: independently reviewed bounded research construction; surface-brace realization remains open
+Review: [fresh compiler-referee and spec-auditor record](2026-10-06-source-constructor-review.md); no findings in the recorded scopes
 Claim classes: source-derived endpoint-family construction; conditional semantic
 selection/reconstruction; source and conditional decorated-core discriminators
 Semantic/implementation authority: none
@@ -385,11 +386,11 @@ acceptance probes, child agents, user questions or Git mutations. A larger
 toy model would only repeat the incomplete admission/direct-resolution leaf;
 the lane stops at this bounded source attack.
 
-Verification is limited to source/dependency inspection, baseline byte
-comparison and whitespace checking. These checks are not independent proof
-review. The artifact remains explicitly unreviewed research-only. The primary
-owns independent review, shared status/theory/index synchronization and Git
-integration.
+Producer verification was limited to source/dependency inspection, baseline
+byte comparison and whitespace checking. Those checks were not independent
+proof review. The artifact was explicitly unreviewed research-only at freeze;
+the later independent reviews are recorded above. The primary owns shared
+status/theory/index synchronization and Git integration.
 
 Next decisive evidence:
 

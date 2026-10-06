@@ -54,6 +54,27 @@ Actual recursive discharge, semantic generalized-view/binder eligibility,
 complete original profile/source/admission coverage, changed refinement kernels
 and all-view/production gates remain open. No full graph edge is promoted.
 
+**Reviewed actual-source construction (`fc091a03`):**
+[K/KP/KV](../progress/2026-10-06-recursive-source-validation-construction.md)
+removes the actual constructor-guarded recursive-provider graph as an input,
+pairs its finite histories, and emits the independent membership obligations
+at those same original member roots. Complete recursive descriptor/admission
+discharge and its source-typing/finite-presentation correspondence remain
+separate. [PG-1](../progress/2026-10-06-source-generalization-eligibility-attack.md)
+supplies source-selected projection endpoints, fixed captures and original-scope
+whole-kernel reconstruction; it does not supply arbitrary Generalize eligibility
+or the actual Direct resolver certificate. The
+[profile/admission schema](../progress/2026-10-06-source-profile-admission-construction.md)
+removes completed P as an emission input, derives the mandatory upper member
+and policy given original applicability, and expands initial/history obligations.
+Exhaustive original signature licensing, complete-row solutions and independent
+world/carrier validity remain the first semantic leaves. Own/inherited source
+arms and receivers remain distinct even at the same static beta.
+The [new review record](../progress/2026-10-06-source-constructor-review.md)
+contains fresh compiler-referee and spec-auditor no-findings verdicts. These
+conditional source-construction edges promote no unrestricted `FVIEW -> SRC`,
+`COMMON -> PRIN`, all-world admission or production-containment edge.
+
 The independently compiler-referee and spec-auditor-reviewed [conditional
 SourceViewInst construction](../progress/2026-10-06-directional-source-view-instantiation-construction.md)
 supplies those association constructors when an independently typed original
@@ -392,7 +413,7 @@ The independently compiler-referee-reviewed [whole-tuple correspondence](../prog
 
 The compiler-referee-reviewed [profile/admission derivation](../progress/2026-10-06-source-profile-admission-derivation-attempt.md) and [admission discriminator](../progress/2026-10-06-source-profile-admission-falsification.md) identify the separate unclosed upstream cuts after the conditional SV theorem: construct one compatible complete original profile, then independently admit an initial typed invocation under that profile and the same `xi`. The derivation is conditional and unclosed; the discriminator is a bounded logical model, not a source counterexample. No source-generation or proof edge is promoted.
 
-Three follow-up constructions have independent bounded reviews: the [recursive-source construction](../progress/2026-10-06-recursive-source-validation-construction.md) builds the actual mutually captured providers, then leaves complete descriptor/admission/history reflection open; the [generalization-eligibility attack](../progress/2026-10-06-source-generalization-eligibility-attack.md) derives a bounded projection-lambda endpoint family, with additional brace witnesses explicitly conditional on decorated-core construction; the [profile/admission construction](../progress/2026-10-06-source-profile-admission-construction.md) emits an unsolved finite schema and expands independent initial/history obligations while retaining complete-profile and coverage gaps. These reviews add no adopted semantic rule or closed theorem edge.
+Three follow-up constructions have independent bounded reviews: the [recursive-source construction](../progress/2026-10-06-recursive-source-validation-construction.md) builds the actual mutually captured providers, then leaves complete descriptor/admission/history reflection open; the [generalization-eligibility attack](../progress/2026-10-06-source-generalization-eligibility-attack.md) derives a bounded projection-lambda endpoint family, with additional brace witnesses explicitly conditional on decorated-core construction; the [profile/admission construction](../progress/2026-10-06-source-profile-admission-construction.md) emits an unsolved finite schema and expands independent initial/history obligations while retaining complete-profile and coverage gaps. These reviews add no adopted semantic rule or closed theorem edge. The [additional independent review record](../progress/2026-10-06-source-constructor-review.md) records the separate compiler-referee/spec-auditor verdicts and the frozen incoming scope delta.
 
 The compiler-referee-reviewed [original-profile derivation](../progress/2026-10-06-original-profile-applicability-derivation.md) exhausts the exact source/core constructor inventory and derives the one directly justified upper-output introduction, while distinguishing that set from complete `Slots(beta)`. The spec-audited [completeness falsification](../progress/2026-10-06-profile-completeness-inference-falsification.md) shows conditional unique policy assembly does not supply the original applicability family or its coverage. The first missing constructor is the independent original signature applicability/contribution formation law with exhaustive inversion and forward/reverse coverage under one whole row; complete-row nonemptiness and independent admission remain open.
 
