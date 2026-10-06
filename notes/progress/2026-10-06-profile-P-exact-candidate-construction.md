@@ -229,14 +229,18 @@ It is the relational-image and routing-preservation argument on the same
 original receiving graph.
 
 For the isolated no-grant source contribution, the exact local preservation
-test is equality of its live witness predicate:
+test is equality of its live witness predicate. Fix `C_src` to the exact
+source component. The boundary quantifier ranges over this contract's
+corresponding original admitted boundary instances at the same joint `xi`,
+as related by H3; `kappa` denotes the dynamic handler-search configuration:
 
 ```text
-W_stage(q,h,C) = exists p.
-  App_C(p) & Path_stage(q,owner(h),b,p)
-  & Active(h,C) & Active(owner(h),C) & Active(b.receiver,C).
+W_stage(C_src,xi;q,h,kappa) = exists original b,p at (C_src,xi).
+  App_C_src(p;xi) & Path_stage(q,owner(h),b,p;xi)
+  & Active(h,kappa) & Active(owner(h),kappa) & Active(b.receiver,kappa).
 
-forall original q,h,C. W_seed(q,h,C) iff W_refined(q,h,C).
+forall original admitted xi,q,h,kappa at C_src, related by H3.
+  W_seed(C_src,xi;q,h,kappa) iff W_refined(C_src,xi;q,h,kappa).
 ```
 
 This equality is necessary and sufficient for preservation of *this
