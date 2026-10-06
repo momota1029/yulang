@@ -287,10 +287,11 @@ adds leaf-only and one-level ungrouped nested ordinary `Apply` structures to
 the experimental HIR route, joined to exact call/operand source identities and
 existing name resolution. Each retained call keeps an explicit unsupported
 semantic diagnostic; solver collection emits no facts. The HIR-to-core
-crosswalk is verified for the leaf-only shape; the new nested shape is verified
-at HIR only. Whitespace/comment trivia does not alter name resolution, and
-unsupported deeper/grouped/computed shapes remain atomic. Default and
-identity-only lowering remain unchanged. Typing, inference, semantic
+crosswalk now covers both leaf-only and one nested argument application,
+through raw and pending structural projection with separate call-local rows.
+Whitespace/comment trivia does not alter name resolution, and unsupported
+deeper/grouped/computed shapes remain atomic. Default and identity-only
+lowering remain unchanged. Nested solver parity, typing, inference, semantic
 acceptance, soundness, principality and source adequacy remain pending.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/

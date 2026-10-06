@@ -2,10 +2,10 @@
 
 //! Support-boundary characterization from one ParsedFile. Exact production
 //! sidecar joins cover admitted definitions, parameters and leaves on the
-//! ordinary/identity-only routes; an explicit opt-in test also joins one leaf
-//! application. Rejected ordinary applications have no production occurrence
-//! join, even when an Error range overlaps shadow syntax. This establishes no
-//! type/scheme, callable-role, effect, soundness, principality, source-adequacy
+//! ordinary/identity-only routes; explicit opt-in tests also join leaf and
+//! one-level nested applications. Rejected ordinary applications have no
+//! production occurrence join, even when an Error range overlaps shadow syntax.
+//! This establishes no type/scheme, callable-role, effect, soundness, principality, source-adequacy
 //! or old-infer equivalence.
 
 use std::sync::Arc;
@@ -283,6 +283,219 @@ fn opt_in_leaf_application_joins_exact_shadow_and_pending_core_identities() {
         assert!(std::ptr::eq(*borrowed, original));
     }
     // Exact source identities and pending rows supply no typed invocation or inference parity.
+}
+
+#[test]
+fn opt_in_nested_application_joins_exact_shadow_and_pending_core_identities() {
+    use yu_core::shadow_derivation::PendingStructuralForm;
+    use yu_hir::shadow::lower_module_with_shadow_applications;
+    use yu_syntax::SyntaxKind;
+
+    let source: Arc<SourceText> = Arc::from("my apply x = x(x 1)");
+    let header = Arc::new(scan_header(source.clone()));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+    let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+        "current-inference-shadow",
+        "nested-application.yu",
+    )));
+    let hir =
+        lower_module_with_shadow_applications(identity.clone(), &parsed, SemanticImports::empty())
+            .unwrap();
+    let ordinary = lower_module(identity.clone(), &parsed, SemanticImports::empty()).unwrap();
+    let identity_only =
+        lower_module_with_source_identity(identity, &parsed, SemanticImports::empty()).unwrap();
+    assert_eq!(ordinary, identity_only);
+    assert_eq!(ordinary.diagnostics(), identity_only.diagnostics());
+    for default in [&ordinary, &identity_only] {
+        let [HirItem::Binding(binding)] = default.items() else {
+            panic!("default unary binding")
+        };
+        let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+            panic!("default unary lambda")
+        };
+        assert!(matches!(body.as_ref(), ResolvedExpr::Error { .. }));
+    }
+
+    let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+    let skeleton = shadow.skeleton().unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let [HirItem::Binding(binding)] = hir.items() else {
+        panic!("opt-in unary binding")
+    };
+    let [parameter] = binding.parameters() else {
+        panic!("one parameter")
+    };
+    let parameter_position = shadow
+        .parameter_source_position(&hir, parameter.id())
+        .unwrap();
+    let (_, binder) = crosswalk
+        .parameter_at_position(&parameter_position)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        skeleton.binder(binder).unwrap().position(),
+        &parameter_position
+    );
+    let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+        panic!("opt-in unary lambda")
+    };
+    let ResolvedExpr::Apply {
+        callee, argument, ..
+    } = body.as_ref()
+    else {
+        panic!("outer structural Apply")
+    };
+    let ResolvedExpr::Apply {
+        callee: inner_callee,
+        argument: inner_argument,
+        ..
+    } = argument.as_ref()
+    else {
+        panic!("inner structural Apply")
+    };
+    let expressions = [
+        body.as_ref(),
+        callee.as_ref(),
+        argument.as_ref(),
+        inner_callee.as_ref(),
+        inner_argument.as_ref(),
+    ];
+    for (index, expression) in expressions.iter().enumerate() {
+        for other in &expressions[..index] {
+            assert_ne!(expression.occurrence(), other.occurrence());
+        }
+    }
+    let raw = RawStructuralArena::from_artifact(&shadow).unwrap();
+    let projected = PendingStructuralProjection::from_raw_with_header(&raw).unwrap();
+    let mut callee_uses = Vec::new();
+    let mut call_sources = Vec::new();
+    for (call_expr, callee_expr, argument_expr, kind, range) in [
+        (
+            body.as_ref(),
+            callee.as_ref(),
+            argument.as_ref(),
+            SyntaxKind::CallTail,
+            14..19,
+        ),
+        (
+            argument.as_ref(),
+            inner_callee.as_ref(),
+            inner_argument.as_ref(),
+            SyntaxKind::MlArgument,
+            17..18,
+        ),
+    ] {
+        let ResolvedExpr::Apply { source_form, .. } = call_expr else {
+            panic!("structural Apply")
+        };
+        assert_eq!(*source_form, kind);
+        let position = shadow
+            .occurrence_source_position(&hir, call_expr.occurrence())
+            .unwrap();
+        assert_eq!(shadow.position(&position).unwrap().kind(), kind);
+        assert_eq!(*shadow.position(&position).unwrap().range(), range);
+        let application = crosswalk
+            .application_at_position(&position)
+            .unwrap()
+            .unwrap();
+        let Form::Apply {
+            callee: retained_callee,
+            argument: retained_argument,
+            ..
+        } = application.form()
+        else {
+            panic!("retained shadow Apply")
+        };
+        assert_ne!(retained_callee, retained_argument);
+        for (operand, retained) in [
+            (callee_expr, retained_callee),
+            (argument_expr, retained_argument),
+        ] {
+            let operand_position = shadow
+                .occurrence_source_position(&hir, operand.occurrence())
+                .unwrap();
+            assert_eq!(
+                skeleton.expression(retained).unwrap().position(),
+                &operand_position
+            );
+        }
+        let ResolvedExpr::Name {
+            resolution: NameResolution::Parameter(id),
+            ..
+        } = callee_expr
+        else {
+            panic!("resolved parameter callee")
+        };
+        assert_eq!(id, parameter.id());
+        let Form::Use {
+            binder: used,
+            occurrence,
+        } = skeleton.expression(retained_callee).unwrap().form()
+        else {
+            panic!("retained parameter use")
+        };
+        assert_eq!(used, binder);
+        let callee_position = shadow
+            .occurrence_source_position(&hir, callee_expr.occurrence())
+            .unwrap();
+        assert_eq!(
+            crosswalk.use_at_position(&callee_position).unwrap(),
+            Some(occurrence)
+        );
+        assert_eq!(
+            crosswalk
+                .application_direct_use_at_position(&position)
+                .unwrap(),
+            Some((occurrence, binder))
+        );
+        callee_uses.push(occurrence);
+
+        let raw_node = raw
+            .nodes()
+            .iter()
+            .find(|node| skeleton.expression(&node.source).unwrap().position() == &position)
+            .unwrap();
+        assert!(std::ptr::eq(raw_node.form, application.form()));
+        let call = raw_node.call.as_ref().unwrap();
+        assert_eq!(call.direct_use.as_ref().unwrap().occurrence(), occurrence);
+        assert_eq!(call.direct_use.as_ref().unwrap().binder(), binder);
+        assert_eq!(call.header_parameter.as_ref().unwrap().parameter, binder);
+        let projected_node = projected
+            .nodes()
+            .iter()
+            .find(|node| node.source == &raw_node.source)
+            .unwrap();
+        let PendingStructuralForm::PendingApply {
+            callee: callee_index,
+            argument: argument_index,
+            call: projected_call,
+        } = &projected_node.form
+        else {
+            panic!("pending structural Apply")
+        };
+        assert!(std::ptr::eq(*projected_call, call));
+        assert_eq!(projected.nodes()[*callee_index].source, retained_callee);
+        assert_eq!(projected.nodes()[*argument_index].source, retained_argument);
+        let rows = skeleton
+            .pending()
+            .iter()
+            .filter(|row| row.call() == &raw_node.source)
+            .collect::<Vec<_>>();
+        assert!(!rows.is_empty());
+        assert_eq!(call.application_premises.len(), rows.len());
+        for (borrowed, original) in call.application_premises.iter().zip(rows) {
+            assert!(std::ptr::eq(*borrowed, original));
+        }
+        call_sources.push(&raw_node.source);
+    }
+    assert_ne!(callee_uses[0], callee_uses[1]);
+    assert_ne!(call_sources[0], call_sources[1]);
+    assert_eq!(projected.nodes()[projected.body()].source, call_sources[0]);
+    let ResolvedExpr::Integer { spelling, .. } = inner_argument.as_ref() else {
+        panic!("retained integer operand")
+    };
+    assert_eq!(spelling, "1");
+    // These joins retain only source structure and borrowed pending premises.
 }
 
 #[test]

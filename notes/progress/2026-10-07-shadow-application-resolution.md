@@ -3,8 +3,9 @@
 Date: 2026-10-07
 Baseline: `327c3a72ec8fed7b67321fe5f9e909dc06167190`
 Nested HIR extension baseline: `1870b1330160e83b71756f60300900f3e2ff4545`
-Status: implemented M2 shadow slice plus M1 HIR-to-core crosswalk and one-level nested HIR extension; reviews passed; focused checks passed
-Claim class: exact source/occurrence structure for leaf and bounded nested applications
+Nested core crosswalk baseline: `0741c32217f8f90296c4e497ab4d4d9644e120c0`
+Status: implemented M2 shadow slice plus leaf and one-level nested HIR-to-core crosswalks; reviews passed; focused checks passed
+Claim class: exact source/occurrence structure through pending core projection for leaf and bounded nested applications
 Semantic and production inference authority: none
 
 ## Result
@@ -59,8 +60,13 @@ The nested extension retains `f(f 1)` as two Apply nodes, with separate
 occurrences for both calls and all three operands. Whitespace and block-comment
 variants preserve the same parameter resolution. Each call carries its own
 `UnsupportedExpression`; the enclosing call also retains the nested error ID.
-The extension has not yet been crosswalked through `RawStructuralArena` or
-`PendingStructuralProjection` for the nested shape.
+The nested case `my apply x = x(x 1)` also has a focused HIR-to-core crosswalk:
+outer `CallTail` and inner `MlArgument` occurrences map to distinct Raw
+`Form::Apply` nodes and distinct projected `PendingApply` nodes. Their direct
+callee Uses remain distinct while sharing the same source Binder. Each RawCall
+borrows its own pending registration rows through projection. Default and
+identity-only lowering still agree and retain Error bodies. This checks only
+source structure and pending evidence, not semantic or inference parity.
 
 ## Review and repair
 
@@ -91,9 +97,11 @@ that finding with no residual issues in its dependency cone.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-hir --features shadow --test shadow_application_resolution -- --test-threads=1` — 5 passed, including nested identities, trivia resolution, atomic rejection and unchanged default/identity-only routes.
 - `rustfmt --check --edition 2024 --config skip_children=true crates/yu-hir/src/module.rs crates/yu-hir/tests/shadow_application_resolution.rs` — passed.
 - `git diff --check -- crates/yu-hir/src/module.rs crates/yu-hir/tests/shadow_application_resolution.rs` — passed.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-core --features shadow --test shadow_current_inference_correspondence opt_in_nested_application_joins_exact_shadow_and_pending_core_identities -- --test-threads=1` — 1 passed; outer and nested call identities and their separate pending rows reach flat pending core projection.
+- `rustfmt --check --edition 2024 --config skip_children=true crates/yu-core/tests/shadow_current_inference_correspondence.rs` and focused `git diff --check` — passed.
 
-No broad suite or performance measurement was run. Solver refusal and
-HIR-to-core correspondence remain verified only for the earlier leaf-only
-shape; the new nested extension is verified at HIR only. Production inference,
+No broad suite or performance measurement was run. Direct solver refusal was
+verified for the earlier leaf-only shape; the nested crosswalk stops at
+pending core structure and has no solver parity claim. Production inference,
 typing, semantic acceptance and all soundness/principality/source-adequacy
 gates remain open.
