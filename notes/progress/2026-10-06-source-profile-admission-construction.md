@@ -3,7 +3,8 @@
 Date: 2026-10-06
 Assigned baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch: `research/simple-sub-intrusion`
-Status: independently compiler-referee-reviewed conditional research construction
+Status: independently reviewed bounded conditional research construction
+Review: [fresh compiler-referee and spec-auditor record](2026-10-06-source-constructor-review.md); no findings in the recorded scopes
 Claim class: finite source-origin/policy schema, expanded independent admission
             obligations, source-grounded failed completion tests
 Semantic and implementation authority: none

@@ -53,6 +53,29 @@ reopened as opaque certificate obligations.
 
 This is a snapshot of a fast-moving research branch. “Current” below means supported by the cited reviewed/Authoritative source as of the date above, not that every upstream compiler path conforms to it. Bounded checkers and finite probes remain characterization evidence. Drafts, failed routes, and older progress descriptions are retained in place as research history.
 
+**Reviewed source-constructor continuation (`fc091a03`):** the
+[recursive K/KP/KV construction](../progress/2026-10-06-recursive-source-validation-construction.md)
+builds actual mutually captured providers and pairs their finite operational
+histories without a validated simultaneous environment. Its semantic validator
+retains complete membership on those same providers; it does not discharge
+that membership or choose a recursive source-typing rule.
+[PG-1](../progress/2026-10-06-source-generalization-eligibility-attack.md)
+derives projection endpoint families, fixed captures and whole-kernel
+reconstruction from source constructors, before supplied eligible-set
+transport. Actual Generalize validity, complete admission and designated-export
+Direct evidence remain distinct. The
+[profile/admission construction](../progress/2026-10-06-source-profile-admission-construction.md)
+emits unsolved original inventory/profile obligations and initial/history
+schemas; unique policy assembly is conditional on original applicability.
+Original-beta inversion reaches the exact signature licensing/coverage leaf,
+retaining separate inherited sources even at the same static beta. Complete
+profile nonemptiness and all-world validity are not inferred from one run.
+Both [fresh independent reviews](../progress/2026-10-06-source-constructor-review.md)
+found no issues within these bounded scopes. Full source, principality and
+production edges remain open, with Option A/2 extras unrestricted by reference
+source constructors. This continuation reduces the earlier opaque premises;
+it does not reopen SV, RS/LX/SC or import Oracle mechanisms as authority.
+
 ## Reading the result labels
 
 - **Theorem**: a general mathematical result as stated in its reviewed source.

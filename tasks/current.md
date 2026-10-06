@@ -1,6 +1,6 @@
 # Current task: SCC-intrusion inference replacement
 
-Updated: 2026-10-06, after independently reviewed receipt/prefix construction and recursive-origin/complete-source normalization.
+Updated: 2026-10-06, after independently reviewed actual-provider, projection-family and unsolved profile/admission constructions.
 Branch: `research/simple-sub-intrusion`.
 
 ## Objective and authority
@@ -192,6 +192,54 @@ expansion, all-view principality, or production inclusion is inferred.
 with independently licensed production-only members allowed without reference
 source constructors.
 
+### Actual providers, source endpoint families and profile obligations
+
+Research checkpoint: `fc091a03b919b982e4258677a6bcac5f4680600b`, on semantic
+baseline `393b77b64cef03e74b3f1e76adb22c2aac5c981d` with the concurrent
+`b28b1b4b` Oracle-only addition retained. Two new independent reviewers
+inspected all three frozen artifacts directly. Both reported no blocking,
+major or minor findings in their declared scopes; see the
+[review and integration record](../notes/progress/2026-10-06-source-constructor-review.md).
+
+| Result | Newly constructed source part | Exact remaining premise |
+| --- | --- | --- |
+| [K / KP / KV recursive construction](../notes/progress/2026-10-06-recursive-source-validation-construction.md) | Actual mutually captured closures for `my f x = g; my g y = f`, paired finite prefixes/future calls, and a total same-provider semantic contract-realization schema. No validated simultaneous environment or member-type solution is needed to build the graph | Independent complete descriptor/context/admission validity, guarded recursive discharge, intended source-typing correspondence and effective presentation. Constructor-guarded immutable providers only; unguarded initialization is uncovered |
+| [PG-1 source projection family](../notes/progress/2026-10-06-source-generalization-eligibility-attack.md) | Parameter/Name/Result/Bind select the repeated `id` endpoint, fixed `pick` capture and original-scope whole-kernel reconstruction for independently checked projection views. The source `id` and conditional core `Make`/`Relay` witnesses reject capture freshening and separate port/call witnesses | Actual Generalize admissibility, complete admission, all-view coverage, source instantiation independence and Direct evidence at the designated export. `Make`/`Relay` surface-brace realization is open; candidate endpoint selection is not a finished semantic eligible-binder policy |
+| [Unsolved profile/admission generation](../notes/progress/2026-10-06-source-profile-admission-construction.md) | Emit the original slot, unknown inventory/profile and Function demand jointly; derive the mandatory upper member and unique unannotated policy once original applicability is fixed; expand initial context and finite history templates | Exhaustive independent original signature-policy licensing at beta introduction and genuine complete original-row solutions, including carrier/import/world predicates. One returning identity trace does not establish completion nonemptiness |
+
+K removes the runtime recursive-provider knot from the input, while KV retains
+complete membership on those same providers at the original roots. A missing
+satisfiability algorithm does not negate that semantic construction; conversely
+retaining `CompleteMem` does not discharge it or prove a finite effective
+primitive. Complete invocation includes argument entry, even for a pure body
+and a ground parameter result.
+
+Original-beta inversion now runs from actual read/capture/rebind/receipt to
+the signature's own original profile input. It preserves indexed own versus
+inherited sources: another invocation may have the same static beta and a
+different receiver. The remaining licensing/coverage rule is not another
+opaque capture/read association. No inferred shape, endpoint equality,
+successful Q or empty observation support supplies that rule.
+
+The source schemas remain Q-independent; complete original applicability and
+all-world admission remain independently interpreted obligations. In the
+projection route, a finite complete-relation equality certificate still needs
+the ordinary resolver-conformance and actual derived-guard evidence required
+by the designated-export Direct clause. Neither semantic reflexivity nor the
+old pure Function resolver is a substitute. The follow-up attacks and exact
+remaining evidence are recorded in the review ledger.
+
+The subsequent `f99094ae` scope repair is retained: the additional `Make` and
+`Relay` examples are conditional decorated-core graphs, with their surface-
+brace realization open. Both fresh dependency-scoped reviewers inspected that
+immutable delta and found no issue; the original projection theorem is unchanged.
+
+These are bounded source constructions and premise reductions, not unrestricted
+source/principality closure. All original scopes, the one `xi=(nu,K,D)`, active
+provider/result evidence, directional upper/lower occurrences and actual roles/
+entries stay intact. Callback B, Option A/2, and both production inclusions
+remain unchanged; no source witness is required for production-only members.
+
 <a id="open-gates-at-this-snapshot"></a>
 
 ## Active unrestricted proof gates
@@ -206,9 +254,10 @@ converse as a prerequisite. Instead:
    new rule does not choose all variable-to-variable, nested-result or late-seed
    propagation policies by analogy.
 2. Use the reviewed SV constructor for the selected source's prospective
-   receipt and actual-transition result/capture/read correspondence. Generate
-   its independent complete original profile, typed source rows and admission,
-   and extend coverage to the required source forms. The earlier
+   receipt and actual-transition result/capture/read correspondence, and the
+   new unsolved inventory/profile and initial-history schemas. Prove exhaustive
+   original signature licensing, genuine complete typed rows/profile solutions
+   and independent admission; extend coverage to the required source forms. The earlier
    [one-Apply output link](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment)
    and [conditional event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses)
    retain their scopes: a particular event still requires actual matching
@@ -219,7 +268,9 @@ converse as a prerequisite. Instead:
    singleton and unchanged active kernels. Generate the complete original
    source relation and justify any actual semantic refinement or mixed-use
    decision, keeping one original `xi=(nu,K,D)` and original binder scopes.
-4. Complete independently interpreted descriptor/context/world admission,
+4. Use the constructed actual recursive knot to attack independent descriptor/
+   context/world admission and guarded member discharge. Complete source
+   Generalize eligibility beyond PG-1, the designated-export Direct bridge,
    all-view adequacy/principality, finite effective presentation and production
    Option A/2 containment. Do not infer admission from Q or require all
    production-only members to have the reference source constructor form.
@@ -291,7 +342,7 @@ The independently compiler-referee-reviewed bounded [whole-tuple correspondence]
 
 The independently reviewed [profile/admission derivation attempt](../notes/progress/2026-10-06-source-profile-admission-derivation-attempt.md) and [admission falsification](../notes/progress/2026-10-06-source-profile-admission-falsification.md) preserve the same `xi` and distinguish two upstream cuts: complete original profile construction and independent initial typed-context admission. They derive no admitted source row and no source counterexample. Their exact next handoff is to construct a source-owned complete profile, then prove independent initial admission and coverage under that one profile and `xi`.
 
-Three follow-up constructions have now been independently reviewed within bounded scopes: [recursive source validation](../notes/progress/2026-10-06-recursive-source-validation-construction.md) constructs the actual mutually captured closure knot and reduces validation to an open complete descriptor/admission/history characterization; [source generalization eligibility](../notes/progress/2026-10-06-source-generalization-eligibility-attack.md) derives a bounded projection-lambda endpoint family and conditional decorated-core shortcut attacks, with raw-brace realization open; [profile/admission construction](../notes/progress/2026-10-06-source-profile-admission-construction.md) emits a finite unsolved profile/policy schema and separates complete-profile applicability from independent initial/history admission. Reviews found no remaining issue within those scopes. None closes the unrestricted source producer, principality or production gates.
+Three follow-up constructions have now been independently reviewed within bounded scopes: [recursive source validation](../notes/progress/2026-10-06-recursive-source-validation-construction.md) constructs the actual mutually captured closure knot and reduces validation to an open complete descriptor/admission/history characterization; [source generalization eligibility](../notes/progress/2026-10-06-source-generalization-eligibility-attack.md) derives a bounded projection-lambda endpoint family and conditional decorated-core shortcut attacks, with raw-brace realization open; [profile/admission construction](../notes/progress/2026-10-06-source-profile-admission-construction.md) emits a finite unsolved profile/policy schema and separates complete-profile applicability from independent initial/history admission. Reviews found no remaining issue within those scopes. None closes the unrestricted source producer, principality or production gates. The [additional independent review record](../notes/progress/2026-10-06-source-constructor-review.md) records the separate compiler-referee/spec-auditor verdicts and the frozen incoming scope delta.
 
 The next source-proof target is the original Function/signature formation law: derive exhaustive applicable-position and contribution coverage for the exact inferred upper contract, then prove a complete original-row witness and independent initial admission under that same profile and `xi`. A constructive derivation and an independent completeness falsification are active; neither may infer coverage from the finite returning/divergent/suspended witnesses alone.
 

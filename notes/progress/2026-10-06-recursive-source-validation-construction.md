@@ -3,7 +3,8 @@
 Date: 2026-10-06
 Baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch: `research/simple-sub-intrusion`
-Status: frozen, independently compiler-referee-reviewed research-only construction and premise reduction
+Status: independently reviewed bounded research construction and premise reduction
+Review: [fresh compiler-referee and spec-auditor record](2026-10-06-source-constructor-review.md); no findings in the recorded scopes
 Method: finite lexical graph construction; paired source/core transitions;
         open-body validation attack against independent descriptor membership
 Exclusive write lease: this note only
@@ -509,7 +510,7 @@ embed its own changing hash. Locator/status reads of `tasks/current.md`,
 | `notes/design/2026-10-04-source-indexed-callback-realization.md` | `76874a219ac86068027b1f08a5bc27a12d93a0169a52cebd896a6ff6f2c6b671` |
 | `notes/design/2026-10-04-source-generated-callback-structural-theorems.md` | `568bb4649ba278519f3ad01af2091dd1baaca42850cd19e3b5734b3c47c2eefe` |
 
-Commit packet:
+Producer-freeze commit packet (historical; see the review record above):
 
 - Exact path: `notes/progress/2026-10-06-recursive-source-validation-construction.md`.
 - Baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`.
