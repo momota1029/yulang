@@ -3,7 +3,8 @@
 Date: 2026-10-07
 Assigned baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: frozen research-only construction/falsification; independent review pending
+Status: reviewed research-only result in the scopes below; no production authority
+Integration review: Independent spec-auditor review is complete; the consumed original-fiber claims also passed the final DAG compiler audit. No source semantic gate is closed. See [full-attack review](2026-10-07-successor-full-attack-review.md); recorded freeze hashes refer to the pre-integration metadata.
 Claim class: conditional relational construction; original-fiber localization;
 finite representation discriminator, not an original-association theorem
 Exclusive leases: this note and `tools/research_successor_source_association.py`

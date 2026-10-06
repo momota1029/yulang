@@ -3,7 +3,8 @@
 Date: 2026-10-07 research packet (workspace clock date 2026-10-06)
 Baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`
 Branch: `research/simple-sub-intrusion`
-Status: frozen research-only producer candidate; independent review pending
+Status: reviewed research-only result in the scopes below; no production authority
+Integration review: Independent compiler-referee initial/delta and spec-auditor reviews are complete for the repaired FH/CI scopes. See [full-attack review](2026-10-07-successor-full-attack-review.md); recorded freeze hashes refer to the pre-integration metadata.
 Methods: obligation inversion, finite-history induction, nominal graph proof,
 bounded shortcut falsification
 Authority: none for production or a new source rule
