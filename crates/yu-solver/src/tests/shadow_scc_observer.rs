@@ -449,3 +449,144 @@ fn nested_skeleton_candidates_do_not_add_current_scc_members() {
         0
     );
 }
+
+#[cfg(feature = "shadow-f5")]
+#[test]
+fn exact_collection_member_joins_finalized_identity_scheme_and_local_q() {
+    use yu_hir::shadow::{Form, ShadowArtifact};
+    let parsed = parsed("my f x = x");
+    let batch = source_batch(&parsed);
+    let cloned = batch.clone();
+    let solved = crate::SolvedModule::solve(cloned.clone()).unwrap();
+    let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let before = batch.counters();
+    let solved_before = solved.counters();
+    let topology = batch.shadow_scc_topology();
+    let definition = topology.definitions().next().unwrap();
+    let (expression, binder) = topology
+        .definition_shadow_ref(&crosswalk, definition)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(expression.form(), Form::Lambda { binding, .. } if binding == binder));
+    let scheme = topology
+        .definition_closed_scheme(&solved, definition)
+        .unwrap();
+    let root =
+        &batch.definitions[batch.definition_positions[definition.collection_identity()]].root;
+    assert_eq!(scheme.owner(), root);
+    let direct = solved.shadow_closed_schemes().for_root(root).unwrap();
+    assert!(scheme.same_identity(direct));
+    assert_eq!(scheme.quantifiers().count(), 1);
+    assert_eq!(scheme.recursive_binders().count(), 0);
+    let q = scheme.quantifiers().next().unwrap();
+    assert!(q.scheme().same_identity(scheme));
+    assert!(q.same_identity(direct.quantifiers().next().unwrap()));
+    let cloned_topology = cloned.shadow_scc_topology();
+    let cloned_definition = cloned_topology.definitions().next().unwrap();
+    assert!(definition.same_identity(cloned_definition));
+    assert!(
+        cloned_topology
+            .definition_closed_scheme(&solved, definition)
+            .unwrap()
+            .same_identity(scheme)
+    );
+    assert!(
+        topology
+            .definition_closed_scheme(&solved, cloned_definition)
+            .unwrap()
+            .same_identity(scheme)
+    );
+    assert_eq!(before, batch.counters());
+    assert_eq!(before, cloned.counters());
+    assert_eq!(solved_before, solved.counters());
+}
+
+#[cfg(feature = "shadow-f5")]
+#[test]
+fn closed_scheme_join_rejects_recollected_equal_roots_and_missing_identity() {
+    use crate::shadow_scc::SccClosedSchemeLookupError;
+    let parsed = parsed("my f x = x");
+    let batch = source_batch(&parsed);
+    let recollected = collect(batch.hir().clone());
+    let solved = crate::SolvedModule::solve(batch.clone()).unwrap();
+    let foreign_solved = crate::SolvedModule::solve(recollected.clone()).unwrap();
+    let topology = batch.shadow_scc_topology();
+    let foreign_topology = recollected.shadow_scc_topology();
+    let definition = topology.definitions().next().unwrap();
+    let foreign_definition = foreign_topology.definitions().next().unwrap();
+    let root =
+        &batch.definitions[batch.definition_positions[definition.collection_identity()]].root;
+    let foreign_root = &recollected.definitions
+        [recollected.definition_positions[foreign_definition.collection_identity()]]
+    .root;
+    assert_eq!(root, foreign_root);
+    // Root ownership alone cannot distinguish independent collection attempts.
+    assert!(
+        foreign_solved
+            .shadow_closed_schemes()
+            .for_root(root)
+            .is_ok()
+    );
+    let before = batch.counters();
+    let foreign_before = recollected.counters();
+    let solved_before = solved.counters();
+    let foreign_solved_before = foreign_solved.counters();
+    assert!(matches!(
+        topology.definition_closed_scheme(&foreign_solved, definition),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    assert!(matches!(
+        topology.definition_closed_scheme(&solved, foreign_definition),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    assert!(matches!(
+        foreign_topology.definition_closed_scheme(&solved, foreign_definition),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    let mut missing = batch.clone();
+    missing
+        .definition_positions
+        .remove(definition.collection_identity());
+    assert!(matches!(
+        missing
+            .shadow_scc_topology()
+            .definition_closed_scheme(&solved, definition),
+        Err(SccClosedSchemeLookupError::MissingIdentity)
+    ));
+    assert_eq!(before, batch.counters());
+    assert_eq!(foreign_before, recollected.counters());
+    assert_eq!(solved_before, solved.counters());
+    assert_eq!(foreign_solved_before, foreign_solved.counters());
+}
+
+#[cfg(feature = "shadow-f5")]
+#[test]
+fn closed_scheme_join_does_not_supply_absent_mutual_recursive_skeleton() {
+    let parsed = parsed("my a = b; my b = a");
+    let batch = source_batch(&parsed);
+    let solved = crate::SolvedModule::solve(batch.clone()).unwrap();
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let topology = batch.shadow_scc_topology();
+    let before = batch.counters();
+    let solved_before = solved.counters();
+    assert!(shadow.skeleton().is_err());
+    assert_eq!(topology.components().count(), 1);
+    assert_eq!(topology.definitions().count(), 2);
+    for definition in topology.definitions() {
+        assert!(
+            topology
+                .definition_closed_scheme(&solved, definition)
+                .is_ok()
+        );
+        assert!(
+            topology
+                .definition_shadow_ref(&crosswalk, definition)
+                .unwrap()
+                .is_none()
+        );
+    }
+    assert_eq!(before, batch.counters());
+    assert_eq!(solved_before, solved.counters());
+}

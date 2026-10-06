@@ -306,10 +306,13 @@ records that obligation once per retained Apply without asserting typed
 evidence. These additions assert no typed event,
 profile, receipt, receiver or semantic discharge. The current F5 observer also
 records Q/R-to-fresh-row mapping at the
-actual use-time freshening route, and the SCC observer exposes component
-identity alongside shadow source identities. These remain structural or
-observational: no Q/R scheme correspondence, call-view semantics, protection
-judgment, production route, or theorem follows. See the [directional pending
+actual use-time freshening route. The SCC observer exposes component identity
+alongside shadow source identities, and now joins an exact SCC member to its
+finalized current closed scheme under the collection identity
+([checkpoint](../notes/progress/2026-10-06-shadow-scc-closed-scheme-identity-join.md)).
+These remain structural or observational: no successor Q/R identity,
+generalized-interface equality, call-view semantics, protection judgment,
+production route, or theorem follows. See the [directional pending
 obligation](../notes/progress/2026-10-06-shadow-directional-protection-obligation.md),
 [F5 freshening capture](../notes/progress/2026-10-06-shadow-f5-test-freshening-trace.md),
 and [SCC source identity checkpoint](../notes/progress/2026-10-06-shadow-scc-source-identity-join.md).

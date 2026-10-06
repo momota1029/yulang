@@ -16,6 +16,31 @@ pub struct SccTopology<'a> {
 }
 
 impl<'a> SccTopology<'a> {
+    /// Join a current member to its exact finalized current-local scheme.
+    /// This does not identify Q/R with successor interfaces or source slots.
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    pub fn definition_closed_scheme<'s>(
+        &self,
+        solved: &'s crate::SolvedModule,
+        definition: SccDefinitionRef<'_>,
+    ) -> Result<crate::shadow_f5::ClosedSchemeRef<'s>, SccClosedSchemeLookupError> {
+        if !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &definition.id.artifact)
+            || !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &solved.collection_artifact)
+        {
+            return Err(SccClosedSchemeLookupError::ForeignCollection);
+        }
+        let record = self
+            .batch
+            .definition_positions
+            .get(definition.id)
+            .and_then(|&position| self.batch.definitions.get(position))
+            .ok_or(SccClosedSchemeLookupError::MissingIdentity)?;
+        solved
+            .shadow_closed_schemes()
+            .for_root(&record.root)
+            .map_err(|_| SccClosedSchemeLookupError::ForeignRoot)
+    }
+
     /// Exact structural correspondence only; absence does not remove an SCC member.
     pub fn definition_shadow_ref<'s>(
         &self,
@@ -228,6 +253,15 @@ impl<'a> SccUseRef<'a> {
 pub enum SccTopologyLookupError {
     ForeignArtifact,
     MissingIdentity,
+}
+
+/// Collection, absent identity, and retained-root rejection remain distinct.
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SccClosedSchemeLookupError {
+    ForeignCollection,
+    MissingIdentity,
+    ForeignRoot,
 }
 
 /// Collection rejection is distinct from parse/source correspondence failure.

@@ -7177,6 +7177,8 @@ impl OrderingObserver {
 /// prevent later independent components from solving.
 #[derive(Debug)]
 pub struct SolvedModule {
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    collection_artifact: Arc<CollectionArtifactToken>,
     hir: Arc<HirModule>,
     projection_order: Vec<HirOccurrenceId>,
     projections: HashMap<HirOccurrenceId, SolvedProjection>,
@@ -15716,6 +15718,8 @@ impl InferenceSession {
             self.store.terms.transfer_owner_events_to_solved_store();
         }
         Ok(SolvedModule {
+            #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+            collection_artifact: self.batch.collection_artifact,
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
             projections,
