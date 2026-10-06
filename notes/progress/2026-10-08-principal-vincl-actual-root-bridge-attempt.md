@@ -3,10 +3,11 @@
 Date: 2026-10-08
 Baseline: `2569c0182e2c562d176c837b4d60e0ee693d8c02`
 Branch: `research/simple-sub-intrusion`
-Status: frozen unreviewed research checkpoint
+Status: compiler-referee reviewed bounded research attempt; gate remains open
 Claim class: bounded producer characterization and conditional proof-cut localization
 Exclusive lease: this note only
 Semantic/implementation authority: none
+Review: compiler_referee PASS on content SHA-256 `7cc45e74b559a830b10b6095c6695a60bc7bfeeb16981a56901b9f8e90de1242`; no correctness findings
 
 ## Objective, method and result
 
@@ -251,8 +252,8 @@ d9ddea04a44d2307cf587bc4ae9b2a1c50d062c4077306a5bf9ea9da00eca179 questions/2026-
 - Exact leased path: `notes/progress/2026-10-08-principal-vincl-actual-root-bridge-attempt.md`.
 - Baseline SHA: `2569c0182e2c562d176c837b4d60e0ee693d8c02`.
 - Changed dependency hashes: none; all listed baseline/live comparisons match.
-- Claim/review status: frozen unreviewed bounded producer characterization and
-  conditional proof-cut localization; research-only, no independent review.
+- Claim/review status: compiler-referee PASS on the content hash recorded in
+  the header; bounded research only, no source rule or proof gate promoted.
 - Checks already run: exact cited-section reads; narrow integer producer
   inspection; committed answer/baseline equality and SHA-256 checks; final
   leased-path/whitespace inspection. Zero builds/tests/probes.
