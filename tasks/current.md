@@ -657,6 +657,18 @@ convenience projection was added as a substitute. The direct-Name fixture
 coverage omission remains a test coverage question, not evidence of lost
 identity.
 
+The reviewed [captured-source lifecycle slice](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
+also carries the exact approved `apply/step` `ShadowArtifact` through opt-in
+HIR collection and solver finish by borrowing its validated Arc from the HIR
+module. It checks the parse/root/parameter/capture association and retains the
+seven source premises; it does not add a local Bind or the nested Apply to
+`ResolvedExpr` or `pending_applications`. The existing `UnsupportedExpression`
+and empty-fact refusal remain, and six adjacent structural shapes are rejected
+explicitly. Compiler-referee and regression review passed after the test
+coverage repair. The two focused retention tests pass; feature-off checks for
+`yu-hir` and `yu-solver` pass. The broader source/typing/old-infer differential
+and all application semantics remain open.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
