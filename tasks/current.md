@@ -299,6 +299,14 @@ licensing, observations, receipts, liveness, grants or release. Its event-key
 and zero-sized-token findings were repaired. The four new tests and the repaired compiler/spec reviews passed; final
 remote-integration checks are recorded in the full-attack review.
 
+The [directional HIR shadow obligation](../notes/progress/2026-10-06-shadow-directional-protection-obligation.md)
+also records one unresolved protection-introduction premise for each direct
+resolved-Use call, retaining the original application identity. It emits no
+protection fact and does not establish the seed, exact output-effect port,
+scope/xi transport, receipt, receiver, admission or semantic acceptance.
+Focused shadow tests and the exact pending inventories passed; this remains
+default-off bookkeeping.
+
 The [current-inference shadow correspondence](../notes/progress/2026-10-07-shadow-current-inference-correspondence.md)
 joins admitted unary Name/Integer leaves through exact source sidecar keys and
 characterizes the present HIR support boundary for applications. Production
