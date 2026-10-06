@@ -3,6 +3,9 @@
 use std::sync::Arc;
 use yu_core::shadow::{BinderId, Form, ShadowArtifact};
 use yu_core::shadow_derivation::{IncompleteDerivation, Node};
+use yu_core::shadow_derivation::{
+    PendingStructuralForm, PendingStructuralProjection, RawStructuralArena,
+};
 use yu_syntax::{ParsedFile, SourceText, SyntaxEnvironment, parse_file, scan_header};
 
 const SOURCE: &str = "my apply f = { my step x = f x; step }";
@@ -195,4 +198,178 @@ fn foreign_input_and_unapproved_sources_publish_no_arena() {
         .captured_call_input()
         .expect("trailing whitespace preserves the validated topology");
     assert!(IncompleteDerivation::from_captured_call(&unsupported, &own_input).is_none());
+}
+
+#[test]
+fn ordinary_unary_projection_preserves_body_declaration_and_call_rows() {
+    for (source, expected_calls) in [("my call f = f 1", 1), ("my twice f = f (f 1)", 2)] {
+        let artifact = artifact(source);
+        let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let projection = PendingStructuralProjection::from_raw(&raw).unwrap();
+        assert_eq!(projection.nodes().len(), raw.nodes().len());
+        assert_eq!(*projection.nodes()[projection.body()].source, *raw.body());
+        assert_eq!(projection.declarations().len(), 1);
+        let declaration = projection.declarations()[0];
+        assert_ne!(declaration, projection.body());
+        let PendingStructuralForm::Lambda { body, .. } = projection.nodes()[declaration].form
+        else {
+            panic!("retained declaration")
+        };
+        assert_eq!(body, projection.body());
+        let calls = projection
+            .nodes()
+            .iter()
+            .filter_map(|node| {
+                let PendingStructuralForm::PendingApply { call, .. } = &node.form else {
+                    return None;
+                };
+                assert!(
+                    call.application_premises
+                        .iter()
+                        .all(|row| row.call() == node.source)
+                );
+                assert_eq!(call.application_premises.len(), 7);
+                assert!(call.capture.is_none());
+                Some(node.source)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), expected_calls);
+        if expected_calls == 2 {
+            assert_ne!(calls[0], calls[1]);
+        }
+    }
+}
+
+#[test]
+fn captured_candidate_projection_keeps_exact_lambda_bind_and_call_joins() {
+    let artifact = artifact(SOURCE);
+    let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+    let projection = PendingStructuralProjection::from_raw(&raw).unwrap();
+    assert_eq!(projection.nodes().len(), raw.nodes().len());
+    assert_eq!(projection.declarations().len(), 2);
+    assert_eq!(projection.nodes()[projection.body()].source, raw.body());
+
+    for (projected, retained) in projection.nodes().iter().zip(raw.nodes()) {
+        assert!(std::ptr::eq(projected.source, &retained.source));
+        match (&projected.form, retained.form) {
+            (
+                PendingStructuralForm::Lambda {
+                    binding,
+                    parameter,
+                    body,
+                    captures,
+                    correspondence,
+                },
+                Form::Lambda {
+                    binding: expected_binding,
+                    parameter: expected_parameter,
+                    body: expected_body,
+                    captures: expected_captures,
+                    correspondence: expected_correspondence,
+                },
+            ) => {
+                assert!(std::ptr::eq(*binding, expected_binding));
+                assert!(std::ptr::eq(*parameter, expected_parameter));
+                assert!(std::ptr::eq(*captures, expected_captures.as_slice()));
+                assert!(std::ptr::eq(*correspondence, expected_correspondence));
+                assert_eq!(projection.nodes()[*body].source, expected_body);
+            }
+            (
+                PendingStructuralForm::Bind {
+                    binder,
+                    value,
+                    body,
+                },
+                Form::Bind {
+                    binder: expected_binder,
+                    value: expected_value,
+                    body: expected_body,
+                },
+            ) => {
+                assert!(std::ptr::eq(*binder, expected_binder));
+                assert_eq!(projection.nodes()[*value].source, expected_value);
+                assert_eq!(projection.nodes()[*body].source, expected_body);
+            }
+            (PendingStructuralForm::PendingApply { call, .. }, Form::Apply { .. }) => {
+                let expected = retained.call.as_ref().unwrap();
+                assert!(std::ptr::eq(*call, expected));
+                assert!(call.capture.is_some());
+                let registration = retained.pending_source_call_registration().unwrap();
+                let captured = registration.captured_input.unwrap();
+                assert_eq!(captured.call(), projected.source);
+                assert_eq!(
+                    registration
+                        .source_view_premise_locator()
+                        .unwrap()
+                        .unresolved_premises()
+                        .len(),
+                    7
+                );
+            }
+            (
+                PendingStructuralForm::PendingUseNormalization { binder, occurrence },
+                Form::Use {
+                    binder: expected_binder,
+                    occurrence: expected_occurrence,
+                },
+            ) => {
+                assert_eq!(*binder, expected_binder);
+                assert_eq!(*occurrence, expected_occurrence);
+            }
+            _ => panic!("projection form must match the retained HIR form"),
+        }
+    }
+}
+
+#[test]
+fn annotations_leave_use_normalization_pending_and_groups_remain_explicit() {
+    for source in ["my annotated (f: T) = f 1", "my grouped f = (f) 1"] {
+        let artifact = artifact(source);
+        let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let projection = PendingStructuralProjection::from_raw(&raw).unwrap();
+        assert!(projection.nodes().iter().any(|node| matches!(
+            node.form,
+            PendingStructuralForm::PendingUseNormalization { .. }
+        )));
+        if source.contains(": T") {
+            assert_eq!(projection.annotations().len(), 1);
+            assert!(std::ptr::eq(
+                &projection.annotations()[0],
+                &raw.annotations()[0]
+            ));
+        } else {
+            assert!(
+                projection
+                    .nodes()
+                    .iter()
+                    .any(|node| matches!(node.form, PendingStructuralForm::Group { .. }))
+            );
+        }
+    }
+}
+
+#[test]
+fn missing_multi_parameter_declarations_and_unsupported_sources_are_rejected() {
+    let multi = artifact("my call f x = f x");
+    let raw = RawStructuralArena::from_artifact(&multi).unwrap();
+    assert!(PendingStructuralProjection::from_raw(&raw).is_none());
+    let unsupported = artifact("my record f = { field: f }");
+    assert!(RawStructuralArena::from_artifact(&unsupported).is_none());
+}
+
+#[test]
+fn bounded_flat_application_chain_projects_without_recursive_traversal() {
+    let source = format!("my chain f = f{}", " 1".repeat(256));
+    let artifact = artifact(&source);
+    let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+    let projection = PendingStructuralProjection::from_raw(&raw).unwrap();
+    assert_eq!(
+        projection
+            .nodes()
+            .iter()
+            .filter(|node| matches!(node.form, PendingStructuralForm::PendingApply { .. }))
+            .count(),
+        256
+    );
+    assert_eq!(projection.nodes().len(), raw.nodes().len());
 }

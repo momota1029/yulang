@@ -1,4 +1,4 @@
-//! Incomplete structural computation-core projection for the approved candidate.
+//! Incomplete structural computation-core projections over retained shadow HIR.
 //! This opt-in consumer borrows HIR identities and leaves all judgments pending.
 
 use yu_hir::shadow::{
@@ -164,6 +164,154 @@ pub struct PendingCall<'a> {
     pub application_premises: &'a [PendingPremise],
     pub capture: &'a CaptureUseIncidence,
     pub source_view_premises: &'static [UnresolvedSourceViewPremise],
+}
+
+/// Structural encoding only: neither a typed derivation nor a normalization.
+/// The supported envelope requires retained unary declarations. Missing
+/// declarations (including multi-parameter headers) are never reconstructed.
+/// This opt-in consumer borrows a frozen raw arena and publishes atomically;
+/// removing it leaves the exact-candidate and production routes unchanged.
+#[derive(Debug)]
+pub struct PendingStructuralProjection<'view, 'artifact> {
+    raw: &'view RawStructuralArena<'artifact>,
+    nodes: Vec<PendingStructuralNode<'view, 'artifact>>,
+    body: usize,
+    declarations: Vec<usize>,
+}
+
+impl<'view, 'artifact> PendingStructuralProjection<'view, 'artifact> {
+    pub fn from_raw(raw: &'view RawStructuralArena<'artifact>) -> Option<Self> {
+        let offset = |id: &ExprId| {
+            let offset = raw.skeleton.expression_offset(id).ok()?;
+            (raw.nodes.get(offset)?.source == *id).then_some(offset)
+        };
+        let body = offset(raw.body)?;
+        let mut nodes = Vec::with_capacity(raw.nodes.len());
+        let mut declarations = Vec::new();
+        // Translate each retained node once. Children are checked addresses;
+        // neither traversal nor destruction recurses through expression chains.
+        for (index, node) in raw.nodes.iter().enumerate() {
+            if offset(&node.source)? != index {
+                return None;
+            }
+            let form = match node.form {
+                Form::Lambda {
+                    binding,
+                    parameter,
+                    body,
+                    captures,
+                    correspondence,
+                } => {
+                    declarations.push(index);
+                    PendingStructuralForm::Lambda {
+                        binding,
+                        parameter,
+                        body: offset(body)?,
+                        captures,
+                        correspondence,
+                    }
+                }
+                Form::Bind {
+                    binder,
+                    value,
+                    body,
+                } => PendingStructuralForm::Bind {
+                    binder,
+                    value: offset(value)?,
+                    body: offset(body)?,
+                },
+                Form::Use { binder, occurrence } => {
+                    PendingStructuralForm::PendingUseNormalization { binder, occurrence }
+                }
+                Form::IntegerLiteral { spelling } => {
+                    PendingStructuralForm::IntegerLiteral { spelling }
+                }
+                Form::Group { inner } => PendingStructuralForm::Group {
+                    inner: offset(inner)?,
+                },
+                Form::Apply {
+                    callee, argument, ..
+                } => PendingStructuralForm::PendingApply {
+                    callee: offset(callee)?,
+                    argument: offset(argument)?,
+                    call: node.call.as_ref()?,
+                },
+            };
+            nodes.push(PendingStructuralNode {
+                source: &node.source,
+                form,
+            });
+        }
+        if declarations.is_empty() {
+            return None;
+        }
+        Some(Self {
+            raw,
+            nodes,
+            body,
+            declarations,
+        })
+    }
+
+    pub fn nodes(&self) -> &[PendingStructuralNode<'view, 'artifact>] {
+        &self.nodes
+    }
+
+    pub fn body(&self) -> usize {
+        self.body
+    }
+
+    /// Every retained unary declaration, including those outside the body.
+    /// This is an inventory, not execution order or a declaration-role judgment.
+    pub fn declarations(&self) -> &[usize] {
+        &self.declarations
+    }
+
+    pub fn annotations(&self) -> &[RawAnnotation<'artifact>] {
+        self.raw.annotations()
+    }
+}
+
+#[derive(Debug)]
+pub struct PendingStructuralNode<'view, 'artifact> {
+    pub source: &'view ExprId,
+    pub form: PendingStructuralForm<'view, 'artifact>,
+}
+
+/// No constructor asserts Value/Computation, role, entry, typing or admission.
+/// In particular, source Use normalization requires the original Gamma and
+/// remains unresolved even when annotation occurrences are retained.
+#[derive(Debug)]
+pub enum PendingStructuralForm<'view, 'artifact> {
+    Lambda {
+        binding: &'artifact BinderId,
+        parameter: &'artifact BinderId,
+        body: usize,
+        captures: &'artifact [BinderId],
+        correspondence: &'artifact ClosureCorrespondence,
+    },
+    Bind {
+        binder: &'artifact BinderId,
+        value: usize,
+        body: usize,
+    },
+    PendingUseNormalization {
+        binder: &'artifact BinderId,
+        occurrence: &'artifact UseId,
+    },
+    IntegerLiteral {
+        spelling: &'artifact str,
+    },
+    Group {
+        inner: usize,
+    },
+    /// Only this Apply's raw rows and optional joins are borrowed. The scoped
+    /// locator is accessible solely through its validated captured input.
+    PendingApply {
+        callee: usize,
+        argument: usize,
+        call: &'view RawCall<'artifact>,
+    },
 }
 
 /// Raw retained structure only; no value/computation or typing judgment is made.
