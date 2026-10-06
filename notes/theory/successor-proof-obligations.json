@@ -1,0 +1,2459 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "baseline": "ac2864a48868b017a8b6fedc6a665f24d0c2daff",
+  "revalidated_remote_head": "475036233423ac6e6e3d56c7e710db5ca3f03e54",
+  "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
+  "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
+  "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
+  "topological_order": [
+    "FMP",
+    "EQ_RES",
+    "WHOLE_REL",
+    "DIR_LOCAL",
+    "SV",
+    "RS_LX",
+    "REC_K",
+    "CALL_REL",
+    "PCINIT",
+    "PG1",
+    "USE_GRAPH",
+    "ALLOC_COMMON",
+    "TRANSPORT",
+    "S22_DIRECT",
+    "REF_SIM",
+    "REUSE",
+    "SC_ROLE",
+    "CI_ALPHA",
+    "SELECT",
+    "PURE_DEC",
+    "SEED_SOURCE",
+    "REC_KV",
+    "FH",
+    "REC_INIT",
+    "INIT_WORLD",
+    "PATH_QUERY",
+    "INTRO",
+    "CI_USE",
+    "ROLE_ASSOC",
+    "MIXED_ROLE",
+    "SIG_RULES",
+    "STATE_ID",
+    "MIXED_EFFECT",
+    "STATE_RW",
+    "STATE_RESUME",
+    "PRIMITIVES",
+    "REF_WORLD",
+    "GUARD_INSERT",
+    "DESC_CLAUSES",
+    "GUARD_TERMINAL",
+    "ADMISSION_CLAUSES",
+    "GUARD_COVER",
+    "SEM_JOINT",
+    "REC_DESC",
+    "REC_LOCAL",
+    "CALL_TYPE",
+    "SAT_A",
+    "ADM_A",
+    "ORIGINAL_ASSOC",
+    "ATTACH",
+    "LIC_FORWARD",
+    "LIC_INVERT",
+    "PROFILE",
+    "DREL2",
+    "INLET_CARRIER",
+    "TYPED_SOURCE_INCIDENCE",
+    "INIT_VALID",
+    "ADAPTERS",
+    "MEMBER_DISCHARGE",
+    "GENERALIZE",
+    "HISTORY",
+    "ALL_WORLD",
+    "EVENT_OUTPUT",
+    "ROWS",
+    "COMMON_DESC",
+    "DOMAIN_INCLUSION",
+    "CAPTURE_LIVE",
+    "SUBTRACTION",
+    "COMMON_TOTAL",
+    "OBS_INCLUSION",
+    "DISPATCH",
+    "RELEASE",
+    "ALL_VIEW",
+    "RAW_SOURCE",
+    "CTX_FINITE",
+    "JOINT_DEC",
+    "PROJECTION",
+    "RESOLVE_FP",
+    "IFACE_FORM",
+    "ORACLE_COMPAT",
+    "SOURCE_ADEQUACY",
+    "IFACE_EQUIV",
+    "RESOURCE",
+    "PROD_CONFORMANCE",
+    "PRINCIPAL",
+    "FRESH_LIFE",
+    "SOUND",
+    "HIR_WIRING",
+    "CUTOVER"
+  ],
+  "nodes": [
+    {
+      "id": "FMP",
+      "status": "CLOSED",
+      "gate": "Pure structural arbitrary-tree to regular witness",
+      "requires": [],
+      "premises": "Normalized pure fragment, rigid permissions, exact recursive descriptor and mandatory records; no arbitrary Phi/effect/optional-Record predicate.",
+      "minimal_lemma_or_closed_scope": "Regular witness exists with the reviewed 8^N bound. Retire selector/one-anchor subtargets as prerequisites of this theorem.",
+      "references": [
+        "fmp"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PURE_DEC"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "EQ_RES",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Scoped equality and retained-residual factorization",
+      "requires": [],
+      "premises": "Independently interpreted predicates, fixed scopes and finite canonical contexts; contractive structural cycles.",
+      "minimal_lemma_or_closed_scope": "Equality quotient/relative MGU and unchanged residual preserve the exact joint relation. No flexible joint SAT/public projection theorem.",
+      "references": [
+        "scoped",
+        "residual"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROJECTION"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "WHOLE_REL",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "TD/FC and DREL-1 whole-relation preservation",
+      "requires": [],
+      "premises": "One original binder tree and full independently interpreted relation, including active protection predicates and recursive operators.",
+      "minimal_lemma_or_closed_scope": "Total derived coordinates, covered factorization and directional inlining preserve all unchanged queries on that same relation. Query success is not obtained.",
+      "references": [
+        "drel",
+        "coverage"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "DREL2",
+        "COMMON_TOTAL"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "DIR_LOCAL",
+      "status": "CLOSED",
+      "gate": "Selected directional source seed and certified replay",
+      "requires": [],
+      "premises": "Selected unannotated source formal, seed-at-exposure and source upper occurrence; replay facts are already certified.",
+      "minimal_lemma_or_closed_scope": "S1/S2 generate protection at the upper output only; S3 removes physical delivery-order dependence. Existing provider protection remains; genuine later seed applicability is outside scope.",
+      "references": [
+        "direction",
+        "dirproof"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SEED_SOURCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SV",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Exact source receipt, actual rebind, capture and read",
+      "requires": [],
+      "premises": "Approved apply/step source, independently typed original invocation, one compatible original profile, original admission/response semantics.",
+      "minimal_lemma_or_closed_scope": "Prospective argument.result.(u,p0) at receipt; SourceViewInst only at actual Return/rebind; capture/read at reached transitions; Pending on suspension/divergence; finite original resumptions covered. Later composition ties that exact typed read incidence to the complete Call operand, without converting it to original static (s,c).",
+      "references": [
+        "nested",
+        "sv",
+        "svcompose"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "TYPED_SOURCE_INCIDENCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "RS_LX",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Actual-derivation provenance and lexical import supplier",
+      "requires": [],
+      "premises": "Finite actual rule-occurrence derivation and resolved binder ancestry, with retained semantic rule premises.",
+      "minimal_lemma_or_closed_scope": "Whole RS/RS-active/RS-use ledger and LX ownership/import map preserve source scopes, rigid captures and upper/lower direction. No semantic Generalize eligibility or discharge inferred.",
+      "references": [
+        "rs"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SEED_SOURCE",
+        "INTRO",
+        "GENERALIZE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "REC_K",
+      "status": "CLOSED",
+      "gate": "Constructor-guarded immutable mutual provider knot",
+      "requires": [],
+      "premises": "Selected my f x = g; my g y = f source and its immutable constructor-guarded provider interpretation.",
+      "minimal_lemma_or_closed_scope": "K constructs the actual mutually captured providers without a validated member environment. Paired future histories and contract emission are separately conditional in REC_KV; unguarded initialization is outside scope.",
+      "references": [
+        "k"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REC_KV",
+        "FH",
+        "REC_DESC",
+        "REC_INIT"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CALL_REL",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Source Call and complete invocation operand",
+      "requires": [],
+      "premises": "Original decorated Name/result/actual provider-entry/consumer interpretation on fixed X and xi; typing remains an independent predicate.",
+      "minimal_lemma_or_closed_scope": "Construct J_f >>= ExecuteCallable(actual_f,Delay(J_x)) with callee evaluation, receipt, entry Force/rebind if needed, body, consumer, return and retained pending suffix/current resumed state. New contribution naming is no separate gate.",
+      "references": [
+        "call",
+        "source",
+        "newassoc"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "DESC_CLAUSES",
+        "CALL_TYPE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PCINIT",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Open-context structural initial/history schema",
+      "requires": [],
+      "premises": "Independent descriptor, profile, import/world, response and carrier interpretations.",
+      "minimal_lemma_or_closed_scope": "Source-owned initial puncture/receipt/entry schema and local inversion exist before solving; semantic validity and inhabitedness do not follow.",
+      "references": [
+        "init",
+        "profile"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "INIT_WORLD"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PG1",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Source projection endpoints and fixed captures",
+      "requires": [],
+      "premises": "Independently checked projection views at original scopes; only id source is unconditional surface coverage, Make/Relay braces remain conditional.",
+      "minimal_lemma_or_closed_scope": "Source-selected repeated endpoints and fixed pick capture reconstruct the whole kernel; actual Generalize and designated-export Direct remain.",
+      "references": [
+        "pg"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GENERALIZE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "USE_GRAPH",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Certified ordinary fresh copy, graft and use query",
+      "requires": [],
+      "premises": "Complete source relation, legally eligible binders, fixed imports and retained Direct evidence grammar.",
+      "minimal_lemma_or_closed_scope": "Finite graph of the actual ordinary use exists. Retire a separate new m_V calculus, not the all-valid-view success sequent.",
+      "references": [
+        "use"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ALL_VIEW"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ALLOC_COMMON",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Selected common/all-view extension classes",
+      "requires": [],
+      "premises": "Guarantee-only, source-allocation or matched abstraction grammars and their original typing/admission assumptions.",
+      "minimal_lemma_or_closed_scope": "Reviewed A-extension/V_alloc and paired-grammar common/use results close only their declared classes; arbitrary legal public views remain outside.",
+      "references": [
+        "source",
+        "common",
+        "coverage"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "COMMON_DESC"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "TRANSPORT",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Indexed typed profile/D transport and live filtering",
+      "requires": [],
+      "premises": "Supplied original typed Flow, Observe, normalized Receive and exact boundary/owner/handler identities under one xi.",
+      "minimal_lemma_or_closed_scope": "Relational-image composition, identity, union distribution and candidate live-filter commutation; no new boundary, grant, K discharge or alias merge.",
+      "references": [
+        "boundary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PATH_QUERY",
+        "CAPTURE_LIVE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "S22_DIRECT",
+      "status": "CLOSED",
+      "gate": "Selected direct/derived guard consequences",
+      "requires": [],
+      "premises": "Source-certified introduction and an actually derived comparison; declared assumptions distinguished from new obligations.",
+      "minimal_lemma_or_closed_scope": "Forbidden variable comparison and selected kappa <: Int reject; uniform fixed-root specialization fails on an admitted counter-instance. Cartesian support K alone is insufficient. General insertion remains open.",
+      "references": [
+        "s22",
+        "charter"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "INTRO",
+        "GUARD_INSERT"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "REF_SIM",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Decorated source-reference complete-history realization",
+      "requires": [],
+      "premises": "Finite typed source derivations with independent complete descriptor/owner/world/local construction and admission certificates.",
+      "minimal_lemma_or_closed_scope": "Source/reference constructor simulations cover finite histories in both directions on the same tuple. This is not raw-source formation or Option 2 production completeness.",
+      "references": [
+        "core",
+        "source",
+        "adequacy"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "REUSE",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Complete boundary substitution and rebuild lifecycle",
+      "requires": [],
+      "premises": "Complete equal simultaneous interfaces, unchanged external inputs, interface-only downstream observation, valid references and atomic publication.",
+      "minimal_lemma_or_closed_scope": "Downstream inference reuse is justified under these hypotheses. Reverse mutation of solver state is retired; complete producer and actual publication correspondence remain.",
+      "references": [
+        "rebuild",
+        "lifecycle"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "FRESH_LIFE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SC_ROLE",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Selected completed-source DREL-2 role substitution",
+      "requires": [],
+      "premises": "Exact completed apply f x = f x source entails rho_f=NonHandlerFormal at the original root and retains every original kernel.",
+      "minimal_lemma_or_closed_scope": "Entailed substitution preserves the whole relation and provider/result packets. No generic mixed-use selection or replacement-kernel equivalence.",
+      "references": [
+        "rs",
+        "mixedrole"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "MIXED_ROLE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CI_ALPHA",
+      "status": "CLOSED",
+      "gate": "Decidable alpha-isomorphism of supplied finite interfaces",
+      "requires": [],
+      "premises": "Finite complete faithfully serialized typed presentation; finite sort/scope/binder preserving renamings with rigid identities fixed.",
+      "minimal_lemma_or_closed_scope": "Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Factorial bound; not all semantic equivalence or a production algorithm selection.",
+      "references": [
+        "newrec",
+        "review"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CI_USE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SELECT",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Visible implementation and method candidate judgments",
+      "requires": [],
+      "premises": "Current source scope/world, receiver, method name and declared role/impl forms; no parser-implied finite complete candidate assumption.",
+      "minimal_lemma_or_closed_scope": "Specify independent visibility/candidate formation and selection/ambiguity alternatives with exact evidence; actual source observations/outcomes must be stated before fixed-point proofs.",
+      "references": [
+        "charter",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ROLE_ASSOC"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PURE_DEC",
+      "status": "CLOSED",
+      "gate": "Effective decision for the pure finite input",
+      "requires": [
+        "FMP"
+      ],
+      "premises": "Finite head/label/atom alphabet and decidable rigid permission queries.",
+      "minimal_lemma_or_closed_scope": "Bounded regular-graph enumeration is sound and complete only for the FMP fragment.",
+      "references": [
+        "puredec"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "JOINT_DEC"
+      ],
+      "closed_lemmas": [
+        "FMP"
+      ]
+    },
+    {
+      "id": "SEED_SOURCE",
+      "status": "OPEN-PROOF",
+      "gate": "Directional applicability over all source introductions/uses",
+      "requires": [
+        "DIR_LOCAL",
+        "RS_LX"
+      ],
+      "premises": "Current directional policy; exact original source variable, exposure, output occurrence and provenance.",
+      "minimal_lemma_or_closed_scope": "For each admitted formal/import/annotation/generalized and computed use, derive ProtectedVarAt at that exposure and complete upper-use occurrence; prove late applicability rather than replaying final component membership.",
+      "references": [
+        "direction",
+        "dirproof",
+        "fview"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SIG_RULES",
+        "MIXED_ROLE",
+        "RAW_SOURCE"
+      ],
+      "closed_lemmas": [
+        "DIR_LOCAL",
+        "RS_LX"
+      ]
+    },
+    {
+      "id": "REC_KV",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Paired recursive histories and same-provider contract schema",
+      "requires": [
+        "REC_K"
+      ],
+      "premises": "KP has independently paired argument/context subrelations for future calls and raw resumptions; KV has independently interpreted original local and complete membership predicates.",
+      "minimal_lemma_or_closed_scope": "KP pairs finite prefixes/future calls on those inputs; KV emits the same-provider semantic contract conjunction. Neither constructs its independent predicates or proves the conjunction satisfied.",
+      "references": [
+        "k"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "MEMBER_DISCHARGE"
+      ],
+      "closed_lemmas": [
+        "REC_K"
+      ]
+    },
+    {
+      "id": "FH",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Simultaneous finite-history local invariant",
+      "requires": [
+        "REC_K"
+      ],
+      "premises": "Fixed original scoped (xi,w); initial W and every transition/member check pointwise there; new event witnesses are compatible scope-authorized extensions, including siblings; exhaustive admission cases.",
+      "minimal_lemma_or_closed_scope": "Induction on finite derivation size preserves W/local checks for both actual members without an already validated CompleteMem environment. Does not construct local certificates or derive ordinary DescMem.",
+      "references": [
+        "newrec",
+        "review"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REC_DESC",
+        "MEMBER_DISCHARGE"
+      ],
+      "closed_lemmas": [
+        "REC_K"
+      ]
+    },
+    {
+      "id": "REC_INIT",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Recursive source initialization beyond guarded immutable closures",
+      "requires": [
+        "REC_K"
+      ],
+      "premises": "Included recursive source forms and their initializer order/world access, distinct from lexical preallocation.",
+      "minimal_lemma_or_closed_scope": "Specify source evaluation/admissibility of non-constructor-guarded initializers, with concrete read-before-initialization/re-entry obligations and actual provider construction. No allocator freshness or final scheme shape substitutes.",
+      "references": [
+        "k",
+        "charter",
+        "core"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RAW_SOURCE"
+      ],
+      "closed_lemmas": [
+        "REC_K"
+      ]
+    },
+    {
+      "id": "INIT_WORLD",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Independent initial punctured world/import relation",
+      "requires": [
+        "PCINIT"
+      ],
+      "premises": "Original xi, semantic imports, source alias/activation identities, other environment/world state, checked hole kept open.",
+      "minimal_lemma_or_closed_scope": "Specify filling-independent EnvStore/JointWF clauses for initial context and all imported roots including hole-dependent aliases; exclude circular checked-membership admission. SEM_JOINT interprets them jointly, INIT_VALID realizes actual initial worlds, and HISTORY/ALL_WORLD prove preservation/coverage.",
+      "references": [
+        "compat",
+        "init",
+        "inlet"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ADMISSION_CLAUSES",
+        "SEM_JOINT",
+        "REF_WORLD"
+      ],
+      "closed_lemmas": [
+        "PCINIT"
+      ]
+    },
+    {
+      "id": "PATH_QUERY",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Finite supplied typed Path/Inc query",
+      "requires": [
+        "TRANSPORT"
+      ],
+      "premises": "Caller-supplied finite typed graph and normalized receipt endpoints, canonical nonzero-sized identity tokens, one original context, exact current activation sets.",
+      "minimal_lemma_or_closed_scope": "Finite reachability and exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented and focused-tested; repaired compiler/spec delta review must be recorded before final promotion. Source facts and grant/release remain assumptions.",
+      "references": [
+        "shadow",
+        "shadowtest",
+        "review"
+      ],
+      "production_authority": "shadow-only; no production authority",
+      "unblocks": [],
+      "closed_lemmas": [
+        "TRANSPORT"
+      ]
+    },
+    {
+      "id": "INTRO",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Semantic introduction classification and source-coordinate realization",
+      "requires": [
+        "RS_LX",
+        "S22_DIRECT"
+      ],
+      "premises": "Actual source derivation; original binder tree, lexical identities and declared request assumptions.",
+      "minimal_lemma_or_closed_scope": "Map each actual generated/instantiated coordinate to ordinary flexible, inference existential or rigid opened binder with its introduction scope and same-origin dependencies; Name copying alone never reclassifies it.",
+      "references": [
+        "s22",
+        "rs",
+        "charter"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GUARD_INSERT",
+        "GUARD_TERMINAL",
+        "REC_LOCAL",
+        "GENERALIZE",
+        "SIG_RULES",
+        "STATE_ID",
+        "PRIMITIVES"
+      ],
+      "closed_lemmas": [
+        "RS_LX",
+        "S22_DIRECT"
+      ]
+    },
+    {
+      "id": "CI_USE",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Alpha-equal interface preserves arbitrary finite joint fresh uses",
+      "requires": [
+        "CI_ALPHA"
+      ],
+      "premises": "Independent equivariance/covariance for every primitive/admission/constructor/evidence/recursive/query operation; complete identity-observer accounting; original and client coordinates rigid.",
+      "minimal_lemma_or_closed_scope": "Operator conjugacy and coherent (use,local) renaming preserve/refelect the whole jointly constrained finite use family and unchanged Direct queries. No all-view query existence or source interface producer.",
+      "references": [
+        "newrec",
+        "review"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "FRESH_LIFE"
+      ],
+      "closed_lemmas": [
+        "CI_ALPHA"
+      ]
+    },
+    {
+      "id": "ROLE_ASSOC",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Role conformance and associated-type witness coupling",
+      "requires": [
+        "SELECT"
+      ],
+      "premises": "One receiver/type assignment and original chosen implementation witness with its dependencies.",
+      "minimal_lemma_or_closed_scope": "Give source role-conformance/associated-type equations and recursive dependency judgments; associated types cannot choose a separate impl witness after method selection.",
+      "references": [
+        "charter",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RESOLVE_FP"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "MIXED_ROLE",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Whole-source mixed-use role refinement/aggregation",
+      "requires": [
+        "SC_ROLE",
+        "SEED_SOURCE"
+      ],
+      "premises": "Same source formal and original relation across Handler/internal/NonHandler uses; actual callable role/entry separately fixed.",
+      "minimal_lemma_or_closed_scope": "Specify independently justified complete-source role predicate and aggregate all use demands without erasing upper seeds/provider-owned protection or recombining incompatible marginal witnesses.",
+      "references": [
+        "mixedrole",
+        "fview",
+        "rs"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "DREL2"
+      ],
+      "closed_lemmas": [
+        "SC_ROLE"
+      ]
+    },
+    {
+      "id": "SIG_RULES",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Exhaustive original signature licensing judgment",
+      "requires": [
+        "SEED_SOURCE",
+        "INTRO"
+      ],
+      "premises": "Original beta=(formal,root), typed positions, scope/binder/own-upper/inherited-provider arms; current direction fixed.",
+      "minimal_lemma_or_closed_scope": "Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.",
+      "references": [
+        "sig",
+        "profile",
+        "lic",
+        "fview"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "DESC_CLAUSES",
+        "ORIGINAL_ASSOC",
+        "LIC_FORWARD",
+        "LIC_INVERT",
+        "MIXED_EFFECT",
+        "PRIMITIVES",
+        "SAT_A"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "STATE_ID",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Source State location and activation identity",
+      "requires": [
+        "INTRO"
+      ],
+      "premises": "Source declarations and distinct invocation/event identities; static StateSlotId is only an origin.",
+      "minimal_lemma_or_closed_scope": "Give source introduction of dynamic storage locations/activations and capture alias identity across same/different invocations, without deriving it from an Oracle fixture.",
+      "references": [
+        "state"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "STATE_RW",
+        "STATE_RESUME"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "MIXED_EFFECT",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Mixed abstract/concrete effect membership and annotation bridge",
+      "requires": [
+        "SIG_RULES"
+      ],
+      "premises": "Original nonempty joint component, polarized ports, event occurrences and symbolic K,D; no endpoint-marginal recombination.",
+      "minimal_lemma_or_closed_scope": "Specify exhaustive comparison-independent mixed-row membership and source annotation-to-port/event incidence, extending the reviewed limited EROW cases while retaining hidden dependencies.",
+      "references": [
+        "compat",
+        "mixed"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SUBTRACTION",
+        "DISPATCH",
+        "PRIMITIVES"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "STATE_RW",
+      "status": "OPEN-SEMANTIC",
+      "gate": "State read, replacement and restart source equations",
+      "requires": [
+        "STATE_ID"
+      ],
+      "premises": "Actual source location and incoming live store.",
+      "minimal_lemma_or_closed_scope": "Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule.",
+      "references": [
+        "state"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REF_WORLD"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "STATE_RESUME",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Raw resumption store and multi-shot branch equations",
+      "requires": [
+        "STATE_ID"
+      ],
+      "premises": "Original raw handle, current resumed state and repeated branch identities.",
+      "minimal_lemma_or_closed_scope": "Specify which store each resume receives and how repeated/re-entered branches relate; sampled candidate branch equations are not source authority.",
+      "references": [
+        "multishot",
+        "ordinary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REF_WORLD"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PRIMITIVES",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Complete independent Guard/Phi/K,D operand semantics",
+      "requires": [
+        "SIG_RULES",
+        "MIXED_EFFECT",
+        "INTRO"
+      ],
+      "premises": "All primitive original operand tuples and original binder placements, including projected/grafted endpoint variation.",
+      "minimal_lemma_or_closed_scope": "Give exhaustive comparison-independent primitive relations and any varied-endpoint transport law; retaining an old operand does not prove substituting a different endpoint preserves admission.",
+      "references": [
+        "phi",
+        "residual",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GUARD_INSERT",
+        "DESC_CLAUSES",
+        "JOINT_DEC",
+        "SAT_A",
+        "RESOLVE_FP"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "REF_WORLD",
+      "status": "OPEN-PROOF",
+      "gate": "Reference/import alias plugging and world transition closure",
+      "requires": [
+        "INIT_WORLD",
+        "STATE_RW",
+        "STATE_RESUME"
+      ],
+      "premises": "Original typed open source identity graph, semantic imports, same world/xi and hole-dependent aliases.",
+      "minimal_lemma_or_closed_scope": "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.",
+      "references": [
+        "compat",
+        "state"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "GUARD_INSERT",
+      "status": "OPEN-PROOF",
+      "gate": "Origin-relative oriented insertion preservation",
+      "requires": [
+        "INTRO",
+        "S22_DIRECT",
+        "PRIMITIVES"
+      ],
+      "premises": "Original permission relation P, fixed caller tuple/fresh instance and actual directed bound B(z)<:v; no equality cast.",
+      "minimal_lemma_or_closed_scope": "At v=z,c,R_h prove P_before iff P_after on original incoming constraints, or derive required rejection before commit. Distinguish dependent interface transport from specialization; do not invent z<:c from support.",
+      "references": [
+        "s22"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GUARD_COVER"
+      ],
+      "closed_lemmas": [
+        "S22_DIRECT"
+      ]
+    },
+    {
+      "id": "DESC_CLAUSES",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Complete ordinary descriptor and local constructor clauses",
+      "requires": [
+        "CALL_REL",
+        "SIG_RULES",
+        "PRIMITIVES"
+      ],
+      "premises": "Existing ordinary Return/Request/Bind/Call equations and structural type clauses are retained; original profile, world and admission predicates may occur by their declared names.",
+      "minimal_lemma_or_closed_scope": "Specify the missing exhaustive clauses for DescMem_R(o;xi,W), whole CarrierMem, returned recursive Function handles and local constructor typing, including role/entry/consumer and all future eliminations. These are simultaneous predicate specifications, not arbitrary solved interpretations or source-image definitions; SEM_JOINT supplies their common meaning.",
+      "references": [
+        "source",
+        "core",
+        "k"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GUARD_TERMINAL",
+        "ADMISSION_CLAUSES",
+        "SEM_JOINT"
+      ],
+      "closed_lemmas": [
+        "CALL_REL"
+      ]
+    },
+    {
+      "id": "GUARD_TERMINAL",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Source meaning of terminal Top and declared bounds",
+      "requires": [
+        "INTRO",
+        "DESC_CLAUSES"
+      ],
+      "premises": "The actual z<:Top terminal and original uniform permission relation, with declared assumption/new obligation provenance.",
+      "minimal_lemma_or_closed_scope": "Give the selected terminal a source non-refinement certificate or required rejection. Legacy terminal success, empty support and constructor levels supply none.",
+      "references": [
+        "s22",
+        "compat"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GUARD_COVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ADMISSION_CLAUSES",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Independent source response/resume/future-admission clauses",
+      "requires": [
+        "DESC_CLAUSES",
+        "INIT_WORLD"
+      ],
+      "premises": "Original descriptor/world predicate specifications and approved all-compatible punctured-context domain, including direct and whole carrier holes.",
+      "minimal_lemma_or_closed_scope": "Specify exhaustive Init/Response/Resume/FutureUse clause operands: same raw handle/current store, typed response, actually returned provider, original receiver, and other bindings/import validity. Define no domain by successful Q or current-source reachability. This is clause formation, separate from history preservation/coverage.",
+      "references": [
+        "inlet",
+        "source",
+        "adequacy"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SEM_JOINT",
+        "HISTORY",
+        "ALL_WORLD",
+        "ADM_A"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "GUARD_COVER",
+      "status": "OPEN-PROOF",
+      "gate": "Every derived comparison re-enters its original guard",
+      "requires": [
+        "GUARD_INSERT",
+        "GUARD_TERMINAL"
+      ],
+      "premises": "All actual structural decomposition, replay, aliases, opening/grafting and extrusion rules with retained origins.",
+      "minimal_lemma_or_closed_scope": "For each child comparison derive its source/guard context and preserve original permissions, including ground narrowing; prove exhaustive generation and no unchecked derived route.",
+      "references": [
+        "charter",
+        "contexts",
+        "s22"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REC_LOCAL",
+        "DISPATCH",
+        "RAW_SOURCE",
+        "CTX_FINITE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SEM_JOINT",
+      "status": "OPEN-PROOF",
+      "gate": "Joint independent interpretation of descriptor/world/admission clauses",
+      "requires": [
+        "DESC_CLAUSES",
+        "ADMISSION_CLAUSES",
+        "INIT_WORLD"
+      ],
+      "premises": "Complete original clause specifications and their original scopes/quantifiers; mutually referencing predicates remain one semantic family.",
+      "minimal_lemma_or_closed_scope": "Construct a common independently justified interpretation of descriptor, carrier, world, local constructor and admission predicates satisfying every clause, with any required guarded/step-indexed or other realization proof. Do not pick per-node predicates, define membership as source image, or assume a greatest fixed point. This interprets definitions, not source-world inhabitance.",
+      "references": [
+        "source",
+        "compat",
+        "newrec",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "REC_DESC",
+        "REC_LOCAL",
+        "INIT_VALID",
+        "CALL_TYPE",
+        "ROWS",
+        "INLET_CARRIER",
+        "HISTORY",
+        "ALL_WORLD",
+        "SAT_A",
+        "ADM_A"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "REC_DESC",
+      "status": "OPEN-PROOF",
+      "gate": "Independent recursive descriptor finite-elimination law",
+      "requires": [
+        "REC_K",
+        "FH",
+        "SEM_JOINT"
+      ],
+      "premises": "Actual returned f/g handles, independently defined ordinary DescMem and all-world admission; never define DescMem as source-image membership.",
+      "minimal_lemma_or_closed_scope": "Derive that all legal finite destructor/use histories with jointly valid local checks imply the original recursive descriptor membership, including latent Return handles. This exact implication supplies the missing bridge after FH.",
+      "references": [
+        "newrec",
+        "k",
+        "source"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "MEMBER_DISCHARGE"
+      ],
+      "closed_lemmas": [
+        "REC_K",
+        "FH"
+      ]
+    },
+    {
+      "id": "REC_LOCAL",
+      "status": "OPEN-PROOF",
+      "gate": "Actual pointwise simultaneous local member certificates",
+      "requires": [
+        "SEM_JOINT",
+        "INTRO",
+        "GUARD_COVER"
+      ],
+      "premises": "Same actual provider knot and original scoped (xi,w); the predicates are fixed by SEM_JOINT; this local theorem quantifies over every independently valid initial world without assuming such a world is inhabited.",
+      "minimal_lemma_or_closed_scope": "Construct actual receipt/entry/rebind/body/returned-handle local preservation checks and compatible event extensions pointwise for every member in the fixed independent admission domain. This is not initial-world existence or complete KV satisfaction; INIT_VALID and MEMBER_DISCHARGE are separate.",
+      "references": [
+        "newrec",
+        "k",
+        "core"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "INIT_VALID",
+        "MEMBER_DISCHARGE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CALL_TYPE",
+      "status": "OPEN-PROOF",
+      "gate": "Independent complete Call constructor typing",
+      "requires": [
+        "CALL_REL",
+        "SEM_JOINT"
+      ],
+      "premises": "The fixed SEM_JOINT ordinary descriptor/carrier/provider-entry/consumer interpretation, at every independently admitted operand/world assignment on one original X.",
+      "minimal_lemma_or_closed_scope": "Prove the pointwise local Call typing law for every complete output/pending observation, preserving callee-prefix vs receiver-invocation incidence, without assuming a TypedCallCert containing original attachment. Actual operand/world inhabitance and whole-source coverage remain later separate obligations.",
+      "references": [
+        "source",
+        "core",
+        "newassoc"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ORIGINAL_ASSOC",
+        "ROWS",
+        "INLET_CARRIER",
+        "EVENT_OUTPUT",
+        "ADAPTERS"
+      ],
+      "closed_lemmas": [
+        "CALL_REL"
+      ]
+    },
+    {
+      "id": "SAT_A",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Exhaustive Option A/2 production member clauses",
+      "requires": [
+        "SIG_RULES",
+        "PRIMITIVES",
+        "SEM_JOINT"
+      ],
+      "premises": "Approved complete original Rel_C and xi, endpoints/role/entry/path/origin/continuation/scope/authority/dependencies; Option 2 extras allowed.",
+      "minimal_lemma_or_closed_scope": "Specify exhaustive independent Sat_A for all licensed members, including observations without source-reference constructors. Do not define production as the candidate source image.",
+      "references": [
+        "optiona",
+        "option2",
+        "source"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "OBS_INCLUSION"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ADM_A",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Exhaustive production punctured-context admission",
+      "requires": [
+        "ADMISSION_CLAUSES",
+        "SEM_JOINT"
+      ],
+      "premises": "Approved direct callable and whole inert carrier holes at same xi; other environment/world validity independent of checked membership.",
+      "minimal_lemma_or_closed_scope": "Give exhaustive Adm_A initial/response/resume/future clauses ranging over every independently compatible context, including empty histories, hole-dependent imports and actual provider roles.",
+      "references": [
+        "optiona",
+        "inlet",
+        "init"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "DOMAIN_INCLUSION"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ORIGINAL_ASSOC",
+      "status": "OPEN-SEMANTIC",
+      "gate": "OriginalAssocType_X inhabited original source-owned fiber",
+      "requires": [
+        "CALL_TYPE",
+        "SIG_RULES"
+      ],
+      "premises": "Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.",
+      "minimal_lemma_or_closed_scope": "Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.",
+      "references": [
+        "assoc",
+        "newassoc",
+        "assocctor",
+        "assockernel"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ATTACH",
+        "TYPED_SOURCE_INCIDENCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ATTACH",
+      "status": "OPEN-PROOF",
+      "gate": "Attach_C source constructor correspondence",
+      "requires": [
+        "ORIGINAL_ASSOC"
+      ],
+      "premises": "The inhabited original fiber and exact source constructor/transport derivation, at the same X.",
+      "minimal_lemma_or_closed_scope": "Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.",
+      "references": [
+        "assoc",
+        "newassoc"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "LIC_FORWARD",
+        "LIC_INVERT"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "LIC_FORWARD",
+      "status": "OPEN-PROOF",
+      "gate": "Attachment implies original licensing",
+      "requires": [
+        "ATTACH",
+        "SIG_RULES"
+      ],
+      "premises": "Original licensing introduction clauses, rather than a fresh licensing predicate defined to mean Attach.",
+      "minimal_lemma_or_closed_scope": "For each actual Attach constructor derive Lic_C at identical original s,c,beta,p,X and retain every original dependency. No successful Q or endpoint shape premise.",
+      "references": [
+        "lic",
+        "assoc"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROFILE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "LIC_INVERT",
+      "status": "OPEN-PROOF",
+      "gate": "Exhaustive original licensing inversion",
+      "requires": [
+        "SIG_RULES",
+        "ATTACH"
+      ],
+      "premises": "All original licensing last rules, including own upper/inherited transport/generalized/annotated arms and conservative licensed contributions.",
+      "minimal_lemma_or_closed_scope": "Invert every original Lic_C witness to its licensed attachment/source-origin arm. Last-rule accounting must reach inside the independently interpreted owner/view kernel instead of stopping at its supplied primitive witness. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.",
+      "references": [
+        "lic",
+        "newassoc",
+        "attachattack",
+        "associnvert",
+        "assockernel",
+        "option2"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROFILE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PROFILE",
+      "status": "OPEN-PROOF",
+      "gate": "Complete original beta/Slots/profile construction and inversion",
+      "requires": [
+        "LIC_FORWARD",
+        "LIC_INVERT"
+      ],
+      "premises": "One jointly constrained original profile coordinate; all licensed incidences, policies and inherited tags on that same source relation.",
+      "minimal_lemma_or_closed_scope": "Assemble exactly the original licensed slot domain with well-typed positions/contributions and prove forward/backward coverage, preserving all dependencies and allowed slot sharing. Local mandatory p0 alone is insufficient.",
+      "references": [
+        "profile",
+        "sig",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ROWS",
+        "DREL2",
+        "INLET_CARRIER",
+        "TYPED_SOURCE_INCIDENCE",
+        "COMMON_DESC"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "DREL2",
+      "status": "OPEN-PROOF",
+      "gate": "Seed-to-refined primitive relation correspondence",
+      "requires": [
+        "MIXED_ROLE",
+        "PROFILE",
+        "WHOLE_REL"
+      ],
+      "premises": "Independently interpreted seed and refined active kernels on the same whole X, original binder tree and recursive operators.",
+      "minimal_lemma_or_closed_scope": "For every changed primitive prove same-scope extension/erasure with one joint witness and preserved admissions/typed incidences; entailed substitution into an unchanged kernel only closes SC_ROLE.",
+      "references": [
+        "drel",
+        "rs",
+        "mixedrole"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RAW_SOURCE"
+      ],
+      "closed_lemmas": [
+        "WHOLE_REL"
+      ]
+    },
+    {
+      "id": "INLET_CARRIER",
+      "status": "OPEN-PROOF",
+      "gate": "Pointwise whole inlet/carrier/descriptor compatibility",
+      "requires": [
+        "SEM_JOINT",
+        "PROFILE",
+        "CALL_TYPE"
+      ],
+      "premises": "Direct callable and entire inert-computation-carrier holes, original inlet descriptor/actual role/entry and response port, at every independently valid original world.",
+      "minimal_lemma_or_closed_scope": "Prove the local carrier/descriptor plugging law at each inlet, including the apparently pure identity carrier, preserving all other bindings/imports. This is pointwise in the fixed semantics; INIT_VALID separately proves actual initial world/environment realization.",
+      "references": [
+        "inlet",
+        "init",
+        "core"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "INIT_VALID",
+        "HISTORY",
+        "ALL_WORLD"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "TYPED_SOURCE_INCIDENCE",
+      "status": "OPEN-PROOF",
+      "gate": "Source-owned complete typed boundary/Flow/receipt generation",
+      "requires": [
+        "PROFILE",
+        "ORIGINAL_ASSOC",
+        "SV"
+      ],
+      "premises": "Actual raw source constructor, boundary and owner derivation; same source arms, original receiver and typed view path.",
+      "minimal_lemma_or_closed_scope": "Emit/invert every typed boundary introduction and indexed image for argument/result/environment/store/adapter flow, matching receipts and actual result timing. General cases extend SV without promoting positional equality.",
+      "references": [
+        "boundary",
+        "core",
+        "sv"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "EVENT_OUTPUT",
+        "CAPTURE_LIVE",
+        "ADAPTERS",
+        "RELEASE"
+      ],
+      "closed_lemmas": [
+        "SV"
+      ]
+    },
+    {
+      "id": "INIT_VALID",
+      "status": "OPEN-PROOF",
+      "gate": "Actual initial world and environment realization",
+      "requires": [
+        "SEM_JOINT",
+        "INLET_CARRIER",
+        "REC_LOCAL"
+      ],
+      "premises": "Original independent world/admission interpretation, actual source environment/imports and actual recursive knot, with local preservation laws rather than already validated member contracts.",
+      "minimal_lemma_or_closed_scope": "Construct the actual initial punctured-world/alias/environment witnesses at original scope and show Init/EnvStore/JointWF, including recursive captures where present. Derive this base without assuming completed member membership or defining admission by source-solution existence; returned-only/empty-world fixtures do not suffice.",
+      "references": [
+        "init",
+        "compat",
+        "k"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "MEMBER_DISCHARGE",
+        "ROWS",
+        "HISTORY",
+        "ALL_WORLD"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ADAPTERS",
+      "status": "OPEN-PROOF",
+      "gate": "Complete source adapter generation and correspondence",
+      "requires": [
+        "CALL_TYPE",
+        "TYPED_SOURCE_INCIDENCE"
+      ],
+      "premises": "Actual provider-owned role/entry, complete argument and designated result consumer, independently typed unknown-shape conversion alternatives.",
+      "minimal_lemma_or_closed_scope": "Generate and realize all admitted source adapters and invert resolver alternatives, preserving whole observations and source incidence; an internal inferred Function view does not change actual entry.",
+      "references": [
+        "core",
+        "boundary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RAW_SOURCE",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "MEMBER_DISCHARGE",
+      "status": "OPEN-PROOF",
+      "gate": "Actual simultaneous recursive member/environment discharge",
+      "requires": [
+        "REC_KV",
+        "FH",
+        "REC_DESC",
+        "REC_LOCAL",
+        "INIT_VALID"
+      ],
+      "premises": "Fixed common predicate interpretation, actual valid initial source world, all pointwise member/transition checks and compatible extensions at the original assignment.",
+      "minimal_lemma_or_closed_scope": "Apply the independently proved finite-elimination law to the all-finite-history invariant and establish every emitted original KV/CompleteMem member and simultaneous environment judgment on the same providers. No separately chosen member worlds or witnesses.",
+      "references": [
+        "newrec",
+        "k",
+        "core"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "GENERALIZE",
+        "ROWS",
+        "HISTORY",
+        "RAW_SOURCE"
+      ],
+      "closed_lemmas": [
+        "REC_KV",
+        "FH"
+      ]
+    },
+    {
+      "id": "GENERALIZE",
+      "status": "OPEN-PROOF",
+      "gate": "Semantic eligible view, binders and anchors",
+      "requires": [
+        "PG1",
+        "RS_LX",
+        "INTRO",
+        "MEMBER_DISCHARGE"
+      ],
+      "premises": "Complete simultaneous source relation, fixed captured/import/non-generic/world coordinates, source-selected endpoints and original quantifier tree.",
+      "minimal_lemma_or_closed_scope": "Construct the generalized view and eligible binder placement satisfying complete admission/reflection and all authorized future instances; prove scope hiding/anchors and distinguish semantic eligibility from lexical locality.",
+      "references": [
+        "pg",
+        "rs",
+        "fview"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ROWS",
+        "RAW_SOURCE",
+        "PROJECTION",
+        "ALL_VIEW",
+        "IFACE_FORM"
+      ],
+      "closed_lemmas": [
+        "PG1",
+        "RS_LX"
+      ]
+    },
+    {
+      "id": "HISTORY",
+      "status": "OPEN-PROOF",
+      "gate": "Independent response, raw re-entry and future-use admission",
+      "requires": [
+        "ADMISSION_CLAUSES",
+        "SEM_JOINT",
+        "INLET_CARRIER",
+        "INIT_VALID",
+        "MEMBER_DISCHARGE"
+      ],
+      "premises": "Every independently valid original world and admissible response/argument; fixed raw continuation and original receiver; arbitrary finite prefixes.",
+      "minimal_lemma_or_closed_scope": "Prove initial, response, same-handle resume/current-state and actually returned-provider future-input rules are exhaustive and preserve all original validity/permissions and one compatible scoped assignment.",
+      "references": [
+        "adequacy",
+        "source",
+        "newrec"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ALL_WORLD",
+        "EVENT_OUTPUT",
+        "CAPTURE_LIVE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ALL_WORLD",
+      "status": "OPEN-PROOF",
+      "gate": "All-world independent admission completeness",
+      "requires": [
+        "ADMISSION_CLAUSES",
+        "SEM_JOINT",
+        "INIT_VALID",
+        "INLET_CARRIER",
+        "HISTORY"
+      ],
+      "premises": "All independently compatible punctured contexts at the original tuple, including other-program/future contexts, not only current-source reachability.",
+      "minimal_lemma_or_closed_scope": "Prove generated challenge relation equals the independent domain in both directions for empty histories and all finite extensions; no finite sampled worlds or chosen filling defines the domain.",
+      "references": [
+        "inlet",
+        "adequacy",
+        "source"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ROWS",
+        "JOINT_DEC",
+        "COMMON_DESC",
+        "DOMAIN_INCLUSION",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "EVENT_OUTPUT",
+      "status": "OPEN-PROOF",
+      "gate": "Actual event-to-complete-output contribution correspondence",
+      "requires": [
+        "TYPED_SOURCE_INCIDENCE",
+        "CALL_TYPE",
+        "HISTORY"
+      ],
+      "premises": "Reached request and current complete executing view with original pending suffix; formal invocation distinct from callee-evaluation prefix.",
+      "minimal_lemma_or_closed_scope": "Derive exact Observe(q,V,p_exec) and typed p0-to-p_exec incidence through complete invocation/result consumption for every emitted event; preserve independent q/origin/K,D and no blanket Call attribution.",
+      "references": [
+        "event",
+        "boundary",
+        "newassoc"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CAPTURE_LIVE",
+        "SUBTRACTION",
+        "RELEASE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ROWS",
+      "status": "OPEN-PROOF",
+      "gate": "Complete original typed-row nonemptiness",
+      "requires": [
+        "PROFILE",
+        "CALL_TYPE",
+        "SEM_JOINT",
+        "INIT_VALID",
+        "MEMBER_DISCHARGE",
+        "GENERALIZE",
+        "ALL_WORLD"
+      ],
+      "premises": "Independently admitted source and all independent endpoint/role/entry/profile/continuation/import/world predicates at original scope; admission is not defined by J_S satisfiability.",
+      "minimal_lemma_or_closed_scope": "Construct one joint witness of J_S satisfying every original constraint. Separately nonempty fragments or quiet identity execution do not suffice; original universal world/history clauses stay universal.",
+      "references": [
+        "profile",
+        "init",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "COMMON_TOTAL",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "COMMON_DESC",
+      "status": "OPEN-PROOF",
+      "gate": "Legal common descriptor and all-path realization",
+      "requires": [
+        "PROFILE",
+        "ALL_WORLD",
+        "ALLOC_COMMON"
+      ],
+      "premises": "One original source solution, every typed Function path and independent compatible carriers/contexts.",
+      "minimal_lemma_or_closed_scope": "Construct one legal descriptor realizing common output allowance while admitting every required original challenge, not merely a pointwise union over incompatible descriptors.",
+      "references": [
+        "common",
+        "source"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "COMMON_TOTAL"
+      ],
+      "closed_lemmas": [
+        "ALLOC_COMMON"
+      ]
+    },
+    {
+      "id": "DOMAIN_INCLUSION",
+      "status": "OPEN-PROOF",
+      "gate": "Complete checked-to-actual production admission inclusion",
+      "requires": [
+        "ADM_A",
+        "ALL_WORLD"
+      ],
+      "premises": "Independent D_C and D_A at exactly the same original tuple.",
+      "minimal_lemma_or_closed_scope": "Prove forall xi: D_C(xi) subset D_A(xi), with every carrier/context/world/history witness preserved. Empty output sets cannot prove this domain statement.",
+      "references": [
+        "optiona",
+        "core",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "OBS_INCLUSION",
+        "PROD_CONFORMANCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CAPTURE_LIVE",
+      "status": "OPEN-PROOF",
+      "gate": "General typed capture/read/receiver/liveness coverage",
+      "requires": [
+        "TYPED_SOURCE_INCIDENCE",
+        "EVENT_OUTPUT",
+        "HISTORY",
+        "TRANSPORT"
+      ],
+      "premises": "Actual capture/write/read/receipt and original receiver/owner/handler activations, including returned latent values and raw resumed state.",
+      "minimal_lemma_or_closed_scope": "Prove all source transitions produce the typed incidence used by Path and the exact current activity sets, with future view-specific Observe and no revival of expired receivers. SV exact case is already closed conditionally.",
+      "references": [
+        "boundary",
+        "sv",
+        "adequacy"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RELEASE",
+        "DISPATCH",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": [
+        "TRANSPORT"
+      ]
+    },
+    {
+      "id": "SUBTRACTION",
+      "status": "OPEN-PROOF",
+      "gate": "Complete shallow/deep handler contribution image",
+      "requires": [
+        "MIXED_EFFECT",
+        "EVENT_OUTPUT"
+      ],
+      "premises": "Actually targeted typed events, original handler/resumption/consumer semantics and symbolic invariant dependencies.",
+      "minimal_lemma_or_closed_scope": "Prove exactly which complete observations are removed/transformed; retain independent same-family events, raw suffixes, re-emission and live K,D. Support cancellation alone cannot justify the image.",
+      "references": [
+        "ordinary",
+        "mixed",
+        "boundary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RELEASE",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "COMMON_TOTAL",
+      "status": "OPEN-PROOF",
+      "gate": "Total common allowance at original solutions",
+      "requires": [
+        "COMMON_DESC",
+        "ROWS",
+        "WHOLE_REL"
+      ],
+      "premises": "Same original source witness and legal descriptor with retained graft/query operands.",
+      "minimal_lemma_or_closed_scope": "For every original s, construct a jointly compatible a with Q_common(s,a), preserving the complete source/admission relation; Q success may not generate source facts.",
+      "references": [
+        "common",
+        "source",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ALL_VIEW"
+      ],
+      "closed_lemmas": [
+        "WHOLE_REL"
+      ]
+    },
+    {
+      "id": "OBS_INCLUSION",
+      "status": "OPEN-PROOF",
+      "gate": "All production observations contained in checked contract",
+      "requires": [
+        "SAT_A",
+        "DOMAIN_INCLUSION"
+      ],
+      "premises": "Every c in D_C and every production member at original xi, including independently licensed extra members.",
+      "minimal_lemma_or_closed_scope": "Prove P_A(c;xi) subset P_C(c;xi) for complete observations and future histories. Reference source-constructor simulation closes only its subfamily.",
+      "references": [
+        "option2",
+        "core",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ORACLE_COMPAT",
+        "PROD_CONFORMANCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "DISPATCH",
+      "status": "OPEN-PROOF",
+      "gate": "Complete ordinary dispatch/OpCompat/generic arm theorem",
+      "requires": [
+        "GUARD_COVER",
+        "MIXED_EFFECT",
+        "CAPTURE_LIVE"
+      ],
+      "premises": "Actual ordered active-boundary search, independently opened request/arm binders and declared assumptions, ordinary raw resumptions.",
+      "minimal_lemma_or_closed_scope": "Derive complete source ordered search and candidate eligibility, selected-arm compatibility, outside-arm/deep expansion and same-witness generic checks under rigid-hole permissions.",
+      "references": [
+        "ordinary",
+        "charter",
+        "boundary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "RAW_SOURCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "RELEASE",
+      "status": "OPEN-PROOF",
+      "gate": "Source attribution and actual protection-release crossing",
+      "requires": [
+        "TYPED_SOURCE_INCIDENCE",
+        "EVENT_OUTPUT",
+        "CAPTURE_LIVE",
+        "SUBTRACTION"
+      ],
+      "premises": "Approved outward crossing after intervening computation/handler processing; same selected target view and original live receiver.",
+      "minimal_lemma_or_closed_scope": "Generate comparison-independent e-attribution and prove actual crossing/persistence at the same transported target; receipt or Observe alone is not crossing, and a new receiver cannot inherit expired release.",
+      "references": [
+        "release",
+        "boundary"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ALL_VIEW",
+      "status": "OPEN-PROOF",
+      "gate": "All-valid-view lifting through actual common export",
+      "requires": [
+        "COMMON_TOTAL",
+        "USE_GRAPH",
+        "GENERALIZE"
+      ],
+      "premises": "Independently valid public V, fixed original scopes and actual exported B_common with its resolver/evidence alternatives.",
+      "minimal_lemma_or_closed_scope": "Prove Valid_V(v) implies exists original-scope x,p,w,a: J_S and K_G and Q_common and Direct(B_common,R_V(v)) for every V. Exact rewriting or a retained unexported root cannot supply this Direct.",
+      "references": [
+        "use",
+        "coverage",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PRINCIPAL"
+      ],
+      "closed_lemmas": [
+        "USE_GRAPH"
+      ]
+    },
+    {
+      "id": "RAW_SOURCE",
+      "status": "OPEN-PROOF",
+      "gate": "Complete source relation generation and inversion",
+      "requires": [
+        "SEED_SOURCE",
+        "DREL2",
+        "GUARD_COVER",
+        "MEMBER_DISCHARGE",
+        "REC_INIT",
+        "GENERALIZE",
+        "ADAPTERS",
+        "DISPATCH"
+      ],
+      "premises": "Precisely declared supported source syntax and independent source judgments; generated relation retains every alternative at original scopes.",
+      "minimal_lemma_or_closed_scope": "Induct on every included literal/Name/Lambda/Call/Bind/annotation/pattern/conversion/global/operation/handler constructor to emit exact atoms and lift every independent typed derivation back. No supplied decorated typing premise for raw formation.",
+      "references": [
+        "core",
+        "source",
+        "fview"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CTX_FINITE",
+        "IFACE_FORM",
+        "HIR_WIRING",
+        "ORACLE_COMPAT",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CTX_FINITE",
+      "status": "OPEN-PROOF",
+      "gate": "Finite source guard-context canonicalization",
+      "requires": [
+        "GUARD_COVER",
+        "RAW_SOURCE"
+      ],
+      "premises": "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
+      "minimal_lemma_or_closed_scope": "Construct finite J_T and meaning-preserving A_T from source; prove rule/guard closure and terminating dependency updates. The Draft theorem merely assumes them and proves |B||J_T||P|^2.",
+      "references": [
+        "contexts",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "JOINT_DEC"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "JOINT_DEC",
+      "status": "OPEN-PROOF",
+      "gate": "Effective complete joint solver/residual decision",
+      "requires": [
+        "PURE_DEC",
+        "CTX_FINITE",
+        "PRIMITIVES",
+        "ALL_WORLD"
+      ],
+      "premises": "Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.",
+      "minimal_lemma_or_closed_scope": "Construct finite effective candidates/quotient with preservation AND reflection for every active primitive, terminating checks and simultaneous witness completeness, or prove an exact effective residual decision route. Pure FMP cannot reflect arbitrary Phi.",
+      "references": [
+        "puredec",
+        "contexts",
+        "residual",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROJECTION",
+        "RESOLVE_FP",
+        "RESOURCE",
+        "SOUND"
+      ],
+      "closed_lemmas": [
+        "PURE_DEC"
+      ]
+    },
+    {
+      "id": "PROJECTION",
+      "status": "OPEN-PROOF",
+      "gate": "Effective principal public projection",
+      "requires": [
+        "JOINT_DEC",
+        "GENERALIZE",
+        "EQ_RES"
+      ],
+      "premises": "Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.",
+      "minimal_lemma_or_closed_scope": "Compute a legal exported constrained scheme with exact original-fiber projection and complete ordinary use factorization, rather than printing independent root bounds.",
+      "references": [
+        "residual",
+        "scoped",
+        "pg"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "IFACE_FORM",
+        "HIR_WIRING",
+        "PRINCIPAL"
+      ],
+      "closed_lemmas": [
+        "EQ_RES"
+      ]
+    },
+    {
+      "id": "RESOLVE_FP",
+      "status": "OPEN-PROOF",
+      "gate": "Joint method/role/associated-type/visibility fixed point",
+      "requires": [
+        "ROLE_ASSOC",
+        "PRIMITIVES",
+        "JOINT_DEC"
+      ],
+      "premises": "Complete independent candidate/role/associated judgments, retained alternatives and original shared nu.",
+      "minimal_lemma_or_closed_scope": "Construct sound complete principal resolution and prove termination/canonical finite carrier or admitted effective residual; positivity, uniqueness and finiteness must be proved, not assumed from syntax.",
+      "references": [
+        "charter",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ORACLE_COMPAT",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "IFACE_FORM",
+      "status": "OPEN-PROOF",
+      "gate": "Complete finite simultaneous generalized interface producer",
+      "requires": [
+        "GENERALIZE",
+        "PROJECTION",
+        "RAW_SOURCE"
+      ],
+      "premises": "All downstream inference observations, source origins/scopes, exports/imports/evidence/admission and recursive member roots.",
+      "minimal_lemma_or_closed_scope": "Generate a finite complete interface preserving/refelecting the whole source relation and every consumer observation; printed schemes/arena IDs or separate member projections are insufficient. CI_ALPHA only compares already supplied complete presentations.",
+      "references": [
+        "rebuild",
+        "lifecycle",
+        "newrec"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "IFACE_EQUIV",
+        "RESOURCE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "ORACLE_COMPAT",
+      "status": "OPEN-PROOF",
+      "gate": "Successor capability and observation compatibility",
+      "requires": [
+        "RAW_SOURCE",
+        "RESOLVE_FP",
+        "OBS_INCLUSION"
+      ],
+      "premises": "Declared final well-typed source envelope and current Authority; Frozen Oracle is historical evidence only.",
+      "minimal_lemma_or_closed_scope": "Prove required final acceptance/observations and justify each intended delta; use differential fixtures as evidence. Oracle algorithms/projections/IDs do not define successor typing or licensing.",
+      "references": [
+        "charter",
+        "oracle",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SOURCE_ADEQUACY",
+      "status": "OPEN-PROOF",
+      "gate": "General source adequacy and independent complete admission",
+      "requires": [
+        "RAW_SOURCE",
+        "ROWS",
+        "ALL_WORLD",
+        "CAPTURE_LIVE",
+        "ADAPTERS",
+        "SUBTRACTION",
+        "RELEASE",
+        "REF_WORLD",
+        "RESOLVE_FP",
+        "REF_SIM"
+      ],
+      "premises": "One original scoped source relation, independent judgments for every included form and all histories; actual operational source machine.",
+      "minimal_lemma_or_closed_scope": "Construct a single complete source/typed-core/observation correspondence with forward and backward derivation transport, world admission and compatible witnesses, covering the full declared source envelope.",
+      "references": [
+        "adequacy",
+        "core",
+        "source",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROD_CONFORMANCE",
+        "SOUND",
+        "PRINCIPAL"
+      ],
+      "closed_lemmas": [
+        "REF_SIM"
+      ]
+    },
+    {
+      "id": "IFACE_EQUIV",
+      "status": "OPEN-PROOF",
+      "gate": "Actual interface-kernel equivariance and rigid identity coverage",
+      "requires": [
+        "IFACE_FORM"
+      ],
+      "premises": "Every actual primitive/constructor/evidence/recursive/query operation in interface and consumer.",
+      "minimal_lemma_or_closed_scope": "Prove all required covariance/reflection laws and enumerate identity observers to fix rigid coordinates; supply CI_USE premises for the actual compiler rather than by convention.",
+      "references": [
+        "newrec",
+        "lifecycle"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "FRESH_LIFE"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "RESOURCE",
+      "status": "OPEN-SEMANTIC",
+      "gate": "Exact practical resource/admission and failure boundary",
+      "requires": [
+        "JOINT_DEC",
+        "IFACE_FORM"
+      ],
+      "premises": "Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.",
+      "minimal_lemma_or_closed_scope": "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.",
+      "references": [
+        "charter",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "HIR_WIRING",
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PROD_CONFORMANCE",
+      "status": "OPEN-PROOF",
+      "gate": "Complete production semantic conformance",
+      "requires": [
+        "SOURCE_ADEQUACY",
+        "DOMAIN_INCLUSION",
+        "OBS_INCLUSION"
+      ],
+      "premises": "Independent actual production relation/domain and declared checked source contract; no restriction to source-constructible production extras.",
+      "minimal_lemma_or_closed_scope": "Prove the complete source and production squares commute on original xi, while retaining both nonredundant containment quantifiers.",
+      "references": [
+        "optiona",
+        "option2",
+        "core",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SOUND",
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PRINCIPAL",
+      "status": "OPEN-PROOF",
+      "gate": "All-view principal successor inference",
+      "requires": [
+        "SOURCE_ADEQUACY",
+        "ALL_VIEW",
+        "PROJECTION"
+      ],
+      "premises": "Every independently valid view in the declared conservative abstraction and actual designated export.",
+      "minimal_lemma_or_closed_scope": "Prove universal ordinary-use factorization of every valid public scheme through the computed whole relation, preserving correlations/scopes/evidence; no concrete-success transitivity shortcut.",
+      "references": [
+        "charter",
+        "use",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "FRESH_LIFE",
+      "status": "OPEN-PROOF",
+      "gate": "Internal/fresh use and SCC lifecycle correspondence",
+      "requires": [
+        "IFACE_EQUIV",
+        "CI_USE",
+        "REUSE"
+      ],
+      "premises": "Actual intra-SCC live roots, independent incoming use instances, rigid imports/captures and consumer references.",
+      "minimal_lemma_or_closed_scope": "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse.",
+      "references": [
+        "rebuild",
+        "lifecycle"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "HIR_WIRING",
+        "CUTOVER"
+      ],
+      "closed_lemmas": [
+        "CI_USE",
+        "REUSE"
+      ]
+    },
+    {
+      "id": "SOUND",
+      "status": "OPEN-PROOF",
+      "gate": "Sound successor inference",
+      "requires": [
+        "SOURCE_ADEQUACY",
+        "JOINT_DEC",
+        "PROD_CONFORMANCE"
+      ],
+      "premises": "Computed complete relation, independently valid admission and actual primitive semantics.",
+      "minimal_lemma_or_closed_scope": "Every published inferred scheme and accepted use satisfies the selected source/conservative-abstraction semantics, including effects, permissions, worlds, methods and recursive use.",
+      "references": [
+        "charter",
+        "adequacy"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "HIR_WIRING",
+      "status": "IMPLEMENTATION-ONLY",
+      "gate": "Settled source-to-HIR and complete production pipeline wiring",
+      "requires": [
+        "RAW_SOURCE",
+        "PROJECTION",
+        "FRESH_LIFE",
+        "RESOURCE"
+      ],
+      "premises": "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
+      "minimal_lemma_or_closed_scope": "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.",
+      "references": [
+        "hir",
+        "solver",
+        "shadowcore",
+        "owner",
+        "retention",
+        "bindergroups",
+        "sourceuses"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "CUTOVER",
+      "status": "OPEN-PROOF",
+      "gate": "Final reviewed implementation and production inference cutover",
+      "requires": [
+        "SOUND",
+        "PRINCIPAL",
+        "PROD_CONFORMANCE",
+        "FRESH_LIFE",
+        "RESOURCE",
+        "HIR_WIRING",
+        "ORACLE_COMPAT"
+      ],
+      "premises": "Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.",
+      "minimal_lemma_or_closed_scope": "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.",
+      "references": [
+        "charter",
+        "rebuild",
+        "review"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [],
+      "closed_lemmas": []
+    }
+  ],
+  "request_coverage": {
+    "directional source generation/provenance": [
+      "DIR_LOCAL",
+      "RS_LX",
+      "SEED_SOURCE"
+    ],
+    "recursive/generalized-use supplier": [
+      "REC_K",
+      "REC_KV",
+      "RS_LX",
+      "MEMBER_DISCHARGE",
+      "GENERALIZE"
+    ],
+    "simultaneous member validation/discharge": [
+      "FH",
+      "DESC_CLAUSES",
+      "SEM_JOINT",
+      "REC_DESC",
+      "REC_LOCAL",
+      "INIT_VALID",
+      "MEMBER_DISCHARGE",
+      "REC_INIT"
+    ],
+    "Generalize eligible binder/anchor/view": [
+      "PG1",
+      "GENERALIZE"
+    ],
+    "section22 introduction/guard/permission": [
+      "INTRO",
+      "S22_DIRECT",
+      "GUARD_INSERT",
+      "GUARD_TERMINAL",
+      "GUARD_COVER"
+    ],
+    "complete source relation generation": [
+      "CALL_REL",
+      "RAW_SOURCE"
+    ],
+    "seed/refined DREL-2": [
+      "WHOLE_REL",
+      "SC_ROLE",
+      "DREL2"
+    ],
+    "mixed-use role refinement/aggregation": [
+      "MIXED_ROLE",
+      "DREL2"
+    ],
+    "original signature formation": [
+      "SIG_RULES",
+      "PROFILE"
+    ],
+    "OriginalAssocType_X": [
+      "ORIGINAL_ASSOC",
+      "CALL_TYPE"
+    ],
+    "Attach_C": [
+      "ATTACH",
+      "LIC_FORWARD"
+    ],
+    "Lic_C": [
+      "SIG_RULES",
+      "LIC_FORWARD",
+      "LIC_INVERT"
+    ],
+    "complete beta/Slots profile and inversion": [
+      "PROFILE",
+      "LIC_INVERT"
+    ],
+    "contribution ownership/typed source incidence": [
+      "ORIGINAL_ASSOC",
+      "TYPED_SOURCE_INCIDENCE"
+    ],
+    "complete typed-row nonemptiness": [
+      "ROWS",
+      "SEM_JOINT",
+      "INIT_VALID"
+    ],
+    "initial/re-entry/all-world admission": [
+      "PCINIT",
+      "INIT_WORLD",
+      "ADMISSION_CLAUSES",
+      "SEM_JOINT",
+      "INIT_VALID",
+      "HISTORY",
+      "ALL_WORLD"
+    ],
+    "inlet/carrier/descriptor/import/world": [
+      "DESC_CLAUSES",
+      "INLET_CARRIER",
+      "INIT_WORLD",
+      "SEM_JOINT",
+      "REF_WORLD"
+    ],
+    "event/output correspondence": [
+      "EVENT_OUTPUT",
+      "CALL_TYPE"
+    ],
+    "general capture/read/receipt/receiver/liveness": [
+      "SV",
+      "CAPTURE_LIVE",
+      "TRANSPORT",
+      "PATH_QUERY"
+    ],
+    "general source adequacy": [
+      "SOURCE_ADEQUACY"
+    ],
+    "common allowance/all-view extension": [
+      "ALLOC_COMMON",
+      "COMMON_DESC",
+      "COMMON_TOTAL",
+      "ALL_VIEW"
+    ],
+    "all-view principality": [
+      "PRINCIPAL"
+    ],
+    "SCC interface equality/fresh use/lifecycle": [
+      "CI_ALPHA",
+      "CI_USE",
+      "IFACE_FORM",
+      "IFACE_EQUIV",
+      "FRESH_LIFE"
+    ],
+    "residual/guarded joint solving/projection": [
+      "EQ_RES",
+      "CTX_FINITE",
+      "PRIMITIVES",
+      "JOINT_DEC",
+      "PROJECTION"
+    ],
+    "State/reference/world": [
+      "STATE_ID",
+      "STATE_RW",
+      "STATE_RESUME",
+      "REF_WORLD"
+    ],
+    "method/role/associated/visible-impl fixed point": [
+      "SELECT",
+      "ROLE_ASSOC",
+      "RESOLVE_FP"
+    ],
+    "Option A/Option 2 containment": [
+      "SAT_A",
+      "ADM_A",
+      "DOMAIN_INCLUSION",
+      "OBS_INCLUSION",
+      "PROD_CONFORMANCE"
+    ],
+    "finite presentation/termination/resources": [
+      "FMP",
+      "PURE_DEC",
+      "CTX_FINITE",
+      "JOINT_DEC",
+      "IFACE_FORM",
+      "RESOURCE"
+    ],
+    "production HIR/source coverage": [
+      "HIR_WIRING",
+      "RAW_SOURCE"
+    ],
+    "successor/production/Oracle compatibility": [
+      "ORACLE_COMPAT",
+      "PROD_CONFORMANCE"
+    ],
+    "final production inference cutover": [
+      "CUTOVER"
+    ],
+    "additional adapter/mixed-effect/subtraction/release/dispatch": [
+      "ADAPTERS",
+      "MIXED_EFFECT",
+      "SUBTRACTION",
+      "RELEASE",
+      "DISPATCH"
+    ]
+  },
+  "retired": [
+    {
+      "old": "Pure FMP, selector/one-anchor existence as future gates",
+      "replaced_by": [
+        "FMP",
+        "PURE_DEC"
+      ],
+      "reason": "Closed pure fragment only; arbitrary active predicates remain outside."
+    },
+    {
+      "old": "Opaque selected receipt/capture supplier",
+      "replaced_by": [
+        "SV"
+      ],
+      "reason": "Selected actual transitions and Pending histories proved with original typing/profile premises."
+    },
+    {
+      "old": "Opaque actual recursive provider graph or all lexical imports",
+      "replaced_by": [
+        "REC_K",
+        "REC_KV",
+        "RS_LX"
+      ],
+      "reason": "Actual graph and lexical ownership proved; KP argument/context pairing and KV predicate interpretation are conditional; semantic discharge/eligibility remain."
+    },
+    {
+      "old": "Arbitrary new complete Call index or new slot-label allocation",
+      "replaced_by": [
+        "CALL_REL",
+        "ORIGINAL_ASSOC"
+      ],
+      "reason": "Complete relational family already constructible; original-kernel inhabited association is the real cut."
+    },
+    {
+      "old": "One separately completed P per local lemma/use",
+      "replaced_by": [
+        "PROFILE",
+        "ROWS"
+      ],
+      "reason": "Use one jointly constrained original p at original scope; retain universal world/history predicates."
+    },
+    {
+      "old": "Separate original attachment/licensing claims with no original-coordinate distinction",
+      "replaced_by": [
+        "ORIGINAL_ASSOC",
+        "ATTACH",
+        "LIC_FORWARD",
+        "LIC_INVERT"
+      ],
+      "reason": "Normalize to source-owned fiber introduction and forward/exhaustive inverse laws; no fresh-ID substitution."
+    },
+    {
+      "old": "General DREL-2 still opaque for the exact completed singleton",
+      "replaced_by": [
+        "SC_ROLE",
+        "DREL2"
+      ],
+      "reason": "Entailed unchanged-kernel substitution closed there; changed primitives/mixed source remain."
+    },
+    {
+      "old": "Blanket no-existential classification O required for every row",
+      "replaced_by": [
+        "INTRO",
+        "GUARD_INSERT",
+        "GUARD_TERMINAL"
+      ],
+      "reason": "O is only a sufficient specialization; origin-relative local preservation M is the weaker actual target."
+    },
+    {
+      "old": "New m_V calculus as a prerequisite",
+      "replaced_by": [
+        "USE_GRAPH",
+        "ALL_VIEW"
+      ],
+      "reason": "Ordinary copy/graft/query exists; actual-export all-view success remains."
+    },
+    {
+      "old": "Rollback/inverse intrusive mutation across edits",
+      "replaced_by": [
+        "REUSE",
+        "FRESH_LIFE"
+      ],
+      "reason": "Authoritative rebuild route replaces inverse mutation; atomic lifecycle remains."
+    },
+    {
+      "old": "No effective interface equality whatsoever",
+      "replaced_by": [
+        "CI_ALPHA",
+        "IFACE_FORM",
+        "IFACE_EQUIV"
+      ],
+      "reason": "Finite supplied complete alpha presentation has a decision procedure; complete actual producer/equivariance remain."
+    },
+    {
+      "old": "Reachability/liveness helper as a source or production semantics gate",
+      "replaced_by": [
+        "PATH_QUERY",
+        "TYPED_SOURCE_INCIDENCE",
+        "CAPTURE_LIVE"
+      ],
+      "reason": "Finite supplied query is separable implementation; source evidence cannot be supplied by it."
+    },
+    {
+      "old": "E/R choice or blanket normalized Function effect protection",
+      "replaced_by": [
+        "DIR_LOCAL",
+        "SEED_SOURCE"
+      ],
+      "reason": "Superseded by current directional user decision; no question reopened."
+    },
+    {
+      "old": "Production members must all have source constructors",
+      "replaced_by": [
+        "SAT_A",
+        "OBS_INCLUSION"
+      ],
+      "reason": "Incompatible with approved Option 2; extra licensed members require full containment."
+    },
+    {
+      "old": "Finite-context theorem selects finite semantic worlds",
+      "replaced_by": [
+        "CTX_FINITE",
+        "JOINT_DEC"
+      ],
+      "reason": "Draft conditional finite state-key theorem supplies no all-world quotient."
+    }
+  ],
+  "references": {
+    "charter": "notes/design/2026-09-29-scc-intrusion-redesign-charter.md",
+    "direction": "notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md",
+    "fview": "notes/design/2026-10-05-inferred-function-call-views.md",
+    "nested": "notes/design/2026-10-06-nested-block-function-source-realization-addendum.md",
+    "compat": "notes/design/2026-10-03-concrete-compatibility-boundary.md",
+    "core": "notes/design/2026-10-02-typed-computation-core-elaboration.md",
+    "boundary": "notes/design/2026-10-02-typed-boundary-realization-draft.md",
+    "source": "notes/design/2026-10-05-source-contracts-and-common-allowance.md",
+    "adequacy": "notes/design/2026-10-02-source-interface-adequacy-theorem.md",
+    "ordinary": "notes/design/2026-10-02-ordinary-computation-semantics-package.md",
+    "fmp": "notes/design/2026-10-04-structural-fmp-fence-completion.md",
+    "puredec": "notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md",
+    "scoped": "notes/design/2026-10-03-scoped-constraint-solving.md",
+    "contexts": "notes/design/2026-10-03-source-context-finite-closure.md",
+    "residual": "notes/design/2026-10-03-open-residual-factorization.md",
+    "phi": "notes/progress/2026-10-05-residual-admission-source-premise-audit.md",
+    "common": "notes/design/2026-10-04-common-allowance-context-preimage.md",
+    "use": "notes/design/2026-10-04-certified-callback-and-constrained-use.md",
+    "coverage": "notes/design/2026-10-05-callback-coverage-and-source-joins.md",
+    "dirproof": "notes/progress/2026-10-06-directional-joint-source-judgment.md",
+    "drel": "notes/progress/2026-10-06-directional-full-relation-and-gate-delta.md",
+    "sv": "notes/progress/2026-10-06-directional-source-view-instantiation-construction.md",
+    "svcompose": "notes/progress/2026-10-07-source-view-to-original-attachment-composition.md",
+    "attachattack": "notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md",
+    "assocctor": "notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md",
+    "associnvert": "notes/progress/2026-10-07-original-association-inversion-attack.md",
+    "assockernel": "notes/progress/2026-10-07-original-association-source-kernel-audit.md",
+    "rs": "notes/progress/2026-10-06-directional-recursive-generalization-supplier.md",
+    "k": "notes/progress/2026-10-06-recursive-source-validation-construction.md",
+    "pg": "notes/progress/2026-10-06-source-generalization-eligibility-attack.md",
+    "profile": "notes/progress/2026-10-06-source-profile-admission-construction.md",
+    "init": "notes/progress/2026-10-06-independent-initial-admission-construction.md",
+    "call": "notes/progress/2026-10-06-source-call-generation-construction.md",
+    "assoc": "notes/progress/2026-10-06-attach-law-construction-attempt.md",
+    "lic": "notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md",
+    "sig": "notes/progress/2026-10-06-original-signature-constructor-derivation.md",
+    "s22": "notes/progress/2026-10-06-section22-guard-authority-closure.md",
+    "mixedrole": "notes/progress/2026-10-06-source-formal-relation-mixed-use-falsification.md",
+    "event": "notes/progress/2026-10-06-directional-event-output-link-construction.md",
+    "mixed": "notes/progress/2026-10-06-function-mixed-effect-production-correspondence.md",
+    "state": "notes/progress/2026-10-04-local-state-capture-observation.md",
+    "multishot": "notes/progress/2026-10-05-local-state-multishot-playground.md",
+    "optiona": "questions/2026-10-05-production-function-denotation/approved-answer.md",
+    "option2": "questions/2026-10-05-production-function-bound-membership/approved-answer.md",
+    "inlet": "questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md",
+    "release": "questions/2026-10-05-handler-protection-release-crossing/approved-answer.md",
+    "rebuild": "notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md",
+    "lifecycle": "notes/progress/2026-10-05-scc-generalized-boundary-contract.md",
+    "newrec": "notes/progress/2026-10-07-successor-recursive-synthesis.md",
+    "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
+    "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
+    "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
+    "shadow": "crates/yu-core/src/shadow_typed_evidence.rs",
+    "shadowtest": "crates/yu-core/tests/shadow_typed_evidence.rs",
+    "shadowhir": "crates/yu-hir/src/shadow.rs",
+    "shadowcore": "crates/yu-core/src/shadow_derivation.rs",
+    "owner": "notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md",
+    "retention": "notes/progress/2026-10-07-shadow-nested-unary-retention.md",
+    "bindergroups": "notes/progress/2026-10-07-shadow-pending-binder-use-groups.md",
+    "sourceuses": "notes/progress/2026-10-07-shadow-retained-source-use-groups.md",
+    "solver": "crates/yu-solver/src/lib.rs",
+    "hir": "crates/yu-hir/src/lib.rs",
+    "oracle": "notes/progress/2026-10-06-frozen-oracle-presolve-application-types.md"
+  }
+}

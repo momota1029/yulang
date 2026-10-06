@@ -56,11 +56,12 @@ two build jobs and one test thread. No broad suite, feature-off build,
 performance sample, Oracle execution or semantic inference differential was
 run.
 
-After the review/repair round, the complete `yu-core` shadow integration suite
-also passed: `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-core --features shadow -- --test-threads=1`
-(31 tests across 8 integration targets; one Cargo process, two build jobs, one
-test thread). This is regression evidence for the package shadow surface, not
-semantic or production parity.
+After reconciling the concurrent remote typed-evidence slice, the complete
+`yu-core` shadow integration suite passed again:
+`RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-core --features shadow -- --test-threads=1`
+(35 tests across 10 integration targets; one Cargo process, two build jobs,
+one test thread). This is regression evidence for the merged package shadow
+surface, not semantic or production parity.
 
 ## Open boundaries
 

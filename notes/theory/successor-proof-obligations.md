@@ -1,0 +1,1078 @@
+# Successor proof-obligation DAG
+
+Date: 2026-10-07
+
+Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `475036233423ac6e6e3d56c7e710db5ca3f03e54`.
+
+Status: canonical **research navigation**, not an Authoritative semantic design.
+
+Generated from `tools/research_successor_obligation_dag.py`; machine form: [successor-proof-obligations.json](successor-proof-obligations.json).
+
+## Interpretation and authority
+
+Current explicit user decisions govern, followed by approved designs, exact reviewed theorem scopes, confirmed code, historical Oracle and general practice. Upper source exposure protects its output occurrence; it does not backflow into an existing lower/provider and does not delete that provider's independent protection. Internal inference views and actual callable roles/entries remain separate.
+
+Edges are direct prerequisites of the named sufficient proof route. They do not say that enumerating prerequisites proves the remaining theorem. CLOSED is only the stated scope; CONDITIONAL-CLOSED records a proved implication with the displayed premises. IMPLEMENTATION-ONLY means a settled structural responsibility still needing implementation/verification, never permission to adopt unresolved semantics. OPEN-SEMANTIC marks a missing independent clause, not a user decision. There is no qualifying same-source pair of complete competing semantics, so no BLOCKED-BY-USER-DECISION node.
+
+The full original `(X,xi=(nu,K,D))`, source scopes, binder identity and contribution provenance stay shared. A complete profile is one original coordinate inside `J_S`; all-world/admission/future-history quantifiers remain in its predicates. No existential choice of a convenient history replaces them. Scoped quantifiers are never prenexed by this notation.
+
+Each gate below lists its direct premises, directly reused closed lemmas, smallest remaining claim, downstream gates and production relevance. Transitive requirements follow the machine-checkable DAG. The checker validates structure, coverage and navigation only; it does not verify the mathematics or source semantics.
+
+## Status counts
+
+| Status | Nodes |
+| --- | ---: |
+| BLOCKED-BY-USER-DECISION | 0 |
+| CLOSED | 6 |
+| CONDITIONAL-CLOSED | 17 |
+| IMPLEMENTATION-ONLY | 1 |
+| OPEN-PROOF | 46 |
+| OPEN-SEMANTIC | 19 |
+
+## Full topological inventory
+
+### FMP
+
+**Pure structural arbitrary-tree to regular witness — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Normalized pure fragment, rigid permissions, exact recursive descriptor and mandatory records; no arbitrary Phi/effect/optional-Record predicate.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Regular witness exists with the reviewed 8^N bound. Retire selector/one-anchor subtargets as prerequisites of this theorem.
+- Unblocks: [PURE_DEC](#pure-dec).
+- Sources: [fmp](../../notes/design/2026-10-04-structural-fmp-fence-completion.md).
+
+### EQ-RES
+
+**Scoped equality and retained-residual factorization — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Independently interpreted predicates, fixed scopes and finite canonical contexts; contractive structural cycles.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Equality quotient/relative MGU and unchanged residual preserve the exact joint relation. No flexible joint SAT/public projection theorem.
+- Unblocks: [PROJECTION](#projection).
+- Sources: [scoped](../../notes/design/2026-10-03-scoped-constraint-solving.md); [residual](../../notes/design/2026-10-03-open-residual-factorization.md).
+
+### WHOLE-REL
+
+**TD/FC and DREL-1 whole-relation preservation — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: One original binder tree and full independently interpreted relation, including active protection predicates and recursive operators.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Total derived coordinates, covered factorization and directional inlining preserve all unchanged queries on that same relation. Query success is not obtained.
+- Unblocks: [DREL2](#drel2), [COMMON_TOTAL](#common-total).
+- Sources: [drel](../../notes/progress/2026-10-06-directional-full-relation-and-gate-delta.md); [coverage](../../notes/design/2026-10-05-callback-coverage-and-source-joins.md).
+
+### DIR-LOCAL
+
+**Selected directional source seed and certified replay — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Selected unannotated source formal, seed-at-exposure and source upper occurrence; replay facts are already certified.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: S1/S2 generate protection at the upper output only; S3 removes physical delivery-order dependence. Existing provider protection remains; genuine later seed applicability is outside scope.
+- Unblocks: [SEED_SOURCE](#seed-source).
+- Sources: [direction](../../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md); [dirproof](../../notes/progress/2026-10-06-directional-joint-source-judgment.md).
+
+### SV
+
+**Exact source receipt, actual rebind, capture and read — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Approved apply/step source, independently typed original invocation, one compatible original profile, original admission/response semantics.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prospective argument.result.(u,p0) at receipt; SourceViewInst only at actual Return/rebind; capture/read at reached transitions; Pending on suspension/divergence; finite original resumptions covered. Later composition ties that exact typed read incidence to the complete Call operand, without converting it to original static (s,c).
+- Unblocks: [TYPED_SOURCE_INCIDENCE](#typed-source-incidence).
+- Sources: [nested](../../notes/design/2026-10-06-nested-block-function-source-realization-addendum.md); [sv](../../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md); [svcompose](../../notes/progress/2026-10-07-source-view-to-original-attachment-composition.md).
+
+### RS-LX
+
+**Actual-derivation provenance and lexical import supplier — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Finite actual rule-occurrence derivation and resolved binder ancestry, with retained semantic rule premises.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Whole RS/RS-active/RS-use ledger and LX ownership/import map preserve source scopes, rigid captures and upper/lower direction. No semantic Generalize eligibility or discharge inferred.
+- Unblocks: [SEED_SOURCE](#seed-source), [INTRO](#intro), [GENERALIZE](#generalize).
+- Sources: [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md).
+
+### REC-K
+
+**Constructor-guarded immutable mutual provider knot — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Selected my f x = g; my g y = f source and its immutable constructor-guarded provider interpretation.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: K constructs the actual mutually captured providers without a validated member environment. Paired future histories and contract emission are separately conditional in REC_KV; unguarded initialization is outside scope.
+- Unblocks: [REC_KV](#rec-kv), [FH](#fh), [REC_DESC](#rec-desc), [REC_INIT](#rec-init).
+- Sources: [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md).
+
+### CALL-REL
+
+**Source Call and complete invocation operand — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Original decorated Name/result/actual provider-entry/consumer interpretation on fixed X and xi; typing remains an independent predicate.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct J_f >>= ExecuteCallable(actual_f,Delay(J_x)) with callee evaluation, receipt, entry Force/rebind if needed, body, consumer, return and retained pending suffix/current resumed state. New contribution naming is no separate gate.
+- Unblocks: [DESC_CLAUSES](#desc-clauses), [CALL_TYPE](#call-type).
+- Sources: [call](../../notes/progress/2026-10-06-source-call-generation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+
+### PCINIT
+
+**Open-context structural initial/history schema — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Independent descriptor, profile, import/world, response and carrier interpretations.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Source-owned initial puncture/receipt/entry schema and local inversion exist before solving; semantic validity and inhabitedness do not follow.
+- Unblocks: [INIT_WORLD](#init-world).
+- Sources: [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md); [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md).
+
+### PG1
+
+**Source projection endpoints and fixed captures — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Independently checked projection views at original scopes; only id source is unconditional surface coverage, Make/Relay braces remain conditional.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Source-selected repeated endpoints and fixed pick capture reconstruct the whole kernel; actual Generalize and designated-export Direct remain.
+- Unblocks: [GENERALIZE](#generalize).
+- Sources: [pg](../../notes/progress/2026-10-06-source-generalization-eligibility-attack.md).
+
+### USE-GRAPH
+
+**Certified ordinary fresh copy, graft and use query — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Complete source relation, legally eligible binders, fixed imports and retained Direct evidence grammar.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Finite graph of the actual ordinary use exists. Retire a separate new m_V calculus, not the all-valid-view success sequent.
+- Unblocks: [ALL_VIEW](#all-view).
+- Sources: [use](../../notes/design/2026-10-04-certified-callback-and-constrained-use.md).
+
+### ALLOC-COMMON
+
+**Selected common/all-view extension classes — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Guarantee-only, source-allocation or matched abstraction grammars and their original typing/admission assumptions.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Reviewed A-extension/V_alloc and paired-grammar common/use results close only their declared classes; arbitrary legal public views remain outside.
+- Unblocks: [COMMON_DESC](#common-desc).
+- Sources: [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [common](../../notes/design/2026-10-04-common-allowance-context-preimage.md); [coverage](../../notes/design/2026-10-05-callback-coverage-and-source-joins.md).
+
+### TRANSPORT
+
+**Indexed typed profile/D transport and live filtering — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Supplied original typed Flow, Observe, normalized Receive and exact boundary/owner/handler identities under one xi.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Relational-image composition, identity, union distribution and candidate live-filter commutation; no new boundary, grant, K discharge or alias merge.
+- Unblocks: [PATH_QUERY](#path-query), [CAPTURE_LIVE](#capture-live).
+- Sources: [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md).
+
+### S22-DIRECT
+
+**Selected direct/derived guard consequences — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Source-certified introduction and an actually derived comparison; declared assumptions distinguished from new obligations.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Forbidden variable comparison and selected kappa <: Int reject; uniform fixed-root specialization fails on an admitted counter-instance. Cartesian support K alone is insufficient. General insertion remains open.
+- Unblocks: [INTRO](#intro), [GUARD_INSERT](#guard-insert).
+- Sources: [s22](../../notes/progress/2026-10-06-section22-guard-authority-closure.md); [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md).
+
+### REF-SIM
+
+**Decorated source-reference complete-history realization — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Finite typed source derivations with independent complete descriptor/owner/world/local construction and admission certificates.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Source/reference constructor simulations cover finite histories in both directions on the same tuple. This is not raw-source formation or Option 2 production completeness.
+- Unblocks: [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md).
+
+### REUSE
+
+**Complete boundary substitution and rebuild lifecycle — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Complete equal simultaneous interfaces, unchanged external inputs, interface-only downstream observation, valid references and atomic publication.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Downstream inference reuse is justified under these hypotheses. Reverse mutation of solver state is retired; complete producer and actual publication correspondence remain.
+- Unblocks: [FRESH_LIFE](#fresh-life).
+- Sources: [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [lifecycle](../../notes/progress/2026-10-05-scc-generalized-boundary-contract.md).
+
+### SC-ROLE
+
+**Selected completed-source DREL-2 role substitution — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Exact completed apply f x = f x source entails rho_f=NonHandlerFormal at the original root and retains every original kernel.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Entailed substitution preserves the whole relation and provider/result packets. No generic mixed-use selection or replacement-kernel equivalence.
+- Unblocks: [MIXED_ROLE](#mixed-role).
+- Sources: [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md); [mixedrole](../../notes/progress/2026-10-06-source-formal-relation-mixed-use-falsification.md).
+
+### CI-ALPHA
+
+**Decidable alpha-isomorphism of supplied finite interfaces — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Finite complete faithfully serialized typed presentation; finite sort/scope/binder preserving renamings with rigid identities fixed.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Enumerate all allowed renamings and minimize full encoding. Equal minima iff finite presentations are alpha-isomorphic, including cycles. Factorial bound; not all semantic equivalence or a production algorithm selection.
+- Unblocks: [CI_USE](#ci-use).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+
+### SELECT
+
+**Visible implementation and method candidate judgments — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: None.
+- Premises retained: Current source scope/world, receiver, method name and declared role/impl forms; no parser-implied finite complete candidate assumption.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify independent visibility/candidate formation and selection/ambiguity alternatives with exact evidence; actual source observations/outcomes must be stated before fixed-point proofs.
+- Unblocks: [ROLE_ASSOC](#role-assoc).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### PURE-DEC
+
+**Effective decision for the pure finite input — CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [FMP](#fmp).
+- Premises retained: Finite head/label/atom alphabet and decidable rigid permission queries.
+- Already closed lemmas reused directly: [FMP](#fmp).
+- Minimal remaining lemma / exact closed scope: Bounded regular-graph enumeration is sound and complete only for the FMP fragment.
+- Unblocks: [JOINT_DEC](#joint-dec).
+- Sources: [puredec](../../notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md).
+
+### SEED-SOURCE
+
+**Directional applicability over all source introductions/uses — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [DIR_LOCAL](#dir-local), [RS_LX](#rs-lx).
+- Premises retained: Current directional policy; exact original source variable, exposure, output occurrence and provenance.
+- Already closed lemmas reused directly: [DIR_LOCAL](#dir-local), [RS_LX](#rs-lx).
+- Minimal remaining lemma / exact closed scope: For each admitted formal/import/annotation/generalized and computed use, derive ProtectedVarAt at that exposure and complete upper-use occurrence; prove late applicability rather than replaying final component membership.
+- Unblocks: [SIG_RULES](#sig-rules), [MIXED_ROLE](#mixed-role), [RAW_SOURCE](#raw-source).
+- Sources: [direction](../../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md); [dirproof](../../notes/progress/2026-10-06-directional-joint-source-judgment.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md).
+
+### REC-KV
+
+**Paired recursive histories and same-provider contract schema — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [REC_K](#rec-k).
+- Premises retained: KP has independently paired argument/context subrelations for future calls and raw resumptions; KV has independently interpreted original local and complete membership predicates.
+- Already closed lemmas reused directly: [REC_K](#rec-k).
+- Minimal remaining lemma / exact closed scope: KP pairs finite prefixes/future calls on those inputs; KV emits the same-provider semantic contract conjunction. Neither constructs its independent predicates or proves the conjunction satisfied.
+- Unblocks: [MEMBER_DISCHARGE](#member-discharge).
+- Sources: [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md).
+
+### FH
+
+**Simultaneous finite-history local invariant — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [REC_K](#rec-k).
+- Premises retained: Fixed original scoped (xi,w); initial W and every transition/member check pointwise there; new event witnesses are compatible scope-authorized extensions, including siblings; exhaustive admission cases.
+- Already closed lemmas reused directly: [REC_K](#rec-k).
+- Minimal remaining lemma / exact closed scope: Induction on finite derivation size preserves W/local checks for both actual members without an already validated CompleteMem environment. Does not construct local certificates or derive ordinary DescMem.
+- Unblocks: [REC_DESC](#rec-desc), [MEMBER_DISCHARGE](#member-discharge).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+
+### REC-INIT
+
+**Recursive source initialization beyond guarded immutable closures — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [REC_K](#rec-k).
+- Premises retained: Included recursive source forms and their initializer order/world access, distinct from lexical preallocation.
+- Already closed lemmas reused directly: [REC_K](#rec-k).
+- Minimal remaining lemma / exact closed scope: Specify source evaluation/admissibility of non-constructor-guarded initializers, with concrete read-before-initialization/re-entry obligations and actual provider construction. No allocator freshness or final scheme shape substitutes.
+- Unblocks: [RAW_SOURCE](#raw-source).
+- Sources: [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md).
+
+### INIT-WORLD
+
+**Independent initial punctured world/import relation — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PCINIT](#pcinit).
+- Premises retained: Original xi, semantic imports, source alias/activation identities, other environment/world state, checked hole kept open.
+- Already closed lemmas reused directly: [PCINIT](#pcinit).
+- Minimal remaining lemma / exact closed scope: Specify filling-independent EnvStore/JointWF clauses for initial context and all imported roots including hole-dependent aliases; exclude circular checked-membership admission. SEM_JOINT interprets them jointly, INIT_VALID realizes actual initial worlds, and HISTORY/ALL_WORLD prove preservation/coverage.
+- Unblocks: [ADMISSION_CLAUSES](#admission-clauses), [SEM_JOINT](#sem-joint), [REF_WORLD](#ref-world).
+- Sources: [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md); [inlet](../../questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md).
+
+### PATH-QUERY
+
+**Finite supplied typed Path/Inc query — CONDITIONAL-CLOSED**. Production relevance: shadow-only; no production authority.
+
+- Direct prerequisite gates: [TRANSPORT](#transport).
+- Premises retained: Caller-supplied finite typed graph and normalized receipt endpoints, canonical nonzero-sized identity tokens, one original context, exact current activation sets.
+- Already closed lemmas reused directly: [TRANSPORT](#transport).
+- Minimal remaining lemma / exact closed scope: Finite reachability and exact same-event/same-view owner join plus current handler/owner/original-receiver activity filter are implemented and focused-tested; repaired compiler/spec delta review must be recorded before final promotion. Source facts and grant/release remain assumptions.
+- Unblocks: None.
+- Sources: [shadow](../../crates/yu-core/src/shadow_typed_evidence.rs); [shadowtest](../../crates/yu-core/tests/shadow_typed_evidence.rs); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+
+### INTRO
+
+**Semantic introduction classification and source-coordinate realization — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [RS_LX](#rs-lx), [S22_DIRECT](#s22-direct).
+- Premises retained: Actual source derivation; original binder tree, lexical identities and declared request assumptions.
+- Already closed lemmas reused directly: [RS_LX](#rs-lx), [S22_DIRECT](#s22-direct).
+- Minimal remaining lemma / exact closed scope: Map each actual generated/instantiated coordinate to ordinary flexible, inference existential or rigid opened binder with its introduction scope and same-origin dependencies; Name copying alone never reclassifies it.
+- Unblocks: [GUARD_INSERT](#guard-insert), [GUARD_TERMINAL](#guard-terminal), [REC_LOCAL](#rec-local), [GENERALIZE](#generalize), [SIG_RULES](#sig-rules), [STATE_ID](#state-id), [PRIMITIVES](#primitives).
+- Sources: [s22](../../notes/progress/2026-10-06-section22-guard-authority-closure.md); [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md); [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md).
+
+### CI-USE
+
+**Alpha-equal interface preserves arbitrary finite joint fresh uses — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [CI_ALPHA](#ci-alpha).
+- Premises retained: Independent equivariance/covariance for every primitive/admission/constructor/evidence/recursive/query operation; complete identity-observer accounting; original and client coordinates rigid.
+- Already closed lemmas reused directly: [CI_ALPHA](#ci-alpha).
+- Minimal remaining lemma / exact closed scope: Operator conjugacy and coherent (use,local) renaming preserve/refelect the whole jointly constrained finite use family and unchanged Direct queries. No all-view query existence or source interface producer.
+- Unblocks: [FRESH_LIFE](#fresh-life).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+
+### ROLE-ASSOC
+
+**Role conformance and associated-type witness coupling — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SELECT](#select).
+- Premises retained: One receiver/type assignment and original chosen implementation witness with its dependencies.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give source role-conformance/associated-type equations and recursive dependency judgments; associated types cannot choose a separate impl witness after method selection.
+- Unblocks: [RESOLVE_FP](#resolve-fp).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### MIXED-ROLE
+
+**Whole-source mixed-use role refinement/aggregation — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SC_ROLE](#sc-role), [SEED_SOURCE](#seed-source).
+- Premises retained: Same source formal and original relation across Handler/internal/NonHandler uses; actual callable role/entry separately fixed.
+- Already closed lemmas reused directly: [SC_ROLE](#sc-role).
+- Minimal remaining lemma / exact closed scope: Specify independently justified complete-source role predicate and aggregate all use demands without erasing upper seeds/provider-owned protection or recombining incompatible marginal witnesses.
+- Unblocks: [DREL2](#drel2).
+- Sources: [mixedrole](../../notes/progress/2026-10-06-source-formal-relation-mixed-use-falsification.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md); [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md).
+
+### SIG-RULES
+
+**Exhaustive original signature licensing judgment — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SEED_SOURCE](#seed-source), [INTRO](#intro).
+- Premises retained: Original beta=(formal,root), typed positions, scope/binder/own-upper/inherited-provider arms; current direction fixed.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.
+- Unblocks: [DESC_CLAUSES](#desc-clauses), [ORIGINAL_ASSOC](#original-assoc), [LIC_FORWARD](#lic-forward), [LIC_INVERT](#lic-invert), [MIXED_EFFECT](#mixed-effect), [PRIMITIVES](#primitives), [SAT_A](#sat-a).
+- Sources: [sig](../../notes/progress/2026-10-06-original-signature-constructor-derivation.md); [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md); [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md).
+
+### STATE-ID
+
+**Source State location and activation identity — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [INTRO](#intro).
+- Premises retained: Source declarations and distinct invocation/event identities; static StateSlotId is only an origin.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give source introduction of dynamic storage locations/activations and capture alias identity across same/different invocations, without deriving it from an Oracle fixture.
+- Unblocks: [STATE_RW](#state-rw), [STATE_RESUME](#state-resume).
+- Sources: [state](../../notes/progress/2026-10-04-local-state-capture-observation.md).
+
+### MIXED-EFFECT
+
+**Mixed abstract/concrete effect membership and annotation bridge — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SIG_RULES](#sig-rules).
+- Premises retained: Original nonempty joint component, polarized ports, event occurrences and symbolic K,D; no endpoint-marginal recombination.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify exhaustive comparison-independent mixed-row membership and source annotation-to-port/event incidence, extending the reviewed limited EROW cases while retaining hidden dependencies.
+- Unblocks: [SUBTRACTION](#subtraction), [DISPATCH](#dispatch), [PRIMITIVES](#primitives).
+- Sources: [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [mixed](../../notes/progress/2026-10-06-function-mixed-effect-production-correspondence.md).
+
+### STATE-RW
+
+**State read, replacement and restart source equations — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [STATE_ID](#state-id).
+- Premises retained: Actual source location and incoming live store.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule.
+- Unblocks: [REF_WORLD](#ref-world).
+- Sources: [state](../../notes/progress/2026-10-04-local-state-capture-observation.md).
+
+### STATE-RESUME
+
+**Raw resumption store and multi-shot branch equations — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [STATE_ID](#state-id).
+- Premises retained: Original raw handle, current resumed state and repeated branch identities.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify which store each resume receives and how repeated/re-entered branches relate; sampled candidate branch equations are not source authority.
+- Unblocks: [REF_WORLD](#ref-world).
+- Sources: [multishot](../../notes/progress/2026-10-05-local-state-multishot-playground.md); [ordinary](../../notes/design/2026-10-02-ordinary-computation-semantics-package.md).
+
+### PRIMITIVES
+
+**Complete independent Guard/Phi/K,D operand semantics — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SIG_RULES](#sig-rules), [MIXED_EFFECT](#mixed-effect), [INTRO](#intro).
+- Premises retained: All primitive original operand tuples and original binder placements, including projected/grafted endpoint variation.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give exhaustive comparison-independent primitive relations and any varied-endpoint transport law; retaining an old operand does not prove substituting a different endpoint preserves admission.
+- Unblocks: [GUARD_INSERT](#guard-insert), [DESC_CLAUSES](#desc-clauses), [JOINT_DEC](#joint-dec), [SAT_A](#sat-a), [RESOLVE_FP](#resolve-fp).
+- Sources: [phi](../../notes/progress/2026-10-05-residual-admission-source-premise-audit.md); [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### REF-WORLD
+
+**Reference/import alias plugging and world transition closure — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [INIT_WORLD](#init-world), [STATE_RW](#state-rw), [STATE_RESUME](#state-resume).
+- Premises retained: Original typed open source identity graph, semantic imports, same world/xi and hole-dependent aliases.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.
+- Unblocks: [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [state](../../notes/progress/2026-10-04-local-state-capture-observation.md).
+
+### GUARD-INSERT
+
+**Origin-relative oriented insertion preservation — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [INTRO](#intro), [S22_DIRECT](#s22-direct), [PRIMITIVES](#primitives).
+- Premises retained: Original permission relation P, fixed caller tuple/fresh instance and actual directed bound B(z)<:v; no equality cast.
+- Already closed lemmas reused directly: [S22_DIRECT](#s22-direct).
+- Minimal remaining lemma / exact closed scope: At v=z,c,R_h prove P_before iff P_after on original incoming constraints, or derive required rejection before commit. Distinguish dependent interface transport from specialization; do not invent z<:c from support.
+- Unblocks: [GUARD_COVER](#guard-cover).
+- Sources: [s22](../../notes/progress/2026-10-06-section22-guard-authority-closure.md).
+
+### DESC-CLAUSES
+
+**Complete ordinary descriptor and local constructor clauses — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [CALL_REL](#call-rel), [SIG_RULES](#sig-rules), [PRIMITIVES](#primitives).
+- Premises retained: Existing ordinary Return/Request/Bind/Call equations and structural type clauses are retained; original profile, world and admission predicates may occur by their declared names.
+- Already closed lemmas reused directly: [CALL_REL](#call-rel).
+- Minimal remaining lemma / exact closed scope: Specify the missing exhaustive clauses for DescMem_R(o;xi,W), whole CarrierMem, returned recursive Function handles and local constructor typing, including role/entry/consumer and all future eliminations. These are simultaneous predicate specifications, not arbitrary solved interpretations or source-image definitions; SEM_JOINT supplies their common meaning.
+- Unblocks: [GUARD_TERMINAL](#guard-terminal), [ADMISSION_CLAUSES](#admission-clauses), [SEM_JOINT](#sem-joint).
+- Sources: [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md).
+
+### GUARD-TERMINAL
+
+**Source meaning of terminal Top and declared bounds — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [INTRO](#intro), [DESC_CLAUSES](#desc-clauses).
+- Premises retained: The actual z<:Top terminal and original uniform permission relation, with declared assumption/new obligation provenance.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give the selected terminal a source non-refinement certificate or required rejection. Legacy terminal success, empty support and constructor levels supply none.
+- Unblocks: [GUARD_COVER](#guard-cover).
+- Sources: [s22](../../notes/progress/2026-10-06-section22-guard-authority-closure.md); [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md).
+
+### ADMISSION-CLAUSES
+
+**Independent source response/resume/future-admission clauses — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [DESC_CLAUSES](#desc-clauses), [INIT_WORLD](#init-world).
+- Premises retained: Original descriptor/world predicate specifications and approved all-compatible punctured-context domain, including direct and whole carrier holes.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify exhaustive Init/Response/Resume/FutureUse clause operands: same raw handle/current store, typed response, actually returned provider, original receiver, and other bindings/import validity. Define no domain by successful Q or current-source reachability. This is clause formation, separate from history preservation/coverage.
+- Unblocks: [SEM_JOINT](#sem-joint), [HISTORY](#history), [ALL_WORLD](#all-world), [ADM_A](#adm-a).
+- Sources: [inlet](../../questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md).
+
+### GUARD-COVER
+
+**Every derived comparison re-enters its original guard — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [GUARD_INSERT](#guard-insert), [GUARD_TERMINAL](#guard-terminal).
+- Premises retained: All actual structural decomposition, replay, aliases, opening/grafting and extrusion rules with retained origins.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: For each child comparison derive its source/guard context and preserve original permissions, including ground narrowing; prove exhaustive generation and no unchecked derived route.
+- Unblocks: [REC_LOCAL](#rec-local), [DISPATCH](#dispatch), [RAW_SOURCE](#raw-source), [CTX_FINITE](#ctx-finite).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [s22](../../notes/progress/2026-10-06-section22-guard-authority-closure.md).
+
+### SEM-JOINT
+
+**Joint independent interpretation of descriptor/world/admission clauses — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [DESC_CLAUSES](#desc-clauses), [ADMISSION_CLAUSES](#admission-clauses), [INIT_WORLD](#init-world).
+- Premises retained: Complete original clause specifications and their original scopes/quantifiers; mutually referencing predicates remain one semantic family.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct a common independently justified interpretation of descriptor, carrier, world, local constructor and admission predicates satisfying every clause, with any required guarded/step-indexed or other realization proof. Do not pick per-node predicates, define membership as source image, or assume a greatest fixed point. This interprets definitions, not source-world inhabitance.
+- Unblocks: [REC_DESC](#rec-desc), [REC_LOCAL](#rec-local), [INIT_VALID](#init-valid), [CALL_TYPE](#call-type), [ROWS](#rows), [INLET_CARRIER](#inlet-carrier), [HISTORY](#history), [ALL_WORLD](#all-world), [SAT_A](#sat-a), [ADM_A](#adm-a).
+- Sources: [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### REC-DESC
+
+**Independent recursive descriptor finite-elimination law — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [REC_K](#rec-k), [FH](#fh), [SEM_JOINT](#sem-joint).
+- Premises retained: Actual returned f/g handles, independently defined ordinary DescMem and all-world admission; never define DescMem as source-image membership.
+- Already closed lemmas reused directly: [REC_K](#rec-k), [FH](#fh).
+- Minimal remaining lemma / exact closed scope: Derive that all legal finite destructor/use histories with jointly valid local checks imply the original recursive descriptor membership, including latent Return handles. This exact implication supplies the missing bridge after FH.
+- Unblocks: [MEMBER_DISCHARGE](#member-discharge).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
+
+### REC-LOCAL
+
+**Actual pointwise simultaneous local member certificates — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SEM_JOINT](#sem-joint), [INTRO](#intro), [GUARD_COVER](#guard-cover).
+- Premises retained: Same actual provider knot and original scoped (xi,w); the predicates are fixed by SEM_JOINT; this local theorem quantifies over every independently valid initial world without assuming such a world is inhabited.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct actual receipt/entry/rebind/body/returned-handle local preservation checks and compatible event extensions pointwise for every member in the fixed independent admission domain. This is not initial-world existence or complete KV satisfaction; INIT_VALID and MEMBER_DISCHARGE are separate.
+- Unblocks: [INIT_VALID](#init-valid), [MEMBER_DISCHARGE](#member-discharge).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md).
+
+### CALL-TYPE
+
+**Independent complete Call constructor typing — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [CALL_REL](#call-rel), [SEM_JOINT](#sem-joint).
+- Premises retained: The fixed SEM_JOINT ordinary descriptor/carrier/provider-entry/consumer interpretation, at every independently admitted operand/world assignment on one original X.
+- Already closed lemmas reused directly: [CALL_REL](#call-rel).
+- Minimal remaining lemma / exact closed scope: Prove the pointwise local Call typing law for every complete output/pending observation, preserving callee-prefix vs receiver-invocation incidence, without assuming a TypedCallCert containing original attachment. Actual operand/world inhabitance and whole-source coverage remain later separate obligations.
+- Unblocks: [ORIGINAL_ASSOC](#original-assoc), [ROWS](#rows), [INLET_CARRIER](#inlet-carrier), [EVENT_OUTPUT](#event-output), [ADAPTERS](#adapters).
+- Sources: [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+
+### SAT-A
+
+**Exhaustive Option A/2 production member clauses — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SIG_RULES](#sig-rules), [PRIMITIVES](#primitives), [SEM_JOINT](#sem-joint).
+- Premises retained: Approved complete original Rel_C and xi, endpoints/role/entry/path/origin/continuation/scope/authority/dependencies; Option 2 extras allowed.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Specify exhaustive independent Sat_A for all licensed members, including observations without source-reference constructors. Do not define production as the candidate source image.
+- Unblocks: [OBS_INCLUSION](#obs-inclusion).
+- Sources: [optiona](../../questions/2026-10-05-production-function-denotation/approved-answer.md); [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
+
+### ADM-A
+
+**Exhaustive production punctured-context admission — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ADMISSION_CLAUSES](#admission-clauses), [SEM_JOINT](#sem-joint).
+- Premises retained: Approved direct callable and whole inert carrier holes at same xi; other environment/world validity independent of checked membership.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Give exhaustive Adm_A initial/response/resume/future clauses ranging over every independently compatible context, including empty histories, hole-dependent imports and actual provider roles.
+- Unblocks: [DOMAIN_INCLUSION](#domain-inclusion).
+- Sources: [optiona](../../questions/2026-10-05-production-function-denotation/approved-answer.md); [inlet](../../questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md); [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md).
+
+### ORIGINAL-ASSOC
+
+**OriginalAssocType_X inhabited original source-owned fiber — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [CALL_TYPE](#call-type), [SIG_RULES](#sig-rules).
+- Premises retained: Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.
+- Unblocks: [ATTACH](#attach), [TYPED_SOURCE_INCIDENCE](#typed-source-incidence).
+- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [assocctor](../../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md).
+
+### ATTACH
+
+**Attach_C source constructor correspondence — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ORIGINAL_ASSOC](#original-assoc).
+- Premises retained: The inhabited original fiber and exact source constructor/transport derivation, at the same X.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.
+- Unblocks: [LIC_FORWARD](#lic-forward), [LIC_INVERT](#lic-invert).
+- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+
+### LIC-FORWARD
+
+**Attachment implies original licensing — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ATTACH](#attach), [SIG_RULES](#sig-rules).
+- Premises retained: Original licensing introduction clauses, rather than a fresh licensing predicate defined to mean Attach.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: For each actual Attach constructor derive Lic_C at identical original s,c,beta,p,X and retain every original dependency. No successful Q or endpoint shape premise.
+- Unblocks: [PROFILE](#profile).
+- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md).
+
+### LIC-INVERT
+
+**Exhaustive original licensing inversion — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SIG_RULES](#sig-rules), [ATTACH](#attach).
+- Premises retained: All original licensing last rules, including own upper/inherited transport/generalized/annotated arms and conservative licensed contributions.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Invert every original Lic_C witness to its licensed attachment/source-origin arm. Last-rule accounting must reach inside the independently interpreted owner/view kernel instead of stopping at its supplied primitive witness. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.
+- Unblocks: [PROFILE](#profile).
+- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [attachattack](../../notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md); [associnvert](../../notes/progress/2026-10-07-original-association-inversion-attack.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md); [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md).
+
+### PROFILE
+
+**Complete original beta/Slots/profile construction and inversion — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [LIC_FORWARD](#lic-forward), [LIC_INVERT](#lic-invert).
+- Premises retained: One jointly constrained original profile coordinate; all licensed incidences, policies and inherited tags on that same source relation.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Assemble exactly the original licensed slot domain with well-typed positions/contributions and prove forward/backward coverage, preserving all dependencies and allowed slot sharing. Local mandatory p0 alone is insufficient.
+- Unblocks: [ROWS](#rows), [DREL2](#drel2), [INLET_CARRIER](#inlet-carrier), [TYPED_SOURCE_INCIDENCE](#typed-source-incidence), [COMMON_DESC](#common-desc).
+- Sources: [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md); [sig](../../notes/progress/2026-10-06-original-signature-constructor-derivation.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### DREL2
+
+**Seed-to-refined primitive relation correspondence — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [MIXED_ROLE](#mixed-role), [PROFILE](#profile), [WHOLE_REL](#whole-rel).
+- Premises retained: Independently interpreted seed and refined active kernels on the same whole X, original binder tree and recursive operators.
+- Already closed lemmas reused directly: [WHOLE_REL](#whole-rel).
+- Minimal remaining lemma / exact closed scope: For every changed primitive prove same-scope extension/erasure with one joint witness and preserved admissions/typed incidences; entailed substitution into an unchanged kernel only closes SC_ROLE.
+- Unblocks: [RAW_SOURCE](#raw-source).
+- Sources: [drel](../../notes/progress/2026-10-06-directional-full-relation-and-gate-delta.md); [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md); [mixedrole](../../notes/progress/2026-10-06-source-formal-relation-mixed-use-falsification.md).
+
+### INLET-CARRIER
+
+**Pointwise whole inlet/carrier/descriptor compatibility — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SEM_JOINT](#sem-joint), [PROFILE](#profile), [CALL_TYPE](#call-type).
+- Premises retained: Direct callable and entire inert-computation-carrier holes, original inlet descriptor/actual role/entry and response port, at every independently valid original world.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove the local carrier/descriptor plugging law at each inlet, including the apparently pure identity carrier, preserving all other bindings/imports. This is pointwise in the fixed semantics; INIT_VALID separately proves actual initial world/environment realization.
+- Unblocks: [INIT_VALID](#init-valid), [HISTORY](#history), [ALL_WORLD](#all-world).
+- Sources: [inlet](../../questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md); [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md).
+
+### TYPED-SOURCE-INCIDENCE
+
+**Source-owned complete typed boundary/Flow/receipt generation — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PROFILE](#profile), [ORIGINAL_ASSOC](#original-assoc), [SV](#sv).
+- Premises retained: Actual raw source constructor, boundary and owner derivation; same source arms, original receiver and typed view path.
+- Already closed lemmas reused directly: [SV](#sv).
+- Minimal remaining lemma / exact closed scope: Emit/invert every typed boundary introduction and indexed image for argument/result/environment/store/adapter flow, matching receipts and actual result timing. General cases extend SV without promoting positional equality.
+- Unblocks: [EVENT_OUTPUT](#event-output), [CAPTURE_LIVE](#capture-live), [ADAPTERS](#adapters), [RELEASE](#release).
+- Sources: [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [sv](../../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md).
+
+### INIT-VALID
+
+**Actual initial world and environment realization — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SEM_JOINT](#sem-joint), [INLET_CARRIER](#inlet-carrier), [REC_LOCAL](#rec-local).
+- Premises retained: Original independent world/admission interpretation, actual source environment/imports and actual recursive knot, with local preservation laws rather than already validated member contracts.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct the actual initial punctured-world/alias/environment witnesses at original scope and show Init/EnvStore/JointWF, including recursive captures where present. Derive this base without assuming completed member membership or defining admission by source-solution existence; returned-only/empty-world fixtures do not suffice.
+- Unblocks: [MEMBER_DISCHARGE](#member-discharge), [ROWS](#rows), [HISTORY](#history), [ALL_WORLD](#all-world).
+- Sources: [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md); [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md).
+
+### ADAPTERS
+
+**Complete source adapter generation and correspondence — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [CALL_TYPE](#call-type), [TYPED_SOURCE_INCIDENCE](#typed-source-incidence).
+- Premises retained: Actual provider-owned role/entry, complete argument and designated result consumer, independently typed unknown-shape conversion alternatives.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Generate and realize all admitted source adapters and invert resolver alternatives, preserving whole observations and source incidence; an internal inferred Function view does not change actual entry.
+- Unblocks: [RAW_SOURCE](#raw-source), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md).
+
+### MEMBER-DISCHARGE
+
+**Actual simultaneous recursive member/environment discharge — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [REC_KV](#rec-kv), [FH](#fh), [REC_DESC](#rec-desc), [REC_LOCAL](#rec-local), [INIT_VALID](#init-valid).
+- Premises retained: Fixed common predicate interpretation, actual valid initial source world, all pointwise member/transition checks and compatible extensions at the original assignment.
+- Already closed lemmas reused directly: [REC_KV](#rec-kv), [FH](#fh).
+- Minimal remaining lemma / exact closed scope: Apply the independently proved finite-elimination law to the all-finite-history invariant and establish every emitted original KV/CompleteMem member and simultaneous environment judgment on the same providers. No separately chosen member worlds or witnesses.
+- Unblocks: [GENERALIZE](#generalize), [ROWS](#rows), [HISTORY](#history), [RAW_SOURCE](#raw-source).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md).
+
+### GENERALIZE
+
+**Semantic eligible view, binders and anchors — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PG1](#pg1), [RS_LX](#rs-lx), [INTRO](#intro), [MEMBER_DISCHARGE](#member-discharge).
+- Premises retained: Complete simultaneous source relation, fixed captured/import/non-generic/world coordinates, source-selected endpoints and original quantifier tree.
+- Already closed lemmas reused directly: [PG1](#pg1), [RS_LX](#rs-lx).
+- Minimal remaining lemma / exact closed scope: Construct the generalized view and eligible binder placement satisfying complete admission/reflection and all authorized future instances; prove scope hiding/anchors and distinguish semantic eligibility from lexical locality.
+- Unblocks: [ROWS](#rows), [RAW_SOURCE](#raw-source), [PROJECTION](#projection), [ALL_VIEW](#all-view), [IFACE_FORM](#iface-form).
+- Sources: [pg](../../notes/progress/2026-10-06-source-generalization-eligibility-attack.md); [rs](../../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md).
+
+### HISTORY
+
+**Independent response, raw re-entry and future-use admission — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ADMISSION_CLAUSES](#admission-clauses), [SEM_JOINT](#sem-joint), [INLET_CARRIER](#inlet-carrier), [INIT_VALID](#init-valid), [MEMBER_DISCHARGE](#member-discharge).
+- Premises retained: Every independently valid original world and admissible response/argument; fixed raw continuation and original receiver; arbitrary finite prefixes.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove initial, response, same-handle resume/current-state and actually returned-provider future-input rules are exhaustive and preserve all original validity/permissions and one compatible scoped assignment.
+- Unblocks: [ALL_WORLD](#all-world), [EVENT_OUTPUT](#event-output), [CAPTURE_LIVE](#capture-live).
+- Sources: [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md).
+
+### ALL-WORLD
+
+**All-world independent admission completeness — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ADMISSION_CLAUSES](#admission-clauses), [SEM_JOINT](#sem-joint), [INIT_VALID](#init-valid), [INLET_CARRIER](#inlet-carrier), [HISTORY](#history).
+- Premises retained: All independently compatible punctured contexts at the original tuple, including other-program/future contexts, not only current-source reachability.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove generated challenge relation equals the independent domain in both directions for empty histories and all finite extensions; no finite sampled worlds or chosen filling defines the domain.
+- Unblocks: [ROWS](#rows), [JOINT_DEC](#joint-dec), [COMMON_DESC](#common-desc), [DOMAIN_INCLUSION](#domain-inclusion), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [inlet](../../questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md); [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
+
+### EVENT-OUTPUT
+
+**Actual event-to-complete-output contribution correspondence — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [TYPED_SOURCE_INCIDENCE](#typed-source-incidence), [CALL_TYPE](#call-type), [HISTORY](#history).
+- Premises retained: Reached request and current complete executing view with original pending suffix; formal invocation distinct from callee-evaluation prefix.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Derive exact Observe(q,V,p_exec) and typed p0-to-p_exec incidence through complete invocation/result consumption for every emitted event; preserve independent q/origin/K,D and no blanket Call attribution.
+- Unblocks: [CAPTURE_LIVE](#capture-live), [SUBTRACTION](#subtraction), [RELEASE](#release).
+- Sources: [event](../../notes/progress/2026-10-06-directional-event-output-link-construction.md); [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+
+### ROWS
+
+**Complete original typed-row nonemptiness — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PROFILE](#profile), [CALL_TYPE](#call-type), [SEM_JOINT](#sem-joint), [INIT_VALID](#init-valid), [MEMBER_DISCHARGE](#member-discharge), [GENERALIZE](#generalize), [ALL_WORLD](#all-world).
+- Premises retained: Independently admitted source and all independent endpoint/role/entry/profile/continuation/import/world predicates at original scope; admission is not defined by J_S satisfiability.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct one joint witness of J_S satisfying every original constraint. Separately nonempty fragments or quiet identity execution do not suffice; original universal world/history clauses stay universal.
+- Unblocks: [COMMON_TOTAL](#common-total), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [profile](../../notes/progress/2026-10-06-source-profile-admission-construction.md); [init](../../notes/progress/2026-10-06-independent-initial-admission-construction.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### COMMON-DESC
+
+**Legal common descriptor and all-path realization — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PROFILE](#profile), [ALL_WORLD](#all-world), [ALLOC_COMMON](#alloc-common).
+- Premises retained: One original source solution, every typed Function path and independent compatible carriers/contexts.
+- Already closed lemmas reused directly: [ALLOC_COMMON](#alloc-common).
+- Minimal remaining lemma / exact closed scope: Construct one legal descriptor realizing common output allowance while admitting every required original challenge, not merely a pointwise union over incompatible descriptors.
+- Unblocks: [COMMON_TOTAL](#common-total).
+- Sources: [common](../../notes/design/2026-10-04-common-allowance-context-preimage.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
+
+### DOMAIN-INCLUSION
+
+**Complete checked-to-actual production admission inclusion — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ADM_A](#adm-a), [ALL_WORLD](#all-world).
+- Premises retained: Independent D_C and D_A at exactly the same original tuple.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove forall xi: D_C(xi) subset D_A(xi), with every carrier/context/world/history witness preserved. Empty output sets cannot prove this domain statement.
+- Unblocks: [OBS_INCLUSION](#obs-inclusion), [PROD_CONFORMANCE](#prod-conformance).
+- Sources: [optiona](../../questions/2026-10-05-production-function-denotation/approved-answer.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### CAPTURE-LIVE
+
+**General typed capture/read/receiver/liveness coverage — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [TYPED_SOURCE_INCIDENCE](#typed-source-incidence), [EVENT_OUTPUT](#event-output), [HISTORY](#history), [TRANSPORT](#transport).
+- Premises retained: Actual capture/write/read/receipt and original receiver/owner/handler activations, including returned latent values and raw resumed state.
+- Already closed lemmas reused directly: [TRANSPORT](#transport).
+- Minimal remaining lemma / exact closed scope: Prove all source transitions produce the typed incidence used by Path and the exact current activity sets, with future view-specific Observe and no revival of expired receivers. SV exact case is already closed conditionally.
+- Unblocks: [RELEASE](#release), [DISPATCH](#dispatch), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md); [sv](../../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md); [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md).
+
+### SUBTRACTION
+
+**Complete shallow/deep handler contribution image — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [MIXED_EFFECT](#mixed-effect), [EVENT_OUTPUT](#event-output).
+- Premises retained: Actually targeted typed events, original handler/resumption/consumer semantics and symbolic invariant dependencies.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove exactly which complete observations are removed/transformed; retain independent same-family events, raw suffixes, re-emission and live K,D. Support cancellation alone cannot justify the image.
+- Unblocks: [RELEASE](#release), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [ordinary](../../notes/design/2026-10-02-ordinary-computation-semantics-package.md); [mixed](../../notes/progress/2026-10-06-function-mixed-effect-production-correspondence.md); [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md).
+
+### COMMON-TOTAL
+
+**Total common allowance at original solutions — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [COMMON_DESC](#common-desc), [ROWS](#rows), [WHOLE_REL](#whole-rel).
+- Premises retained: Same original source witness and legal descriptor with retained graft/query operands.
+- Already closed lemmas reused directly: [WHOLE_REL](#whole-rel).
+- Minimal remaining lemma / exact closed scope: For every original s, construct a jointly compatible a with Q_common(s,a), preserving the complete source/admission relation; Q success may not generate source facts.
+- Unblocks: [ALL_VIEW](#all-view).
+- Sources: [common](../../notes/design/2026-10-04-common-allowance-context-preimage.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### OBS-INCLUSION
+
+**All production observations contained in checked contract — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SAT_A](#sat-a), [DOMAIN_INCLUSION](#domain-inclusion).
+- Premises retained: Every c in D_C and every production member at original xi, including independently licensed extra members.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove P_A(c;xi) subset P_C(c;xi) for complete observations and future histories. Reference source-constructor simulation closes only its subfamily.
+- Unblocks: [ORACLE_COMPAT](#oracle-compat), [PROD_CONFORMANCE](#prod-conformance).
+- Sources: [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### DISPATCH
+
+**Complete ordinary dispatch/OpCompat/generic arm theorem — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [GUARD_COVER](#guard-cover), [MIXED_EFFECT](#mixed-effect), [CAPTURE_LIVE](#capture-live).
+- Premises retained: Actual ordered active-boundary search, independently opened request/arm binders and declared assumptions, ordinary raw resumptions.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Derive complete source ordered search and candidate eligibility, selected-arm compatibility, outside-arm/deep expansion and same-witness generic checks under rigid-hole permissions.
+- Unblocks: [RAW_SOURCE](#raw-source).
+- Sources: [ordinary](../../notes/design/2026-10-02-ordinary-computation-semantics-package.md); [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md).
+
+### RELEASE
+
+**Source attribution and actual protection-release crossing — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [TYPED_SOURCE_INCIDENCE](#typed-source-incidence), [EVENT_OUTPUT](#event-output), [CAPTURE_LIVE](#capture-live), [SUBTRACTION](#subtraction).
+- Premises retained: Approved outward crossing after intervening computation/handler processing; same selected target view and original live receiver.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Generate comparison-independent e-attribution and prove actual crossing/persistence at the same transported target; receipt or Observe alone is not crossing, and a new receiver cannot inherit expired release.
+- Unblocks: [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [release](../../questions/2026-10-05-handler-protection-release-crossing/approved-answer.md); [boundary](../../notes/design/2026-10-02-typed-boundary-realization-draft.md).
+
+### ALL-VIEW
+
+**All-valid-view lifting through actual common export — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [COMMON_TOTAL](#common-total), [USE_GRAPH](#use-graph), [GENERALIZE](#generalize).
+- Premises retained: Independently valid public V, fixed original scopes and actual exported B_common with its resolver/evidence alternatives.
+- Already closed lemmas reused directly: [USE_GRAPH](#use-graph).
+- Minimal remaining lemma / exact closed scope: Prove Valid_V(v) implies exists original-scope x,p,w,a: J_S and K_G and Q_common and Direct(B_common,R_V(v)) for every V. Exact rewriting or a retained unexported root cannot supply this Direct.
+- Unblocks: [PRINCIPAL](#principal).
+- Sources: [use](../../notes/design/2026-10-04-certified-callback-and-constrained-use.md); [coverage](../../notes/design/2026-10-05-callback-coverage-and-source-joins.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### RAW-SOURCE
+
+**Complete source relation generation and inversion — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SEED_SOURCE](#seed-source), [DREL2](#drel2), [GUARD_COVER](#guard-cover), [MEMBER_DISCHARGE](#member-discharge), [REC_INIT](#rec-init), [GENERALIZE](#generalize), [ADAPTERS](#adapters), [DISPATCH](#dispatch).
+- Premises retained: Precisely declared supported source syntax and independent source judgments; generated relation retains every alternative at original scopes.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Induct on every included literal/Name/Lambda/Call/Bind/annotation/pattern/conversion/global/operation/handler constructor to emit exact atoms and lift every independent typed derivation back. No supplied decorated typing premise for raw formation.
+- Unblocks: [CTX_FINITE](#ctx-finite), [IFACE_FORM](#iface-form), [HIR_WIRING](#hir-wiring), [ORACLE_COMPAT](#oracle-compat), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [fview](../../notes/design/2026-10-05-inferred-function-call-views.md).
+
+### CTX-FINITE
+
+**Finite source guard-context canonicalization — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [GUARD_COVER](#guard-cover), [RAW_SOURCE](#raw-source).
+- Premises retained: Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct finite J_T and meaning-preserving A_T from source; prove rule/guard closure and terminating dependency updates. The Draft theorem merely assumes them and proves |B||J_T||P|^2.
+- Unblocks: [JOINT_DEC](#joint-dec).
+- Sources: [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### JOINT-DEC
+
+**Effective complete joint solver/residual decision — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [PURE_DEC](#pure-dec), [CTX_FINITE](#ctx-finite), [PRIMITIVES](#primitives), [ALL_WORLD](#all-world).
+- Premises retained: Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.
+- Already closed lemmas reused directly: [PURE_DEC](#pure-dec).
+- Minimal remaining lemma / exact closed scope: Construct finite effective candidates/quotient with preservation AND reflection for every active primitive, terminating checks and simultaneous witness completeness, or prove an exact effective residual decision route. Pure FMP cannot reflect arbitrary Phi.
+- Unblocks: [PROJECTION](#projection), [RESOLVE_FP](#resolve-fp), [RESOURCE](#resource), [SOUND](#sound).
+- Sources: [puredec](../../notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md); [contexts](../../notes/design/2026-10-03-source-context-finite-closure.md); [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### PROJECTION
+
+**Effective principal public projection — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [JOINT_DEC](#joint-dec), [GENERALIZE](#generalize), [EQ_RES](#eq-res).
+- Premises retained: Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.
+- Already closed lemmas reused directly: [EQ_RES](#eq-res).
+- Minimal remaining lemma / exact closed scope: Compute a legal exported constrained scheme with exact original-fiber projection and complete ordinary use factorization, rather than printing independent root bounds.
+- Unblocks: [IFACE_FORM](#iface-form), [HIR_WIRING](#hir-wiring), [PRINCIPAL](#principal).
+- Sources: [residual](../../notes/design/2026-10-03-open-residual-factorization.md); [scoped](../../notes/design/2026-10-03-scoped-constraint-solving.md); [pg](../../notes/progress/2026-10-06-source-generalization-eligibility-attack.md).
+
+### RESOLVE-FP
+
+**Joint method/role/associated-type/visibility fixed point — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [ROLE_ASSOC](#role-assoc), [PRIMITIVES](#primitives), [JOINT_DEC](#joint-dec).
+- Premises retained: Complete independent candidate/role/associated judgments, retained alternatives and original shared nu.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Construct sound complete principal resolution and prove termination/canonical finite carrier or admitted effective residual; positivity, uniqueness and finiteness must be proved, not assumed from syntax.
+- Unblocks: [ORACLE_COMPAT](#oracle-compat), [SOURCE_ADEQUACY](#source-adequacy).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### IFACE-FORM
+
+**Complete finite simultaneous generalized interface producer — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [GENERALIZE](#generalize), [PROJECTION](#projection), [RAW_SOURCE](#raw-source).
+- Premises retained: All downstream inference observations, source origins/scopes, exports/imports/evidence/admission and recursive member roots.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Generate a finite complete interface preserving/refelecting the whole source relation and every consumer observation; printed schemes/arena IDs or separate member projections are insufficient. CI_ALPHA only compares already supplied complete presentations.
+- Unblocks: [IFACE_EQUIV](#iface-equiv), [RESOURCE](#resource).
+- Sources: [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [lifecycle](../../notes/progress/2026-10-05-scc-generalized-boundary-contract.md); [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md).
+
+### ORACLE-COMPAT
+
+**Successor capability and observation compatibility — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [RAW_SOURCE](#raw-source), [RESOLVE_FP](#resolve-fp), [OBS_INCLUSION](#obs-inclusion).
+- Premises retained: Declared final well-typed source envelope and current Authority; Frozen Oracle is historical evidence only.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove required final acceptance/observations and justify each intended delta; use differential fixtures as evidence. Oracle algorithms/projections/IDs do not define successor typing or licensing.
+- Unblocks: [CUTOVER](#cutover).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [oracle](../../notes/progress/2026-10-06-frozen-oracle-presolve-application-types.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### SOURCE-ADEQUACY
+
+**General source adequacy and independent complete admission — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [RAW_SOURCE](#raw-source), [ROWS](#rows), [ALL_WORLD](#all-world), [CAPTURE_LIVE](#capture-live), [ADAPTERS](#adapters), [SUBTRACTION](#subtraction), [RELEASE](#release), [REF_WORLD](#ref-world), [RESOLVE_FP](#resolve-fp), [REF_SIM](#ref-sim).
+- Premises retained: One original scoped source relation, independent judgments for every included form and all histories; actual operational source machine.
+- Already closed lemmas reused directly: [REF_SIM](#ref-sim).
+- Minimal remaining lemma / exact closed scope: Construct a single complete source/typed-core/observation correspondence with forward and backward derivation transport, world admission and compatible witnesses, covering the full declared source envelope.
+- Unblocks: [PROD_CONFORMANCE](#prod-conformance), [SOUND](#sound), [PRINCIPAL](#principal).
+- Sources: [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### IFACE-EQUIV
+
+**Actual interface-kernel equivariance and rigid identity coverage — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [IFACE_FORM](#iface-form).
+- Premises retained: Every actual primitive/constructor/evidence/recursive/query operation in interface and consumer.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove all required covariance/reflection laws and enumerate identity observers to fix rigid coordinates; supply CI_USE premises for the actual compiler rather than by convention.
+- Unblocks: [FRESH_LIFE](#fresh-life).
+- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [lifecycle](../../notes/progress/2026-10-05-scc-generalized-boundary-contract.md).
+
+### RESOURCE
+
+**Exact practical resource/admission and failure boundary — OPEN-SEMANTIC**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [JOINT_DEC](#joint-dec), [IFACE_FORM](#iface-form).
+- Premises retained: Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.
+- Unblocks: [HIR_WIRING](#hir-wiring), [CUTOVER](#cutover).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### PROD-CONFORMANCE
+
+**Complete production semantic conformance — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SOURCE_ADEQUACY](#source-adequacy), [DOMAIN_INCLUSION](#domain-inclusion), [OBS_INCLUSION](#obs-inclusion).
+- Premises retained: Independent actual production relation/domain and declared checked source contract; no restriction to source-constructible production extras.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove the complete source and production squares commute on original xi, while retaining both nonredundant containment quantifiers.
+- Unblocks: [SOUND](#sound), [CUTOVER](#cutover).
+- Sources: [optiona](../../questions/2026-10-05-production-function-denotation/approved-answer.md); [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md); [core](../../notes/design/2026-10-02-typed-computation-core-elaboration.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### PRINCIPAL
+
+**All-view principal successor inference — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SOURCE_ADEQUACY](#source-adequacy), [ALL_VIEW](#all-view), [PROJECTION](#projection).
+- Premises retained: Every independently valid view in the declared conservative abstraction and actual designated export.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Prove universal ordinary-use factorization of every valid public scheme through the computed whole relation, preserving correlations/scopes/evidence; no concrete-success transitivity shortcut.
+- Unblocks: [CUTOVER](#cutover).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [use](../../notes/design/2026-10-04-certified-callback-and-constrained-use.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+
+### FRESH-LIFE
+
+**Internal/fresh use and SCC lifecycle correspondence — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [IFACE_EQUIV](#iface-equiv), [CI_USE](#ci-use), [REUSE](#reuse).
+- Premises retained: Actual intra-SCC live roots, independent incoming use instances, rigid imports/captures and consumer references.
+- Already closed lemmas reused directly: [CI_USE](#ci-use), [REUSE](#reuse).
+- Minimal remaining lemma / exact closed scope: Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse.
+- Unblocks: [HIR_WIRING](#hir-wiring), [CUTOVER](#cutover).
+- Sources: [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [lifecycle](../../notes/progress/2026-10-05-scc-generalized-boundary-contract.md).
+
+### SOUND
+
+**Sound successor inference — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SOURCE_ADEQUACY](#source-adequacy), [JOINT_DEC](#joint-dec), [PROD_CONFORMANCE](#prod-conformance).
+- Premises retained: Computed complete relation, independently valid admission and actual primitive semantics.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Every published inferred scheme and accepted use satisfies the selected source/conservative-abstraction semantics, including effects, permissions, worlds, methods and recursive use.
+- Unblocks: [CUTOVER](#cutover).
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [adequacy](../../notes/design/2026-10-02-source-interface-adequacy-theorem.md).
+
+### HIR-WIRING
+
+**Settled source-to-HIR and complete production pipeline wiring — IMPLEMENTATION-ONLY**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [RAW_SOURCE](#raw-source), [PROJECTION](#projection), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource).
+- Premises retained: Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.
+- Unblocks: [CUTOVER](#cutover).
+- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md); [sourceuses](../../notes/progress/2026-10-07-shadow-retained-source-use-groups.md).
+
+### CUTOVER
+
+**Final reviewed implementation and production inference cutover — OPEN-PROOF**. Production relevance: required-before-cutover.
+
+- Direct prerequisite gates: [SOUND](#sound), [PRINCIPAL](#principal), [PROD_CONFORMANCE](#prod-conformance), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource), [HIR_WIRING](#hir-wiring), [ORACLE_COMPAT](#oracle-compat).
+- Premises retained: Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.
+- Already closed lemmas reused directly: None.
+- Minimal remaining lemma / exact closed scope: Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.
+- Unblocks: None.
+- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
+
+## Required audit coverage
+
+| User-requested family | Normalized gates |
+| --- | --- |
+| directional source generation/provenance | DIR_LOCAL, RS_LX, SEED_SOURCE |
+| recursive/generalized-use supplier | REC_K, REC_KV, RS_LX, MEMBER_DISCHARGE, GENERALIZE |
+| simultaneous member validation/discharge | FH, DESC_CLAUSES, SEM_JOINT, REC_DESC, REC_LOCAL, INIT_VALID, MEMBER_DISCHARGE, REC_INIT |
+| Generalize eligible binder/anchor/view | PG1, GENERALIZE |
+| section22 introduction/guard/permission | INTRO, S22_DIRECT, GUARD_INSERT, GUARD_TERMINAL, GUARD_COVER |
+| complete source relation generation | CALL_REL, RAW_SOURCE |
+| seed/refined DREL-2 | WHOLE_REL, SC_ROLE, DREL2 |
+| mixed-use role refinement/aggregation | MIXED_ROLE, DREL2 |
+| original signature formation | SIG_RULES, PROFILE |
+| OriginalAssocType_X | ORIGINAL_ASSOC, CALL_TYPE |
+| Attach_C | ATTACH, LIC_FORWARD |
+| Lic_C | SIG_RULES, LIC_FORWARD, LIC_INVERT |
+| complete beta/Slots profile and inversion | PROFILE, LIC_INVERT |
+| contribution ownership/typed source incidence | ORIGINAL_ASSOC, TYPED_SOURCE_INCIDENCE |
+| complete typed-row nonemptiness | ROWS, SEM_JOINT, INIT_VALID |
+| initial/re-entry/all-world admission | PCINIT, INIT_WORLD, ADMISSION_CLAUSES, SEM_JOINT, INIT_VALID, HISTORY, ALL_WORLD |
+| inlet/carrier/descriptor/import/world | DESC_CLAUSES, INLET_CARRIER, INIT_WORLD, SEM_JOINT, REF_WORLD |
+| event/output correspondence | EVENT_OUTPUT, CALL_TYPE |
+| general capture/read/receipt/receiver/liveness | SV, CAPTURE_LIVE, TRANSPORT, PATH_QUERY |
+| general source adequacy | SOURCE_ADEQUACY |
+| common allowance/all-view extension | ALLOC_COMMON, COMMON_DESC, COMMON_TOTAL, ALL_VIEW |
+| all-view principality | PRINCIPAL |
+| SCC interface equality/fresh use/lifecycle | CI_ALPHA, CI_USE, IFACE_FORM, IFACE_EQUIV, FRESH_LIFE |
+| residual/guarded joint solving/projection | EQ_RES, CTX_FINITE, PRIMITIVES, JOINT_DEC, PROJECTION |
+| State/reference/world | STATE_ID, STATE_RW, STATE_RESUME, REF_WORLD |
+| method/role/associated/visible-impl fixed point | SELECT, ROLE_ASSOC, RESOLVE_FP |
+| Option A/Option 2 containment | SAT_A, ADM_A, DOMAIN_INCLUSION, OBS_INCLUSION, PROD_CONFORMANCE |
+| finite presentation/termination/resources | FMP, PURE_DEC, CTX_FINITE, JOINT_DEC, IFACE_FORM, RESOURCE |
+| production HIR/source coverage | HIR_WIRING, RAW_SOURCE |
+| successor/production/Oracle compatibility | ORACLE_COMPAT, PROD_CONFORMANCE |
+| final production inference cutover | CUTOVER |
+| additional adapter/mixed-effect/subtraction/release/dispatch | ADAPTERS, MIXED_EFFECT, SUBTRACTION, RELEASE, DISPATCH |
+
+## Explicit retirement and replacement
+
+| Historical/pseudo gate | Current gates | Reason |
+| --- | --- | --- |
+| Pure FMP, selector/one-anchor existence as future gates | FMP, PURE_DEC | Closed pure fragment only; arbitrary active predicates remain outside. |
+| Opaque selected receipt/capture supplier | SV | Selected actual transitions and Pending histories proved with original typing/profile premises. |
+| Opaque actual recursive provider graph or all lexical imports | REC_K, REC_KV, RS_LX | Actual graph and lexical ownership proved; KP argument/context pairing and KV predicate interpretation are conditional; semantic discharge/eligibility remain. |
+| Arbitrary new complete Call index or new slot-label allocation | CALL_REL, ORIGINAL_ASSOC | Complete relational family already constructible; original-kernel inhabited association is the real cut. |
+| One separately completed P per local lemma/use | PROFILE, ROWS | Use one jointly constrained original p at original scope; retain universal world/history predicates. |
+| Separate original attachment/licensing claims with no original-coordinate distinction | ORIGINAL_ASSOC, ATTACH, LIC_FORWARD, LIC_INVERT | Normalize to source-owned fiber introduction and forward/exhaustive inverse laws; no fresh-ID substitution. |
+| General DREL-2 still opaque for the exact completed singleton | SC_ROLE, DREL2 | Entailed unchanged-kernel substitution closed there; changed primitives/mixed source remain. |
+| Blanket no-existential classification O required for every row | INTRO, GUARD_INSERT, GUARD_TERMINAL | O is only a sufficient specialization; origin-relative local preservation M is the weaker actual target. |
+| New m_V calculus as a prerequisite | USE_GRAPH, ALL_VIEW | Ordinary copy/graft/query exists; actual-export all-view success remains. |
+| Rollback/inverse intrusive mutation across edits | REUSE, FRESH_LIFE | Authoritative rebuild route replaces inverse mutation; atomic lifecycle remains. |
+| No effective interface equality whatsoever | CI_ALPHA, IFACE_FORM, IFACE_EQUIV | Finite supplied complete alpha presentation has a decision procedure; complete actual producer/equivariance remain. |
+| Reachability/liveness helper as a source or production semantics gate | PATH_QUERY, TYPED_SOURCE_INCIDENCE, CAPTURE_LIVE | Finite supplied query is separable implementation; source evidence cannot be supplied by it. |
+| E/R choice or blanket normalized Function effect protection | DIR_LOCAL, SEED_SOURCE | Superseded by current directional user decision; no question reopened. |
+| Production members must all have source constructors | SAT_A, OBS_INCLUSION | Incompatible with approved Option 2; extra licensed members require full containment. |
+| Finite-context theorem selects finite semantic worlds | CTX_FINITE, JOINT_DEC | Draft conditional finite state-key theorem supplies no all-world quotient. |
+
+## Direct next proof cuts
+
+1. On the original Call chain, independently type the full invocation and construct the original source-owned incidence fiber; then invert the actual original licensing rules, assemble the complete profile and construct one complete joint row. No new ID or source position supplies that fiber.
+2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. On recursion, derive the ordinary descriptor finite-elimination law and actual pointwise local checks, construct initial validity, then discharge the whole member conjunction. FH alone supplies none of these meanings or witnesses.
+3. Supply semantic eligible Generalize views and origin-relative insertion/terminal laws; use the closed provenance machinery and finite alpha equality only after their actual premises hold.
+4. Extend actual typed source incidence and history/world admission beyond SV; the finite Path query computes consequences of supplied evidence and cannot create it.
+5. Complete the shared primitive/world/source predicates, source-derived finite context presentation, effective joint solving/projection, legal common descriptor and universal actual-export Direct lifting. Prove both production inclusions, including Option 2 extra observations, before cutover.
+
+The full-attack [review and integration record](../progress/2026-10-07-successor-full-attack-review.md) identifies what was actually proved, repaired, implemented and checked in this continuation. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.
