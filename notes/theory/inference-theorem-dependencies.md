@@ -9,6 +9,12 @@ Solid arrows are **logical dependencies**: the downstream result is proved using
 
 ## Dependency graph
 
+**Current-decision navigation:** the later direct user correction supersedes the
+old E/R introduction-table adoption target as the next source-rule decision.
+Read the [directional-protection dependency delta](2026-10-06-directional-protection-dependency-delta.md)
+before the historical introduction-table discussion below. The selected local
+directional rule does not close full source generation or any end-to-end theorem.
+
 The reviewed [source-call construction](../progress/2026-10-06-source-call-generation-construction.md)
 closes only the exact singleton's static role/address/source-incidence schema
 and exhibits interpreted existential Call constraints on the existing
@@ -21,7 +27,7 @@ constraints satisfiable.
 
 The reviewed [P/A continuation](../progress/2026-10-06-source-generation-pa-review.md)
 adds a constructive least-generated singleton footprint and tagged transport
-normal form. Complete P still needs the converse
+normal form. The elimination-only route to complete P still needs the converse
 `Applicable_original(C,d_f,R_f,p;xi) => p=p_0`, original contribution completeness
 and same-root seed-to-refined full-view/solution preservation. Generated origin
 inventory, inherited packets and complete original applicability are distinct.
@@ -37,9 +43,27 @@ imports are ambient inputs. Exact all-world validity/transition closure and
 omitted source forms remain open, as do typed capture/receipt realization,
 complete source inversion, all-view coverage, finite presentation and Option A/2
 containment. There is still no closed `FVIEW -> SRC` edge or implementation
-authority. No new semantic decision is established by the proof gap. The
+authority. Those earlier proof gaps alone establish no new semantic decision. The
 [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and later frame/producer continuations remain historical evidence only.
+
+The independently compiler/spec-reviewed [original-introduction synthesis](../progress/2026-10-06-source-generation-introduction-decision.md)
+now adds a bounded relative local separation: two source-owned producers on
+the same unannotated formal/Call emit different original result-profile
+certificates, grounded by one common ordinary pure supplier/address witness.
+No desired original profile or Q result is an input. Its exact-tree E/R table
+is a concrete proposed completion, including negative binder/argument defaults,
+not adopted semantics or two complete source-admission models. The
+[review record](../progress/2026-10-06-source-profile-introduction-review.md)
+accepts that scope and the companion naturality/observation route bounds.
+Neither uniform graft nor local receiver expiry establishes the missing
+original-inventory converse. This E/R adoption discussion is historical after
+the direct correction; consult the [directional-protection dependency
+delta](2026-10-06-directional-protection-dependency-delta.md) for the current
+local rule. Full profile/contribution, seed/refined relation preservation,
+actual receiving/capture, all-world A, principality and Option A/2 proofs
+remain. No `FVIEW -> SRC` edge or production authority is added. The pending
+question bundle remains excluded from Git integration.
 
 The reviewed [local Uc criterion](../progress/2026-10-06-uc-conditional-interface-constructive.md#4-a-precise-conditional-preservation-criterion)
 proves `erase(R_U)=B_S` iff whole-row coverage and soundness hold, preserving
@@ -92,8 +116,10 @@ no findings within this conditional scope. H1 (source-introduction soundness)
 and H2 (`I-exhaust`) remain unproved; review does not establish these source
 premises, complete P or certify production. The [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
 classifies the converse as a proof/design-completion obligation: approved
-formation and protection do not entail it, and no incompatible conformant
-alternatives or necessary user decision have been established.
+formation and protection do not entail it, and those earlier artifacts
+establish no incompatible complete conformant alternatives. The newer local
+certificate/proposal above changes the available decision evidence, not that
+earlier result's claim class or the open theorem edge.
 
 The compiler-referee-reviewed [substitution-naturality countermodel](../progress/2026-10-06-profile-substitution-naturality-closure.md#4-smallest-useful-countermodel-to-the-naturality-implication)
 shows that whole-tuple graft naturality and source-origin preservation alone
