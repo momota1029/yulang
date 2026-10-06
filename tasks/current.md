@@ -1076,8 +1076,14 @@ only. Each annotation's typed-port/profile link stays pending, and there is no
 typed source boundary. (4)
 `beta`/`Slots(beta)` are absent. (5) typed paths, owner/receiver and provenance
 are absent; retained CST paths are syntax provenance only. (6) there is no
-generalized SCC interface. (7) recursive Q/R
-identity and use-time freshening are absent. (8) callable role, Function
+successor generalized SCC interface. (7) the default-off `shadow-f5` observer
+now exposes current finalized F5 Q/R identities qualified by exact member
+root/scheme, both recursive-bound endpoints and exact declaration-source
+lookup. It does not attach scheme-local ordinals to successor source slots,
+typed profiles or `beta`/`Slots(beta)`, and it does not observe use-time
+freshening; the binder-to-live-row correspondence remains absent. See the
+[closed F5 Q/R observer](../notes/progress/2026-10-06-shadow-closed-f5-qr-observer.md).
+(8) callable role, Function
 membership and call-view realization are explicit pending premises. (9) the
 Apply comparison is structural against an existing test-only candidate; the
 F5 differential covers only the two leaf sources above; the separate

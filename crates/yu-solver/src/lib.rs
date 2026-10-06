@@ -207,6 +207,8 @@ use yu_types::{
 };
 
 mod scc;
+#[cfg(feature = "shadow-f5")]
+pub mod shadow_f5;
 #[cfg(feature = "shadow-scc-observer")]
 pub mod shadow_scc;
 use scc::{SccComponentId, SccPlan};
@@ -15671,6 +15673,11 @@ impl InferenceSession {
     }
 }
 impl SolvedModule {
+    /// Borrow finalized current F5 schemes without observing use-time freshening.
+    #[cfg(feature = "shadow-f5")]
+    pub fn shadow_closed_schemes(&self) -> shadow_f5::ClosedSchemes<'_> {
+        shadow_f5::ClosedSchemes::new(self)
+    }
     pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
         InferenceSession::try_new(batch)?.run()
     }
@@ -16262,6 +16269,8 @@ mod tests {
     mod intrusion_transport;
     mod legacy_identity_differential;
     mod research_function_realization;
+    #[cfg(feature = "shadow-f5")]
+    mod shadow_f5;
     #[cfg(feature = "shadow-scc-observer")]
     mod shadow_scc_observer;
     use std::sync::Arc;
