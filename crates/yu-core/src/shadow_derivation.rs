@@ -2,9 +2,9 @@
 //! This opt-in consumer borrows HIR identities and leaves all judgments pending.
 
 use yu_hir::shadow::{
-    BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence, ExprId, Form,
-    PendingPremise, ResolvedCallIncidence, ShadowArtifact, Skeleton, UnresolvedSourceViewPremise,
-    UseId,
+    AnnotationOccurrence, BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence,
+    ExprId, Form, ParameterAnnotationIncidence, PendingPremise, Position, ResolvedCallIncidence,
+    ShadowArtifact, Skeleton, UnresolvedSourceViewPremise, UseId,
 };
 
 /// Flat, immutable arena. Child offsets are local storage addresses, not lexical IDs.
@@ -170,6 +170,7 @@ pub struct PendingCall<'a> {
 pub struct RawStructuralArena<'a> {
     body: &'a ExprId,
     nodes: Vec<RawNode<'a>>,
+    annotations: Vec<RawAnnotation<'a>>,
 }
 
 impl<'a> RawStructuralArena<'a> {
@@ -177,6 +178,37 @@ impl<'a> RawStructuralArena<'a> {
     pub fn from_artifact(artifact: &'a ShadowArtifact) -> Option<Self> {
         let skeleton = artifact.skeleton().ok()?;
         skeleton.expression(skeleton.body()).ok()?;
+        let mut annotation_offsets = std::collections::HashMap::new();
+        let mut annotations = Vec::with_capacity(artifact.annotations().len());
+        for occurrence in artifact.annotations() {
+            let retained = artifact.annotation(occurrence.id()).ok()?;
+            if !std::ptr::eq(retained, occurrence)
+                || annotation_offsets
+                    .insert(std::ptr::from_ref(retained), annotations.len())
+                    .is_some()
+            {
+                return None;
+            }
+            annotations.push(RawAnnotation {
+                occurrence,
+                position: artifact.position(occurrence.position()).ok()?,
+                parameter: None,
+            });
+        }
+        for incidence in skeleton.parameter_annotations() {
+            let binder = skeleton.binder(incidence.parameter()).ok()?;
+            artifact.position(binder.position()).ok()?;
+            let occurrence = artifact.annotation(incidence.annotation()).ok()?;
+            let offset = *annotation_offsets.get(&std::ptr::from_ref(occurrence))?;
+            if annotations
+                .get_mut(offset)?
+                .parameter
+                .replace(incidence)
+                .is_some()
+            {
+                return None;
+            }
+        }
         let mut nodes = skeleton
             .retained_expressions()
             .map(|(source, expression)| RawNode {
@@ -227,6 +259,7 @@ impl<'a> RawStructuralArena<'a> {
         Some(Self {
             body: skeleton.body(),
             nodes,
+            annotations,
         })
     }
 
@@ -237,6 +270,19 @@ impl<'a> RawStructuralArena<'a> {
     pub fn nodes(&self) -> &[RawNode<'a>] {
         &self.nodes
     }
+
+    pub fn annotations(&self) -> &[RawAnnotation<'a>] {
+        &self.annotations
+    }
+}
+
+/// Source occurrence only; absent incidence does not establish annotation absence.
+/// The borrowed occurrence retains its pending typed-port/profile correspondence.
+#[derive(Debug)]
+pub struct RawAnnotation<'a> {
+    pub occurrence: &'a AnnotationOccurrence,
+    pub position: &'a Position,
+    pub parameter: Option<&'a ParameterAnnotationIncidence>,
 }
 
 #[derive(Debug)]

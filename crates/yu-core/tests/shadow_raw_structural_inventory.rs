@@ -1,7 +1,7 @@
 #![cfg(feature = "shadow")]
 
 use std::sync::Arc;
-use yu_core::shadow::{Form, ShadowArtifact};
+use yu_core::shadow::{Correspondence, Form, ShadowArtifact, ShadowError};
 use yu_core::shadow_derivation::RawStructuralArena;
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
@@ -14,6 +14,112 @@ fn artifact(source: &str) -> ShadowArtifact {
         Arc::new(SyntaxEnvironment::empty()),
     ))
     .unwrap()
+}
+
+#[test]
+fn raw_inventory_retains_exact_annotation_occurrences_and_parameter_incidence() {
+    let source = "my apply (f: T) x = f x";
+    let first = artifact(source);
+    let second = artifact(source);
+    let skeleton = first.skeleton().unwrap();
+    let arena = RawStructuralArena::from_artifact(&first).unwrap();
+    assert_eq!(arena.annotations().len(), first.annotations().len());
+    assert_eq!(arena.annotations().len(), 1);
+    for (index, (raw, occurrence)) in arena
+        .annotations()
+        .iter()
+        .zip(first.annotations())
+        .enumerate()
+    {
+        assert!(std::ptr::eq(raw.occurrence, occurrence));
+        assert!(std::ptr::eq(
+            raw.position,
+            first.position(occurrence.position()).unwrap()
+        ));
+        assert_eq!(raw.position.range(), &(11..14));
+        assert_eq!(&source[raw.position.range().clone()], ": T");
+        assert_eq!(
+            raw.occurrence.correspondence(),
+            &Correspondence::PendingTypedPortAndProfile
+        );
+        for previous in &arena.annotations()[..index] {
+            assert_ne!(previous.occurrence.id(), occurrence.id());
+        }
+        let incidence = raw.parameter.unwrap();
+        assert!(std::ptr::eq(
+            incidence,
+            &skeleton.parameter_annotations()[0]
+        ));
+        assert_eq!(incidence.annotation(), occurrence.id());
+        assert_eq!(skeleton.binder(incidence.parameter()).unwrap().name(), "f");
+        assert_eq!(
+            second.annotation(occurrence.id()).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+        assert_eq!(
+            second.position(occurrence.position()).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+        assert_eq!(
+            second
+                .skeleton()
+                .unwrap()
+                .binder(incidence.parameter())
+                .unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+    }
+    let plain = artifact("my apply f x = f x");
+    assert!(
+        RawStructuralArena::from_artifact(&plain)
+            .unwrap()
+            .annotations()
+            .is_empty()
+    );
+}
+
+#[test]
+fn raw_inventory_preserves_order_of_multiple_annotation_incidences() {
+    let source = "my apply x (f: T) (g: T) = f (g x)";
+    let artifact = artifact(source);
+    let skeleton = artifact.skeleton().unwrap();
+    let arena = RawStructuralArena::from_artifact(&artifact).unwrap();
+    assert_eq!(arena.annotations().len(), 2);
+    assert_eq!(skeleton.parameter_annotations().len(), 2);
+    for (index, ((raw, occurrence), incidence)) in arena
+        .annotations()
+        .iter()
+        .zip(artifact.annotations())
+        .zip(skeleton.parameter_annotations())
+        .enumerate()
+    {
+        assert!(std::ptr::eq(raw.occurrence, occurrence));
+        assert!(std::ptr::eq(raw.parameter.unwrap(), incidence));
+        assert!(std::ptr::eq(
+            raw.position,
+            artifact.position(occurrence.position()).unwrap()
+        ));
+        assert_eq!(source[raw.position.range().clone()].trim(), ": T");
+        assert_eq!(raw.occurrence.id(), occurrence.id());
+        assert_eq!(raw.parameter.unwrap().annotation(), occurrence.id());
+        assert_eq!(
+            skeleton.binder(incidence.parameter()).unwrap().name(),
+            ["f", "g"][index]
+        );
+        assert_eq!(
+            raw.occurrence.correspondence(),
+            &Correspondence::PendingTypedPortAndProfile
+        );
+        if index > 0 {
+            assert!(
+                arena.annotations()[index - 1].position.range().start < raw.position.range().start
+            );
+            assert_ne!(
+                arena.annotations()[index - 1].occurrence.id(),
+                raw.occurrence.id()
+            );
+        }
+    }
 }
 
 #[test]
