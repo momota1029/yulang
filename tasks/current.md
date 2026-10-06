@@ -373,6 +373,21 @@ call-view evidence remain unresolved. The test-only `yu-core/shadow`
 dependency stays outside production builds. A compiler-referee review found
 one missing same-UseId assertion; it was added, and the focused test passed.
 
+The [shadow annotation/header membership slice](../notes/progress/2026-10-07-shadow-annotation-header-membership.md)
+now carries exact root-header membership through existing parameter-annotation
+incidences and per-call registration views. An unannotated header parameter's
+retained annotation inventory remains an inventory fact only. Regression
+review found one minor test gap; a direct call to the unannotated header
+parameter was added and the core shadow targets passed. Annotation meaning,
+boundary effectiveness, profiles and typed ports remain unresolved.
+
+The [shadow SCC use-endpoint slice](../notes/progress/2026-10-07-shadow-scc-use-definition-endpoints.md)
+exposes each retained SCC use's exact parent/target definition handles after
+collection-brand and frozen-plan validation. This supports future generalized
+SCC identity plumbing but does not form a successor interface, map Q/R, or
+freshen uses. Compiler-referee review passed; all 10 focused SCC observer tests
+and the feature-off core/solver check passed.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
