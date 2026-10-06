@@ -342,8 +342,10 @@ weakened to close the local composition.
 - Baseline SHA: `2f337bf640c5b9165d941d6c879c0764ca0fabfe`.
 - Changed dependency hashes: none; seventeen direct inputs match the pinned
   baseline at the initial and handoff byte/hash checks.
-- Review status: frozen unreviewed research-only conditional composition and
-  bounded localization; no closed attachment/licensing theorem or authority.
+- Review status: compiler-referee PASS on frozen content SHA-256
+  `5a61cf23c517c3941696694bc36f12dc9843a336468aea3a247125602014584d`;
+  research-only conditional composition and bounded localization, with no
+  closed attachment/licensing theorem or authority.
 - Checks already run: exact source/rule/sort reads; source-tagged typed image
   composition and one-X/transition-guard audit; baseline dependency equality;
   path lease/branch/status reads; relative-link and note-local whitespace checks.
@@ -355,5 +357,6 @@ weakened to close the local composition.
   envelope. Retain complete formation/admission and both licensing gates;
   propose no theorem-status promotion or semantic change.
 
-Research writing stops before frozen review. The primary owns adjudication,
-shared synchronization and Git integration.
+The note's technical content remains the reviewed frozen artifact. The primary
+updated only the status metadata above and owns shared synchronization and Git
+integration.

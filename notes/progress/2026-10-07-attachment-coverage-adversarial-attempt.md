@@ -312,9 +312,10 @@ All paths matched the pinned blobs; this worker changed no dependency.
   `notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md`.
 - Baseline SHA: `2f337bf640c5b9165d941d6c879c0764ca0fabfe`.
 - Changed dependency hashes: none; all seventeen direct inputs match the pin.
-- Review status: frozen unreviewed conditional witness reduction and bounded
-  unsuccessful source attack; no independent review, semantic authority or
-  gate closure.
+- Review status: spec-auditor PASS on frozen content SHA-256
+  `418263dff4595c1317d95ee59ff321fb37e62513fb69930d7d6b6c43454ee1f4`;
+  bounded witness reduction/unsuccessful source attack, with no semantic
+  authority or gate closure.
 - Checks already run: exact clause/constructor/sort and same-X audit; leased
   path absence; seventeen pinned-byte/hash comparisons; note-local integrity
   and final dependency recheck. No runtime verification.
@@ -327,4 +328,6 @@ All paths matched the pinned blobs; this worker changed no dependency.
   full profile/admission and all soundness/principality/source-adequacy gates.
   No task, theory, index, authority, question bundle or other shared file changed.
 
-Writing stops at freeze before submission for independent review.
+The note's technical content remains the reviewed frozen artifact. The primary
+updated only the review metadata and owns shared synchronization and Git
+integration.
