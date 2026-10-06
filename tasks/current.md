@@ -118,6 +118,17 @@ position and contain no typed endpoint/receipt; the exact unannotated captured
 formal does not use this channel. This is mechanism evidence only and does not
 close the current source producer or authorize Oracle semantics. See the
 [argument-effect contract channel](../notes/progress/2026-10-06-frozen-oracle-argument-effect-contract-channel.md).
+Targeted continuation on the missing ordinary-value formal producer finds a
+bounded historical stop: the unannotated formal's shared value endpoint and
+fresh effect endpoint enter an application Function demand, but the producer
+does not inspect the argument's `Evaluation` or `effect_view`, and the
+unannotated return helper receives no argument. The demand is submitted to a
+solver that may drain synchronously. A two-computation field-dependency
+derivation excludes an explicit evaluation-tag branch at this producer only;
+effect/stack/solver encodings remain possible and unexamined. Independent
+compiler-referee review found no issues. This supplies historical mechanism
+evidence, no current `U_c`/`Delta_formal` or semantic authority. See the
+[missing-source-producer continuation](../notes/progress/2026-10-06-frozen-oracle-missing-source-producer-continuation.md).
 Further frozen-Oracle archaeology traced multi-use paths with an important
 split: no-scheme formal uses share one value endpoint, each application emits
 its own Function-upper constraint, and eligible unannotated calls use a
