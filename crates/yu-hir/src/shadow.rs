@@ -21,6 +21,16 @@ pub fn lower_module_with_source_identity(
     crate::module::lower_module_with_source_identity(identity, parsed, imports)
 }
 
+/// Retains one leaf-only application with source identity and explicit pending errors.
+/// This opt-in route supplies no semantic call judgment or inference acceptance.
+pub fn lower_module_with_shadow_applications(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_shadow_applications(identity, parsed, imports)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceIdentityError {
     ForeignHirArtifact,
@@ -263,8 +273,9 @@ impl ShadowArtifact {
                 .ok_or(SourceIdentityError::MissingSource)?,
         )
     }
-    /// Joins a retained HIR leaf occurrence to its exact raw-CST position.
-    /// Synthesized/error occurrences without an exact leaf report MissingSource.
+    /// Joins a retained HIR occurrence to its exact raw-CST position.
+    /// Shadow applications identify their CallTail or MlArgument; synthesized
+    /// or error occurrences without exact source identity report MissingSource.
     pub fn occurrence_source_position(
         &self,
         hir: &HirModule,

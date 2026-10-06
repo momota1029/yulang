@@ -424,6 +424,17 @@ enum EvaluationClass {
 
 #[derive(Clone, Debug)]
 pub enum ResolvedExpr {
+    /// Opt-in source structure only. The attached error keeps semantic lowering pending.
+    /// The variant is unconditional for Cargo feature unification; only the
+    /// gated shadow entrypoint can produce it during module lowering.
+    Apply {
+        occurrence: HirOccurrenceId,
+        source_form: SyntaxKind,
+        callee: Box<ResolvedExpr>,
+        argument: Box<ResolvedExpr>,
+        errors: Box<[HirErrorId]>,
+        range: Range<usize>,
+    },
     Lambda {
         occurrence: HirOccurrenceId,
         parameter: HirParameterId,
@@ -451,6 +462,7 @@ pub enum ResolvedExpr {
 impl ResolvedExpr {
     pub fn occurrence(&self) -> &HirOccurrenceId {
         match self {
+            Self::Apply { occurrence, .. } => occurrence,
             Self::Lambda { occurrence, .. }
             | Self::Integer { occurrence, .. }
             | Self::Name { occurrence, .. }
@@ -460,6 +472,7 @@ impl ResolvedExpr {
 
     pub fn range(&self) -> &Range<usize> {
         match self {
+            Self::Apply { range, .. } => range,
             Self::Lambda { range, .. }
             | Self::Integer { range, .. }
             | Self::Name { range, .. }
@@ -474,6 +487,30 @@ impl ResolvedExpr {
 impl PartialEq for ResolvedExpr {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (
+                Self::Apply {
+                    source_form: left_form,
+                    callee: left_callee,
+                    argument: left_argument,
+                    errors: left_errors,
+                    range: left_range,
+                    ..
+                },
+                Self::Apply {
+                    source_form: right_form,
+                    callee: right_callee,
+                    argument: right_argument,
+                    errors: right_errors,
+                    range: right_range,
+                    ..
+                },
+            ) => {
+                left_form == right_form
+                    && left_callee == right_callee
+                    && left_argument == right_argument
+                    && left_errors == right_errors
+                    && left_range == right_range
+            }
             (
                 Self::Lambda {
                     parameter: left_parameter,
@@ -556,6 +593,12 @@ pub struct HirBinding {
 
 fn evaluation_class(value: &ResolvedExpr) -> Option<EvaluationClass> {
     match value {
+        ResolvedExpr::Apply { .. } => None,
+        ResolvedExpr::Lambda { body, .. }
+            if matches!(body.as_ref(), ResolvedExpr::Apply { .. }) =>
+        {
+            None
+        }
         ResolvedExpr::Lambda { .. }
         | ResolvedExpr::Integer { .. }
         | ResolvedExpr::Name {
@@ -803,6 +846,19 @@ pub(crate) fn lower_module_with_source_identity(
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_shadow_applications(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::shadow::source_keys(parsed);
+    counters.shadow_applications = true;
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
 fn lower_module_with_counters(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -888,6 +944,8 @@ fn next_occurrence(
 
 #[derive(Default)]
 struct LoweringCounters {
+    #[cfg(any(feature = "shadow", test))]
+    shadow_applications: bool,
     #[cfg(any(feature = "shadow", test))]
     source_identity: Option<crate::shadow::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
@@ -1169,6 +1227,7 @@ fn lower_plan(
                 counters,
                 occurrence,
                 scope,
+                next_occurrence_ordinal,
             ),
             RootPlanKind::Unsupported(kind) => {
                 item_errors.push(sink.lowering(
@@ -1221,6 +1280,7 @@ fn lower_plan(
         counters,
         body_occurrence,
         scope,
+        next_occurrence_ordinal,
     );
     scope.restore(guard);
     let (value, body_semantic_error) = lowered?;
@@ -1266,6 +1326,7 @@ fn lower_direct_root_expression(
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
+    _next_occurrence_ordinal: &mut u32,
 ) -> Result<HirItem, HirAvailabilityError> {
     if !causal_errors.is_empty() {
         return Ok(HirItem::Expression(ResolvedExpr::Error {
@@ -1273,6 +1334,22 @@ fn lower_direct_root_expression(
             errors: causal_errors.into_boxed_slice(),
             range: plan.range.clone(),
         }));
+    }
+    #[cfg(any(feature = "shadow", test))]
+    if counters.shadow_applications {
+        if let Some(expression) = lower_shadow_application(
+            parsed,
+            &plan.node,
+            namespace,
+            counters,
+            occurrence.clone(),
+            scope,
+            _next_occurrence_ordinal,
+            sink,
+            HirErrorAttachment::DirectRootItem(plan.ordinal),
+        )? {
+            return Ok(HirItem::Expression(expression));
+        }
     }
     match lower_simple_chain(
         parsed,
@@ -1320,6 +1397,7 @@ fn lower_body(
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
+    _next_occurrence_ordinal: &mut u32,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -1397,6 +1475,22 @@ fn lower_body(
             None,
         ));
     }
+    #[cfg(any(feature = "shadow", test))]
+    if counters.shadow_applications {
+        if let Some(expression) = lower_shadow_application(
+            parsed,
+            chain,
+            namespace,
+            counters,
+            occurrence.clone(),
+            scope,
+            _next_occurrence_ordinal,
+            sink,
+            HirErrorAttachment::Value(id.clone()),
+        )? {
+            return Ok((expression, None));
+        }
+    }
     match lower_simple_chain(
         parsed,
         chain,
@@ -1437,6 +1531,110 @@ enum SimpleChainLowering {
     },
 }
 
+#[cfg(any(feature = "shadow", test))]
+fn lower_shadow_application(
+    parsed: &ParsedFile,
+    chain: &SyntaxNode,
+    namespace: &HashMap<String, Vec<DefId>>,
+    counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
+    next_occurrence_ordinal: &mut u32,
+    sink: &mut ErrorSink,
+    attachment: HirErrorAttachment,
+) -> Result<Option<ResolvedExpr>, HirAvailabilityError> {
+    // Validate the complete associated shape before minting child identities or
+    // resolving either leaf. Unsupported applications publish no partial Apply.
+    let associated = associate_chain_owned(parsed, chain.clone())
+        .map_err(|error| match error {
+            AssociationError::ExactOperatorEnvironment => {
+                HirAvailabilityError::ExactOperatorEnvironment
+            }
+            AssociationError::StructuralInvariant => HirAvailabilityError::StructuralProjection,
+        })?
+        .into_hir();
+    let HirExpr::Value {
+        kind: source_form,
+        children: operands,
+        range,
+    } = associated
+    else {
+        return Ok(None);
+    };
+    if !matches!(source_form, SyntaxKind::MlArgument | SyntaxKind::CallTail) {
+        return Ok(None);
+    }
+    let [callee_shape, argument_shape] = operands.as_slice() else {
+        return Ok(None);
+    };
+    let leaf = |shape: &HirExpr| matches!(shape, HirExpr::Value { kind: SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral, children, .. } if children.is_empty());
+    if !leaf(callee_shape) || !leaf(argument_shape) {
+        return Ok(None);
+    }
+    let children = chain.children().collect::<Vec<_>>();
+    let [callee_node, tail] = children.as_slice() else {
+        return Ok(None);
+    };
+    if tail.kind() != source_form || range_of(callee_node) != *callee_shape.range() {
+        return Ok(None);
+    }
+    let argument_nodes = tail
+        .descendants()
+        .filter(|node| {
+            matches!(
+                node.kind(),
+                SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral
+            ) && range_of(node) == *argument_shape.range()
+        })
+        .collect::<Vec<_>>();
+    let [argument_node] = argument_nodes.as_slice() else {
+        return Ok(None);
+    };
+    let Some(key) = counters.source_nodes.get(tail).cloned() else {
+        return Err(HirAvailabilityError::StructuralProjection);
+    };
+    let mut errors = vec![sink.lowering(
+        HirErrorKind::UnsupportedExpression,
+        attachment.clone(),
+        range.clone(),
+    )?];
+    let mut lower_operand = |node: &SyntaxNode| -> Result<ResolvedExpr, HirAvailabilityError> {
+        let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
+        let atom = crate::OwnedAtom {
+            source: node.clone(),
+            kind: node.kind(),
+            spelling: parsed.source()[range_of(node)].to_owned(),
+            range: range_of(node),
+        };
+        let SimpleChainLowering::Resolved {
+            expression,
+            semantic_error,
+        } = lower_leaf(atom, namespace, counters, child_occurrence, scope)?
+        else {
+            return Err(HirAvailabilityError::StructuralProjection);
+        };
+        if let Some((kind, range)) = semantic_error {
+            errors.push(sink.lowering(kind, attachment.clone(), range)?);
+        }
+        Ok(expression)
+    };
+    let callee = lower_operand(callee_node)?;
+    let argument = lower_operand(argument_node)?;
+    counters
+        .source_identity
+        .as_mut()
+        .expect("shadow route retains source identity")
+        .record_occurrence(occurrence.clone(), key);
+    Ok(Some(ResolvedExpr::Apply {
+        occurrence,
+        source_form,
+        callee: Box::new(callee),
+        argument: Box::new(argument),
+        errors: errors.into_boxed_slice(),
+        range,
+    }))
+}
+
 fn lower_simple_chain(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
@@ -1460,6 +1658,16 @@ fn lower_simple_chain(
     if !matches!(expression, HirExpr::Value { children, .. } if children.is_empty()) {
         return Ok(SimpleChainLowering::Unsupported { range: chain_range });
     }
+    lower_leaf(atom, namespace, counters, occurrence, scope)
+}
+
+fn lower_leaf(
+    atom: crate::OwnedAtom,
+    namespace: &HashMap<String, Vec<DefId>>,
+    counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
+) -> Result<SimpleChainLowering, HirAvailabilityError> {
     #[cfg(any(feature = "shadow", test))]
     if let Some(source) = &mut counters.source_identity {
         if let Some(key) = counters.source_nodes.get(&atom.source) {

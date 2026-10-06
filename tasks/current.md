@@ -260,6 +260,14 @@ application shapes; the separate shadow rows are structural retention only.
 This adds no typing or old-inference parity claim and leaves production support
 and all semantic gates open.
 
+The [opt-in resolved application slice](../notes/progress/2026-10-07-shadow-application-resolution.md)
+adds a leaf-only ordinary `Apply` to the experimental HIR route, joined to
+exact application/operand source identities and existing name resolution. It
+retains an explicit unsupported semantic diagnostic; solver collection emits
+no facts. Default lowering remains unchanged. The additive public enum variant
+and feature-unification boundary are reviewed; nested/computed application,
+typing and inference remain pending.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow

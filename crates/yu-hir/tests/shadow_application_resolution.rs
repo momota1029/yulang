@@ -1,0 +1,215 @@
+#![cfg(feature = "shadow")]
+
+use std::sync::Arc;
+use yu_hir::{
+    FileId, FileKey, HirErrorKind, HirItem, HirModule, ModuleIdentity, NameResolution,
+    ResolvedExpr, SemanticImports, lower_module,
+    shadow::{
+        ShadowArtifact, SourceIdentityError, lower_module_with_shadow_applications,
+        lower_module_with_source_identity,
+    },
+};
+use yu_syntax::{ParsedFile, SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
+
+fn parsed(source: &str) -> ParsedFile {
+    let source: Arc<SourceText> = Arc::from(source);
+    let header = Arc::new(scan_header(source.clone()));
+    parse_file(source, header, Arc::new(SyntaxEnvironment::empty()))
+}
+
+fn identity() -> ModuleIdentity {
+    ModuleIdentity::source_root(FileId::new(FileKey::new("test", "shadow-application.yu")))
+}
+
+fn value(module: &HirModule, index: usize) -> &ResolvedExpr {
+    let expression = match &module.items()[index] {
+        HirItem::Binding(binding) => binding.value(),
+        HirItem::Expression(expression) => expression,
+        _ => panic!("expression item"),
+    };
+    match expression {
+        ResolvedExpr::Lambda { body, .. } => body,
+        expression => expression,
+    }
+}
+
+fn shadow(parsed: &ParsedFile) -> HirModule {
+    lower_module_with_shadow_applications(identity(), parsed, SemanticImports::empty()).unwrap()
+}
+
+fn assert_normal_paths_unchanged(parsed: &ParsedFile, application_index: usize) {
+    let ordinary = lower_module(identity(), parsed, SemanticImports::empty()).unwrap();
+    let identity_only =
+        lower_module_with_source_identity(identity(), parsed, SemanticImports::empty()).unwrap();
+    assert_eq!(ordinary, identity_only);
+    assert_eq!(ordinary.diagnostics(), identity_only.diagnostics());
+    assert!(matches!(
+        value(&ordinary, application_index),
+        ResolvedExpr::Error { .. }
+    ));
+    assert!(
+        ordinary
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.kind() == HirErrorKind::UnsupportedExpression)
+    );
+}
+
+#[test]
+fn leaf_applications_retain_distinct_occurrences_and_exact_source_nodes() {
+    for (source, index, form, tail_range, callee_range, argument_range) in [
+        (
+            "my invoke f = f 1",
+            0,
+            SyntaxKind::MlArgument,
+            16..17,
+            14..15,
+            16..17,
+        ),
+        (
+            "my invoke x = x(x)",
+            0,
+            SyntaxKind::CallTail,
+            15..18,
+            14..15,
+            16..17,
+        ),
+        (
+            "my f = 1; f 1",
+            1,
+            SyntaxKind::MlArgument,
+            12..13,
+            10..11,
+            12..13,
+        ),
+        (
+            "my invoke x = 1 x",
+            0,
+            SyntaxKind::MlArgument,
+            16..17,
+            14..15,
+            16..17,
+        ),
+    ] {
+        let parsed = parsed(source);
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        assert_normal_paths_unchanged(&parsed, index);
+        let hir = shadow(&parsed);
+        let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+        let ResolvedExpr::Apply {
+            occurrence,
+            source_form,
+            callee,
+            argument,
+            errors,
+            ..
+        } = value(&hir, index)
+        else {
+            panic!("one structural Apply: {source}")
+        };
+        assert_eq!(*source_form, form);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            hir.errors()[errors[0].index() as usize].kind(),
+            HirErrorKind::UnsupportedExpression
+        );
+        assert_ne!(occurrence, callee.occurrence());
+        assert_ne!(occurrence, argument.occurrence());
+        assert_ne!(callee.occurrence(), argument.occurrence());
+        for (expression, kind, range) in [
+            (value(&hir, index), form, tail_range),
+            (
+                callee.as_ref(),
+                if source.contains("= 1 x") {
+                    SyntaxKind::IntegerLiteral
+                } else {
+                    SyntaxKind::IdentifierExpression
+                },
+                callee_range,
+            ),
+            (
+                argument.as_ref(),
+                if form == SyntaxKind::CallTail || source.contains("= 1 x") {
+                    SyntaxKind::IdentifierExpression
+                } else {
+                    SyntaxKind::IntegerLiteral
+                },
+                argument_range,
+            ),
+        ] {
+            assert!(hir.owns_occurrence(expression.occurrence()));
+            let position = artifact
+                .occurrence_source_position(&hir, expression.occurrence())
+                .unwrap();
+            assert_eq!(artifact.position(&position).unwrap().kind(), kind);
+            assert_eq!(*artifact.position(&position).unwrap().range(), range);
+        }
+        if let ResolvedExpr::Name { resolution, .. } = callee.as_ref() {
+            assert!(matches!(
+                resolution,
+                NameResolution::Parameter(_) | NameResolution::Resolved(_)
+            ));
+        }
+    }
+}
+
+#[test]
+fn both_operand_resolution_errors_remain_explicit_and_scopes_do_not_escape() {
+    let parsed = parsed("my invoke x = missing absent; x 1");
+    assert_normal_paths_unchanged(&parsed, 0);
+    let hir = shadow(&parsed);
+    for index in [0, 1] {
+        let ResolvedExpr::Apply { callee, errors, .. } = value(&hir, index) else {
+            panic!("structural Apply")
+        };
+        assert!(matches!(
+            callee.as_ref(),
+            ResolvedExpr::Name {
+                resolution: NameResolution::Unresolved,
+                ..
+            }
+        ));
+        assert_eq!(errors.len(), if index == 0 { 3 } else { 2 });
+    }
+    assert_eq!(
+        hir.diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.kind() == HirErrorKind::UnresolvedName)
+            .map(|diagnostic| diagnostic.range().clone())
+            .collect::<Vec<_>>(),
+        [14..21, 22..28, 30..31]
+    );
+}
+
+#[test]
+fn unsupported_applications_are_rejected_atomically() {
+    for source in [
+        "my invoke f = f 1 2",
+        "my invoke f = f (f 1)",
+        "my invoke f = (f) 1",
+        "my invoke f = f (1)",
+        "my invoke f = f(1, 2)",
+        "my invoke f = f 1 as Int",
+        "my invoke f = { f 1 }",
+        "my invoke f = f[1] 2",
+    ] {
+        let parsed = parsed(source);
+        let hir = shadow(&parsed);
+        assert!(
+            matches!(value(&hir, 0), ResolvedExpr::Error { .. }),
+            "{source}"
+        );
+        let ResolvedExpr::Error { occurrence, .. } = value(&hir, 0) else {
+            unreachable!("unsupported shape remains an Error")
+        };
+        let artifact = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+        assert_eq!(
+            artifact.occurrence_source_position(&hir, occurrence),
+            Err(SourceIdentityError::MissingSource),
+            "unsupported shapes publish no partial source identity: {source}"
+        );
+        let ordinary = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();
+        assert_eq!(hir, ordinary, "{source}");
+        assert_eq!(hir.diagnostics(), ordinary.diagnostics(), "{source}");
+    }
+}

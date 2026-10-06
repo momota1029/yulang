@@ -964,8 +964,10 @@ impl ConstraintBatch {
                             ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
                                 CollectedBodyStatus::Error
                             }
+                            ResolvedExpr::Apply { .. } => CollectedBodyStatus::Error,
                         },
                         ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
+                        ResolvedExpr::Apply { .. } => CollectedBodyStatus::Error,
                     };
                     match body_status {
                         CollectedBodyStatus::Complete => {
@@ -16348,6 +16350,46 @@ mod tests {
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    #[cfg(feature = "shadow-f5")]
+    #[test]
+    fn shadow_application_collection_remains_unsupported_without_facts() {
+        for text in ["my invoke f = f 1", "my invoke x = x(x)", "missing 1"] {
+            let source: Arc<SourceText> = Arc::from(text);
+            let header = Arc::new(scan_header(source.clone()));
+            let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+            let hir = Arc::new(
+                yu_hir::shadow::lower_module_with_shadow_applications(
+                    ModuleIdentity::source_root(FileId::new(FileKey::new(
+                        "test",
+                        "shadow-application",
+                    ))),
+                    &parsed,
+                    SemanticImports::empty(),
+                )
+                .unwrap(),
+            );
+            let retains_apply = hir.items().iter().any(|item| match item {
+                HirItem::Binding(binding) => matches!(
+                    binding.value(),
+                    ResolvedExpr::Lambda { body, .. }
+                        if matches!(body.as_ref(), ResolvedExpr::Apply { .. })
+                ),
+                HirItem::Expression(ResolvedExpr::Apply { .. }) => true,
+                HirItem::Expression(_) | HirItem::Error { .. } => false,
+            });
+            assert!(retains_apply, "shadow lowering must retain Apply: {text}");
+            let batch = collect(hir);
+            assert!(batch.occurrences().is_empty(), "{text}");
+            assert!(batch.lambda_recipes.is_empty(), "{text}");
+            assert!(batch.occurrence_component_positions.is_empty(), "{text}");
+            assert_eq!(batch.counters.collected_complete_bodies, 0);
+            for definition in batch.definitions() {
+                assert_eq!(definition.body_status(), CollectedBodyStatus::Error);
+                assert!(definition.body_fact_range.is_empty());
+            }
+        }
+    }
 
     fn module(source: &str, path: &str) -> Arc<HirModule> {
         module_with_identity(source, "test", path)
