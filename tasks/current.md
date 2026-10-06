@@ -127,6 +127,15 @@ itself invert that introduction. This is historical characterization only;
 dot selection does not construct the original `(s,c)` fiber for the fixed
 ordinary `f x` Call, and `ORIGINAL_ASSOC` remains open.
 
+The bounded [Specializer2 call-consumer reconstruction](../notes/progress/2026-10-07-frozen-oracle-specializer-call-consumer-reconstruction.md)
+traces a separate downstream historical mechanism: a retained App rebuilds a
+typed Function consumer from materialized callee/argument views and keys its
+actual/expected subtype provenance to the callee expression. The App result
+and emitted Apply remain downstream consumers. This does not construct the
+original pre-query `(beta,p0,j_call;s,c)` association, `Slots(beta)`, a complete
+contribution, or the shared `(nu,K,D)`; Oracle remains non-authoritative and
+`ORIGINAL_ASSOC` stays open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
@@ -179,6 +188,14 @@ shows why finitary local clauses alone do not guarantee finite refutability
 after existential witness projection. Its natural-number family violates
 pinned FH's pointwise extension premise and is explicitly not an FH
 countermodel. These records close no descriptor or recursive gate.
+
+The bounded [latent Function clause audit](../notes/progress/2026-10-07-rec-desc-latent-function-clause-audit.md)
+locates the actual source-indexed returned-closure reference clause and its
+positive membership inversion. It does not provide an independent latent
+Function `DescMem` clause/inversion or the original binder tree needed to
+instantiate H1; H2–H5 remain uninstantiated, not falsified. The next item is
+one independently interpreted latent Function clause at the retained `v_g`,
+with its full local judgment, future-use inputs and original binder scope.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
