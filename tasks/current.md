@@ -249,6 +249,14 @@ candidate's outer-frame output to that comparison or derive current
 `Delta_formal`, profile/receipt, or Q-independent admission. Oracle semantics
 remain non-authoritative. See the [positive return push and matching frame-pop
 trace](../notes/progress/2026-10-06-frozen-oracle-source-producer-solver-transfer.md).
+The nested-source follow-up traces the outer frame selection, local `step`
+generalization, returned-value placement, and conditional downstream Function
+consumer. It shows the outer pop wraps the returned function value, while
+generalization may prune or freshen its stack identity; the actual Scheme/live
+outcome and Function demand remain unproved. Compiler-referee review found no
+blocking or major findings; one H3 cross-note label was clarified. This adds
+no current source rule or Oracle authority. See the [nested output consumer
+trace](../notes/progress/2026-10-06-frozen-oracle-nested-output-consumer-trace.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
