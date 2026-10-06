@@ -167,3 +167,64 @@ suite, production inference switch or live Frozen Oracle run was performed.
 The new module has no production inference caller. Further scoped orbit
 implementation and final ledger/publication checks are recorded below when
 complete; this checkpoint does not claim those later results.
+
+## Scoped atom evaluator follow-through
+
+After the restricted orbit proof passed both initial reviews, the primary
+continued to its default-off implementation instead of stopping at the
+conditional source frontier. The resulting [atom evaluator](2026-10-07-shadow-atom-orbits-round2.md)
+computes pointwise truth of a supplied equality-only formula over infinitely
+many atoms. It preserves the original binder tree and shared values, validates
+lexical scope in all branches, and has no arbitrary semantic-predicate escape
+hatch. It produces neither a residual scheme nor a source eligibility judgment.
+
+The primary added a direct finite-domain differential to the seven producer
+tests, froze the implementation, and requested fresh blind implementation
+reviews from the same independent compiler-referee and spec-auditor. Both
+returned **PASS with no BLOCKING, major or minor findings**. Neither ran tests
+or consulted the other's new verdict. Both checked all five frozen hashes.
+
+The compiler-referee checked that `scope` and globally retained `seen` have
+different duties; public labels use only equality; current atom classes form
+exactly the public/enclosing-binder support; a fresh class exists outside
+that support; returning from a nested or sibling body restores the parent
+support. Errors propagate without becoming a failed existential candidate.
+Quantifiers and Boolean connectives remain at their original positions.
+
+The spec-auditor confirmed the exact observer restriction, original binder
+identity versus atom-value distinction, whole-witness correlation, explicit
+structural/evaluation exhaustion, and absence of source/Generalize/production
+authority. Both reviews accepted the six-value differential envelope: two
+public ports and three binders can observe at most five distinct values, so
+six values realize every required equality pattern. This bound is specific
+to that test grammar and is not a finite semantic atom universe.
+
+Frozen submitted hashes:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `crates/yu-core/src/lib.rs` | `b3912e6815dd17dadc170e77e22e1f2eca7267a6444c371eaafc549ad2317239` |
+| `crates/yu-core/src/shadow_atom_orbits.rs` | `ccc0f2e165b37a679f4a37a57678a91a95e36fa5905dc852edaedc0799472215` |
+| `crates/yu-core/tests/shadow_atom_orbits.rs` | `1750fb22e2ce31ea1831832cb481b41026c51a50987ac244420957aea02bf0d0` |
+| `notes/progress/2026-10-07-shadow-atom-orbits-round2.md` | `32888be7218f9e9ed7dc0fa7850cd5bea7cf4ac3cd84722295d322df14e96fb5` |
+| `notes/progress/2026-10-07-successor-effective-projection-round2.md` | `23e8f85dda068308ed31c4157a6c68f275c10972b6a7707096b760d3d1b2f7bf` |
+
+Primary execution:
+
+```sh
+timeout 60s cargo test -p yu-core --features shadow --test shadow_atom_orbits --offline
+```
+
+**8/8 tests passed**, zero ignored or failed. Compilation completed in 0.63
+seconds; the tests completed in 0.15 seconds. The direct evaluator performs
+28,800 comparisons over 30 signed equality literals, two matrix shapes,
+eight three-binder alternations and both public equality patterns. It has no
+orbit partition and is independent of the implementation's class traversal.
+The other tests exercise quantifier order, correlation, repeated variables,
+finite-support freshness, scope/duplicate errors, reencoding and every limit.
+
+The two new shadow utilities together have **14 distinct passing focused
+tests** at these checkpoints. Both are independently reviewed implementations
+of their stated mathematical slices. Neither closes PROJECTION, IFACE_FORM,
+JOINT_DEC, Generalize, source adequacy or production inference. Production
+cutover remains explicitly excluded by the current user instruction.
