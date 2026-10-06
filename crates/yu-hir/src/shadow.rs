@@ -512,7 +512,7 @@ fn build_skeleton(
     } else {
         artifact.project(chain, source, positions)?
     };
-    // Retain only the existing ordinary unary leaf overlap. Publish the
+    // Retain ordinary unary leaves and one application of direct leaves. Publish the
     // declaration identity after projection so it cannot resolve in its body.
     let header_elements = header
         .children_with_tokens()
@@ -527,12 +527,21 @@ fn build_skeleton(
         })
         .map(|element| element.kind())
         .collect::<Vec<_>>();
+    let direct_body = match artifact.expression(&artifact.body)?.form() {
+        Form::Use { .. } | Form::IntegerLiteral { .. } => true,
+        Form::Apply {
+            callee, argument, ..
+        } => [callee, argument].into_iter().all(|id| {
+            matches!(
+                artifact.expression(id).map(Expression::form),
+                Ok(Form::Use { .. } | Form::IntegerLiteral { .. })
+            )
+        }),
+        _ => false,
+    };
     if parameters.len() == 1
         && header_elements == [SyntaxKind::MyKw, SyntaxKind::Pattern, SyntaxKind::Equals]
-        && matches!(
-            artifact.expression(&artifact.body)?.form,
-            Form::Use { .. } | Form::IntegerLiteral { .. }
-        )
+        && direct_body
     {
         let (name_text, range) = identifier(name, source)?;
         let binding = BinderId(artifact.id(artifact.binders.len()));
