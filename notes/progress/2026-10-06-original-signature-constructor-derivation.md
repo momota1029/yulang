@@ -2,9 +2,10 @@
 
 Date: 2026-10-06
 Baseline: `ea3ae1706e318ffd2261694b17244353f0ea4c0a`
-Status: frozen, unreviewed bounded research; no semantic or implementation authority
+Status: frozen, independently compiler-referee-reviewed bounded research; no semantic or implementation authority
 Method: constructive rule-output analysis and induction on constructor derivations
 Exclusive lease: this new note only
+Review: `compiler_referee` PASS, no findings, on frozen SHA-256 `bd96dfd2bfb4da1875a88b797abf0a7fead6300c9b1af8ab147aa75652e7048d`; scope is the conditional leaf-retention and sequential two-Call derivation only
 
 ## Objective and result
 
@@ -326,8 +327,8 @@ inputs, not authority or independent review of this output.
 - Baseline SHA: `ea3ae1706e318ffd2261694b17244353f0ea4c0a`.
 - Changed dependency hashes: none; 13 direct inputs match their baseline blobs.
   Historical predecessor dependency inventories are not silently updated.
-- Claim/review status: frozen unreviewed bounded derivation and conditional
-  leaf-retention theorem; no independent review, semantic selection or gate closure.
+- Claim/review status: frozen, compiler-referee-reviewed bounded derivation and
+  conditional leaf-retention theorem; no semantic selection or gate closure.
 - Checks already run: governing-source and rule-output reads, constructor
   induction and same-row/index/scope audit, minimal sequential-spine analysis,
   13 dependency hashes and pinned-byte comparisons, note-local integrity check.
@@ -341,5 +342,5 @@ inputs, not authority or independent review of this output.
   complete-row existence, admission, principality or production conformance.
   Tasks, theory maps, indexes, authority and question bundles remain untouched.
 
-Writing stops before submission for frozen review. Primary owns integration,
-independent review and shared-record adjudication.
+Writing stopped after the frozen artifact was submitted and independently
+reviewed. Primary owns integration and shared-record adjudication.

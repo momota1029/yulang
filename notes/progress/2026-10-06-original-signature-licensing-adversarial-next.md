@@ -2,10 +2,11 @@
 
 Date: 2026-10-06
 Baseline supplied by primary: `ea3ae1706e318ffd2261694b17244353f0ea4c0a`
-Status: frozen, unreviewed bounded research; non-authoritative
+Status: frozen, independently spec-audited bounded research; non-authoritative
 Method: identity-preserving mutation audit and conditional relational derivation
 Exclusive lease: this note only
 Semantic and implementation authority: none
+Review: `spec_auditor` PASS, no substantive findings, on frozen SHA-256 `666d542db384cf3bfcab7e62dbcd576dec8f674ecbb52c7fc6d13074f16e30e8`
 
 ## Objective and result
 
@@ -239,7 +240,8 @@ SHA-256 values at freeze:
 
 Design aliases refer to the linked design paths above; progress filenames are
 under `notes/progress/`. No production source file is a dependency of this
-attack. Writing stops before review submission.
+attack. Writing stopped before independent review; that review is recorded
+above.
 
 ## Commit packet
 
@@ -247,8 +249,8 @@ attack. Writing stops before review submission.
 - Baseline SHA: `ea3ae1706e318ffd2261694b17244353f0ea4c0a`.
 - Changed dependency hashes: none observed between reads and freeze; final
   pinned-blob equality is not claimed and belongs to the primary.
-- Review status: frozen unreviewed conditional representation derivation and
-  bounded unsuccessful attack; no independent certification or authority.
+- Review status: frozen, independently spec-audited conditional representation
+  derivation and bounded unsuccessful attack; no semantic authority.
 - Checks already run: governing-source and prior-attack reads, identity/mutation
   audit, dependency hashes, lease absence and note integrity/dependency recheck.
   No runtime or compiler checks.

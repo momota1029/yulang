@@ -3,10 +3,11 @@
 Date: 2026-10-06
 Baseline supplied by primary: `ea3ae1706e318ffd2261694b17244353f0ea4c0a`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: frozen unreviewed research-only correspondence audit
+Status: frozen, independently regression-reviewed research-only correspondence audit
 Method: constructor/consumer tracing and interface-level derivation
 Exclusive lease: this note only
 Semantic and production implementation authority: none
+Review: `regression_auditor` PASS within the bounded source-correspondence scope; frozen SHA-256 `b14a119b3cdc0dd3e7df76b318dd12ea34cba3c44eec23f164881685fb3f3863`
 
 ## Objective and result
 
@@ -306,8 +307,9 @@ crosswalk or interpreting finalized Function shape as licensing.
 - Changed dependency hashes: none observed during the lane; current freeze
   hashes above. Earlier supplier-map baseline had older `module.rs/shadow.rs`
   hashes, superseded here by the assigned crosswalk baseline, not a worker edit.
-- Review status: frozen unreviewed bounded characterization/interface derivation;
-  no independent review, closed licensing theorem or implementation authority.
+- Review status: frozen research-only characterization; regression review
+  passed within its bounded source-correspondence scope. No closed licensing
+  theorem or implementation authority.
 - Checks already run: governing/producer/source reads, exact public consumer
   search and constructor dataflow, forward/reverse premise audit, hashes,
   note-local whitespace/link checks. No executable semantic verification.
