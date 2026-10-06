@@ -424,6 +424,16 @@ without a source Call key or the original complete contribution owner/path/xi.
 This is historical interface-construction evidence only; Frozen Oracle remains
 non-authoritative and `ORIGINAL_ASSOC` and downstream gates remain open.
 
+The compiler-referee-reviewed [Frozen Oracle shared-boundary transport trace](../notes/progress/2026-10-07-frozen-oracle-boundary-transport-archaeology.md)
+adds a compiled-unit lifecycle mechanism: already-generalized interfaces
+produce a dependency-closed boundary table; import applies shared alpha
+remapping, session initialization installs a longer-lived boundary
+substitution, and per-use instantiation reuses those variables while
+freshening local binders. This is historical interface transport, not source
+Call formation: it supplies no original `beta`/`Slots(beta)`, typed `p0`,
+complete contribution, owner/receiver incidence or shared original `xi`.
+Frozen Oracle remains non-authoritative and `ORIGINAL_ASSOC` stays open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
