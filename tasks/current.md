@@ -62,8 +62,18 @@ the outer and returned closures enter. It does not cover all independently
 compatible contexts or construct `OpenInit`; compiler-referee review found no
 findings. See the [admission attempt](../notes/progress/2026-10-06-admission-A-exact-candidate-attempt.md).
 The construction and bounded inversion are linked here:
-[profile construction](../notes/progress/2026-10-06-profile-P-exact-candidate-construction.md),
+[conditional profile construction](../notes/progress/2026-10-06-profile-P-exact-candidate-construction.md),
 [profile stop](../notes/progress/2026-10-06-profile-P-completeness-falsification.md).
+A newer positive exact-source constructor emits the least generated footprint
+`{p_0}` and proves a typed transport normal form, then pinpoints the remaining
+converse: every original applicable position must be shown elimination-
+introduced. One inherited-coordinate review finding was repaired and delta-
+closed; P remains open. The simultaneous initial-context constructor gives a
+conditional PCInit recipe and local inversion while retaining original-world
+and admission correspondence as independent premises; it does not close A.
+See the [profile source construction](../notes/progress/2026-10-06-profile-source-normal-form-construction.md),
+[initial-context construction](../notes/progress/2026-10-06-initial-context-source-construction.md),
+and [admission quantifier audit](../notes/progress/2026-10-06-admission-context-completion-audit.md).
 
 The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,

@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `763ad96d4576ee6e2672c0cc35125e79c89fe955`
-Status: frozen research construction; independent review pending
+Status: frozen research construction; compiler-referee review completed, one minor coordinate-domain finding repaired and delta-closed
 Claim classes: constructive least-generated source footprint; conditional
 typed-profile provenance theorem; exact remaining converse obligation
 Scope: `my apply f = { my step x = f x; step }` only
@@ -268,13 +268,13 @@ nodes of this source's original introduction footprint.
 ### 5.1 Normal form
 
 For every output packet-profile fact in a finite composed recipe, there is
-an input introduction leaf `ell`, an original position `s_ell`, and a typed
-composite correspondence `M` such that
+an input profile leaf `ell`, a position `r_ell` in that leaf's own coordinate
+domain, and a typed composite correspondence `M` from that domain such that
 
 ```text
 chi_out(t,b) iff
-  exists ell,s_ell,M.
-    LeafProfile(ell,s_ell,b) and M(s_ell,t),
+  exists ell,r_ell,M.
+    LeafProfile(ell,r_ell,b) and M(r_ell,t),
 ```
 
 where the existential is over the recipe's actual indexed inputs/routes,
@@ -283,8 +283,20 @@ receiver references, `K,D,L` and witness identity are retained. This is the
 expanded typed-boundary equation, with no profile supplied for the generated
 leaf beyond `Foot-Call`.
 
-**Induction.** At an introduction leaf the identity route is a witness. At
-identity Name/binding/capture transport the same witness survives. At a
+A Generated leaf uses its introduced original position `p_0`. An Inherited
+leaf uses the supplied packet's input-view position; its retained original
+source witness does not identify that position with an original address.
+When the witness supplies an original-to-input correspondence `J`, the route
+from its original position `s` to output position `t` is `M compose J`, with
+an intermediate input-view position `r_ell`. For example, an inherited
+returned-thunk fact at `latent.effect` can originate at
+`result.latent.effect` through `J`'s result projection.
+
+**Induction.** At a Generated leaf the identity route starts at its introduced
+position. At an Inherited leaf the supplied packet is the base, and identity
+starts at its input-view coordinate; this does not assert an identity route
+from its original source coordinate. At identity Name/binding/capture
+transport the same witness survives. At a
 projection or result transport, append its typed correspondence; paths not
 in its domain have no output incidence. At an indexed union retain the
 chosen input and use its induction witness. At a composed route use
@@ -425,6 +437,12 @@ Oracle run, runtime measurement or source-acceptance experiment was run.
 The mathematical checks are the all-node exact-tree induction, indexed image
 composition/inversion, original-address/view-address distinction, and
 inspection of every governing introduction/transport clause named above.
+Independent compiler-referee review found one minor coordinate-domain defect
+in §5.1: an inherited packet's input-view address was incorrectly named as an
+original address. The repair now starts inherited routes at the packet input
+coordinate and composes a supplied original-to-input map when available. A
+spec-auditor delta review closed that finding with no new issues. This does not
+add a premise or establish profile completeness.
 The focused document check passed: all eight relative links exist; no
 trailing whitespace; final newline present; and all eight direct dependency
 hashes agree both with their working copies and with pinned baseline blobs.
