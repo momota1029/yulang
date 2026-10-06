@@ -112,6 +112,33 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
     assert_eq!(registration.source, input.call());
     assert_eq!(registration.source, call.source);
     assert!(std::ptr::eq(registration.application, apply.form()));
+    // The historical direct callee joins the current retained declaration by
+    // resolved identity only; old DefId and current BinderId are not compared.
+    let declaration = registration.parameter_declaration.unwrap();
+    assert_eq!(declaration.parameter, binder);
+    let outer_lambda = skeleton.expression(skeleton.body()).unwrap();
+    assert!(std::ptr::eq(declaration.lambda, outer_lambda));
+    let Form::Lambda {
+        parameter: outer_parameter,
+        ..
+    } = declaration.lambda.form()
+    else {
+        panic!("the callee parameter owner is the retained outer apply Lambda")
+    };
+    assert!(std::ptr::eq(declaration.parameter, outer_parameter));
+    assert_eq!(outer_parameter, input.outer_parameter());
+    let local_lambda = skeleton.expression(input.local_lambda()).unwrap();
+    let Form::Lambda {
+        binding: local_binding,
+        parameter: local_parameter,
+        ..
+    } = local_lambda.form()
+    else {
+        panic!("the captured call retains its local step Lambda")
+    };
+    assert_eq!(local_binding, input.local_binding());
+    assert_ne!(local_parameter, declaration.parameter);
+    assert!(!std::ptr::eq(declaration.lambda, local_lambda));
     // Join the historical source coordinates to candidate bookkeeping addresses
     // only; the Oracle supplies no typed endpoint correspondence here.
     let endpoints = raw
