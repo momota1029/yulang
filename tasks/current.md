@@ -225,6 +225,17 @@ explanation labels. This is historical preservation/attribution evidence,
 not the missing original source producer or current typed-path rule;
 `ORIGINAL_ASSOC` remains open.
 
+The independently reviewed [bounded ordinary-Call novelty stop](../notes/progress/2026-10-08-frozen-oracle-original-call-association-mechanism.md)
+checked the remaining ordinary-cast activation and local synthetic-App seams
+against the already traced call-upper, local-scheme, occurrence, SCC, selection,
+Function-path and Specializer2 routes. It found no additional historical
+producer satisfying the original owner/view-kernel contribution requirement:
+cast activation consumes generated constraints and explanation provenance,
+while loop desugaring reuses an Internal-origin App constructor. This is a
+bounded dispatch-avoidance result, not repository-wide absence or
+non-derivability. Oracle remains historical evidence only; `ORIGINAL_ASSOC`
+and dependent gates stay open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
