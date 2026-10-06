@@ -188,6 +188,16 @@ uniform complete-family witness; the candidate models are not certified as
 original Yulang kernels. Neither note supplies the disputed source rule or
 closes `CALL_TYPE`, `SIG_RULES`, `ORIGINAL_ASSOC`, licensing, or admission.
 
+The architect/compiler-referee-reviewed [open original-Call kernel contract](../notes/progress/2026-10-08-original-call-kernel-contract-candidate.md)
+keeps the existing `ORIGINAL_ASSOC` target fixed as one original witness for
+the complete family. Pointwise coverage alone cannot establish it; a factored
+schema yields it only under an independently supplied original assembly rule
+that builds the same complete-family witness. This conditional proof shape
+does not choose slot/contribution denotations or a licensing grammar. The
+remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
+(P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
+(P4); no semantic rule or new gate edge is adopted.
+
 The independently reviewed [Frozen Oracle selection-incidence trace](../notes/progress/2026-10-07-frozen-oracle-selection-incidence-producer.md)
 adds a distinct historical source-to-hidden-port mechanism: a dot-selection
 occurrence is registered before resolution, retained with separate receiver,
