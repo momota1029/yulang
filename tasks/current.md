@@ -472,9 +472,14 @@ uses the conditional singleton `my f = f` candidate to expose the earliest
 publication obligation. Under explicit strict-initialization premises, a
 successful provider publication would require an earlier successful lookup
 of that same unavailable member. The source envelope and initialization
-admissibility rule are not selected by the inspected clauses, so this derives
-no actual divergence, rejection or source counterexample. REC_INIT remains
-open for an independently authorized singleton initialization/read clause.
+admissibility rule were not selected by the inspected clauses, so that analysis
+derived no actual divergence, rejection or source counterexample. The approved
+[q1 handoff and receipt](../questions/2026-10-07-recursive-self-initialization/receipt.md)
+now select pre-execution deterministic rejection for this exact singleton
+only, while preserving its existing F4 inference result. This does not approve
+implementation or cutover. REC_INIT still requires a reviewed governing-source
+record and a source-adequacy argument for the selected boundary; no other
+recursive initializer form or general `Never` expression is covered.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
