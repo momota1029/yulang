@@ -145,6 +145,8 @@ and Frozen Oracle differential joins add only exact structural provenance.
 The retained [binder-use grouping](../progress/2026-10-07-shadow-pending-binder-use-groups.md)
 likewise groups only existing direct-Use registrations and leaves complete
 source-use coverage and all semantic judgments open.
+The [all-retained-Use inventory](../progress/2026-10-07-shadow-retained-source-use-groups.md)
+extends structural grouping to non-call uses without semantic aggregation.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/

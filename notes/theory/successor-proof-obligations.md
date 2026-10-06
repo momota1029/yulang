@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `28650389ce9738b8dc76432210fb8fb017a90cc4`.
+Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `475036233423ac6e6e3d56c7e710db5ca3f03e54`.
 
 Status: canonical **research navigation**, not an Authoritative semantic design.
 
@@ -995,9 +995,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [RAW_SOURCE](#raw-source), [PROJECTION](#projection), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource).
 - Premises retained: Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention and pending binder-use grouping are structural; grouping existing registrations proves no complete-use coverage. Production Lambda/Name paths do not cover whole Call.
+- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.
 - Unblocks: [CUTOVER](#cutover).
-- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md).
+- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md); [sourceuses](../../notes/progress/2026-10-07-shadow-retained-source-use-groups.md).
 
 ### CUTOVER
 

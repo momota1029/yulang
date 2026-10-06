@@ -204,6 +204,11 @@ empty groups establish neither semantic absence nor complete-use coverage.
 The final compiler dependency audit found no conflict with typed evidence or
 the source-plumbing test, and all pending semantic premises remain pending.
 
+The later [all-retained-Use grouping](../notes/progress/2026-10-07-shadow-retained-source-use-groups.md)
+also includes argument, returned and grouped uses without manufacturing direct
+call registrations. Its exact borrowed ExprId/BinderId/UseId inventory preserves
+the same structural-only boundary, with no mixed-role or complete-use judgment.
+
 The new [finite typed evidence query](../notes/progress/2026-10-07-successor-typed-evidence-query.md)
 computes supplied `Path`/`Inc_C` by typed reachability and exact current
 handler/owner/original-receiver activity. It does not generate source profiles,

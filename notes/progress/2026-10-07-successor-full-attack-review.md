@@ -3,7 +3,7 @@
 Date: 2026-10-07
 Status: independently reviewed research and verified shadow implementation; publication verification described below
 Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`
-Revalidated remote checkpoint: `28650389ce9738b8dc76432210fb8fb017a90cc4`
+Revalidated remote checkpoint: `475036233423ac6e6e3d56c7e710db5ca3f03e54`
 Branch: `research/simple-sub-intrusion`
 Mode: M3 for proof promotion; one primary Git/build owner, disjoint producer leases
 Production authority: none; no production inference cutover
@@ -153,6 +153,16 @@ with no new source completeness or semantic evidence. A valid empty group is
 not a semantic absence claim. The final focused dependency regression passed
 as recorded below.
 
+The first connected-API ref update returned a GitHub GraphQL server error.
+Before any retry, independent REST/ref and Git reads found remote `475036233`,
+one further additive shadow source-use inventory commit over `28650389c`.
+The attempted target had not been published. The primary inspected and merged
+that commit, preserving its source/test/note bytes and resolving only the task
+navigation conflict. The compiler-referee's narrow dependency review passed
+without findings: all retained Use identities remain structural and create
+neither call registrations nor typed semantic evidence. Its independent source
+semantics are unchanged, and no proof node/status/edge is added or promoted.
+
 ## Complete-DAG review and repair
 
 Initial compiler review found a major inventory error: REC_DESC, REC_LOCAL,
@@ -301,6 +311,12 @@ cargo test -p yu-core --features shadow --test shadow_binder_use_groups --test s
 three finite-query tests. This adds four distinct cases to the earlier 29; the
 four rerun cases are not double-counted. HIR and production implementations did
 not change in that remote delta, so no broad or repeated HIR build was added.
+
+After integrating `475036233`, the analogous final dependency run passed all
+**7 tests** (`shadow_binder_source_uses`, `shadow_directional_incidence_join`,
+`shadow_typed_evidence`). It adds three distinct cases and reruns four; in total,
+36 distinct focused Rust cases passed across the inspected integrated snapshots
+(22 core, 14 HIR), not 36 newly rerun cases at every metadata revision.
 
 No workspace-wide inference acceptance suite, live Oracle execution or
 production cutover test ran. The new implementation has no production

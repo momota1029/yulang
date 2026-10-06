@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "ac2864a48868b017a8b6fedc6a665f24d0c2daff"
-REVALIDATED = "28650389ce9738b8dc76432210fb8fb017a90cc4"
+REVALIDATED = "475036233423ac6e6e3d56c7e710db5ca3f03e54"
 STATUSES = {
     "CLOSED", "CONDITIONAL-CLOSED", "IMPLEMENTATION-ONLY", "OPEN-PROOF",
     "OPEN-SEMANTIC", "BLOCKED-BY-USER-DECISION",
@@ -80,6 +80,7 @@ REFS = {
     "owner": "notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md",
     "retention": "notes/progress/2026-10-07-shadow-nested-unary-retention.md",
     "bindergroups": "notes/progress/2026-10-07-shadow-pending-binder-use-groups.md",
+    "sourceuses": "notes/progress/2026-10-07-shadow-retained-source-use-groups.md",
     "solver": "crates/yu-solver/src/lib.rs",
     "hir": "crates/yu-hir/src/lib.rs",
     "oracle": "notes/progress/2026-10-06-frozen-oracle-presolve-application-types.md",
@@ -346,7 +347,7 @@ n("RESOURCE", "OPEN-SEMANTIC", "Exact practical resource/admission and failure b
   "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.", "charter newglobal")
 n("HIR_WIRING", "IMPLEMENTATION-ONLY", "Settled source-to-HIR and complete production pipeline wiring", "RAW_SOURCE PROJECTION FRESH_LIFE RESOURCE",
   "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
-  "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention and pending binder-use grouping are structural; grouping existing registrations proves no complete-use coverage. Production Lambda/Name paths do not cover whole Call.", "hir solver shadowcore owner retention bindergroups")
+  "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention, pending binder-use grouping and all-retained-Use grouping are structural; grouping retained identities proves no semantic complete-use coverage. Production Lambda/Name paths do not cover whole Call.", "hir solver shadowcore owner retention bindergroups sourceuses")
 n("ORACLE_COMPAT", "OPEN-PROOF", "Successor capability and observation compatibility", "RAW_SOURCE RESOLVE_FP OBS_INCLUSION",
   "Declared final well-typed source envelope and current Authority; Frozen Oracle is historical evidence only.",
   "Prove required final acceptance/observations and justify each intended delta; use differential fixtures as evidence. Oracle algorithms/projections/IDs do not define successor typing or licensing.", "charter oracle newglobal")
