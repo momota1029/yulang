@@ -69,6 +69,7 @@ fn shadow_resolved_call_incidence_distinguishes_nested_uses_of_one_binder() {
                 Premise::FullFunctionMembership,
                 Premise::CallViewRealization,
                 Premise::QIndependentSourceCallViewFormation,
+                Premise::SourceEventContributionAndTypedOutputObservation,
                 Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
                 Premise::SourceDirectionalOutputEffectProtectionIntroduction
             ]
@@ -99,7 +100,7 @@ fn shadow_resolved_call_incidence_distinguishes_nested_uses_of_one_binder() {
     }
     assert!(forms.contains(&SyntaxKind::MlArgument));
     assert!(forms.contains(&SyntaxKind::CallTail));
-    assert_eq!(skeleton.pending().len(), 12);
+    assert_eq!(skeleton.pending().len(), 14);
     let stubs = skeleton
         .pending()
         .iter()
@@ -117,7 +118,7 @@ fn shadow_resolved_call_incidence_filters_integer_callee_without_dropping_apply(
     let skeleton = artifact.skeleton().unwrap();
     assert_eq!(skeleton.application_source_occurrences().count(), 1);
     assert_eq!(skeleton.resolved_call_incidences().count(), 0);
-    assert_eq!(skeleton.pending().len(), 4);
+    assert_eq!(skeleton.pending().len(), 5);
 }
 
 #[test]
@@ -126,7 +127,7 @@ fn shadow_resolved_call_incidence_keeps_grouped_callee_applicability_unrecorded(
     let skeleton = artifact.skeleton().unwrap();
     assert_eq!(skeleton.application_source_occurrences().count(), 1);
     assert_eq!(skeleton.resolved_call_incidences().count(), 0);
-    assert_eq!(skeleton.pending().len(), 4);
+    assert_eq!(skeleton.pending().len(), 5);
     assert!(skeleton.pending().iter().all(|pending| {
         pending.premise() != Premise::SourceFormalUseRuleApplicabilityAndInterpretation
     }));

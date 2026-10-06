@@ -673,6 +673,12 @@ pub enum Premise {
     /// is a separate obligation. Pending `Q`/comparison success cannot discharge
     /// this premise; recording it supplies no fact or semantic acceptance.
     QIndependentSourceCallViewFormation,
+    /// Pending source event-contribution, exact original upper complete-invocation
+    /// output correspondence and typed receipt/receiver observation obligation.
+    /// Original beta, source scope and whole xi = (nu, K, D) remain unresolved.
+    /// This asserts no event, upper view, output, receipt or receiver existence,
+    /// Flow, protection, admission, Q independence discharge or semantics.
+    SourceEventContributionAndTypedOutputObservation,
     /// Named source-producer stub only: both rule applicability and interpretation
     /// remain pending. A direct resolved use need not denote a formal. Formal status,
     /// the relevant component, annotation status and ordinary-Value typing are
@@ -1378,6 +1384,7 @@ impl Skeleton {
                 Premise::FullFunctionMembership,
                 Premise::CallViewRealization,
                 Premise::QIndependentSourceCallViewFormation,
+                Premise::SourceEventContributionAndTypedOutputObservation,
             ] {
                 self.pending.push(PendingPremise {
                     call: id.clone(),
@@ -2024,12 +2031,13 @@ mod tests {
             );
         }
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 6);
+        assert_eq!(skeleton.pending().len(), 7);
         for (pending, expected) in skeleton.pending().iter().zip([
             Premise::CallableRole,
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
+            Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction,
         ]) {
@@ -2086,7 +2094,7 @@ mod tests {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 7);
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 6);
+        assert_eq!(skeleton.pending().len(), 7);
         assert_eq!(
             skeleton
                 .binders()
@@ -2325,7 +2333,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(&source)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 17);
-        assert_eq!(skeleton.pending().len(), 34);
+        assert_eq!(skeleton.pending().len(), 42);
         assert_eq!(skeleton.uses().len(), 9);
         drop(artifact);
     }
@@ -2366,7 +2374,7 @@ mod tests {
         skeleton.body = skeleton.project(synthetic, &source, &positions).unwrap();
         skeleton.validate().unwrap();
         assert_eq!(skeleton.expressions().len(), 8_001);
-        assert_eq!(skeleton.pending().len(), 16_000);
+        assert_eq!(skeleton.pending().len(), 20_000);
         assert_eq!(skeleton.uses().len(), 4_001);
         drop(skeleton);
     }
@@ -2388,7 +2396,7 @@ mod tests {
             skeleton.expression(argument).unwrap().form(),
             Form::Use { .. }
         ));
-        assert_eq!(skeleton.pending().len(), 6);
+        assert_eq!(skeleton.pending().len(), 7);
     }
 
     #[test]

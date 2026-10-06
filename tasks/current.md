@@ -60,12 +60,11 @@ scope. No completed original P, Q success or solved result traversal is needed
 for this local introduction. The provider-lower edge cannot trigger the rule.
 
 The bounded [ordinary Apply output bridge](../notes/progress/2026-10-06-directional-apply-output-bridge-attempt.md)
-connects the reviewed source-call schema to that directional rule at the
-generated complete-invocation output occurrence, conditional on the selected
-seed-at-exposure witness and reviewed Call premises. It reaches the static
-`NewProtection` record only; complete original profile, event contribution,
-typed receipt and live-receiver observation remain open. This is a frozen
-unreviewed research submission, not a source-wide rule or production result.
+is independently compiler-referee reviewed with no findings. It links the
+source-call's emitted upper `VIncl` occurrence and complete-invocation output
+address to the selected rule, conditional on the seed-at-exposure witness.
+It establishes the static `NewProtection` record only; contribution, actual
+event membership, typed receipt and live receiver remain open.
 
 The new author-checked arguments are local soundness/completeness of this
 incidence producer, no-backflow, coherent-renaming invariance, deterministic
@@ -102,9 +101,7 @@ converse as a prerequisite. Instead:
    original scope through recursive formation, generalization and use. The
    new rule does not choose all variable-to-variable, nested-result or late-seed
    propagation policies by analogy.
-2. Connect its effect incidence to original contribution interpretation and
-   actual typed capture/rebind/read, receiver/receipt and live observation.
-   Lexical capture and equal endpoint shapes alone do not supply those facts.
+2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. Derive the source `P_output` contribution-to-executing-view incidence and actual typed capture/rebind/read, receipt/receiver and live observation. Lexical capture and equal endpoint shapes alone do not supply those facts.
 3. Preserve the full seed/refined source solution relation, not just its
    deterministic record extension. Keep one original `xi=(nu,K,D)` throughout.
 4. Complete independently interpreted descriptor/context/world admission,
@@ -135,9 +132,14 @@ are not inferred from them. Preserve the ledger's known unrelated HIR count
 mismatch and its unchanged expected value; this task does not resolve it.
 
 Since the archived ledger snapshot, additional default-off shadow slices now
-retain declaration/Apply roots, direct resolved-call incidence, formal-use and
-directional-output-effect pending obligations, and the call/use/source input
-join. The current F5 observer also records Q/R-to-fresh-row mapping at the
+retain declaration/Apply roots, direct resolved-call incidence, formal-use,
+directional-output and event-contribution/typed-observation pending obligations,
+and the call/use/source input join. The
+[event/output pending-premise slice](../notes/progress/2026-10-06-shadow-event-output-obligation.md)
+records that obligation once per retained Apply without asserting typed
+evidence. These additions assert no typed event,
+profile, receipt, receiver or semantic discharge. The current F5 observer also
+records Q/R-to-fresh-row mapping at the
 actual use-time freshening route, and the SCC observer exposes component
 identity alongside shadow source identities. These remain structural or
 observational: no Q/R scheme correspondence, call-view semantics, protection

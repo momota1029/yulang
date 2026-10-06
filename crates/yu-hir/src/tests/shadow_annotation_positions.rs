@@ -283,6 +283,7 @@ fn shadow_annotation_positions_associates_only_grouped_parameter_identifier() {
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
+            Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction
         ]

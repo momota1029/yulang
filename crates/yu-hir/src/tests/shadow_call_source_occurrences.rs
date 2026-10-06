@@ -16,9 +16,13 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             .count(),
         expected_calls
     );
+    // The approved pending-only extension adds one unresolved obligation per Apply.
+    // These inventory expectations count retained obligations, not semantic output:
+    // causal scope and approval were confirmed before edits by the spec auditor,
+    // with the rationale recorded here under testing.md protection items 1–4.
     assert_eq!(
         skeleton.pending().len(),
-        expected_calls * 4 + 2 * skeleton.resolved_call_incidences().count()
+        expected_calls * 5 + 2 * skeleton.resolved_call_incidences().count()
     );
     for (index, occurrence) in occurrences.iter().enumerate() {
         let expression = skeleton.expression(occurrence.expression()).unwrap();
@@ -46,6 +50,7 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
+            Premise::SourceEventContributionAndTypedOutputObservation,
         ];
         if matches!(
             skeleton.expression(occurrence.callee()).unwrap().form(),

@@ -25,6 +25,27 @@ port is distinct from the complete original profile. The earlier
 does not bar introducing an unknown Function variable before proving the
 constraints satisfiable.
 
+The independently compiler-referee-reviewed [ordinary Apply directional output bridge](../progress/2026-10-06-directional-apply-output-bridge-attempt.md#independent-review)
+maps the emitted upper `VIncl` occurrence and complete-invocation output
+address to `NewProtection`, conditional on the seed-at-exposure witness and
+the existing Call premises. It establishes no completed profile or event
+contribution, receipt, live receiver or independent admission.
+
+The independently reviewed [event-to-output-link derivation](../progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment)
+then derives preservation of a reached request through complete invocation
+under explicit execution premises, but isolates the first missing source
+judgment as `P_output`: realizing the original `p_0` protection in the
+executing view that observes that request. `Flow`, `Observe`, matching
+`Receive`, `Path`, receiver activity and source admission remain premises;
+this does not close source contribution or produce an accepted-source result.
+
+The independently compiler-referee-reviewed [conditional event-incidence discriminator](../progress/2026-10-06-directional-event-output-link-falsification.md#independent-delta-review)
+shows that static output/capture/equal-row data are insufficient to decide
+`Path` over a supplied two-event history when typed observation ports differ.
+Its universal absence of every matching `Flow`/`Observe`/`Receive` join is an
+explicit hypothesis, not a source result; complete history admission and
+source `P_output` remain open.
+
 The reviewed [P/A continuation](../progress/2026-10-06-source-generation-pa-review.md)
 adds a constructive least-generated singleton footprint and tagged transport
 normal form. The elimination-only route to complete P still needs the converse

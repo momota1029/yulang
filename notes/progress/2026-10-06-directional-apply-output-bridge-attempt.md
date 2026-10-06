@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `b26087ce26bc2e77f41709a1e7b58bc4c73c2db6`
-Status: frozen producer submission; unreviewed research only
+Status: frozen conditional research result; compiler-referee reviewed with no findings
 Method: one bounded constructive source-section derivation
 Claim class: conditional local static bridge using an already reviewed Call constructor
 Semantic/implementation authority: none
@@ -217,10 +217,20 @@ Inspection output
 was bounded; broad document captures were truncated, and exact relevant
 sections were reread. Other core/source cases were not exhaustively searched.
 
-Recommended next action: independently review this exact static bridge, then
-construct the event-to-upper-occurrence contribution clause at the generated
-root with actual typed receipt and live observation. Do not re-solve the
-already selected directional meaning.
+Recommended next action: construct the event-to-upper-occurrence contribution
+clause at the generated root with actual typed receipt and live observation.
+Do not re-solve the already selected directional meaning.
+
+## Independent review
+
+A compiler referee reviewed the complete note against the directional,
+call-view, nested-block, source-call and typed-core sources. No blocking, major
+or minor findings were reported. The review confirms this conditional bridge
+from the emitted `VIncl` occurrence and exact complete-invocation output port
+to `NewProtection` under the seed-at-exposure premise, and confirms the stop
+before original profile completion, event contribution, typed receipt/live
+receiver and independent admission. Source-wide exposure, conversions,
+arbitrary generalization and production behavior were not reviewed or closed.
 
 Commit packet: only
 `notes/progress/2026-10-06-directional-apply-output-bridge-attempt.md`;
