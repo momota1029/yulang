@@ -66,23 +66,30 @@ The reviewed [source-registration derivation](../progress/2026-10-06-source-regi
 
 ### 2. Source to finite constrained presentation
 
-**Reviewed bounded non-derivation — first source interpretation rule.** The
-[main-gate localization](../progress/2026-10-06-main-source-generation-minimal-clause.md)
-constructs the exact candidate's ordinary shared-endpoint/whole-argument
-obligation prefix and proves that the named rule inventory has no first
-original inferred-formal interpretation at `A_f`. The smallest missing local
-head is an independently interpreted `U_c` from one unannotated formal/use,
-not another decorated `J_call` constructor. The singleton role outcome is
-already selected; typed footprint and independent typed-hole/environment
-admission remain separate missing definitions. Finite symbolic presentation,
-admitted-entry coverage, capture association, production containment and
-all-view principality remain open. Minimality is dependency-order within the
-named inventory, not a global impossibility or cardinal-minimum axiom theorem.
-The [reviewed Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
-characterizes separate formal annotation and Scheme/freshening channels;
-equal Function boundary types do not erase the old annotation certificate in
-the inspected adapter branch. No `FVIEW -> SRC` closure or implementation
-authority follows. See the [review record](../progress/2026-10-06-main-source-generation-review.md).
+**Reviewed source-derived initial schema; main source relation still open.**
+The [constructive follow-up](../progress/2026-10-06-source-call-generation-construction.md)
+produces the exact singleton's shared inferred root, canonical initial
+`call.effect` address, source elimination incidence and initial protected/no-
+grant policy. Its role/address records are canonical and conservative at their
+record projection. It also gives a genuinely interpreted existential complete-
+Function Call constraint, preserving the actual Name-return argument root,
+all represented callee members, complete invocation and one original joint
+assignment. No successful typing proof is needed before generation. This
+narrows the [earlier bounded rule-inventory stop](../progress/2026-10-06-main-source-generation-minimal-clause.md);
+it does not refute that stop in its named inventory.
+
+Complete original profile/contribution generation and seed-to-refined receiving-
+view interpretation (P), and independently typed initial punctured-context
+admission (A), remain missing constructors. The seed singleton is not a proof
+of the full `Slots(beta)` inventory; generic decorated validity and indexed
+closure do not reconstruct original source applicability or exact admission.
+Actual typed packet attachment, capture/receipt realization, both directions
+of source inversion, all-view principality, complete finite presentation and
+Option A/2 containment remain open. No new user choice is proved necessary,
+no production rule is authorized, and no `FVIEW -> SRC` edge is closed. See
+the [two-review record](../progress/2026-10-06-source-call-generation-review.md).
+The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
+and newer frame/producer traces remain historical mechanism evidence.
 
 **Conditional theorem — source adequacy target.** The source-interface adequacy draft defines fiberwise forward coverage from source executions into a complete interface, under the same `nu` and retained joint `K,D`, including future uses, latent closures/thunks, requests and resumptions. Its exact complete-interface embedding is a semantic reference construction, not a finite solver or proof that current HIR generation emits such a presentation. See [source-to-complete-interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md) and [typed source owner realization](../design/2026-10-02-typed-source-owner-realization.md).
 
