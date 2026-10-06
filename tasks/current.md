@@ -87,6 +87,16 @@ fact, but its erasure fails the complete `SEM_JOINT`/local-typing premise; it
 is not a Yulang source counterexample. `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
 `SEM_JOINT`, and `CALL_TYPE` remain open.
 
+The compiler-referee-reviewed [computed-callee/retained-entry attempt](../notes/progress/2026-10-08-call-type-computation-entry-attempt.md)
+adds the distinct computational-callee route: a callee Request retains
+`kf >>= S_f` before receipt, while a Request from the receiver's body consumer
+retains `ka >>= R_r` after binding. The operational suffix equations pass;
+typing stops at the independently admitted callee Return/pending-Bind
+consequences and later argument/provider membership. A minor phase-boundary
+notation finding was repaired locally. This is a conditional localization,
+not a source counterexample or `CALL_TYPE` closure; the clause-construction
+gates remain open.
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the

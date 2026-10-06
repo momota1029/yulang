@@ -2,11 +2,12 @@
 
 Date: 2026-10-08
 Baseline: `2569c0182e2c562d176c837b4d60e0ee693d8c02`
-Status: research-only; unreviewed; frozen at handoff
+Status: research-only; compiler-referee reviewed with minor notation repair
 Claim class: conditional operational derivation and bounded premise localization
 Method: expand the computed-callee Bind and actual retained-entry/body-consumer branches
 Exclusive lease: this note only
 Semantic and implementation authority: none
+Review: compiler_referee substantive PASS with one phase-boundary notation finding on pre-repair SHA-256 `6b71501a4b5a08c0b9f161bf4fce2be2aa5931f9bd7fdb1f362eee663d6cd0cc`; primary repaired the notation locally without changing claims.
 
 ## Objective and dependencies
 
@@ -87,8 +88,10 @@ Core §6 supplies the following existing derivations at the original typed
 ports, before executing any code:
 
 ```text
-J_f = Normalize(Computation(E_f,F),d_f) = Execute_p_f(d_f)
-J_x = Normalize(I_x,d_x)
+n_f = Normalize(Computation(E_f,F),d_f) = eliminate_p_f(d_f)
+n_x = Normalize(I_x,d_x)
+J_f = X[n_f] = Execute_p_f(V[d_f])
+J_x = X[n_x]
 
 S_f(f,C) = let t = Delay(J_x,original lexical references) in
              ExecuteCallable(f,t,C;original complete view)
@@ -313,13 +316,18 @@ performance claim follows.
 - Exact leased path: `notes/progress/2026-10-08-call-type-computation-entry-attempt.md`.
 - Baseline SHA: `2569c0182e2c562d176c837b4d60e0ee693d8c02`.
 - Dependency hash deltas: none at prewrite comparison; final recheck in handoff.
-- Review status: unreviewed research-only operational derivation/premise
-  localization; frozen at handoff; no independent review or gate closure.
+- Review status: compiler_referee substantive PASS. The sole minor
+  phase-boundary notation issue was repaired by the primary above, with no
+  claim changes; no theorem or gate closure is claimed.
 - Checks already run: exact source/prior-attempt reads, six baseline byte/hash
-  comparisons, leased-path absence; final source/hash/whitespace check in handoff.
+  comparisons, leased-path absence, and targeted Normalize/executable-translation
+  notation check against typed-core §§3/6.
 - Proposed commit message: `research: localize computed-callee Call typing seam`.
 - Shared-record deltas left for primary/curator: optionally reference the
   computed-callee elimination/pending Bind seam and the distinct retained
   body-consumer suffix; preserve open `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
   `SEM_JOINT` and `CALL_TYPE`. No task, index, authority, theory, manifest,
   lockfile, another worker's path or question-board bundle was edited.
+
+The producer froze the artifact before review. The primary closed the one
+minor notation finding without changing the derivation or gate status.
