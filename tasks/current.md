@@ -453,6 +453,15 @@ solve. Row allocation, ordering, operand positions and unresolved state are
 preserved. This closes only an evidence-lifecycle gap in the shadow lane; it
 adds no typing premise or production behavior.
 
+The focused [operand source-Use differential](../notes/progress/2026-10-07-shadow-solved-application-use-retention.md)
+now also joins both operands of `x(x)` after solve to distinct source `UseId`s,
+their shared Binder, and the retained Lambda declaration. The supported
+fixture requires those source mappings to exist; a missing skeleton, Apply or
+declaration fails the test. `ApplicationTypingRuleUnresolved` remains, and no
+semantic completeness claim follows. The focused differential target passed
+all 4 tests; compiler-referee delta review passed after repairing its initial
+vacuous optional checks.
+
 The grouped nested-call slice now retains the approved ordinary source shape
 `f (f 1)` through an explicit Group occurrence and both Apply occurrences in
 the opt-in HIR/solver structural path. The differential joins exact Group,

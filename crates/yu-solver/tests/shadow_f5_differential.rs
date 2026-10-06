@@ -520,6 +520,60 @@ fn pending_application_direct_names_preserve_positions_and_resolution_variants()
                     panic!("both direct Names retain parameter resolution");
                 };
                 assert_eq!(callee, argument);
+                // Join each operand separately; missing shadow metadata supplies
+                // no declaration or application typing judgment.
+                let skeleton = shadow
+                    .skeleton()
+                    .expect("the supported unary fixture retains its source skeleton");
+                let crosswalk = shadow.skeleton_source_crosswalk();
+                let application_position = shadow
+                    .occurrence_source_position(solved.hir(), &rows[0].occurrence)
+                    .unwrap();
+                let application = crosswalk
+                    .application_at_position(&application_position)
+                    .unwrap()
+                    .expect("the supported unary fixture retains its source Apply");
+                let Form::Apply {
+                    callee: source_callee,
+                    argument: source_argument,
+                    ..
+                } = application.form()
+                else {
+                    panic!("crosswalk application retains its Apply form");
+                };
+                let mut source_uses = Vec::new();
+                let mut source_binders = Vec::new();
+                for (source_use, expression) in uses.iter().zip([source_callee, source_argument]) {
+                    let position = shadow
+                        .occurrence_source_position(solved.hir(), source_use.occurrence())
+                        .unwrap();
+                    let expression = skeleton.expression(expression).unwrap();
+                    assert_eq!(expression.position(), &position);
+                    let exact_use = crosswalk.use_at_position(&position).unwrap().unwrap();
+                    let Form::Use { occurrence, binder } = expression.form() else {
+                        panic!("each direct Name retains its own source Use form");
+                    };
+                    assert_eq!(exact_use, occurrence);
+                    source_uses.push(exact_use);
+                    source_binders.push(binder);
+                    let NameResolution::Parameter(parameter) = source_use.resolution() else {
+                        panic!("direct operand retains parameter resolution");
+                    };
+                    let parameter_position = shadow
+                        .parameter_source_position(solved.hir(), parameter)
+                        .unwrap();
+                    let (lambda, declared_parameter) = crosswalk
+                        .parameter_at_position(&parameter_position)
+                        .unwrap()
+                        .expect("the supported unary fixture retains its Lambda declaration");
+                    assert_eq!(binder, declared_parameter);
+                    let Form::Lambda { parameter, .. } = lambda.form() else {
+                        panic!("retained syntactic declaration is a Lambda");
+                    };
+                    assert_eq!(parameter, binder);
+                }
+                assert_ne!(source_uses[0], source_uses[1]);
+                assert_eq!(source_binders[0], source_binders[1]);
             }
             HirItem::Expression(_) => {
                 assert_eq!(uses.len(), 1);

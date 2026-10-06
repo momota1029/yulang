@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 Baseline: `ad47dc466e48119946ecfacc40fa7ba2423916c1`
-Status: compiler-referee reviewed M1 structural shadow slice
+Status: compiler-referee reviewed M1 structural shadow slice and follow-up operand-identity differential
 Authority: user-authorized default-off experimental identity plumbing; no semantic or production authority
 
 ## Result
@@ -20,6 +20,13 @@ dependency edges, counters, callable roles, source slots, profiles, or SCC
 behavior. It does not establish old-infer equivalence, application typing,
 soundness, principality, or source adequacy.
 
+A follow-up differential now joins both direct operands of `x(x)` after solve
+through their exact HIR positions to distinct source `UseId`s, the shared
+source `BinderId`, and the retained syntactic Lambda declaration. In this
+supported positive fixture, missing skeleton, Apply, or declaration metadata
+fails the test rather than silently skipping the join. Unresolved/grouped
+operands remain outside this direct-Name join and gain no inferred identity.
+
 ## Verification and review
 
 The implementer ran these checks sequentially, with two Cargo build jobs and
@@ -34,6 +41,12 @@ The compiler-referee review passed with no correctness findings. It confirmed
 the move preserves the collector-owned vector and that feature-off builds omit
 the field, move and accessors. Review did not cover broad suites, combined
 observer features, old-infer application equivalence or semantics.
+
+The compiler referee later found the first test draft could skip its new
+source joins when metadata was missing. The supported fixture was changed to
+require that metadata; independent delta review passed. The focused differential
+target again passed all 4 tests, with one Cargo process, two build jobs and one
+test thread.
 
 Cost is the longer lifetime of the already allocated vector under the default-
 off feature; borrowed iteration allocates no collection. No performance
