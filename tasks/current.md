@@ -11,6 +11,24 @@ remains active. A test-only finite parent/use transport prototype is authorized
 as an experiment; production inference-path replacement remains gated by the
 open soundness/principality obligations.
 
+The latest direct main-gate attack has independent compiler/spec review:
+[minimal source clause](../notes/progress/2026-10-06-main-source-generation-minimal-clause.md)
+and [review record](../notes/progress/2026-10-06-main-source-generation-review.md).
+The ordinary exact-candidate skeleton supplies shared `A_f`, the whole
+`Comp(empty,A_x)` argument obligation, and lexical incidence. A bounded
+last-rule audit shows the inventoried generators do not first introduce the
+original inferred-formal interpretation. The earliest missing rule emits an
+independently interpreted local `U_c` from that one unannotated formal/use,
+connecting its already selected protected seed and ordinary-value refinement
+on the same joint relation. Original typed footprint and independent
+typed-hole/environment admission remain separately undefined; this is no
+main-gate closure, impossibility theorem or new semantic decision. Finite
+symbolic presentation and admitted-entry coverage also remain open. The
+[Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
+additionally separates formal annotation certificates from Scheme freshening
+and checks their known-callee/equal-Function adaptation path; it grants no
+current source or implementation authority.
+
 The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
 artifact-branded source positions, a narrow ordinary-application/binder/use
