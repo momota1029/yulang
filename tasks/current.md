@@ -193,9 +193,16 @@ The bounded [latent Function clause audit](../notes/progress/2026-10-07-rec-desc
 locates the actual source-indexed returned-closure reference clause and its
 positive membership inversion. It does not provide an independent latent
 Function `DescMem` clause/inversion or the original binder tree needed to
-instantiate H1; H2–H5 remain uninstantiated, not falsified. The next item is
-one independently interpreted latent Function clause at the retained `v_g`,
-with its full local judgment, future-use inputs and original binder scope.
+instantiate H1; H2–H5 remain uninstantiated, not falsified. The bounded
+[captured-Name lookup stop](../notes/progress/2026-10-07-rec-desc-captured-name-lookup-stop.md)
+derives `Synth(name g)=Value(R_g)` and inert `V[name g]=lookup(g)` at the
+mutually recursive provider `my f x = g; my g y = f`, then uses the existing
+knot equality `eta_f(g)=v_g`. That source identity still does not establish
+`DescMem(R_g,v_g;xi,w)`. The next premise is independent semantic adequacy of
+this captured lookup at the original scopes and `(xi,w)`, followed by checking
+whether FH's independently interpreted `W` entails it without circularly
+assuming recursive member validity. The note has a bounded compiler-referee
+review; REC-DESC remains open.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual

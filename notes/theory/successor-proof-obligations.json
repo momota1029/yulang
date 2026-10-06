@@ -984,14 +984,15 @@
         "FH",
         "SEM_JOINT"
       ],
-      "premises": "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
-      "minimal_lemma_or_closed_scope": "Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.",
+      "premises": "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Establish semantic adequacy of each captured Name lookup at that same scope/assignment as a static/root premise or a complete local check; Gamma identity alone is insufficient. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
+      "minimal_lemma_or_closed_scope": "Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, lookup adequacy, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.",
       "references": [
         "newrec",
         "k",
         "source",
         "recdreflection",
-        "recbridge"
+        "recbridge",
+        "reclookup"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2445,6 +2446,7 @@
     "newrec": "notes/progress/2026-10-07-successor-recursive-synthesis.md",
     "recdreflection": "notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md",
     "recbridge": "notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md",
+    "reclookup": "notes/progress/2026-10-07-rec-desc-captured-name-lookup-stop.md",
     "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
