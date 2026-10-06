@@ -38,9 +38,10 @@ inversion and collecting A remain conditional on fixed independent descriptor,
 P and semantic import/world interpretations. Ordinary imports are allowed
 ambient inputs, not additional source-owned outputs of captured-step syntax.
 
-The first remaining **P** clause is original-introduction completeness:
-`Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original source witness.
-The reverse follows from the Call seed. Full protection/no annotation grant is
+The first remaining **P** clause is exhaustive original-introduction formation.
+The elimination-only singleton route would require
+`Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original source witness;
+the reverse follows from the Call seed. Full protection/no annotation grant is
 fixed at applicable positions; their complete original inventory is not.
 `G_C` is not complete `Slots_original(beta)`. Original contribution completeness
 and same-root seed-to-refined full-view/solution preservation still need proof.
@@ -48,9 +49,9 @@ For **A**, the structural producer is now explicit, while exact full-world
 import/transition interpretation, source-form extensions and complete production
 admission correspondence remain open. Actual receipt/typed capture realization,
 all-view source inversion, finite complete presentation and Option A/2 containment
-remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. No pair
-of conformant complete alternatives was established, so no new user decision or
-implementation authority is inferred from the remaining proof gap. The
+remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. The
+earlier audits established no pair of conformant complete alternatives; their
+proof gap alone did not justify a new semantic choice or implementation. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 remains historical mechanism evidence only. A separate bounded source/production
 crosswalk inventories formal, call, annotation, capture and generalization
@@ -65,13 +66,39 @@ and `I-exhaust` remain unproved. A bounded adjacent-use audit, reviewed by a
 regression auditor, shows repeated direct Calls can share static `p_0` while
 retaining distinct occurrence witnesses under explicit hypotheses; annotated
 and computed-result calls need separate source correspondence. Neither closes
-exact P or supplies a source-valid counterexample. An architect audit
-classifies this as a proof/design-completion obligation; no incompatible
-Authority-conformant alternatives or new user decision are evidenced. The next
-gate is an independently justified exhaustive original formal-profile
-introduction rule and its inversion proof. See the [conditional formation-rule
+exact P or supplies a source-valid counterexample. The earlier architect audit
+classified this as a proof/design-completion obligation; those artifacts did
+not establish incompatible complete Authority-conformant alternatives. See the
+[conditional formation-rule
 attempt](../notes/progress/2026-10-06-formal-profile-formation-rule-attempt.md)
 and [adjacent-use audit](../notes/progress/2026-10-06-profile-adjacent-use-source-falsification.md).
+
+The newer [original-introduction decision synthesis](../notes/progress/2026-10-06-source-generation-introduction-decision.md)
+and [two-round independent review](../notes/progress/2026-10-06-source-profile-introduction-review.md)
+now give a concrete local discriminator and an exhaustive exact-tree proposal.
+Two total candidate producers emit only the immediate Call schema, or that
+schema plus a separately source-owned result default, before solving or Q.
+A common ordinary Pure supplier returning an inert reified integer supplies
+the contested latent result address. Their original source certificates differ
+at the same raw joint valuation, with inherited packets and actual roles kept
+separate. This is reviewed relative local non-entailment, not two complete
+Yulang models, differing admission/acceptance or a uniquely forced binary choice.
+The [naturality countermodel](../notes/progress/2026-10-06-profile-substitution-naturality-closure.md)
+rules out deriving singleton from origin preservation alone; the
+[observation audit](../notes/progress/2026-10-06-profile-completion-observation-quotient.md)
+rules out treating expiry/grant at one candidate as full relation equality.
+
+The concrete next semantic target is the synthesis's §5 exhaustive table:
+E emits only the immediate original schema; R adds exactly one dependent
+formal-result schema; both exclude other implicit binder/argument defaults
+for this exact tree and preserve all inherited provenance. Neither is adopted.
+Question `original-profile-introduction/q1` is pending at
+`/workspace/scratch/4d546ef5cbff/yulang-pa-published/questions/2026-10-06-original-profile-introduction/question.md`;
+the unapproved directory is excluded from commits. Adopting that table would
+settle the intended local introduction target, not complete P, seed/refined
+whole-solution preservation, actual receiving/capture, independent all-world A,
+principality or production Option A/2 conformance. Those remain explicit proof
+obligations. No production/shadow semantic rule or theorem edge is promoted.
 
 Two reviewed follow-ups further bound this stop. The conditional local
 seed/refinement theorem preserves an independently supplied original relation

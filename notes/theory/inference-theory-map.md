@@ -83,7 +83,7 @@ constructs the exact source's least-generated footprint `G_C(beta)={p_0}` and
 a tagged generated/inherited transport normal form. It retains independent
 provider/result packets and establishes FullProtection/no annotation grant at
 independently applicable unannotated original positions. It does not prove that
-all original applicability is generated: the first P cut is
+all original applicability is generated: the elimination-only route's P cut is
 `Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original witness.
 Complete original contributions and same-root full-view/solution preservation
 remain obligations beyond record conservativity.
@@ -99,10 +99,31 @@ interpretation and transition closure, omitted source extensions and complete
 production A correspondence remain open. Neither the generated singleton nor
 the structural A kernel closes complete P/A, actual typed capture/receipt,
 all-view source inversion/principality, finite presentation or Option A/2
-containment. No conformant semantic separation or necessary new user choice is
-proved, no production rule is authorized, and no `FVIEW -> SRC` edge is closed.
+containment. Those artifacts prove no complete conformant semantic separation
+or necessary new user choice, authorize no production rule, and close no
+`FVIEW -> SRC` edge.
 The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and newer frame/producer traces remain historical mechanism evidence.
+
+**Reviewed relative local separation and unapproved exact introduction table.**
+The [new synthesis](../progress/2026-10-06-source-generation-introduction-decision.md)
+combines two source-owned local producers, a common ordinary pure supplier
+with a latent result address, an interpretation-naturality countermodel and
+an observation-quotient audit. The two producers differ in an original
+result-default certificate emitted before solving, while sharing raw `nu,K,D`
+and retaining inherited packets. They are expansions of the inspected partial
+local contract, not two complete Yulang meanings or different admitted programs.
+Both independent reviewers found no issues within that scope and in the
+exhaustive exact-tree E/R proposal; see the [review record](../progress/2026-10-06-source-profile-introduction-review.md).
+E proposes only the immediate Call origin; R proposes that origin plus one
+dependent result default. Both explicitly exclude unspecified binder/argument
+introductions in the exact tree. Neither is adopted, and other complete
+proposals are not excluded. Uniform substitution preserves an already emitted
+dependent schema, and local expiry/grant does not erase original joint evidence;
+neither proves singleton original formation. Semantic adoption of a complete
+table and the separate profile, full stage-preservation, receiving/capture,
+all-world A, principality and Option A/2 proofs remain. Main source generation
+and `FVIEW -> SRC` stay open; no implementation rule is authorized.
 
 **Reviewed conditional criterion and abstract separation — local Uc.** The
 [exact-extension criterion](../progress/2026-10-06-uc-conditional-interface-constructive.md#4-a-precise-conditional-preservation-criterion)
@@ -162,8 +183,10 @@ and H2 (`I-exhaust`) remain unproved; review does not establish these source
 premises, complete P or certify production. The accepted
 [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
 retains the singleton converse as a proof/design-completion obligation:
-approved formation/protection does not entail it, while incompatible
-conformant alternatives and a necessary user decision remain unestablished.
+approved formation/protection does not entail it, while those earlier notes
+establish no incompatible complete conformant alternatives. The newer local
+certificate and explicit completion proposal above retain that historical
+claim boundary while providing a concrete adoption target.
 
 **Reviewed bounded characterization — adjacent formal uses.** Under the
 explicit Hroot/Hdirect hypotheses, the

@@ -2,7 +2,9 @@
 
 Date: 2026-10-06
 Pinned baseline: `f93fb06cd40c12fed6caf5051e045f206c4b2da6`
-Status: frozen unreviewed research-only construction; independent review pending
+Status at producer freeze: frozen unreviewed research-only construction; independent review pending
+Current status: independently compiler-referee/spec-auditor reviewed; no findings within the stated bounds
+Review: [frozen-snapshot record](2026-10-06-source-profile-introduction-review.md)
 Claim class: bounded relative non-entailment of a local source-introduction clause
 Scope: the exact Authoritative captured-step component and the available static packet constructors
 Exclusive lease: this file only

@@ -2,7 +2,9 @@
 
 Date: 2026-10-06
 Baseline: `f93fb06cd40c12fed6caf5051e045f206c4b2da6`
-Status: frozen research-only producer artifact; independent review pending
+Status at producer freeze: frozen research-only producer artifact; independent review pending
+Current status: independently compiler-referee/spec-auditor reviewed; no findings within the stated bounds
+Review: [frozen-snapshot record](2026-10-06-source-profile-introduction-review.md)
 Claim classes: source-preservation consequence; algebraic method countermodel;
 exact local output discriminator. Not an original-source countermodel.
 Scope: the original profile of captured `f` in

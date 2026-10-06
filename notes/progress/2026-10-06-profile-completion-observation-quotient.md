@@ -2,7 +2,9 @@
 
 Date: 2026-10-06
 Baseline: `f93fb06cd40c12fed6caf5051e045f206c4b2da6`
-Status: frozen on submission; unreviewed research-only route audit
+Status at producer freeze: frozen on submission; unreviewed research-only route audit
+Current status: independently compiler-referee/spec-auditor reviewed; no findings within the stated bounds
+Review: [frozen-snapshot record](2026-10-06-source-profile-introduction-review.md)
 Claim class: selected-kernel algebra and bounded exact-source obstruction audit
 Scope: original no-annotation P for the exact captured-step source
 Exclusive lease: this file only
