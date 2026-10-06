@@ -3,7 +3,11 @@
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: frozen unreviewed research construction and bounded obstruction
+Status: initial RS/SC construction independently accepted; bounded lexical-ownership delta unreviewed
+Initial published version: `5b6cd9b594b297954f73eb1cdb36b05b0f28ac1c`
+Initial accepted SHA-256: `f50ab22c2e0c17776e7db4f2e31e553e2de42d7fb0c86aad01f3cb340e58f2a2`
+Delta scope: structural lexical ownership/import derivation and exact residual source clauses;
+             original RS/SC proof scopes retained
 Method: syntax/rule-directed proof decoration; full-tuple relational derivation;
         source-entailed singleton role substitution; no executable search
 Semantic/implementation authority: none
@@ -25,9 +29,10 @@ in order to preserve its source ancestry.
 
 This removes a separate *certificate-construction* obstacle for a complete
 retained rule derivation. It does not turn the existing resolved HIR graph
-into such a derivation. Resolved names supply binder/use identities but do
-not supply successor recursive environment discharge, the semantic owned/import
-partition at a generalization boundary, or a complete derivation of every
+into such a derivation. Resolved names supply binder/use identities and
+already derive lexical source ownership/import correspondence (§3.4), but do
+not supply successor recursive environment discharge, semantic eligible-binder
+selection at a generalization boundary, or a complete derivation of every
 solver comparison. On the weaker graph the same pass is total as a structural
 inventory, with these semantic obligations explicitly unresolved. Calling that
 inventory `Supply22` would hide its missing conclusion.
@@ -109,8 +114,10 @@ Let `Delta` be a finite resolved **rule-occurrence** graph. It contains the
 actual constructor premises and original binder tree, not only a successful
 constraint solution. A recursive source/root reference may make the presentation
 cyclic; individual proof witnesses have the declared finite-derivation meaning.
-Generalization and member-use nodes record their actual selected source view,
-eligible owned identities and fixed imports. A comparison node records its
+Generalization and member-use nodes record their actual selected source view
+and eligible owned identities. Their lexical source-import correspondence is
+derived by §3.4; any additional semantic fixed anchors remain identified by
+the actual source/generalization premises. A comparison node records its
 actual rule, ordered endpoints and premise references. Independent semantic
 meaning for those rules remains separate from this structural input.
 
@@ -226,6 +233,96 @@ constructs the available sites, lexical/capture references, nominal root
 inventory and use-family keys. It emits missing obligations at the corresponding
 nodes instead of inventing those fields. This weaker result is total structural
 inventory, **not** RS's total complete derivation supplier.
+
+### 3.4 Bounded delta: lexical ownership/import correspondence is derived
+
+Fix a finite correctly resolved source binder tree and an actual source
+boundary `B`, such as the complete definition component. For a component,
+`B` means its resolved member declarations and their parameter/body trees,
+not a newly invented lexical binder around those declarations. Let `Desc_B(d)`
+mean that the declaration/parameter binder `d` lies within that boundary's
+source ancestry. For each resolved Name occurrence `u`, resolution already
+gives its unique binder `Resolve(u)=d`. Define the structural source map by
+
+```text
+SourceOwner(d) = d's original declaration scope
+LocalSrc_B(u,d)  iff Resolve(u)=d and Desc_B(d)
+ImportSrc_B(u,d) iff Resolve(u)=d and not Desc_B(d).
+```
+
+This is a partition of **resolved source references**, not a generalization
+rule or an existential-origin classification. If a Name's supplied interface
+contains dependent provider roots, packets or other captured endpoints,
+retain their original references and lexical correspondence through the
+existing environment/constructor premises; do not reconstruct them from its
+printed endpoint type. Traverse a finite retained dependency graph by its
+references, preserving each original source binder/scope. Any semantic
+coordinate lacking such a source correspondence remains an unresolved
+source-to-coordinate obligation rather than an invented lexical owner.
+
+**Theorem LX.** The correctly resolved tree determines this lexical map
+totally and uniquely. Name/Result and constructor composition preserve it;
+recursive references require no choice of an outer import and no unfolding.
+It is therefore not an opaque additional premise of RS.
+
+**Proof.** Index the finite binder tree and its parent relation. At a binder
+declaration, its scope and ancestry are the original source data. At a Name,
+read the unique resolved binder and classify its ancestry relative to `B`.
+The two cases are exhaustive and disjoint. A capture records that same
+binder across an intervening scope; it does not allocate a new declaration.
+Name copies its supplied environment entry, and Result preserves that
+entry's provider/dependency references, so neither changes the classification.
+Induction over the remaining source constructors keeps the original operand
+references. An SCC back reference still points to its already registered
+binder; classifying that binder does not recurse into its body. Following
+the actual finite dependent-root references likewise preserves their
+original lexical correspondences. QED.
+
+For the closed source
+
+```yu
+my f x = g
+my g y = f
+```
+
+take `B` to be the whole resolved `{f,g}` component and its parameter/body
+tree. Its two body Names resolve respectively to `d_g` and `d_f`, both
+inside `B`; `d_x,d_y` also lie inside that source tree. Thus no body reference
+introduces a **captured outer value root of the component**. The `f` closure
+can still capture the original `g` root across its own lambda boundary,
+and conversely: those are internal component references, not nonexistent
+captures. Ambient primitive/declaration identities and any independently
+specified rigid environment remain fixed. An isolated member-root view need
+not have the same boundary as the complete component.
+
+The relation to actual RS use actions is precise. LX provides each source
+reference's original binder and capture/import path. An actual eligible
+Generalize view `P` then provides its semantic binder set `Omega_P` and any
+additional fixed semantic anchors. RS's action maps each eligible semantic
+identity once and fixes the actual rigid imported roots; all its source
+reference pointers continue to name the same original LX binder under the
+copied occurrence correspondence. A copied coordinate can retain ancestry
+from an external generalized template while being allocated at a local use;
+that source ancestry is not confused with semantic ownership of the copied
+coordinate. The action transports both facts jointly.
+
+LX consequently removes arbitrary selection of **which source binder a
+capture imports**. It does not entail that every coordinate with a local
+allocation/source site belongs to `Omega_P`, or that every coordinate not
+eligible for freshening is an outer source capture. A locally originated
+coordinate may remain an additional semantic anchor if the actual source
+generalization rule justifies it. Eligibility and binder placement must
+still be derived; they cannot be obtained by rebranding such an anchor as
+a source import. Nor does LX choose one SCC-wide generalized view, discard
+latent dependencies, classify `Fresh` as §22 introduction, or create a
+protection seed at a captured/external Name.
+
+The direct source basis is the selected Name/Result environment rule,
+call-view §2's source resolution/capture and scope-preservation requirements,
+and approved a2 item 4. The semantic eligibility boundary is expressly
+retained by the Authoritative experimental transport gate's scope paragraph
+and the reviewed constrained-use construction, both of which start from an
+actual eligible view. This delta introduces no generic typing rule.
 
 ## 4. Complete active relation preservation for this construction
 
@@ -521,7 +618,8 @@ The supplier above splits the earlier bundled gate as follows:
 | Preserve already justified §22 introductions and their original levels | Transported by that map and actual premise links; independent of deciding the classification of every allocation. |
 | Classify fresh ordinary/SCC/generalized-use coordinates under §22 | Not supplied by nominal identity, allocator freshness, mathematical quantification, Q/R or Name; remains a source semantic judgment. |
 | Validate/discharge the simultaneous recursive member environment | Not supplied by preallocated root identity or finite back references; remains actual recursive source formation. |
-| Select actual semantic owned/import/view boundaries | Required input of an actual Generalize derivation; source call-view preservation wording alone does not choose it. |
+| Derive lexical source ownership/import correspondence | LX constructs it from resolved binding ancestry and retained source/environment references; no captured outer value root exists at the closed `{f,g}` component boundary. |
+| Select actual eligible semantic binders/anchors/view boundaries | Required premise of an actual Generalize derivation after the LX map is derived; local source origin alone does not establish generalization eligibility or an SCC-wide binder set. |
 | Prove guard coverage and structured-bound permission | Every recorded comparison can carry provenance, but every required path and its source permission must still be derived and checked. |
 | Complete singleton source seed/refined normalization | SC-normalization follows from the source-entailed formal-role equality and substitution in every original active predicate. Initial-prefix completion and replacement semantic kernels remain separate. |
 
@@ -532,6 +630,91 @@ They do not conclude that the two simultaneous assumed member interfaces
 are validated. Writing root/body equality or directed inclusion would choose
 a missing recursive compatibility premise. The previous Form obstruction
 therefore survives independently of whether origins are now decorated.
+
+### 7.1 Bounded authority delta: the exact two residual source clauses
+
+The follow-up inspected current governing sources and approved receipts
+directly, rather than inferring their scope from earlier obstruction notes.
+The Authoritative
+[SCC foundation](../design/2026-09-20-constraint-collection-scc-foundation-draft.md),
+“Oracle invariant,” fixes predeclaration, open live internal uses and lifecycle
+ordering. Its “Deferred semantic gates” explicitly excludes recursive
+Function skeletons, generalization/freshening variables, non-generic
+environment and Function/effect structure. Charter §2 expressly limits F4's
+remaining authority to Integer/resolved-Name scope. The Authoritative
+[body-to-root slice](../design/2026-09-20-binding-body-definition-root-directed-subtype-draft.md),
+“Evidence and boundary” and “Proposed gate,” gives the directed body/root
+fact only for recovery-free integer bodies. The
+[F4 source](../design/2026-09-21-oracle-aligned-f4-int-scheme-scc-draft.md),
+scope and §3, excludes Function/parameter/import forms and has zero scheme
+binders. These sources do not silently extend their body/root or binder
+rules to the two Function definitions above.
+
+The integrated
+[approved a2](../../questions/2026-10-05-function-call-view-formation/approved-answer.md)
+items 4 and 6 and its
+[receipt](../../questions/2026-10-05-function-call-view-formation/receipt.md)
+reserve concrete generating rules and proofs. The Authoritative
+[experimental transport](../design/2026-10-04-intrusion-experimental-transport.md)
+expressly does not select source-local semantic identities, member bounds
+or root generation. The Authoritative
+[cross-edit addendum](../design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md),
+“Interface comparison boundary,” leaves interface fields and component
+granularity unchosen. Preservation of an already selected source relationship
+does not supply these selection rules.
+
+After removing lexical opacity by LX, the smallest source-formation clause
+on the chosen recursive derivation is **simultaneous member-environment
+validation/discharge**:
+
+```text
+registered I_f,I_g; independently synthesized
+  Body_f = Fun(Value(A_x),Result(I_g))
+  Body_g = Fun(Value(A_y),Result(I_f))
+------------------------------------------------ [source clause to derive]
+the body/member relationships validate those same simultaneous assumptions
+and produce the complete jointly scoped component relation.
+```
+
+Preallocation forces which roots those references share, not which
+body/member compatibility obligations are generated. Section 22 guards
+every actual comparison; it does not generate the missing comparison rule.
+For example, conditional lower-body inclusion and exact body/root equality
+are different formulas on the same resolved source. In a separately given
+value-bound interpretation with genuine strict superdescriptors, the former
+can admit jointly widened member assignments that the latter excludes.
+This is only a non-entailment witness for the inspected preallocation/body/
+guard premises. Neither formula is selected here; neither has been proved
+to give a complete sound/principal successor language. Different internal
+formulas could still have equivalent principal exports.
+
+The second minimal clause is **semantic view-binder eligibility/placement**
+at the actual generalization boundary: which locally originated semantic
+coordinates are bound independently at incoming uses, and which dependent
+coordinates are retained jointly. The difference is visible at the whole
+relation, without treating either arrangement as approved:
+
+```text
+per-use coordinate:  exists a1,a2. Phi_1(a1) and Phi_2(a2) and W
+retained coordinate: exists a.     Phi_1(a)  and Phi_2(a)  and W.
+```
+
+A joint client relation requiring distinct values for the two copies
+distinguishes these arrangements. Alpha transport preserves either supplied
+arrangement; it does not choose between them. A principality theorem could
+exclude an unjustified shared arrangement by establishing the independent
+views and their factorization. That requires the source/view theorem rather
+than lexical origin alone. No component-wide binder block is inferred.
+
+This bounded delta identifies absent generating/selection clauses in the
+inspected current authority. It **does not prove actual language
+underspecification**, incompatible observable meanings, or the necessity of
+a new user decision. Approved records deliberately leave detailed construction
+and proof work open; an internal assignment distinction alone is insufficient
+to establish a semantic choice. The next constructive task is to derive these
+clauses against the independent soundness/principality criterion, using LX's
+already determined lexical map. No new rejection, equality/inclusion rule,
+eligible-binder rule or source envelope is adopted.
 
 For the separate §22 classification leaf, take an actually represented fresh
 use coordinate `t`, current level one, and a comparison against a peer
@@ -567,19 +750,24 @@ production/shadow edit, child agent or user question was performed.
 Heavyweight process count and calculation count are zero. The static fingerprint
 and whitespace checks below are bookkeeping checks, not semantic validation.
 
-Only this leased note was written. All 18 direct inputs below matched their
-pinned baseline bytes at the final producer recheck. The final frozen artifact
-hash is supplied in the submission packet; the primary owns independent
-review and status/Git integration. No independent review or
-full gate closure is claimed. An omitted in-scope source formation/refinement
+Only this leased note was written. The initial 18 direct inputs below matched
+their pinned baseline bytes at the initial producer freeze; that version was
+subsequently independently accepted and published at the commit in the header.
+The bounded delta adds seven directly inspected source/receipt dependencies
+and records their baseline fingerprints below. All 25 inputs matched their
+baseline bytes at the final delta recheck. Its final checks and frozen
+artifact hash are supplied in the delta submission packet. The primary owns
+independent delta review and status/Git integration. No independent review of
+this delta or full gate closure is claimed. An omitted in-scope source formation/refinement
 rule, a changed dependency, or proof that the actual retained graph already
 contains the full §3.1 derivation would require a dependency-scoped update.
 
-Recommended next action: independently review RS's input boundary and active
-relation proof together with SC-normalization's complete-source/prefix
-distinction and original-kernel retention. Then construct or audit the actual
-complete source generation against those presentations. Keep raw-source
-recursive discharge and owned/import selection separate from origin transport;
+Recommended next action: independently delta-review LX, its relation to the
+already accepted RS action, the closed-component capture distinction and the
+exact authoritative residual clauses. Carry the unchanged accepted RS/SC
+proof scopes forward. Then construct or audit the actual complete source
+generation against those presentations. Keep raw-source recursive discharge
+and eligible-binder selection separate from derived lexical imports and origin transport;
 do not block transport on blanket §22 classification, and do not certify source
 formation from structural decoration.
 
@@ -605,20 +793,29 @@ formation from structural decoration.
 | `notes/progress/2026-10-06-recursive-origin-form-discharge-constructive.md` | `5c8f678ea89f946b5d262adf8149bbaf9f4695cd721cf543ac44bad753c3ab7d` |
 | `notes/progress/2026-10-06-universal-scheme-use-origin-audit.md` | `8963987e193efe9c4778a457a163df0076391b4056734def0087164b4795e300` |
 | `crates/yu-solver/src/lib.rs` | `2733bb7df29dbeafc75ade2f0cc62488dd6da803f4e5815e4e0f841645fe7f27` |
+| `notes/design/2026-09-20-constraint-collection-scc-foundation-draft.md` | `37a2799288db0081cf3f32c7f6860c376ff0b2ce3249397cd9c23c7a89fedeaa` |
+| `notes/design/2026-09-20-binding-body-definition-root-directed-subtype-draft.md` | `1c51fd38996eb8921eda36ff3c49f12e5c4b23b398b9c2b75de7db69954420a6` |
+| `notes/design/2026-09-21-oracle-aligned-f4-int-scheme-scc-draft.md` | `7ec6ae3b8ea4048d0407388b23665092a121a3720f8658055dfb5e1046a09c25` |
+| `notes/design/2026-10-04-intrusion-experimental-transport.md` | `b9eeaa4c014e98f0e2790208030a6cccf48e6efcfb05c2d46effd27caff25c96` |
+| `notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md` | `e8abb68f0d1dc656e3e303a82d8b7ffb4254bb1a8be99b51ad9593c5a7b85e29` |
+| `questions/2026-10-05-function-call-view-formation/approved-answer.md` | `1071cf1c2d9abce2ffbc829cec7757d2b2f52849174c04751bd63aeefa520536` |
+| `questions/2026-10-05-function-call-view-formation/receipt.md` | `6dcf408143c7eb48260d8c4df9ef73834da8d28a7f4ec9744ab381e67414cee0` |
 
 Commit packet:
 
 - Exact path: `notes/progress/2026-10-06-directional-recursive-generalization-supplier.md`.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`.
-- Claim/review: unreviewed research construction, conditional active-relation
-  preservation and bounded semantic obstruction; no implementation authority.
-- Proposed commit: `research: construct rule-origin supplier and normalize complete singleton role relation`.
+- Claim/review: accepted initial RS/SC scope at `5b6cd9b5`; this lexical-ownership
+  derivation and direct-authority residual delta is unreviewed; no implementation authority.
+- Proposed delta commit: `research: derive lexical imports and narrow recursive source residual clauses`.
 - Shared-record delta intentionally deferred: replace the opaque whole-origin
   map prerequisite by RS's constructive derivation-level result where its
   full input exists; retain raw-source recursive discharge, actual semantic
-  generalization boundary and §22 classification/guard coverage as distinct
+  eligible-generalization boundary and §22 classification/guard coverage as distinct
   leaves; record complete-source singleton SC-normalization separately from
   incomplete-prefix completion or a changed semantic kernel. The primary
-  owns task/theory/index updates.
+  owns task/theory/index updates. Remove lexical capture/import selection as
+  an opaque premise where resolved binder ancestry and retained references exist;
+  retain semantic eligibility and view/binder placement as separate obligations.
 
 Writes stop before submission; this artifact is frozen for review.
