@@ -1238,7 +1238,7 @@ impl ConstraintBatch {
     /// This view does not run F4/F5, clone the plan, or touch query counters.
     #[cfg(feature = "shadow-scc-observer")]
     pub fn shadow_scc_topology(&self) -> shadow_scc::SccTopology<'_> {
-        shadow_scc::SccTopology::new(self.scc_plan())
+        shadow_scc::SccTopology::new(self)
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir

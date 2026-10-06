@@ -1,22 +1,66 @@
 //! Default-off borrowed view of the already-frozen current F0–F2 SCC plan.
 //!
-//! This observes current declaration dependency topology only. It does not
-//! map those identities to `yu-hir` shadow IDs, form a successor generalized
-//! interface, assign Q/R, freshen a scheme, or execute F4/F5.
+//! This observes current declaration dependency topology and exact retained
+//! source positions. It does not form a successor generalized interface,
+//! assign Q/R, freshen a scheme, or execute F4/F5.
 
 use crate::{
-    DefinitionOrderId, DefinitionUseId,
+    ConstraintBatch, DefinitionOrderId, DefinitionUseId,
     scc::{SccComponentId, SccPlan},
 };
 
 /// Read-only view over one collected batch's existing SCC plan.
 pub struct SccTopology<'a> {
+    batch: &'a ConstraintBatch,
     plan: &'a SccPlan,
 }
 
 impl<'a> SccTopology<'a> {
-    pub(crate) fn new(plan: &'a SccPlan) -> Self {
-        Self { plan }
+    pub(crate) fn new(batch: &'a ConstraintBatch) -> Self {
+        Self {
+            batch,
+            plan: batch.scc_plan(),
+        }
+    }
+
+    /// Exact retained declaration position; no solving or topology query accounting.
+    pub fn definition_source_position(
+        &self,
+        shadow: &yu_hir::shadow::ShadowArtifact,
+        definition: SccDefinitionRef<'_>,
+    ) -> Result<yu_hir::shadow::PositionId, SccSourceLookupError> {
+        if !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &definition.id.artifact) {
+            return Err(SccSourceLookupError::ForeignCollection);
+        }
+        let record = self
+            .batch
+            .definition_positions
+            .get(definition.id)
+            .and_then(|&position| self.batch.definitions.get(position))
+            .ok_or(SccSourceLookupError::MissingIdentity)?;
+        shadow
+            .definition_source_position(&self.batch.hir, &record.root)
+            .map_err(SccSourceLookupError::SourceIdentity)
+    }
+
+    /// Exact retained resolved-use position, available from the raw shadow artifact.
+    pub fn use_source_position(
+        &self,
+        shadow: &yu_hir::shadow::ShadowArtifact,
+        use_id: SccUseRef<'_>,
+    ) -> Result<yu_hir::shadow::PositionId, SccSourceLookupError> {
+        if !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &use_id.id.artifact) {
+            return Err(SccSourceLookupError::ForeignCollection);
+        }
+        let record = self
+            .batch
+            .definition_use_positions
+            .get(use_id.id)
+            .and_then(|&position| self.batch.definition_uses.get(position))
+            .ok_or(SccSourceLookupError::MissingIdentity)?;
+        shadow
+            .occurrence_source_position(&self.batch.hir, &record.occurrence)
+            .map_err(SccSourceLookupError::SourceIdentity)
     }
 
     /// Components in the frozen dependency-first order.
@@ -111,7 +155,11 @@ pub struct SccDefinitionRef<'a> {
     id: &'a DefinitionOrderId,
 }
 
-impl SccDefinitionRef<'_> {
+impl<'a> SccDefinitionRef<'a> {
+    #[cfg(test)]
+    pub(crate) fn collection_identity(self) -> &'a DefinitionOrderId {
+        self.id
+    }
     /// Compare exact identity, including the collection artifact brand.
     pub fn same_identity(self, other: Self) -> bool {
         self.id == other.id
@@ -129,7 +177,11 @@ pub struct SccUseRef<'a> {
     id: &'a DefinitionUseId,
 }
 
-impl SccUseRef<'_> {
+impl<'a> SccUseRef<'a> {
+    #[cfg(test)]
+    pub(crate) fn collection_identity(self) -> &'a DefinitionUseId {
+        self.id
+    }
     /// Compare exact identity, including the collection artifact brand.
     pub fn same_identity(self, other: Self) -> bool {
         self.id == other.id
@@ -146,4 +198,12 @@ impl SccUseRef<'_> {
 pub enum SccTopologyLookupError {
     ForeignArtifact,
     MissingIdentity,
+}
+
+/// Collection rejection is distinct from parse/source correspondence failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SccSourceLookupError {
+    ForeignCollection,
+    MissingIdentity,
+    SourceIdentity(yu_hir::shadow::SourceIdentityError),
 }

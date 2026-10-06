@@ -1104,6 +1104,14 @@ and regression review found no concrete regression. Full synthetic duplicate
 tree integration and some sibling lookup forms remain uncovered. No solver,
 SCC, callback semantics or production inference path consumes this bridge yet.
 See the [shadow source identity correspondence](../notes/progress/2026-10-06-shadow-source-identity-correspondence.md).
+The default-off SCC observer now composes that bridge with existing collection
+identities: each F0–F2 definition/use maps through its retained HIR root or
+occurrence to an exact raw-CST position, without query-counter changes. A
+reverse-DAG test confirms joins survive a change from source order to
+dependency-first order. Compiler-referee review found no findings; regression
+review's ordering-coverage finding was repaired and delta-closed. This remains
+topology observation only: no generalized interface, Q/R, freshening, or
+successor solving. See the [SCC source identity join](../notes/progress/2026-10-06-shadow-scc-source-identity-join.md).
 The constructive source derivation still stops before mapping the raw
 annotation occurrence to its completed typed endpoint/profile under the shared
 `(nu,K,D)` assignment. A distinct retained-parser control falsifies occurrence

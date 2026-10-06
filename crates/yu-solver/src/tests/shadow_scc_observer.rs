@@ -68,3 +68,258 @@ fn rejects_definition_handles_from_a_different_collection() {
         Err(crate::shadow_scc::SccTopologyLookupError::ForeignArtifact)
     ));
 }
+
+fn parsed(source: &str) -> yu_syntax::ParsedFile {
+    let source: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(source);
+    let header = std::sync::Arc::new(yu_syntax::scan_header(source.clone()));
+    yu_syntax::parse_file(
+        source,
+        header,
+        std::sync::Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+    )
+}
+
+fn source_batch(parsed: &yu_syntax::ParsedFile) -> crate::ConstraintBatch {
+    collect(std::sync::Arc::new(
+        yu_hir::shadow::lower_module_with_source_identity(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "test",
+                "shadow-scc-source.yu",
+            ))),
+            parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .unwrap(),
+    ))
+}
+
+#[test]
+fn joins_exact_source_nodes_for_current_scc_and_dag_without_queries() {
+    use yu_syntax::SyntaxKind;
+    let parsed = parsed("my a = b; my b = a; my c = 42; my d = a; my e = d");
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    // Expected positions come from exact parse-owned nodes, independently of HIR IDs.
+    let mut declarations = Vec::new();
+    let mut identifiers = Vec::new();
+    let mut stack = vec![parsed.source_root()];
+    while let Some(node) = stack.pop() {
+        let positions = match node.syntax().kind() {
+            SyntaxKind::BindingStatement => Some(&mut declarations),
+            SyntaxKind::IdentifierExpression => Some(&mut identifiers),
+            _ => None,
+        };
+        if let Some(positions) = positions {
+            positions.push(shadow.source_position(&node.key()).unwrap());
+        }
+        let children = node.children().collect::<Vec<_>>();
+        stack.extend(children.into_iter().rev());
+    }
+    let definitions = topology.definitions().collect::<Vec<_>>();
+    assert_eq!(definitions.len(), 5);
+    for (definition, expected) in definitions.iter().zip(&declarations) {
+        assert_eq!(
+            topology
+                .definition_source_position(&shadow, *definition)
+                .unwrap(),
+            *expected
+        );
+        assert_eq!(
+            shadow.position(expected).unwrap().kind(),
+            SyntaxKind::BindingStatement
+        );
+    }
+    let components = topology.components().collect::<Vec<_>>();
+    let uses = components
+        .iter()
+        .flat_map(|component| component.internal_uses().chain(component.incoming_uses()))
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 4);
+    for (use_id, expected) in uses.iter().zip(&identifiers) {
+        assert_eq!(
+            topology.use_source_position(&shadow, *use_id).unwrap(),
+            *expected
+        );
+        assert_eq!(
+            shadow.position(expected).unwrap().kind(),
+            SyntaxKind::IdentifierExpression
+        );
+    }
+    assert_ne!(identifiers[1], identifiers[2]);
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn source_join_rejects_foreign_collection_parse_and_absent_sidecar() {
+    use crate::shadow_scc::SccSourceLookupError;
+    use yu_hir::shadow::{ShadowArtifact, SourceIdentityError};
+    let source = "my a = b; my b = a";
+    let parsed = parsed(source);
+    let batch = source_batch(&parsed);
+    let foreign_batch = source_batch(&parsed);
+    let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let reparsed = self::parsed(source);
+    let foreign_shadow = ShadowArtifact::from_parsed(reparsed).unwrap();
+    let ordinary_batch = collect(std::sync::Arc::new(
+        yu_hir::lower_module(
+            batch.hir().identity().clone(),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .unwrap(),
+    ));
+    // Enabling the bridge leaves ordinary collection evidence unchanged.
+    assert_eq!(batch.hir(), ordinary_batch.hir());
+    assert_eq!(batch.counters(), ordinary_batch.counters());
+    let before = batch.counters();
+    let foreign_before = foreign_batch.counters();
+    let ordinary_before = ordinary_batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let definition = topology.definitions().next().unwrap();
+    let use_id = topology
+        .components()
+        .next()
+        .unwrap()
+        .internal_uses()
+        .next()
+        .unwrap();
+    let foreign_topology = foreign_batch.shadow_scc_topology();
+    let foreign_definition = foreign_topology.definitions().next().unwrap();
+    let foreign_use = foreign_topology
+        .components()
+        .next()
+        .unwrap()
+        .internal_uses()
+        .next()
+        .unwrap();
+    assert_eq!(
+        topology.definition_source_position(&shadow, foreign_definition),
+        Err(SccSourceLookupError::ForeignCollection)
+    );
+    assert_eq!(
+        topology.use_source_position(&shadow, foreign_use),
+        Err(SccSourceLookupError::ForeignCollection)
+    );
+    assert_eq!(
+        topology.definition_source_position(&foreign_shadow, definition),
+        Err(SccSourceLookupError::SourceIdentity(
+            SourceIdentityError::ForeignParse
+        ))
+    );
+    assert_eq!(
+        topology.use_source_position(&foreign_shadow, use_id),
+        Err(SccSourceLookupError::SourceIdentity(
+            SourceIdentityError::ForeignParse
+        ))
+    );
+    let ordinary_topology = ordinary_batch.shadow_scc_topology();
+    assert_eq!(
+        ordinary_topology
+            .definition_source_position(&shadow, ordinary_topology.definitions().next().unwrap()),
+        Err(SccSourceLookupError::SourceIdentity(
+            SourceIdentityError::MissingSource
+        ))
+    );
+    assert_eq!(
+        ordinary_topology.use_source_position(
+            &shadow,
+            ordinary_topology
+                .components()
+                .next()
+                .unwrap()
+                .internal_uses()
+                .next()
+                .unwrap()
+        ),
+        Err(SccSourceLookupError::SourceIdentity(
+            SourceIdentityError::MissingSource
+        ))
+    );
+    assert_eq!(before, batch.counters());
+    assert_eq!(foreign_before, foreign_batch.counters());
+    assert_eq!(ordinary_before, ordinary_batch.counters());
+}
+
+#[test]
+fn reverse_dag_joins_source_by_identity_despite_dependency_first_order() {
+    use yu_syntax::SyntaxKind;
+    let parsed = parsed("my head = middle; my middle = tail; my tail = 42");
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let mut parse_positions = Vec::new();
+    let mut stack = vec![parsed.source_root()];
+    while let Some(node) = stack.pop() {
+        if matches!(
+            node.syntax().kind(),
+            SyntaxKind::BindingStatement | SyntaxKind::IdentifierExpression
+        ) {
+            parse_positions.push((
+                shadow.source_position(&node.key()).unwrap(),
+                node.syntax().kind(),
+            ));
+        }
+        stack.extend(node.children());
+    }
+    let definitions = topology.definitions().collect::<Vec<_>>();
+    // These assertions check ordering only; ordinals never select source positions.
+    assert_eq!(
+        definitions
+            .iter()
+            .map(|definition| definition.collection_ordinal())
+            .collect::<Vec<_>>(),
+        vec![2, 1, 0]
+    );
+    for definition in definitions {
+        let record =
+            &batch.definitions[batch.definition_positions[definition.collection_identity()]];
+        let expected = shadow
+            .definition_source_position(batch.hir(), &record.root)
+            .unwrap();
+        assert_eq!(
+            parse_positions
+                .iter()
+                .find(|(position, _)| position == &expected)
+                .map(|(_, kind)| kind),
+            Some(&SyntaxKind::BindingStatement)
+        );
+        assert_eq!(
+            topology
+                .definition_source_position(&shadow, definition)
+                .unwrap(),
+            expected
+        );
+    }
+    let uses = topology
+        .components()
+        .flat_map(|component| component.internal_uses().chain(component.incoming_uses()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        uses.iter()
+            .map(|use_id| use_id.occurrence_ordinal())
+            .collect::<Vec<_>>(),
+        vec![1, 0]
+    );
+    for use_id in uses {
+        let record =
+            &batch.definition_uses[batch.definition_use_positions[use_id.collection_identity()]];
+        let expected = shadow
+            .occurrence_source_position(batch.hir(), &record.occurrence)
+            .unwrap();
+        assert_eq!(
+            parse_positions
+                .iter()
+                .find(|(position, _)| position == &expected)
+                .map(|(_, kind)| kind),
+            Some(&SyntaxKind::IdentifierExpression)
+        );
+        assert_eq!(
+            topology.use_source_position(&shadow, use_id).unwrap(),
+            expected
+        );
+    }
+    assert_eq!(before, batch.counters());
+}

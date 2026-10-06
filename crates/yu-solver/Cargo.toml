@@ -7,7 +7,7 @@ publish = false
 [features]
 f5c_resource_probe = ["yu-types/f5c_resource_probe"]
 shadow-f5 = ["yu-hir/shadow"]
-shadow-scc-observer = []
+shadow-scc-observer = ["yu-hir/shadow"]
 
 [dependencies]
 yu-hir = { path = "../yu-hir" }
