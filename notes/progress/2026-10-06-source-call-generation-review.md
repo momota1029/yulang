@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Research baseline: `fcf64bcd85ac2ec1daf25b955fd7901077daf3cb`
-Integration baseline: `7b1665c125a1883d36c682ee5c76e3757cce3ebd`
+Final integration baseline: `a82c2a324451aa66bdca3d12b53be2e84838137f`
 Status: independent M3 review complete; no findings; bounded research result
 Semantic/implementation authority: none
 
@@ -141,10 +141,25 @@ formation and nested-source bundles were checked byte-for-byte against HEAD
 before consumption. No pending question, answer content or Authority source
 was edited. The new task paragraph preserves the later upstream task additions.
 
+Before publication, origin advanced again to
+`a82c2a324451aa66bdca3d12b53be2e84838137f`. Its entire delta is the new
+[conditional local-interface criterion](2026-10-06-uc-conditional-interface-constructive.md),
+which the primary read in full. It requires exact coverage/soundness of an
+independently defined original whole-tuple relation, so it is consistent with
+this submission's distinction between static record extension and complete
+source preservation. Its unreviewed conditional status is retained. No
+existing dependency changed. A normal two-parent merge retains that note and
+the complete reviewed research checkpoint; it required no conflict resolution.
+Only this integration receipt changed after that merge. The local research
+checkpoint is `d11c2b5ff6a95b5b9b24596fc8679873f66663bf`; its authenticated Git
+transport counterpart is `ad82457462fa885b62e0d42b37740bd141e06349`, with the same
+whole tree `6728d85582a84db42a21e251211aa1165233961d` and parent `7b1665c1`.
+
 ## Verification and publication scope
 
-Focused verification passed: 26 newly introduced link references resolve;
-545 references were scanned across the six paths. Four unresolved links to
+Focused verification passed: 26 initially introduced link references resolve;
+545 references were initially scanned across the six paths. The additional
+merge-receipt link and final changed scope are rechecked before publication. Four unresolved links to
 older public reference documents were already present on unchanged lines and
 remain outside this submission. Both complete current answer drafts occur
 verbatim in their approved answers, and all eight relevant bundle files equal
@@ -161,7 +176,8 @@ Stage only these six paths:
 
 Publication uses the authenticated Git transport when the shell checkout has
 no Git push credential: create the exact reviewed blobs/tree, create a commit
-on the inspected latest origin parent, and move only
+on the inspected parents (the exact research checkpoint plus the latest
+origin for integration), and move only
 `research/simple-sub-intrusion` with `force=false` and the expected-head check.
 Commit metadata may give the transport commit a different SHA from the local
 checkpoint; require identical whole-tree SHA and the intended parent/message.
