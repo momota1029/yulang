@@ -15,6 +15,7 @@ use yu_hir::{
     shadow::lower_module_with_shadow_applications,
     shadow::{Form, ShadowArtifact},
 };
+use yu_solver::shadow_f5::PendingApplicationOperandPosition;
 use yu_solver::{ConstraintBatch, PendingApplicationState, SolvedModule};
 use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
 
@@ -269,6 +270,42 @@ fn assert_pending_solver_application_source_join(text: &str) {
     );
     assert!(batch.occurrences().is_empty());
 
+    let [HirItem::Binding(binding)] = shadow_hir.items() else {
+        panic!("binding");
+    };
+    let root = binding.definition_root();
+    let root_position = shadow
+        .definition_source_position(&shadow_hir, root)
+        .unwrap();
+    let counters = batch.counters();
+    let direct_uses: Vec<_> = batch.shadow_pending_application_source_uses().collect();
+    assert_eq!(direct_uses.len(), 2);
+    for (row, source_use) in rows.iter().zip(&direct_uses) {
+        assert_eq!(row.enclosing_root.as_ref(), Some(root));
+        assert!(std::ptr::eq(source_use.application(), row));
+        assert_eq!(
+            source_use.position(),
+            PendingApplicationOperandPosition::Callee
+        );
+        assert!(std::ptr::eq(
+            source_use.occurrence(),
+            &row.callee.occurrence
+        ));
+        assert!(std::ptr::eq(
+            source_use.resolution(),
+            row.callee.direct_name_resolution.as_ref().unwrap()
+        ));
+        assert_eq!(
+            shadow
+                .definition_source_position(&shadow_hir, source_use.enclosing_root().unwrap())
+                .unwrap(),
+            root_position
+        );
+    }
+    assert!(!direct_uses[0].same_identity(direct_uses[1]));
+    assert_ne!(direct_uses[0].occurrence(), direct_uses[1].occurrence());
+    assert_eq!(batch.counters(), counters);
+
     if text.contains("x (x") {
         let [HirItem::Binding(binding)] = shadow_hir.items() else {
             panic!("binding");
@@ -377,4 +414,62 @@ fn assert_pending_solver_application_source_join(text: &str) {
             .iter()
             .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
     );
+}
+
+#[test]
+fn pending_application_direct_names_preserve_positions_and_resolution_variants() {
+    for text in ["my invoke x = x(x)", "missing 1"] {
+        let source: Arc<SourceText> = Arc::from(text);
+        let header = Arc::new(scan_header(source.clone()));
+        let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "shadow-f5-differential",
+            "direct-name-operands.yu",
+        )));
+        let hir = Arc::new(
+            lower_module_with_shadow_applications(identity, &parsed, SemanticImports::empty())
+                .unwrap(),
+        );
+        let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+        let batch = ConstraintBatch::collect(hir.clone()).unwrap();
+        let rows = batch.pending_applications();
+        assert_eq!(rows.len(), 1);
+        let uses: Vec<_> = batch.shadow_pending_application_source_uses().collect();
+        assert_eq!(
+            uses[0].position(),
+            PendingApplicationOperandPosition::Callee
+        );
+        for source_use in &uses {
+            assert!(std::ptr::eq(source_use.application(), &rows[0]));
+            shadow
+                .occurrence_source_position(&hir, source_use.occurrence())
+                .unwrap();
+        }
+        match &hir.items()[0] {
+            HirItem::Binding(binding) => {
+                assert_eq!(uses.len(), 2);
+                assert_eq!(
+                    uses[1].position(),
+                    PendingApplicationOperandPosition::Argument
+                );
+                assert!(!uses[0].same_identity(uses[1]));
+                assert_ne!(uses[0].occurrence(), uses[1].occurrence());
+                for source_use in &uses {
+                    assert_eq!(source_use.enclosing_root(), Some(binding.definition_root()));
+                }
+                let (NameResolution::Parameter(callee), NameResolution::Parameter(argument)) =
+                    (uses[0].resolution(), uses[1].resolution())
+                else {
+                    panic!("both direct Names retain parameter resolution");
+                };
+                assert_eq!(callee, argument);
+            }
+            HirItem::Expression(_) => {
+                assert_eq!(uses.len(), 1);
+                assert!(uses[0].enclosing_root().is_none());
+                assert!(matches!(uses[0].resolution(), NameResolution::Unresolved));
+            }
+            HirItem::Error { .. } => panic!("existing fixture retains an application"),
+        }
+    }
 }

@@ -4,8 +4,82 @@
 //! This borrowed view supplies no successor semantics or use-time freshening
 //! observation. Typed endpoint/profile association remains unimplemented.
 
-use crate::{ArtifactMismatch, DefinitionRootId, SolvedModule};
+use crate::{
+    ArtifactMismatch, ConstraintBatch, DefinitionRootId, HirOccurrenceId,
+    PendingApplicationOccurrence, SolvedModule,
+};
+use yu_hir::NameResolution;
 use yu_types::{ClosedValueScheme, ClosedValueSchemeView, NeutralValueView};
+
+/// Syntactic operand position only; neither position assigns a callable role.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingApplicationOperandPosition {
+    Callee,
+    Argument,
+}
+
+/// A direct Name operand borrowed from one exact retained application row.
+/// This is not a production dependency, a DefinitionUseId, or a typed use.
+#[derive(Clone, Copy)]
+pub struct PendingApplicationSourceUseRef<'a> {
+    row: &'a PendingApplicationOccurrence,
+    position: PendingApplicationOperandPosition,
+    occurrence: &'a HirOccurrenceId,
+    resolution: &'a NameResolution,
+}
+
+impl<'a> PendingApplicationSourceUseRef<'a> {
+    pub fn application(self) -> &'a PendingApplicationOccurrence {
+        self.row
+    }
+
+    pub fn position(self) -> PendingApplicationOperandPosition {
+        self.position
+    }
+
+    pub fn enclosing_root(self) -> Option<&'a DefinitionRootId> {
+        self.row.enclosing_root.as_ref()
+    }
+
+    pub fn occurrence(self) -> &'a HirOccurrenceId {
+        self.occurrence
+    }
+
+    pub fn resolution(self) -> &'a NameResolution {
+        self.resolution
+    }
+
+    pub fn same_identity(self, other: Self) -> bool {
+        std::ptr::eq(self.row, other.row) && self.position == other.position
+    }
+}
+
+impl ConstraintBatch {
+    /// Direct Names in retained row order, then callee/argument order.
+    /// Unresolved Names are retained; this inventory asserts no completeness
+    /// and leaves each row's application typing premise unresolved.
+    pub fn shadow_pending_application_source_uses(
+        &self,
+    ) -> impl Iterator<Item = PendingApplicationSourceUseRef<'_>> {
+        self.pending_applications().iter().flat_map(|row| {
+            [
+                (PendingApplicationOperandPosition::Callee, &row.callee),
+                (PendingApplicationOperandPosition::Argument, &row.argument),
+            ]
+            .into_iter()
+            .filter_map(move |(position, operand)| {
+                operand.direct_name_resolution.as_ref().map(|resolution| {
+                    PendingApplicationSourceUseRef {
+                        row,
+                        position,
+                        occurrence: &operand.occurrence,
+                        resolution,
+                    }
+                })
+            })
+        })
+    }
+}
 
 /// Borrowed inventory of the solve result's already finalized member schemes.
 pub struct ClosedSchemes<'a> {

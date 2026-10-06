@@ -781,6 +781,7 @@ pub struct PendingApplicationOperand {
 #[derive(Clone, Debug)]
 pub struct PendingApplicationOccurrence {
     pub occurrence: HirOccurrenceId,
+    pub enclosing_root: Option<DefinitionRootId>,
     pub callee: PendingApplicationOperand,
     pub argument: PendingApplicationOperand,
     pub state: PendingApplicationState,
@@ -1041,7 +1042,7 @@ impl ConstraintBatch {
             };
             batch.projection_order.push(expression.occurrence().clone());
             #[cfg(feature = "shadow-f5")]
-            batch.retain_pending_applications(expression);
+            batch.retain_pending_applications(expression, definition_root);
             batch.counters.occurrence_allocations += 1;
             if matches!(expression, ResolvedExpr::Integer { .. }) {
                 batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
@@ -1291,7 +1292,11 @@ impl ConstraintBatch {
     }
 
     #[cfg(feature = "shadow-f5")]
-    fn retain_pending_applications(&mut self, expression: &ResolvedExpr) {
+    fn retain_pending_applications(
+        &mut self,
+        expression: &ResolvedExpr,
+        enclosing_root: Option<&DefinitionRootId>,
+    ) {
         let operand = |expression: &ResolvedExpr| PendingApplicationOperand {
             occurrence: expression.occurrence().clone(),
             direct_name_resolution: match expression {
@@ -1313,6 +1318,7 @@ impl ConstraintBatch {
                     self.pending_applications
                         .push(PendingApplicationOccurrence {
                             occurrence: occurrence.clone(),
+                            enclosing_root: enclosing_root.cloned(),
                             callee: operand(callee),
                             argument: operand(argument),
                             state: PendingApplicationState::ApplicationTypingRuleUnresolved,
@@ -16544,6 +16550,38 @@ mod tests {
                 assert_eq!(definition.body_status(), CollectedBodyStatus::Error);
                 assert!(definition.body_fact_range.is_empty());
             }
+            let counters = batch.counters();
+            let topology = format!("{:?}", batch.scc_plan);
+            let definition_count = batch.definitions.len();
+            let dependency_count = batch.definition_uses.len();
+            let uses: Vec<_> = batch.shadow_pending_application_source_uses().collect();
+            for source_use in uses {
+                assert!(source_use.same_identity(source_use));
+            }
+            assert_eq!(batch.counters(), counters);
+            assert_eq!(format!("{:?}", batch.scc_plan), topology);
+            assert_eq!(batch.definitions.len(), definition_count);
+            assert_eq!(batch.definition_uses.len(), dependency_count);
+            let mut without_sidecar = collect(hir.clone());
+            without_sidecar.pending_applications.clear();
+            let solved = SolvedModule::solve(batch).unwrap();
+            let baseline = SolvedModule::solve(without_sidecar).unwrap();
+            assert_eq!(solved.counters(), baseline.counters());
+            assert_eq!(solved.schemes.len(), baseline.schemes.len());
+            for (with, without) in solved.schemes.iter().zip(&baseline.schemes) {
+                match (with, without) {
+                    (Some(with), Some(without)) => assert!(
+                        solved
+                            .closed_types
+                            .scheme_view(with)
+                            .unwrap()
+                            .alpha_eq(baseline.closed_types.scheme_view(without).unwrap())
+                    ),
+                    (None, None) => {}
+                    _ => panic!("pending sidecar must not change finalized scheme availability"),
+                }
+            }
+            assert_eq!(solved.errors(), baseline.errors());
         }
     }
 
