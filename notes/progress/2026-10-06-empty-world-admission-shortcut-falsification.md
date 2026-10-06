@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `9c410df85cefdfbb7bfd9c48ddc5052bdb3319d0`
 Branch: `research/simple-sub-intrusion`
-Status: frozen, unreviewed research-only artifact
+Status: frozen, independently spec-audited research-only artifact; no conformance findings
 Claim class: premise-independence result for the inspected clause skeleton;
 no intended-source counterexample or complete semantic theorem
 Lease: this note only
@@ -217,7 +217,15 @@ Return/Delay inlet lemma**, then instantiate it at the same `F0,xi0,sigma0,t0`
 and current source world. Keep all other row/profile conjuncts visible. Another
 returning identity trace would leave precisely this premise untouched.
 
-## 5. Checks, resources, omissions and freeze
+## 5. Independent review
+
+A spec auditor found no conformance issue in the Boolean premise-independence
+argument, its authority scope, fixed original assignment and full admission
+quantifier, or its separation from source acceptance and complete-row
+existence. The intended inlet truth and actual source admission remain
+unresolved.
+
+## 6. Checks, resources, omissions and freeze
 
 Checks run: bounded reads of the exact governing sections; direct comparison
 with both assigned notes and the expanded Init clauses; original-scope and
@@ -268,8 +276,9 @@ the final producer recheck. The primary must recheck dependencies at integration
 - Exact leased path: `notes/progress/2026-10-06-empty-world-admission-shortcut-falsification.md`.
 - Baseline SHA: `9c410df85cefdfbb7bfd9c48ddc5052bdb3319d0`.
 - Changed dependency hashes: none; frozen hashes above.
-- Claim/review status: frozen, unreviewed research-only logical discriminator;
-  no intended-source counterexample, theorem closure or implementation authority.
+- Claim/review status: spec-auditor PASS within the recorded clause-skeleton
+  scope; no intended-source counterexample, theorem closure or implementation
+  authority.
 - Checks already run: governing-section reads, Init/inlet/quantifier audit,
   dependency byte/hash comparison and note whitespace/link checks; no tests/builds.
 - Proposed commit: `research: distinguish empty-world prefixes from complete inlet admission`.

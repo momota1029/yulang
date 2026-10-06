@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `9c410df85cefdfbb7bfd9c48ddc5052bdb3319d0`
 Branch: `research/simple-sub-intrusion`
-Status: frozen, unreviewed research-only derivation
+Status: frozen, independently compiler-referee-reviewed research-only derivation; no findings within the stated constructor scope
 Claim class: bounded constructor derivation and exact first missing rule
 Authority / implementation permission: none
 Exclusive lease: this note only
@@ -269,13 +269,23 @@ case at this exact original `F_id,T_id,xi_O,C_0`. Supply the complete factor
 evidence before another trace/model. If the clause is not yet specified, retain
 that exact semantic-kernel dependency as open rather than select its meaning.
 
+## Independent review
+
+A compiler referee found no blocking, major or minor issue in the constructor
+derivation, exact carrier-root distinction, first missing independent inlet
+premise, or preservation of the original tuple/scope/profile/provider/world
+obligations. Unnamed repository alternatives, implementation and runtime
+behavior were not reviewed. No source rejection, complete-row existence or
+admission result follows.
+
 ## Commit packet
 
 - Exact leased path: `notes/progress/2026-10-06-return-carrier-inlet-construction.md`.
 - Baseline SHA: `9c410df85cefdfbb7bfd9c48ddc5052bdb3319d0`.
 - Dependency changes: none observed; pinned/current SHA-256 match below.
-- Review status: frozen unreviewed research-only derivation; no independent
-  review or gate completion claim. Writes stop on submission.
+- Review status: compiler-referee PASS within the recorded bounded scope; no
+  theorem-gate completion or implementation authority. Writes stop after the
+  review metadata update.
 - Checks already run: scoped source/rule inspection, exact dependency diff
   and SHA-256 comparison, proof/quantifier/carrier-root audit, note-local
   whitespace and link checks; no builds/tests/probes.
