@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `f19fb4f473344e8f4478ae145d0915e04d250b09`
-Status: frozen, unreviewed research submission; non-authoritative
+Status: bounded research characterization; regression-auditor reviewed with no findings; non-authoritative
 Method: manual source-shape audit and conditional address derivation
 Scope: repeated formal use, formal annotation, and later higher-order calls
 Implementation authority: none
@@ -230,7 +230,11 @@ elaboration, all-view principality, A admission, or production Option A/2
 containment was verified. No source-valid second original applicable position
 at the exact candidate was found within this envelope. A two-position abstract
 signature alone leaves the same original-introduction premise untouched;
-another supplied-profile toy probe would not advance this lane.
+another supplied-profile toy probe would not advance this lane. An independent
+regression audit found no issues in the classifications: its closure depends on
+Hroot/Hdirect/Htransport/Hresult and preserves the exact open P converse. It did
+not verify complete typing, production acceptance, generalization, runtime
+liveness or exhaustive source forms.
 
 Resource use: manual audit with short read processes; zero heavyweight
 processes, builds, tests, or unbounded searches. No numeric CPU/RAM/wall-time allowance
@@ -261,8 +265,9 @@ ea32179888d41ceaddda7ba5c3566e1e83bf489da3fba763a28fda37e8876fad  notes/progress
 9b7be467a0a2bb56fd9576549e50b23350f378f16d35382b410d331b4aec3b37  crates/yu-hir/src/tests/shadow_call_source_occurrences.rs
 ```
 
-- Review status: producer-frozen and unreviewed; no independent certification
-  or theorem/source-authority promotion.
+- Review status: regression-auditor reviewed with no findings within the
+  bounded source-shape/classification scope; no theorem or source-authority
+  promotion.
 - Checks already run: narrow source/rule reads, baseline/dependency checks,
   final exact-path status, and whitespace check; no executable semantic check.
 - Proposed one-line checkpoint message:
