@@ -1187,6 +1187,43 @@ impl Skeleton {
         Ok(&self.expressions[id.0.index])
     }
 
+    /// Every retained expression, including declarations outside the designated body.
+    pub fn retained_expressions(&self) -> impl ExactSizeIterator<Item = (ExprId, &Expression)> {
+        self.expressions
+            .iter()
+            .enumerate()
+            .map(|(index, expression)| (ExprId(self.id(index)), expression))
+    }
+
+    /// Checked storage address for joins; the address is not a lexical identity.
+    pub fn expression_offset(&self, id: &ExprId) -> Result<usize, ShadowError> {
+        self.check_id(&id.0, self.expressions.len())?;
+        Ok(id.0.index)
+    }
+
+    /// Joins an existing capture record to its exact retained direct call.
+    pub fn capture_call(&self, capture: &CaptureUseIncidence) -> Result<&ExprId, ShadowError> {
+        let Form::Lambda { body, captures, .. } = self.expression(capture.lambda())?.form() else {
+            return Err(ShadowError::InvalidExpressionReference);
+        };
+        self.binder(capture.captured())?;
+        let Form::Apply { callee, .. } = self.expression(body)?.form() else {
+            return Err(ShadowError::InvalidCallReference);
+        };
+        let Form::Use { binder, occurrence } = self.expression(callee)?.form() else {
+            return Err(ShadowError::InvalidUseReference);
+        };
+        if captures.as_slice() != std::slice::from_ref(capture.captured())
+            || binder != capture.captured()
+            || occurrence != capture.occurrence()
+            || self.use_position(occurrence)? != capture.position()
+            || !std::ptr::eq(self.use_expression(occurrence)?, self.expression(callee)?)
+        {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        Ok(body)
+    }
+
     fn validate(&self) -> Result<(), ShadowError> {
         self.expression(&self.body)?;
         for (index, expression) in self.expressions.iter().enumerate() {

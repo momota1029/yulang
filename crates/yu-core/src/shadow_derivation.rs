@@ -3,7 +3,8 @@
 
 use yu_hir::shadow::{
     BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence, ExprId, Form,
-    PendingPremise, ShadowArtifact, Skeleton, UnresolvedSourceViewPremise, UseId,
+    PendingPremise, ResolvedCallIncidence, ShadowArtifact, Skeleton, UnresolvedSourceViewPremise,
+    UseId,
 };
 
 /// Flat, immutable arena. Child offsets are local storage addresses, not lexical IDs.
@@ -162,4 +163,93 @@ pub struct PendingCall<'a> {
     pub application_premises: &'a [PendingPremise],
     pub capture: &'a CaptureUseIncidence,
     pub source_view_premises: &'static [UnresolvedSourceViewPremise],
+}
+
+/// Raw retained structure only; no value/computation or typing judgment is made.
+#[derive(Debug)]
+pub struct RawStructuralArena<'a> {
+    body: &'a ExprId,
+    nodes: Vec<RawNode<'a>>,
+}
+
+impl<'a> RawStructuralArena<'a> {
+    /// Publishes atomically after exact identity joins over the same artifact.
+    pub fn from_artifact(artifact: &'a ShadowArtifact) -> Option<Self> {
+        let skeleton = artifact.skeleton().ok()?;
+        skeleton.expression(skeleton.body()).ok()?;
+        let mut nodes = skeleton
+            .retained_expressions()
+            .map(|(source, expression)| RawNode {
+                source,
+                form: expression.form(),
+                call: matches!(expression.form(), Form::Apply { .. }).then(|| RawCall {
+                    application_premises: Vec::new(),
+                    direct_use: None,
+                    capture: None,
+                }),
+            })
+            .collect::<Vec<_>>();
+        // Premises for a call need not be adjacent in the HIR table.
+        for premise in skeleton.pending() {
+            let offset = skeleton.expression_offset(premise.call()).ok()?;
+            nodes
+                .get_mut(offset)?
+                .call
+                .as_mut()?
+                .application_premises
+                .push(premise);
+        }
+        for incidence in skeleton.resolved_call_incidences() {
+            let offset = skeleton
+                .expression_offset(incidence.application().expression())
+                .ok()?;
+            skeleton.binder(incidence.binder()).ok()?;
+            let use_expression = skeleton.use_expression(incidence.occurrence()).ok()?;
+            let callee = skeleton.expression(incidence.application().callee()).ok()?;
+            if !std::ptr::eq(use_expression, callee) {
+                return None;
+            }
+            nodes.get_mut(offset)?.call.as_mut()?.direct_use = Some(incidence);
+        }
+        for capture in skeleton.capture_uses() {
+            let call = skeleton.capture_call(capture).ok()?;
+            artifact.position(capture.position()).ok()?;
+            let offset = skeleton.expression_offset(call).ok()?;
+            let raw_call = nodes.get_mut(offset)?.call.as_mut()?;
+            let direct = raw_call.direct_use.as_ref()?;
+            if direct.occurrence() != capture.occurrence()
+                || direct.binder() != capture.captured()
+                || raw_call.capture.replace(capture).is_some()
+            {
+                return None;
+            }
+        }
+        Some(Self {
+            body: skeleton.body(),
+            nodes,
+        })
+    }
+
+    pub fn body(&self) -> &ExprId {
+        self.body
+    }
+
+    pub fn nodes(&self) -> &[RawNode<'a>] {
+        &self.nodes
+    }
+}
+
+#[derive(Debug)]
+pub struct RawNode<'a> {
+    pub source: ExprId,
+    pub form: &'a Form,
+    pub call: Option<RawCall<'a>>,
+}
+
+/// Absent association means unattached metadata, not semantic absence.
+#[derive(Debug)]
+pub struct RawCall<'a> {
+    pub application_premises: Vec<&'a PendingPremise>,
+    pub direct_use: Option<ResolvedCallIncidence<'a>>,
+    pub capture: Option<&'a CaptureUseIncidence>,
 }
