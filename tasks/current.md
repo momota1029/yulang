@@ -198,6 +198,14 @@ remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
 (P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
 (P4); no semantic rule or new gate edge is adopted.
 
+The bounded [shadow/original-association correspondence audit](../notes/progress/2026-10-08-original-association-shadow-correspondence-audit.md)
+maps retained source, core and solver identities to the required original
+fiber fields. Pending Apply operand Uses do not enter the current SCC dependency
+inventory; `beta`/slots, typed `p0`, receiver invocation, complete contribution
+and shared `xi` remain semantic gaps. Its optional eight-label identity seam
+has since been covered by the reviewed endpoint crosswalk above; that closes
+no source-introduction or SCC-use rule.
+
 The independently reviewed [Frozen Oracle selection-incidence trace](../notes/progress/2026-10-07-frozen-oracle-selection-incidence-producer.md)
 adds a distinct historical source-to-hidden-port mechanism: a dot-selection
 occurrence is registered before resolution, retained with separate receiver,
