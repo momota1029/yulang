@@ -442,6 +442,23 @@ one common interpretation. None is a source-validity witness. REC_LOCAL is
 pointwise in that fixed semantics; INIT_VALID constructs the actual base,
 and MEMBER_DISCHARGE establishes the complete simultaneous environment.
 
+The compiler-referee-reviewed [INIT_WORLD clause localization](../notes/progress/2026-10-08-init-world-clause-localization.md)
+factors one shared initial tuple into root, identity, incidence, current-world,
+interface and puncture obligations. It localizes W0—independent exhaustive
+root/world introduction for hole-dependent imports—as the first unspecified
+clause; it does not choose that meaning or close `SEM_JOINT`/`INIT_VALID`. The
+[shortcut audit](../notes/progress/2026-10-08-init-world-adversarial-shortcuts.md)
+shows only a partial-factor non-entailment, not a complete Yulang model or
+admitted-source counterexample; a same-X complete solution may be read out,
+but its existence is the base-construction obligation. The bounded
+[imported scalar/alias construction](../notes/progress/2026-10-08-init-valid-import-realization.md)
+retains distinct supplier/import/alias identities on one X/xi and isolates
+`Imp_Delta`/EnvStore/JointWF installation after granting source-link evidence
+and local scalar constructors. Its punctured-call extension remains an
+unproved seed schema with the added `ignore` Lambda/body/Bind relations
+explicitly pending. These results retain `INIT_WORLD` OPEN-SEMANTIC,
+`SEM_JOINT` OPEN-PROOF and `INIT_VALID` OPEN-PROOF.
+
 The next descriptor proof cut is to localize the independent ordinary
 descriptor clauses and prove exact-quantifier finite-failure reflection:
 after separate root/static checks, any failed `DescMem` must have a finite,
@@ -793,9 +810,12 @@ identity/evidence-plumbing gap in this dependency cone: Apply/operand,
 parameter declaration, annotation, and SCC identities are already retained
 and checked through solve. The missing `beta`/`Slots(beta)`, typed `p0`,
 receiver, contribution and shared `xi` require semantic producers, so no
-convenience projection was added as a substitute. The direct-Name fixture
-coverage omission remains a test coverage question, not evidence of lost
-identity.
+convenience projection was added as a substitute. The direct-Name fixture now
+has an ordinary-current-F5 control through lowering, collection and solve:
+ordinary F5 retains its `UnsupportedExpression` and no pending-application
+rows, while shadow retains the structurally mapped unresolved Apply and both
+source Uses. Its focused differential test passed; this verifies the refusal
+boundary and identity plumbing, not successor/current-infer semantic parity.
 
 The reviewed [captured-source lifecycle slice](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
 first carried the exact approved `apply/step` `ShadowArtifact` through opt-in

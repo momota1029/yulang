@@ -521,6 +521,38 @@ fn pending_application_direct_names_preserve_positions_and_resolution_variants()
             "shadow-f5-differential",
             "direct-name-operands.yu",
         )));
+        if text == "my invoke x = x(x)" {
+            let current_hir = Arc::new(
+                lower_module(identity.clone(), &parsed, SemanticImports::empty())
+                    .expect("ordinary F5 lowers the same parsed direct-name input"),
+            );
+            let current_batch = ConstraintBatch::collect(current_hir.clone()).unwrap();
+            assert!(current_batch.pending_applications().is_empty());
+            let current_solved = SolvedModule::solve(current_batch).unwrap();
+            assert!(current_solved.pending_applications().is_empty());
+            assert_eq!(
+                current_solved.shadow_pending_application_source_uses().count(),
+                0
+            );
+            // Ordinary F5 retains its unsupported-expression diagnostic; the
+            // shadow row below remains structural with application typing open.
+            // The public HIR diagnostic exposes kind/range, not message text.
+            for current in [current_hir.as_ref(), current_solved.hir().as_ref()] {
+                let [error] = current.errors() else {
+                    panic!("ordinary F5 retains one unsupported-expression error");
+                };
+                assert_eq!(error.kind(), HirErrorKind::UnsupportedExpression);
+                assert_eq!(error.range(), &(14..18));
+                let [diagnostic] = current.diagnostics() else {
+                    panic!("ordinary F5 retains one unsupported-expression diagnostic");
+                };
+                assert_eq!(diagnostic.kind(), HirErrorKind::UnsupportedExpression);
+                assert_eq!(diagnostic.range(), &(14..18));
+                assert_eq!(&text[diagnostic.range().clone()], "x(x)");
+                assert_eq!(diagnostic.error(), error.id());
+                assert_eq!(error.diagnostic(), Some(diagnostic.id()));
+            }
+        }
         let hir = Arc::new(
             lower_module_with_shadow_applications(
                 identity.clone(),
