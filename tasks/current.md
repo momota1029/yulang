@@ -333,9 +333,13 @@ branded successor HIR shadow, generalized interfaces, Q/R identity, or
 freshening. Keep those gates open. See the
 [shadow SCC topology observer](../notes/progress/2026-10-06-shadow-scc-topology-observer.md).
 Checkpoint commits: `c647dc006`, `098629118`, `46772a7a8`, `b7411dc34`,
-`fc103f9ed`, `6ee7fe8e2`. Push is deferred because this branch is three
-commits behind its upstream, and four remaining progress/theory paths still
-have staged and unstaged versions that need separate reconciliation.
+`fc103f9ed`, `6ee7fe8e2`, `cce6ba7d2`. Push remains deferred: this branch is
+nineteen commits ahead and three behind its upstream, while four progress/
+theory paths retain staged and unstaged versions that need separate
+reconciliation. The upstream task record also points to an unapproved
+profile-introduction question in another worktree, but no matching bundle is
+present in this worktree's question board; do not consume or integrate that
+decision until its exact local handoff is available.
 The default-off shadow artifact now assigns separate branded identities to
 retained annotation occurrences, while preserving their raw CST positions and
 pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
