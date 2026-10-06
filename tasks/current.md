@@ -240,6 +240,15 @@ endpoint precedence. These are conditional historical mechanics, not current
 Handler semantics or a source rule. Independent compiler-referee review found
 no issues. See the [multi-use accumulation record](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-archaeology.md)
 and [frame/endpoint continuation](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-continuation.md).
+The subsequent positive-return trace follows the historical `push(s,Empty)`
+into bounds and the matching Defined-frame `pop(s)` through replay composition:
+under explicit port-consumption and admitted-replay premises, push-then-pop
+cancels; a different identity or reversed order does not. The independent
+compiler-referee review found no findings. This does not tie the exact nested
+candidate's outer-frame output to that comparison or derive current
+`Delta_formal`, profile/receipt, or Q-independent admission. Oracle semantics
+remain non-authoritative. See the [positive return push and matching frame-pop
+trace](../notes/progress/2026-10-06-frozen-oracle-source-producer-solver-transfer.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
@@ -306,6 +315,18 @@ three focused HIR tests, rustfmt, diff-check, and `yu-core` checks with shadow
 both disabled and enabled pass. Independent regression review found no blocking
 or major issues.
 See the [shadow call-source crosswalk](../notes/progress/2026-10-06-shadow-call-source-occurrence.md).
+The opt-in `yu-solver/shadow-scc-observer` now borrows the already-frozen F0–F2
+plan and exposes its dependency-first components, members, and internal/incoming
+use identities without solving or charging query counters. Spec and regression
+review are closed after ordering/identity test coverage; focused tests and the
+feature-off package check pass. This is only current solver-topology
+observation: it does not establish correspondence to the independently
+branded successor HIR shadow, generalized interfaces, Q/R identity, or
+freshening. Keep those gates open. See the
+[shadow SCC topology observer](../notes/progress/2026-10-06-shadow-scc-topology-observer.md).
+Checkpoint commit: `c647dc006`. Push is deferred because this branch is three
+commits behind its upstream and the task/theory worktree files still have
+staged and unstaged versions that need separate reconciliation.
 The default-off shadow artifact now assigns separate branded identities to
 retained annotation occurrences, while preserving their raw CST positions and
 pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
