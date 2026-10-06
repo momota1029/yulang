@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Assigned baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch: `research/simple-sub-intrusion`
-Status: unreviewed research; frozen producer candidate
+Status: independently compiler-referee-reviewed conditional research construction
 Claim class: finite source-origin/policy schema, expanded independent admission
             obligations, source-grounded failed completion tests
 Semantic and implementation authority: none
@@ -632,6 +632,16 @@ production membership, all-view principality, or production implementation
 claim. The production obligations remain separately
 `D_C(xi) subseteq D_A(xi)` and
 `forall h in D_C(xi). P_A(h;xi) subseteq P_C(h;xi)`.
+
+## Independent review
+
+A compiler referee reviewed the frozen construction and its listed governing
+clauses; no blocking, major or minor finding remained within the stated
+envelope. The review accepts finite unsolved schema emission, the separation
+of the mandatory upper-output member from exhaustive original applicability,
+and the expanded but conditional initial/history obligations. It confirms
+that no complete original profile, nonempty complete row, unrestricted
+admission coverage, recursive inference, or production inclusion is proved.
 
 ## 10. Verification and commit packet
 

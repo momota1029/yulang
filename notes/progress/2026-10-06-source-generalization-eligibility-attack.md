@@ -1,11 +1,11 @@
-# Source generalization: projection-lambda selection and source-defined attacks
+# Source generalization: projection-lambda selection and conditional core attacks
 
 Date: 2026-10-06
 Baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: unreviewed bounded research construction; independent review pending
+Status: independently spec-audited bounded research construction; surface-brace realization remains open
 Claim classes: source-derived endpoint-family construction; conditional semantic
-selection/reconstruction; source-defined discriminators
+selection/reconstruction; source and conditional decorated-core discriminators
 Semantic/implementation authority: none
 Exclusive write lease: this note; optional checker lease unused
 
@@ -38,12 +38,16 @@ policy closes. The result is stronger than alpha transport of a supplied
 placement are derived from parameter/Name/Bind syntax. It is weaker than a
 complete inferred Function scheme theorem.
 
-The source witnesses below also falsify three particular shortcuts without
-stipulating an arbitrary Boolean relation: maximal interface-free-variable
+The source/conditional decorated-core witnesses below also falsify three
+particular shortcuts without stipulating an arbitrary Boolean relation:
+maximal interface-free-variable
 abstraction at an inner boundary, independent copies of a repeated port,
 and replacement of a Bind/Name client join by unrelated per-call witnesses.
 They distinguish structural/root and actual-value facts from bound precision;
-no raw compiler acceptance claim is made.
+no raw compiler acceptance claim is made. The `make` and `relay` witnesses
+are conditional on the explicit decorated-core graphs in §§5.1 and 5.3;
+their surface-brace realization remains open. This qualification does not
+change PG-1's bounded projection endpoint-family result.
 
 ## 2. Sources and preserved decisions
 
@@ -51,6 +55,7 @@ no raw compiler acceptance claim is made.
 | --- | --- |
 | [Source result synthesis §§2–3](../design/2026-10-02-source-result-synthesis-choice.md) | Missing ordinary parameter type is a fresh inferred value endpoint; Name forwards its registered interface; Result does not introduce a result-interpretation variable. |
 | [Typed core §§2–3,6–7,9](../design/2026-10-02-typed-computation-core-elaboration.md) | Ordinary parameter entry, lexical lookup, inert closure, ordered Bind, complete invocation, source skeleton and endpoint substitution; these are reviewed mathematical constructors with their typed premises. |
+| [Nested-block addendum §§1–3](../design/2026-10-06-nested-block-function-source-realization-addendum.md) | §1 approves only the selected `apply` candidate; §2 records its source/core meaning and §3 preserves the boundary for other brace forms. It supplies no raw-brace realization for `make` or `relay`. |
 | [Certified constrained use §§2–5](../design/2026-10-04-certified-callback-and-constrained-use.md) | Whole views, original-scope hiding, rigid imports, transitive admission dependencies and the exact all-view extension clause; source eligibility is not assumed from the use construction. |
 | [Source contracts §§3.4,5–8](../design/2026-10-05-source-contracts-and-common-allowance.md) | Full residual retention, independently checked allocation views, original source endpoints, provider incidence and the separate direct-resolution obligation. |
 | [Joint linking §3](../design/2026-10-02-parametric-component-linking.md) | Genuine local witnesses can be projected only after retaining every shared interface/dependency coordinate; logical hiding is distinct from source generalization. |
@@ -212,7 +217,28 @@ Template binding is not `Intro22(a_L,l)`. Every actual/derived comparison
 keeps its source classification and re-enters the level guard. No new
 exception, level assignment or SCC-wide binder block is introduced here.
 
-## 5. Source-defined falsification witnesses
+## Independent review and scope repair
+
+A spec auditor reviewed the frozen construction. The review found one minor
+authority-boundary issue: the additional `make` and `relay` brace displays
+were not explicitly linked to the selected source/core judgment. The repair
+now presents their intended decorated-core constructor graphs conditionally
+and leaves raw-brace realization open. A delta review verified closure of
+that finding and found no further issue. The review accepts the bounded
+projection-lambda endpoint-family result and source-defined attacks only
+within their stated source/core envelope. It does not establish surface
+acceptance, general semantic eligibility, unrestricted principality, or a
+new generalization policy.
+
+## 5. Source and conditional decorated-core falsification witnesses
+
+The `id` witness uses the ordinary parameter/Name source rules. `make` and
+`relay` below are **conditional decorated-core witnesses**, using typed core
+§§2–3,6's derivation constructors with their typed premises. The displayed
+brace spellings are candidate mnemonics only: the nested-block addendum's
+approved `apply` interpretation does not extend to either spelling. Their
+raw-brace-to-core correspondence, production acceptance and any broader
+local generalization policy remain open.
 
 ### 5.1 Local allocation ancestry does not make an inner capture fresh
 
@@ -220,21 +246,37 @@ exception, level assignment or SCC-wide binder block is introduced here.
 my make z = { my pick y = z; pick }
 ```
 
-At `make`'s boundary its ordinary formal endpoint `b` was locally allocated.
+Conditional intended constructor graph (abbreviate this data derivation as
+`Make`):
+
+```text
+lambda(z,
+  bind(pick,
+    result(lambda(y, result(name z))),
+    result(name pick)))
+```
+
+Here both parameters use ordinary Value entry; `pick`'s `name z` resolves to
+the outer formal, and Bind stores and returns the local closure value. These
+are hypotheses for this decorated graph, not a selected interpretation of
+the displayed braces. Surface-brace realization remains open.
+
+At `Make`'s boundary its ordinary formal endpoint `b` was locally allocated.
 At `pick`'s boundary the same endpoint belongs to the fixed outer environment,
 and its closure stores the original `z`. Name/Result synthesis therefore
 gives `pick` input `a`, result `b`, not an independently fresh result `b_u`.
-An incoming use of `make` may instantiate its own template coherently;
+An incoming use of `Make` may instantiate its own template coherently;
 `pick` must then retain that particular inherited instance. Historical
 template ancestry and current ambient ownership are different.
 
-Take an actual call `make 0` under the source constructor relation. Once its
+Take `call(result(Make), result(literal 0))` under this decorated-core
+constructor relation, conditional on its typed premises. Once its
 argument returns, the returned `pick` captures that Integer descriptor. Any
 later completed call of this `pick` returns the same captured Integer. A
 scheme shortcut that freshly binds `b` inside `pick` and drops its capture
 link can claim a Function-valued result for that actual closure, contrary
-to the source Name/Return witness. This is a semantic falsifier for **that
-dropped-capture relation**, not proof that an actual compiler accepts the
+to the graph's Name/Return witness. This is a conditional semantic falsifier
+for **that dropped-capture relation**, not proof that an actual compiler accepts the
 bad use or that all internal type bounds must denote singleton values.
 
 Even absence of `b` from a printed input port is insufficient: its provider,
@@ -268,31 +310,53 @@ bounds with the retained identity kernel need their direct whole comparison.
 my relay h x = { my v = h x; h v }
 ```
 
+Conditional intended constructor graph (abbreviate this data derivation as
+`Relay`):
+
+```text
+lambda(h,
+  result(lambda(x,
+    bind(v,
+      call(result(name h), result(name x)),
+      call(result(name h), result(name v))))))
+```
+
+Both parameters use ordinary Value entry. The outer body returns the inner
+closure; both `name h` occurrences in that closure resolve to the same outer
+formal, and `name v` resolves to the first Call's result binding. The two
+Call derivations require their typed callable/argument premises. This graph
+is supplied as the conditional decorated-core witness; its displayed
+surface-brace realization remains open.
+
 The first Call returns a result value that the ordinary Bind stores in `v`.
 The second Name supplies **that same actual result** as the second Call's
 argument computation. Both `h` Names resolve to the same outer formal;
 no independent generalized `h` introduction occurs inside this body. This
-source graph derives a join between the two Call witnesses: original callee,
+decorated graph derives a join between the two Call witnesses: original callee,
 current state, first result/rebind and ordered suffix. It is an actual
-source-derived client relation, not a Boolean `W` assumed by fiat.
+constructor-derived client relation conditional on the graph and its typed
+premises, not a Boolean `W` assumed by fiat.
 
 For example, when the first result is an Integer, a stitched second witness
-using an unrelated Function argument is not a witness of this source. A
+using an unrelated Function argument is not a witness of this graph. A
 full solver may allow suitable supertype bounds or conservative primitive
 alternatives; each complete witness still retains the original rebind link.
-This witness disproves the claim that all client relations can be factored
-into independently chosen ports/calls. PG-1 and whole copying retain this
-join; they do not extend their projection-body coverage to `relay`.
+This conditional witness disproves the claim that all such decorated-core
+client relations can be factored into independently chosen ports/calls.
+Whole copying retains this join; PG-1's projection-body coverage does not
+extend to `Relay`.
 
 ### 5.4 Hidden admission and under-generalization: precise limits
 
-In `make`, the captured descriptor may itself be a latent provider. A future
-challenge of the returned `pick` observes the provider actually captured and
+In the conditional `Make` graph of §5.1, the captured descriptor may itself
+be a latent provider. A future challenge of the returned `pick` observes the
+provider actually captured and
 returned along that history. Consequently its source path/environment and
-typed future-use admission depend on the captured tuple. The syntactic
-transitive-dependency sufficient condition for admission-uniform hiding in
-certified-use §4.1 cannot discard it. This identifies a source-derived
-admission dependency; it is not another stipulated two-row marginal
+typed future-use admission depend on the captured tuple, under the graph's
+typed premises. This makes no claim about the candidate brace spelling. The
+syntactic transitive-dependency sufficient condition for admission-uniform
+hiding in certified-use §4.1 cannot discard it. This identifies a conditional
+constructor-derived admission dependency; it is not another stipulated two-row marginal
 countermodel and does not by itself prove a failed full Function comparison.
 
 For under-generalization, `id 0` and `id (lambda y.y)` give independently
@@ -334,8 +398,9 @@ Next decisive evidence:
    reflexivity/congruence certificate for the independently aligned view.
 2. Extend the independently checked view class beyond kernel alignment,
    supplying the required designated-export extension for each new view.
-3. For a proposed maximal binder algorithm, apply the `make` boundary witness
-   and retain source-generated dependency directions and residual equations;
+3. For a proposed maximal binder algorithm, apply the conditional `Make`
+   decorated-core boundary witness and retain constructor-generated
+   dependency directions and residual equations;
    do not replace semantic dependency by every formula co-occurrence.
 4. Derive actual source instantiation-event independence; invocation-local
    formal rebinds alone do not establish arbitrary Name/alias scheme policy.
@@ -345,17 +410,23 @@ Suggested commit: `research: derive projection endpoint families and attack sour
 Exact path: `notes/progress/2026-10-06-source-generalization-eligibility-attack.md`.
 Shared-record delta proposed, not written: retain the unrestricted eligibility
 gate; add PG-1's source-derived projection endpoint/reconstruction envelope,
-the three source discriminators, and the explicit whole-Function
+the source `id` discriminator, conditional decorated-core `Make`/`Relay`
+discriminators with surface realization open, and the explicit whole-Function
 admission/direct-resolution/principality residual. Do not promote this note
 to production authority or full source closure.
 
 ### Frozen direct dependencies
 
-All twelve direct semantic dependencies below matched the pinned baseline
-byte-for-byte at freeze. The final artifact hash is recorded in the submission
+The twelve original direct semantic dependencies below matched the pinned
+baseline byte-for-byte at freeze. The final artifact hash is recorded in the submission
 packet. Unrelated branch movement does not
 invalidate this proof; a changed source constructor/admission or
 generalization premise requires a dependency-scoped review.
+
+The authority-boundary repair additionally consulted the nested-block
+addendum §§1–3; its frozen hash is listed separately below. This dependency
+qualifies the conditional witnesses only and does not extend its approved
+candidate scope.
 
 | Path | SHA-256 at the baseline |
 | --- | --- |
@@ -371,5 +442,9 @@ generalization premise requires a dependency-scoped review.
 | `notes/design/2026-10-04-intrusion-experimental-transport.md` | `b9eeaa4c014e98f0e2790208030a6cccf48e6efcfb05c2d46effd27caff25c96` |
 | `notes/design/2026-10-03-concrete-compatibility-boundary.md` | `5b0b4321d8644f88a7a946aff31b6b3190d37a9076ac698fa91fdfeef1470f16` |
 | `notes/progress/2026-10-06-directional-recursive-generalization-supplier.md` | `2f169e0f894fff8695cf8e1ef40f5a9734abfe87484d9db6aab23eae941b8898` |
+
+| Additional authority-boundary dependency | SHA-256 at repair freeze |
+| --- | --- |
+| `notes/design/2026-10-06-nested-block-function-source-realization-addendum.md` | `750449c19d9bdb23278894373a61c6408985ae5703a0f00a8a9f919d045e7ed0` |
 
 Writes stop before submission; this artifact is frozen for review.

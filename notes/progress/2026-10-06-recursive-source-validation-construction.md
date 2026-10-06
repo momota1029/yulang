@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Branch: `research/simple-sub-intrusion`
-Status: frozen unreviewed research-only construction and premise reduction
+Status: frozen, independently compiler-referee-reviewed research-only construction and premise reduction
 Method: finite lexical graph construction; paired source/core transitions;
         open-body validation attack against independent descriptor membership
 Exclusive write lease: this note only
@@ -53,6 +53,16 @@ the positive semantic relation construction.
 This is neither a source rejection result nor evidence of an unavoidable new
 semantic choice. No equality, lower-bound rule, eligible-binder policy, or new
 language semantics is adopted.
+
+## Independent review
+
+A compiler referee reviewed the frozen construction and governing source
+clauses; no blocking, major or minor finding remained. The review accepts the
+finite actual-provider knot and conditional prefix correspondence for the
+exact mutually recursive pair. It confirms that descriptor typing, complete
+admission/history reflection, effective finite presentation, broader
+recursive source formation and inference adequacy remain open. The note does
+not authorize a recursive membership rule or production implementation.
 
 ## 2. Governing clauses and separation from existing results
 
