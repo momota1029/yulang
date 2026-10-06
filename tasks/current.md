@@ -72,6 +72,16 @@ gate is an independently justified exhaustive original formal-profile
 introduction rule and its inversion proof. See the [conditional formation-rule
 attempt](../notes/progress/2026-10-06-formal-profile-formation-rule-attempt.md)
 and [adjacent-use audit](../notes/progress/2026-10-06-profile-adjacent-use-source-falsification.md).
+Two independently reviewed finite inversion attempts now localize that gap:
+the formal-binder derivation reaches the profile supplied by source elaboration
+to decorated transport, and the 11-node captured-step Call/result derivation
+has only the known positive `Gen-Call-0` seed. Result transport preserves an
+independently justified callee-result profile but cannot introduce one. These
+are bounded cuts through the supplied rules, not proofs of `N-formal` or
+`N-call`, not claims that `Slots_original(beta)={p_0}`, and not source-valid
+counterexamples. The source introduction table and exhaustive inversion remain
+the next proof obligation. See the [formal inversion cut](../notes/progress/2026-10-06-i-formal-inversion-attempt.md)
+and [Call/result witness search](../notes/progress/2026-10-06-i-call-rest-source-witness-search.md).
 
 Two reviewed follow-ups further bound this stop. The conditional local
 seed/refinement theorem preserves an independently supplied original relation
