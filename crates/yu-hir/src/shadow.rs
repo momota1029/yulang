@@ -48,6 +48,7 @@ impl ShadowArtifact {
             root,
             &positions,
             &artifact.positions,
+            &artifact.annotations,
         );
         Ok(artifact)
     }
@@ -108,6 +109,7 @@ impl ShadowArtifact {
                         | SyntaxKind::ParenthesizedExpression
                         | SyntaxKind::MlArgument
                         | SyntaxKind::CallTail
+                        | SyntaxKind::PatternTypeAnnotation
                         | SyntaxKind::BindingStatement
                         | SyntaxKind::BracedStatementBlockExpression
                 )
@@ -236,6 +238,21 @@ impl AnnotationOccurrence {
         &self.correspondence
     }
 }
+/// Structural association only; it supplies no typed port or annotation permission.
+#[derive(Debug)]
+pub struct ParameterAnnotationIncidence {
+    parameter: BinderId,
+    annotation: AnnotationId,
+}
+impl ParameterAnnotationIncidence {
+    pub fn parameter(&self) -> &BinderId {
+        &self.parameter
+    }
+    pub fn annotation(&self) -> &AnnotationId {
+        &self.annotation
+    }
+}
+
 #[derive(Debug)]
 pub struct Skeleton {
     identity: Arc<()>,
@@ -244,6 +261,7 @@ pub struct Skeleton {
     pub(crate) uses: Vec<ExprId>,
     use_positions: Vec<PositionId>,
     capture_uses: Vec<CaptureUseIncidence>,
+    parameter_annotations: Vec<ParameterAnnotationIncidence>,
     pub(crate) body: ExprId,
     pub(crate) pending: Vec<PendingPremise>,
 }
@@ -450,6 +468,7 @@ fn build_skeleton(
     root: SyntaxNode,
     positions: &HashMap<SyntaxNode, Option<PositionId>>,
     raw_positions: &[Position],
+    annotations: &[AnnotationOccurrence],
 ) -> Result<Skeleton, ShadowError> {
     let source = parsed.source();
     // The shared envelope is one direct root binding. Root trivia (the four
@@ -487,6 +506,11 @@ fn build_skeleton(
         return Err(ShadowError::MalformedSource);
     }
 
+    let annotation_ids = annotations
+        .iter()
+        .map(|annotation| (annotation.position.0.index, annotation.id.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut parameter_annotations = Vec::new();
     let mut binders = Vec::<Binder>::new();
     let mut names = BTreeSet::new();
     for parameter in parameters {
@@ -494,7 +518,24 @@ fn build_skeleton(
             return Err(ShadowError::MalformedSource);
         }
         let pattern = only_child(parameter, SyntaxKind::Pattern)?;
-        let binder_node = only_child(&pattern, SyntaxKind::IdentifierPattern)?;
+        let (binder_node, annotation_node) = parameter_pattern(&pattern)?;
+        if let Some(annotation_node) = annotation_node {
+            let position = positions
+                .get(&annotation_node)
+                .and_then(Option::as_ref)
+                .ok_or(ShadowError::MalformedSource)?;
+            let annotation = annotation_ids
+                .get(&position.0.index)
+                .cloned()
+                .ok_or(ShadowError::MalformedSource)?;
+            parameter_annotations.push(ParameterAnnotationIncidence {
+                parameter: BinderId(LocalId {
+                    artifact: identity.clone(),
+                    index: binders.len(),
+                }),
+                annotation,
+            });
+        }
         let (name, range) = identifier(&binder_node, source)?;
         if !names.insert(name.clone()) {
             return Err(ShadowError::DuplicateBinder { range });
@@ -522,12 +563,16 @@ fn build_skeleton(
         uses: Vec::new(),
         use_positions: Vec::new(),
         capture_uses: Vec::new(),
+        parameter_annotations,
         pending: Vec::new(),
     };
     artifact.body = if chain
         .children()
         .any(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
     {
+        if !artifact.parameter_annotations.is_empty() {
+            return Err(ShadowError::MalformedSource);
+        }
         artifact.project_selected_nested(statement, chain, source, positions)?
     } else {
         artifact.project(chain, source, positions)?
@@ -588,6 +633,34 @@ fn build_skeleton(
     artifact.validate_positions(raw_positions)?;
     Ok(artifact)
 }
+fn parameter_pattern(
+    pattern: &SyntaxNode,
+) -> Result<(SyntaxNode, Option<SyntaxNode>), ShadowError> {
+    let children = pattern.children().collect::<Vec<_>>();
+    match children.as_slice() {
+        [identifier] if identifier.kind() == SyntaxKind::IdentifierPattern => {
+            Ok((identifier.clone(), None))
+        }
+        [group] if group.kind() == SyntaxKind::ParenthesizedPattern => {
+            let inner = only_child(group, SyntaxKind::Pattern)?;
+            if group.children().count() != 1 {
+                return Err(ShadowError::MalformedSource);
+            }
+            let children = inner.children().collect::<Vec<_>>();
+            match children.as_slice() {
+                [identifier, annotation]
+                    if identifier.kind() == SyntaxKind::IdentifierPattern
+                        && annotation.kind() == SyntaxKind::PatternTypeAnnotation =>
+                {
+                    Ok((identifier.clone(), Some(annotation.clone())))
+                }
+                _ => Err(ShadowError::MalformedSource),
+            }
+        }
+        _ => Err(ShadowError::MalformedSource),
+    }
+}
+
 fn only_child(node: &SyntaxNode, kind: SyntaxKind) -> Result<SyntaxNode, ShadowError> {
     let children = node.children().collect::<Vec<_>>();
     let matching = children
@@ -914,6 +987,10 @@ impl PendingPremise {
     }
 }
 impl Skeleton {
+    pub fn parameter_annotations(&self) -> &[ParameterAnnotationIncidence] {
+        &self.parameter_annotations
+    }
+
     pub fn capture_uses(&self) -> &[CaptureUseIncidence] {
         &self.capture_uses
     }

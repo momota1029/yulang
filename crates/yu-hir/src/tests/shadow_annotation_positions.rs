@@ -219,3 +219,135 @@ fn shadow_annotation_positions_ids_preserve_each_retained_annotation_occurrence(
         ShadowError::ForeignArtifact
     );
 }
+
+#[test]
+fn shadow_annotation_positions_associates_only_grouped_parameter_identifier() {
+    let source = "my apply (f: T) x = f x";
+    let artifact = from_source(source).unwrap();
+    assert_whole_tree(&artifact);
+    let skeleton = artifact.skeleton().unwrap();
+    let [incidence] = skeleton.parameter_annotations() else {
+        panic!("one grouped formal annotation")
+    };
+    assert_eq!(skeleton.binder(incidence.parameter()).unwrap().name(), "f");
+    assert_eq!(incidence.annotation(), artifact.annotations()[0].id());
+    let annotation = artifact.annotation(incidence.annotation()).unwrap();
+    assert_eq!(
+        annotation.correspondence(),
+        &Correspondence::PendingTypedPortAndProfile
+    );
+    let binder = skeleton.binder(incidence.parameter()).unwrap();
+    let binder_position = artifact.position(binder.position()).unwrap();
+    let annotation_position = artifact.position(annotation.position()).unwrap();
+    assert_eq!(
+        annotation_position.kind(),
+        SyntaxKind::PatternTypeAnnotation
+    );
+    assert_eq!(binder_position.parent(), annotation_position.parent());
+    let inner = artifact
+        .position(annotation_position.parent().unwrap())
+        .unwrap();
+    assert_eq!(inner.kind(), SyntaxKind::Pattern);
+    assert_eq!(
+        artifact.position(inner.parent().unwrap()).unwrap().kind(),
+        SyntaxKind::ParenthesizedPattern
+    );
+    let root = SyntaxNode::new_root(artifact.parsed().green().clone());
+    let mut exact = root;
+    for ordinal in syntax_path(&artifact, annotation.position()) {
+        exact = exact
+            .children_with_tokens()
+            .nth(ordinal)
+            .unwrap()
+            .into_node()
+            .unwrap();
+    }
+    assert_eq!(exact.kind(), SyntaxKind::PatternTypeAnnotation);
+    assert_eq!(exact.to_string(), ": T");
+    assert_eq!(
+        skeleton
+            .binders()
+            .iter()
+            .map(Binder::name)
+            .collect::<Vec<_>>(),
+        ["f", "x"]
+    );
+    assert_eq!(
+        skeleton
+            .pending()
+            .iter()
+            .map(PendingPremise::premise)
+            .collect::<Vec<_>>(),
+        [
+            Premise::CallableRole,
+            Premise::FullFunctionMembership,
+            Premise::CallViewRealization,
+            Premise::QIndependentSourceCallViewFormation
+        ]
+    );
+    let other = from_source(source).unwrap();
+    assert_eq!(
+        other.annotation(incidence.annotation()).unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+    assert_eq!(
+        other.position(annotation.position()).unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+    assert_eq!(
+        other
+            .skeleton()
+            .unwrap()
+            .binder(incidence.parameter())
+            .unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+}
+
+#[test]
+fn shadow_annotation_positions_does_not_misbind_ungrouped_or_expression_annotations() {
+    for source in ["my apply f: T x = f x", "my apply f x = f x as T"] {
+        let artifact = from_source(source).unwrap();
+        assert_eq!(artifact.annotations().len(), 1);
+        assert_eq!(
+            artifact.annotations()[0].correspondence(),
+            &Correspondence::PendingTypedPortAndProfile
+        );
+        assert!(artifact.skeleton().is_err());
+        assert_whole_tree(&artifact);
+    }
+}
+
+#[test]
+fn shadow_annotation_positions_keeps_noninitial_grouped_parameters_distinct() {
+    let artifact = from_source("my apply x (f: T) (g: T) = f (g x)").unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    let [f, g] = skeleton.parameter_annotations() else {
+        panic!("two grouped formal annotations")
+    };
+    assert_eq!(skeleton.binder(f.parameter()).unwrap().name(), "f");
+    assert_eq!(skeleton.binder(g.parameter()).unwrap().name(), "g");
+    assert_ne!(f.parameter(), g.parameter());
+    assert_eq!(f.annotation(), artifact.annotations()[0].id());
+    assert_eq!(g.annotation(), artifact.annotations()[1].id());
+    assert_ne!(f.annotation(), g.annotation());
+    for incidence in [f, g] {
+        let binder = skeleton.binder(incidence.parameter()).unwrap();
+        let annotation = artifact.annotation(incidence.annotation()).unwrap();
+        assert_eq!(
+            artifact.position(binder.position()).unwrap().parent(),
+            artifact.position(annotation.position()).unwrap().parent()
+        );
+        assert_eq!(
+            annotation.correspondence(),
+            &Correspondence::PendingTypedPortAndProfile
+        );
+    }
+    assert_eq!(skeleton.binders()[0].name(), "x");
+    assert!(
+        skeleton
+            .parameter_annotations()
+            .iter()
+            .all(|incidence| { skeleton.binder(incidence.parameter()).unwrap().name() != "x" })
+    );
+}

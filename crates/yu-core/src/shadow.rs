@@ -4,6 +4,6 @@
 pub use yu_hir::shadow::{
     AnnotationId, AnnotationOccurrence, ApplicationSourceOccurrence, Binder, BinderId,
     CaptureUseIncidence, ClosureCorrespondence, Correspondence, ExprId, Expression, Form,
-    MAX_RAW_ELEMENTS, MAX_SYNTAX_DEPTH, PendingPremise, Position, PositionId, Premise,
-    ResolvedCallIncidence, ShadowArtifact, ShadowError, Skeleton, UseId,
+    MAX_RAW_ELEMENTS, MAX_SYNTAX_DEPTH, ParameterAnnotationIncidence, PendingPremise, Position,
+    PositionId, Premise, ResolvedCallIncidence, ShadowArtifact, ShadowError, Skeleton, UseId,
 };

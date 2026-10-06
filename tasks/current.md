@@ -199,6 +199,16 @@ pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
 with the feature on and off pass; both exact-conformance and regression review
 found no issues. This adds no profile identity or production inference path.
 See the [annotation occurrence identity slice](../notes/progress/2026-10-06-shadow-annotation-occurrence-id.md).
+The shadow skeleton now also retains an exact grouped formal-to-annotation
+incidence for the bounded `(f: T)` parameter shape, while preserving raw
+annotation inventory and pending typed-port/profile correspondence. Atomic
+unannotated parameters retain their prior path; whole-target and expression
+annotations do not attach to formals. Two independent reviews found no
+remaining issues after a multi-annotation coverage test; focused HIR/core
+checks pass. This establishes identity plumbing only and leaves all call
+premises, typed profiles, protection, role, admission, Q, and production
+behavior unresolved. See the
+[shadow parameter-annotation incidence slice](../notes/progress/2026-10-06-shadow-parameter-annotation-incidence.md).
 The shadow core now also retains an artifact-owned declaration Lambda for the
 existing direct-unary leaf overlap `my f x = x` and `my f x = 42`, while
 `Skeleton::body()` still returns the original leaf. The declaration identity
