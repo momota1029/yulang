@@ -3,7 +3,7 @@
 Date: 2026-10-08
 Baseline: `5809cd94c346c6095189e0e0664a13457dea4a68`
 Gate/method: ORIGINAL_ASSOC; adversarial falsifier-premise audit and restricted source reduction
-Status: frozen research-only artifact; independent review pending
+Status: frozen research-only artifact; compiler-referee M1 review passed
 Exclusive lease: this note only
 Semantic and implementation authority: none
 
@@ -239,13 +239,28 @@ All SHA-256 values below match the pinned baseline. No dependency was edited.
 | `questions/2026-10-05-function-call-view-formation/question.md` | `f3915c64daeccf466115b74a895c2c937f2ec10c1872fc91ff220ed2b0cf7c5f` |
 | `questions/2026-10-05-function-call-view-formation/approved-answer.md` | `1071cf1c2d9abce2ffbc829cec7757d2b2f52849174c04751bd63aeefa520536` |
 
+## Independent review
+
+The compiler-referee review passed with no findings at this exact content
+hash:
+
+```text
+8e79584d434ed1780714d1ee0d5a03b9247b8a35c1f48ca11609044bde772a7c
+```
+
+The review covered the restricted Name/Name argument reduction, quantifier
+boundaries, and the prohibited Q-derived-creation and marginal-gluing routes.
+It certifies only the conditional derivation and bounded feasibility claim,
+not complete CALL_TYPE, original incidence, admission, or source-rule absence.
+
 ## Commit packet
 
 - Exact leased/changed path: `notes/progress/2026-10-08-original-call-association-adversarial-cut.md`.
 - Baseline SHA: `5809cd94c346c6095189e0e0664a13457dea4a68`.
 - Dependency hashes changed: none; fifteen pinned-byte comparisons pass.
-- Review status: frozen, unreviewed research-only feasibility audit and
-  conditional restricted reduction. No source counterexample or gate closure.
+- Review status: compiler-referee-reviewed research-only feasibility audit
+  and conditional restricted reduction. No source counterexample or gate
+  closure.
 - Checks already run: governing/predecessor reads; cut/interface/sort and
   falsifier-premise audit; initial/final dependency equality; exact-note
   whitespace/fence/link/lease inspection. No semantic tests/builds.
@@ -256,5 +271,5 @@ All SHA-256 values below match the pinned baseline. No dependency was edited.
   CALL_TYPE, SIG_RULES and ORIGINAL_ASSOC as open. No task/theory/index,
   authority, question-board or production change is proposed.
 
-Writing stopped before submission for frozen review. The primary owns
-independent review, shared-record integration and Git operations.
+The producer stopped before review. The primary added the review record and
+task navigation after review; the derivation was not changed.

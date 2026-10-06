@@ -198,6 +198,14 @@ remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
 (P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
 (P4); no semantic rule or new gate edge is adopted.
 
+The compiler-referee-reviewed [bounded Call falsifier cut](../notes/progress/2026-10-08-original-call-association-adversarial-cut.md)
+shows that at the fixed Name/Name source cut, the ordinary `x` formal makes
+the normalized argument a `Return`; a latent returned value adds no recursive
+Force. This excludes an effectful-argument mutation as a counterexample for
+that exact cut. No admitted source counterexample, original incidence or
+complete Call typing is established; `CALL_TYPE` and `ORIGINAL_ASSOC` remain
+open.
+
 The bounded [shadow/original-association correspondence audit](../notes/progress/2026-10-08-original-association-shadow-correspondence-audit.md)
 maps retained source, core and solver identities to the required original
 fiber fields. Pending Apply operand Uses do not enter the current SCC dependency
