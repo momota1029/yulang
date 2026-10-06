@@ -1,7 +1,7 @@
 # Frozen Oracle whole-tuple source-producer correspondence
 
 Date: 2026-10-06
-Status: frozen research-only historical characterization; review pending
+Status: frozen, independently compiler-referee-reviewed historical characterization
 Yulang3 baseline: `393b77b64cef03e74b3f1e76adb22c2aac5c981d`
 Frozen Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Semantic and implementation authority: none
@@ -61,9 +61,16 @@ behavior is adopted by this result.
    `infer/src/analysis/session/occurrence_provenance.rs:15–68,119–181,228–322`
    retain owner, role, structural type path and explicit completeness state.
    Application expected provenance is registered after application subtype
-   submission (`infer/src/lowering/expr/tail.rs:552–586`). Generalized
-   completeness is explicitly partial, and the root-function collector omits
-   root return/effect witnesses. This sidecar is useful provenance plumbing,
+   submission (`infer/src/lowering/expr/tail.rs:552–586`). In
+   `append_generalized_occurrences`, completeness is inherited from each
+   witness and downgraded when a parent carrier is unavailable
+   (`infer/src/analysis/session/occurrence_provenance.rs:251–307`). The positive
+   Function branch of `WitnessCollector::collect_pos` traverses the argument
+   at every depth but traverses argument-effect, return-effect and return
+   positions only when `path.depth() != 0`
+   (`infer/src/generalize/provenance.rs:308–338`). This is a bounded collector
+   omission, not a claim that every generalized witness is incomplete.
+   This sidecar is useful provenance plumbing,
    but is post-submission and intentionally sparse; it cannot establish
    query-independent source registration or independent admission.
 
@@ -97,13 +104,17 @@ source adequacy and production cutover remain gated.
 
 Frozen Oracle revision was fixed at
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`. Read-only source inspection and
-content-hash comparison matched the eight inspected files against the prior
-frozen-source hash table. No Oracle execution, build, test, mutation, or Git
+content-hash comparison matched the original eight inspected files against the
+prior frozen-source hash tables. Four additional cited files were directly
+read during the review repair in `/tmp/yulang2-oracle-rebuild`; their content
+hashes below match the primary's separate validation against the exact frozen
+revision. Blob SHA-1 values were computed from file bytes using the Git blob
+header, without invoking Git. No Oracle execution, build, test, mutation, or Git
 operation was performed. The source-search scope was bounded to identity,
 generalization, instantiation and occurrence-provenance paths; this note does
 not report exhaustive repository search coverage.
 
-Inspected paths:
+Original eight-file inventory:
 
 | Oracle path | Blob SHA-1 |
 | --- | --- |
@@ -116,7 +127,26 @@ Inspected paths:
 | `crates/infer/src/constraints/mod.rs` | `14860e3664a7ac05f7493f1d51fe69a6f34216e5` |
 | `crates/infer/src/constraints/machine/entry.rs` | `d75544523281cc7f5c6f1778fbe25eb42b7dfe7b` |
 
+Additional cited files inspected for the review repair:
+
+| Oracle path | Blob SHA-1 | SHA-256 |
+| --- | --- | --- |
+| `crates/poly/src/provenance.rs` | `0980898542588402426b80cca421a5299fd75867` | `9b1dc3fa436d92c39c2732ec401f10b3747e3e0f1bb921dc23b96fb19039e519` |
+| `crates/infer/src/analysis/session/occurrence_provenance.rs` | `6a3e4da511d8c2f6f512f2c22b6112ecda6076c8` | `90613e12e904c74d40894e6f395162c358cc632a8aecb9ddc55db542dd897268` |
+| `crates/infer/src/lowering/expr/tail.rs` | `8289bfdc6a17b2469ae168ac7939d34813fda474` | `ac406b309fbb0ba558a18e37aba63a8e7ffeabbc377a111566b1f97d786f93b8` |
+| `crates/infer/src/generalize/provenance.rs` | `62a70745be4d0e5e7880adec727216f188640b4a` | `83859368c64d27abb5896f1efc491b7fd616adf893b03d36d99b8f57da1792e0` |
+
 No current compiler code or shadow premise was changed by this historical
 correspondence note. The exact current unresolved cut remains source-owned
 `U_c`/`Delta_formal`, complete original profile and typed incidence, and
 independent admission under the shared original `xi`.
+
+## Independent review
+
+A compiler referee reviewed the original frozen note and the repaired
+evidence inventory. The original finding concerned omitted source locators and
+hash entries; the delta review verified all twelve listed paths against the
+frozen Oracle revision, confirmed the exact completeness/collector locations,
+and found no remaining issue. The accepted scope remains this bounded
+historical characterization only. No current source-generation, soundness,
+principality, admission, adequacy or production result is certified.
