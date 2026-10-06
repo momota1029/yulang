@@ -3,7 +3,8 @@
 Date: 2026-10-06
 Baseline: `843f78ccaae0eac1a49838b54cf2a3863aa0b8a9`
 Branch: `research/simple-sub-intrusion`
-Status: frozen, unreviewed research-only derivation
+Status: frozen, independently compiler-referee-reviewed research-only
+derivation; minor carrier-root finding repaired and delta-closed
 Claim class: bounded source-constructor derivation and precise obstruction
 Authority / implementation permission: none
 Lease: this note only
@@ -230,11 +231,13 @@ ExecuteCallable(v_id,t,C) =
 
 Thus its body has Result(Value(Unit)) = Comp(empty,Unit), while its complete
 image includes t's actual execution, current world, complete view, receipt
-and suffix. It is not identified with its body's empty row. For the particular
-source carrier Delay(result(Unit)) the code returns Unit without a request.
-For any independently admitted request-bearing carrier the same equation
-retains that request and exact raw suffix. No such challenge is admitted by
-this note merely because it can be drawn.
+and suffix. It is not identified with its body's empty row. The particular
+source carrier `Delay(result(Unit))` is received by `caller`; after its Value
+entry rebinds `x=Unit`, the separate `id x` call receives `Delay(J_x)`, where
+`J_x=result(name x)` retains the source Name and original argument root. For
+either carrier, an independently admitted request-bearing challenge would
+retain its request and exact raw suffix, but this note admits neither carrier
+merely because it can be drawn.
 
 One can name a *candidate source-base root* by the complete constructor image,
 with a retained independent carrier-domain predicate. Source contracts §2
@@ -245,17 +248,17 @@ interpretation, select an Option 2 grammar, or prove its descriptor conjunct.
 
 ### Smallest remaining ordinary leaf
 
-The original complete inlet must admit even the explicitly constructed
-returning source carrier at the proposed original Function root F_id:
+The original complete inlet of `id` must admit the actual source carrier
+constructed for `id x`, at the proposed original Function root `F_id`:
 
 ```text
 WholeArgCompatible(Comp(empty,Unit), CarrierContract(F_id);xi_O)
-with the original carrier/root Delay(result(Unit)) and current source world
+with carrier/root `Delay(J_x)`, `J_x=result(name x)`, and the current source world
 ```
 
 This is exactly the independent inlet predicate of initial-context §4.4,
 not actual membership of the tested H_f and not success of pending Q. The
-source-side Return/Delay/Name derivation has been supplied. Value(Unit)
+source-side Return/Delay/Name derivation for `J_x` has been supplied. Value(Unit)
 parameter formation supplies the expected result after entry, but typed
 core §9 explicitly says that it does not specify the complete incoming
 carrier contract. The required Return-carrier constructor typing/admission
@@ -313,7 +316,18 @@ The nested inversion law must account for own and inherited sources without
 assuming Slots(beta_N) singleton. This is a request for source-rule evidence,
 not a proposed language meaning or a user decision.
 
-## 5. Checks, resources and commit packet
+## 5. Independent review
+
+A compiler referee passed the bounded obstruction derivation. The review
+identified that the ordinary inlet had reused the outer `caller` literal
+carrier at the inner `id x` call. The repair now uses the rebound Name carrier
+`Delay(J_x)` with `J_x=result(name x)`, and explicitly distinguishes it from
+`Delay(result(Unit))` received by `caller`. The reviewer confirmed that the
+local prefix, Name derivation and inlet obligation agree after this repair.
+Unnamed repository rules, production acceptance and broader history coverage
+remain outside review.
+
+## 6. Checks, resources and commit packet
 
 Checks already run: bounded `git show` reads at the pinned revision; direct
 inspection of governing sections and their source addenda; constructor,
@@ -334,8 +348,9 @@ Commit packet:
 
 - Exact leased path: `notes/progress/2026-10-06-independent-initial-admission-construction.md`.
 - Baseline SHA: `843f78ccaae0eac1a49838b54cf2a3863aa0b8a9`.
-- Claim/review status: frozen, unreviewed research-only bounded derivation and
-  obstruction; neither an admitted original row nor a closed P/A gate.
+- Claim/review status: compiler-referee PASS after repair, within the recorded
+  bounded derivation and obstruction; neither an admitted original row nor a
+  closed P/A gate.
 - Checks: pinned source reads, dependency SHA-256, derivation/quantifier audit,
   note whitespace and local-link checks; no build/test/probe.
 - Proposed commit: `research: isolate original profile and carrier admission cuts`.
