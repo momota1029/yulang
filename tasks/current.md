@@ -172,6 +172,15 @@ Compiler-referee and regression reviews found no issues. This connects
 declaration identity to the already retained body/use source structure without
 adding call typing or production routing. See the
 [unary declaration shadow slice](../notes/progress/2026-10-06-shadow-unary-declaration-root.md).
+The conditional principality note on strict input-domain views finds that
+typed-core Function inclusion can validate a narrower target under explicit
+same-scope admission and observation premises, while the displayed A-allocation
+certificate still requires exact challenge-domain equality. A small required-
+Record-width candidate remains conditional on source licensing; it is outside
+`V_alloc(S)` independently because its value interface changes. This is not a
+current accepted-program counterexample. Independent compiler-referee review
+found no remaining issues; no Oracle was used. See the
+[proper-domain view boundary](../notes/progress/2026-10-06-principality-proper-domain-view-boundary.md).
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5
