@@ -324,6 +324,8 @@ successor binders or source call-view semantics.
 
 The [frozen legacy Apply structural differential](../notes/progress/2026-10-06-shadow-legacy-apply-structure-differential.md) now checks the selected nested source's ordered Lambda/Bind/Apply/Use tree and lexical identity edges against a provenance-pinned Oracle expression dump. It preserves the outer binder, all seven expression identities and three distinct uses, while keeping every call-view/event/output premise pending. It is structural retention evidence only: no type/effect, typed capture, inference parity, source adequacy or Oracle semantic claim.
 
+The same differential now checks that this pinned Apply occurrence and its ordered callee/argument source identities key the shadow core's eight distinct bookkeeping labels ([implementation note](../notes/progress/2026-10-06-shadow-apply-endpoint-skeleton.md)). This remains a structural source-coordinate join; the Oracle supplies no typed endpoint correspondence, and no type/effect or inference parity is claimed.
+
 The reviewed [SCC-to-skeleton crosswalk](../crates/yu-solver/src/shadow_scc.rs)
 provides checked borrowed lookups from current F0–F2 definition/use identities
 into already represented shadow Lambda/Bind/Use identities. Unsupported

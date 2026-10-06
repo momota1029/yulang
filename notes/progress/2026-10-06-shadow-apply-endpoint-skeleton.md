@@ -75,6 +75,14 @@ The reviewer assigned no broad check. The workspace suite and benchmark were not
 run; zero performance samples were used. The accessor has fixed-size labels and
 constant lookup work, with one borrowed Skeleton reference retained per arena.
 
+The focused [Frozen Oracle source differential](../tests/shadow_legacy_application_provenance.rs)
+also joins its pinned ordinary-Apply source occurrence and ordered operands to
+these eight labels, checking that each label borrows the same Apply identity
+and remains position-distinct. This extends only the source-coordinate
+crosswalk; it adds no typed endpoint or inference-parity claim. Its focused
+test passed (1 test); a regression auditor reviewed the 17-line delta with no
+findings.
+
 ## Remaining work
 
 The slice gives the experimental call seam inspectable structural addresses,

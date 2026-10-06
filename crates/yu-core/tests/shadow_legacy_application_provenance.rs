@@ -112,6 +112,23 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
     assert_eq!(registration.source, input.call());
     assert_eq!(registration.source, call.source);
     assert!(std::ptr::eq(registration.application, apply.form()));
+    // Join the historical source coordinates to candidate bookkeeping addresses
+    // only; the Oracle supplies no typed endpoint correspondence here.
+    let endpoints = raw
+        .pending_apply_endpoint_skeleton(application.expression())
+        .unwrap();
+    assert_eq!(endpoints.source(), application.expression());
+    assert_eq!(endpoints.source(), registration.source);
+    assert_eq!(endpoints.callee(), application.callee());
+    assert_eq!(endpoints.argument(), application.argument());
+    assert_eq!(endpoints.addresses().len(), 8);
+    for (index, address) in endpoints.addresses().iter().enumerate() {
+        assert_eq!(address.application(), application.expression());
+        assert!(std::ptr::eq(address.application(), endpoints.source()));
+        for previous in &endpoints.addresses()[..index] {
+            assert_ne!(address.position(), previous.position());
+        }
+    }
     let source_input = registration.source_use_input;
     assert_eq!(source_input.application().expression(), registration.source);
     assert!(std::ptr::eq(
