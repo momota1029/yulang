@@ -8,6 +8,7 @@
 //! call views, soundness, or principality.
 
 use std::sync::Arc;
+use yu_core::shadow_derivation::RawStructuralArena;
 use yu_hir::{
     FileId, FileKey, HirErrorKind, HirItem, ModuleIdentity, NameResolution, ResolvedExpr,
     SemanticImports, lower_module,
@@ -235,6 +236,8 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
     let shadow = ShadowArtifact::from_parsed(parsed).expect("shared parse shadow artifact");
     let skeleton = shadow.skeleton().expect("nested application skeleton");
     let crosswalk = shadow.skeleton_source_crosswalk();
+    let raw = RawStructuralArena::from_artifact(&shadow)
+        .expect("the same source artifact retains its raw structural inventory");
     let batch = ConstraintBatch::collect(shadow_hir.clone())
         .expect("shadow applications remain collectible as pending structure");
     let rows = batch.pending_applications();
@@ -289,11 +292,39 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
         let parameter_position = shadow
             .parameter_source_position(&shadow_hir, parameter)
             .expect("formal parameter identity belongs to this HIR artifact");
-        let (_, source_binder) = crosswalk
+        let (source_lambda, source_binder) = crosswalk
             .parameter_at_position(&parameter_position)
             .expect("parameter position is in the source artifact")
             .expect("formal parameter has a retained shadow binder");
         assert_eq!(binder, source_binder);
+        let registration = raw
+            .nodes()
+            .iter()
+            .find(|node| std::ptr::eq(skeleton.expression(&node.source).unwrap(), application))
+            .expect("the exact Apply source expression is retained in the raw arena")
+            .pending_source_call_registration()
+            .expect("the direct source use has a pending structural registration");
+        assert!(std::ptr::eq(
+            skeleton.expression(registration.source).unwrap(),
+            application
+        ));
+        assert_eq!(registration.source_use_input.occurrence(), use_id);
+        assert_eq!(
+            registration.source_use_input.application().expression(),
+            registration.source
+        );
+        assert_eq!(registration.source_use_input.binder(), source_binder);
+        // Optional declaration metadata is syntactic ownership only. This fixture
+        // retains the root Lambda; missing metadata supplies no semantic judgment.
+        let Some(declaration) = registration.parameter_declaration else {
+            panic!("this fixture retains the root Lambda parameter declaration");
+        };
+        assert!(std::ptr::eq(declaration.lambda, source_lambda));
+        assert!(std::ptr::eq(declaration.parameter, source_binder));
+        let Form::Lambda { parameter, .. } = declaration.lambda.form() else {
+            panic!("the syntactic declaration owner is a retained Lambda");
+        };
+        assert_eq!(parameter, source_binder);
         use_ids.push(use_id);
     }
     assert_ne!(use_ids[0], use_ids[1]);

@@ -356,6 +356,14 @@ judgment. This is source identity plumbing, not successor/current-infer parity
 or application inference. See the
 [pending solver application identity record](../notes/progress/2026-10-07-shadow-solver-pending-application-identity.md).
 
+The nested `f(f 1)` test now joins each pending solver row through the raw
+core call registration to the same source Apply, callee UseId, Binder and
+retained syntactic Lambda parameter declaration. This adds structural
+HIR-to-core-to-solver correspondence only; formal applicability and typed
+call-view evidence remain unresolved. The test-only `yu-core/shadow`
+dependency stays outside production builds. A compiler-referee review found
+one missing same-UseId assertion; it was added, and the focused test passed.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow

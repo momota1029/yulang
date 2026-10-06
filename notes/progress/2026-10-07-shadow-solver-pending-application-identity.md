@@ -2,11 +2,11 @@
 
 Date: 2026-10-07
 Baseline: `39f00ce1eeb84a71df333c4cb10771137c95491e`
-Status: default-off structural slice and source-core differential join implemented, focused-verified, compiler-referee and regression reviewed
+Status: default-off structural slice and HIR-to-core-to-solver differential join implemented, focused-verified, compiler-referee and regression reviewed
 Authority: user's authorization for shadow/experimental identity and evidence plumbing
 Semantic authority: none added
-Implementation: `crates/yu-solver/src/lib.rs`, gated by `shadow-f5`
-Review: compiler_referee PASS; one test-only parameter-identity weakness repaired and focused test rerun; regression_auditor PASS on the source-core differential addition
+Implementation: `crates/yu-solver/src/lib.rs`, gated by `shadow-f5`; test-only `yu-core/shadow` dependency for cross-layer identity coverage
+Review: compiler_referee PASS with one test-only direct-use identity coverage gap repaired and focused test rerun; regression_auditor PASS on the source-core differential addition
 
 ## Slice
 
@@ -36,15 +36,29 @@ nested call uses. Production refusal is checked by error kind; the test does
 not certify exact diagnostic text or span. Its structural joins are not
 inferred-result parity.
 
+The differential test now carries that join through `RawStructuralArena` as
+well. For each pending solver row it locates the exact source Apply node,
+checks the raw pending registration's application and `UseId`, then confirms
+that the HIR parameter identity, source Binder and retained Lambda parameter
+declaration are the same syntactic owner. The new `yu-core` dependency is
+dev-only and enables only its existing `shadow` facade. This closes structural
+correspondence for the bounded `my apply x = x(x 1)` fixture; it does not infer
+that the binder is semantically applicable as a function or supply any typed
+port/profile/receipt evidence.
+
 ## Review and verification
 
 The compiler referee inspected the feature boundary, source identities,
 nested traversal, collection refusal, root bookkeeping, test strength and
-cost. No blocking or major findings remained. A minor test gap compared
+cost. No blocking or major findings remained. An earlier minor test gap compared
 `NameResolution::Parameter` through its weaker equality implementation, which
 checks only the ordinal. The primary repaired the assertion to compare full
 `HirParameterId` identity in both outer and nested callee cases; this changes
-test validation only, not the sidecar implementation.
+test validation only, not the sidecar implementation. The follow-up
+compiler-referee review found one additional minor test gap: same-binder nested
+calls did not assert that the raw registration retained the same `UseId` and
+application expression as the solver row. Those exact identity assertions
+were added and the focused test rerun.
 
 Checks run:
 
@@ -53,9 +67,12 @@ Checks run:
 - `git diff --check -- crates/yu-solver/src/lib.rs` — passed.
 - `rustfmt --emit stdout --edition 2024 --config skip_children=true crates/yu-solver/src/lib.rs`; changed lines inspected against the formatted output. Existing unrelated formatting drift was preserved.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-solver --features shadow-f5 --test shadow_f5_differential pending_solver_applications_join_exact_shadow_call_and_use_occurrences -- --test-threads=1` — 1 passed.
+- Same focused test rerun after checking the raw `UseId` and application-expression joins — 1 passed.
 - `rustfmt --edition 2024 --check --config skip_children=true crates/yu-solver/tests/shadow_f5_differential.rs` and `git diff --check` — passed.
 
 No broad suite, inferred-result comparison, performance sample, Oracle run,
-manifest change, production routing change or Git mutation was made. The new
+production routing change or Git mutation was made. The test-only dependency
+adds `yu-core` with `shadow` to `yu-solver`'s dev dependencies and the matching
+Cargo.lock entry. The new
 sidecar is not successor/current-infer parity. Ordinary application typing,
 source adequacy, soundness, principality and production cutover remain open.

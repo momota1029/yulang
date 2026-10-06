@@ -14,4 +14,5 @@ yu-hir = { path = "../yu-hir" }
 yu-types = { path = "../yu-types" }
 
 [dev-dependencies]
+yu-core = { path = "../yu-core", features = ["shadow"] }
 yu-syntax = { path = "../yu-syntax" }
