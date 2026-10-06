@@ -35,6 +35,7 @@ fn shadow_source_view_premise_locator_borrows_exact_input_and_preserves_pending(
             SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
             IndependentInitialCallerProviderWorldAdmission,
             SourceSeedRefinedRelationExistenceAndCoverage,
+            OriginalSignatureApplicabilityAndContributionFormation,
         ]
     );
     assert_eq!(before.len(), 7);

@@ -630,6 +630,9 @@ pub enum UnresolvedSourceViewPremise {
     SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
     IndependentInitialCallerProviderWorldAdmission,
     SourceSeedRefinedRelationExistenceAndCoverage,
+    /// Requires exhaustive original applicable-slot/contribution formation
+    /// and its inversion; this does not supply either judgment.
+    OriginalSignatureApplicabilityAndContributionFormation,
 }
 
 /// Borrows only the validated structural input. No invocation/profile identity,
@@ -656,6 +659,7 @@ impl<'input, 'artifact> SourceViewPremiseLocator<'input, 'artifact> {
             SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
             IndependentInitialCallerProviderWorldAdmission,
             SourceSeedRefinedRelationExistenceAndCoverage,
+            OriginalSignatureApplicabilityAndContributionFormation,
         ]
     }
 }
