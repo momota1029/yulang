@@ -47,6 +47,56 @@ supersession before implementation, following the approval gate below. The
 user's delegation is to choose a practical route under these priorities, not
 to conceal its observable boundary or its performance cost.
 
+## Natural compiler behavior and proof-obligation economy (2026-10-07)
+
+Authority: the user's explicit decision to keep Yulang's compiler behavior
+natural while avoiding proof work that exists only because of an unnecessarily
+proof-hostile design.
+
+Proof convenience is subordinate to approved ordinary compiler behavior. Do not
+make otherwise supported programs require artificial annotations, introduce
+user-visible distinctions with no language purpose, reject natural inference
+paths, or add runtime/source restrictions merely because those choices shorten a
+metatheoretic proof.
+
+For design and cutover planning, keep three claim classes distinct:
+
+1. **Compiler safety/correctness**: properties needed so accepted programs,
+   generated constraints/evidence, solving, generalization, instantiation and
+   publication are sound for the supported envelope.
+2. **Natural inference behavior**: completeness or usability properties needed
+   for the ordinary source programs and inference behavior the language is
+   intended to support.
+3. **Stronger semantic characterization**: all-model, all-view, open-world,
+   converse-completeness, maximal principality, or similar research theorems
+   that are valuable but are stronger than what ordinary compiler operation
+   requires.
+
+Class 3 is not automatically a production-cutover prerequisite. It becomes one
+only when an Authoritative design, an accepted observable-behavior contract, or
+a concrete safety/correctness dependency requires it. Conversely, calling a
+claim "research" never permits dropping a class-1 or class-2 obligation.
+
+Persistent proof obligations are design feedback. When a proof repeatedly has
+to reconstruct ownership, provenance, incidence, licensing, scope, provider
+identity, or another fact that the owning compiler phase already knew while
+constructing the program representation, prefer retaining a canonical typed
+certificate or explicit phase output over proving the fact later from IDs,
+shapes, successful queries, or duplicated semantic relations. Such retained
+evidence must be a natural byproduct of the approved compiler operation; it
+must not invent new language meaning merely to make a theorem easy.
+
+When two designs preserve the same approved observable behavior and safety
+contract, prefer the one with a single authority for each fact, more
+syntax-/construction-directed evidence, fewer inverse/reconstruction theorems,
+and a smaller semantic surface that must be trusted simultaneously.
+
+This policy does **not** close, retire, weaken, or reclassify any current proof
+obligation by itself. Existing DAG gates keep their recorded status until a
+reviewed argument shows that a gate is discharged or is unnecessary for the
+selected production contract. Any actual semantic weakening or change to an
+Authoritative contract still follows the normal approval and supersession gate.
+
 ## Design status
 
 New design documents use:

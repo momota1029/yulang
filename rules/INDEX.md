@@ -17,7 +17,7 @@
 
 ## Compiler engineering
 
-- [`compiler-engineering.md`](compiler-engineering.md) — responsibility boundaries, file/module shape, diagnostics, experimental mechanisms, and comments.
+- [`compiler-engineering.md`](compiler-engineering.md) — responsibility boundaries, natural compiler behavior, proof-obligation economy, file/module shape, diagnostics, experimental mechanisms, and comments.
 - [`parser-chasa.md`](parser-chasa.md) — repository-specific `chasa` parser-combinator conventions.
 - [`bug-fixing.md`](bug-fixing.md) — root-cause diagnosis, repair placement, temporary workarounds, and scope discipline.
 - [`performance.md`](performance.md) — hot paths, recomputation/allocation policy, adaptive measurement budgets, and resource-risk triggers.

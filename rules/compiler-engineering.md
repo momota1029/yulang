@@ -13,6 +13,63 @@ Yulang code should make the entrypoint, owner, principal data flow, and phase bo
 
 The broad architecture is governed by `docs/yulang3-architecture.md`; task-specific authoritative addenda may narrow it.
 
+## Natural compiler behavior and proof-obligation economy
+
+Treat proof complexity as an engineering signal, not as a reason to deform the
+language. The target is a compiler whose ordinary source behavior is natural
+and whose correctness argument follows the compiler's actual construction
+rather than reconstructing hidden facts after the fact.
+
+Before introducing a new semantic layer, proof-only relation, inverse theorem,
+or helper whose main purpose is to discharge another helper, classify the
+obligation:
+
+- **A — safety/correctness**: required to show accepted compiler output is
+  sound, well scoped, well owned, and safe to publish or execute.
+- **B — natural inference**: required so the intended ordinary programs infer,
+  generalize, resolve, recurse, or instantiate as expected without artificial
+  user annotations or source restrictions.
+- **C — stronger characterization**: useful metatheory such as arbitrary-view
+  completeness, full converse correspondence, maximal/open-world
+  characterization, or another theorem stronger than A/B.
+- **D — reconstruction debt**: a theorem exists mainly because an earlier
+  phase discarded a fact that it naturally possessed and a later phase now
+  tries to recover it from identifiers, shapes, solver success, or duplicated
+  relations.
+
+Work A and B to closure. Keep C as a research theorem unless the governing
+Authority makes it a cutover dependency. For D, first ask whether the owning
+phase should retain a canonical typed certificate, provenance edge, owner,
+scope, incidence, license, provider identity, or other explicit output so that
+the later property follows by construction.
+
+Evidence retention is preferred when all of these hold:
+
+- the fact is already known at the owning construction point;
+- retaining it preserves the approved source/compiler behavior;
+- it gives one authority rather than a second independently reconstructed
+  meaning;
+- later consumers can validate or pattern-match the evidence locally;
+- it does not smuggle in a semantic assumption that the source or production
+  system has not justified.
+
+Do not optimize proofs by adding mandatory annotations, rejecting otherwise
+approved natural programs, coupling semantics to incidental source spelling or
+IDs, introducing user-visible modes only for the theorem, or expanding runtime
+metadata with no compiler responsibility.
+
+When two materially different proof attempts hit the same missing premise,
+pause before launching a third variant. Run a design-debt audit: decide whether
+the premise is A/B, C, or D; identify the phase that originally knows the fact;
+and test whether a constructional invariant or retained certificate removes the
+reconstruction obligation without changing behavior. Resume proof search when
+the obligation is genuinely semantic or when redesign would damage the approved
+compiler contract.
+
+This classification is a planning and design tool, not a proof shortcut.
+Existing Authoritative semantics and current proof-gate statuses remain in
+force until separately reviewed and, where required, approved.
+
 ## File order
 
 Put the file's main public or conceptual entrypoint first:
