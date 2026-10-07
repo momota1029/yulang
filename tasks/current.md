@@ -146,6 +146,20 @@ advances only the `HIR_WIRING` implementation-only node. Multi-definition
 fresh-use, captured local Bind/Lambda, semantic typing/admission, successor
 correspondence and production behavior remain open.
 
+The next default-off candidate slice now retains each resolved module Name
+use's collection-branded identity, target scheme, receiving scheme, exact
+current Q/R-to-fresh-row substitution, binder origin, and stored provenance
+causes. A separate test-wired module-use crosswalk records raw Name/target/
+receiving positions without fabricating `SourceCallUseInput`; empty fresh
+routes remain distinct from absent module uses. It validates the exact HIR
+instance and source artifact even when there are no module uses, rejecting an
+empty HIR where no source identity witness exists. All source typing, admission,
+receiving-export correspondence, successor transport, and other semantic
+premises remain unresolved; production behavior is unchanged. The focused
+candidate/single-root/multi-root targets passed 15/2/3, and regression review
+passed after two ownership-coverage repairs. This advances executable
+`HIR_WIRING` only; no DAG node status changed.
+
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY. No status changed in this shadow slice.

@@ -1,6 +1,10 @@
 //! Test-wired, default-off observational crosswalk for independent root Lambdas.
 //! Exact source incidence and candidate solver output never discharge premises.
 #![cfg(feature = "shadow-apply-candidate")]
+#![allow(
+    dead_code,
+    reason = "test-wired crosswalk APIs are exercised by separate integration targets"
+)]
 
 use yu_hir::shadow::{
     Form, PendingPremise, ShadowArtifact, Skeleton, SourceCallUseInput, SourceIdentityError,
@@ -185,5 +189,123 @@ impl<'a> CandidateSourceCrosswalk<'a> {
             skeleton: call.skeleton,
             observation: call.observation,
         })
+    }
+}
+
+/// Raw module Name positions joined to retained collection uses. This path does
+/// not construct a Lambda skeleton or a SourceCallUseInput.
+pub struct CandidateSourceModuleUse<'a> {
+    position: yu_hir::shadow::PositionId,
+    target_position: yu_hir::shadow::PositionId,
+    receiving_position: yu_hir::shadow::PositionId,
+    observation: yu_solver::shadow_apply::CandidateDefinitionUseRef<'a>,
+}
+impl<'a> CandidateSourceModuleUse<'a> {
+    pub fn position(&self) -> &yu_hir::shadow::PositionId {
+        &self.position
+    }
+    pub fn target_position(&self) -> &yu_hir::shadow::PositionId {
+        &self.target_position
+    }
+    pub fn receiving_position(&self) -> &yu_hir::shadow::PositionId {
+        &self.receiving_position
+    }
+    pub fn observation(&self) -> yu_solver::shadow_apply::CandidateDefinitionUseRef<'a> {
+        self.observation
+    }
+    /// Raw incidence does not supply the missing declaration skeleton.
+    pub fn declaration_skeleton(&self) -> Option<&'a Skeleton> {
+        None
+    }
+}
+
+/// Separate module-use observation; the strict formal-call crosswalk above
+/// continues to require its exact original SourceCallUseInput.
+pub struct CandidateSourceModuleUses<'a> {
+    uses: Vec<CandidateSourceModuleUse<'a>>,
+}
+impl<'a> CandidateSourceModuleUses<'a> {
+    pub fn new(
+        source: &'a ShadowArtifact,
+        hir: &'a HirModule,
+        candidate: &'a CandidateValueObservation,
+    ) -> Result<Self, CrosswalkError> {
+        if !candidate.observes_hir(hir) {
+            return Err(CrosswalkError::ForeignCandidate);
+        }
+        let mut uses = Vec::new();
+        let mut validated_source_identity = false;
+        for item in hir.items() {
+            let HirItem::Binding(binding) = item else {
+                if let HirItem::Expression(expression) = item {
+                    source
+                        .occurrence_source_position(hir, expression.occurrence())
+                        .map_err(CrosswalkError::Source)?;
+                    validated_source_identity = true;
+                }
+                continue;
+            };
+            // Validate source artifact ownership even when this declaration has
+            // no module Name occurrences to crosswalk.
+            source
+                .definition_source_position(hir, binding.definition_root())
+                .map_err(CrosswalkError::Source)?;
+            validated_source_identity = true;
+            let mut pending = vec![binding.value()];
+            while let Some(expression) = pending.pop() {
+                match expression {
+                    ResolvedExpr::Name {
+                        occurrence,
+                        resolution: yu_hir::NameResolution::Resolved(target),
+                        ..
+                    } => {
+                        let observation = candidate
+                            .definition_use(occurrence)
+                            .ok_or(CrosswalkError::ForeignCandidate)?;
+                        let target_binding = hir
+                            .items()
+                            .iter()
+                            .find_map(|item| match item {
+                                HirItem::Binding(b) if b.id() == target => Some(b),
+                                _ => None,
+                            })
+                            .ok_or(CrosswalkError::MissingExactSourceIncidence)?;
+                        if observation.target_scheme().owner() != target_binding.definition_root()
+                            || observation.receiving_scheme().owner() != binding.definition_root()
+                        {
+                            return Err(CrosswalkError::ForeignCandidate);
+                        }
+                        uses.push(CandidateSourceModuleUse {
+                            position: source
+                                .occurrence_source_position(hir, occurrence)
+                                .map_err(CrosswalkError::Source)?,
+                            target_position: source
+                                .definition_source_position(hir, target_binding.definition_root())
+                                .map_err(CrosswalkError::Source)?,
+                            receiving_position: source
+                                .definition_source_position(hir, binding.definition_root())
+                                .map_err(CrosswalkError::Source)?,
+                            observation,
+                        });
+                    }
+                    ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                    ResolvedExpr::Group { inner, .. } => pending.push(inner),
+                    ResolvedExpr::Apply {
+                        callee, argument, ..
+                    } => {
+                        pending.push(callee);
+                        pending.push(argument);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if !validated_source_identity {
+            return Err(CrosswalkError::MissingExactSourceIncidence);
+        }
+        Ok(Self { uses })
+    }
+    pub fn uses(&self) -> &[CandidateSourceModuleUse<'a>] {
+        &self.uses
     }
 }

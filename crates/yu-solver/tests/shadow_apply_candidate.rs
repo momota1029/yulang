@@ -385,3 +385,222 @@ fn compare_terms(
         (l, r) => assert_eq!(l, r),
     }
 }
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[path = "../src/shadow_candidate_source_crosswalk.rs"]
+mod source_crosswalk;
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn module_names_join_target_fresh_rows_and_receiving_schemes_without_calls() {
+    use source_crosswalk::CandidateSourceModuleUses;
+    use yu_solver::shadow_f5::{FreshCaptureState, GeneralizationOriginState};
+    let text = "my id x = x; my alias = id; pub first = alias; pub second = alias";
+    let source_text: Arc<SourceText> = Arc::from(text);
+    let parsed = parse_file(
+        source_text.clone(),
+        Arc::new(scan_header(source_text)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let source = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let hir = Arc::new(
+        lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("candidate", "module-uses.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(
+        candidate.calls().is_empty(),
+        "module Names introduce no source call premise"
+    );
+    let crosswalk = CandidateSourceModuleUses::new(&source, &hir, &candidate).unwrap();
+    assert_eq!(crosswalk.uses().len(), 3);
+    for use_ in crosswalk.uses() {
+        let observation = use_.observation();
+        assert!(use_.declaration_skeleton().is_none());
+        assert_eq!(
+            use_.position(),
+            &source
+                .occurrence_source_position(&hir, observation.occurrence())
+                .unwrap()
+        );
+        assert_eq!(
+            use_.target_position(),
+            &source
+                .definition_source_position(&hir, observation.target_scheme().owner())
+                .unwrap()
+        );
+        assert_eq!(
+            use_.receiving_position(),
+            &source
+                .definition_source_position(&hir, observation.receiving_scheme().owner())
+                .unwrap()
+        );
+        assert!(
+            !observation
+                .target_scheme()
+                .same_identity(observation.receiving_scheme())
+        );
+        assert_eq!(observation.unresolved(), UNRESOLVED);
+        assert!(matches!(
+            observation.target_scheme().current_generalization_origins(),
+            GeneralizationOriginState::Captured(_)
+        ));
+        assert!(matches!(
+            observation
+                .receiving_scheme()
+                .current_generalization_origins(),
+            GeneralizationOriginState::Captured(_)
+        ));
+        assert!(observation.provenance_causes().next().is_some());
+    }
+    let first = crosswalk.uses()[1].observation();
+    let second = crosswalk.uses()[2].observation();
+    assert!(!first.same_identity(second));
+    assert!(first.target_scheme().same_identity(second.target_scheme()));
+    let FreshCaptureState::Captured(first_route) = first.fresh_instantiation() else {
+        panic!("first route")
+    };
+    let FreshCaptureState::Captured(second_route) = second.fresh_instantiation() else {
+        panic!("second route")
+    };
+    assert!(first_route.scheme().same_identity(first.target_scheme()));
+    let first_rows: Vec<_> = first_route.bindings().collect();
+    let second_rows: Vec<_> = second_route.bindings().collect();
+    assert!(!first_rows.is_empty());
+    assert_eq!(first_rows.len(), second_rows.len());
+    use yu_solver::shadow_f5::FreshBinderRef;
+    for ((first_binder, a), (second_binder, b)) in first_rows.iter().zip(&second_rows) {
+        assert!(!a.same_identity(*b));
+        match (first_binder, second_binder) {
+            (FreshBinderRef::Quantified(a), FreshBinderRef::Quantified(b)) => {
+                assert!(a.same_identity(*b));
+                assert_eq!(a.ordinal(), b.ordinal());
+                assert!(a.scheme().same_identity(first.target_scheme()));
+            }
+            (FreshBinderRef::Recursive(a), FreshBinderRef::Recursive(b)) => {
+                assert!(a.same_identity(*b));
+                assert_eq!(a.ordinal(), b.ordinal());
+                assert!(a.scheme().same_identity(first.target_scheme()));
+            }
+            _ => panic!("route changes source binder kind"),
+        }
+    }
+    let retained_rows = candidate.fresh_rows(first.occurrence()).unwrap();
+    assert_eq!(retained_rows.len(), first_rows.len());
+    for (row, (binder, _)) in retained_rows.iter().zip(&first_rows) {
+        match (row.source_binder(), binder) {
+            (FreshBinderRef::Quantified(a), FreshBinderRef::Quantified(b)) => {
+                assert!(a.same_identity(*b))
+            }
+            (FreshBinderRef::Recursive(a), FreshBinderRef::Recursive(b)) => {
+                assert!(a.same_identity(*b))
+            }
+            _ => panic!("retained row changes source binder kind"),
+        }
+    }
+    let foreign = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(!first.same_identity(foreign.definition_use(first.occurrence()).unwrap()));
+    let foreign_hir = module(text, true);
+    assert!(CandidateSourceModuleUses::new(&source, &foreign_hir, &candidate).is_err());
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn empty_module_fresh_route_differs_from_no_module_use() {
+    use yu_solver::shadow_f5::FreshCaptureState;
+    let hir = module("my n = 1; pub out = n", true);
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    let use_ = candidate.definition_uses().next().unwrap();
+    let FreshCaptureState::Captured(route) = use_.fresh_instantiation() else {
+        panic!("empty complete route")
+    };
+    assert_eq!(route.bindings().count(), 0);
+    assert!(candidate.fresh_rows(use_.occurrence()).unwrap().is_empty());
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("binding")
+    };
+    assert!(
+        candidate
+            .definition_use(binding.value().occurrence())
+            .is_none()
+    );
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn module_use_crosswalk_checks_owners_even_when_inventory_is_empty() {
+    use source_crosswalk::CandidateSourceModuleUses;
+    let parse = |text: &str| {
+        let source: Arc<SourceText> = Arc::from(text);
+        parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        )
+    };
+    let parsed = parse("pub out = 1");
+    let source = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let hir = Arc::new(
+        lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("candidate", "empty-use.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(
+        CandidateSourceModuleUses::new(&source, &hir, &candidate)
+            .unwrap()
+            .uses()
+            .is_empty()
+    );
+
+    let foreign_source = yu_hir::shadow::ShadowArtifact::from_parsed(parse("pub out = 2")).unwrap();
+    assert!(CandidateSourceModuleUses::new(&foreign_source, &hir, &candidate).is_err());
+    let foreign_hir = module("pub out = 1", true);
+    let foreign_candidate = CandidateValueObservation::solve(foreign_hir.clone()).unwrap();
+    assert!(CandidateSourceModuleUses::new(&source, &hir, &foreign_candidate).is_err());
+
+    let expression_parsed = parse("1");
+    let expression_source =
+        yu_hir::shadow::ShadowArtifact::from_parsed(expression_parsed.clone()).unwrap();
+    let expression_hir = Arc::new(
+        lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "candidate",
+                "expression-use.yu",
+            ))),
+            &expression_parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let expression_candidate = CandidateValueObservation::solve(expression_hir.clone()).unwrap();
+    assert!(
+        CandidateSourceModuleUses::new(&expression_source, &expression_hir, &expression_candidate)
+            .unwrap()
+            .uses()
+            .is_empty()
+    );
+    assert!(
+        CandidateSourceModuleUses::new(&source, &expression_hir, &expression_candidate).is_err()
+    );
+
+    let empty_parsed = parse("");
+    let empty_source = yu_hir::shadow::ShadowArtifact::from_parsed(empty_parsed.clone()).unwrap();
+    let empty_hir = Arc::new(
+        lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("candidate", "empty.yu"))),
+            &empty_parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let empty_candidate = CandidateValueObservation::solve(empty_hir.clone()).unwrap();
+    assert!(CandidateSourceModuleUses::new(&empty_source, &empty_hir, &empty_candidate).is_err());
+}

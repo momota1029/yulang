@@ -23,6 +23,8 @@ pub enum UnresolvedPremise {
     TypedOccurrenceIntroduction,
     FormalApplicability,
     DirectionalProtection,
+    ModuleNameSourceTypingAndAdmission,
+    ModuleUseReceivingExportCorrespondence,
 }
 pub const UNRESOLVED: &[UnresolvedPremise] = &[
     UnresolvedPremise::CandidatePureEffectModelUnresolved,
@@ -42,6 +44,8 @@ pub const UNRESOLVED: &[UnresolvedPremise] = &[
     UnresolvedPremise::TypedOccurrenceIntroduction,
     UnresolvedPremise::FormalApplicability,
     UnresolvedPremise::DirectionalProtection,
+    UnresolvedPremise::ModuleNameSourceTypingAndAdmission,
+    UnresolvedPremise::ModuleUseReceivingExportCorrespondence,
 ];
 /// Same actual returned provider/world/whole carrier/source incidence/original
 /// shared scope/xi are all unresolved under WholeArgumentProviderCompatibility.
@@ -62,6 +66,7 @@ pub enum CandidateError {
 pub struct CandidateValueObservation {
     solved: SolvedModule,
     calls: Vec<CandidateCall>,
+    definition_uses: Vec<CandidateDefinitionUse>,
 }
 pub struct CandidateExport<'a> {
     pub unresolved: &'static [UnresolvedPremise],
@@ -74,13 +79,66 @@ impl CandidateExport<'_> {
         self.scheme.endpoints()
     }
 }
+/// Collection-owned identity retained before the batch is consumed.
+struct CandidateDefinitionUse {
+    record: DefinitionUse,
+    target_root: DefinitionRootId,
+    receiving_root: DefinitionRootId,
+}
+
+/// Borrowed current module Name use. No source typing or export transport follows.
+#[derive(Clone, Copy)]
+pub struct CandidateDefinitionUseRef<'a> {
+    observation: &'a CandidateValueObservation,
+    retained: &'a CandidateDefinitionUse,
+    target: crate::shadow_f5::ClosedSchemeRef<'a>,
+    receiving: crate::shadow_f5::ClosedSchemeRef<'a>,
+}
+impl<'a> CandidateDefinitionUseRef<'a> {
+    pub fn occurrence(self) -> &'a HirOccurrenceId {
+        self.retained.record.id().occurrence()
+    }
+    pub fn same_identity(self, other: Self) -> bool {
+        self.retained.record.id() == other.retained.record.id()
+    }
+    pub fn target_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
+        self.target
+    }
+    pub fn receiving_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
+        self.receiving
+    }
+    pub fn fresh_instantiation(self) -> crate::shadow_f5::FreshCaptureState<'a> {
+        self.target.fresh_capture(
+            self.retained.record.id(),
+            self.retained.record.target(),
+            true,
+        )
+    }
+    /// Exact retained store causes; an empty inventory supplies no invented fact.
+    pub fn provenance_causes(self) -> impl Iterator<Item = &'a CauseId> + 'a {
+        self.observation
+            .solved
+            .store
+            .provenance()
+            .iter()
+            .map(|edge| edge.cause())
+            .filter(move |cause| cause.occurrence().occurrence() == self.occurrence())
+    }
+    pub fn unresolved(self) -> &'static [UnresolvedPremise] {
+        UNRESOLVED
+    }
+}
 /// Historical row identity within this candidate's ordinary use substitution.
 pub struct CandidateFreshRow<'a> {
     capture: &'a ShadowFreshCapture,
     use_id: &'a DefinitionUseId,
     row: u32,
+    binder: crate::shadow_f5::FreshBinderRef<'a>,
 }
-impl CandidateFreshRow<'_> {
+impl<'a> CandidateFreshRow<'a> {
+    pub fn source_binder(&self) -> crate::shadow_f5::FreshBinderRef<'a> {
+        self.binder
+    }
     pub fn source_use(&self) -> &HirOccurrenceId {
         self.use_id.occurrence()
     }
@@ -121,29 +179,86 @@ impl CandidateValueObservation {
         {
             return Err(CandidateError::Unsupported);
         }
+        let definition_uses = batch
+            .definition_uses()
+            .iter()
+            .map(|record| CandidateDefinitionUse {
+                record: record.clone(),
+                target_root: batch.definitions[record.target().ordinal() as usize]
+                    .root
+                    .clone(),
+                receiving_root: batch.definitions[record.parent().ordinal() as usize]
+                    .root
+                    .clone(),
+            })
+            .collect();
         let solved =
             SolvedModule::solve_with_shadow_fresh_capture(batch).map_err(CandidateError::Solve)?;
-        Ok(Self { solved, calls })
+        Ok(Self {
+            solved,
+            calls,
+            definition_uses,
+        })
+    }
+    /// Tests the exact retained HIR instance even when it has no module uses.
+    pub fn observes_hir(&self, hir: &HirModule) -> bool {
+        std::ptr::eq(self.solved.hir.as_ref(), hir)
     }
     /// Ordinary incoming source-use substitution; aliases receive one route,
     /// with no second candidate-specific freshening.
     pub fn fresh_rows(&self, occurrence: &HirOccurrenceId) -> Option<Vec<CandidateFreshRow<'_>>> {
+        let use_observation = self.definition_use(occurrence)?;
+        let crate::shadow_f5::FreshCaptureState::Captured(instantiation) =
+            use_observation.fresh_instantiation()
+        else {
+            return None;
+        };
         let capture = self.solved.shadow_fresh_capture.as_ref()?;
-        let route = capture
-            .routes
-            .iter()
-            .find(|r| r.use_id.occurrence == *occurrence && r.complete)?;
+        let route = &capture.routes[*capture
+            .positions
+            .get(use_observation.retained.record.id())?];
         Some(
             route
                 .rows
                 .iter()
-                .map(|(_, _, row)| CandidateFreshRow {
+                .zip(instantiation.bindings())
+                .map(|((_, _, row), (binder, _))| CandidateFreshRow {
                     capture,
                     use_id: &route.use_id,
                     row: *row,
+                    binder,
                 })
                 .collect(),
         )
+    }
+    /// Non-module occurrences have no definition use; capture availability is a
+    /// separate state on a validated module use, including zero-binder routes.
+    pub fn definition_use(
+        &self,
+        occurrence: &HirOccurrenceId,
+    ) -> Option<CandidateDefinitionUseRef<'_>> {
+        let retained = self
+            .definition_uses
+            .iter()
+            .find(|u| u.record.occurrence() == occurrence)?;
+        if retained.record.id() != retained.record.cause().id()
+            || retained.record.id().occurrence() != retained.record.occurrence()
+            || !self.solved.hir.owns_occurrence(occurrence)
+        {
+            return None;
+        }
+        let schemes = self.solved.shadow_closed_schemes();
+        Some(CandidateDefinitionUseRef {
+            observation: self,
+            retained,
+            target: schemes.for_root(&retained.target_root).ok()?,
+            receiving: schemes.for_root(&retained.receiving_root).ok()?,
+        })
+    }
+    pub fn definition_uses(&self) -> impl Iterator<Item = CandidateDefinitionUseRef<'_>> {
+        self.definition_uses
+            .iter()
+            .filter_map(|u| self.definition_use(u.record.occurrence()))
     }
     pub fn calls(&self) -> &[CandidateCall] {
         &self.calls

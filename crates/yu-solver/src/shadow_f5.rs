@@ -445,7 +445,7 @@ impl<'a> ClosedSchemeRef<'a> {
         })
     }
 
-    #[cfg(feature = "shadow-scc-observer")]
+    #[cfg(any(feature = "shadow-scc-observer", feature = "shadow-apply-candidate"))]
     pub(crate) fn fresh_capture(
         self,
         use_id: &crate::DefinitionUseId,
