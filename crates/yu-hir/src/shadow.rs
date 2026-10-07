@@ -1312,6 +1312,17 @@ pub struct PendingPremise {
     pub(crate) premise: Premise,
 }
 
+/// Names an unadopted research route within an existing unresolved premise.
+/// This supplies no existence, applicability, provider/world/xi or typed
+/// evidence, and does not assert satisfaction of either joint conjunct.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingPremiseDetail {
+    /// C5's independent whole-carrier criterion and C6's Delay introduction
+    /// candidate, including captured-binding judgments at the current demand
+    /// world. Neither the criterion nor its semantic execution premise is proved.
+    CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ShadowError {
     MalformedSource,
@@ -1936,6 +1947,15 @@ impl PendingPremise {
     }
     pub fn premise(&self) -> Premise {
         self.premise
+    }
+    /// Research locator only; preserves the existing joint obligation and row.
+    pub fn candidate_detail(&self) -> Option<PendingPremiseDetail> {
+        match self.premise {
+            Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility => Some(
+                PendingPremiseDetail::CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation,
+            ),
+            _ => None,
+        }
     }
 }
 impl Skeleton {
@@ -3044,6 +3064,12 @@ mod tests {
         ]) {
             assert_eq!(pending.call(), call);
             assert_eq!(pending.premise(), expected);
+            assert_eq!(
+                pending.candidate_detail(),
+                (expected
+                    == Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility)
+                    .then_some(PendingPremiseDetail::CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation)
+            );
         }
         for binder in skeleton.binders() {
             let position = artifact.position(binder.position()).unwrap();
@@ -3398,6 +3424,41 @@ mod tests {
             Form::Use { .. }
         ));
         assert_eq!(skeleton.pending().len(), 10);
+    }
+
+    #[test]
+    fn candidate_detail_preserves_per_apply_inventory_for_grouped_and_computed_calls() {
+        for (source, row_counts) in [
+            ("my call f x = f(x)", vec![10]),
+            ("my call f x = (f) x", vec![8]),
+            ("my call f g x = (f g) x", vec![10, 8]),
+        ] {
+            let artifact = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+            let skeleton = artifact.skeleton().unwrap();
+            assert_eq!(skeleton.pending().len(), row_counts.iter().sum::<usize>());
+            let calls = skeleton
+                .pending()
+                .iter()
+                .filter(|row| row.premise() == Premise::CallableRole)
+                .collect::<Vec<_>>();
+            assert_eq!(calls.len(), row_counts.len());
+            for (application, count) in calls.iter().zip(row_counts) {
+                let call = skeleton
+                    .pending()
+                    .iter()
+                    .filter(|row| row.call() == application.call())
+                    .collect::<Vec<_>>();
+                assert_eq!(call.len(), count);
+                assert_eq!(
+                    call.iter().filter_map(|row| row.candidate_detail()).collect::<Vec<_>>(),
+                    [PendingPremiseDetail::CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation]
+                );
+                assert_eq!(
+                    call[5].premise(),
+                    Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility
+                );
+            }
+        }
     }
 
     #[test]

@@ -541,6 +541,14 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
         .unwrap();
     assert!(std::ptr::eq(*call, raw_call));
     assert_eq!(call.application_premises.len(), 10);
+    for premise in &call.application_premises {
+        assert_eq!(
+            premise.candidate_detail(),
+            (premise.premise()
+                == Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility)
+                .then_some(yu_hir::shadow::PendingPremiseDetail::CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation)
+        );
+    }
     assert!(
         call.application_premises
             .iter()
@@ -549,12 +557,22 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
     let premises = skeleton
         .pending()
         .iter()
-        .map(|premise| (premise.call().clone(), premise.premise()))
+        .map(|premise| {
+            (
+                premise.call().clone(),
+                premise.premise(),
+                premise.candidate_detail(),
+            )
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         call.application_premises
             .iter()
-            .map(|premise| (premise.call().clone(), premise.premise()))
+            .map(|premise| (
+                premise.call().clone(),
+                premise.premise(),
+                premise.candidate_detail()
+            ))
             .collect::<Vec<_>>(),
         premises
     );
@@ -781,7 +799,11 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
         skeleton
             .pending()
             .iter()
-            .map(|premise| (premise.call().clone(), premise.premise()))
+            .map(|premise| (
+                premise.call().clone(),
+                premise.premise(),
+                premise.candidate_detail()
+            ))
             .collect::<Vec<_>>(),
         premises
     );

@@ -1667,6 +1667,32 @@ bookkeeping records. Next attack: derive the original typed upper/output
 introduction at the actual `f x` Call, then its owned slot incidence while
 preserving the same original `xi`, scope, and provider witness.
 
+At remote/local baseline `08c1e1aa8faa97366f78b907b7b13e8b7477f11d`,
+dependency-ordered attacks rechecked CALL_TYPE, ORIGINAL_ASSOC P2/P3/P4,
+INIT_WORLD, REC_DESC and ALL_VIEW. They did not close a node. CALL_TYPE's
+fixed-Name carrier path reaches C6 demand-time captured-binding adequacy at
+every independently admitted demand world; if DelayIntro is granted, CI-Receipt
+is next. P2 still lacks original `Slots/Own` and joint contribution
+introduction; P3 lacks a fixed-witness complete-family embedding/coverage rule;
+P4 lacks original licensing introductions and exhaustive inversion. INIT_WORLD
+still lacks filling-independent import-root extension. REC_DESC still lacks
+ordinary captured-Name descriptor introduction at the same world; direct
+simultaneous closure introduction is the nearer conditional route, but its
+guards and world validity remain premises. ALL_VIEW still lacks target
+descriptor/result-check evidence and an actual `B_common` Direct consumer.
+These are exact unresolved leaves, not new semantics or status promotions. No
+same-source pair of complete Authority-consistent semantics with differing
+approved outcomes was found.
+
+The default-off [CALL_TYPE demand-time detail locator](../notes/progress/2026-10-07-shadow-calltype-demand-time-detail.md)
+adds a borrowed candidate-detail accessor to the existing joint argument/
+actual-provider premise. It identifies the unadopted C5/C6 route without
+adding rows or evidence, changing inference behavior, or asserting demand-time
+typing. Compiler-referee review passed. Focused HIR/Core/solver tests passed
+(27/3/4), targeted formatting and whitespace checks passed. CALL_TYPE remains
+CONDITIONAL-CLOSED and HIR_WIRING remains IMPLEMENTATION-ONLY. DAG totals are
+unchanged; production inference still refuses Apply.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow

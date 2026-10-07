@@ -49,6 +49,12 @@ fn facade_reads_the_hir_snapshot_without_resolving_pending_judgments() {
         assert_eq!(call.application_premises.len(), 10);
         for (actual, expected) in call.application_premises.iter().zip(&pending) {
             assert!(std::ptr::eq(*actual, *expected));
+            assert_eq!(
+                actual.candidate_detail(),
+                (actual.premise()
+                    == Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility)
+                    .then_some(yu_hir::shadow::PendingPremiseDetail::CandidateWholeArgumentDemandTimeCapturedBindingsAndDelayInterpretation)
+            );
         }
         for marker in [
             Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
