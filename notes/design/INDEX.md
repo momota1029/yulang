@@ -30,6 +30,17 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Authoritative exact recursive singleton execution boundary:**
+  [recursive self-init executable boundary](2026-10-07-recursive-self-init-executable-boundary.md)
+  applies the existing approved `recursive-self-initialization/q1 d1` answer
+  only to the exact singleton `my f = f`. Execution acceptance deterministically
+  rejects before initialization/RHS self-read while preserving F4's `Never`
+  inference. Independent compiler-referee/spec-auditor review passed the source
+  rule and its envelope/inference/adequacy proofs. `REC_INIT_SELF` is CLOSED;
+  other recursive initializers, actual compiler enforcement and successor
+  cutover remain separate. The linked receipt records unchanged approval
+  provenance and this governing-source application.
+
 - **Exploratory handler-protection notation:**
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
   is Draft only. The user's corrected meaning for `'e?` is: for a contribution
