@@ -67,6 +67,26 @@ pub struct CandidateValueObservation {
     solved: SolvedModule,
     calls: Vec<CandidateCall>,
     definition_uses: Vec<CandidateDefinitionUse>,
+    apply_recipe_occurrences: Vec<HirOccurrenceId>,
+}
+/// Borrowed retained candidate solver relation only. All semantic premises
+/// remain unresolved; this does not establish source typing or admission.
+#[derive(Clone, Copy)]
+pub struct CandidateApplyFactObservation<'a> {
+    edge: &'a ProvenanceEdge,
+    fact: &'a SemanticFact,
+    call: &'a CandidateCall,
+}
+impl<'a> CandidateApplyFactObservation<'a> {
+    pub fn edge(self) -> &'a ProvenanceEdge {
+        self.edge
+    }
+    pub fn fact(self) -> &'a SemanticFact {
+        self.fact
+    }
+    pub fn unresolved(self) -> &'static [UnresolvedPremise] {
+        self.call.unresolved
+    }
 }
 pub struct CandidateExport<'a> {
     pub unresolved: &'static [UnresolvedPremise],
@@ -216,12 +236,21 @@ impl CandidateValueObservation {
                     .clone(),
             })
             .collect();
+        // Slot zero also belongs to Group recipes; retain the relation kind
+        // before consuming the batch rather than inferring it from store terms.
+        let apply_recipe_occurrences = batch
+            .candidate_recipes
+            .iter()
+            .filter(|recipe| matches!(recipe.relation, CandidateRelation::Apply { .. }))
+            .map(|recipe| recipe.occurrence.clone())
+            .collect();
         let solved =
             SolvedModule::solve_with_shadow_fresh_capture(batch).map_err(CandidateError::Solve)?;
         Ok(Self {
             solved,
             calls,
             definition_uses,
+            apply_recipe_occurrences,
         })
     }
     /// Tests the exact retained HIR instance even when it has no module uses.
@@ -295,6 +324,42 @@ impl CandidateValueObservation {
     }
     pub fn calls(&self) -> &[CandidateCall] {
         &self.calls
+    }
+    /// Observes only an exact retained call from this solve and its Apply recipe.
+    /// Missing or ambiguous provenance/facts fail closed. This borrowed solver
+    /// relation leaves every call premise unresolved and performs no solving.
+    pub fn apply_fact(&self, call: &CandidateCall) -> Option<CandidateApplyFactObservation<'_>> {
+        let mut calls = self.calls.iter().filter(|owned| std::ptr::eq(*owned, call));
+        let call = calls.next()?;
+        if calls.next().is_some()
+            || self
+                .apply_recipe_occurrences
+                .iter()
+                .filter(|occurrence| *occurrence == &call.occurrence)
+                .count()
+                != 1
+        {
+            return None;
+        }
+        let mut edges = self.solved.store.provenance().iter().filter(|edge| {
+            edge.cause().occurrence().occurrence() == &call.occurrence
+                && edge.cause().occurrence().local_slot() == 0
+        });
+        let edge = edges.next()?;
+        if edges.next().is_some() {
+            return None;
+        }
+        let mut facts = self
+            .solved
+            .store
+            .facts()
+            .iter()
+            .filter(|fact| fact.id() == edge.fact());
+        let fact = facts.next()?;
+        if facts.next().is_some() {
+            return None;
+        }
+        Some(CandidateApplyFactObservation { edge, fact, call })
     }
     /// Candidate conflicts never establish source rejection.
     pub fn candidate_conflicts(&self) -> &[SolverError] {
@@ -901,6 +966,57 @@ mod tests {
             .unwrap(),
         )
     }
+    #[test]
+    fn candidate_apply_fact_observation_rejects_copied_call() {
+        let candidate =
+            CandidateValueObservation::solve(module("my id x = x; my first = id 1")).unwrap();
+        let [call] = candidate.calls() else {
+            panic!("one Apply")
+        };
+        assert!(candidate.apply_fact(call).is_some());
+        let copied = CandidateCall {
+            occurrence: call.occurrence.clone(),
+            callee: call.callee.clone(),
+            argument: call.argument.clone(),
+            unresolved: call.unresolved,
+        };
+        assert!(candidate.apply_fact(&copied).is_none());
+    }
+
+    #[test]
+    fn candidate_apply_fact_observation_fails_closed_on_missing_or_ambiguous_inputs() {
+        // Each mutation starts from an independently solved, valid observation.
+        for scenario in 0..6 {
+            let mut candidate =
+                CandidateValueObservation::solve(module("my id x = x; my first = id 1")).unwrap();
+            let occurrence = candidate.calls[0].occurrence.clone();
+            let observation = candidate.apply_fact(&candidate.calls[0]).unwrap();
+            let edge = observation.edge().clone();
+            let fact = observation.fact().clone();
+            match scenario {
+                0 => candidate.apply_recipe_occurrences.clear(),
+                1 => candidate.apply_recipe_occurrences.push(occurrence.clone()),
+                2 => candidate
+                    .solved
+                    .store
+                    .provenance
+                    .retain(|retained| retained != &edge),
+                3 => candidate.solved.store.provenance.push(edge),
+                4 => candidate
+                    .solved
+                    .store
+                    .facts
+                    .retain(|retained| retained.id() != fact.id()),
+                5 => candidate.solved.store.facts.push(fact),
+                _ => unreachable!(),
+            }
+            assert!(
+                candidate.apply_fact(&candidate.calls[0]).is_none(),
+                "scenario {scenario}"
+            );
+        }
+    }
+
     #[test]
     fn candidate_direct_chain_keeps_direction_and_bounded_shared_diagonal() {
         fn positive(value: &F5cPositive<'_>, qs: &mut HashSet<u32>) -> bool {

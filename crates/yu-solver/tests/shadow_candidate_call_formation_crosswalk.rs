@@ -327,6 +327,21 @@ fn check_captured_call_correspondence(source: &str, multiple_bindings: bool) {
         panic!("one candidate call; returning step adds no invocation")
     };
     assert!(std::ptr::eq(row.candidate_call(), candidate_call));
+    let apply = row
+        .apply_fact()
+        .expect("exact retained candidate Apply fact");
+    assert_eq!(
+        apply.edge().cause().occurrence().occurrence(),
+        &candidate_call.occurrence
+    );
+    assert_eq!(
+        artifact
+            .occurrence_source_position(&hir, apply.edge().cause().occurrence().occurrence())
+            .unwrap(),
+        *row.source_input().application().position()
+    );
+    assert_eq!(apply.unresolved(), candidate_call.unresolved);
+    assert_eq!(apply.unresolved(), UNRESOLVED);
 
     let skeleton = artifact.declaration_skeleton(&declaration).unwrap();
     let demand = record.demand();
@@ -671,6 +686,21 @@ fn ordinary_call_use_spine_keeps_each_receiving_root_and_pending_premises() {
         assert_eq!(&join.candidate_call().occurrence, pending.call().occurrence);
         assert_eq!(&join.candidate_call().callee, pending.call().callee);
         assert_eq!(&join.candidate_call().argument, pending.call().argument);
+        let apply = join
+            .apply_fact()
+            .expect("exact retained candidate Apply fact");
+        assert_eq!(
+            apply.edge().cause().occurrence().occurrence(),
+            pending.call().occurrence
+        );
+        assert_eq!(apply.edge().cause().occurrence().local_slot(), 0);
+        assert_eq!(apply.edge().fact(), apply.fact().id());
+        assert!(std::ptr::eq(
+            apply.fact(),
+            candidate.apply_fact(join.candidate_call()).unwrap().fact()
+        ));
+        assert_eq!(apply.unresolved(), join.candidate_call().unresolved);
+        assert_eq!(apply.unresolved(), UNRESOLVED);
         let use_ = join.module_use().observation();
         assert_eq!(use_.occurrence(), pending.call().callee);
         assert_eq!(use_.receiving_scheme().owner(), root);
@@ -747,6 +777,42 @@ fn ordinary_call_use_spine_keeps_each_receiving_root_and_pending_premises() {
             .unwrap(),
     );
     let foreign_candidate = CandidateValueObservation::solve(foreign_hir.clone()).unwrap();
+    assert!(
+        candidate
+            .apply_fact(&foreign_candidate.calls()[0])
+            .is_none()
+    );
+    assert!(
+        foreign_candidate
+            .apply_fact(first_join.candidate_call())
+            .is_none()
+    );
+    let foreign_roots: Vec<_> = foreign_hir
+        .items()
+        .iter()
+        .map(|item| {
+            let HirItem::Binding(binding) = item else {
+                panic!("binding")
+            };
+            binding.definition_root()
+        })
+        .collect();
+    let foreign_pending = generate_resolved_source_calls(&foreign_hir, foreign_roots[1]).unwrap();
+    let [foreign_pending] = foreign_pending.as_slice() else {
+        panic!("one foreign pending Call")
+    };
+    // DefinitionRootId is HIR-artifact branded, so a foreign stub fails at
+    // the root boundary before the exact retained-call pointer check.
+    assert!(
+        crosswalk::CandidateSourceCallUseSpine::new(
+            &artifact,
+            &hir,
+            &candidate,
+            roots[1],
+            foreign_pending
+        )
+        .is_err()
+    );
     assert!(
         crosswalk::CandidateSourceCallUseSpine::new(
             &foreign_artifact,

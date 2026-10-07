@@ -13,7 +13,8 @@ use yu_hir::shadow::{
 };
 use yu_hir::{DefinitionRootId, HirItem, HirModule, ResolvedExpr};
 use yu_solver::shadow_apply::{
-    CandidateCall, CandidateExport, CandidateFreshRow, CandidateValueObservation,
+    CandidateApplyFactObservation, CandidateCall, CandidateExport, CandidateFreshRow,
+    CandidateValueObservation,
 };
 
 /// Validates all observed calls using each exact owning declaration before export.
@@ -33,6 +34,7 @@ pub enum CrosswalkError {
 /// Exact ordinary Call / module Name-use / receiving export incidence only.
 /// Successful joining supplies no source-base, typing or invocation evidence.
 pub struct CandidateSourceCallUseSpine<'a> {
+    candidate: &'a CandidateValueObservation,
     pending: &'a PendingResolvedSourceCallStub<'a>,
     call: &'a CandidateCall,
     module_use: CandidateSourceModuleUse<'a>,
@@ -108,6 +110,7 @@ impl<'a> CandidateSourceCallUseSpine<'a> {
             return Err(CrosswalkError::ForeignCandidate);
         }
         Ok(Self {
+            candidate,
             pending,
             call,
             module_use,
@@ -119,6 +122,11 @@ impl<'a> CandidateSourceCallUseSpine<'a> {
     }
     pub fn candidate_call(&self) -> &'a CandidateCall {
         self.call
+    }
+    /// Retained candidate solver relation for this exact validated call only.
+    /// All semantic premises remain unresolved; no source typing follows.
+    pub fn apply_fact(&self) -> Option<CandidateApplyFactObservation<'a>> {
+        self.candidate.apply_fact(self.call)
     }
     pub fn module_use(&self) -> &CandidateSourceModuleUse<'a> {
         &self.module_use
@@ -145,6 +153,9 @@ impl<'a> CandidateSourceCall<'a> {
     }
     pub fn candidate_call(&self) -> &'a CandidateCall {
         self.candidate
+    }
+    pub fn apply_fact(&self) -> Option<CandidateApplyFactObservation<'a>> {
+        self.observation.apply_fact(self.candidate)
     }
     /// Checks that a partial source-call identity carrier names this exact
     /// candidate/source incidence. This comparison contributes no semantics.
