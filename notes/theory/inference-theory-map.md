@@ -5,6 +5,16 @@ Status: research navigation; scope and review labels come from the linked source
 Current task: [complete SCC-intrusion successor](../../tasks/current.md)
 Canonical inventory: [successor proof-obligation DAG](successor-proof-obligations.md)
 
+Current planning entry: [global proof-surface audit and reduced architecture](../design/2026-10-07-successor-production-proof-architecture.md),
+with [all-node A/B/C/D table](../progress/2026-10-07-successor-proof-surface-audit.md)
+and [Pro theorem handoff](2026-10-07-successor-pro-theorem-handoff.md).
+The proposed four semantic proof families share constructor/phase proof cases;
+implementation/lifecycle remains a fifth engineering invariant. Original
+semantic introductions, joint realization and exhaustive licensed alternatives
+are not eliminated by storing certificates. No canonical node, status or
+dependency changes; the consumer-by-consumer alternate cutover argument remains
+to be proved under the preserved Authority.
+
 ## Read this map
 
 Use the canonical DAG for exact statuses, premises, minimum remaining lemmas,
@@ -38,8 +48,10 @@ certification or semantic adoption.
 
 The final policy delta receives the design-debt audit in the review record
 §14: retain facts actually known by the owning construction; do not turn
-missing semantics into assumed certificates. The explicit all-view/all-world
-task and current governing contracts survive. No gate or production
+missing semantics into assumed certificates. The historical all-view/all-world
+targets and current governing contracts survive; the current user instruction
+audits their necessary production strength rather than scheduling every target.
+No gate or production
 dependency is removed merely by labeling it stronger characterization.
 
 The independently revalidated final research delta (§15 of the same record)

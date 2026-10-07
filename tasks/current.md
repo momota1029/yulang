@@ -2,17 +2,18 @@
 
 Date: 2026-10-07 UTC
 Branch: `research/simple-sub-intrusion`
-Status: full proof/source/implementation attack in progress; production cutover not authorized
+Status: reviewed global proof-surface architecture complete; successor semantics and production cutover remain gated
 
 ## Objective and canonical obligation ledger
 
-The current user requests closure of soundness, all-view principality, source
-adequacy, complete independent admission, recursive/generalized source
-formation and production containment/conformance, followed by reviewed
-integration, commit and push. Inventory alone or accumulating conditional
-transport claims is not completion. Attack the smallest missing premise
-immediately, and distinguish a proved theorem, a minimum independent semantic
-clause, a real counterexample and a concrete implementation correspondence gap.
+The current user requests applying natural compiler behavior and proof-obligation
+economy to the entire successor proof architecture. Reevaluate why obligations
+exist, retain facts at their owning constructor, separate stronger research
+characterizations where actual dependencies permit, and minimize the genuine
+theorem families needed for safe natural compiler operation. This supersedes
+the earlier instruction to attack individual OPEN nodes sequentially. It does
+not weaken soundness, required principality, any approved source behavior,
+Option 2 extras or independent open-world admission.
 
 The single active normalized inventory is the
 [successor proof-obligation DAG](../notes/theory/successor-proof-obligations.md),
@@ -23,6 +24,68 @@ world, guard, State, method, resource and production leaves. Each node has
 its retained premises, closed lemmas, smallest remaining claim, direct
 prerequisites/downstream gates and production relevance. Exact cited theorem
 scopes govern; navigation text supplies no new Authority.
+
+### Current proof-economy architecture
+
+Audit baseline: remote `911204e1b1d4455077829440b16eab32c7a64d09`;
+revalidated through `7bf7083419f677eacaf1b76525ce4c06bc2da908`.
+
+- [A/B/C/D audit](../notes/progress/2026-10-07-successor-proof-surface-audit.md)
+  and [machine table](../notes/progress/2026-10-07-successor-proof-surface-audit.json):
+  all 83 non-CLOSED canonical nodes and their major internal cuts.
+- [Reduced production proof architecture](../notes/design/2026-10-07-successor-production-proof-architecture.md):
+  construction responsibility, shared proof cases, exact Authority constraints,
+  consumer-level research separation and cutover impact.
+- [Pro handoff](../notes/theory/2026-10-07-successor-pro-theorem-handoff.md):
+  four semantic theorem families plus the engineering lifecycle invariant.
+- [Independent review and integration](../notes/progress/2026-10-07-successor-proof-economy-review.md):
+  two initial review lanes, one batched repair and fresh delta review closed
+  the three accepted findings. The latest INTRO/SEED_SOURCE/REC_INIT and
+  identity-crosswalk changes were separately revalidated without a finding.
+
+The four targets are original source constructor agreement; independent
+open-context operational/Option 2 production safety; exact solving and whole
+phase preservation; and natural source inference/principality through the
+actual designated export. They are proof families, not four proved theorems or
+four remaining atomic lemmas. Actual implementation/lifecycle correspondence
+remains a separate engineering invariant.
+
+The canonical DAG remains 90 nodes / 196 edges: 7 CLOSED, 20
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. No status, prerequisite, original predicate or
+production-relevance field changes in this audit. Stronger arbitrary-view and
+generated-domain characterization remain intact as existing research targets;
+the alternate cutover route is not available until every retained consumer
+obligation in the architecture is established. Required completed-contract
+principality, all compatible contexts and exhaustive production extras remain.
+
+### Immediate work order
+
+1. Prepare one independent original-rule formalization packet: `H_eff`,
+   OC-CallEff, and source owner/contribution/licensing introductions, with
+   exact existing Authority and any real new choice exposed. Do not add a
+   transport theorem for the missing original introduction. OC-CallEff stays
+   unadopted, and no unavoidable semantic alternative has been demonstrated.
+2. Establish the independent actual Call inputs and complete production
+   descriptor/member/admission clauses. C0 and the static O0/O1 branch may
+   progress independently; preserve same-provider/world and original scopes.
+3. Construct staged canonical evidence and prove the four families by their
+   shared constructor, transition and source-derivation cases. Retained owner,
+   license and profile-entry lookup become local projections only after their
+   original introduction. Joint ROWS and exhaustive licensing do not disappear.
+4. Before using a smaller cutover route, prove its consumer replacements,
+   including all five ALL_WORLD consumers and every legal actual-export result
+   refinement. Keep the existing stronger conditional theorem statements.
+
+No production semantics, source forms, test expectations or compiler routing
+are changed. No production cutover is requested or authorized by this audit.
+
+## Preserved earlier proof-attack history
+
+The following records retain completed results and exact unresolved cuts from
+earlier instructions. Their repeated “next attack” wording is historical;
+the immediate work order above governs current scheduling. None of the
+historical results is newly closed or reopened by this planning change.
 
 ### Current O0 result: one unadopted occurrence constructor
 

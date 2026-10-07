@@ -8,6 +8,10 @@ Status: canonical **research navigation**, not an Authoritative semantic design.
 
 Generated from `tools/research_successor_obligation_dag.py`; machine form: [successor-proof-obligations.json](successor-proof-obligations.json).
 
+## Current proof-economy navigation
+
+The current global [proof-surface audit](../progress/2026-10-07-successor-proof-surface-audit.md), [reduced production architecture](../design/2026-10-07-successor-production-proof-architecture.md) and [Pro handoff](2026-10-07-successor-pro-theorem-handoff.md) govern work planning. They classify all non-CLOSED nodes and major sublemmas, internalize repeated constructor/phase cases, and audit stronger research dependencies. The existing ninety-node sufficient route below is preserved verbatim in its theorem data: no node status, premise, edge or production-relevance field is changed by that audit. Candidate consumer replacements must be proved before changing the actual cutover route; approved natural inference, open-world admission and Option 2 extras remain mandatory.
+
 ## Interpretation and authority
 
 Current explicit user decisions govern, followed by approved designs, exact reviewed theorem scopes, confirmed code, historical Oracle and general practice. Upper source exposure protects its output occurrence; it does not backflow into an existing lower/provider and does not delete that provider's independent protection. Internal inference views and actual callable roles/entries remain separate.
@@ -1086,7 +1090,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 | No current live-drain work bound | RESOURCE | The reviewed conditional multiplicity-aware single-drain bound exists; it is not a source-size or complete successor bound. |
 | Approved captured local Bind cannot retain its inner pending Call through solve | HIR_WIRING | The exact opt-in local-binding sidecar and Core differential now retain it; ordinary HIR refusal and all semantic premises remain. |
 
-## Direct next proof cuts
+## Preserved sufficient-route proof cuts
+
+These are the previous route's local proof cuts, retained as evidence navigation. The current architecture's work order takes precedence: resolve independent constructor formalization and shared proof cases before commissioning another transport or reconstruction theorem. No cut below is closed, removed or weakened by this scheduling change.
 
 1. At the fixed captured Call, first independently form signature-local H_eff and justify the single OC-CallEff original occurrence-introduction clause from the retained Gen-Call-0 record. Its projection equations alone are not a typing proof; O0 remains open. After O0, introduce O1 original Slots/Own; then construct the actual C0 checking-to-carrier inputs retained by conditional CALL_TYPE. The static candidate does not remove the aggregate source-fiber or later licensing/profile dependencies.
 2. First specify the independent descriptor, world and admission clauses and construct their joint interpretation; distinguish this from actual initial-world existence. For the listed recursive FH route derive exact finite-failure reflection, or prove the alternative ordinary two-closure introduction with all independent guards. Unfolding and a postfixed graph alone do not prove absorption. Audit own-member facts hidden in world premises; construct source-root/import-world extension and prove latent ordinary cyclic Return acceptance together with the required simultaneous root validity and every non-descriptor member conjunct. The exact q1 self-init rejection is closed; remaining initializer classes and actual compiler enforcement are open.

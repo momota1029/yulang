@@ -5,6 +5,26 @@ Status: research dependency navigation; not an Authoritative design
 Canonical ledger: [complete successor DAG](successor-proof-obligations.md)
 Machine form: [machine audit data](successor-proof-obligations.json)
 
+## Current proof architecture (2026-10-07)
+
+The current user instruction replaces sequential OPEN-node attacks with a
+global proof-economy audit. Read the
+[construction-based production architecture](../design/2026-10-07-successor-production-proof-architecture.md),
+[complete A/B/C/D classification](../progress/2026-10-07-successor-proof-surface-audit.md)
+and [four-family Pro handoff](2026-10-07-successor-pro-theorem-handoff.md).
+They propose constructor agreement, independent open-context/Option 2 safety,
+whole-phase exactness, and natural inference through actual export, with a
+separate implementation/lifecycle invariant. Each family exposes common proof
+cases and missing semantic introductions; it does not assume them in a certificate.
+
+Canonical statuses and all 196 prerequisite edges remain unchanged. The
+alternate route must separately establish its replacements for ALL_VIEW,
+source/production converse and all five ALL_WORLD consumers before any
+cutover dependency can change. Required principality, exhaustive production
+membership/admission, open-world use and actual export are retained. The
+route descriptions below preserve the existing stronger sufficient theorems;
+they are not a requirement to prove each node as a standalone lemma.
+
 ## Edge and scope discipline
 
 The canonical graph gives direct dependencies for named sufficient proof
@@ -79,8 +99,9 @@ lists and actual-attainment statuses remain unchanged.
 The later proof-obligation-economy policy is applied in the integration record
 §14. Already known construction evidence should be retained at its owner;
 an unproved semantic owner/license/world fact cannot be manufactured as a
-certificate. Stronger characterizations explicitly requested here remain
-within the task and their governing contracts. This policy supplies no
+certificate. Stronger characterizations explicitly requested in that earlier
+round remain recorded as research targets; the current audit above governs
+scheduling. Their governing contracts remain intact. This policy supplies no
 closure, semantic weakening or automatic removal of a cutover dependency.
 
 The final research-only delta is independently revalidated in §15. The

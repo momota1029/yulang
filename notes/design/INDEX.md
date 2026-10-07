@@ -30,6 +30,18 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Global successor proof-economy audit (2026-10-07):**
+  [production proof architecture](2026-10-07-successor-production-proof-architecture.md)
+  proposes four genuine semantic theorem families and one actual implementation/
+  lifecycle invariant, with a construction responsibility map, dependency-level
+  research separation and exact O0 formalization boundary. The
+  [A/B/C/D audit](../progress/2026-10-07-successor-proof-surface-audit.md) covers
+  every non-CLOSED canonical node and major sublemmas; the
+  [Pro handoff](../theory/2026-10-07-successor-pro-theorem-handoff.md) contains
+  exact target statements. No original semantic rule, DAG status/dependency,
+  production contract or cutover is adopted by this audit. Source principality,
+  all compatible contexts and exhaustive Option 2 extras remain required.
+
 - **Authoritative exact recursive singleton execution boundary:**
   [recursive self-init executable boundary](2026-10-07-recursive-self-init-executable-boundary.md)
   applies the existing approved `recursive-self-initialization/q1 d1` answer
