@@ -2,12 +2,13 @@
 
 Date: 2026-10-07 UTC
 Branch: `research/simple-sub-intrusion`
-Status: reviewed global proof-surface architecture complete; successor semantics and production cutover remain gated
+Status: reviewed Call-construction proof complete in its proposed formalization; original-family compatibility and production cutover remain gated
 
 ## Objective and canonical obligation ledger
 
-The current user requests applying natural compiler behavior and proof-obligation
-economy to the entire successor proof architecture. Reevaluate why obligations
+The current user requests completing provable bottleneck results and pushing
+reviewed work, rather than recording further partial localizations. This
+continues the global natural-compiler/proof-economy objective. Reevaluate why obligations
 exist, retain facts at their owning constructor, separate stronger research
 characterizations where actual dependencies permit, and minimize the genuine
 theorem families needed for safe natural compiler operation. This supersedes
@@ -59,15 +60,43 @@ the alternate cutover route is not available until every retained consumer
 obligation in the architecture is established. Required completed-contract
 principality, all compatible contexts and exhaustive production extras remain.
 
+### Current constructive result and exact limit
+
+The [complete Call-construction proof](../notes/theory/2026-10-07-call-occurrence-construction-proof.md)
+now gives explicit signature and source-occurrence constructors, a total
+decoration of the actual emitted Gen-Call-0 inventory, exact old-constraint
+and executable erasure, fresh-family model conservativity, whole-index
+substitution, and the O0 incidence in the proposed completed fragment. Its
+exact root is independently interpreted by the unchanged full complete-Call
+interface. This is a complete proof in that stated formalization, not a
+derivation of the historical original judgment from unchanged prior rules.
+
+The [independent review record](../notes/progress/2026-10-07-call-construction-proof-review.md)
+closes the accepted generic-Call coverage finding: Calls without an emitted
+record retain their old node and child evidence, with no extra annotation or
+restriction. The exact approved nested source has its emitted singleton.
+All-source record inference and compatibility with any independently fixed
+original signature/occurrence interpretation remain unproved. No original
+DAG status changes.
+
+Selecting the specified formation cases as the governing missing original
+definition is now a concrete, unapproved decision candidate. Approval would
+select that definition, not prove old-consumer preservation or automatically
+close historical O0. No competing observable behavior was demonstrated.
+The existing original-sort route remains in force until a scoped Authority
+decision and reviewed affected-consumer account, or the original compatibility
+proof, justifies a change.
+
 ### Immediate work order
 
-1. Use the compiler-referee/spec-auditor-reviewed two-head candidate in
-   [the O0 clause continuation](../notes/progress/2026-10-07-original-call-output-minimal-clause.md#7-candidate-two-head-original-formation-clause)
-   as a fixed target. Next prove original well-typing, realization,
-   substitution coherence and conservativity, or establish that adopting a
-   primitive rule requires an explicit new decision. Do not add another note
-   that only localizes the constructor. Preserve same-`xi` scope and
-   comparison-independent formation.
+1. Use the completed construction and semantic root proof above, together
+   with the unchanged [original two-head target](../notes/progress/2026-10-07-original-call-output-minimal-clause.md#7-candidate-two-head-original-formation-clause).
+   Resolve the exact definition-selection candidate or prove §9's compatibility
+   against an independently fixed original interpretation. Fresh-family
+   conservation is not original-family conservation. Do not add another
+   transport/tag lemma, silently adopt the candidate, or promote O0 merely
+   from its proposed-fragment theorem. Preserve same-`xi` scope,
+   comparison-independent formation and every downstream original consumer.
 2. Establish the independent actual Call inputs and complete production
    descriptor/member/admission clauses. C0 and the static O0/O1 branch may
    progress independently; preserve same-provider/world and original scopes.
