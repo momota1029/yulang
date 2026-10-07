@@ -647,20 +647,22 @@ discarded. The current structural carrier is therefore insufficient to turn
 these missing introductions into D-only bookkeeping.
 
 Do not launch another equivalent proof variant or repeat the bounded Oracle
-attribution search. The reviewed [Gen-Call-0/O0 bridge audit](../notes/progress/2026-10-07-original-call-gen-call0-o0-bridge-audit.md)
-finds that source generation already supplies the shared root, dependent
-Function variable, beta/address schema and conditional decorated
-observation-port correspondence. It does not close original-sort O0: the
-missing bridge must identify the exact emitted upper use and interpret that
-map as an original typed-path witness at the same root, scope and xi. The next
-task is to formulate and check that typed-elaboration bridge without assuming
-the desired association, then derive a concrete K-Owner introduction while
-preserving all original witnesses and same-`X,xi` obligations. Initial seed
-slots do not establish the complete slot inventory or ownership. The reviewed
-interface remains non-authoritative; any new slot, contribution or
-architecture meaning still needs the required user approval before
-implementation. Soundness, principality, source adequacy and
-production-conformance cutover gates remain intact.
+attribution search. The repaired [Gen-Call-0/O0 bridge audit](../notes/progress/2026-10-07-original-call-gen-call0-o0-bridge-audit.md)
+separates the generated `F_c`/`VIncl` constraint and immediate-port address
+schema from round-4's original upper-use witness `U` and its typed-path
+interpretation. The earlier bridge proof had treated exact `U=F_c` as a
+premise, not a Gen-Call-0 output. Even a decorated realization does not close
+original-sort O0; source-demand identity and an original Function-elimination
+map at the same root, scope and xi remain. The selector-swap discriminator
+shows why equal row/type shapes cannot reconstruct the immediate path, but
+does not give an admitted-source counterexample. Next, find or derive the
+direct original Call introduction before K-Owner, preserving all original
+witnesses and same-`X,xi` obligations. Initial seed slots do not establish
+the complete slot inventory or ownership. The reviewed interface remains
+non-authoritative; any new slot, contribution or architecture meaning still
+needs the required user approval before implementation. Soundness,
+principality, source adequacy and production-conformance cutover gates remain
+intact.
 
 ## Priority frontier: recursive/generalized source
 
