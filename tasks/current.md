@@ -158,6 +158,17 @@ judgments. All three notes passed bounded compiler-referee review with no
 findings; `CALL_TYPE`, `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT`
 remain open.
 
+The compiler-referee-reviewed [fixed-cut last-rule reconstruction](../notes/progress/2026-10-07-call-type-fixed-cut-reconstruction.md)
+accounts for the Name/Return, inert whole-argument, actual receiver-phase and
+pending-suffix branches without supplying their semantic last rules. An
+independent premise audit confirms that `CALL_TYPE`'s current
+“independently admitted operand/world assignment” does not explicitly say
+whether captured-value/provider/world and callee-Return typing are included;
+`Gamma` identity alone supplies neither. A weak one-row separation is not a
+model of completed `SEM_JOINT` or an admitted-source counterexample. The
+operand-premise granularity and matching Return rule remain unresolved inputs;
+no gate status or semantic rule changed.
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
@@ -629,13 +640,16 @@ callee controls and all ordered pending rows retained.
 
 The bounded [shadow State declaration-candidate slice](../notes/progress/2026-10-07-shadow-state-slot-source-candidate.md)
 retains an artifact-branded caller-selected sigiled declaration position and
-validates only same-artifact syntax shape. Recovery-free State read/write
-expression positions are not exposed by the current parser, so occurrence
-association remains unfilled. Ordinary HIR still rejects the sigiled target;
-two distinct same-spelling declarations retain distinct candidate IDs, and no
-State role, transition, effect or runtime behavior is inferred. The focused
-one-test target and formatting/whitespace checks passed after compiler-referee
-review. `STATE-ID`, `STATE-RW` and `STATE-RESUME` remain open.
+validates only same-artifact syntax shape. Its follow-on projection retains the
+direct `BindingStatement` → sigiled declaration → optional direct annotation
+and opaque `BindingBody` initializer identities. Recovery-free State
+read/write expression positions are not exposed by the current parser, so
+occurrence association remains unfilled. Ordinary HIR still rejects the
+sigiled target; two distinct same-spelling declarations retain distinct
+candidate IDs, and no State role, transition, effect or runtime behavior is
+inferred. The focused three-test target and formatting/whitespace checks pass;
+the follow-on projection passed compiler-referee review. `STATE-ID`,
+`STATE-RW` and `STATE-RESUME` remain open.
 
 The remote [pending binder-use grouping](../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md)
 borrows existing direct-Use registrations under exact artifact-branded binder

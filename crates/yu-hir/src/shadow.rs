@@ -252,6 +252,31 @@ impl StateSlotCandidateId {
     }
 }
 
+/// Exact declaration syntax retained while State identity and payload premises
+/// remain unresolved. The initializer is an opaque BindingBody position.
+#[derive(Debug)]
+pub struct PendingStateSlotDeclaration {
+    statement: PositionId,
+    candidate: StateSlotCandidateId,
+    annotation: Option<PositionId>,
+    initializer: PositionId,
+}
+
+impl PendingStateSlotDeclaration {
+    pub fn statement(&self) -> &PositionId {
+        &self.statement
+    }
+    pub fn candidate(&self) -> &StateSlotCandidateId {
+        &self.candidate
+    }
+    pub fn annotation(&self) -> Option<&PositionId> {
+        self.annotation.as_ref()
+    }
+    pub fn initializer(&self) -> &PositionId {
+        &self.initializer
+    }
+}
+
 /// Unresolved caller-supplied association of sigiled source occurrences.
 /// The CST checks establish syntax shape only: origin resolution and
 /// read/write/handle classification remain pending, including across closures.
@@ -597,6 +622,83 @@ impl ShadowArtifact {
     }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
+    }
+    /// Projects only the direct sigiled declaration shape selected by the caller.
+    /// No initializer lowering, origin resolution or State role is supplied.
+    pub fn pending_state_slot_declaration(
+        &self,
+        statement: &PositionId,
+    ) -> Result<PendingStateSlotDeclaration, ShadowError> {
+        let selected = self.position(statement)?;
+        if !selected.is_node() || selected.kind() != SyntaxKind::BindingStatement {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        let children = self.direct_node_positions(statement)?;
+        let [header, initializer] = children.as_slice() else {
+            return Err(ShadowError::InvalidUseReference);
+        };
+        if self.position(header)?.kind() != SyntaxKind::BindingHeader
+            || self.position(initializer)?.kind() != SyntaxKind::BindingBody
+        {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        let header_children = self.direct_node_positions(header)?;
+        let [pattern] = header_children.as_slice() else {
+            return Err(ShadowError::InvalidUseReference);
+        };
+        if self.position(pattern)?.kind() != SyntaxKind::Pattern {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        let target = self.direct_node_positions(pattern)?;
+        let (identifier, annotation) = match target.as_slice() {
+            [identifier] => (identifier, None),
+            [identifier, annotation]
+                if self.position(annotation)?.kind() == SyntaxKind::PatternTypeAnnotation =>
+            {
+                (identifier, Some(annotation.clone()))
+            }
+            _ => return Err(ShadowError::InvalidUseReference),
+        };
+        self.check_sigiled_source_shape(identifier, SyntaxKind::IdentifierPattern)?;
+        let significant = self
+            .position(identifier)?
+            .children()
+            .iter()
+            .map(|child| self.position(child))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .filter(|position| {
+                !matches!(
+                    position.kind(),
+                    SyntaxKind::Whitespace
+                        | SyntaxKind::Newline
+                        | SyntaxKind::LineComment
+                        | SyntaxKind::BlockComment
+                )
+            })
+            .collect::<Vec<_>>();
+        if !matches!(significant.as_slice(), [sigil] if !sigil.is_node() && sigil.kind() == SyntaxKind::SigilIdentifier)
+        {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        Ok(PendingStateSlotDeclaration {
+            statement: statement.clone(),
+            candidate: StateSlotCandidateId(identifier.clone()),
+            annotation,
+            initializer: initializer.clone(),
+        })
+    }
+
+    fn direct_node_positions(&self, parent: &PositionId) -> Result<Vec<PositionId>, ShadowError> {
+        self.position(parent)?
+            .children()
+            .iter()
+            .filter_map(|child| match self.position(child) {
+                Ok(position) if position.is_node() => Some(Ok(child.clone())),
+                Ok(_) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
     }
     /// Retains a caller-selected pending origin premise without resolving names.
     /// No state role is inferred from sigil spelling or assignment context.
