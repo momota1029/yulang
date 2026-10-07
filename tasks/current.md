@@ -143,8 +143,9 @@ single-root target passed 2/2. Regression review passed after a test-only
 coverage repair asserted exact declaration/formal/application/callee/argument
 positions, owner distribution, foreign positions and cross-root binders. This
 advances only the `HIR_WIRING` implementation-only node. Multi-definition
-fresh-use, captured local Bind/Lambda, semantic typing/admission, successor
-correspondence and production behavior remain open.
+fresh-use, local source-position/candidate crosswalk, local generalization,
+semantic typing/admission, successor correspondence and production behavior
+remain open.
 
 The next default-off candidate slice now retains each resolved module Name
 use's collection-branded identity, target scheme, receiving scheme, exact
@@ -164,6 +165,26 @@ differential against ordinary collection/solve comparing all four root values
 and alpha-equivalent closed endpoints; both regression reviews passed after
 two ownership-coverage repairs. This advances executable
 `HIR_WIRING` only; no DAG node status changed.
+
+### Exact captured-local candidate value (2026-10-08)
+
+The default-off value candidate now consumes the exact retained
+`ShadowLocalBind` for `my apply f = { my step x = f x; step }`. It builds the
+outer and local Function entries with existing Lambda recipes, retains the
+actual outer `f` row and distinct local `x` row, and returns the local
+initializer endpoint without a terminal Call or local freshening. The
+candidate keeps every semantic premise unresolved and uses the current F5
+solver/generalizer machinery; it is not successor generalization or production
+inference. The focused feature test passed 16/16 and checks ordinary
+collection/solve diagnostics, facts, provenance, counters and exported schemes
+remain unchanged around the candidate call. A regression review accepted the
+three-file implementation; its minor unsupported-sidecar coverage gap was
+closed by asserting both negative source forms are rejected by the same local
+sidecar lowering path, then rerunning the focused target. Broader local Bind
+forms, the local source-position/candidate crosswalk, local generalization,
+source typing/admission, capture/evidence transport, successor correspondence
+and publisher behavior remain open. This advances `HIR_WIRING` only and
+changes no DAG status.
 
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1

@@ -162,6 +162,21 @@ impl CandidateValueObservation {
         // Preflight bounds recursive emission without consuming the native stack.
         // Only retained HIR shapes are admitted; no CST reconstruction occurs.
         for item in hir.items() {
+            if let HirItem::Binding(binding) = item {
+                if let Some(local) = hir
+                    .shadow_local_binding(binding.definition_root())
+                    .map_err(|_| CandidateError::Unsupported)?
+                {
+                    preflight_local_binding(
+                        &hir,
+                        binding.value(),
+                        local,
+                        &mut calls,
+                        &mut permitted_errors,
+                    )?;
+                    continue;
+                }
+            }
             let expr = match item {
                 HirItem::Binding(b) => b.value(),
                 HirItem::Expression(e) if matches!(e, ResolvedExpr::Integer { .. }) => e,
@@ -284,6 +299,76 @@ impl CandidateValueObservation {
         })
     }
 }
+// The HIR owner already restricted this carrier to the approved source fixture.
+// Validate its lexical incidences before allocating any candidate solver state.
+fn preflight_local_binding(
+    hir: &HirModule,
+    expr: &ResolvedExpr,
+    local: &yu_hir::shadow::ShadowLocalBind,
+    calls: &mut Vec<CandidateCall>,
+    permitted_errors: &mut HashSet<yu_hir::HirErrorId>,
+) -> Result<(), CandidateError> {
+    let ResolvedExpr::Lambda {
+        parameter: outer,
+        body: placeholder,
+        ..
+    } = expr
+    else {
+        return Err(CandidateError::Unsupported);
+    };
+    let ResolvedExpr::Error {
+        errors: placeholder_errors,
+        ..
+    } = placeholder.as_ref()
+    else {
+        return Err(CandidateError::Unsupported);
+    };
+    let ResolvedExpr::Lambda {
+        parameter: inner,
+        body,
+        ..
+    } = &local.initializer
+    else {
+        return Err(CandidateError::Unsupported);
+    };
+    let ResolvedExpr::Apply {
+        occurrence,
+        callee,
+        argument,
+        errors,
+        ..
+    } = body.as_ref()
+    else {
+        return Err(CandidateError::Unsupported);
+    };
+    if outer == inner
+        || local.captures.as_ref() != std::slice::from_ref(outer)
+        || local.continuation.local != local.local
+        || hir
+            .shadow_parameter_local_owner(inner)
+            .map_err(|_| CandidateError::Unsupported)?
+            != Some(&local.local)
+        || !matches!(callee.as_ref(), ResolvedExpr::Name { resolution: NameResolution::Parameter(p), .. } if p == outer)
+        || !matches!(argument.as_ref(), ResolvedExpr::Name { resolution: NameResolution::Parameter(p), .. } if p == inner)
+        || errors != placeholder_errors
+    {
+        return Err(CandidateError::Unsupported);
+    }
+    permitted_errors
+        .try_reserve(errors.len())
+        .map_err(|_| CandidateError::Unsupported)?;
+    permitted_errors.extend(errors.iter().copied());
+    calls
+        .try_reserve(1)
+        .map_err(|_| CandidateError::Unsupported)?;
+    calls.push(CandidateCall {
+        occurrence: occurrence.clone(),
+        callee: callee.occurrence().clone(),
+        argument: argument.occurrence().clone(),
+        unresolved: UNRESOLVED,
+    });
+    Ok(())
+}
 fn preflight_expression(
     expr: &ResolvedExpr,
     calls: &mut Vec<CandidateCall>,
@@ -370,6 +455,138 @@ pub(super) struct CandidateConstraintRecipe {
     pub(super) after_collected_fact: usize,
 }
 impl ConstraintBatch {
+    pub(super) fn emit_candidate_local_value<'a>(
+        &mut self,
+        expr: &'a ResolvedExpr,
+        local: &'a yu_hir::shadow::ShadowLocalBind,
+        root: &DefinitionRootId,
+        parent: Option<&DefinitionOrderId>,
+        uses: &mut Vec<PendingDefinitionUse<'a>>,
+    ) -> Result<(), CollectionAvailabilityError> {
+        let unsupported = || CollectionAvailabilityError::MissingDefinitionEndpoint;
+        let ResolvedExpr::Lambda {
+            occurrence: outer_occurrence,
+            parameter: outer,
+            ..
+        } = expr
+        else {
+            return Err(unsupported());
+        };
+        let ResolvedExpr::Lambda {
+            occurrence: inner_occurrence,
+            parameter: inner,
+            body,
+            ..
+        } = &local.initializer
+        else {
+            return Err(unsupported());
+        };
+        let ResolvedExpr::Apply {
+            occurrence,
+            callee,
+            argument,
+            ..
+        } = body.as_ref()
+        else {
+            return Err(unsupported());
+        };
+        self.parameter_recipes
+            .try_reserve(2)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        let outer_position = self.parameter_recipes.len();
+        self.parameter_recipes.push(outer.clone());
+        let inner_position = self.parameter_recipes.len();
+        self.parameter_recipes.push(inner.clone());
+        // The capture is the actual outer row, not a fresh local Name use.
+        let (callee, _) =
+            self.emit_candidate_expression(callee, Some(outer_position), parent, uses)?;
+        let (argument, _) =
+            self.emit_candidate_expression(argument, Some(inner_position), parent, uses)?;
+        let call = self.candidate_component(occurrence)?;
+        self.retain_candidate_relation(
+            occurrence,
+            CandidateRelation::Apply {
+                callee,
+                argument,
+                result: call.value,
+            },
+        )?;
+        self.occurrence_component(inner_occurrence.clone(), ComponentKind::Value)?;
+        self.occurrence_component(inner_occurrence.clone(), ComponentKind::Effect)?;
+        let inner_value = ComponentPositions {
+            value: self.components.len() - 2,
+            effect: self.components.len() - 1,
+        };
+        self.occurrence_component_positions
+            .insert(inner_occurrence.clone(), inner_value);
+        self.candidate_local_lambda_effect(inner_occurrence, inner_value.effect)?;
+        self.retain_candidate_local_lambda(
+            inner_occurrence,
+            inner_position,
+            inner_value.value,
+            call.value,
+            call.effect,
+            inner_value.effect,
+        )?;
+        // The terminal local reference reuses its initializer's endpoint,
+        // just as a formal reference reuses its row. No proxy bound, call,
+        // local generalization or freshening is introduced by returning it.
+        self.occurrence_component(outer_occurrence.clone(), ComponentKind::Effect)?;
+        let outer_effect = self.components.len() - 1;
+        self.candidate_local_lambda_effect(outer_occurrence, outer_effect)?;
+        self.retain_candidate_local_lambda(
+            outer_occurrence,
+            outer_position,
+            self.root_component_positions[root].component,
+            inner_value.value,
+            inner_value.effect,
+            outer_effect,
+        )
+    }
+    fn candidate_local_lambda_effect(
+        &mut self,
+        occurrence: &HirOccurrenceId,
+        position: usize,
+    ) -> Result<(), CollectionAvailabilityError> {
+        let effect = self.component_term_at(position);
+        let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+        let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+        self.emit(occurrence.clone(), 0, bottom, effect)?;
+        self.emit(occurrence.clone(), 1, effect, empty)
+    }
+    fn retain_candidate_local_lambda(
+        &mut self,
+        occurrence: &HirOccurrenceId,
+        parameter_position: usize,
+        root_component: usize,
+        body_value_component: usize,
+        body_effect_component: usize,
+        lambda_effect_component: usize,
+    ) -> Result<(), CollectionAvailabilityError> {
+        self.lambda_recipes
+            .try_reserve(1)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        self.lambda_recipes.push(LambdaRecipe {
+            occurrence: occurrence.clone(),
+            parameter_position,
+            root_component,
+            body_value_component: Some(body_value_component),
+            body_effect_component,
+            lambda_effect_component,
+            after_collected_fact: self.occurrences.len(),
+        });
+        self.counters.emitted_facts = self
+            .counters
+            .emitted_facts
+            .checked_add(1)
+            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        self.counters.generated_work_items = self
+            .counters
+            .generated_work_items
+            .checked_add(1)
+            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        Ok(())
+    }
     fn candidate_component(
         &mut self,
         occurrence: &HirOccurrenceId,

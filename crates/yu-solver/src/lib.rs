@@ -1069,12 +1069,29 @@ impl ConstraintBatch {
             batch.counters.occurrence_allocations += 1;
             #[cfg(feature = "shadow-apply-candidate")]
             if candidate_values {
-                batch.emit_candidate_value(
-                    expression,
-                    definition_root,
-                    definition.as_ref(),
-                    &mut pending_uses,
-                )?;
+                let local = definition_root
+                    .map(|root| hir.shadow_local_binding(root))
+                    .transpose()
+                    .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                    .flatten();
+                if let Some(local) = local {
+                    batch.retain_pending_applications(&local.initializer, definition_root);
+                    batch.emit_candidate_local_value(
+                        expression,
+                        local,
+                        definition_root
+                            .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?,
+                        definition.as_ref(),
+                        &mut pending_uses,
+                    )?;
+                } else {
+                    batch.emit_candidate_value(
+                        expression,
+                        definition_root,
+                        definition.as_ref(),
+                        &mut pending_uses,
+                    )?;
+                }
             }
             if !candidate_values {
                 if matches!(expression, ResolvedExpr::Integer { .. }) {

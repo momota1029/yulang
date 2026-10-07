@@ -132,6 +132,254 @@ fn unsupported_shape_returns_no_partial_candidate() {
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[test]
+fn captured_local_function_returns_value_and_retains_outer_parameter() {
+    use yu_hir::{NameResolution, ResolvedExpr};
+    use yu_types::{NegativeValueView, PositiveValueView};
+    let text = "my apply f = { my step x = f x; step }";
+    let source: Arc<SourceText> = Arc::from(text);
+    let parsed = parse_file(
+        source.clone(),
+        Arc::new(scan_header(source)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let artifact = Arc::new(yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = Arc::new(
+        yu_hir::shadow::lower_module_with_shadow_local_binding(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "candidate",
+                "captured-local.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+            artifact,
+        )
+        .unwrap(),
+    );
+    let before = SolvedModule::solve(ConstraintBatch::collect(hir.clone()).unwrap()).unwrap();
+    let ordinary_hir = module(text, false);
+    assert_eq!(ordinary_hir.diagnostics(), hir.diagnostics());
+    let ordinary =
+        SolvedModule::solve(ConstraintBatch::collect(ordinary_hir.clone()).unwrap()).unwrap();
+    let local = hir.shadow_local_binding(root(&hir, 0)).unwrap().unwrap();
+    let ResolvedExpr::Lambda {
+        parameter: x, body, ..
+    } = &local.initializer
+    else {
+        panic!("local lambda")
+    };
+    let ResolvedExpr::Apply {
+        occurrence,
+        callee,
+        argument,
+        ..
+    } = body.as_ref()
+    else {
+        panic!("local call")
+    };
+    let ResolvedExpr::Name {
+        resolution: NameResolution::Parameter(f),
+        ..
+    } = callee.as_ref()
+    else {
+        panic!("capture")
+    };
+    assert_ne!(f, x);
+    assert!(
+        matches!(argument.as_ref(), ResolvedExpr::Name { resolution: NameResolution::Parameter(p), .. } if p == x)
+    );
+    assert_eq!(local.captures.as_ref(), std::slice::from_ref(f));
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.calls().len(), 1);
+    let call = &candidate.calls()[0];
+    assert_eq!(&call.occurrence, occurrence);
+    assert_eq!(&call.callee, callee.occurrence());
+    assert_eq!(&call.argument, argument.occurrence());
+    assert_ne!(call.occurrence, local.continuation.occurrence);
+    assert_eq!(call.unresolved, UNRESOLVED);
+    assert!(candidate.definition_uses().next().is_none());
+    let export = candidate.export(root(&hir, 0)).unwrap();
+    assert_eq!(export.unresolved, UNRESOLVED);
+    let scheme = export.endpoints();
+    let PositiveValueView::Function {
+        argument: outer_argument,
+        result: returned,
+        ..
+    } = scheme.positive_value(scheme.predicate()).unwrap()
+    else {
+        panic!("outer function")
+    };
+    let PositiveValueView::Function {
+        argument: local_argument,
+        result: local_result,
+        ..
+    } = retained_positive_function(scheme, returned)
+    else {
+        panic!("returned local function")
+    };
+    let NegativeValueView::Function {
+        argument: capture_argument,
+        result: capture_result,
+        ..
+    } = retained_negative_function(scheme, outer_argument)
+    else {
+        panic!("captured provider demand")
+    };
+    let NegativeValueView::Quantified(x_input) = scheme.negative_value(local_argument).unwrap()
+    else {
+        panic!("local input")
+    };
+    let PositiveValueView::Quantified(x_capture) = scheme.positive_value(capture_argument).unwrap()
+    else {
+        panic!("capture input")
+    };
+    let PositiveValueView::Quantified(output) = scheme.positive_value(local_result).unwrap() else {
+        panic!("local result")
+    };
+    let NegativeValueView::Quantified(captured_output) =
+        scheme.negative_value(capture_result).unwrap()
+    else {
+        panic!("capture result")
+    };
+    assert_eq!(x_input, x_capture);
+    assert_eq!(output, captured_output);
+    assert_ne!(x_input, output);
+    let after = SolvedModule::solve(ConstraintBatch::collect(hir.clone()).unwrap()).unwrap();
+    assert!(!hir.errors().is_empty());
+    assert_eq!(before.errors(), after.errors());
+    assert_eq!(
+        before.counters().hir_traversals(),
+        after.counters().hir_traversals()
+    );
+    assert_eq!(
+        before.counters().body_pass_visits(),
+        after.counters().body_pass_visits()
+    );
+    assert_eq!(
+        before.counters().collected_definitions(),
+        after.counters().collected_definitions()
+    );
+    assert_eq!(
+        before.counters().emitted_facts(),
+        after.counters().emitted_facts()
+    );
+    assert_eq!(before.store().provenance(), after.store().provenance());
+    assert_eq!(before.store().facts().len(), after.store().facts().len());
+    for (left, right) in before.store().facts().iter().zip(after.store().facts()) {
+        compare_terms(before.store(), left.lower(), after.store(), right.lower());
+        compare_terms(before.store(), left.upper(), after.store(), right.upper());
+    }
+    assert!(
+        before
+            .shadow_closed_schemes()
+            .for_root(root(&hir, 0))
+            .unwrap()
+            .endpoints()
+            .alpha_eq(
+                after
+                    .shadow_closed_schemes()
+                    .for_root(root(&hir, 0))
+                    .unwrap()
+                    .endpoints()
+            )
+    );
+    assert_eq!(
+        ordinary.root_value_for(root(&ordinary_hir, 0)).unwrap(),
+        before.root_value_for(root(&hir, 0)).unwrap()
+    );
+    assert!(
+        ordinary
+            .shadow_closed_schemes()
+            .for_root(root(&ordinary_hir, 0))
+            .unwrap()
+            .endpoints()
+            .alpha_eq(
+                before
+                    .shadow_closed_schemes()
+                    .for_root(root(&hir, 0))
+                    .unwrap()
+                    .endpoints()
+            )
+    );
+    // Applications-only HIR does not carry this retained local binding.
+    assert!(matches!(
+        CandidateValueObservation::solve(module(text, true)),
+        Err(CandidateError::Unsupported)
+    ));
+    for other in [
+        "my apply f = { my step x = f 1; step }",
+        "my apply f = { my step x = f x; step 1 }",
+    ] {
+        let source: Arc<SourceText> = Arc::from(other);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let artifact = Arc::new(
+            yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap(),
+        );
+        assert!(matches!(
+            yu_hir::shadow::lower_module_with_shadow_local_binding(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "candidate",
+                    "captured-local-negative.yu",
+                ))),
+                &parsed,
+                SemanticImports::empty(),
+                artifact,
+            ),
+            Err(yu_hir::HirAvailabilityError::StructuralProjection)
+        ));
+        assert!(matches!(
+            CandidateValueObservation::solve(module(other, true)),
+            Err(CandidateError::Unsupported)
+        ));
+    }
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn retained_positive_function(
+    scheme: yu_types::ClosedValueSchemeView<'_>,
+    id: yu_types::PositiveValueId,
+) -> yu_types::PositiveValueView<'_> {
+    use yu_types::PositiveValueView;
+    let view = scheme.positive_value(id).unwrap();
+    if let PositiveValueView::Union(parts) = view {
+        // One local Lambda recipe is the only Function constructor at this
+        // result endpoint. The experimental own-row symbols remain present.
+        let mut functions = parts.iter().filter_map(|id| {
+            let view = scheme.positive_value(*id).unwrap();
+            matches!(view, PositiveValueView::Function { .. }).then_some(view)
+        });
+        let function = functions.next().expect("retained local Lambda recipe");
+        assert!(functions.next().is_none(), "one local Function constructor");
+        function
+    } else {
+        view
+    }
+}
+#[cfg(feature = "shadow-apply-candidate")]
+fn retained_negative_function(
+    scheme: yu_types::ClosedValueSchemeView<'_>,
+    id: yu_types::NegativeValueId,
+) -> yu_types::NegativeValueView<'_> {
+    use yu_types::NegativeValueView;
+    let view = scheme.negative_value(id).unwrap();
+    if let NegativeValueView::Intersection(parts) = view {
+        // The sole retained Apply constructs the demand on the captured f row.
+        let mut functions = parts.iter().filter_map(|id| {
+            let view = scheme.negative_value(*id).unwrap();
+            matches!(view, NegativeValueView::Function { .. }).then_some(view)
+        });
+        let function = functions.next().expect("retained captured Apply recipe");
+        assert!(functions.next().is_none(), "one captured Function demand");
+        function
+    } else {
+        view
+    }
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
 fn parameter_apply_retains_premises_and_ordinary_routes() {
     let hir = module("my apply f = f 1; my id x = x; pub out = apply id", true);
     let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
