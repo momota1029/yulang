@@ -1,7 +1,7 @@
 # Genuine Call input realization by contextual provider membership
 
 Date: 2026-10-08
-Status: independently reviewed relative constructor theorems; definition selection and shared integration pending
+Status: independently reviewed relative constructor theorems under the selected original definition
 Baseline supplied by primary: `ffab2079e806883342621083a39828567534adc4`
 Exclusive producer lease: this file only
 Claim classes: A/B semantic constructor soundness; D reconstruction eliminated
@@ -14,9 +14,13 @@ the frozen producer SHA-256
 without findings. The primary accepts those bounded verdicts. The mathematical
 body below is unchanged; its pending-review wording is historical, while its
 candidate-definition and independent semantic-input limits still apply.
-This self-contained research checkpoint does not adopt the definitions or
-change shared theory/DAG/production status. Shared integration follows
-separately after selection and its records are synchronized.
+The first self-contained research checkpoint at `375d21e` did not adopt the
+definitions or change shared theory/DAG/production status. The later
+[selected definition](../design/2026-10-08-contextual-function-membership-definition.md)
+and [integration record](../progress/2026-10-08-call-interface-admission-review.md)
+now govern the exact constructor scope. Candidate/selection-pending wording
+below is historical for those cases only; complete descriptor/model realization,
+foreign-kernel embedding and the other displayed semantic inputs remain open.
 
 Dependency revalidation: remote `3797bce4808e06af9ee8c74d443c806f63e43d3b`
 adds a bounded structural source-frame result to the preceding complete Call

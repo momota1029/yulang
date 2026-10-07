@@ -37,9 +37,13 @@ the complete static constructor induction on its finite acyclic resolved
 envelope, including the nested term. Lemma N/Theorem I prove the exact
 Name/Return/constant-delay and actual-provider/live-world consequence in the
 defined independent input fragment. Do not reschedule that source evidence
-construction. Original realization of its persistent telescope/world and
-checked-view inlet action, plus complete effectful Call phase preservation,
-remain genuine C0 work; the fragment is not adopted as production semantics.
+construction. The later [selected original input realization](2026-10-08-call-semantic-input-realization.md)
+constructs that telescope from hereditary binding inputs and proves same-U
+argument acceptance by contextual Function membership and independent checked
+challenge formation. The old raw ViewInlet action is no longer a supplied
+premise on this route. Full receiver behavior follows from that same Function
+contract; complete source-result/closure introduction, general effectful code,
+original model/primitive realization and full C0 remain.
 
 The [authentic complete Call theorem](2026-10-07-owned-call-contribution-construction.md)
 under the [selected contribution definition](../design/2026-10-07-complete-call-contribution-definition.md)
@@ -47,17 +51,24 @@ supplies C1-Call under authentic SpecCall_e and independent complete C0. It
 retains the whole callee/receiver operation and every original arm interface,
 including opaque conservative alternatives; no per-arm contribution inverse
 or source execution of those extras is required. Its full-family J-Owned
-theorem is conditional on the genuine SourceInterfaceFormation_e supplier.
+theorem consumes the full SourceInterfaceFormation_e diagram. The later
+[selected Theorem IF](2026-10-08-call-source-interface-construction.md)
+constructs that diagram from actual source/operator and complete original
+declaration/reference formation, rather than assuming a placement at e.
 
-The immediate original Call proof work therefore has two semantic suppliers
-inside F1/F2: (1) realize the independent same-provider input/operation/world
-interpretation and complete Call phase safety, and (2) construct its complete
-source frames and actual structural/abstract declaration-root-use placements,
-including original licenses and introduced-provider/future maps. These share
-one actual interpretation; C0 typing does not imply source placement. The
-reviewed source/routing inductions and C-Call/J-Owned constructors then supply
-the former recovery and uniform-accounting steps. No extra theorem family is
-created for retaining those results.
+The former two broad Call suppliers have therefore been reduced by genuine
+constructor proofs. Complete source placement and the additional raw inlet
+action are not separate Pro tasks on the selected route. The immediate F1/F2
+semantic work is actual result/closure introduction and general code, original
+operator/phase/dispatch and contextual hole/world validity, and every original
+primitive/provider/future/admission contract, including whole-Call abstractions.
+Those independently typed complete contracts are IF's inputs; it does not
+produce a license or domain law by allocating a slot. Complete C0, exhaustive
+descriptor/model realization and applicable active-consumer/fixed-kernel laws
+remain. See the [selection and review account](../progress/2026-10-08-call-interface-admission-review.md).
+Do not commission another arm/root/source-placement inverse or per-provider
+raw ViewInlet wrapper. Use these results as F1/F2 constructor cases, without
+claiming either entire family is proved.
 
 All-source generation, other original occurrence/owner/contribution cases,
 license introduction and complete production descriptor/member/admission
@@ -163,8 +174,9 @@ inhabited fields or an empty observed effect support.
 Original typed occurrence, owner/contribution incidence, actual complete Call
 typing, licensing and uniform coverage are judgments about the intended
 language. A structurally matching tuple can violate any one of them. The
-remaining C0/source-interface and general source/owner cases cannot be synthesized by a
-retained ID. The selected emitted-record O0 and seeded O1-static cases now
+remaining complete C0, primitive/world and general source/owner cases cannot be synthesized by a
+retained ID. Source-interface placement now follows the selected IF constructors;
+the original semantic contracts they consume do not. The selected emitted-record O0 and seeded O1-static cases now
 follow their justified constructors;
 retaining that constructed certificate removes its later reconstruction task,
 without establishing the other semantic introductions.

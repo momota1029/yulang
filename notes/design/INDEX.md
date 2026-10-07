@@ -30,15 +30,37 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Authoritative complete contextual source interfaces (2026-10-08):**
+  [source-interface definition](2026-10-08-call-source-interface-definition.md)
+  and [Theorem IF](../theory/2026-10-08-call-source-interface-construction.md)
+  construct full source/structural/abstract-arm placements from actual
+  source/operator and declaration/reference formation, with shared whole-map
+  coherence. This extends the incoming selected acyclic SrcFrame+ result;
+  its finite registered-cycle case proves static construction only. Original
+  operator/phase/dispatch, hole/world, primitive licensing/admission, complete
+  C0 and foreign-kernel/active-consumer laws remain genuine. SourceInterfaceFormation
+  is no longer a separate placement premise on this constructor route. See the
+  [independent review and integration](../progress/2026-10-08-call-interface-admission-review.md).
+
+- **Authoritative contextual Function membership (2026-10-08):**
+  [same-provider definition](2026-10-08-contextual-function-membership-definition.md)
+  and [reviewed input realization](../theory/2026-10-08-call-semantic-input-realization.md)
+  supply the original Name/Return/Delay input cases and actual-U argument
+  acceptance at the same CalRet event without the extra raw ViewInlet premise.
+  Complete receiver behavior follows from that same Function contract.
+  Independent descriptor/history/primitive contracts and hereditary binding
+  inputs remain; no exhaustive model, full C0 or production cutover is claimed.
+
 - **Authoritative complete-operation contribution cases (2026-10-07):**
   [complete Call definition](2026-10-07-complete-call-contribution-definition.md)
   selects the independently reviewed C-Inv/C-Call and conditional dependent
   routing/accounting cases under the user's ongoing definition authorization.
   [C1-Call](../theory/2026-10-07-owned-call-contribution-construction.md) retains
   the authentic full callee/receiver/alternative operation with exact evidence
-  fibers under independent C0. Full J0 remains conditional on genuine complete
-  source-interface/declaration insertion; no source execution of Option 2
-  extras is required. No concrete W/Z grammar, fixed-kernel conservation,
+  fibers under independent C0. The later IF supplier above now constructs its
+  complete diagram on the stated source/contract route; full J0 still needs
+  independent complete C0 and the genuine original contracts. No source
+  execution of Option 2 extras is required. No concrete W/Z grammar, fixed-kernel conservation,
   production semantics or cutover is selected.
 
 - **Reviewed complete source-input construction (2026-10-07):**
@@ -47,9 +69,10 @@ This index is a navigation aid. The listed source document remains authoritative
   nested Lambda/Bind/Call term, with exact erasure. Its independent semantic
   fragment proves Name/Return/constant-delay and actual-provider/live-world
   input consequences. A batched repair and fresh compiler-referee delta pass
-  close the initial four findings. Original-family realization, general
-  complete C0, production membership and cutover remain separate; the fragment
-  is not semantically adopted. See the
+  close the initial four findings. The later selected original input cases
+  above realize its Name/Return/Delay consequence without adopting its raw
+  ViewInlet requirement. General complete C0, exhaustive production membership
+  and cutover remain separate. See the
   [completion review](../progress/2026-10-07-source-constructor-completion-review.md#7-completed-source-inputs-and-actual-return-consequence).
 
 - **Authoritative shared static Call ownership (2026-10-07):**

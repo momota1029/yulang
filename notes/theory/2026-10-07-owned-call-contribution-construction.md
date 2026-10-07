@@ -33,6 +33,18 @@ dispatch/phase maps, all opaque declaration insertions and foreign-root uses,
 C0, K-Image membership lifting and active-consumer preservation remain. The
 reviewed mathematical body is unchanged; no aggregate status is promoted.
 
+**Later complete contextual supplier selected (2026-10-08).** The
+[source-interface extension](../design/2026-10-08-call-source-interface-definition.md)
+and [Theorem IF](2026-10-08-call-source-interface-construction.md) now construct
+§7's full diagram from genuine source/complete-contract formation, including
+actual declaration insertion and root-reference use. This extends the retained
+§12 structural completion. Its exact operator/phase/dispatch, contextual
+hole/world, primitive licensing/admission and lawful action inputs remain.
+The [review record](../progress/2026-10-08-call-interface-admission-review.md)
+includes the incoming-§12 revalidation. Historical unsupplied source-placement
+wording below is superseded only on that selected constructor route; independent
+complete C0, SpecCall, exact O1, foreign-kernel and active-consumer laws remain.
+
 ## 1. Result and corrected scope
 
 The adopted O0 root denotes **receiver invocation**, not the complete source
@@ -542,6 +554,13 @@ on those independent contracts. Actual provider phase declarations remain
 inputs. Thus the new theorem can replace the structural supplier on that
 explicit grammar after selection; the adopted original judgment and the
 unchanged universal family are not silently replaced here.
+
+**Current supplier navigation.** The later selected Theorem IF linked above
+constructs these four outputs at source/operator and actual declaration/use
+formation. Use that proof under its genuine complete-interface inputs, rather
+than assuming an additional map to this source use. It preserves the independent
+semantic, hole/world and foreign-interpretation premises; this is no claim that
+O0/O1/C0 alone generated the missing original contracts.
 
 ## 8. J-Owned: full accounting with exact lexical ownership
 
@@ -1106,6 +1125,14 @@ theorem does not pretend Name lookup reaches an unrelated root. Together
 with the lawful opaque-contract actions below this is
 `SourceInterfaceFormation_e+`, permitting the existing §8 implication under
 independent C0 and exact O1 in this proposed interpretation.
+
+**Later supplier extension.** The selected Theorem IF supplies the preceding
+corollary's declaration insertion and actual typed root-use placements on its
+complete constructor/reference grammar. A foreign root without an actual
+reference, or a separately fixed source-image interpretation, keeps its genuine
+independent map premise. Original semantic phase/dispatch, hole/world and
+primitive/admission contracts remain. F1-Struct+ above stays acyclic; IF's finite
+registered-cycle construction is a separately proved extension.
 
 ### 12.5 Erasure, naturality and precise failure conditions
 
