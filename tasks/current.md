@@ -632,7 +632,8 @@ retains an artifact-branded caller-selected sigiled declaration position and
 validates only same-artifact syntax shape. Recovery-free State read/write
 expression positions are not exposed by the current parser, so occurrence
 association remains unfilled. Ordinary HIR still rejects the sigiled target;
-no State role, transition, effect or runtime behavior is inferred. The focused
+two distinct same-spelling declarations retain distinct candidate IDs, and no
+State role, transition, effect or runtime behavior is inferred. The focused
 one-test target and formatting/whitespace checks passed after compiler-referee
 review. `STATE-ID`, `STATE-RW` and `STATE-RESUME` remain open.
 

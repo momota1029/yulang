@@ -26,13 +26,20 @@ remain premises.
 
 ## Current source boundary
 
-The focused source is `my $buffer = 0; my backing = 1; my read = backing`.
-The first declaration is structurally retained as a pending candidate. The
-current recovery-free expression parser does not expose the State `$` read or
-`&` write forms as `IdentifierExpression` nodes; positive occurrence
-association is therefore not exercised here and remains pending. A plain
-identifier use and a sigiled declaration supplied as an occurrence both fail
-shape validation. Foreign-artifact positions are rejected.
+The focused source is:
+
+```text
+my $buffer = 0; my $buffer = 1; my backing = 1; my read = backing
+```
+
+Two same-spelling declaration positions produce distinct pending candidate
+IDs, so the retained identity is tied to declaration origin rather than the
+written name. The first declaration is structurally retained as a pending
+candidate. The current recovery-free expression parser does not expose the
+State `$` read or `&` write forms as `IdentifierExpression` nodes; positive
+occurrence association is therefore not exercised here and remains pending.
+A plain identifier use and a sigiled declaration supplied as an occurrence
+both fail shape validation. Foreign-artifact positions are rejected.
 
 Ordinary `lower_module` still reports `UnsupportedTarget` for the sigiled
 declaration. The shadow skeleton remains unresolved. This slice changes no
@@ -44,7 +51,8 @@ write/restart/read law and no multi-activation or multi-shot property.
 
 Independent compiler-referee review passed after strengthening the test to
 isolate artifact ownership, source-node kind and sigil-shape checks, and to
-assert the exact ordinary `UnsupportedTarget` refusal.
+assert the exact ordinary `UnsupportedTarget` refusal. A second delta review
+confirmed the same-spelling declaration discriminator remains structural-only.
 
 Focused verification:
 

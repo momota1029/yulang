@@ -7,7 +7,7 @@ use yu_hir::{
 };
 use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
 
-const SOURCE: &str = "my $buffer = 0; my backing = 1; my read = backing";
+const SOURCE: &str = "my $buffer = 0; my $buffer = 1; my backing = 1; my read = backing";
 
 fn positions(artifact: &ShadowArtifact, kind: SyntaxKind, text: &str) -> Vec<PositionId> {
     let mut stack = vec![artifact.root()];
@@ -35,7 +35,7 @@ fn caller_selected_state_declaration_stays_an_unresolved_candidate() {
     );
     let artifact = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
     let declarations = positions(&artifact, SyntaxKind::IdentifierPattern, "$buffer");
-    assert_eq!(declarations.len(), 1);
+    assert_eq!(declarations.len(), 2);
     // Current expression parsing does not yet expose State read/write source
     // occurrences as recovery-free IdentifierExpression nodes. This slice
     // therefore retains declaration identity only; occurrence and role
@@ -43,11 +43,15 @@ fn caller_selected_state_declaration_stays_an_unresolved_candidate() {
     let pending = artifact
         .pending_state_slot_source_input(&declarations[0], &[])
         .unwrap();
+    let other_pending = artifact
+        .pending_state_slot_source_input(&declarations[1], &[])
+        .unwrap();
     assert_eq!(pending.candidate().declaration_position(), &declarations[0]);
+    assert_ne!(pending.candidate(), other_pending.candidate());
     assert!(pending.occurrences().is_empty());
     let other = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
     let other_declaration = positions(&other, SyntaxKind::IdentifierPattern, "$buffer");
-    assert_eq!(other_declaration.len(), 1);
+    assert_eq!(other_declaration.len(), 2);
     assert!(matches!(
         other.pending_state_slot_source_input(&other_declaration[0], &[declarations[0].clone()]),
         Err(ShadowError::ForeignArtifact)
