@@ -1784,6 +1784,28 @@ do not supply typed `p0`, a Call occurrence, original `xi`/scope or complete
 family coverage. P2 remains OPEN-SEMANTIC. These attacks were bounded producer
 audits, not independent closure reviews; no DAG node or authority changed.
 
+## Current-pipeline shadow differential (2026-10-07)
+
+At current remote baseline `e8ec553d5ea3e6c3dc02e44523460f5dcb32fa65`, a
+reviewed focused differential now compares independently ordinary-lowered /
+solved HIR with source-identity-lowered HIR solved with fresh-row capture. It
+alpha-compares every current finalized root scheme, including public/our/private
+receiving aliases, and covers generic Q inventory, recursive R bounds,
+unproductive recursion, and integer aliases. Occurrence registration and
+per-artifact projections are also checked without transporting IDs across
+artifacts. This establishes current-inference instrumentation
+noninterference for these fixtures only. It does not establish old-infer parity,
+successor export, Apply typing, use-time transport, soundness, principality or
+source adequacy. See the [shadow current-pipeline differential](../notes/progress/2026-10-07-shadow-current-pipeline-noninterference.md).
+
+The focused test passed and the change received independent compiler-referee
+review with no findings. Canonical DAG counts remain 90 nodes / 196 edges: 7
+CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC, and 1
+IMPLEMENTATION-ONLY. The next implementation slice requires a source-derived
+successor construction judgment; current Q/R capture and endpoint parity do
+not establish eligible coordinates, fixed imports, complete shared-contract
+transport, or actual export evidence.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.

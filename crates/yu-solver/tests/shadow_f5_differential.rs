@@ -4,20 +4,148 @@
 //! Parsing is shared; shadow projection and current production F5 lowering are
 //! separate paths. Compare source spelling/ranges and lexical resolution within
 //! each artifact, never IDs across artifacts. This does not establish old-infer
-//! parity, scheme equality, Apply typing, callable roles, Function membership,
-//! call views, soundness, or principality.
+//! parity, successor scheme equality, Apply typing, callable roles, Function
+//! membership, call views, soundness, or principality. The finalized-scheme
+//! comparison below checks only current-inference instrumentation noninterference.
 
 use std::sync::Arc;
 use yu_core::shadow_derivation::{ApplyStructuralPosition, RawStructuralArena};
 use yu_hir::{
     FileId, FileKey, HirErrorKind, HirItem, ModuleIdentity, NameResolution, ResolvedExpr,
     SemanticImports, lower_module,
-    shadow::lower_module_with_shadow_applications,
     shadow::{Form, ShadowArtifact},
+    shadow::{lower_module_with_shadow_applications, lower_module_with_source_identity},
 };
 use yu_solver::shadow_f5::PendingApplicationOperandPosition;
 use yu_solver::{ConstraintBatch, PendingApplicationState, SolvedModule};
 use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
+
+#[test]
+fn source_identity_and_fresh_capture_preserve_complete_current_finalized_schemes() {
+    for (text, has_quantifiers, has_recursive_bounds) in [
+        (
+            "my id x = x; pub public_alias = id; our our_alias = id; my private_alias = id",
+            true,
+            false,
+        ),
+        ("my f x = f; pub alias = f", false, true),
+        ("my a = b; my b = a; my alias = a", false, false),
+        ("my a = 42; my alias = a", false, false),
+    ] {
+        let source: Arc<SourceText> = Arc::from(text);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "shadow-f5-differential",
+            "finalized-aliases.yu",
+        )));
+        // Lower and collect independently: neither solve shares HIR branding,
+        // collection state, live rows, or a finalized arena with the other.
+        let current_hir =
+            Arc::new(lower_module(identity.clone(), &parsed, SemanticImports::empty()).unwrap());
+        let captured_hir = Arc::new(
+            lower_module_with_source_identity(identity, &parsed, SemanticImports::empty()).unwrap(),
+        );
+        assert_eq!(current_hir.items(), captured_hir.items(), "{text}");
+        for hir in [&current_hir, &captured_hir] {
+            assert!(hir.errors().is_empty(), "{text}");
+            assert!(hir.diagnostics().is_empty(), "{text}");
+        }
+        let current =
+            SolvedModule::solve(ConstraintBatch::collect(current_hir.clone()).unwrap()).unwrap();
+        let captured = SolvedModule::solve_with_shadow_fresh_capture(
+            ConstraintBatch::collect(captured_hir.clone()).unwrap(),
+        )
+        .unwrap();
+        assert!(current.errors().is_empty(), "{text}");
+        assert!(captured.errors().is_empty(), "{text}");
+        assert!(current.pending_applications().is_empty());
+        assert!(captured.pending_applications().is_empty());
+        assert_eq!(current.occurrences().len(), captured.occurrences().len());
+        let mut compared_occurrences = 0;
+        let mut saw_quantifiers = false;
+        let mut saw_recursive_bounds = false;
+        for item in current_hir.items() {
+            let HirItem::Binding(binding) = item else {
+                panic!("supported fixture contains only bindings");
+            };
+            let matches = captured_hir
+                .items()
+                .iter()
+                .filter_map(|item| match item {
+                    HirItem::Binding(other) if other.id() == binding.id() => Some(other),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            let [other] = matches.as_slice() else {
+                panic!("each source declaration has exactly one corresponding binding");
+            };
+            assert_eq!(binding.range(), other.range());
+            assert_ne!(binding.definition_root(), other.definition_root());
+            let scheme = current
+                .shadow_closed_schemes()
+                .for_root(binding.definition_root())
+                .unwrap();
+            let captured_scheme = captured
+                .shadow_closed_schemes()
+                .for_root(other.definition_root())
+                .unwrap();
+            assert_eq!(scheme.owner(), binding.definition_root());
+            assert_eq!(captured_scheme.owner(), other.definition_root());
+            assert!(!scheme.same_identity(captured_scheme));
+            // Existing alpha equality includes Q inventory and all R bounds,
+            // rather than comparing only the coarse solved value projection.
+            assert!(
+                scheme.endpoints().alpha_eq(captured_scheme.endpoints()),
+                "{text}"
+            );
+            saw_quantifiers |= scheme.quantifiers().next().is_some();
+            saw_recursive_bounds |= scheme.recursive_binders().next().is_some();
+            let mut expressions = vec![(binding.value(), other.value())];
+            while let Some((expression, other_expression)) = expressions.pop() {
+                assert_eq!(expression.range(), other_expression.range());
+                assert_ne!(expression.occurrence(), other_expression.occurrence());
+                // The public projection inventory registers root expressions;
+                // nested Lambda bodies can have only the fallback projection.
+                let registered = current.occurrences().contains(expression.occurrence());
+                assert_eq!(
+                    registered,
+                    captured
+                        .occurrences()
+                        .contains(other_expression.occurrence())
+                );
+                assert_eq!(
+                    current.projection_for(expression.occurrence()).unwrap(),
+                    captured
+                        .projection_for(other_expression.occurrence())
+                        .unwrap(),
+                    "{text}"
+                );
+                compared_occurrences += usize::from(registered);
+                match (expression, other_expression) {
+                    (
+                        ResolvedExpr::Lambda { body, .. },
+                        ResolvedExpr::Lambda { body: other, .. },
+                    ) => {
+                        expressions.push((body, other));
+                    }
+                    (ResolvedExpr::Name { .. }, ResolvedExpr::Name { .. })
+                    | (ResolvedExpr::Integer { .. }, ResolvedExpr::Integer { .. }) => {}
+                    _ => panic!("fixture comparison admits only supported Lambda/Name/Integer"),
+                }
+            }
+        }
+        assert_eq!(compared_occurrences, current.occurrences().len());
+        assert_eq!(saw_quantifiers, has_quantifiers, "{text}");
+        assert_eq!(saw_recursive_bounds, has_recursive_bounds, "{text}");
+        // No Apply rule is exercised or discharged. Successor generalization,
+        // current-to-successor Q/R correspondence, use-time shared-contract
+        // transport and export eligibility remain unresolved by this test.
+    }
+}
 
 #[test]
 fn shadow_and_current_f5_preserve_leaf_parameter_source_and_resolution() {
