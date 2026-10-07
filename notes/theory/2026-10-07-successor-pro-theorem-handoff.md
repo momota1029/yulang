@@ -17,14 +17,20 @@ canonical status until an actual proof is independently reviewed. “Four” cou
 independent proof families, not atomic obligations or a claim that the hard
 work is finished.
 
-There are **specification inputs before proof**. In particular, independent
-original Function position formation (`H_eff`), original occurrence/owner/
-contribution/license introduction and the complete selected production
-descriptor/member/admission rules are not all supplied. Identify and formally
-specify these under existing Authority; do not fill them with the conclusion
-of a desired theorem. The local OC-CallEff proposal remains unadopted. A new
-semantic choice requires its own reviewed, approved scope. Missing
-formalization alone does not demonstrate a choice for the user.
+There are **specification inputs before proof**. The user has now selected
+the [original signature-demand / Call-effect definitions](../design/2026-10-07-original-call-formation-definition.md);
+[O0-selected](2026-10-07-adopted-call-formation-o0.md) constructs H_eff, exact
+typed incidence and full-invocation root realization for actual emitted
+Gen-Call-0 records. Use that case directly; do not commission another
+H_eff/OC-CallEff transport or ask for its approval again.
+
+All-source generation, other original occurrence cases, owner/contribution/
+license introduction and complete production descriptor/member/admission
+rules are still not all supplied. Identify and specify those under their
+actual Authority. The local definition supplies neither those judgments nor
+their whole original domains. Any genuinely new semantic choice has its own
+reviewed, approved scope; missing formalization alone demonstrates no competing
+observable behavior.
 
 ### Shared notation and immutable constraints
 
@@ -122,7 +128,10 @@ inhabited fields or an empty observed effect support.
 Original typed occurrence, owner/contribution incidence, actual complete Call
 typing, licensing and uniform coverage are judgments about the intended
 language. A structurally matching tuple can violate any one of them. The
-currently missing O0/O1/C1/J0 cases cannot be synthesized by a retained ID.
+remaining O1/C1/J0 and general source cases cannot be synthesized by a retained
+ID. The selected emitted-record O0 case now follows its approved constructors;
+retaining that constructed certificate removes its later reconstruction task,
+without establishing the other semantic introductions.
 
 ### Why design cannot remove it without changing behavior:
 

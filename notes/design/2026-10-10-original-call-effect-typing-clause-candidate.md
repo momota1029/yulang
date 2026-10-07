@@ -7,6 +7,18 @@ Reviewed-by: `compiler_referee` and `spec_auditor` (pre-write review plus post-w
 Supersedes: none
 Semantic and implementation authority: none
 
+**Current scope after local adoption.** The user separately approved the
+[original Call formation definition](2026-10-07-original-call-formation-definition.md)
+for actual emitted Gen-Call-0 records. Its reviewed
+[O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md)
+closes that local static formation port. This Draft instead fixes old semantic
+families before interpreting its optional constructors; its coherent sections,
+active-primitive pullbacks and finite counterexample remain relevant to that
+distinct comparison problem. The following historical statements that O0 is
+open or adoption unavailable concern this fixed-family candidate, not the
+separately approved local definition. No section/pullback theorem here is
+claimed proved by the local adoption, and this Draft is not itself adopted.
+
 ## 1. Purpose and boundary
 
 This candidate turns the O0 interface into two explicit typing clauses over

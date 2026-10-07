@@ -8,6 +8,16 @@ Reviewed-by: `compiler_referee` (no findings); `spec_auditor` (scope finding rep
 Supersedes: none
 Semantic and implementation authority: none
 
+**Narrow adopted successor.** The O0 formation cases are now governed by the
+[original Call formation definition](2026-10-07-original-call-formation-definition.md).
+The reviewed [O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md)
+supplies the table's local typed output/source-root incidence for actual
+emitted Gen-Call-0 records. This document's other proposed introductions,
+original domains and residual consumer premises remain unchanged. Its
+pre-adoption interface/status text is historical where it asks for that
+selected local formation again; no owner/slot/contribution/profile result
+follows from the adoption.
+
 ## 1. Purpose and authority boundary
 
 This proposal specifies an interface for the missing original source

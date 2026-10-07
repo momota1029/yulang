@@ -4,7 +4,18 @@ Date: 2026-10-07
 Baseline: `f3be02da1ba169a88acc154ac29621634f3cc89b`
 Status: independently compiler-referee/spec-auditor reviewed; no findings
 Claim: candidate-interface premise reduction and explicit minimal unadopted constructor clause
-Semantic, implementation and production authority: none
+Original reduction's semantic, implementation and production authority: none; later limited adoption below
+
+**Adoption update.** The user selected the exact two formation cases in
+[the published construction §10](../theory/2026-10-07-call-occurrence-construction-proof.md#10-proposed-completion-clauses-and-adoption-boundary),
+including its root interpretation. The
+[Authoritative definition](../design/2026-10-07-original-call-formation-definition.md)
+and reviewed [O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md)
+now supply this local static O0 port for actual emitted Gen-Call-0 records,
+including the approved nested source. The reduction and unadopted candidate
+below are retained as history; their former independent-definition requirement
+is resolved for the selected cases. O1/C0/C1/J0 and broader original domains
+remain separate, and no aggregate DAG node is closed by this notice.
 
 ## Result
 

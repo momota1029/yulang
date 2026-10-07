@@ -30,15 +30,16 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
-- **Reviewed Call constructor completion (2026-10-07):**
-  [complete construction and proof](../theory/2026-10-07-call-occurrence-construction-proof.md)
-  supplies the two proposed formation cases, exact emitted-record traversal,
-  preservation proofs and a separately interpreted full-invocation root.
-  [Independent review](../progress/2026-10-07-call-construction-proof-review.md)
-  closes the generic-Call coverage finding and records the original-family
-  compatibility/adoption boundary. This is Reviewed research, not an
-  Authoritative original-sort definition or O0/DAG closure. No production
-  implementation or cutover follows.
+- **Authoritative original Call formation (2026-10-07):**
+  [adopted formation definitions](2026-10-07-original-call-formation-definition.md)
+  record the user's direct approval of the published §10 signature-demand and
+  Call-effect constructors, including the exact full-invocation root
+  interpretation. [O0-selected](../theory/2026-10-07-adopted-call-formation-o0.md)
+  proves local static root/typed incidence and whole-index coherence for actual
+  emitted Gen-Call-0 records; the approved nested source is included. The
+  [review and consumer account](../progress/2026-10-07-call-construction-proof-review.md#7-approved-definition-and-local-o0-integration)
+  preserves O1/C0/C1/J0 and all original broader domains. No all-source
+  generation, aggregate ORIGINAL_ASSOC closure or production cutover follows.
 
 - **Global successor proof-economy audit (2026-10-07):**
   [production proof architecture](2026-10-07-successor-production-proof-architecture.md)
@@ -52,16 +53,18 @@ This index is a navigation aid. The listed source document remains authoritative
   production contract or cutover is adopted by this audit. Source principality,
   all compatible contexts and exhaustive Option 2 extras remain required.
 
-- **Unadopted O0 typed Call-effect clauses (2026-10-10):**
+- **Fixed-original-family Call-effect comparison candidate (2026-10-10):**
   [original Call-effect typing clause candidate](2026-10-10-original-call-effect-typing-clause-candidate.md)
   gives optional signature-position and original-occurrence typing rules over
   fixed old semantic families, proves their syntactic whole-substitution laws
   relative to an independently supplied typed telescope action, and states the
   old-fiber sections and active-primitive pullback needed for conservative
   interpretation. It also gives a finite countermodel to free-evidence
-  conservativity. The clauses remain Draft: no old-sort realization or
-  pullback proof exists, O0 remains open, and semantic adoption or production
-  implementation is not authorized by this candidate.
+  conservativity when an active old predicate changes. The clauses remain
+  Draft: their old-family sections/pullbacks are unproved. This is distinct
+  from the adopted local O0 definition above; neither result proves the other's
+  comparison or broader semantic claims. No production implementation is
+  authorized by this candidate.
 
 - **Authoritative exact recursive singleton execution boundary:**
   [recursive self-init executable boundary](2026-10-07-recursive-self-init-executable-boundary.md)

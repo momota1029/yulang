@@ -2,7 +2,7 @@
 
 Date: 2026-10-07 UTC
 Branch: `research/simple-sub-intrusion`
-Status: reviewed Call-construction proof complete in its proposed formalization; original-family compatibility and production cutover remain gated
+Status: original Call formation definitions approved; local emitted-record O0 supplied, owner/Call-input and production gates remain
 
 ## Objective and canonical obligation ledger
 
@@ -60,43 +60,41 @@ the alternate cutover route is not available until every retained consumer
 obligation in the architecture is established. Required completed-contract
 principality, all compatible contexts and exhaustive production extras remain.
 
-### Current constructive result and exact limit
+### Current adopted Call formation and local O0 result
 
-The [complete Call-construction proof](../notes/theory/2026-10-07-call-occurrence-construction-proof.md)
-now gives explicit signature and source-occurrence constructors, a total
-decoration of the actual emitted Gen-Call-0 inventory, exact old-constraint
-and executable erasure, fresh-family model conservativity, whole-index
-substitution, and the O0 incidence in the proposed completed fragment. Its
-exact root is independently interpreted by the unchanged full complete-Call
-interface. This is a complete proof in that stated formalization, not a
-derivation of the historical original judgment from unchanged prior rules.
+The user explicitly approved the two formation cases at
+`2026-10-07T22:09:13+09:00`: 「承認するよー．定義にしちゃっていい」.
+The [adopted original definition](../notes/design/2026-10-07-original-call-formation-definition.md)
+records the exact scope and published §10 revision. The
+[O0-selected proof](../notes/theory/2026-10-07-adopted-call-formation-o0.md)
+supplies independent H_eff, the exact immediate signature root, typed
+Call-effect occurrence/kappa, full-invocation root realization and whole-tuple
+substitution for every actual emitted Gen-Call-0 record. The approved nested
+source's existing singleton is included.
 
-The [independent review record](../notes/progress/2026-10-07-call-construction-proof-review.md)
-closes the accepted generic-Call coverage finding: Calls without an emitted
-record retain their old node and child evidence, with no extra annotation or
-restriction. The exact approved nested source has its emitted singleton.
-All-source record inference and compatibility with any independently fixed
-original signature/occurrence interpretation remain unproved. No original
-DAG status changes.
+The source/shared-root part uses the actual scoped Gen-Call-0 derivation and
+its registration/capture provenance; a locator pair is insufficient. It
+introduces no original Slots member, semantic SharedContract/provider
+validity or joint I_orig witness. Exact consumer substitution supplies only
+their O0 port and retains all other premises. Calls with no emitted record
+keep their old node and child evidence without annotation or restriction;
+all-source record generation remains open. See the
+[review and integration record](../notes/progress/2026-10-07-call-construction-proof-review.md#7-approved-definition-and-local-o0-integration).
 
-Selecting the specified formation cases as the governing missing original
-definition is now a concrete, unapproved decision candidate. Approval would
-select that definition, not prove old-consumer preservation or automatically
-close historical O0. No competing observable behavior was demonstrated.
-The existing original-sort route remains in force until a scoped Authority
-decision and reviewed affected-consumer account, or the original compatibility
-proof, justifies a change.
+The former definition-selection question is resolved. No independent H_eff or
+OC-CallEff introduction remains unsupplied on this selected route. This is a
+local theorem under the approved definition, not proof that the historical
+undefined judgment followed from unchanged prior rules or that every
+separately fixed original family is identical. ORIGINAL_ASSOC remains
+OPEN-SEMANTIC; all 90 node statuses and 196 dependency edges are unchanged.
 
 ### Immediate work order
 
-1. Use the completed construction and semantic root proof above, together
-   with the unchanged [original two-head target](../notes/progress/2026-10-07-original-call-output-minimal-clause.md#7-candidate-two-head-original-formation-clause).
-   Resolve the exact definition-selection candidate or prove §9's compatibility
-   against an independently fixed original interpretation. Fresh-family
-   conservation is not original-family conservation. Do not add another
-   transport/tag lemma, silently adopt the candidate, or promote O0 merely
-   from its proposed-fragment theorem. Preserve same-`xi` scope,
-   comparison-independent formation and every downstream original consumer.
+1. Use O0-selected directly for actual emitted Gen-Call-0 records. Construct
+   O1 original Slots/Own at the same typed upper occurrence, retaining actual
+   registration/capture, seed, scope and shared-`xi` premises. Do not restart
+   signature-root or OC-CallEff formation, turn kappa into a slot/member by
+   identity, or expand the singleton proof to all-source generation.
 2. Establish the independent actual Call inputs and complete production
    descriptor/member/admission clauses. C0 and the static O0/O1 branch may
    progress independently; preserve same-provider/world and original scopes.
@@ -118,7 +116,7 @@ earlier instructions. Their repeated “next attack” wording is historical;
 the immediate work order above governs current scheduling. None of the
 historical results is newly closed or reopened by this planning change.
 
-### Current O0 result: one unadopted occurrence constructor
+### Historical O0 reduction before the approved definition
 
 At remote `2eb1660453ad325f8a2a3e95cb79cd9c368f9aaf`, subsequently integrated
 with the reviewed shadow checkpoint at `413c337bc0cdecaeb539829596fcd97521cf087b`, the

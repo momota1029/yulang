@@ -1,15 +1,27 @@
 # Complete Call-position and source-occurrence construction
 
 Date: 2026-10-07
-Status: Reviewed; completed conservative construction, original-family compatibility open
+Status: Reviewed; original review history below, selected §10 cases now adopted
 Baseline: `b540c04df0e0cce554f2d02f3c7fbb22a9fc1102`
 Affected-dependency revalidation: `701213b631361811c0c3c9d8c9ec4db2a475570b`
 Scope: a conservative, fully specified static constructor completion for H_eff
        and OC-CallEff; exact approved nested source instance
 Claim class: conservative construction theorem; not legacy-original O0 closure
-Semantic, implementation, and production authority: none
+Original review's semantic, implementation, and production authority: none; later limited adoption below
 Reviewed-by: independent compiler-referee and spec-auditor; fresh compiler-referee delta pass
 Review and integration: [exact scopes and findings](../progress/2026-10-07-call-construction-proof-review.md)
+
+**Adoption update.** At `2026-10-07T22:09:13+09:00` the user approved §10's
+two formation cases and §10.1 root interpretation as the governing missing
+original definitions on actual emitted Gen-Call-0 records. The
+[Authoritative definition](../design/2026-10-07-original-call-formation-definition.md)
+records that exact choice; the independently reviewed
+[O0-selected proof](2026-10-07-adopted-call-formation-o0.md) supplies local
+original typed incidence and its exact consumer use. The original proof below
+is preserved: its former unadopted/proposed wording describes the pre-approval
+state, and §9 still governs comparisons with a separately fixed interpretation.
+Fresh-family conservativity is not repurposed as an old-family identity proof.
+No whole original domain, downstream gate or production authority is added.
 
 ## 1. Result
 

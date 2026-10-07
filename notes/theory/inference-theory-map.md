@@ -15,13 +15,16 @@ are not eliminated by storing certificates. No canonical node, status or
 dependency changes; the consumer-by-consumer alternate cutover argument remains
 to be proved under the preserved Authority.
 
-Latest constructive result: [complete Call-position/occurrence construction](2026-10-07-call-occurrence-construction-proof.md),
-with [independent review and exact adoption boundary](../progress/2026-10-07-call-construction-proof-review.md).
-The proposed static fragment has total emitted-record construction, exact
-erasure, substitution and a full-invocation root interpretation. Its fresh
-families are not thereby identified with an independently fixed original
-signature/occurrence interpretation. Original O0, all-source record inference
-and downstream gates remain open; no canonical status or edge is changed.
+Latest constructive result: the user approved the
+[original Call formation definitions](../design/2026-10-07-original-call-formation-definition.md).
+The [O0-selected theorem](2026-10-07-adopted-call-formation-o0.md) supplies typed
+Call-effect/root incidence, exact complete-invocation realization and whole-index
+substitution on actual emitted Gen-Call-0 records, including the exact nested
+source. It reuses the [complete construction](2026-10-07-call-occurrence-construction-proof.md);
+the [integration review](../progress/2026-10-07-call-construction-proof-review.md#7-approved-definition-and-local-o0-integration)
+records exact consumer substitution. O1/C0/C1/J0 and all-source record
+generation remain open. No original whole-domain identification, aggregate
+node closure, dependency removal or production cutover is inferred.
 
 ## Read this map
 

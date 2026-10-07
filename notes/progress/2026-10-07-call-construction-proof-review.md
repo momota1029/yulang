@@ -1,12 +1,21 @@
 # Call constructor proof: independent review and original-judgment boundary
 
 Date: 2026-10-07
-Status: Reviewed research integration; no original O0 closure
+Status: Reviewed history and adopted local O0 integration; aggregate gates unchanged
 Branch: `research/simple-sub-intrusion`
 Initial remote baseline: `b540c04df0e0cce554f2d02f3c7fbb22a9fc1102`
 Affected-source revalidation: `701213b631361811c0c3c9d8c9ec4db2a475570b`
 Integration baseline: `c97567a9082aeeaf40213d9d6fba9f7ec07434a4`
-Authority/implementation/production-cutover approval: none
+Original pre-adoption packet's Authority/implementation/production-cutover approval: none
+
+**Current result.** The user subsequently approved the two exact formation
+definitions. The [Authority record](../design/2026-10-07-original-call-formation-definition.md)
+and independently reviewed [O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md)
+now close the local static O0 port on actual emitted Gen-Call-0 records.
+Sections 1–6 below preserve the pre-adoption result and its original limits;
+§7 records the later approval, proof use and review. No aggregate gate,
+independently fixed foreign family or production cutover is closed by this
+local selected-definition result.
 
 ## 1. Requested result and actual result
 
@@ -193,4 +202,147 @@ DESIGN/IMPLEMENTATION DEBT:
   - "Later semantic consumers need their own original introduction/correspondence proofs."
 USER DECISION NEEDED:
   - "Whether to select the exact missing formation definitions as governing original judgments; no automatic gate closure or implementation follows."
+```
+
+## 7. Approved definition and local O0 integration
+
+### Authority and baseline
+
+The user directly answered the scoped question at
+`2026-10-07T22:09:13+09:00`:
+
+> 承認するよー．定義にしちゃっていい
+
+This selects the two formation cases and exact root interpretation already
+reviewed and published in construction §10 at
+`d3def26c1079566bc4bd7660e2a21ddcfe960530`. The new
+[Authoritative definition](../design/2026-10-07-original-call-formation-definition.md)
+records that scope and the exact source hash. The former independent-definition
+choice is resolved only for these selected cases. It does not claim that the
+historical unspecified judgment followed from unchanged prior meanings.
+
+The approval came directly to the working primary. No separate answering
+conversation's draft/answer was received, created or consumed. The
+primary-owned local question disposition records the actual quote, timestamp,
+revision and scope. Its unintegrated question/receipt directory remains
+uncommitted under the board policy; the durable current-user decision is
+recorded directly in the governing design source. No repeated approval is
+required or requested.
+
+### Completed theorem and consumer account
+
+The [O0-selected proof](../theory/2026-10-07-adopted-call-formation-o0.md)
+gives a complete local derivation for every actual emitted, well-scoped
+Gen-Call-0 record. Invert the actual source derivation to recover its original
+registered root and resolved capture provenance; independently construct the
+exact root position; apply the selected original occurrence constructor; then
+eliminate it to the typed incidence certificate. The reviewed root evaluation
+and whole-record naturality proofs specialize at the same dependent tuple.
+
+| Former local missing input | Result under the selected definition |
+| --- | --- |
+| Independently formed H_eff | OSig-Demand forms the scoped frame and exact `Inv(Id(U),U)` from the demand declaration, without the desired source map. |
+| Original OC-CallEff typing / kappa | The adopted constructor and its dependent incidence elimination give the typed output/source map. |
+| Original static beta/source-root incidence | Actual Gen-Call-0 derivation supplies declaration/capture provenance; selected typed formation uses that same fiber. No locator cast, Slots member or semantic SharedContract validity is inferred. |
+| Exact complete-invocation root realization | The selected §10.1 evaluator gives the old full invocation interface under the same legal sorted assignment; no row equality or assignment existence is asserted. |
+| Whole-tuple substitution | Constructor naturality and incidence elimination commute with the one legal map on all original scopes, providers, `xi` and evidence. |
+
+For the approved nested source, the actual inner singleton record therefore
+supplies local O0. `U_c` remains in inner `Delta_c/sigma_step`; captured
+`d_f,A_f,R_f` remains anchored at `sigma_apply`. Inert return of `step` adds
+no Call occurrence. Calls without an emitted record are unchanged; no
+all-source generator theorem follows.
+
+The theorem's §7 matches the exact original consumer ports. K-Owner receives
+its typed output-map argument, while its original Resolve/Capture/SharedContract,
+seed/upper and owner-rule premises remain. P2's static Call-effect interpretation
+is supplied; its Slots inventory/member introduction is still O1. Theorem C
+and C-realization receive only the isolated O0 map where required, without
+obtaining their full decorated source, actual input derivation, owner/view
+kernel, local laws, receipts or other maps. O1/C0/C1/J0, full TypedOriginalImage,
+TypedOriginalSourceImage, attachment, licensing, PROFILE and ROWS remain
+independent. This exact substitution account is not a theorem that every
+foreign original consumer formula is unchanged by a whole-domain identification.
+
+### Independent review and convergence
+
+Mode M3; two independent reviewers for the coherent adoption/use artifact:
+spec-auditor for the exact approval/definition scope and compiler-referee for
+mathematical O0 and consumer substitution. Separate constructive and read-only
+consumer/counterexample research lanes were producers, not reviewers. No
+build/probe lane was needed for a constructor specialization.
+
+| Review | Frozen artifact | Findings and disposition |
+| --- | --- | --- |
+| Spec-auditor | Definition SHA-256 `5c53e6437e1e0e36de7c0ddc87641f004752370e867f1239b0fd33210c5ecbb6` | No blocking/major finding. One minor: the claimed local question disposition was not yet present. The primary created its owned receipt with the actual direct approval, exact revision and limited scope; no fictitious answerer files or new approval. Closed by primary record inspection. |
+| Compiler-referee | Same definition and O0 proof SHA-256 `83c82c19ac9bdb54349f1d99a798356c223715029310b2e8866c15c611c944dc` | No blocking, major or minor findings. Passed local original root/typed incidence, exact semantic realization, same-index coherence and all stated direct consumer substitutions. |
+
+The primary accepted both reports. No mathematical or definition repair was
+required. Post-review changes are status/provenance, links and navigation;
+the reviewed theorem statements, definitions and proofs are unchanged. The
+review does not certify all-source inference, foreign-family correspondence,
+downstream semantic introductions or production execution.
+
+Remote advanced to `0591c56d237d5907a0a289cc33df594a671f96da`, merging
+`9c9a94f`'s [fixed-family candidate](../design/2026-10-10-original-call-effect-typing-clause-candidate.md)
+and its index entry. The primary preserved that addition and reapplied its
+own disjoint index change after a fast-forward. The compiler-referee then
+independently revalidated this exact incoming semantic delta: no blocking or
+major finding, and no change to the local O0 verdict. The candidate's empty
+old-fiber and active-incidence counterexample tests claims of foreign-family
+interpretation or active-consumer conservation, neither asserted by the
+adopted theorem. Its section/pullback obligations remain open on that distinct
+route; a narrow navigation notice prevents treating them as renewed missing
+formation requirements on the selected local route. No other review scope was
+reopened and no mathematical repair or new permission was needed.
+
+A final upstream advance to `e1d7ca3b61bd42e082fad19e45a263b2cd73caa7`
+adds only `crates/yu-core/tests/shadow_call_clause_model.rs`, finite research
+instances of that fixed-family candidate. The primary inspected the whole
+incoming commit and preserved it by fast-forward. It changes no governing
+definition or reviewed proof dependency, explicitly assumes independently
+supplied old families, and supplies no new proof premise here. These finite
+tests are not rerun or presented as proof of the adopted theorem.
+
+### Canonical impact and verification
+
+The canonical change is limited to ORIGINAL_ASSOC's local remaining-clause
+text and references, plus O0 work-order navigation. The node itself stays
+OPEN-SEMANTIC. All 90 node statuses, premises, prerequisite edges and
+production-relevance fields remain unchanged; the graph still has 196 edges.
+The owner branch now proceeds from supplied local O0 to O1. Actual Call-input
+construction remains an independent branch. No new transport lemma or
+separate H_eff/OC-CallEff proof port is scheduled for the selected records.
+
+Active task, theory map, design index, architecture §8 and Pro handoff are
+synchronized. The older construction, minimal-clause and source-introduction
+notes retain their proofs/contracts with a narrow adoption notice; historical
+unadopted wording is not a second active gate. The producer checked seventeen
+direct dependencies against the baseline before review; the primary checks
+that integration changes to the governing old documents are notices only.
+Verification remains documentary: exact DAG delta, reference/whitespace and
+source-stability checks, followed by exact outgoing tree/ref publication.
+No Cargo, Oracle, semantic execution probe or performance sample is consumed.
+
+Final documentary validation against integration baseline `e1d7ca3` passes:
+all 909 local links across the sixteen outgoing files resolve, fenced blocks
+are balanced, and the four historical semantic documents retain their exact
+section-1-onward bodies. The canonical JSON changes only ORIGINAL_ASSOC's
+remaining-clause text/references and two global reference entries; the DAG
+check passes at the same 90 nodes / 196 edges with
+`semantic_proof_checked=false`. `git diff --check` passes. Publication uses
+the sixteen explicit reviewed paths, excluding the local question/receipt;
+exact blob/tree comparison and an expected-current-ref update protect the
+inspected single-commit outgoing range.
+
+```yaml
+CLOSED:
+  - "O0-selected: typed Call-effect/source-root incidence and exact root realization on actual emitted Gen-Call-0 records under the approved definition."
+REMAINING GENUINE THEOREMS:
+  - "O1 original Slots/Own, independent actual Call inputs/C0, C1 original contribution and J0 joint uniform coverage; the remaining F1–F4 cases."
+  - "All-source record generation and I5 implementation/lifecycle correspondence."
+DESIGN/IMPLEMENTATION DEBT:
+  - "Owning source elaboration can now construct and retain the approved local certificate; actual current compiler construction is not asserted."
+USER DECISION NEEDED:
+  - "None for these two formation definitions; direct approval has been recorded and the exact proof use reviewed."
 ```

@@ -161,6 +161,15 @@ Excluded CLOSED nodes: `FMP`, `DIR_LOCAL`, `REC_K`, `S22_DIRECT`, `CI_ALPHA`, `R
 
 ## Major internal sublemma classification
 
+**Post-audit update:** the [adopted formation definitions](../design/2026-10-07-original-call-formation-definition.md)
+and reviewed [O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md)
+now supply `O0.H_eff` and `O0.OC_CallEff` for actual emitted Gen-Call-0
+records, including the approved nested source. Their A/B classification below
+describes the required invariant's purpose, not two further proof tasks on
+that selected route. The audit's baseline classification/machine rows and
+parent statuses remain unchanged; all-source generation and other original
+semantic introductions remain outside this local result.
+
 These rows refine existing gate clauses. Parent status is inherited for navigation; the audit assigns no new sublemma status. Required uniform-family and actual-export exactness are A/B work; the broader arbitrary-view remainder stays C in its recorded route. D notes explicitly distinguish retained known source evidence from certificates awaiting introduction.
 
 | Sublemma | Parent / unchanged status | Classes / treatment | Required clause and reason | D boundary | Primary source keys |

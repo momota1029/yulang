@@ -213,8 +213,8 @@ in the independent production/license semantics and be covered there.
 | --- | --- | --- | --- | --- |
 | Name/declaration/capture identity | Resolution | Exact resolved edges and binder scope | Borrow or apply the legal capture map | Semantic environment/lookup adequacy; identity alone is not membership |
 | Shared source demand `e_c` | Source constraint generation | Whole Gen-Call-0 dependent record; upper occurrence and ElimOrigin | Retain generated constraint and all indices | General source-generation coverage; demand success is separate |
-| `H_eff`, `q_c` | Independent Function interpretation | Original typed-position family and immediate invocation projection | Project in actual `Delta_c` | Missing original position formation |
-| O0 occurrence | Original Call occurrence interpretation | `ce_orig(e_c,q_c)` with its typed incidence | Project signature/source legs | Unadopted OC-CallEff or coherence against an independent definition |
+| `H_eff`, `q_c` | Source signature-demand formation, selected case | Adopted OSig-Demand derivation and exact immediate projection | Retain/project in actual `Delta_c` | Closed on actual emitted Gen-Call-0 records by O0-selected; general source-generation coverage remains |
+| O0 occurrence | Source Call formation, selected case | Adopted `CallEff_orig(e_c)` with typed incidence/kappa | Retain derivation; project signature/source legs | Local O0-selected is closed; current compiler construction/retention and other source cases remain. No original owner/inventory follows |
 | Directional seed | Source formal/exposure processing | Protected-variable evidence tied to the source upper occurrence | Apply proved directional action; retain independent provider protection | All source introduction/use applicability, not another transport wrapper |
 | O1 slot/owner | Static source upper-owner introduction | Original Slots/Own derivation | Borrow exact witness | Original slot/owner rule; no singleton or per-use slot assumption |
 | C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Actual input construction and whole-carrier compatibility |
@@ -365,7 +365,23 @@ dependency; it does not claim the separation has already been proved.
 
 ## 8. O0: resolve its specification role before another proof attack
 
-The current exact cut is unchanged:
+**Post-audit adoption.** The user approved the explicit
+[original formation definitions](2026-10-07-original-call-formation-definition.md)
+at `2026-10-07T22:09:13+09:00`. The
+[O0-selected theorem](../theory/2026-10-07-adopted-call-formation-o0.md) now
+supplies independent H_eff, exact typed Call-effect/root incidence, root
+realization and whole-index coherence on actual emitted Gen-Call-0 records.
+`IndependentFunctionPositions -> InterpretedCallEffect` is available in that
+selected fragment; the current compiler is not thereby claimed to construct
+it. O1/OwnedUpper, TypedInvocation, OriginalContribution, OwnedInvocation,
+PROFILE, ROWS and all-source generation remain separate. No entire original
+domain is restricted to this constructor image. This narrow approved result
+does not adopt the audit's other proposals or change a cutover dependency.
+
+The remainder of this section records the pre-adoption audit and its decision
+boundary. Its former missing-definition/unadopted wording is historical for
+the selected cases, and remains relevant to separately fixed interpretations
+outside their scope. The exact cut at the audit baseline was:
 
 ```text
 e_c : existing dependent Gen-Call-0 record
