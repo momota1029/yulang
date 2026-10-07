@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [features]
+shadow-apply-candidate = ["shadow-f5"]
 f5c_resource_probe = ["yu-types/f5c_resource_probe"]
 shadow-f5 = ["yu-hir/shadow"]
 shadow-scc-observer = ["yu-hir/shadow"]

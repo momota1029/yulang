@@ -1912,6 +1912,32 @@ description of the missing head. The canonical DAG remains 90 nodes / 196
 edges with counts 7 / 20 / 43 / 19 / 1 for CLOSED / CONDITIONAL-CLOSED /
 OPEN-PROOF / OPEN-SEMANTIC / IMPLEMENTATION-ONLY.
 
+## Default-off shadow Apply value lane (2026-10-08)
+
+An opt-in `yu-solver` feature now builds a bounded Apply candidate through the
+existing solver worklist, SCC generalization, ordinary incoming-use freshening,
+and closed-scheme export. It supports only simple integer/name/group/apply
+initializers and noncapturing one-parameter lambdas with an integer or own
+parameter body; recursive and other unsupported shapes return no candidate.
+Each Apply and export carries explicit unresolved semantic premises, including
+source typing/admission, complete invocation/effect formation, whole-provider
+compatibility, role/protection, and successor generalization correspondence.
+Candidate conflicts are not source rejection. The feature is default-off and
+does not alter ordinary collection or production results.
+
+Focused feature-on tests passed 6/6; feature-off production-refusal differential
+passed 1/1. Tests compare ordinary refusal diagnostics, stable production
+traversal/definition/fact counters, facts/provenance and exported schemes around
+the candidate call; both current result schemes are unchanged. Compiler-referee
+and regression delta reviews found no blocking issues. The regression test is
+same-binary noninterference evidence, not a cross-feature equivalence claim.
+This executable implementation
+advances HIR_WIRING only; it closes no proof or semantic gate. DAG remains 90
+nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19
+OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. No performance measurements were
+run. Production cutover remains blocked by the existing semantic and
+conformance obligations.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.

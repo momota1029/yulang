@@ -207,6 +207,8 @@ use yu_types::{
 };
 
 mod scc;
+#[cfg(feature = "shadow-apply-candidate")]
+pub mod shadow_apply;
 #[cfg(feature = "shadow-f5")]
 pub mod shadow_f5;
 #[cfg(feature = "shadow-scc-observer")]
@@ -847,6 +849,13 @@ pub struct ConstraintBatch {
 }
 impl ConstraintBatch {
     pub fn collect(hir: Arc<HirModule>) -> Result<Self, CollectionAvailabilityError> {
+        Self::collect_mode(hir, false)
+    }
+
+    fn collect_mode(
+        hir: Arc<HirModule>,
+        candidate_values: bool,
+    ) -> Result<Self, CollectionAvailabilityError> {
         let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
         let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
         let mut batch = Self {
@@ -946,37 +955,13 @@ impl ConstraintBatch {
                     if batch.definition_positions.capacity() != old_capacity {
                         batch.counters.index_rebuilds += 1;
                     }
-                    let body_status = match binding.value() {
-                        ResolvedExpr::Integer { .. }
-                        | ResolvedExpr::Name {
-                            resolution: NameResolution::Resolved(_),
-                            ..
-                        } => CollectedBodyStatus::Complete,
-                        ResolvedExpr::Name {
-                            resolution: NameResolution::Ambiguous,
-                            ..
-                        } => {
-                            batch.counters.collected_ambiguous_name_bodies += 1;
-                            CollectedBodyStatus::Error
-                        }
-                        ResolvedExpr::Name {
-                            resolution: NameResolution::Unresolved,
-                            ..
-                        } => {
-                            batch.counters.collected_unresolved_name_bodies += 1;
-                            CollectedBodyStatus::Error
-                        }
-                        ResolvedExpr::Name {
-                            resolution: NameResolution::Parameter(_),
-                            ..
-                        } => CollectedBodyStatus::Error,
-                        // The owned Lambda body determines whether the
-                        // session receives a complete Function recipe.
-                        ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
+                    let body_status = if candidate_values {
+                        CollectedBodyStatus::Complete
+                    } else {
+                        match binding.value() {
                             ResolvedExpr::Integer { .. }
                             | ResolvedExpr::Name {
-                                resolution:
-                                    NameResolution::Resolved(_) | NameResolution::Parameter(_),
+                                resolution: NameResolution::Resolved(_),
                                 ..
                             } => CollectedBodyStatus::Complete,
                             ResolvedExpr::Name {
@@ -993,16 +978,44 @@ impl ConstraintBatch {
                                 batch.counters.collected_unresolved_name_bodies += 1;
                                 CollectedBodyStatus::Error
                             }
-                            ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
-                                CollectedBodyStatus::Error
-                            }
+                            ResolvedExpr::Name {
+                                resolution: NameResolution::Parameter(_),
+                                ..
+                            } => CollectedBodyStatus::Error,
+                            // The owned Lambda body determines whether the
+                            // session receives a complete Function recipe.
+                            ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
+                                ResolvedExpr::Integer { .. }
+                                | ResolvedExpr::Name {
+                                    resolution:
+                                        NameResolution::Resolved(_) | NameResolution::Parameter(_),
+                                    ..
+                                } => CollectedBodyStatus::Complete,
+                                ResolvedExpr::Name {
+                                    resolution: NameResolution::Ambiguous,
+                                    ..
+                                } => {
+                                    batch.counters.collected_ambiguous_name_bodies += 1;
+                                    CollectedBodyStatus::Error
+                                }
+                                ResolvedExpr::Name {
+                                    resolution: NameResolution::Unresolved,
+                                    ..
+                                } => {
+                                    batch.counters.collected_unresolved_name_bodies += 1;
+                                    CollectedBodyStatus::Error
+                                }
+                                ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
+                                    CollectedBodyStatus::Error
+                                }
+                                ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
+                                    CollectedBodyStatus::Error
+                                }
+                            },
+                            ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
                             ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
                                 CollectedBodyStatus::Error
                             }
-                        },
-                        ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
-                        ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
-                            CollectedBodyStatus::Error
                         }
                     };
                     match body_status {
@@ -1046,74 +1059,36 @@ impl ConstraintBatch {
             #[cfg(feature = "shadow-f5")]
             batch.retain_pending_applications(expression, definition_root);
             batch.counters.occurrence_allocations += 1;
-            if matches!(expression, ResolvedExpr::Integer { .. }) {
-                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
+            #[cfg(feature = "shadow-apply-candidate")]
+            if candidate_values && !matches!(expression, ResolvedExpr::Lambda { .. }) {
+                batch.emit_candidate_value(
+                    expression,
+                    definition_root,
+                    definition.as_ref(),
+                    &mut pending_uses,
+                )?;
             }
-            if let (
-                Some(parent),
-                Some(root),
-                ResolvedExpr::Name {
-                    occurrence,
-                    resolution: NameResolution::Resolved(target),
-                    ..
-                },
-            ) = (definition.as_ref(), definition_root.as_ref(), expression)
-            {
-                batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
-                let old_capacity = pending_uses.capacity();
-                pending_uses.push(PendingDefinitionUse {
-                    parent_ordinal: parent.ordinal(),
-                    target,
-                    occurrence: occurrence.clone(),
-                });
-                let capacity = pending_uses.capacity();
-                batch
-                    .counters
-                    .definition_use_endpoint_workspace_peak_capacity = batch
-                    .counters
-                    .definition_use_endpoint_workspace_peak_capacity
-                    .max(capacity);
-                if capacity != old_capacity {
+            if !candidate_values || matches!(expression, ResolvedExpr::Lambda { .. }) {
+                if matches!(expression, ResolvedExpr::Integer { .. }) {
                     batch
-                        .counters
-                        .definition_use_endpoint_workspace_capacity_growths += 1;
+                        .emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
                 }
-            }
-            if let (
-                Some(parent),
-                Some(root),
-                ResolvedExpr::Lambda {
-                    occurrence,
-                    parameter,
-                    body,
-                    ..
-                },
-            ) = (definition.as_ref(), definition_root.as_ref(), expression)
-            {
-                #[cfg(feature = "shadow-f5")]
-                if let Some(local) = batch
-                    .hir
-                    .shadow_local_binding(root)
-                    .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                    .cloned()
+                if let (
+                    Some(parent),
+                    Some(root),
+                    ResolvedExpr::Name {
+                        occurrence,
+                        resolution: NameResolution::Resolved(target),
+                        ..
+                    },
+                ) = (definition.as_ref(), definition_root.as_ref(), expression)
                 {
-                    // Visit the initializer before the terminal local use. That
-                    // use is a value reference and contributes no application.
-                    batch.retain_pending_applications(&local.initializer, Some(root));
-                }
-                let parameter_position = batch.parameter_recipes.len();
-                batch.parameter_recipes.push(parameter.clone());
-                batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
-                if let ResolvedExpr::Name {
-                    resolution: NameResolution::Resolved(target),
-                    ..
-                } = body.as_ref()
-                {
+                    batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
                     let old_capacity = pending_uses.capacity();
                     pending_uses.push(PendingDefinitionUse {
                         parent_ordinal: parent.ordinal(),
                         target,
-                        occurrence: body.occurrence().clone(),
+                        occurrence: occurrence.clone(),
                     });
                     let capacity = pending_uses.capacity();
                     batch
@@ -1126,6 +1101,56 @@ impl ConstraintBatch {
                         batch
                             .counters
                             .definition_use_endpoint_workspace_capacity_growths += 1;
+                    }
+                }
+                if let (
+                    Some(parent),
+                    Some(root),
+                    ResolvedExpr::Lambda {
+                        occurrence,
+                        parameter,
+                        body,
+                        ..
+                    },
+                ) = (definition.as_ref(), definition_root.as_ref(), expression)
+                {
+                    #[cfg(feature = "shadow-f5")]
+                    if let Some(local) = batch
+                        .hir
+                        .shadow_local_binding(root)
+                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                        .cloned()
+                    {
+                        // Visit the initializer before the terminal local use. That
+                        // use is a value reference and contributes no application.
+                        batch.retain_pending_applications(&local.initializer, Some(root));
+                    }
+                    let parameter_position = batch.parameter_recipes.len();
+                    batch.parameter_recipes.push(parameter.clone());
+                    batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
+                    if let ResolvedExpr::Name {
+                        resolution: NameResolution::Resolved(target),
+                        ..
+                    } = body.as_ref()
+                    {
+                        let old_capacity = pending_uses.capacity();
+                        pending_uses.push(PendingDefinitionUse {
+                            parent_ordinal: parent.ordinal(),
+                            target,
+                            occurrence: body.occurrence().clone(),
+                        });
+                        let capacity = pending_uses.capacity();
+                        batch
+                            .counters
+                            .definition_use_endpoint_workspace_peak_capacity = batch
+                            .counters
+                            .definition_use_endpoint_workspace_peak_capacity
+                            .max(capacity);
+                        if capacity != old_capacity {
+                            batch
+                                .counters
+                                .definition_use_endpoint_workspace_capacity_growths += 1;
+                        }
                     }
                 }
             }
