@@ -235,3 +235,33 @@ handoff commit, with the exact saved draft embedded in the answer. The new
 shadow implementation's feature-on and feature-off checks passed as stated
 above. These checks supply navigation/implementation evidence, not missing
 source judgments or production cutover authority.
+
+## 9. Concurrent remote operand candidate and canonical reconciliation
+
+A further fetch found remote
+`7423c12ac1269049a9159b5bb4355f761991d19c`: the independently reviewed
+[operand-context candidate](2026-10-07-call-type-operand-context-clause-candidate.md)
+and navigation recording the already published round-3 PRINCIPAL theorem.
+The complete candidate and all remote navigation deltas were read before
+resolution. There is no changed governing design or approved answer.
+
+C1–C7 remain candidate environment/Return/carrier/Delay/pending laws, with
+one original witness and universal current-world demand obligations. Their
+conditional derivation does not realize its independent predicates or actual
+source-world inputs. It therefore agrees with the repaired Call theorem's
+open CI-Operands/CI-ArgFrame clauses and the recursive own-root dependency
+cut. No new source semantic rule or user decision follows from the candidate.
+
+Both branches promoted the same existing PRINCIPAL result. Their canonical
+text conflicted with the newer local Call/self-init packet only in overlapping
+records. Resolution retains the entire independently reviewed local premise
+records, both promotions, exact q1 closure and all remote candidate content;
+the duplicate principal-reference alias is normalized to the existing local
+reference. The candidate file is byte-identical to remote. Current-task
+navigation records the new candidate while correcting its historical OPEN
+Call statement to the reviewed conditional-composition status. No semantic
+dependency, licensed witness, worker code or approved bundle was discarded.
+
+The merge does not change the 90-node/195-edge checkpoint or its statuses.
+SOUND's new downstream proof is still independently under review at this
+merge; no promotion is folded into the reconciliation without that review.

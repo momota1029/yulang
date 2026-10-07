@@ -231,6 +231,21 @@ operand-premise granularity is now explicit in round 3's CI-Operands and
 related bridge requirements. Their actual construction and matching Return
 rule remain unresolved; the reconstruction itself changed no semantic rule.
 
+The later remote-reviewed [operand-context candidate](../notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md)
+adds C1–C7 proposals for a joint ordinary lexical environment, independent
+punctured filling, Name/Return, whole-carrier admission, all-demand Delay and
+complete saved suffixes. Both independent reviews passed its explicitly
+conditional scope. Root revalidated it when merging `7423c12a`: it constructs
+no common interpretation, actual world, descriptor law or original association.
+Its C1 environment already contains the value/member facts used by C3; source
+generation still has to justify that environment, and C4 remains a proposed
+Return introduction. Current CI-Operands/CI-ArgFrame and recursive own-root
+cuts therefore remain. CALL_TYPE is conditionally closed by the separate
+round-3 composition proof; DESC_CLAUSES, ADMISSION_CLAUSES and SEM_JOINT stay
+OPEN. C1–C7 are not adopted. The candidate's suggested approval handoff is
+not an active user-decision blocker: no pair of complete Authority-consistent
+semantics with different outcomes on the same admitted source is established.
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
