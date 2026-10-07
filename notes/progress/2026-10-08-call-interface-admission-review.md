@@ -290,3 +290,41 @@ Counts remain 7 CLOSED / 20 CONDITIONAL-CLOSED / 43 OPEN-PROOF /
 19 OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY. Nine explicit documentary/navigation
 paths form this integration; the already verified compiler slice is unchanged
 and its suites are not repeated for these records.
+
+## 9. Pure-read Call result constructor
+
+The user authorized continuing the proof with legitimate definitions. The
+[selected constructor](../design/2026-10-08-pure-read-call-result-constructor.md)
+defines a complete “ReadInvoke” descriptor for a structural immutable
+callable read. It stages initial/lookup prefixes, actual callee Return,
+argument Delay, independent complete-challenge construction, receipt/entry,
+receiver developments, pending suffixes and future uses. The identity-result
+case defines the complete result interface to be this descriptor at the same
+original decorated tuple.
+
+This was not already entailed for an independently fixed result descriptor.
+The compiler-referee review constructed the first separating result law:
+receiver `F` may return Int while an unrelated `R_c` accepts Bool. Therefore
+IF incidence cannot prove result membership. Under the authorized missing
+definition scope, the selected identity case supplies the descriptor relation
+directly. The spec auditor passed phase ordering, full domain preservation,
+original scopes/witnesses and unchanged Option 2 alternatives. Both reviewers
+found no separate user decision within this bounded selection.
+
+The resulting lemma is exact: every structural pure immutable Name/Name Call
+observation already in the unchanged source-base `M_E` relation satisfies
+`DescMem(R_c)` under the selected actual-provider input/member clauses, same
+value VIncl, independent challenge construction and Theorem IF. It does not
+derive `M_E`, type arbitrary result descriptors, close independently typed
+W/Z alternatives without their own evidence, prove foreign-family embedding,
+or establish all Call forms. Canonical `CALL_TYPE` remains
+CONDITIONAL-CLOSED with this reviewed structural subcase added to
+`closed_lemmas`. Other Call forms, arbitrary `R_c` and exhaustive alternative
+typing remain their exact open scope. REC_DESC and aggregate DAG statuses do
+not change.
+
+The constructive audit and both reviews are bounded documentary evidence;
+there is no proof-assistant certificate. Dependency hash of the selected
+definition after review and before primary status synchronization:
+
+“8d1eb7ecea3e63d7ba0ae091dc673f3321e52fc0e31c5d824bdf4f1656b99488”.

@@ -238,6 +238,25 @@ The input theorem was already checkpointed and pushed at `375d21e`; shared
 selection and navigation are the second integration phase. There is no new
 user-decision blocker for these adopted missing definitions.
 
+### Pure-read Call result subcase
+
+The new [Authoritative constructor definition](../notes/design/2026-10-08-pure-read-call-result-constructor.md)
+selects the staged `ReadInvoke` result for structural immutable `Name f`
+Calls whose complete result interface is definitionally identical, including
+decorations. Compiler-referee review found that this is a new bounded
+definition, not an entailment for an independently fixed result descriptor;
+spec-auditor review passed with phase order, full admission domain, original
+indices, and every Option 2 alternative preserved.
+
+Under the selected Name/Return/Delay and same-provider member clauses, same-
+value `VIncl`, independently assembled complete challenge, actual Theorem IF
+frame, and an unchanged source-base `M_E` witness, this gives `DescMem(R_c)`
+for the same structural pure-read observation. It does not create `M_E`, type
+unrelated `R_c`, provide W/Z typing, or close every Call form. The canonical
+`CALL_TYPE` node stays `CONDITIONAL-CLOSED`; this reviewed subcase is now in its
+`closed_lemmas`, and the remaining exact branches stay open. No broader gate
+or production prerequisite changed.
+
 ### Immediate work order
 
 1. Consume O0, paired O1, C1, IF and the original same-provider input result
