@@ -308,6 +308,32 @@ pub enum FreshCaptureState<'a> {
     Captured(FreshInstantiationRef<'a>),
 }
 
+/// Origin status for one current finalized scheme, including empty inventories.
+#[derive(Clone, Copy)]
+pub enum GeneralizationOriginState<'a> {
+    NotRequested,
+    Unavailable,
+    Captured(GeneralizationOriginRef<'a>),
+}
+
+/// Current generalizer-selected live rows; no successor correspondence is implied.
+#[derive(Clone, Copy)]
+pub struct GeneralizationOriginRef<'a> {
+    scheme: ClosedSchemeRef<'a>,
+    capture: &'a crate::ShadowFreshCapture,
+    rows: &'a [(crate::ShadowFreshBinderKind, u32, u32)],
+}
+
+impl<'a> GeneralizationOriginRef<'a> {
+    pub fn scheme(self) -> ClosedSchemeRef<'a> {
+        self.scheme
+    }
+
+    pub fn bindings(self) -> impl Iterator<Item = (FreshBinderRef<'a>, FreshRowRef<'a>)> + 'a {
+        captured_bindings(self.scheme, self.capture, self.rows)
+    }
+}
+
 /// A complete successful route, borrowing its exact target scheme and capture.
 #[derive(Clone, Copy)]
 pub struct FreshInstantiationRef<'a> {
@@ -343,33 +369,50 @@ impl<'a> FreshInstantiationRef<'a> {
 
     /// Complete inventory in current Q then R order; no schemes/bounds are cloned.
     pub fn bindings(self) -> impl Iterator<Item = (FreshBinderRef<'a>, FreshRowRef<'a>)> + 'a {
-        let mut recursive = self.scheme.recursive_binders();
-        self.route.rows.iter().map(move |&(kind, ordinal, row)| {
-            let binder = match kind {
-                crate::ShadowFreshBinderKind::Quantified => {
-                    FreshBinderRef::Quantified(QuantifierRef {
-                        scheme: self.scheme,
-                        ordinal,
-                    })
-                }
-                crate::ShadowFreshBinderKind::Recursive => {
-                    let binder = recursive.next().expect("complete capture retains every R");
-                    debug_assert_eq!(binder.ordinal(), ordinal);
-                    FreshBinderRef::Recursive(binder)
-                }
-            };
-            (
-                binder,
-                FreshRowRef {
-                    capture: self.capture,
-                    row,
-                },
-            )
-        })
+        captured_bindings(self.scheme, self.capture, &self.route.rows)
     }
 }
 
+fn captured_bindings<'a>(
+    scheme: ClosedSchemeRef<'a>,
+    capture: &'a crate::ShadowFreshCapture,
+    rows: &'a [(crate::ShadowFreshBinderKind, u32, u32)],
+) -> impl Iterator<Item = (FreshBinderRef<'a>, FreshRowRef<'a>)> + 'a {
+    let mut recursive = scheme.recursive_binders();
+    rows.iter().map(move |&(kind, ordinal, row)| {
+        let binder = match kind {
+            crate::ShadowFreshBinderKind::Quantified => {
+                FreshBinderRef::Quantified(QuantifierRef { scheme, ordinal })
+            }
+            crate::ShadowFreshBinderKind::Recursive => {
+                let binder = recursive.next().expect("complete capture retains every R");
+                debug_assert_eq!(binder.ordinal(), ordinal);
+                FreshBinderRef::Recursive(binder)
+            }
+        };
+        (binder, FreshRowRef { capture, row })
+    })
+}
+
 impl<'a> ClosedSchemeRef<'a> {
+    /// Borrows only the exact mapping produced by the current generalizer.
+    pub fn current_generalization_origins(self) -> GeneralizationOriginState<'a> {
+        let Some(capture) = self.solved.shadow_fresh_capture.as_ref() else {
+            return GeneralizationOriginState::NotRequested;
+        };
+        let Some(position) = self.solved.root_scheme_positions.get(self.owner) else {
+            return GeneralizationOriginState::Unavailable;
+        };
+        let Some(rows) = capture.origins.get(position) else {
+            return GeneralizationOriginState::Unavailable;
+        };
+        GeneralizationOriginState::Captured(GeneralizationOriginRef {
+            scheme: self,
+            capture,
+            rows,
+        })
+    }
+
     #[cfg(feature = "shadow-scc-observer")]
     pub(crate) fn fresh_capture(
         self,

@@ -9,7 +9,7 @@ use yu_hir::{
 };
 use yu_solver::{
     ConstraintBatch, SolvedModule,
-    shadow_f5::{FreshBinderRef, FreshCaptureState},
+    shadow_f5::{FreshBinderRef, FreshCaptureState, GeneralizationOriginState},
     shadow_scc::{
         CurrentUseRouteKind, PendingSccGeneralizationPremise, PendingUseInstantiationLookupError,
         PendingUseInstantiationPremise, SccClosedSchemeLookupError,
@@ -83,6 +83,7 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
     let source_binding = bindings[0];
     let mut captures = Vec::new();
     let mut receiving_schemes = Vec::new();
+    let mut receiving_origins = Vec::new();
     let mut joined_positions = Vec::new();
     for (alias, visibility) in bindings[1..].iter().zip([
         HirVisibility::Public,
@@ -228,12 +229,68 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
             topology.definition_closed_scheme(&foreign, parent),
             Err(SccClosedSchemeLookupError::ForeignCollection)
         ));
+        let GeneralizationOriginState::Captured(origins) =
+            receiving.current_generalization_origins()
+        else {
+            panic!("successful receiving scheme has complete generalizer origins");
+        };
+        assert!(origins.scheme().same_identity(receiving));
+        let origin_rows = origins.bindings().collect::<Vec<_>>();
+        assert_eq!(origin_rows.len(), rows.len());
+        let repeated = receiving.current_generalization_origins();
+        let GeneralizationOriginState::Captured(repeated) = repeated else {
+            panic!("stable capture");
+        };
+        for ((binder, origin), (other_binder, other_origin)) in
+            origin_rows.iter().zip(repeated.bindings())
+        {
+            assert!(same_binder(*binder, other_binder));
+            assert!(origin.same_identity(other_origin));
+            assert_eq!(
+                rows.iter()
+                    .filter(|(_, fresh)| origin.same_identity(*fresh))
+                    .count(),
+                1
+            );
+        }
+        assert!(matches!(
+            topology
+                .definition_closed_scheme(&ordinary, parent)
+                .unwrap()
+                .current_generalization_origins(),
+            GeneralizationOriginState::NotRequested
+        ));
+        let foreign_scheme = foreign
+            .shadow_closed_schemes()
+            .for_root(receiving.owner())
+            .unwrap();
+        let GeneralizationOriginState::Captured(foreign_origins) =
+            foreign_scheme.current_generalization_origins()
+        else {
+            panic!("foreign complete origins");
+        };
+        for (_, origin) in &origin_rows {
+            assert!(
+                foreign_origins
+                    .bindings()
+                    .all(|(_, other)| !origin.same_identity(other))
+            );
+        }
+        receiving_origins.push(origin_rows);
         captures.push(capture);
         receiving_schemes.push(receiving);
     }
     for index in 0..captures.len() {
         for earlier in 0..index {
             assert!(!receiving_schemes[index].same_identity(receiving_schemes[earlier]));
+            for ((binder, row), (other_binder, other_row)) in receiving_origins[index]
+                .iter()
+                .zip(&receiving_origins[earlier])
+            {
+                assert_eq!(binder_ordinal(*binder), binder_ordinal(*other_binder));
+                assert!(!same_binder(*binder, *other_binder));
+                assert!(!row.same_identity(*other_row));
+            }
             assert!(
                 captures[index]
                     .scheme()
@@ -294,6 +351,20 @@ fn recursive_and_integer_uses_observe_recorded_routes_including_factless_bottom(
                 let pending = topology
                     .pending_use_instantiation(&solved, occurrence)
                     .unwrap();
+                let GeneralizationOriginState::Captured(origins) =
+                    pending.current_scheme().current_generalization_origins()
+                else {
+                    panic!("complete zero-binder generalization");
+                };
+                assert_eq!(origins.bindings().count(), 0);
+                assert!(matches!(
+                    topology
+                        .pending_use_instantiation(&ordinary, occurrence)
+                        .unwrap()
+                        .current_scheme()
+                        .current_generalization_origins(),
+                    GeneralizationOriginState::NotRequested
+                ));
                 let route = pending.current_route().expect("retained successful route");
                 if route.kind() == CurrentUseRouteKind::Internal {
                     internal_count += 1;
@@ -350,5 +421,12 @@ fn same_binder(a: FreshBinderRef<'_>, b: FreshBinderRef<'_>) -> bool {
         (FreshBinderRef::Quantified(a), FreshBinderRef::Quantified(b)) => a.same_identity(b),
         (FreshBinderRef::Recursive(a), FreshBinderRef::Recursive(b)) => a.same_identity(b),
         _ => false,
+    }
+}
+
+fn binder_ordinal(binder: FreshBinderRef<'_>) -> u32 {
+    match binder {
+        FreshBinderRef::Quantified(binder) => binder.ordinal(),
+        FreshBinderRef::Recursive(binder) => binder.ordinal(),
     }
 }

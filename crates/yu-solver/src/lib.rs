@@ -7354,6 +7354,7 @@ struct ShadowFreshRoute {
 #[cfg(feature = "shadow-f5")]
 #[derive(Debug, Default)]
 struct ShadowFreshCapture {
+    origins: HashMap<usize, Vec<(ShadowFreshBinderKind, u32, u32)>>,
     pending: Option<ShadowFreshRoute>,
     routes: Vec<ShadowFreshRoute>,
     positions: HashMap<DefinitionUseId, usize>,
@@ -13178,6 +13179,8 @@ impl InferenceSession {
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear)?;
+            #[cfg(feature = "shadow-f5")]
+            let mut component_origins = self.shadow_fresh_capture.as_ref().map(|_| Vec::new());
             let mut completed_qr = (0usize, 0usize);
             macro_rules! boxed_component {
                 () => {{
@@ -13257,6 +13260,8 @@ impl InferenceSession {
                 let admissions_before = component_expansion_memo.root_lane.requested_slots;
                 #[cfg(test)]
                 let bound_reserves_before = component_expansion_memo.recursive_bound_reserves.len();
+                #[cfg(feature = "shadow-f5")]
+                let mut member_origins = Vec::new();
                 let (draft, returned_memo, hits, uncacheable) = self
                     .component_generalization_draft(
                         member,
@@ -13264,7 +13269,13 @@ impl InferenceSession {
                         frozen_bound_epoch,
                         &source_meter,
                         Some(&mut bound_sidecar),
+                        #[cfg(feature = "shadow-f5")]
+                        component_origins.as_ref().map(|_| &mut member_origins),
                     );
+                #[cfg(feature = "shadow-f5")]
+                if let Some(origins) = component_origins.as_mut() {
+                    origins.push((member.ordinal() as usize, member_origins));
+                }
                 component_expansion_memo = returned_memo;
                 #[cfg(test)]
                 self.resource_ledger
@@ -14087,6 +14098,13 @@ impl InferenceSession {
                         source_draft_bytes,
                     );
                 }
+            }
+            #[cfg(feature = "shadow-f5")]
+            if let (Some(capture), Some(origins)) =
+                (self.shadow_fresh_capture.as_mut(), component_origins)
+            {
+                // Session-private until every component and finish succeeds.
+                capture.origins.extend(origins);
             }
             let incoming_uses = self
                 .batch
@@ -15362,6 +15380,8 @@ impl InferenceSession {
             0,
             source_meter,
             None,
+            #[cfg(feature = "shadow-f5")]
+            None,
         );
         let mut draft = result?;
         f5c_normalization::normalize_component(source_meter, std::slice::from_mut(&mut draft))?;
@@ -15375,6 +15395,8 @@ impl InferenceSession {
         frozen_bound_epoch: usize,
         source_meter: &'meter DraftHeapMeter,
         bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
+        #[cfg(feature = "shadow-f5")]
+        origins: Option<&mut Vec<(ShadowFreshBinderKind, u32, u32)>>,
     ) -> (
         Result<GeneralizationDraft<'meter>, SolveAvailabilityError>,
         F5cComponentExpansionMemo,
@@ -15389,8 +15411,14 @@ impl InferenceSession {
             .expect("definition root retains its immutable component recipe")
             .component;
         let row = self.live_components[component].ordinal as usize;
-        F5cGeneralizer::with_memo(self, source_meter, memo, frozen_bound_epoch)
-            .build_component_with_bound_sidecar(row as u32, bound_sidecar)
+        let generalizer = F5cGeneralizer::with_memo(self, source_meter, memo, frozen_bound_epoch);
+        #[cfg(feature = "shadow-f5")]
+        let mut generalizer = generalizer;
+        #[cfg(feature = "shadow-f5")]
+        {
+            generalizer.shadow_origins = origins;
+        }
+        generalizer.build_component_with_bound_sidecar(row as u32, bound_sidecar)
     }
 
     fn finalize_generalization_draft(
@@ -18460,6 +18488,38 @@ mod tests {
         exhaustion_session.inject_next_admission_failure(ConstraintError::IdentityExhausted);
         assert!(matches!(
             exhaustion_session.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+
+    #[cfg(feature = "shadow-f5")]
+    #[test]
+    fn shadow_generalization_origins_do_not_publish_partial_finalization() {
+        let batch = || {
+            collect(module(
+                "my left = right; my right = left",
+                "shadow-origin-finalization.yu",
+            ))
+        };
+        let mut session = InferenceSession::new(batch());
+        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        session.inject_finalization_failure_after(1);
+        session.admit_all_collected_facts().unwrap();
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.successful_finalizations, 1);
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert!(
+            session.shadow_fresh_capture.as_ref().unwrap().origins.is_empty()
+        );
+
+        let mut session = InferenceSession::new(batch());
+        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        session.inject_finalization_failure_after(1);
+        assert!(matches!(
+            session.run(),
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
     }

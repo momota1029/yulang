@@ -4927,6 +4927,8 @@ pub(super) enum F5cMaterializeTask {
 /// this walker is the sole owner of polarity incidence, active-path re-entry,
 /// and the Q/R decision for one draft.
 pub(super) struct F5cGeneralizer<'a, 'meter> {
+    #[cfg(feature = "shadow-f5")]
+    pub(super) shadow_origins: Option<&'a mut Vec<(ShadowFreshBinderKind, u32, u32)>>,
     pub(super) session: &'a InferenceSession,
     pub(super) source_meter: &'meter DraftHeapMeter,
     #[cfg(not(all(test, feature = "f5c_resource_probe")))]
@@ -6570,6 +6572,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         assert!(memo.conflict_journal.is_empty());
         let root_undo_checkpoint = memo.root_undo.len();
         Self {
+            #[cfg(feature = "shadow-f5")]
+            shadow_origins: None,
             session,
             source_meter,
             memo,
@@ -11715,6 +11719,19 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )?;
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "shadow-f5")]
+        if let Some(origins) = self.shadow_origins.as_deref_mut() {
+            // Keys are the exact live-row ordinals traversed by this generalizer.
+            // Write by its selected binder ordinal, retaining no predicate/bounds.
+            origins.resize(q.len() + r.len(), (ShadowFreshBinderKind::Quantified, 0, 0));
+            for (&row, &binder) in q.iter() {
+                origins[binder as usize] = (ShadowFreshBinderKind::Quantified, binder, row);
+            }
+            for (&row, &binder) in r.iter() {
+                origins[binder as usize] = (ShadowFreshBinderKind::Recursive, binder, row);
+            }
+        }
+
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         let mut positive_eliminated = ObservedWalkerSet::new(self.source_meter,
             F5cWalkerLaneKind::SelectedPositiveEliminated);
