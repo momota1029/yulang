@@ -15,6 +15,14 @@ are not eliminated by storing certificates. No canonical node, status or
 dependency changes; the consumer-by-consumer alternate cutover argument remains
 to be proved under the preserved Authority.
 
+Latest constructive result: [complete Call-position/occurrence construction](2026-10-07-call-occurrence-construction-proof.md),
+with [independent review and exact adoption boundary](../progress/2026-10-07-call-construction-proof-review.md).
+The proposed static fragment has total emitted-record construction, exact
+erasure, substitution and a full-invocation root interpretation. Its fresh
+families are not thereby identified with an independently fixed original
+signature/occurrence interpretation. Original O0, all-source record inference
+and downstream gates remain open; no canonical status or edge is changed.
+
 ## Read this map
 
 Use the canonical DAG for exact statuses, premises, minimum remaining lemmas,

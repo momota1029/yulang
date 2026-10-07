@@ -30,6 +30,16 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Reviewed Call constructor completion (2026-10-07):**
+  [complete construction and proof](../theory/2026-10-07-call-occurrence-construction-proof.md)
+  supplies the two proposed formation cases, exact emitted-record traversal,
+  preservation proofs and a separately interpreted full-invocation root.
+  [Independent review](../progress/2026-10-07-call-construction-proof-review.md)
+  closes the generic-Call coverage finding and records the original-family
+  compatibility/adoption boundary. This is Reviewed research, not an
+  Authoritative original-sort definition or O0/DAG closure. No production
+  implementation or cutover follows.
+
 - **Global successor proof-economy audit (2026-10-07):**
   [production proof architecture](2026-10-07-successor-production-proof-architecture.md)
   proposes four genuine semantic theorem families and one actual implementation/
