@@ -265,3 +265,82 @@ dependency, licensed witness, worker code or approved bundle was discarded.
 The merge does not change the 90-node/195-edge checkpoint or its statuses.
 SOUND's new downstream proof is still independently under review at this
 merge; no promotion is folded into the reconciliation without that review.
+
+## 10. Continued attack: SOUND composition closed
+
+The primary immediately attacked the aggregate audit's publication/use gap
+through the **existing full HIR_WIRING contract**, whose target already
+includes the actual emitter, solver, generalizer, instantiator and publisher
+correspondence. A fresh producer constructed the
+[SOUND synthesis](2026-10-07-sound-publication-synthesis-round3.md); an
+independent falsifier, without reading that draft, attacked the strengthened
+route. Its lifecycle circularity caveat was made explicit before proof review.
+
+Fresh `round3_sound_referee` and `round3_sound_spec` both passed frozen proof
+SHA-256 `16b88eb9e299f3cb3548e36a22e3100fa11b09dace0e9222c9b3dd63bab9b07e`
+without findings. The primary accepted both. The proof reflects each actual
+accepted finite joint use/result through the actual complete solver graph,
+the use-indexed inverse fresh maps, whole original-scoped projection/evidence
+and the same source/production semantic correspondence. An accepted residual
+still imposes all its constraints. Independently licensed Option 2 extras
+use upper containment, not source-image inversion. No ALL_VIEW or universal
+Q-success premise is needed.
+
+The fresh-snapshot argument uses actual maps, sharing, references, dependency
+validity and publication barriers. It does not use REUSE's assumed
+sound/principal rebuild as a premise proving that fresh snapshot sound.
+Reuse follows only for a snapshot already covered by the proof; any separate
+principality premise stays on its own route. The reviewers explicitly audited
+the full pre-existing HIR contract, rather than strengthening a topology-only
+shadow contract to obtain the result.
+
+The curator added **only `HIR_WIRING -> SOUND`** and promoted SOUND to
+CONDITIONAL-CLOSED. HIR_WIRING's definition and IMPLEMENTATION-ONLY status,
+all semantic prerequisites and all other existing node statuses/edges remain
+unchanged from §8's checkpoint. Its PROJECTION/FRESH_LIFE/RESOURCE cone already
+contains the needed implementation correspondence. The narrower aggregate
+countermodel remains valid without this full HIR premise; it does not refute
+the stronger route. No actual upstream proof or compiler implementation is
+claimed complete.
+
+| Status | Starting remote | After reviewed SOUND delta |
+| --- | ---: | ---: |
+| CLOSED | 6 | 7 |
+| CONDITIONAL-CLOSED | 17 | 20 |
+| OPEN-PROOF | 46 | 43 |
+| OPEN-SEMANTIC | 19 | 19 |
+| IMPLEMENTATION-ONLY | 1 | 1 |
+| BLOCKED-BY-USER-DECISION | 0 | 0 |
+| Nodes / edges | 89 / 194 | 90 / 196 |
+
+This is **65 -> 62 existing OPEN nodes**, by the three proved conditional
+compositions CALL_TYPE, PRINCIPAL and SOUND. REC_INIT_SELF is separately a
+new CLOSED exact approved subcase. No additional conditional node or semantic
+postulate was introduced to obtain these reductions.
+
+The canonical SOUND delta was compared exactly against the byte-equivalent
+local/published checkpoint `19d000aa` / `64e459e3`. The only status change is
+SOUND, the only new edge is HIR_WIRING -> SOUND, and every other node's gate,
+premises, result scope and production-authority field is unchanged. The
+outside-SOUND reference additions identify the unadopted remote Call candidate
+and the reviewed structural shadow; they add no judgments. The generator,
+rendered ledger and both navigation maps are synchronized.
+
+## 11. Published checkpoints and remaining verification
+
+The reviewed structural shadow was committed separately, followed by the
+reviewed Call/PRINCIPAL/q1 and world/original/aggregate proof packet. The
+remote `7423c12a` was merged after semantic dependency inspection. These
+checkpoints were published nonforce to origin as `3c5b0058`, `8e4c0384`, and
+`64e459e3da4bd1a347b554806df1b46991eb6765`; the final merge retains
+`7423c12a` as a parent. The remote ref was checked immediately before its
+expected-HEAD update. The fetched published tree is exactly
+`af4075e6af32369d0cbfb4d6ea884b02e93b680d`, matching the local reviewed merge.
+Original local history is retained on a checkpoint branch; no force update
+or worker rollback occurred.
+
+The subsequently reviewed SOUND record delta and any remaining narrow
+source/interface results must pass final navigation/whitespace checks and
+another expected-HEAD publication. Code is unchanged from the reviewed
+four-test feature-on and successful feature-off build snapshot; documentary
+status changes do not justify a repeated broad build.

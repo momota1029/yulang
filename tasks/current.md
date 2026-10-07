@@ -34,10 +34,10 @@ navigation into this ledger, not independent duplicate gate lists.
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
 starts from current remote `6fb5d7f6`, preserving all intervening work since
-round 2, and revalidates the additive remote through `6cd43ea8`. The current
-canonical ledger has **90 nodes / 195 edges**: 7 CLOSED, 19 CONDITIONAL-CLOSED,
-1 IMPLEMENTATION-ONLY, 44 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
-blocker. Two existing OPEN nodes move to conditional closure: **65 → 63 OPEN**.
+round 2, and revalidates the additive remote through `7423c12a`. The current
+canonical ledger has **90 nodes / 196 edges**: 7 CLOSED, 20 CONDITIONAL-CLOSED,
+1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
+blocker. Three existing OPEN nodes move to conditional closure: **65 → 62 OPEN**.
 The one added CLOSED exact self-init subcase is reported separately.
 
 - **CALL_TYPE is CONDITIONAL-CLOSED** by the repaired
@@ -55,6 +55,17 @@ The one added CLOSED exact self-init subcase is reported separately.
   yield one finite ordinary-use map for every valid finite public view,
   preserving the original strategy and actual `B_common` Direct evidence.
   Actual all-view acceptance, source adequacy and effective projection remain OPEN.
+- **SOUND is CONDITIONAL-CLOSED** by the subsequently reviewed
+  [publication/use synthesis](../notes/progress/2026-10-07-sound-publication-synthesis-round3.md).
+  Its existing source/solver/production contracts plus the full existing
+  HIR_WIRING stage correspondence reflect an actual accepted joint use into
+  the same original scoped solution and semantics. One HIR_WIRING dependency
+  is added; no new semantic postulate or node is introduced. Whole-use/evidence
+  PROJECTION, actual indexed fresh maps, valid references and complete
+  publication remain required. Fresh snapshots receive this proof before
+  reuse; REUSE's assumed sound/principal rebuild cannot prove that base.
+  HIR_WIRING remains implementation pending and all semantic prerequisites
+  remain at their existing status. This certifies no current compiler path.
 - **REC_INIT_SELF is CLOSED** by the
   [approved exact source rule](../notes/design/2026-10-07-recursive-self-init-executable-boundary.md):
   q1 singleton `my f = f` is rejected before initialization/self-read while
@@ -87,7 +98,7 @@ The one added CLOSED exact self-init subcase is reported separately.
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.
 Earlier per-attempt OPEN statements below are interpreted at their pinned
-snapshots and are superseded only for the two named composition nodes and
+snapshots and are superseded only for the three named composition nodes and
 the exact approved q1 subcase. Their semantic-input cuts remain current.
 
 ### Preserved reviewed continuation: round 2

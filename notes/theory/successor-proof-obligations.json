@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-07",
   "baseline": "6fb5d7f697d5d592e0a39532ddb4967b54e18090",
-  "revalidated_remote_head": "6cd43ea855acdd1e7f47a46408715a03d192ffd4",
+  "revalidated_remote_head": "7423c12ac1269049a9159b5bb4355f761991d19c",
   "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
   "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
   "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
@@ -94,8 +94,8 @@
     "PROD_CONFORMANCE",
     "PRINCIPAL",
     "FRESH_LIFE",
-    "SOUND",
     "HIR_WIRING",
+    "SOUND",
     "CUTOVER"
   ],
   "nodes": [
@@ -897,7 +897,8 @@
         "core",
         "k",
         "call3",
-        "round3review"
+        "round3review",
+        "operandcandidate"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -994,7 +995,8 @@
         "newrec",
         "newglobal",
         "call3",
-        "round3review"
+        "round3review",
+        "operandcandidate"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1081,7 +1083,8 @@
         "core",
         "newassoc",
         "call3",
-        "round3review"
+        "round3review",
+        "operandcandidate"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2097,29 +2100,6 @@
       ]
     },
     {
-      "id": "SOUND",
-      "status": "OPEN-PROOF",
-      "gate": "Sound successor inference",
-      "requires": [
-        "SOURCE_ADEQUACY",
-        "JOINT_DEC",
-        "PROD_CONFORMANCE"
-      ],
-      "premises": "Computed complete relation, independently valid admission and actual primitive semantics.",
-      "minimal_lemma_or_closed_scope": "Every published inferred scheme and accepted use satisfies the selected source/conservative-abstraction semantics, including effects, permissions, worlds, methods and recursive use. Prove actual publication/use preservation from each exported residual, hiding, query evidence and accepted ordinary use back to that same original solved relation. An exact JOINT_DEC plus semantic source/production conformance alone does not certify the actual publisher/instantiator; the reviewed mismatching-public-fiber discriminator exposes this existing leg without claiming a compiler defect or adding a new gate. All original scopes, correlations and permitted witness dependencies remain.",
-      "references": [
-        "charter",
-        "adequacy",
-        "aggregate3",
-        "round3review"
-      ],
-      "production_authority": "required-before-cutover",
-      "unblocks": [
-        "CUTOVER"
-      ],
-      "closed_lemmas": []
-    },
-    {
       "id": "HIR_WIRING",
       "status": "IMPLEMENTATION-ONLY",
       "gate": "Settled source-to-HIR and complete production pipeline wiring",
@@ -2148,7 +2128,34 @@
         "localbind",
         "alphaimpl",
         "orbitimpl",
-        "round2review"
+        "round2review",
+        "shadowinit3"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "SOUND",
+        "CUTOVER"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "SOUND",
+      "status": "CONDITIONAL-CLOSED",
+      "gate": "Sound successor inference",
+      "requires": [
+        "SOURCE_ADEQUACY",
+        "JOINT_DEC",
+        "PROD_CONFORMANCE",
+        "HIR_WIRING"
+      ],
+      "premises": "Full existing SOURCE_ADEQUACY, JOINT_DEC, PROD_CONFORMANCE and HIR_WIRING contracts, including HIR's existing PROJECTION/FRESH_LIFE/RESOURCE cone and complete actual semantic-stage input/result correspondence. Exact admitted source/resource envelope; original binder strategies and joint residual/query evidence; actual independent incoming-use maps, aliases/internal sharing, fixed rigid coordinates, references and atomic publication. A residual result strategy must satisfy every retained obligation; acceptance of syntax alone supplies no successful query.",
+      "minimal_lemma_or_closed_scope": "The reviewed conditional synthesis reflects every actual accepted finite joint use/result to its complete actual solver graph or satisfied residual strategy, undoes actual fresh maps with the use-indexed inverse iota_u(x) -> (u,x) preserving independent copies, aliases and rigid/shared identities, reflects the whole ordinary-use/evidence strategy through original-scoped PROJECTION, and applies same-original source/production correspondences. Option 2 extras use upper containment, not source inversion. No ALL_VIEW or universal Q success is needed. Establish a fresh complete snapshot's SOUND first from full stage correspondence and actual FRESH_LIFE maps/sharing/reference/barrier/resource exactness; REUSE's sound/principal-valid rebuild hypothesis is not a premise proving that snapshot sound. Reuse applies only afterward to an already covered complete snapshot, with any required principality proved separately. The narrower aggregate countermodel remains valid without HIR_WIRING; it is excluded by this existing full route. Actual semantics and complete pipeline correspondence remain unattained; HIR_WIRING is not strengthened or closed and no current compiler conformance, operational totality or cutover is claimed.",
+      "references": [
+        "charter",
+        "adequacy",
+        "aggregate3",
+        "sound3",
+        "round3review"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2179,6 +2186,7 @@
       "production_authority": "required-before-cutover",
       "unblocks": [],
       "closed_lemmas": [
+        "SOUND",
         "PRINCIPAL"
       ]
     }
@@ -2359,6 +2367,17 @@
     ]
   },
   "retired": [
+    {
+      "old": "Generic SOUND wrapper still lacks an actual publication leg",
+      "replaced_by": [
+        "SOUND",
+        "HIR_WIRING",
+        "SOURCE_ADEQUACY",
+        "JOINT_DEC",
+        "PROD_CONFORMANCE"
+      ],
+      "reason": "Reviewed full conditional reflection uses the existing complete HIR stage correspondence and PROJECTION/FRESH_LIFE/RESOURCE cone. Actual semantic and wiring proofs remain pending; no circular REUSE sound/principal premise certifies a fresh snapshot."
+    },
     {
       "old": "Generic final principality composition still unproved",
       "replaced_by": [
@@ -2597,6 +2616,9 @@
     "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
+    "sound3": "notes/progress/2026-10-07-sound-publication-synthesis-round3.md",
+    "operandcandidate": "notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md",
+    "shadowinit3": "notes/progress/2026-10-07-shadow-initialization-retention-round3.md",
     "aggregate3": "notes/progress/2026-10-07-aggregate-obligation-attack-round3.md",
     "round3review": "notes/progress/2026-10-07-successor-round3-review.md",
     "principal3": "notes/progress/2026-10-07-actual-export-synthesis-round3.md",
