@@ -55,6 +55,21 @@ Compiler-referee and spec-auditor reviews passed the semantic attack note;
 regression-auditor review and the focused one-test Cargo target passed. No
 production inference path changed.
 
+### Latest O0 attack: round 5
+
+At `cb789e453a080d751f9689918f94974283be7302`, a constructive rule audit,
+same-port adversarial attack, current compiler trace, and architect review
+isolated candidate `OC-Output-Intro` for the original typed Call-output map.
+Authority locates the required immediate complete-invocation port but leaves
+the original-sort constructor open. Compiler-referee and spec-auditor reviews
+passed the bounded rule signature after minor precision repairs. No proof of
+the candidate constructor, competing complete semantics, source
+counterexample, implementation gap beyond the already retained unresolved
+Apply row, or DAG status promotion was found. Counts remain 7 CLOSED,
+20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and
+1 IMPLEMENTATION-ONLY. The exact remaining constructor is recorded in
+[round 5](../notes/progress/2026-10-07-original-call-output-introduction-round5.md).
+
 ### Latest reviewed continuation: round 3
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
