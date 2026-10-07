@@ -15887,6 +15887,20 @@ impl InferenceSession {
     }
 }
 impl SolvedModule {
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    fn shadow_current_use_route(
+        &self,
+        use_id: &DefinitionUseId,
+    ) -> Option<(&RoutedUseProvenance, &ConstraintStore)> {
+        if !Arc::ptr_eq(&self.collection_artifact, &use_id.artifact) {
+            return None;
+        }
+        self.routed_uses
+            .iter()
+            .find(|route| route.use_id == *use_id)
+            .map(|route| (route, &self.store))
+    }
+
     /// Exact retained application rows from this result's collected HIR.
     /// Solving does not resolve their application typing premise.
     #[cfg(feature = "shadow-f5")]

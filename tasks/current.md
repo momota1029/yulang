@@ -43,6 +43,53 @@ and justify `OC-CallEff`; only after O0 closes attack O1, then actual C0
 checking inputs. No new user-decision blocker or implementation authority.
 The linked note contains the four-part repository handoff.
 
+### Other round 7 fronts from the same baseline
+
+Started from latest remote `f3be02da1ba169a88acc154ac29621634f3cc89b`.
+The canonical 90-node / 196-edge DAG remains 7 CLOSED, 20
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY; no semantic gate moved.
+
+The direct `SIG_RULES` source-origin audit grants O0 only to isolate P2 and
+retains the approved nested source `my apply f = { my step x = f x; step }`.
+Formal registration, captured Name/Result identity, Call-generated upper
+occurrence and reviewed S1 protection are derivable. The first missing head
+remains original static slot birth and owner incidence:
+`exists s,o. s ∈ Slots_orig(beta) ∧ Own_orig(beta,s,u_f,p0,o;X)`. K-Leaf and
+K-Image construct original contributions, K-Incidence consumes an owner, and
+candidate K-Owner cannot establish the first owner without a new source rule.
+No complete competing Authority-consistent semantics or admitted-source
+counterexample was found; Option 2 production observations do not construct
+original source incidence. This O1 result is conditional on O0 and does not
+change the latest dependency order: first discharge `H_eff` and `OC-CallEff`,
+then return to static slot/owner birth.
+
+The CALL_TYPE audit identifies the same concrete unconstructed step inside
+`SEM_JOINT`: source-directed whole-argument checking at the actual returned
+provider/world must establish `ArgCompatible` jointly with argument typing
+while preserving each retained `CalRet` witness. The direct REC_DESC route
+derives captured Name identity and inert Return but still needs an independent
+ordinary Name/Return membership rule at the same original `(xi,w)`. The exact
+`REC_INIT_SELF` proof and independent reviews are already recorded and closed;
+other initializer classes and compiler enforcement remain separate.
+
+The distinct ALL_VIEW Record-width route derives only the structural
+`Record{tag:alpha} ≤ Record{}` prefix. It reduces the first semantic leaf to
+same-witness decorated `DescMem` restriction at the returned Record incidence,
+then requires separate future-client admission restriction and actual
+`B_common` resolver evidence. No `Direct` witness was constructed.
+
+In the implementation lane, a compiler-referee-reviewed default-off observer
+now joins a pending SCC use to the exact committed current route, same-store
+fact and provenance. It distinguishes absent route from factless
+Bottom-trivial route, leaves successor generalization/Q-R/shared-contract
+transport pending, and does not change production inference. See
+[`shadow-current-use-route-crosswalk`](../notes/progress/2026-10-07-shadow-current-use-route-crosswalk.md).
+The focused test, feature-off package check, targeted formatting and diff check
+passed. `HIR_WIRING` remains IMPLEMENTATION-ONLY. No semantic gate moved. The
+next semantic attack is `H_eff` / `OC-CallEff`; the next shadow step must
+replace no premise until its corresponding theorem/rule is closed.
+
 ### Latest multi-front attack: round 6
 
 At starting remote `d8ddbb0a3a3ab80b7cca67de09a8310617ba1170`, the DAG had

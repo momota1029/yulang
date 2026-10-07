@@ -11,7 +11,7 @@ use yu_solver::{
     ConstraintBatch, SolvedModule,
     shadow_f5::{FreshBinderRef, FreshCaptureState},
     shadow_scc::{
-        PendingSccGeneralizationPremise, PendingUseInstantiationLookupError,
+        CurrentUseRouteKind, PendingSccGeneralizationPremise, PendingUseInstantiationLookupError,
         PendingUseInstantiationPremise, SccClosedSchemeLookupError,
     },
 };
@@ -110,6 +110,49 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
             .pending_use_instantiation(&solved, occurrence)
             .unwrap();
         assert!(pending.occurrence().same_identity(occurrence));
+        let route = pending
+            .current_route()
+            .expect("alias has a committed route");
+        assert_eq!(route.kind(), CurrentUseRouteKind::IncomingStructured);
+        let fact = route
+            .fact()
+            .expect("structured route has a representative fact");
+        assert!(
+            solved
+                .store()
+                .facts()
+                .iter()
+                .any(|stored| std::ptr::eq(stored, fact))
+        );
+        let edges = route.provenance().collect::<Vec<_>>();
+        assert!(!edges.is_empty());
+        for edge in edges {
+            assert_eq!(edge.fact(), fact.id());
+            assert_eq!(
+                edge.cause().occurrence().occurrence(),
+                alias.value().occurrence()
+            );
+            assert!(
+                solved
+                    .store()
+                    .provenance()
+                    .iter()
+                    .any(|stored| std::ptr::eq(stored, edge))
+            );
+        }
+        let ordinary_route = topology
+            .pending_use_instantiation(&ordinary, occurrence)
+            .unwrap()
+            .current_route()
+            .unwrap();
+        assert_eq!(ordinary_route.kind(), route.kind());
+        // Fresh terms and FactIds belong to their own solve/store; compare
+        // retained coverage without equating handles from different attempts.
+        assert!(ordinary_route.fact().is_some());
+        assert_eq!(
+            ordinary_route.provenance().count(),
+            route.provenance().count()
+        );
         let (parent, target) = topology.use_definitions(occurrence).unwrap();
         assert!(pending.parent().same_identity(parent));
         assert!(pending.target().same_identity(target));
@@ -208,6 +251,98 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
     assert_eq!(solved.counters(), solved_before);
     assert_eq!(ordinary.counters(), ordinary_before);
     assert_eq!(foreign.counters(), foreign_before);
+}
+
+#[test]
+fn recursive_and_integer_uses_observe_recorded_routes_including_factless_bottom() {
+    for (text, incoming_kind) in [
+        (
+            "my a = b; my b = a; my alias = a",
+            CurrentUseRouteKind::IncomingBottomTrivial,
+        ),
+        ("my a = 42; my alias = a", CurrentUseRouteKind::IncomingInt),
+    ] {
+        let source: Arc<SourceText> = Arc::from(text);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(
+            lower_module_with_source_identity(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "shadow-receiving",
+                    "routes.yu",
+                ))),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        let batch = ConstraintBatch::collect(hir).unwrap();
+        let ordinary = SolvedModule::solve(batch.clone()).unwrap();
+        let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+        assert!(solved.errors().is_empty());
+        assert_eq!(ordinary.errors(), solved.errors());
+        let before = solved.counters();
+        let batch_before = batch.counters();
+        let topology = batch.shadow_scc_topology();
+        let mut incoming_count = 0;
+        let mut internal_count = 0;
+        for component in topology.components() {
+            for occurrence in component.internal_uses().chain(component.incoming_uses()) {
+                let pending = topology
+                    .pending_use_instantiation(&solved, occurrence)
+                    .unwrap();
+                let route = pending.current_route().expect("retained successful route");
+                if route.kind() == CurrentUseRouteKind::Internal {
+                    internal_count += 1;
+                } else {
+                    incoming_count += 1;
+                    assert_eq!(route.kind(), incoming_kind);
+                }
+                if route.kind() == CurrentUseRouteKind::IncomingBottomTrivial {
+                    assert!(route.fact().is_none());
+                    assert_eq!(route.provenance().count(), 0);
+                } else {
+                    let fact = route.fact().unwrap();
+                    assert!(
+                        solved
+                            .store()
+                            .facts()
+                            .iter()
+                            .any(|stored| std::ptr::eq(stored, fact))
+                    );
+                    let edges = route.provenance().collect::<Vec<_>>();
+                    assert!(!edges.is_empty());
+                    assert!(edges.iter().all(|edge| edge.fact() == fact.id()));
+                }
+                assert_eq!(
+                    pending.qr_correspondence_premise(),
+                    PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+                );
+                assert_eq!(
+                    pending.shared_contract_transport_premise(),
+                    PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+                );
+                assert_eq!(
+                    pending.pending_generalization().premise(),
+                    PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+                );
+            }
+        }
+        assert_eq!(incoming_count, 1);
+        assert_eq!(
+            internal_count,
+            if incoming_kind == CurrentUseRouteKind::IncomingBottomTrivial {
+                2
+            } else {
+                0
+            }
+        );
+        assert_eq!(solved.counters(), before);
+        assert_eq!(batch.counters(), batch_before);
+    }
 }
 
 fn same_binder(a: FreshBinderRef<'_>, b: FreshBinderRef<'_>) -> bool {

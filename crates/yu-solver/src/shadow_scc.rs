@@ -40,6 +40,9 @@ impl<'a> SccTopology<'a> {
             target,
             generalization: component.pending_successor_generalization(),
             current_scheme,
+            current_route: solved
+                .shadow_current_use_route(occurrence.id)
+                .map(|(route, store)| CurrentUseRouteRef { route, store }),
             closed_route: !self
                 .component_of(parent)
                 .map_err(PendingUseInstantiationLookupError::Topology)?
@@ -340,6 +343,7 @@ pub struct PendingUseInstantiationRef<'a, 's> {
     target: SccDefinitionRef<'a>,
     generalization: PendingSccGeneralizationRef<'a>,
     current_scheme: crate::shadow_f5::ClosedSchemeRef<'s>,
+    current_route: Option<CurrentUseRouteRef<'s>>,
     closed_route: bool,
 }
 
@@ -364,6 +368,11 @@ impl<'a, 's> PendingUseInstantiationRef<'a, 's> {
         self.current_scheme
     }
 
+    /// Absence means no committed route was retained, including failed uses.
+    pub fn current_route(self) -> Option<CurrentUseRouteRef<'s>> {
+        self.current_route
+    }
+
     /// Current solve evidence only; the pending successor premises remain unchanged.
     pub fn current_fresh_capture(self) -> crate::shadow_f5::FreshCaptureState<'s> {
         self.current_scheme
@@ -378,6 +387,55 @@ impl<'a, 's> PendingUseInstantiationRef<'a, 's> {
     pub fn shared_contract_transport_premise(self) -> PendingUseInstantiationPremise {
         PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
     }
+}
+
+/// A committed current route, borrowed together with its owning fact store.
+/// No successor correspondence follows from this current implementation evidence.
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy)]
+pub struct CurrentUseRouteRef<'s> {
+    route: &'s crate::RoutedUseProvenance,
+    store: &'s crate::ConstraintStore,
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+impl<'s> CurrentUseRouteRef<'s> {
+    pub fn kind(self) -> CurrentUseRouteKind {
+        match self.route.kind {
+            crate::RoutedUseKind::Internal => CurrentUseRouteKind::Internal,
+            crate::RoutedUseKind::IncomingInt => CurrentUseRouteKind::IncomingInt,
+            crate::RoutedUseKind::IncomingBottomTrivial => {
+                CurrentUseRouteKind::IncomingBottomTrivial
+            }
+            crate::RoutedUseKind::IncomingStructured => CurrentUseRouteKind::IncomingStructured,
+        }
+    }
+
+    /// Bottom-trivial routes are recorded but have no admitted fact.
+    pub fn fact(self) -> Option<&'s crate::SemanticFact> {
+        self.route
+            .fact
+            .map(|id| &self.store.facts()[id.index() as usize])
+    }
+
+    /// Match the exact source cause and fact only inside this route's own store.
+    /// A structured union's fact is its retained public representative.
+    pub fn provenance(self) -> impl Iterator<Item = &'s crate::ProvenanceEdge> {
+        self.store.provenance().iter().filter(move |edge| {
+            Some(edge.fact()) == self.route.fact
+                && edge.cause().occurrence().local_slot() == 0
+                && edge.cause().occurrence().occurrence() == self.route.use_id.occurrence()
+        })
+    }
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CurrentUseRouteKind {
+    Internal,
+    IncomingInt,
+    IncomingBottomTrivial,
+    IncomingStructured,
 }
 
 #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
