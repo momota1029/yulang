@@ -6032,6 +6032,26 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     std::mem::size_of::<F5cPositive>());
                 let mut parts = Vec::new();
                 let mut cacheable = true;
+                if generalizer.candidate_own_row_references()
+                    && !root
+                    && values.len() > values_start
+                {
+                    // Bounds refine this row; they do not erase its own diagonal.
+                    generalizer.memo.work_meter.charge(1)?;
+                    let reservation = generalizer.memo.reserve_walker_with_source(
+                        &mut parts,
+                        F5cWalkerLaneKind::PositiveParts,
+                        generalizer.source_meter,
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(parts.len(), parts.capacity());
+                    reservation?;
+                    parts.push(F5cPositive::Variable(row));
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(parts.len(), parts.capacity());
+                    // Stable own-row references use existing incidence-aware promotion.
+                    // Active-path reentry still taints its enclosing frame separately.
+                }
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
                 let capacity = values.capacity();
                 let drained = values.drain(values_start..);
@@ -6155,7 +6175,7 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             F5cPositive::Union(parts)
                         }
                     },
-                    cacheable && (nonempty || root),
+                    cacheable && (nonempty || root || generalizer.candidate_own_row_references()),
                 );
                 value
             }
@@ -6166,6 +6186,26 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     std::mem::size_of::<F5cNegative>());
                 let mut parts = Vec::new();
                 let mut cacheable = true;
+                if generalizer.candidate_own_row_references()
+                    && !root
+                    && values.len() > values_start
+                {
+                    // Bounds refine this row; they do not erase its own diagonal.
+                    generalizer.memo.work_meter.charge(1)?;
+                    let reservation = generalizer.memo.reserve_walker_with_source(
+                        &mut parts,
+                        F5cWalkerLaneKind::NegativeParts,
+                        generalizer.source_meter,
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(parts.len(), parts.capacity());
+                    reservation?;
+                    parts.push(F5cNegative::Variable(row));
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(parts.len(), parts.capacity());
+                    // Stable own-row references use existing incidence-aware promotion.
+                    // Active-path reentry still taints its enclosing frame separately.
+                }
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
                 let capacity = values.capacity();
                 let drained = values.drain(values_start..);
@@ -6285,7 +6325,7 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             F5cNegative::Intersection(parts)
                         }
                     },
-                    cacheable && nonempty,
+                    cacheable && (nonempty || generalizer.candidate_own_row_references()),
                 );
                 value
             }
@@ -6365,6 +6405,17 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
 }
 
 impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
+    fn candidate_own_row_references(&self) -> bool {
+        #[cfg(feature = "shadow-apply-candidate")]
+        {
+            self.session.candidate_own_row_references
+        }
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        {
+            false
+        }
+    }
+
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     fn observe_guarded_progress(&self, tasks_capacity: usize) {
         F5C_GUARDED_PROGRESS.with(|state| {

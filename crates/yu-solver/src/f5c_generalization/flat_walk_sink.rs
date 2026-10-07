@@ -1618,6 +1618,34 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                 let mut comparisons = Vec::new();
                 let mut cacheable = true;
                 let result = (|| {
+                    if generalizer.candidate_own_row_references()
+                        && !root
+                        && values.len() > start
+                    {
+                        // Retain the same own-row diagonal as the boxed sink.
+                        generalizer.memo.work_meter.charge(1)?;
+                        let own = self.positive(generalizer, PositiveNode::Variable(row), true)?;
+                        let FlatWalkRef::Positive(reference) = own.reference else {
+                            unreachable!()
+                        };
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let old_capacity = parts.capacity();
+                        let reservation = generalizer.memo.reserve_walker(
+                            &mut parts,
+                            F5cWalkerLaneKind::FlatPositiveParts,
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        parts_owner.observe(parts.len(), parts.capacity());
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        generalizer.memo.observe_walker_capacity_change_with_source(
+                            Some(generalizer.source_meter), old_capacity, parts.capacity())?;
+                        reservation?;
+                        parts.push(reference);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        parts_owner.observe(parts.len(), parts.capacity());
+                        // The stable own reference is cacheable through row incidence;
+                        // actual active-path reentry remains a separate tainted child.
+                    }
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
                     let capacity = values.capacity();
                     let drained = values.drain(start..);
@@ -1648,7 +1676,9 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                             let old_capacity = parts.capacity();
                             let reservation = generalizer
                                 .memo
-                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatPositiveParts);
+                                .reserve_walker(&mut parts,
+                            F5cWalkerLaneKind::FlatPositiveParts,
+                        );
                             #[cfg(all(test, feature = "f5c_resource_probe"))]
                             parts_owner.observe(parts.len(), parts.capacity());
                             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -1663,7 +1693,11 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                     let nonempty = !parts.is_empty();
                     match parts.len() {
                         0 if root => self.positive(generalizer, PositiveNode::Bottom, true),
-                        0 => self.positive(generalizer, PositiveNode::Variable(row), false),
+                        0 => self.positive(
+                            generalizer,
+                            PositiveNode::Variable(row),
+                            generalizer.candidate_own_row_references(),
+                        ),
                         1 => Ok(FlatWalkValue {
                             reference: FlatWalkRef::Positive(parts[0]),
                             cacheable: cacheable && nonempty,
@@ -1726,6 +1760,34 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                 let mut comparisons = Vec::new();
                 let mut cacheable = true;
                 let result = (|| {
+                    if generalizer.candidate_own_row_references()
+                        && !root
+                        && values.len() > start
+                    {
+                        // Retain the same own-row diagonal as the boxed sink.
+                        generalizer.memo.work_meter.charge(1)?;
+                        let own = self.negative(generalizer, NegativeNode::Variable(row), true)?;
+                        let FlatWalkRef::Negative(reference) = own.reference else {
+                            unreachable!()
+                        };
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let old_capacity = parts.capacity();
+                        let reservation = generalizer.memo.reserve_walker(
+                            &mut parts,
+                            F5cWalkerLaneKind::FlatNegativeParts,
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        parts_owner.observe(parts.len(), parts.capacity());
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        generalizer.memo.observe_walker_capacity_change_with_source(
+                            Some(generalizer.source_meter), old_capacity, parts.capacity())?;
+                        reservation?;
+                        parts.push(reference);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        parts_owner.observe(parts.len(), parts.capacity());
+                        // The stable own reference is cacheable through row incidence;
+                        // actual active-path reentry remains a separate tainted child.
+                    }
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
                     let capacity = values.capacity();
                     let drained = values.drain(start..);
@@ -1756,7 +1818,9 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                             let old_capacity = parts.capacity();
                             let reservation = generalizer
                                 .memo
-                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatNegativeParts);
+                                .reserve_walker(&mut parts,
+                            F5cWalkerLaneKind::FlatNegativeParts,
+                        );
                             #[cfg(all(test, feature = "f5c_resource_probe"))]
                             parts_owner.observe(parts.len(), parts.capacity());
                             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -1770,7 +1834,11 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                     }
                     let nonempty = !parts.is_empty();
                     match parts.len() {
-                        0 => self.negative(generalizer, NegativeNode::Variable(row), false),
+                        0 => self.negative(
+                            generalizer,
+                            NegativeNode::Variable(row),
+                            generalizer.candidate_own_row_references(),
+                        ),
                         1 => Ok(FlatWalkValue {
                             reference: FlatWalkRef::Negative(parts[0]),
                             cacheable: cacheable && nonempty,

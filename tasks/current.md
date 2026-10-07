@@ -1986,25 +1986,41 @@ OPEN-PROOF / OPEN-SEMANTIC / IMPLEMENTATION-ONLY.
 An opt-in `yu-solver` feature now builds a bounded Apply candidate through the
 existing solver worklist, SCC generalization, ordinary incoming-use freshening,
 and closed-scheme export. It supports only simple integer/name/group/apply
-initializers and noncapturing one-parameter lambdas with an integer or own
-parameter body; recursive and other unsupported shapes return no candidate.
+initializers and one-parameter lambdas with supported retained HIR bodies;
+recursive definition SCCs and other unsupported shapes return no candidate.
+The reviewed [parameter-body extension](../notes/progress/2026-10-08-shadow-apply-parameter-candidate.md)
+now admits retained HIR Integer/own-Parameter/module-Name/Group/Apply bodies.
+Deferred recipes use actual startup parameter rows and ordinary incoming
+freshening. A session-fixed candidate-only generalizer experiment preserves
+polarized own-row references through existing incidence-aware summaries;
+ordinary production expansion remains unchanged. The initial global prototype
+failed unchanged normative recursion and was rejected. The underlying
+production generic-chain defect and guarded-cycle forwarding judgment remain
+open; this executable experiment does not claim their repair.
+
 Each Apply and export carries explicit unresolved semantic premises, including
 source typing/admission, complete invocation/effect formation, whole-provider
 compatibility, role/protection, and successor generalization correspondence.
+the candidate own-row/R/generalization model. Acyclic definition SCCs do not
+exclude recursive types such as `x x`. Retained expression depth above 128 is
+rejected before recursive candidate emission; no total solver-cost bound follows.
 Candidate conflicts are not source rejection. The feature is default-off and
 does not alter ordinary collection or production results.
 
-Focused feature-on tests passed 6/6; feature-off production-refusal differential
-passed 1/1. Tests compare ordinary refusal diagnostics, stable production
+Latest focused feature-on tests passed 12/12; internal candidate tests 6/6,
+ordinary source-function tests 7/7, five exact memo/raw/one-sided tests 1/1 each,
+and feature-off production-refusal differential 1/1. Tests compare ordinary refusal diagnostics, stable production
 traversal/definition/fact counters, facts/provenance and exported schemes around
-the candidate call; both current result schemes are unchanged. Compiler-referee
-and regression delta reviews found no blocking issues. The regression test is
+the candidate call, including parameter/group bodies; ordinary schemes are
+unchanged. Latest compiler-referee and performance-auditor reviews found no
+blocking issue in this bounded executable experiment. The regression test is
 same-binary noninterference evidence, not a cross-feature equivalence claim.
 This executable implementation
 advances HIR_WIRING only; it closes no proof or semantic gate. DAG remains 90
 nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19
 OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. No performance measurements were
-run. Production cutover remains blocked by the existing semantic and
+run. `cargo check -p yu-solver --all-targets --features shadow-apply-candidate
+-j 2 --offline` passed at this phase boundary. Production cutover remains blocked by the existing semantic and
 conformance obligations.
 
 ## Preserved history and next integration steps

@@ -108,13 +108,15 @@ fn incompatible_candidate_is_attributed_to_exact_apply() {
 #[test]
 fn unsupported_shape_returns_no_partial_candidate() {
     for text in [
+        // The experimental envelope covers retained HIR only. Grouped callee
+        // `(id id) 1` currently lowers to Error and remains atomic Unsupported.
         "my id x = x; my n = (id id) 1",
+        "my f x = host (\\y -> y)",
+        "my f x = (my local = x; local)",
         "my id x = x; my n = id 1; my unsupported = true",
-        "my f x = x 1",
         "my a = a",
         "my a = b; my b = a",
         "my f x = f",
-        "my x = 1; my f y = x",
         "my missing = nope",
         "missing 1",
         "id 1",
@@ -128,9 +130,137 @@ fn unsupported_shape_returns_no_partial_candidate() {
         );
     }
 }
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn parameter_apply_retains_premises_and_ordinary_routes() {
+    let hir = module("my apply f = f 1; my id x = x; pub out = apply id", true);
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let out = candidate.export(root(&hir, 2)).unwrap();
+    assert_eq!(out.value, SolvedValue::Int);
+    assert_eq!(out.unresolved, UNRESOLVED);
+    assert_eq!(candidate.calls().len(), 2);
+    for call in candidate.calls() {
+        assert_eq!(call.unresolved, UNRESOLVED);
+    }
+    let call = &candidate.calls()[1];
+    assert!(!candidate.fresh_rows(&call.callee).unwrap().is_empty());
+    assert_eq!(candidate.fresh_rows(&call.argument).unwrap().len(), 1);
+    assert!(candidate.fresh_rows(&candidate.calls()[0].callee).is_none());
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn two_parameter_apply_uses_have_disjoint_substitutions() {
+    let hir = module(
+        "my apply f = f 1; my id x = x; my a = apply id; pub b = apply id",
+        true,
+    );
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    for index in [2, 3] {
+        assert_eq!(
+            candidate.export(root(&hir, index)).unwrap().value,
+            SolvedValue::Int
+        );
+    }
+    let a = candidate.fresh_rows(&candidate.calls()[1].callee).unwrap();
+    let b = candidate.fresh_rows(&candidate.calls()[2].callee).unwrap();
+    assert!(!a.is_empty());
+    assert!(!b.is_empty());
+    for left in &a {
+        for right in &b {
+            assert!(!left.same_identity(right));
+        }
+    }
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn module_name_in_lambda_body_uses_normal_incoming_route() {
+    let hir = module(
+        "my id x = x; my wrap ignored = id; pub out = wrap 1 2",
+        true,
+    );
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(
+        candidate.export(root(&hir, 2)).unwrap().value,
+        SolvedValue::Int
+    );
+    let HirItem::Binding(binding) = &hir.items()[1] else {
+        panic!("binding")
+    };
+    let yu_hir::ResolvedExpr::Lambda { body, .. } = binding.value() else {
+        panic!("lambda")
+    };
+    assert_eq!(candidate.fresh_rows(body.occurrence()).unwrap().len(), 1);
+    let supported = CandidateValueObservation::solve(module("my x = 1; my f y = x", true)).unwrap();
+    assert!(supported.candidate_conflicts().is_empty());
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn grouped_application_and_nested_module_name_body_are_supported() {
+    for text in [
+        "my id x = x; my wrap y = id y; pub out = wrap 1",
+        "my id x = x; my wrap y = id (id y); pub out = wrap 1",
+    ] {
+        let hir = module(text, true);
+        let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        assert_eq!(
+            candidate.export(root(&hir, 2)).unwrap().value,
+            SolvedValue::Int
+        );
+        assert_eq!(
+            candidate
+                .fresh_rows(&candidate.calls()[0].callee)
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn parameter_apply_to_integer_has_candidate_conflict() {
+    let candidate =
+        CandidateValueObservation::solve(module("my apply f = f 1; pub bad = apply 1", true))
+            .unwrap();
+    assert!(!candidate.candidate_conflicts().is_empty());
+    assert!(
+        candidate
+            .calls()
+            .iter()
+            .all(|call| call.unresolved == UNRESOLVED)
+    );
+}
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn self_application_retains_unresolved_boundary_or_atomic_availability_failure() {
+    let hir = module("my self x = x x", true);
+    match CandidateValueObservation::solve(hir.clone()) {
+        Ok(candidate) => {
+            assert_eq!(candidate.calls().len(), 1);
+            assert_eq!(candidate.calls()[0].unresolved, UNRESOLVED);
+            assert_eq!(
+                candidate.export(root(&hir, 0)).unwrap().unresolved,
+                UNRESOLVED
+            );
+        }
+        Err(CandidateError::Solve(_)) => {}
+        Err(other) => panic!("retained supported HIR failed before solver boundary: {other:?}"),
+    }
+}
 #[test]
 fn regular_collection_remains_the_production_refusal_oracle() {
-    let text = "my id x = x; my n = id 1; pub exported = n";
+    for text in [
+        "my id x = x; my n = id 1; pub exported = n",
+        "my apply f = f 1; my id x = x; pub exported = apply id",
+    ] {
+        assert_production_collection_noninterference(text);
+    }
+}
+fn assert_production_collection_noninterference(text: &str) {
     let ordinary_hir = module(text, false);
     let shadow_hir = module(text, true);
     assert_eq!(ordinary_hir.diagnostics(), shadow_hir.diagnostics());

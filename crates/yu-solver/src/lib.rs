@@ -825,6 +825,10 @@ pub struct ConstraintBatch {
     root_component_positions: HashMap<DefinitionRootId, RootComponentPositions>,
     parameter_recipes: Vec<HirParameterId>,
     lambda_recipes: Vec<LambdaRecipe>,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_recipes: Vec<shadow_apply::CandidateConstraintRecipe>,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_own_row_references: bool,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
     /// semantic key remains the artifact-branded definition root.
     root_definition_positions: HashMap<DefinitionRootId, usize>,
@@ -882,6 +886,10 @@ impl ConstraintBatch {
             root_component_positions: HashMap::new(),
             parameter_recipes: Vec::new(),
             lambda_recipes: Vec::new(),
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_recipes: Vec::new(),
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_own_row_references: candidate_values,
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
@@ -1060,7 +1068,7 @@ impl ConstraintBatch {
             batch.retain_pending_applications(expression, definition_root);
             batch.counters.occurrence_allocations += 1;
             #[cfg(feature = "shadow-apply-candidate")]
-            if candidate_values && !matches!(expression, ResolvedExpr::Lambda { .. }) {
+            if candidate_values {
                 batch.emit_candidate_value(
                     expression,
                     definition_root,
@@ -1068,7 +1076,7 @@ impl ConstraintBatch {
                     &mut pending_uses,
                 )?;
             }
-            if !candidate_values || matches!(expression, ResolvedExpr::Lambda { .. }) {
+            if !candidate_values {
                 if matches!(expression, ResolvedExpr::Integer { .. }) {
                     batch
                         .emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
@@ -2019,6 +2027,11 @@ impl ConstraintBatch {
             );
         self.counters.f0_collection_retained_bytes = checked_usize_sum(
             [
+                #[cfg(feature = "shadow-apply-candidate")]
+                checked_capacity_bytes::<shadow_apply::CandidateConstraintRecipe>(
+                    self.candidate_recipes.capacity(),
+                    "candidate constraint recipes",
+                ),
                 self.counters.occurrence_retained_bytes,
                 self.counters.root_retained_bytes,
                 self.counters.definition_record_retained_bytes,
@@ -7387,6 +7400,9 @@ struct ShadowFreshCapture {
 }
 
 struct InferenceSession {
+    /// Fixed at startup for the entire candidate session and its expansion memo.
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_own_row_references: bool,
     #[cfg(feature = "shadow-f5")]
     shadow_fresh_capture: Option<ShadowFreshCapture>,
     f5c_draft_work: F5cDraftWorkMeter,
@@ -9384,11 +9400,23 @@ impl InferenceSession {
             .occurrences
             .len()
             .checked_add(batch.lambda_recipes.len())
+            .and_then(|count| {
+                #[cfg(feature = "shadow-apply-candidate")]
+                {
+                    count.checked_add(batch.candidate_recipes.len())
+                }
+                #[cfg(not(feature = "shadow-apply-candidate"))]
+                {
+                    Some(count)
+                }
+            })
             .and_then(|count| count.checked_add(batch.definition_uses.len()))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let draft_capacity = batch.counters.scc_maximum_component_size;
         let routed_capacity = batch.definition_uses.len();
         let mut session = Self {
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_own_row_references: batch.candidate_own_row_references,
             f5c_draft_work: F5cDraftWorkMeter::default(),
             // The solve branch receives the collected lineage directly.  The
             // retained batch is only F2 plan/recipe state; it never owns a
@@ -10639,7 +10667,20 @@ impl InferenceSession {
 
     fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut lambda_index = 0;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let mut candidate_index = 0;
         for occurrence_index in 0..=self.batch.occurrences().len() {
+            #[cfg(feature = "shadow-apply-candidate")]
+            while self
+                .batch
+                .candidate_recipes
+                .get(candidate_index)
+                .is_some_and(|recipe| recipe.after_collected_fact == occurrence_index)
+            {
+                let recipe = self.batch.candidate_recipes[candidate_index].clone();
+                self.admit_candidate_fact(&recipe)?;
+                candidate_index += 1;
+            }
             while self
                 .batch
                 .lambda_recipes
@@ -27369,6 +27410,88 @@ mod tests {
                 F5cGeneralizer::normalize_negative(&test_source_meter, value),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
+        }
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[test]
+    fn candidate_own_rows_preserve_shared_memo_and_materialized_incidence() {
+        let meter = DraftHeapMeter::default();
+        let batch =
+            ConstraintBatch::collect_mode(module("my f = 1", "candidate-own-row-memo"), true)
+                .unwrap();
+        let mut session = InferenceSession::new(batch);
+        let inner = session.fresh_value_at_level(1).unwrap();
+        let first = session.fresh_value_at_level(1).unwrap();
+        let second = session.fresh_value_at_level(1).unwrap();
+        session.bounds[inner as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[inner as usize]
+            .exact_non_variable_uppers
+            .push(ValueEndpointKey::IntNegative);
+        let positive_inner = session.live_value_term(Polarity::Positive, inner).unwrap();
+        let negative_inner = session.live_value_term(Polarity::Negative, inner).unwrap();
+        let empty = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let bottom = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let positive = session
+            .positive_function_term(negative_inner, empty, bottom, positive_inner)
+            .unwrap();
+        let negative = session
+            .negative_function_term(positive_inner, bottom, empty, negative_inner)
+            .unwrap();
+        for row in [first, second] {
+            session.bounds[row as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::PositiveFunction(positive));
+            session.bounds[row as usize]
+                .exact_non_variable_uppers
+                .push(ValueEndpointKey::NegativeFunction(negative));
+        }
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &meter);
+        generalizer.assert_admission_invariant = true;
+        let F5cPositive::Shared(positive) = generalizer.positive_row(first, false).unwrap() else {
+            panic!("shared positive wrapper")
+        };
+        let F5cNegative::Shared(negative) = generalizer.negative_row(first).unwrap() else {
+            panic!("shared negative wrapper")
+        };
+        for row in [inner, first] {
+            for polarity in [Polarity::Positive, Polarity::Negative] {
+                assert!(generalizer.memo.roots.contains_key(&F5cExpansionKey {
+                    row,
+                    polarity,
+                    frozen_bound_epoch: 0
+                }));
+            }
+        }
+        let hits = generalizer.shared_summary_hits;
+        let uncacheable = generalizer.uncacheable_states;
+        generalizer.positive_row(second, false).unwrap();
+        generalizer.negative_row(second).unwrap();
+        assert!(generalizer.shared_summary_hits > hits);
+        assert_eq!(generalizer.uncacheable_states, uncacheable);
+        let mut marks = Vec::new();
+        generalizer
+            .memo
+            .positive_value_with(&meter, positive, &mut |row, polarity| {
+                marks.push((row, polarity));
+                Ok(())
+            })
+            .unwrap();
+        generalizer
+            .memo
+            .negative_value_with(&meter, negative, &mut |row, polarity| {
+                marks.push((row, polarity));
+                Ok(())
+            })
+            .unwrap();
+        for row in [inner, first] {
+            for polarity in [Polarity::Positive, Polarity::Negative] {
+                assert!(marks.contains(&(row, polarity)));
+            }
         }
     }
 
