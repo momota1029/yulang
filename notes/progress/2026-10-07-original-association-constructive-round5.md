@@ -1,6 +1,6 @@
 # ORIGINAL_ASSOC round 5: attempted discharge of the realization input
 
-Status: frozen unreviewed research-only derivation and localized blocker
+Status: frozen research-only derivation; compiler-referee reviewed, no findings
 Baseline: `4a9d969db09be881bdc0ce6888cc3d651dfc2405`
 Method: constructive theorem specialization and assumption accounting
 Exclusive lease: this note only
@@ -257,8 +257,9 @@ All values are SHA-256 of the pinned baseline bytes.
   `notes/progress/2026-10-07-original-association-constructive-round5.md`.
 - Baseline SHA: `4a9d969db09be881bdc0ce6888cc3d651dfc2405`.
 - Changed dependency hashes: none at initial comparison; final recheck in handoff.
-- Claim/review status: frozen unreviewed research-only assumption-accounting
-  certificate and blocker. No authority promotion or gate closure.
+- Claim/review status: frozen research-only assumption-accounting certificate
+  and blocker; compiler-referee review found no findings. No authority
+  promotion or gate closure.
 - Checks already run: exact governing/prior clause reads, nineteen pinned/live
   byte comparisons, lease absence; final integrity results in handoff.
 - Proposed one-line research-checkpoint commit message:
@@ -268,5 +269,3 @@ All values are SHA-256 of the pinned baseline bytes.
   Keep ORIGINAL_ASSOC OPEN-SEMANTIC and CALL_TYPE CONDITIONAL-CLOSED with its
   actual local laws uninstantiated. No new edge, meaning, user-decision blocker,
   task/index/theory edit or question bundle is proposed.
-
-Producer writes stop before frozen review submission.
