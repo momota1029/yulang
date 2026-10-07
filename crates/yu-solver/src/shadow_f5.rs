@@ -104,6 +104,29 @@ impl ConstraintBatch {
 }
 
 impl SolvedModule {
+    /// Exact startup allocation for a production parameter recipe. A local
+    /// shadow binder has no row unless production collected its recipe.
+    /// This supplies no successor ownership or eligibility judgment.
+    pub fn shadow_parameter_row(
+        &self,
+        parameter: &yu_hir::HirParameterId,
+    ) -> Result<ParameterRowState<'_>, yu_hir::shadow::SourceIdentityError> {
+        if !self.hir.owns_parameter(parameter)
+            && self.hir.shadow_parameter_local_owner(parameter)?.is_none()
+        {
+            return Err(yu_hir::shadow::SourceIdentityError::ForeignHirArtifact);
+        }
+        let Some(capture) = self.shadow_fresh_capture.as_ref() else {
+            return Ok(ParameterRowState::NotRequested);
+        };
+        let Some(rows) = capture.parameter_rows.as_ref() else {
+            return Ok(ParameterRowState::Unavailable);
+        };
+        Ok(match rows.iter().find(|(id, _)| id == parameter) {
+            Some((_, row)) => ParameterRowState::Captured(FreshRowRef { capture, row: *row }),
+            None => ParameterRowState::NoProductionRecipe,
+        })
+    }
     /// Retained row order, omitting applications without an enclosing root.
     /// Each association borrows this result's exact row and current root scheme
     /// through the existing root index; no schemes are inferred or cloned.
@@ -314,6 +337,15 @@ pub enum GeneralizationOriginState<'a> {
     NotRequested,
     Unavailable,
     Captured(GeneralizationOriginRef<'a>),
+}
+
+/// Historical allocation evidence only, qualified by this successful solve.
+#[derive(Clone, Copy)]
+pub enum ParameterRowState<'a> {
+    NotRequested,
+    Unavailable,
+    NoProductionRecipe,
+    Captured(FreshRowRef<'a>),
 }
 
 /// Current generalizer-selected live rows; no successor correspondence is implied.

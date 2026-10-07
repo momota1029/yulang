@@ -7354,6 +7354,7 @@ struct ShadowFreshRoute {
 #[cfg(feature = "shadow-f5")]
 #[derive(Debug, Default)]
 struct ShadowFreshCapture {
+    parameter_rows: Option<Vec<(HirParameterId, u32)>>,
     origins: HashMap<usize, Vec<(ShadowFreshBinderKind, u32, u32)>>,
     pending: Option<ShadowFreshRoute>,
     routes: Vec<ShadowFreshRoute>,
@@ -15949,7 +15950,28 @@ impl SolvedModule {
         batch: ConstraintBatch,
     ) -> Result<Self, SolveAvailabilityError> {
         let mut session = InferenceSession::try_new(batch)?;
-        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        // Startup already allocated these rows, including parameters whose
+        // unsupported bodies produce no LambdaRecipe. Failure to retain this
+        // optional evidence must not fail or meter production inference.
+        let mut rows = Vec::new();
+        let parameter_rows = if rows
+            .try_reserve_exact(session.batch.parameter_recipes.len())
+            .is_ok()
+        {
+            for (position, parameter) in session.batch.parameter_recipes.iter().enumerate() {
+                rows.push((
+                    parameter.clone(),
+                    session.parameter_live_base + position as u32,
+                ));
+            }
+            Some(rows)
+        } else {
+            None
+        };
+        session.shadow_fresh_capture = Some(ShadowFreshCapture {
+            parameter_rows,
+            ..ShadowFreshCapture::default()
+        });
         session.run()
     }
     pub fn hir(&self) -> &Arc<HirModule> {
@@ -18490,6 +18512,32 @@ mod tests {
             exhaustion_session.run(),
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
+    }
+
+    #[cfg(feature = "shadow-f5")]
+    #[test]
+    fn shadow_parameter_capture_unavailable_preserves_production_result() {
+        let batch = collect(module("my id x = x", "shadow-parameter-unavailable.yu"));
+        let HirItem::Binding(binding) = &batch.hir.items()[0] else {
+            panic!("binding");
+        };
+        let parameter = binding.parameters()[0].id().clone();
+        let ordinary = SolvedModule::solve(collect(module(
+            "my id x = x",
+            "shadow-parameter-unavailable.yu",
+        )))
+        .unwrap();
+        let mut session = InferenceSession::new(batch);
+        // The failed optional reservation leaves precisely this empty view.
+        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        let solved = session.run().unwrap();
+        assert!(matches!(
+            solved.shadow_parameter_row(&parameter).unwrap(),
+            crate::shadow_f5::ParameterRowState::Unavailable
+        ));
+        assert_eq!(ordinary.errors(), solved.errors());
+        assert_eq!(ordinary.counters(), solved.counters());
+        assert_eq!(ordinary.store().facts().len(), solved.store().facts().len());
     }
 
     #[cfg(feature = "shadow-f5")]
