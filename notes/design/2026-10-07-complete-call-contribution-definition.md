@@ -127,13 +127,22 @@ an open carrier hole; the source `qa` supplies only its diagonal section.
 Compiler-referee and spec-auditor reviews passed the frozen proof at SHA-256
 `47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
 
-`SourceInterfaceFormation_e` is not adopted as unconditionally true. Actual
-operator typing and witness actions, provider dispatch/phase incidences,
-contextual hole/world binding, exhaustive original arm-root insertions and
-foreign-root-use maps remain independently supplied at their owning phases.
-The static constructor completion derives their source placements; it does
-not construct those semantic/operator/declaration inputs or K-Image membership
-lifting. Its erasure and naturality have exactly the retained original scope.
+`SourceInterfaceFormation_e` is not adopted as unconditionally true. The later
+[source-interface definition](2026-10-08-call-source-interface-definition.md)
+extends this structural completion: IF-Insert and IF-Use construct complete
+original arm-root and actual reference-use placements at their owning
+constructors, including opaque alternatives and the stated finite graph
+extension. On that genuine source/complete-contract envelope, its reviewed
+Theorem IF supplies the full diagram rather than assuming a separate
+source-placement theorem. The original acyclic F1-Struct+ scope is unchanged.
+
+Actual operator typing/witness actions, provider dispatch/phase validity,
+contextual hole/world binding, original primitive licenses/admission and lawful
+whole-map actions remain independent. Separately fixed foreign interpretations
+and roots outside the actual constructor/reference route still need their
+genuine maps. Neither static construction proves K-Image semantic membership
+lifting, complete C0 or active-consumer preservation. Its erasure and
+naturality have exactly the retained original scope.
 O0's single output correspondence, O1 ownership and C0 semantic typing do not
 alone supply them. The same restriction applies when an independent complete
 operation has not yet been specified at all.

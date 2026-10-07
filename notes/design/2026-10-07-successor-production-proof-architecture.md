@@ -218,9 +218,9 @@ in the independent production/license semantics and be covered there.
 | Directional seed | Source formal/exposure processing | Protected-variable evidence tied to the source upper occurrence | Apply proved directional action; retain independent provider protection | All source introduction/use applicability, not another transport wrapper |
 | O1 slot/owner | Registration owns the shared schema; actual typed seeded source exposure owns membership/attachment | Reviewed SharedInvoke/OwnUpper derivation with original route, O0 and SeedExposure | Borrow/project the exact witness, moving all indices together | O1-static closed on the actual emitted selected-seed envelope; other owner cases and semantic realization remain, with no complete singleton inventory or per-use slot assumption |
 | Static Call inputs | Resolved source Data/Code/telescope constructors | Reviewed Name/Return/Delay/Capture/Lambda/Bind/Call input tree and original check origins | Retain typed code; project actual binding/capture evidence | Theorem S closed on the stated finite acyclic resolved source envelope, including the nested term; general source generation remains |
-| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Name/Return/constant-delay and actual-input consequence are proved in the explicit independent fragment; its original-family realization, full carrier/phase preservation and complete C0 remain |
+| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Selected original contextual Function/world cases now prove Name/Return/full Name Delay and same-U/live-world input acceptance without raw ViewInlet; receiver behavior follows from that same contract. Full result/closure/general code and complete original C0 remain |
 | C1 original contribution | Authentic complete Call operation formation | Selected C-Call/CallMem retaining the original callee, whole carrier, receiver, return/future and full alternative interface | Retain/project the same whole witness | C1-Call proved under authentic SpecCall_e and independent complete C0; separately fixed kernel/active-consumer comparison remains |
-| J0 joint association | Original source/operator/arm declaration formation, then owned-image constructor | Complete source frame and genuine declaration-to-root-to-use placements; selected J-Owned retains one compatible diagram and witness | Apply proved structural/abstract routing and accounting elimination to any admitted member | SourceInterfaceFormation_e remains genuine; fixed-witness full-family implication is proved under it, exact O1 and complete C0 |
+| J0 joint association | Original source/operator/arm declaration formation, then owned-image constructor | Selected IF-Insert/IF-Use and source constructors generate complete structural/abstract placements; J-Owned retains one compatible diagram and witness | Apply proved structural/abstract routing and accounting elimination to any admitted member | Theorem IF supplies SourceInterfaceFormation on actual source/complete-contract formation; original operator/phase/hole/world and primitive validity, authentic SpecCall, exact O1 and complete C0 remain genuine. Foreign interpretations retain their maps |
 | Emitted ATTACH/LIC_FORWARD | Original source/annotation/provider license rule | Its actual original attachment/license derivation | Project; preserve its indices | Constructor agreement, not arbitrary fact fields |
 | All-license inversion | Independent exhaustive license interpretation | Complete last-rule inventory and elimination principle | Induct on actual license derivation | Must cover every licensed arm, including extras; cannot be defined away |
 | Complete PROFILE | Original signature/profile formation | Complete incidence inventory with original policies | Lookup and transport entries | Exhaustive coverage and legality; not just one local slot |
@@ -398,9 +398,28 @@ complete original Call operation, under independent complete C0. Its evidence
 fiber retains both callee and receiver stages and the entire original arm
 interface, which may be opaque. No arbitrary relation coercion or per-arm
 contribution inverse is scheduled. `OwnedInvocation` follows by the proved
-local routing/accounting cases only after genuine SourceInterfaceFormation_e.
-That supplier, independent semantic interpretation and active-consumer laws
-remain; its fields are not made true by adopting the conditional constructors.
+local routing/accounting cases using the complete source diagram. The later
+[source-interface definition](2026-10-08-call-source-interface-definition.md)
+and [Theorem IF](../theory/2026-10-08-call-source-interface-construction.md)
+now construct that diagram at source/operator and declaration/reference
+formation. This extends the selected incoming structural SrcFrame+ result;
+primitive meaning, license/admission, phase/dispatch and contextual hole/world
+contracts remain independent. IF removes the separate full-placement premise,
+not the semantic truth of those original inputs or active-consumer laws.
+
+**Original input realization.** The
+[contextual Function definition](2026-10-08-contextual-function-membership-definition.md)
+and [input theorem](../theory/2026-10-08-call-semantic-input-realization.md)
+construct original Name/Return/whole Name Delay and the same-provider input
+consequence from hereditary binding inputs, same-value checking and independent
+complete challenge formation. No additional raw ViewInlet premise is required.
+All actual receiver developments at checked F follow from that same Function
+membership. The remaining full C0 work includes actual source-result checking,
+new closure introduction, general effectful code and every independent complete
+primitive/world/abstraction contract. The two original constructor packages
+are independently reviewed and selected; they neither close F1/F2 wholesale
+nor provide exhaustive descriptor/model realization. See their
+[review and cutover account](../progress/2026-10-08-call-interface-admission-review.md).
 
 The remainder of this section records the pre-adoption audit and its decision
 boundary. Its former missing-definition/unadopted wording is historical for

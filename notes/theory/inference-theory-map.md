@@ -1,6 +1,6 @@
 # Yulang inference theory map
 
-Date: 2026-10-07
+Date: 2026-10-08
 Status: research navigation; scope and review labels come from the linked sources
 Current task: [complete SCC-intrusion successor](../../tasks/current.md)
 Canonical inventory: [successor proof-obligation DAG](successor-proof-obligations.md)
@@ -45,9 +45,12 @@ now supplies C1-Call with exact full evidence fibers under authentic SpecCall_e
 and independently complete C0. C-Inv remains receiver-only; C-Call retains the
 callee prefix, independent whole argument and complete original alternative
 interface. The local source-routing/accounting induction proves fixed-witness
-full-family J0 conditional on genuine SourceInterfaceFormation_e. That original
-source/declaration supplier, independent semantic input realization and active
-consumer/fixed-kernel laws remain; no aggregate status or cutover changes.
+full-family J0 conditional on its original independent inputs. The later
+[selected source-interface construction](2026-10-08-call-source-interface-construction.md)
+now supplies SourceInterfaceFormation on the actual source/complete-contract
+route, including every original declaration and actual reference use. Complete
+C0, operator/phase/dispatch/hole/world and primitive validity, plus applicable
+active-consumer/fixed-kernel laws, remain; no aggregate status or cutover changes.
 
 The selected finite structural completion in that proof §12 now constructs
 dependent operand/Bind/carrier/return/future source placements on its acyclic
@@ -55,7 +58,11 @@ Data/Code/telescope grammar. Both independent reviews pass. It keeps the
 whole-carrier hole universal and `qa` as its diagonal section. Complete
 operator typing/actions, provider dispatch/phase incidences, contextual world
 binding and all opaque declaration insertion/foreign-root-use maps remain
-independent; the full SourceInterfaceFormation supplier and J0 are still open.
+independent at that checkpoint. The later
+[contextual source-interface definition](../design/2026-10-08-call-source-interface-definition.md)
+extends those same acyclic structural cases with declaration/root-use formation
+and a separately proved finite graph extension. It supplies contextual
+placement, not the truth of those original semantic contracts.
 
 ## Read this map
 
@@ -64,9 +71,15 @@ also completely supplies the static source tree on its finite acyclic resolved
 envelope, including the nested source. Its independent fragment proves
 same-branch Name/Return inversion, full constant-delay soundness and the
 actual-provider/live-world input consequence. Use those completed cases
-directly. Realizing the fragment's persistent world/telescope and inlet
-action in the original semantics and proving complete Call phase safety
-remain genuine C0 work; the fragment is not a selected production meaning.
+directly. The later [original input realization](2026-10-08-call-semantic-input-realization.md)
+under [contextual Function membership](../design/2026-10-08-contextual-function-membership-definition.md)
+constructs the original telescope from hereditary binding inputs, proves
+Name/Return/whole Name Delay, and derives same-provider/current-world argument
+acceptance without raw ViewInlet. Its receiver theorem uses that same complete
+Function contract. Exhaustive semantic model/primitive realization, complete
+source-result/closure introduction, general effectful code and full C0 remain.
+Both new constructions passed independent math/spec reviews; see the
+[integration record](../progress/2026-10-08-call-interface-admission-review.md).
 
 Use the canonical DAG for exact statuses, premises, minimum remaining lemmas,
 dependency order, downstream use and production relevance. This map locates

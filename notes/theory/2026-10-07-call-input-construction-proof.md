@@ -25,6 +25,17 @@ shared navigation integration, now recorded in the
 [completion review](../progress/2026-10-07-source-constructor-completion-review.md#7-completed-source-inputs-and-actual-return-consequence).
 That synchronization does not claim that the full compiler gate is complete.
 
+**Later original input interpretation selected (2026-10-08).** The
+[contextual membership definition](../design/2026-10-08-contextual-function-membership-definition.md)
+selects the missing original immutable world, Return/carrier and same-provider
+Function cases. Its [reviewed realization](2026-10-08-call-semantic-input-realization.md)
+constructs the telescope from hereditary binding inputs, proves the full Name
+Delay and actual CalRet membership, and obtains actual-U argument acceptance
+without this note's additional raw ViewInlet premise. The original independent
+context and semantic input requirements remain. This does not adopt §5.4 as
+a mandatory production rule or supply full C0, arbitrary descriptor/model
+realization, newly constructed closure introduction or foreign-kernel equality.
+
 ## 1. Result and precise boundary
 
 This packet constructs a **typed source input object**, including its Name,

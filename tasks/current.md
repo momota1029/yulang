@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: original O0, paired seeded O1 and authentic complete-Call constructors supplied; genuine semantic/source-interface and production gates remain
+Status: selected O0/O1/C1, complete contextual source-interface construction and same-provider Call input realization; genuine semantic/production gates remain
 
 ## Objective and canonical obligation ledger
 
@@ -135,73 +135,89 @@ ORIGINAL_ASSOC and canonical ninety-node status/dependency inventory are unchang
 
 The [selected complete Call definition](../notes/design/2026-10-07-complete-call-contribution-definition.md)
 and [reviewed constructor proof](../notes/theory/2026-10-07-owned-call-contribution-construction.md)
-form C-Call from the authentic original operation, including callee evaluation,
-the independent whole carrier, actual receiver, result/future interfaces and
-all original alternatives. Under independent complete C0, C1-Call gives a
-fixed original contribution and exact evidence-fiber embedding before Pi.
-Receiver-only C-Inv stays distinct. No additional per-primitive inverse or
-source execution of Option 2 extras is required for this retained contract.
+form C-Call from the authentic whole operation. Independent complete C0 yields
+C1's exact evidence-fiber correspondence before Pi. The receiver-only C-Inv
+remains distinct; all original callee, whole-carrier, receiver, return/future
+and abstract alternatives remain.
 
-The same proof supplies structural/abstract source-routing induction and one
-fixed joint accounting witness before arbitrary family members, conditional
-on genuine `SourceInterfaceFormation_e`. That supplier must construct the
-complete source frame and each original declaration/root/use placement,
-including licenses and introduced-provider/future maps. O0/O1/C0 do not
-create it. This is the remaining source-incidence bottleneck, not another
-missing Contrib wrapper. Both mathematical and specification reviews pass;
-unconditional J0, fixed-kernel comparison and active-consumer preservation
-remain outside the result.
+Remote `3797bce` independently selected the finite acyclic structural SrcFrame+
+completion in that proof §12. Its reviewed operands, Bind, latent carrier and
+return/future maps are preserved. The later
+[source-interface definition](../notes/design/2026-10-08-call-source-interface-definition.md)
+and [Theorem IF](../notes/theory/2026-10-08-call-source-interface-construction.md)
+now generate all four old SourceInterfaceFormation outputs at actual
+source/operator and declaration/reference formation. IF-Insert and IF-Use
+retain complete original clause and actual root-use interfaces, including
+opaque/parameterized Option 2 arms, without a source execution anchor.
+Finite monomorphic graph registration also constructs static cycles without
+unfolding; it proves no recursive semantic validity.
+
+This removes the independent source-placement supplier on that constructor
+route. Genuine operator typing/witness actions, actual-provider phase/dispatch,
+contextual hole/world binding, complete primitive license/provider/future and
+admission contracts remain inputs. A slot does not prove their validity.
+With those inputs, authentic SpecCall, exact seeded O1 and complete C0,
+J-Owned constructs fixed c/a before every z in the unchanged full family.
+Foreign-kernel and active-consumer laws remain where needed.
+
+### Current original semantic Call inputs
+
+The [contextual Function membership definition](../notes/design/2026-10-08-contextual-function-membership-definition.md)
+and [reviewed realization](../notes/theory/2026-10-08-call-semantic-input-realization.md)
+complete the original Name/Return/Delay input route. Function membership means
+that the same actual provider realizes the independent complete contract.
+Original hereditary binding inputs construct the persistent telescope; actual
+Name inversion yields membership at the retained CalRet event; Name Delay
+satisfies both inert and universal execution obligations. Same-value VIncl and
+independent checked-challenge assembly then yield acceptance of that exact
+argument at the exact returned U/current C1/w1, without an extra ViewInlet,
+invocation-output-typing or complete-C0 premise.
+
+The receiver theorem types all actual receiver observations and admitted
+pending/resume/future developments at checked F using that same membership.
+It preserves actual entry, one receipt, ordered suffixes and live current
+state. This is elimination of the supplied callable's semantic contract;
+newly constructing a closure's membership remains an introduction proof.
+The broad independent context/carrier domain, divergence and original Option 2
+alternatives are retained. The old raw ViewInlet sufficient fragment is not
+imposed as a necessary source rule.
+
+Both new proofs and their exact definitions passed independent mathematical
+and specification reviews. A narrow mathematical delta revalidated IF against
+the incoming `3797bce` completion. See the
+[review/integration record](../notes/progress/2026-10-08-call-interface-admission-review.md).
+The input theorem was already checkpointed and pushed at `375d21e`; shared
+selection and navigation are the second integration phase. There is no new
+user-decision blocker for these adopted missing definitions.
 
 ### Immediate work order
 
-The selected finite structural source-frame completion in the complete Call
-proof §12 now derives dependent operand, Bind, latent carrier/capture and
-return/future maps by simultaneous constructor induction, with exact erasure
-and lawful whole-map naturality. Independent compiler-referee and spec-auditor
-reviews pass at SHA-256
-`47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
-The full carrier is an open hole; the source `qa` is only its diagonal section.
-This is a selected static constructor completion under the existing source
-direction. Actual operator typing/actions, contextual hole/world binding,
-provider dispatch/phase incidences and every original opaque declaration
-insertion/foreign-root-use map remain independent. C0, J0, licensing,
-active-consumer and production gates are not closed by static placements.
-The next source-interface attack is on those original declaration/dispatch
-suppliers, using the completed structural maps rather than reconstructing them.
+1. Consume O0, paired O1, C1, IF and the original same-provider input result
+   directly on their stated source/complete-contract envelopes. Retain the
+   original typed derivations and joint scopes. Do not schedule separate
+   owner recovery, per-arm contribution inversion, full source-placement
+   reconstruction or the old raw ViewInlet supplier again.
+2. Complete the genuine semantic Call inputs: actual result checking and
+   complete closure introduction; general effectful code; lawful original
+   operator/phase/dispatch and contextual world actions; every independent
+   whole-Call primitive/abstract arm with its provider/future/admission laws.
+   Full C0, exhaustive descriptor/model realization and applicable
+   active-consumer preservation remain. IF and contextual membership do not
+   prove unspecified primitive laws or inhabited arbitrary worlds.
+3. Construct other natural source/profile/license cases and prove the retained
+   F1–F4 families by shared constructor, transition, source-derivation and phase
+   cases. Complete joint ROWS, generalization/instantiation/hygiene, recursion,
+   methods, actual export and publication remain required at their real owners.
+4. Before using the alternate smaller cutover route, establish all retained
+   consumer replacements, including the five ALL_WORLD consumers and every
+   required actual-export refinement. Keep stronger research theorems and
+   Authority-required completed-contract principality, all compatible contexts
+   and both complete Option 2 inclusions intact.
 
-The independently reviewed [Call-input construction](../notes/theory/2026-10-07-call-input-construction-proof.md)
-is published at `f981c63`. It completely constructs the finite acyclic resolved
-source input tree and exact nested term (Theorem S). In its independently
-defined semantic fragment, Name/Return inversion and full constant-delay
-soundness yield actual-U argument acceptance at the same CalRet provider/live
-world (Lemma N/Theorem I). Original-family realization of the persistent
-telescope and checked-view inlet action, plus general complete Call phase
-preservation, remain genuine C0 inputs. The fragment is not adopted as a new
-production membership rule. Its static source cases need no further
-reconstruction from Name/Apply IDs.
-
-1. Use O0-selected and O1-static directly on their stated emitted-record/seed
-   envelope. Retain their actual source, registration/capture, scope and
-   shared-`xi` derivations. Do not reschedule local root/occurrence/owner
-   introduction or transport, turn kappa into a complete source image, or
-   expand these proofs to all-source generation and general seed eligibility.
-2. Use the completed static Call-input constructors and fragment consequence;
-   establish their original semantic realization and the full Call phase
-   laws, with complete production descriptor/member/admission clauses.
-   C0 and complete original source-interface formation may progress
-   independently; preserve same-provider/world and original scopes.
-3. Supply the authentic complete source/arm declaration interfaces and prove
-   their local source placements; then use C-Call and J-Owned directly.
-   Construct other staged canonical evidence and prove the four families by their
-   shared constructor, transition and source-derivation cases. Retained owner,
-   license and profile-entry lookup become local projections only after their
-   original introduction. Joint ROWS and exhaustive licensing do not disappear.
-4. Before using a smaller cutover route, prove its consumer replacements,
-   including all five ALL_WORLD consumers and every legal actual-export result
-   refinement. Keep the existing stronger conditional theorem statements.
-
-No production semantics, source forms, test expectations or compiler routing
-are changed. No production cutover is requested or authorized by this audit.
+The canonical DAG remains 90 nodes / 196 edges, with status counts
+7 / 20 / 43 / 19 / 1. This integration changes navigation and remaining-clause
+text only, not statuses, prerequisites, original predicates or production
+relevance. No source restriction, production semantics or cutover is introduced.
 
 ## Preserved earlier proof-attack history
 

@@ -26,6 +26,27 @@ A = safety/correctness; B = natural inference; C = stronger characterization; D 
 
 ## Exact coverage
 
+**Reviewed construction update (2026-10-08).** The tables below retain their
+audit-baseline classifications and the machine snapshot remains unchanged.
+The [source-interface constructor proof](../theory/2026-10-08-call-source-interface-construction.md)
+now supplies complete structural/abstract declaration-root-use placement from
+actual source/complete-contract formation. The
+[original input realization](../theory/2026-10-08-call-semantic-input-realization.md)
+proves Name/Return/full Name Delay and same-U/current-world argument acceptance
+without a separate raw ViewInlet premise. Both have selected definitions and
+independent math/spec review recorded in
+[the integration account](2026-10-08-call-interface-admission-review.md).
+
+This is concrete A/B constructor work with prospective D recovery removed:
+IF-Insert/IF-Use and the source constructor induction own the placements;
+Function membership owns same-provider admission/behavior; environment
+constructors assemble hereditary binding inputs. Original primitive license,
+admission and operator/world validity remain A/B semantic inputs. Full C0,
+exhaustive profiles/ROWS and the four whole theorem families are not closed.
+No C-class dependency is removed and no canonical classification/status is
+promoted by this update. The updated responsibility map and handoff govern
+future scheduling; do not re-attack the discharged local suppliers.
+
 | Original status | Audited nodes |
 | --- | ---: |
 | OPEN-PROOF | 43 |
