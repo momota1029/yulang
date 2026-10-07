@@ -589,6 +589,57 @@ No real same-X licensing counterexample or competing complete-semantics
 witness was found. The remaining clause is research-side OPEN-SEMANTIC,
 not BLOCKED-BY-USER-DECISION.
 
+### Round-5 source-producer and proof-economy continuation
+
+The compiler-referee-reviewed [C-realization specialization](../notes/progress/2026-10-07-original-association-constructive-round5.md)
+confirms that specializing §3.5 transports an already supplied source-member
+witness and retains the independently interpreted owner/view kernel, decorated
+source and primitive witness. Even conditionally granting complete Call typing
+and typed `p0`, it produces no original inhabitant. `ORIGINAL_ASSOC` remains
+OPEN-SEMANTIC.
+
+The compiler-referee-reviewed [ordered-suffix representation attack](../notes/progress/2026-10-07-original-association-adversarial-round5.md)
+retains source/static identity records and original witness tokens while
+mutating the candidate's ordered continuation interpretation. It is a
+conditional representation discriminator, not a Yulang source counterexample
+or a claim that source order is not already available. The compiler-referee
+found no findings.
+
+The [current producer chronology](../notes/progress/2026-10-07-original-association-current-producer-crosswalk-round1.md)
+was reviewed by a regression auditor; its one missing `shadow-f5` feature
+premise was repaired and the delta review found no further findings. For the
+exact approved nested source, HIR retains a cold local source carrier and the
+solver retains one unresolved Apply row, but the ordinary Lambda still receives
+an Error body. The sidecar scan adds no occurrence facts, Lambda recipe or
+definition-use dependency; solving moves the row unchanged. This locates the
+semantic producer boundary and does not show an already-produced fact later
+discarded.
+
+The compiler-referee-reviewed [open-import incidence attack](../notes/progress/2026-10-07-world-open-import-action-round1.md)
+shows conditionally that a closed-identity substitution cannot transport a
+hole-dependent occurrence when it coincides with a rigid occurrence. This is a
+representation obstruction, not an admitted-source counterexample; the
+importer incidence action and scalar world installation remain open.
+
+Following the new [proof-obligation-economy rule](../rules/compiler-engineering.md#natural-compiler-behavior-and-proof-obligation-economy),
+the design-debt audit classifies O0/O1/C0 as safety and natural-inference
+construction obligations. C1/J0 also retain stronger characterization
+requirements because the approved cutover contract explicitly requires the
+complete contribution and family coverage. Later recovery of typed
+correspondence or incidence may be reconstruction debt, but the inspected
+current path does not show those semantic facts were first produced and then
+discarded. The current structural carrier is therefore insufficient to turn
+these missing introductions into D-only bookkeeping.
+
+Do not launch another equivalent proof variant. The next task is to draft and
+independently review one source-directed original-introduction contract at
+typed source generation, evaluating a retained canonical derivation/map as
+evidence transport. It must retain original witnesses and all same-`X,xi`
+obligations. Drafting does not authorize implementation; any new slot,
+contribution or architecture meaning still needs the required review and user
+approval. Soundness, principality, source adequacy and production-conformance
+cutover gates remain intact.
+
 ## Priority frontier: recursive/generalized source
 
 K removes the opaque runtime provider graph. FH permits finite-history
