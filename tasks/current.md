@@ -393,14 +393,15 @@ admitted-source counterexample was established.
   specialization obligation, preserving the original quantifiers and binder
   incidence. No admitted-source counterexample was found.
 
-The proposal to add more captured-source lifecycle assertions was discarded
-after inspection showed the committed
-[`shadow_captured_source_retention.rs`](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
-already checks the same artifact identity through HIR, collection and solve,
-all seven pending premises, and foreign-root rejection. No duplicate code or
-semantic stub was added. The canonical DAG validator passes at 90 nodes / 196
-edges; only the `ALL_VIEW` exact construction locator was refined, with all
-statuses and dependencies preserved.
+Earlier duplicate lifecycle assertions were dropped because the captured
+artifact identity, seven pending premises, and foreign-root rejection were
+already covered. A separate reviewed crosswalk now joins the exact pending
+Apply's enclosing root to its current finalized scheme/component under the
+existing SCC observer. The fixture has no operand SCC-use route and keeps
+`SuccessorGeneralizationRuleUnresolved`; this does not establish an operand
+freshening path or a local `step` scheme. Both feature configurations pass one
+focused test. The canonical DAG remains 90 nodes / 196 edges with unchanged
+statuses and dependencies.
 
 ## Priority frontier: complete original source contribution
 
@@ -1163,6 +1164,9 @@ boundary and identity plumbing, not successor/current-infer semantic parity.
 The reviewed [captured-source lifecycle slice](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
 first carried the exact approved `apply/step` `ShadowArtifact` through opt-in
 HIR collection and solver finish while preserving production refusal. The next
+[Call-to-current-scheme crosswalk](../notes/progress/2026-10-07-shadow-call-current-scheme-boundary.md)
+joins the pending Apply's enclosing root to its current finalized SCC scheme,
+but proves no operand use/freshening or local `step` scheme. The
 [local-binding identity slice](../notes/progress/2026-10-09-shadow-local-binding-source-identity.md)
 adds a cold `HirLocalId`, its local parameter owner, return-use occurrence and
 the inner `f x` Apply to the shadow HIR sidecar; under `shadow-f5`, exactly one

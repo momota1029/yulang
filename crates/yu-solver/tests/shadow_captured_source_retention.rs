@@ -586,8 +586,56 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
         batch.hir().shadow_local_binding(root).unwrap().unwrap() as *const _,
         sidecar
     );
+    #[cfg(feature = "shadow-scc-observer")]
+    let collected = batch.clone();
     let solved = SolvedModule::solve(batch).unwrap();
     assert_row(solved.pending_applications());
+    let retained_root = solved.pending_applications()[0]
+        .enclosing_root
+        .as_ref()
+        .unwrap();
+    let current_scheme = solved
+        .shadow_closed_schemes()
+        .for_root(retained_root)
+        .unwrap();
+    assert_eq!(retained_root, root);
+    assert_eq!(current_scheme.owner(), retained_root);
+    assert!(current_scheme.same_identity(solved.shadow_closed_schemes().for_root(root).unwrap()));
+    assert!(!solved.occurrences().contains(callee.occurrence()));
+    assert!(!solved.occurrences().contains(argument.occurrence()));
+    #[cfg(feature = "shadow-scc-observer")]
+    {
+        use yu_solver::shadow_scc::PendingSccGeneralizationPremise;
+
+        let topology = collected.shadow_scc_topology();
+        let definitions = topology.definitions().collect::<Vec<_>>();
+        let [definition] = definitions.as_slice() else {
+            panic!("only the enclosing root is a current SCC member");
+        };
+        let joined = topology
+            .definition_closed_scheme(&solved, *definition)
+            .unwrap();
+        assert_eq!(joined.owner(), retained_root);
+        assert!(joined.same_identity(current_scheme));
+        let component = topology.component_of(*definition).unwrap();
+        let components = topology.components().collect::<Vec<_>>();
+        let [only_component] = components.as_slice() else {
+            panic!("one current SCC component");
+        };
+        assert!(component.same_identity(*only_component));
+        assert!(component.canonical_definition().same_identity(*definition));
+        let generalization = component.pending_successor_generalization();
+        assert!(generalization.component().same_identity(component));
+        assert_eq!(
+            generalization.premise(),
+            PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+        );
+        // Neither Apply operand supplies an SCC dependency usable by the
+        // current use-instantiation/fresh-capture lookup.
+        assert_eq!(component.internal_uses().count(), 0);
+        assert_eq!(component.incoming_uses().count(), 0);
+        assert_eq!(topology.outgoing_uses(component).unwrap().count(), 0);
+    }
     assert!(solved.store().facts().is_empty());
     assert!(Arc::ptr_eq(solved.hir(), &hir));
     assert_eq!(
