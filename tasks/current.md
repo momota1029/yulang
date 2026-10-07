@@ -154,10 +154,13 @@ receiving positions without fabricating `SourceCallUseInput`; empty fresh
 routes remain distinct from absent module uses. It validates the exact HIR
 instance and source artifact even when there are no module uses, rejecting an
 empty HIR where no source identity witness exists. All source typing, admission,
-receiving-export correspondence, successor transport, and other semantic
+and semantic source-to-export correspondence remain unresolved. The borrowed
+observer now also returns the exact same-solve receiving-root `CandidateExport`
+and its scheme; this records the implemented value projection while retaining
+that unresolved correspondence premise. Successor transport and other semantic
 premises remain unresolved; production behavior is unchanged. The focused
-candidate/single-root/multi-root targets passed 15/2/3, and regression review
-passed after two ownership-coverage repairs. This advances executable
+candidate/single-root/multi-root targets passed 15/2/3, and both regression
+reviews passed after two ownership-coverage repairs. This advances executable
 `HIR_WIRING` only; no DAG node status changed.
 
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21

@@ -445,6 +445,20 @@ fn module_names_join_target_fresh_rows_and_receiving_schemes_without_calls() {
                 .same_identity(observation.receiving_scheme())
         );
         assert_eq!(observation.unresolved(), UNRESOLVED);
+        let export = observation.receiving_export().unwrap();
+        assert!(export.scheme().same_identity(observation.receiving_scheme()));
+        assert_eq!(
+            export.scheme().owner(),
+            observation.receiving_scheme().owner()
+        );
+        assert_eq!(export.unresolved, UNRESOLVED);
+        assert_eq!(export.value, SolvedValue::Unknown);
+        assert!(export.unresolved.contains(
+            &yu_solver::shadow_apply::UnresolvedPremise::ModuleNameSourceTypingAndAdmission
+        ));
+        assert!(export.unresolved.contains(
+            &yu_solver::shadow_apply::UnresolvedPremise::ModuleUseReceivingExportCorrespondence
+        ));
         assert!(matches!(
             observation.target_scheme().current_generalization_origins(),
             GeneralizationOriginState::Captured(_)
@@ -503,7 +517,15 @@ fn module_names_join_target_fresh_rows_and_receiving_schemes_without_calls() {
         }
     }
     let foreign = CandidateValueObservation::solve(hir.clone()).unwrap();
-    assert!(!first.same_identity(foreign.definition_use(first.occurrence()).unwrap()));
+    let foreign_use = foreign.definition_use(first.occurrence()).unwrap();
+    assert!(!first.same_identity(foreign_use));
+    assert!(
+        !first
+            .receiving_export()
+            .unwrap()
+            .scheme()
+            .same_identity(foreign_use.receiving_export().unwrap().scheme())
+    );
     let foreign_hir = module(text, true);
     assert!(CandidateSourceModuleUses::new(&source, &foreign_hir, &candidate).is_err());
 }
@@ -520,6 +542,11 @@ fn empty_module_fresh_route_differs_from_no_module_use() {
     };
     assert_eq!(route.bindings().count(), 0);
     assert!(candidate.fresh_rows(use_.occurrence()).unwrap().is_empty());
+    let export = use_.receiving_export().unwrap();
+    assert!(export.scheme().same_identity(use_.receiving_scheme()));
+    assert_eq!(export.scheme().owner(), root(&hir, 1));
+    assert_eq!(export.value, SolvedValue::Int);
+    assert_eq!(export.unresolved, UNRESOLVED);
     let HirItem::Binding(binding) = &hir.items()[0] else {
         panic!("binding")
     };

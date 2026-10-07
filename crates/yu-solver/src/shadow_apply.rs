@@ -73,7 +73,11 @@ pub struct CandidateExport<'a> {
     pub value: SolvedValue,
     scheme: crate::shadow_f5::ClosedSchemeRef<'a>,
 }
-impl CandidateExport<'_> {
+impl<'a> CandidateExport<'a> {
+    /// Exact borrowed scheme behind this candidate value observation.
+    pub fn scheme(&self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
+        self.scheme
+    }
     /// Whole four-port observation under the named unresolved effect model.
     pub fn endpoints(&self) -> yu_types::ClosedValueSchemeView<'_> {
         self.scheme.endpoints()
@@ -106,6 +110,11 @@ impl<'a> CandidateDefinitionUseRef<'a> {
     }
     pub fn receiving_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'a> {
         self.receiving
+    }
+    /// Actual receiving-root candidate observation from this same solve.
+    /// This does not establish semantic source typing or export transport.
+    pub fn receiving_export(self) -> Result<CandidateExport<'a>, ArtifactMismatch> {
+        self.observation.export(&self.retained.receiving_root)
     }
     pub fn fresh_instantiation(self) -> crate::shadow_f5::FreshCaptureState<'a> {
         self.target.fresh_capture(
