@@ -190,6 +190,23 @@ local generalization, source typing/admission, capture/evidence transport,
 successor correspondence and publisher behavior remain open. This advances
 `HIR_WIRING` only and changes no DAG status.
 
+The opt-in local-binding constructor and source crosswalk now select one exact
+captured root in a multi-definition module and match its retained local Apply
+by occurrence while leaving other module calls intact. A two-use fixture checks
+that both uses share the target scheme, their fresh-row inventories are
+pairwise disjoint and complete, and the source binder correlation survives
+within each whole-scheme route. A duplicate/unsupported/foreign-artifact
+fixture verifies fail-closed selection. The fixture also compares ordinary
+collection/solve diagnostics, facts, provenance, counters, values and schemes
+around candidate execution. These are identity and solver-observation checks,
+not semantic typing evidence: all candidate premises remain `UNRESOLVED`.
+Compiler review found a minor fresh-row coverage gap; regression review noted
+missing multi-binding noninterference evidence. Both were closed with test-only
+assertions, and the focused targets passed 19/19 and 3/3. No DAG closure or
+semantic status changed. Broader local Bind forms, typing/admission, capture
+and evidence transport, successor correspondence and publisher behavior remain
+open.
+
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY. No status changed in this shadow slice.

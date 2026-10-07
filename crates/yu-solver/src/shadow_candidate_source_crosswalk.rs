@@ -200,13 +200,20 @@ impl<'a> CandidateSourceCrosswalk<'a> {
         root: &DefinitionRootId,
     ) -> Result<Self, CrosswalkError> {
         let missing = || CrosswalkError::MissingExactSourceIncidence;
-        let [HirItem::Binding(binding)] = hir.items() else {
-            return Err(missing());
-        };
-        if binding.definition_root() != root {
-            return Err(missing());
-        }
-        let skeleton = source.skeleton().map_err(|_| missing())?;
+        let binding = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Binding(binding) if binding.definition_root() == root => Some(binding),
+                _ => None,
+            })
+            .ok_or_else(missing)?;
+        let declaration = source
+            .definition_source_position(hir, root)
+            .map_err(CrosswalkError::Source)?;
+        let skeleton = source
+            .declaration_skeleton(&declaration)
+            .map_err(|_| missing())?;
         let input = skeleton.captured_call_input().ok_or_else(missing)?;
         let local = hir
             .shadow_local_binding(root)
@@ -235,9 +242,16 @@ impl<'a> CandidateSourceCrosswalk<'a> {
         else {
             return Err(missing());
         };
-        let [call] = candidate.calls() else {
+        // This captured crosswalk observes only the exact retained local Apply.
+        // Other module calls have no source-call carrier through this path.
+        let mut matching = candidate
+            .calls()
+            .iter()
+            .filter(|call| &call.occurrence == occurrence);
+        let call = matching.next().ok_or_else(missing)?;
+        if matching.next().is_some() {
             return Err(missing());
-        };
+        }
         if &call.occurrence != occurrence
             || &call.callee != callee.occurrence()
             || &call.argument != argument.occurrence()

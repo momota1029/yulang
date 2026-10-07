@@ -40,12 +40,27 @@ pub fn lower_module_with_captured_source(
     imports: SemanticImports,
     artifact: Arc<ShadowArtifact>,
 ) -> Result<HirModule, HirAvailabilityError> {
-    let mut hir = lower_module_with_source_identity(identity, parsed, imports)?;
+    let mut hir = lower_module_with_shadow_applications(identity, parsed, imports)?;
     let invalid = || HirAvailabilityError::StructuralProjection;
-    let [crate::HirItem::Binding(binding)] = hir.items() else {
-        return Err(invalid());
-    };
-    let skeleton = artifact.skeleton().map_err(|_| invalid())?;
+    let mut selected = None;
+    for item in hir.items() {
+        let crate::HirItem::Binding(binding) = item else {
+            return Err(invalid());
+        };
+        let declaration = artifact
+            .definition_source_position(&hir, binding.definition_root())
+            .map_err(|_| invalid())?;
+        let Ok(skeleton) = artifact.declaration_skeleton(&declaration) else {
+            continue;
+        };
+        if skeleton.captured_call_input().is_some() {
+            if selected.is_some() {
+                return Err(invalid());
+            }
+            selected = Some((binding, skeleton));
+        }
+    }
+    let (binding, skeleton) = selected.ok_or_else(invalid)?;
     let input = skeleton.captured_call_input().ok_or_else(invalid)?;
     let root = skeleton
         .expression(skeleton.body())

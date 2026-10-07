@@ -2324,11 +2324,22 @@ pub(crate) fn retain_shadow_local_binding(
 ) -> Result<HirModule, HirAvailabilityError> {
     use crate::shadow::Form;
     let invalid = || HirAvailabilityError::StructuralProjection;
-    let skeleton = artifact.skeleton().map_err(|_| invalid())?;
+    let (root, _) = hir.captured_source.as_ref().ok_or_else(invalid)?;
+    let binding = hir
+        .items
+        .iter()
+        .find_map(|item| match item {
+            HirItem::Binding(binding) if binding.definition_root() == root => Some(binding),
+            _ => None,
+        })
+        .ok_or_else(invalid)?;
+    let declaration = artifact
+        .definition_source_position(&hir, root)
+        .map_err(|_| invalid())?;
+    let skeleton = artifact
+        .declaration_skeleton(&declaration)
+        .map_err(|_| invalid())?;
     let input = skeleton.captured_call_input().ok_or_else(invalid)?;
-    let HirItem::Binding(binding) = &hir.items[0] else {
-        return Err(invalid());
-    };
     let ResolvedExpr::Lambda {
         parameter: outer,
         body: old_body,

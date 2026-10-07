@@ -333,9 +333,8 @@ fn captured_local_function_returns_value_and_retains_outer_parameter() {
             Arc::new(scan_header(source)),
             Arc::new(SyntaxEnvironment::empty()),
         );
-        let artifact = Arc::new(
-            yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap(),
-        );
+        let artifact =
+            Arc::new(yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap());
         assert!(matches!(
             yu_hir::shadow::lower_module_with_shadow_local_binding(
                 ModuleIdentity::source_root(FileId::new(FileKey::new(
@@ -1014,4 +1013,298 @@ fn captured_local_crosswalk_borrows_exact_source_and_candidate_identities() {
         let adjacent = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
         assert!(CandidateSourceCrosswalk::new(&adjacent, &hir, &candidate, root(&hir, 0)).is_err());
     }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn captured_local_two_module_uses_keep_independent_routes() {
+    use source_crosswalk::CandidateSourceCrosswalk;
+    use source_crosswalk::CandidateSourceModuleUses;
+    use yu_hir::shadow::{ShadowArtifact, lower_module_with_shadow_local_binding};
+    use yu_solver::shadow_f5::FreshCaptureState;
+    use yu_types::{NegativeValueView, PositiveValueView};
+    let text: Arc<SourceText> = Arc::from(
+        "my id x = x; my apply f = { my step x = f x; step }; my left = apply id; my right = apply id; pub n = left 1; pub k = right id",
+    );
+    let parsed = parse_file(
+        text.clone(),
+        Arc::new(scan_header(text.clone())),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let source = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = Arc::new(
+        lower_module_with_shadow_local_binding(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "candidate",
+                "captured-multiuse.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+            source.clone(),
+        )
+        .unwrap(),
+    );
+    assert!(hir.shadow_local_binding(root(&hir, 0)).unwrap().is_none());
+    let before = SolvedModule::solve(ConstraintBatch::collect(hir.clone()).unwrap()).unwrap();
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(
+        candidate.export(root(&hir, 4)).unwrap().value,
+        SolvedValue::Int
+    );
+    let k = candidate.export(root(&hir, 5)).unwrap();
+    let scheme = k.endpoints();
+    assert!(matches!(
+        scheme.positive_value(scheme.predicate()).unwrap(),
+        PositiveValueView::Function { .. }
+    ));
+    assert_eq!(k.unresolved, UNRESOLVED);
+    let ordinary_hir = module(&text, false);
+    let ordinary =
+        SolvedModule::solve(ConstraintBatch::collect(ordinary_hir.clone()).unwrap()).unwrap();
+    assert_eq!(ordinary_hir.diagnostics(), hir.diagnostics());
+    assert_ne!(
+        candidate.export(root(&hir, 4)).unwrap().value,
+        ordinary.root_value_for(root(&ordinary_hir, 4)).unwrap(),
+        "keep the candidate/current-inference client delta explicit and unresolved"
+    );
+    assert!(
+        !candidate
+            .export(root(&hir, 1))
+            .unwrap()
+            .endpoints()
+            .alpha_eq(
+                ordinary
+                    .shadow_closed_schemes()
+                    .for_root(root(&ordinary_hir, 1))
+                    .unwrap()
+                    .endpoints()
+            ),
+        "retain the known local-Bind candidate/current-inference scheme delta"
+    );
+    let selected = CandidateSourceCrosswalk::new(&source, &hir, &candidate, root(&hir, 1)).unwrap();
+    assert_eq!(selected.calls().count(), 1);
+    assert_eq!(candidate.calls().len(), 5);
+    let uses = CandidateSourceModuleUses::new(&source, &hir, &candidate).unwrap();
+    let routes: Vec<_> = uses
+        .uses()
+        .iter()
+        .filter(|use_| use_.observation().target_scheme().owner() == root(&hir, 1))
+        .collect();
+    assert_eq!(routes.len(), 2);
+    let first = routes[0].observation();
+    let second = routes[1].observation();
+    assert!(!first.same_identity(second));
+    assert!(first.target_scheme().same_identity(second.target_scheme()));
+    let FreshCaptureState::Captured(a) = first.fresh_instantiation() else {
+        panic!("first fresh route")
+    };
+    let FreshCaptureState::Captured(b) = second.fresh_instantiation() else {
+        panic!("second fresh route")
+    };
+    let a_rows: Vec<_> = a.bindings().collect();
+    let b_rows: Vec<_> = b.bindings().collect();
+    assert!(!a_rows.is_empty());
+    assert_eq!(a_rows.len(), b_rows.len());
+    for (_, a) in &a_rows {
+        for (_, b) in &b_rows {
+            assert!(!a.same_identity(*b));
+        }
+    }
+    let target = first.target_scheme();
+    let expected: std::collections::BTreeSet<_> = target
+        .quantifiers()
+        .map(|binder| (false, binder.ordinal()))
+        .chain(
+            target
+                .recursive_binders()
+                .map(|binder| (true, binder.ordinal())),
+        )
+        .collect();
+    for route in [a, b] {
+        assert!(route.scheme().same_identity(target));
+        let inventory: Vec<_> = route
+            .bindings()
+            .map(|(binder, _)| match binder {
+                yu_solver::shadow_f5::FreshBinderRef::Quantified(binder) => {
+                    assert!(binder.scheme().same_identity(target));
+                    (false, binder.ordinal())
+                }
+                yu_solver::shadow_f5::FreshBinderRef::Recursive(binder) => {
+                    assert!(binder.scheme().same_identity(target));
+                    (true, binder.ordinal())
+                }
+            })
+            .collect();
+        assert_eq!(inventory.len(), expected.len());
+        assert_eq!(
+            inventory
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+    }
+    // The shared input/output correlation is preserved by each whole-scheme route.
+    let scheme = first.target_scheme().endpoints();
+    let PositiveValueView::Function {
+        argument: outer,
+        result: returned,
+        ..
+    } = scheme.positive_value(scheme.predicate()).unwrap()
+    else {
+        panic!("outer Function")
+    };
+    let PositiveValueView::Function {
+        argument: input,
+        result: output,
+        ..
+    } = retained_positive_function(scheme, returned)
+    else {
+        panic!("local Function")
+    };
+    let NegativeValueView::Function {
+        argument: captured_input,
+        result: captured_output,
+        ..
+    } = retained_negative_function(scheme, outer)
+    else {
+        panic!("capture Function")
+    };
+    let NegativeValueView::Quantified(input) = scheme.negative_value(input).unwrap() else {
+        panic!("input")
+    };
+    let PositiveValueView::Quantified(captured_input) =
+        scheme.positive_value(captured_input).unwrap()
+    else {
+        panic!("capture input")
+    };
+    let PositiveValueView::Quantified(output) = scheme.positive_value(output).unwrap() else {
+        panic!("output")
+    };
+    let NegativeValueView::Quantified(captured_output) =
+        scheme.negative_value(captured_output).unwrap()
+    else {
+        panic!("capture output")
+    };
+    assert_eq!(input, captured_input);
+    assert_eq!(output, captured_output);
+    assert_ne!(input, output);
+    for observation in [first, second] {
+        assert_eq!(observation.unresolved(), UNRESOLVED);
+        let FreshCaptureState::Captured(route) = observation.fresh_instantiation() else {
+            unreachable!()
+        };
+        assert_eq!(route.bindings().count(), a_rows.len());
+        let row = |ordinal| {
+            route
+                .bindings()
+                .find_map(|(binder, row)| match binder {
+                    yu_solver::shadow_f5::FreshBinderRef::Quantified(binder)
+                        if binder.ordinal() == ordinal =>
+                    {
+                        Some(row)
+                    }
+                    _ => None,
+                })
+                .unwrap()
+        };
+        assert!(row(input.ordinal()).same_identity(row(captured_input.ordinal())));
+        assert!(row(output.ordinal()).same_identity(row(captured_output.ordinal())));
+        assert!(!row(input.ordinal()).same_identity(row(output.ordinal())));
+    }
+    let after = SolvedModule::solve(ConstraintBatch::collect(hir.clone()).unwrap()).unwrap();
+    assert_eq!(before.hir().diagnostics(), after.hir().diagnostics());
+    assert_eq!(before.errors(), after.errors());
+    assert_eq!(
+        before.counters().hir_traversals(),
+        after.counters().hir_traversals()
+    );
+    assert_eq!(
+        before.counters().body_pass_visits(),
+        after.counters().body_pass_visits()
+    );
+    assert_eq!(
+        before.counters().collected_definitions(),
+        after.counters().collected_definitions()
+    );
+    assert_eq!(
+        before.counters().emitted_facts(),
+        after.counters().emitted_facts()
+    );
+    assert_eq!(
+        before.counters().admitted_facts(),
+        after.counters().admitted_facts()
+    );
+    assert_eq!(before.store().provenance(), after.store().provenance());
+    assert_eq!(before.store().facts().len(), after.store().facts().len());
+    for (left, right) in before.store().facts().iter().zip(after.store().facts()) {
+        compare_terms(before.store(), left.lower(), after.store(), right.lower());
+        compare_terms(before.store(), left.upper(), after.store(), right.upper());
+    }
+    for item in hir.items() {
+        let HirItem::Binding(binding) = item else {
+            panic!("binding")
+        };
+        let root = binding.definition_root();
+        assert_eq!(
+            before.root_value_for(root).unwrap(),
+            after.root_value_for(root).unwrap()
+        );
+        assert!(
+            before
+                .shadow_closed_schemes()
+                .for_root(root)
+                .unwrap()
+                .endpoints()
+                .alpha_eq(
+                    after
+                        .shadow_closed_schemes()
+                        .for_root(root)
+                        .unwrap()
+                        .endpoints()
+                )
+        );
+    }
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn captured_multi_binding_selection_rejects_ambiguous_and_foreign_artifacts() {
+    use yu_hir::shadow::{ShadowArtifact, lower_module_with_shadow_local_binding};
+    let parse = |text: &str| {
+        let source: Arc<SourceText> = Arc::from(text);
+        parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        )
+    };
+    for text in [
+        "my id x = x; my apply f = { my step x = f x; step }; my apply f = { my step x = f x; step }",
+        "my id x = x; my apply f = { my step x = f 1; step }",
+    ] {
+        let parsed = parse(text);
+        let source = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+        assert!(
+            lower_module_with_shadow_local_binding(
+                ModuleIdentity::source_root(FileId::new(FileKey::new("candidate", "ambiguous.yu"))),
+                &parsed,
+                SemanticImports::empty(),
+                source,
+            )
+            .is_err()
+        );
+    }
+    let text = "my id x = x; my apply f = { my step x = f x; step }";
+    let parsed = parse(text);
+    let foreign = Arc::new(ShadowArtifact::from_parsed(parse(text)).unwrap());
+    assert!(
+        lower_module_with_shadow_local_binding(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("candidate", "foreign.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+            foreign,
+        )
+        .is_err()
+    );
 }
