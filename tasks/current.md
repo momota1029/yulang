@@ -47,6 +47,25 @@ test change was needed. See
 Next: attack an actual independent original signature-elimination clause at
 the fixed Call; do not spend another round wrapping supplied maps in transport.
 
+### Priority C continuation: nonidentity export
+
+At `b9ffbfc20f1cbd71f2b5deccea6ee8a033d55ceb`, the bounded Name-result union
+route found a sharper ALL_VIEW source leaf. Logical relation-union injection
+preserves a fixed witness, but neither Name/Lambda skeleton nor checking
+introduces a public endpoint whose `DescMem` is that union. The separate
+finite `Le` inclusion and actual whole-Function resolver acceptance at
+`B_common` remain downstream. A returned-Function guarantee-widening route
+likewise needs an original `DescMem` decomposition. No concrete accepted
+nonidentity export or counterexample was found; ALL_VIEW stays OPEN-PROOF and
+PRINCIPAL stays CONDITIONAL-CLOSED. See
+[the nonidentity export attack](../notes/progress/2026-10-07-all-view-nonidentity-export-attack-round1.md).
+Next: attack the original value-union descriptor/checking constructor at the
+returned Name and its consumption by an actual-root resolver.
+Compiler-referee review found and repaired a minor precision overstatement:
+the exact union equation is specific to that candidate, while the general
+inclusion leaf allows independently licensed extra values. The delta review
+passed; status and DAG totals remain unchanged.
+
 The [full-attack review](../notes/progress/2026-10-07-successor-full-attack-review.md)
 records actual proof/review/repair/check results. The
 [theorem dependency map](../notes/theory/inference-theorem-dependencies.md)

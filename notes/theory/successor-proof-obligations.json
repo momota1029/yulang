@@ -1785,7 +1785,8 @@
         "coverage",
         "newglobal",
         "attack4",
-        "resultbridge"
+        "resultbridge",
+        "allviewunion1"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2681,6 +2682,7 @@
     "o0round5": "notes/progress/2026-10-07-original-call-output-introduction-round5.md",
     "o0theoremc6": "notes/progress/2026-10-07-original-call-theorem-c-output-map-round6.md",
     "frontier6": "notes/progress/2026-10-07-successor-frontier-attack-round6.md",
+    "allviewunion1": "notes/progress/2026-10-07-all-view-nonidentity-export-attack-round1.md",
     "producerchronology": "notes/progress/2026-10-07-original-association-current-producer-crosswalk-round1.md",
     "importaction1": "notes/progress/2026-10-07-world-open-import-action-round1.md",
     "aggregate3": "notes/progress/2026-10-07-aggregate-obligation-attack-round3.md",
