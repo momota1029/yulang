@@ -147,8 +147,13 @@ fn validate(old: &Old, sections: &Sections, actions: &[Substitution]) -> bool {
 // Interpretation selects a fixed old witness. Erasure is literally that same
 // witness; the old primitive still ranges over ALL independently supplied
 // alternatives, including those outside the candidate image.
-fn interpret<'a>(old: &Old, sections: &'a Sections, record: &Record) -> Option<&'a Witness> {
-    validate(old, sections, &[])
+fn interpret<'a>(
+    old: &Old,
+    sections: &'a Sections,
+    actions: &[Substitution],
+    record: &Record,
+) -> Option<&'a Witness> {
+    validate(old, sections, actions)
         .then(|| lookup(&sections.occurrence, record))
         .flatten()
 }
@@ -267,9 +272,10 @@ fn coherent_sections_select_existing_witnesses_in_a_finite_instance() {
             .map(|w| (w.clone(), w.clone()))
             .collect(),
     };
-    assert!(validate(&old, &sections, &[identity]));
+    let actions = [identity];
+    assert!(validate(&old, &sections, &actions));
     assert_eq!(
-        interpret(&old, &sections, &old.records[0]),
+        interpret(&old, &sections, &actions, &old.records[0]),
         Some(&old.witnesses[0])
     );
 }
@@ -310,7 +316,10 @@ fn legal_old_involution_can_preclude_any_coherent_candidate_section() {
         let mut choice = sections.clone();
         choice.occurrence[0].1 = witness.clone();
         assert!(validate(&old, &choice, &[]));
-        assert!(!validate(&old, &choice, &[swap_action(&old)]));
+        let action = swap_action(&old);
+        let actions = [action];
+        assert!(!validate(&old, &choice, &actions));
+        assert!(interpret(&old, &choice, &actions, &old.records[0]).is_none());
     }
 }
 
@@ -353,7 +362,7 @@ fn empty_incidence_rejects_extension_and_does_not_generate_free_evidence() {
     let (mut old, sections) = fixture();
     old.witnesses.clear();
     assert!(!validate(&old, &sections, &[]));
-    assert!(interpret(&old, &sections, &old.records[0]).is_none());
+    assert!(interpret(&old, &sections, &[], &old.records[0]).is_none());
     assert!(observations(&old, &old.records[0]).is_empty());
     // Candidate §6 falsifier: changing the independent old fiber would change
     // this active existential primitive. Interpretation never performs this.
@@ -373,7 +382,7 @@ fn erasure_keeps_old_alternatives_outside_candidate_image_and_observations() {
     alternative.observation = 11;
     old.witnesses.push(alternative.clone());
     let before = observations(&old, &old.records[0]);
-    let erased = interpret(&old, &sections, &old.records[0]).unwrap();
+    let erased = interpret(&old, &sections, &[], &old.records[0]).unwrap();
     assert_eq!(erased, &old.witnesses[0]);
     assert_ne!(erased, &alternative);
     assert!(old.witnesses.contains(&alternative));
@@ -388,7 +397,7 @@ fn retained_source_call_omitted_from_supplied_generated_inventory_stays_omitted(
     old.records.clear();
     sections.occurrence.clear();
     assert!(validate(&old, &sections, &[]));
-    assert!(interpret(&old, &sections, &retained).is_none());
+    assert!(interpret(&old, &sections, &[], &retained).is_none());
     assert!(old.records.is_empty());
 }
 
