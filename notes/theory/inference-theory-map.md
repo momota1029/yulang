@@ -15,18 +15,50 @@ are not eliminated by storing certificates. No canonical node, status or
 dependency changes; the consumer-by-consumer alternate cutover argument remains
 to be proved under the preserved Authority.
 
-Latest constructive result: the user approved the
+The adopted occurrence result: the user approved the
 [original Call formation definitions](../design/2026-10-07-original-call-formation-definition.md).
 The [O0-selected theorem](2026-10-07-adopted-call-formation-o0.md) supplies typed
 Call-effect/root incidence, exact complete-invocation realization and whole-index
 substitution on actual emitted Gen-Call-0 records, including the exact nested
 source. It reuses the [complete construction](2026-10-07-call-occurrence-construction-proof.md);
 the [integration review](../progress/2026-10-07-call-construction-proof-review.md#7-approved-definition-and-local-o0-integration)
-records exact consumer substitution. O1/C0/C1/J0 and all-source record
-generation remain open. No original whole-domain identification, aggregate
+records exact consumer substitution. Its independent C0/C1/J0 ports are
+addressed by the later scoped results below; all-source generation remains
+open. No original whole-domain identification, aggregate
 node closure, dependency removal or production cutover is inferred.
 
+The [paired O1-static result](2026-10-07-call-owner-construction-proof.md)
+is completely proved under the [shared static source definition](../design/2026-10-07-original-call-owner-definition.md),
+which formalizes the fixed source direction under the user's current permission
+to continue by definitions. The initial two reviews and fresh paired-facet
+delta pass. Actual registered
+source positions and seeded O0 exposures construct original Slots/Own with
+exact lexical/checking incidence and scope; no later owner reconstruction is
+needed on that envelope. The approved nested source is included. Other owner
+cases, semantic shared-contract validity, full slot inventory and complete
+joint original-family coverage remain independent. See the
+[completion review](../progress/2026-10-07-source-constructor-completion-review.md).
+
+The [authentic complete Call construction](2026-10-07-owned-call-contribution-construction.md)
+under its [selected definition](../design/2026-10-07-complete-call-contribution-definition.md)
+now supplies C1-Call with exact full evidence fibers under authentic SpecCall_e
+and independently complete C0. C-Inv remains receiver-only; C-Call retains the
+callee prefix, independent whole argument and complete original alternative
+interface. The local source-routing/accounting induction proves fixed-witness
+full-family J0 conditional on genuine SourceInterfaceFormation_e. That original
+source/declaration supplier, independent semantic input realization and active
+consumer/fixed-kernel laws remain; no aggregate status or cutover changes.
+
 ## Read this map
+
+The [Call-input constructor theorem](2026-10-07-call-input-construction-proof.md)
+also completely supplies the static source tree on its finite acyclic resolved
+envelope, including the nested source. Its independent fragment proves
+same-branch Name/Return inversion, full constant-delay soundness and the
+actual-provider/live-world input consequence. Use those completed cases
+directly. Realizing the fragment's persistent world/telescope and inlet
+action in the original semantics and proving complete Call phase safety
+remain genuine C0 work; the fragment is not a selected production meaning.
 
 Use the canonical DAG for exact statuses, premises, minimum remaining lemmas,
 dependency order, downstream use and production relevance. This map locates

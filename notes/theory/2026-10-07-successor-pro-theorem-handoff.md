@@ -24,7 +24,42 @@ typed incidence and full-invocation root realization for actual emitted
 Gen-Call-0 records. Use that case directly; do not commission another
 H_eff/OC-CallEff transport or ask for its approval again.
 
-All-source generation, other original occurrence cases, owner/contribution/
+The later [O1-static construction](2026-10-07-call-owner-construction-proof.md)
+under the [selected shared-source definition](../design/2026-10-07-original-call-owner-definition.md)
+also closes local Slots/Own for actual emitted records with the independently
+certified selected-formal seed, including the approved nested source. Use its
+paired lexical/checking constructors and eliminators directly; no occurrence
+cast or owner-reconstruction theorem is needed. General seed/owner cases, complete semantic
+shared-contract validity and whole source images remain separate.
+
+The [source-input proof](2026-10-07-call-input-construction-proof.md) supplies
+the complete static constructor induction on its finite acyclic resolved
+envelope, including the nested term. Lemma N/Theorem I prove the exact
+Name/Return/constant-delay and actual-provider/live-world consequence in the
+defined independent input fragment. Do not reschedule that source evidence
+construction. Original realization of its persistent telescope/world and
+checked-view inlet action, plus complete effectful Call phase preservation,
+remain genuine C0 work; the fragment is not adopted as production semantics.
+
+The [authentic complete Call theorem](2026-10-07-owned-call-contribution-construction.md)
+under the [selected contribution definition](../design/2026-10-07-complete-call-contribution-definition.md)
+supplies C1-Call under authentic SpecCall_e and independent complete C0. It
+retains the whole callee/receiver operation and every original arm interface,
+including opaque conservative alternatives; no per-arm contribution inverse
+or source execution of those extras is required. Its full-family J-Owned
+theorem is conditional on the genuine SourceInterfaceFormation_e supplier.
+
+The immediate original Call proof work therefore has two semantic suppliers
+inside F1/F2: (1) realize the independent same-provider input/operation/world
+interpretation and complete Call phase safety, and (2) construct its complete
+source frames and actual structural/abstract declaration-root-use placements,
+including original licenses and introduced-provider/future maps. These share
+one actual interpretation; C0 typing does not imply source placement. The
+reviewed source/routing inductions and C-Call/J-Owned constructors then supply
+the former recovery and uniform-accounting steps. No extra theorem family is
+created for retaining those results.
+
+All-source generation, other original occurrence/owner/contribution cases,
 license introduction and complete production descriptor/member/admission
 rules are still not all supplied. Identify and specify those under their
 actual Authority. The local definition supplies neither those judgments nor
@@ -128,8 +163,9 @@ inhabited fields or an empty observed effect support.
 Original typed occurrence, owner/contribution incidence, actual complete Call
 typing, licensing and uniform coverage are judgments about the intended
 language. A structurally matching tuple can violate any one of them. The
-remaining O1/C1/J0 and general source cases cannot be synthesized by a retained
-ID. The selected emitted-record O0 case now follows its approved constructors;
+remaining C0/source-interface and general source/owner cases cannot be synthesized by a
+retained ID. The selected emitted-record O0 and seeded O1-static cases now
+follow their justified constructors;
 retaining that constructed certificate removes its later reconstruction task,
 without establishing the other semantic introductions.
 

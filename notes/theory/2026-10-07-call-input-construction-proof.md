@@ -20,9 +20,10 @@ stated source-derivation envelope; Lemma N/Theorem I are complete in the
 explicitly defined fragment under its genuine semantic inputs. The reviewer
 checked the repair's direct dependency cone, not production implementation or
 unrelated O0/O1 mathematics. No original C0, model-realization or canonical
-gate closure follows. This disjoint research checkpoint precedes the primary's
-shared navigation integration; that synchronization is pending explicitly,
-not a claim that the full compiler gate is complete.
+gate closure follows. This disjoint research checkpoint preceded the primary's
+shared navigation integration, now recorded in the
+[completion review](../progress/2026-10-07-source-constructor-completion-review.md#7-completed-source-inputs-and-actual-return-consequence).
+That synchronization does not claim that the full compiler gate is complete.
 
 ## 1. Result and precise boundary
 

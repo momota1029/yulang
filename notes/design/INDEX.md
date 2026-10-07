@@ -30,6 +30,41 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Authoritative complete-operation contribution cases (2026-10-07):**
+  [complete Call definition](2026-10-07-complete-call-contribution-definition.md)
+  selects the independently reviewed C-Inv/C-Call and conditional dependent
+  routing/accounting cases under the user's ongoing definition authorization.
+  [C1-Call](../theory/2026-10-07-owned-call-contribution-construction.md) retains
+  the authentic full callee/receiver/alternative operation with exact evidence
+  fibers under independent C0. Full J0 remains conditional on genuine complete
+  source-interface/declaration insertion; no source execution of Option 2
+  extras is required. No concrete W/Z grammar, fixed-kernel conservation,
+  production semantics or cutover is selected.
+
+- **Reviewed complete source-input construction (2026-10-07):**
+  [Call-input proof](../theory/2026-10-07-call-input-construction-proof.md)
+  constructs the finite acyclic resolved source tree, including the exact
+  nested Lambda/Bind/Call term, with exact erasure. Its independent semantic
+  fragment proves Name/Return/constant-delay and actual-provider/live-world
+  input consequences. A batched repair and fresh compiler-referee delta pass
+  close the initial four findings. Original-family realization, general
+  complete C0, production membership and cutover remain separate; the fragment
+  is not semantically adopted. See the
+  [completion review](../progress/2026-10-07-source-constructor-completion-review.md#7-completed-source-inputs-and-actual-return-consequence).
+
+- **Authoritative shared static Call ownership (2026-10-07):**
+  [static source constructor definition](2026-10-07-original-call-owner-definition.md)
+  completes the existing source-formation direction under the user's current
+  permission to proceed by definitions. The independently reviewed
+  [O1-static proof](../theory/2026-10-07-call-owner-construction-proof.md)
+  constructs the shared slot and paired lexical/checking upper-owner facets
+  from one actual O0/source certificate and independently certified seed,
+  including the approved nested
+  source. Registration forms a schema; actual exposure forms typed membership.
+  Complete Call typing, contribution/joint incidence, semantic membership,
+  other source cases and aggregate gates remain independent. See the
+  [completion review](../progress/2026-10-07-source-constructor-completion-review.md).
+
 - **Authoritative original Call formation (2026-10-07):**
   [adopted formation definitions](2026-10-07-original-call-formation-definition.md)
   record the user's direct approval of the published §10 signature-demand and
@@ -38,7 +73,8 @@ This index is a navigation aid. The listed source document remains authoritative
   proves local static root/typed incidence and whole-index coherence for actual
   emitted Gen-Call-0 records; the approved nested source is included. The
   [review and consumer account](../progress/2026-10-07-call-construction-proof-review.md#7-approved-definition-and-local-o0-integration)
-  preserves O1/C0/C1/J0 and all original broader domains. No all-source
+  preserved O1/C0/C1/J0 and all original broader domains; the later O1-static
+  completion is recorded above. No all-source
   generation, aggregate ORIGINAL_ASSOC closure or production cutover follows.
 
 - **Global successor proof-economy audit (2026-10-07):**
