@@ -51,6 +51,7 @@ REFS = {
     "assockernel": "notes/progress/2026-10-07-original-association-source-kernel-audit.md",
     "rs": "notes/progress/2026-10-06-directional-recursive-generalization-supplier.md",
     "k": "notes/progress/2026-10-06-recursive-source-validation-construction.md",
+    "qrmap": "notes/progress/2026-10-09-qr-capture-map-identity-theorem.md",
     "pg": "notes/progress/2026-10-06-source-generalization-eligibility-attack.md",
     "profile": "notes/progress/2026-10-06-source-profile-admission-construction.md",
     "init": "notes/progress/2026-10-06-independent-initial-admission-construction.md",
@@ -134,12 +135,15 @@ REFS = {
     "oracle": "notes/progress/2026-10-06-frozen-oracle-presolve-application-types.md",
 }
 NODES: list[dict] = []
+MANUAL_CLOSED_LEMMAS: dict[str, list[str]] = {}
 
 
-def n(key, status, title, requires, premises, result, refs, authority="required-before-cutover"):
+def n(key, status, title, requires, premises, result, refs, authority="required-before-cutover", closed=()):
     NODES.append(dict(id=key, status=status, gate=title, requires=requires.split(),
                       premises=premises, minimal_lemma_or_closed_scope=result,
                       references=refs.split(), production_authority=authority))
+    if closed:
+        MANUAL_CLOSED_LEMMAS[key] = list(closed)
 
 
 # Existing reviewed lemmas are retained at their exact scopes.
@@ -392,7 +396,7 @@ n("IFACE_EQUIV", "OPEN-PROOF", "Actual interface-kernel equivariance and rigid i
   "Prove all required covariance/reflection laws and enumerate identity observers to fix rigid coordinates; supply CI_USE premises for the actual compiler rather than by convention.", "newrec lifecycle")
 n("FRESH_LIFE", "OPEN-PROOF", "Internal/fresh use and SCC lifecycle correspondence", "IFACE_EQUIV CI_USE REUSE",
   "Actual intra-SCC live roots, independent incoming use instances, rigid imports/captures and consumer references.",
-  "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse.", "rebuild lifecycle")
+  "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse. Closed sublemma QR_CAPTURE_MAP_CURRENT_SOLVER: for production-produced schemes in one successfully returned immutable SolvedModule, a complete captured incoming-use Q/R map is total and injective, repeated occurrences and both R bounds share its substitution, distinct committed incoming-use images are disjoint, and capture denotes historical row identity rather than a live solver-row capability. Do not generalize this sublemma to arbitrary generic boxed finalizer inputs: its validator can admit an unregistered-Q ordinal collision; production finalization registers all Q and indexed validation enforces dense disjoint R ordinals. Independent compiler-referee review passed this restricted scope. This supplies no source/successor use correspondence, activation liveness, split/merge/rebuild correctness, dependency completeness, or atomic publication.", "rebuild lifecycle qrmap", closed=("QR_CAPTURE_MAP_CURRENT_SOLVER",))
 n("RESOURCE", "OPEN-SEMANTIC", "Exact practical resource/admission and failure boundary", "JOINT_DEC IFACE_FORM",
   "Deterministic measurable source/solver support dimension and exact admitted results; no finite-world truncation.",
   "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. The reviewed multiplicity-aware bound for one current constrain_live drain retains fixed closed endpoint inventories containing the initial task, finite bounds, stable memo/inventory, a constructor DAG and diagnostic boundary. It bounds neither source-size expansion, complete generalization/freshening, successor contexts nor total work. Shadow alpha/orbit exhaustion is not a production limit or UNSAT.", "charter newglobal livedrain alphaimpl orbitimpl")
@@ -539,8 +543,10 @@ def data(by_id, children, order):
         universal_scope="All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
         topological_order=order,
         nodes=[dict(by_id[key], unblocks=children[key],
-                    closed_lemmas=[dep for dep in by_id[key]["requires"]
-                                   if by_id[dep]["status"] in {"CLOSED", "CONDITIONAL-CLOSED"}])
+                    closed_lemmas=list(dict.fromkeys(
+                        [dep for dep in by_id[key]["requires"]
+                         if by_id[dep]["status"] in {"CLOSED", "CONDITIONAL-CLOSED"}]
+                        + MANUAL_CLOSED_LEMMAS.get(key, []))))
                for key in order],
         request_coverage={family: names.split() for family, names in FAMILIES.items()},
         retired=[dict(old=old, replaced_by=keys.split(), reason=why) for old, keys, why in RETIRED],

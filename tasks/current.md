@@ -434,6 +434,23 @@ Its companion [coverage attack](../notes/progress/2026-10-07-attachment-coverage
 rejects erasing a retained static exposure merely because execution never
 returns or emits an outward event; it supplies no exhaustive inverse.
 
+### Latest Q/R lifetime sublemma review at `bed31069a`
+
+The starting DAG counts remain 7 CLOSED, 20 CONDITIONAL-CLOSED,
+43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY. The independently
+compiler-referee-reviewed [current Q/R capture-map theorem](../notes/progress/2026-10-09-qr-capture-map-identity-theorem.md)
+closes one bounded `FRESH_LIFE` sublemma: in a successful immutable
+`SolvedModule`, complete current-production Q/R captures preserve one
+injective, use-disjoint historical row map, with repeated occurrences and
+recursive bounds sharing one substitution. Review found a generic boxed-
+finalizer counterexample when an unregistered Q ordinal is reused by R; the
+theorem is therefore explicitly restricted to production-produced schemes,
+whose producer registers all Q and whose indexed validation enforces disjoint
+dense R ordinals. This does not prove source/successor correspondence,
+activation liveness, internal SCC sharing, split/merge/rebuild correctness,
+dependency completeness or atomic publication. `FRESH_LIFE` remains
+OPEN-PROOF; no semantic or production rule changed.
+
 The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)
 minimizes the missing producer to the five-node
 `call(result(name f),result(name x))` proof cut. Source generation `H_gen`,

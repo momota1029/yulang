@@ -343,6 +343,12 @@ links historical spans to the same pending HIR/Core/solver occurrence. Both
 remain structural evidence, with current-to-successor correspondence and
 source acceptance unresolved. Their final integration and focused checks
 are recorded in the round-3 record §13.
+The bounded [current-production Q/R capture-map theorem](../progress/2026-10-09-qr-capture-map-identity-theorem.md)
+now proves total injective row identity and shared substitution for one
+complete successful current capture; its compiler-referee-reviewed scope
+excludes arbitrary generic finalizer inputs and proves no successor use,
+liveness, rebuild or atomic-publication correspondence. `FRESH_LIFE` retains
+those open leaves.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/

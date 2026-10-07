@@ -2109,10 +2109,11 @@
         "REUSE"
       ],
       "premises": "Actual intra-SCC live roots, independent incoming use instances, rigid imports/captures and consumer references.",
-      "minimal_lemma_or_closed_scope": "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse.",
+      "minimal_lemma_or_closed_scope": "Prove fresh-use maps and all internal sharing; handle SCC split/merge, rebuild, cache/reference validity, dependency completeness and atomic publication without old numeric-ID reuse. Closed sublemma QR_CAPTURE_MAP_CURRENT_SOLVER: for production-produced schemes in one successfully returned immutable SolvedModule, a complete captured incoming-use Q/R map is total and injective, repeated occurrences and both R bounds share its substitution, distinct committed incoming-use images are disjoint, and capture denotes historical row identity rather than a live solver-row capability. Do not generalize this sublemma to arbitrary generic boxed finalizer inputs: its validator can admit an unregistered-Q ordinal collision; production finalization registers all Q and indexed validation enforces dense disjoint R ordinals. Independent compiler-referee review passed this restricted scope. This supplies no source/successor use correspondence, activation liveness, split/merge/rebuild correctness, dependency completeness, or atomic publication.",
       "references": [
         "rebuild",
-        "lifecycle"
+        "lifecycle",
+        "qrmap"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2121,7 +2122,8 @@
       ],
       "closed_lemmas": [
         "CI_USE",
-        "REUSE"
+        "REUSE",
+        "QR_CAPTURE_MAP_CURRENT_SOLVER"
       ]
     },
     {
@@ -2622,6 +2624,7 @@
     "assockernel": "notes/progress/2026-10-07-original-association-source-kernel-audit.md",
     "rs": "notes/progress/2026-10-06-directional-recursive-generalization-supplier.md",
     "k": "notes/progress/2026-10-06-recursive-source-validation-construction.md",
+    "qrmap": "notes/progress/2026-10-09-qr-capture-map-identity-theorem.md",
     "pg": "notes/progress/2026-10-06-source-generalization-eligibility-attack.md",
     "profile": "notes/progress/2026-10-06-source-profile-admission-construction.md",
     "init": "notes/progress/2026-10-06-independent-initial-admission-construction.md",
