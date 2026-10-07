@@ -1824,11 +1824,12 @@
         "RAW_SOURCE"
       ],
       "premises": "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
-      "minimal_lemma_or_closed_scope": "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. Remaining: enumerate every actual source child-context operation and identity observer in that syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.",
+      "minimal_lemma_or_closed_scope": "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. A reviewed restricted trace represents unsealed outward permission restriction; it does not cover a sealed result/store packet. That trace needs a source-justified scoped target interface and bound-capture/pack/open correspondence preserving every original witness, provider, scope, K,D dependency and suffix. This is only the next uncovered operation in that trace, not a global ordering or the sole leaf. Remaining: enumerate every actual source child-context operation and identity observer in the syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.",
       "references": [
         "contexts",
         "newglobal",
         "projection2",
+        "ctxpacket",
         "round2review"
       ],
       "production_authority": "required-before-cutover",
@@ -2671,6 +2672,7 @@
     "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
     "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
     "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",
+    "ctxpacket": "notes/progress/2026-10-07-ctx-finite-sealed-packet-boundary.md",
     "alphaimpl": "notes/progress/2026-10-07-shadow-interface-alpha-round2.md",
     "orbitimpl": "notes/progress/2026-10-07-shadow-atom-orbits-round2.md",
     "livedrain": "notes/progress/2026-10-06-bounded-live-closure-work-count.md",

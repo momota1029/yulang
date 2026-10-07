@@ -106,6 +106,7 @@ REFS = {
     "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
     "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
     "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",
+    "ctxpacket": "notes/progress/2026-10-07-ctx-finite-sealed-packet-boundary.md",
     "alphaimpl": "notes/progress/2026-10-07-shadow-interface-alpha-round2.md",
     "orbitimpl": "notes/progress/2026-10-07-shadow-atom-orbits-round2.md",
     "livedrain": "notes/progress/2026-10-06-bounded-live-closure-work-count.md",
@@ -339,7 +340,7 @@ n("REF_WORLD", "OPEN-PROOF", "Reference/import alias plugging and world transiti
   "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.", "compat state importaction1")
 n("CTX_FINITE", "OPEN-PROOF", "Finite source guard-context canonicalization", "GUARD_COVER RAW_SOURCE",
   "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
-  "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. Remaining: enumerate every actual source child-context operation and identity observer in that syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.", "contexts newglobal projection2 round2review")
+  "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. A reviewed restricted trace represents unsealed outward permission restriction; it does not cover a sealed result/store packet. That trace needs a source-justified scoped target interface and bound-capture/pack/open correspondence preserving every original witness, provider, scope, K,D dependency and suffix. This is only the next uncovered operation in that trace, not a global ordering or the sole leaf. Remaining: enumerate every actual source child-context operation and identity observer in the syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.", "contexts newglobal projection2 ctxpacket round2review")
 n("PRIMITIVES", "OPEN-SEMANTIC", "Complete independent Guard/Phi/K,D operand semantics", "SIG_RULES MIXED_EFFECT INTRO",
   "All primitive original operand tuples and original binder placements, including projected/grafted endpoint variation.",
   "Give exhaustive comparison-independent primitive relations and any varied-endpoint transport law; retaining an old operand does not prove substituting a different endpoint preserves admission.", "phi residual newglobal")

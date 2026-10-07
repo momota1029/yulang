@@ -164,6 +164,12 @@ refine existing leaves rather than adding conditional gate names.
   Record-chain primitive refutes the general claim that pure FMP plus finite
   syntax/pointwise checking yields a computable complete joint bound; no
   Yulang undecidability is claimed.
+- The reviewed [CTX_FINITE sealed-packet boundary](../notes/progress/2026-10-07-ctx-finite-sealed-packet-boundary.md)
+  derives relational representation only for a restricted unsealed outward-
+  permission trace. A result/store packet needs a source-justified bound
+  capture and pack/open correspondence retaining original witnesses and
+  dependencies. This is trace-local, not the global first or sole CTX_FINITE
+  leaf; the gate remains OPEN-PROOF.
 - Reviewed default-off [alpha comparison](../notes/progress/2026-10-07-shadow-interface-alpha-round2.md)
   and [atom-orbit evaluation](../notes/progress/2026-10-07-shadow-atom-orbits-round2.md)
   implement their supplied-input mathematical slices. Their 14 focused tests
