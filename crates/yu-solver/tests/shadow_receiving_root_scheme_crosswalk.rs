@@ -9,7 +9,7 @@ use yu_hir::{
 };
 use yu_solver::{
     ConstraintBatch, SolvedModule,
-    shadow_f5::{FreshBinderRef, FreshCaptureState, GeneralizationOriginState},
+    shadow_f5::{FreshBinderRef, FreshCaptureState, GeneralizationOriginState, ParameterRowState},
     shadow_scc::{
         CurrentUseRouteKind, PendingSccGeneralizationPremise, PendingUseInstantiationLookupError,
         PendingUseInstantiationPremise, SccClosedSchemeLookupError,
@@ -81,6 +81,31 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
         .collect::<Vec<_>>();
     assert_eq!(bindings.len(), 4);
     let source_binding = bindings[0];
+    assert_eq!(source_binding.parameters().len(), 1);
+    let parameter = &source_binding.parameters()[0];
+    assert_eq!(parameter.name().spelling(), "x");
+    assert_eq!(
+        parameter.id().definition_root(),
+        source_binding.definition_root()
+    );
+    let ResolvedExpr::Lambda {
+        parameter: lambda_parameter,
+        ..
+    } = source_binding.value()
+    else {
+        panic!("identity source lambda");
+    };
+    assert_eq!(lambda_parameter, parameter.id());
+    let parameter_position = shadow
+        .parameter_source_position(&hir, parameter.id())
+        .unwrap();
+    let parameter_source = shadow.position(&parameter_position).unwrap();
+    assert_eq!(parameter_source.kind(), SyntaxKind::IdentifierPattern);
+    assert_eq!(parameter_source.range(), parameter.range());
+    assert!(matches!(
+        ordinary.shadow_parameter_row(parameter.id()).unwrap(),
+        ParameterRowState::NotRequested
+    ));
     let mut captures = Vec::new();
     let mut receiving_schemes = Vec::new();
     let mut receiving_origins = Vec::new();
@@ -237,6 +262,59 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
         assert!(origins.scheme().same_identity(receiving));
         let origin_rows = origins.bindings().collect::<Vec<_>>();
         assert_eq!(origin_rows.len(), rows.len());
+        if visibility == HirVisibility::Public {
+            // Follow retained construction identities only. Public visibility
+            // supplies no successor export-eligibility judgment.
+            let ParameterRowState::Captured(startup_row) =
+                solved.shadow_parameter_row(parameter.id()).unwrap()
+            else {
+                panic!("source parameter startup row");
+            };
+            let ParameterRowState::Captured(repeated_startup) =
+                solved.shadow_parameter_row(parameter.id()).unwrap()
+            else {
+                panic!("stable source parameter startup row");
+            };
+            assert!(startup_row.same_identity(repeated_startup));
+            let ParameterRowState::Captured(foreign_startup) =
+                foreign.shadow_parameter_row(parameter.id()).unwrap()
+            else {
+                panic!("foreign source parameter startup row");
+            };
+            assert!(!startup_row.same_identity(foreign_startup));
+            let GeneralizationOriginState::Captured(target_origins) =
+                target_scheme.current_generalization_origins()
+            else {
+                panic!("target generalization origins");
+            };
+            assert!(target_origins.scheme().same_identity(target_scheme));
+            let selected = target_origins
+                .bindings()
+                .filter(|(_, origin)| startup_row.same_identity(*origin))
+                .collect::<Vec<_>>();
+            assert_eq!(selected.len(), 1);
+            let (target_binder, _) = selected[0];
+            let incoming = rows
+                .iter()
+                .filter(|(binder, _)| same_binder(*binder, target_binder))
+                .collect::<Vec<_>>();
+            assert_eq!(incoming.len(), 1);
+            let (_, fresh_row) = *incoming[0];
+            assert!(!startup_row.same_identity(fresh_row));
+            let received = origin_rows
+                .iter()
+                .filter(|(_, origin)| fresh_row.same_identity(*origin))
+                .collect::<Vec<_>>();
+            assert_eq!(received.len(), 1);
+            let (receiving_binder, _) = *received[0];
+            assert!(!same_binder(target_binder, receiving_binder));
+            let receiving_binder_scheme = match receiving_binder {
+                FreshBinderRef::Quantified(binder) => binder.scheme(),
+                FreshBinderRef::Recursive(binder) => binder.scheme(),
+            };
+            assert!(receiving_binder_scheme.same_identity(receiving));
+            assert_eq!(receiving_binder_scheme.owner(), alias.definition_root());
+        }
         let repeated = receiving.current_generalization_origins();
         let GeneralizationOriginState::Captured(repeated) = repeated else {
             panic!("stable capture");

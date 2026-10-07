@@ -480,11 +480,12 @@
         "RS_LX"
       ],
       "premises": "Current directional policy; exact original source variable, exposure, output occurrence and provenance.",
-      "minimal_lemma_or_closed_scope": "For each admitted formal/import/annotation/generalized and computed use, derive ProtectedVarAt at that exposure and complete upper-use occurrence; prove late applicability rather than replaying final component membership.",
+      "minimal_lemma_or_closed_scope": "For each admitted formal/import/annotation/generalized and computed use, derive ProtectedVarAt at that exposure and complete upper-use occurrence; prove late applicability rather than replaying final component membership. The bounded annotation cut apply(f: _ -> [io] _, x) = f x remains open even after granting annotation/profile correspondence, local io permission, endpoint checking, target export and original xi/use incidence: derive ProtectedVarAt(k,v,sigma,u) with justified original seed origin, or prove no seed applies. S1's annotation-absence rule, boundary permission and a protected provider/result cannot supply this exposure-time variable premise.",
       "references": [
         "direction",
         "dirproof",
-        "fview"
+        "fview",
+        "frontier14"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -598,11 +599,12 @@
         "S22_DIRECT"
       ],
       "premises": "Actual source derivation; original binder tree, lexical identities and declared request assumptions.",
-      "minimal_lemma_or_closed_scope": "Map each actual generated/instantiated coordinate to ordinary flexible, inference existential or rigid opened binder with its introduction scope and same-origin dependencies; Name copying alone never reclassifies it.",
+      "minimal_lemma_or_closed_scope": "Map each actual generated/instantiated coordinate to ordinary flexible, inference existential or rigid opened binder with its introduction scope and same-origin dependencies; Name copying alone never reclassifies it. For the bounded ordinary source lambda(x,x), parameter and Result(body) share one fresh A but no rule classifies A or supplies its semantic introduction scope/dependencies. Charter §20 separately opens rigid kappa by one complete packet map; selected sink::put arm my checked:int=x rejects treating every fresh coordinate as ordinary solvable. This is the next missing INTRO rule for this identity derivation, not the uniquely sufficient next gate for inference.",
       "references": [
         "s22",
         "rs",
-        "charter"
+        "charter",
+        "frontier14"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -649,14 +651,15 @@
         "REC_INIT_SELF"
       ],
       "premises": "Included recursive source forms and their initializer order/world access, distinct from lexical preallocation. The exact approved q1 singleton is excluded from execution with its F4 inference preserved; other forms are not thereby excluded.",
-      "minimal_lemma_or_closed_scope": "Specify source evaluation/admissibility for remaining non-constructor-guarded initializer classes, with concrete availability, read-before-initialization, re-entry, publication/order and incoming-world obligations. For another-member direct Name, independently establish inclusion/start before deciding its original InitRead outcome at the actual target/activation/availability/world; q1 supplies neither premise nor unavailable-target disposition. No allocator freshness or final scheme shape substitutes. Actual q1 compiler enforcement remains pending separately.",
+      "minimal_lemma_or_closed_scope": "Specify source evaluation/admissibility for remaining non-constructor-guarded initializer classes, with concrete availability, read-before-initialization, re-entry, publication/order and incoming-world obligations. For another-member direct Name, independently establish inclusion/start before deciding its original InitRead outcome at the actual target/availability/world; q1 supplies neither premise nor unavailable-target disposition. For the conditional mixed graph my f = g; my g x = f, constructed provider identity is insufficient: the missing source head must connect the source-selected initializer consumer and an actual initialization prefix C0 --pi--> Cread to furnishing/installation, preserved binding and resolution, the concrete read point and provider denotation at Cread. Any owner/read incidence comes only from the independently selected source ownership rule; publication is separate, and candidate Value-versus-Request consumers do not select the declaration-init rule. The initializer-class inventory is overlapping, not a disjoint partition. No allocator freshness or final scheme shape substitutes. Actual q1 compiler enforcement remains pending separately.",
       "references": [
         "k",
         "charter",
         "core",
         "selfinit",
         "selfproof3",
-        "round3review"
+        "round3review",
+        "frontier14"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2679,6 +2682,7 @@
     "initworldw0": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "argframeconstruct": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "frameleaf": "notes/progress/2026-10-07-calltype-captured-env-frame-leaf.md",
+    "frontier14": "notes/progress/2026-10-07-successor-frontier-attack-round14.md",
     "fiber4": "notes/progress/2026-10-09-original-call-fiber-construction-round4.md",
     "incidence4": "notes/progress/2026-10-09-original-call-fiber-adversarial-round4.md",
     "ownerpair": "notes/progress/2026-10-09-original-kowner-underdetermination-round1.md",
