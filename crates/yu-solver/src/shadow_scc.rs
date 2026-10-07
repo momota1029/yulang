@@ -40,6 +40,10 @@ impl<'a> SccTopology<'a> {
             target,
             generalization: component.pending_successor_generalization(),
             current_scheme,
+            closed_route: !self
+                .component_of(parent)
+                .map_err(PendingUseInstantiationLookupError::Topology)?
+                .same_identity(component),
         })
     }
 
@@ -336,6 +340,7 @@ pub struct PendingUseInstantiationRef<'a, 's> {
     target: SccDefinitionRef<'a>,
     generalization: PendingSccGeneralizationRef<'a>,
     current_scheme: crate::shadow_f5::ClosedSchemeRef<'s>,
+    closed_route: bool,
 }
 
 #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
@@ -357,6 +362,12 @@ impl<'a, 's> PendingUseInstantiationRef<'a, 's> {
     }
     pub fn current_scheme(self) -> crate::shadow_f5::ClosedSchemeRef<'s> {
         self.current_scheme
+    }
+
+    /// Current solve evidence only; the pending successor premises remain unchanged.
+    pub fn current_fresh_capture(self) -> crate::shadow_f5::FreshCaptureState<'s> {
+        self.current_scheme
+            .fresh_capture(self.occurrence.id, self.target.id, self.closed_route)
     }
 
     /// Current Q/R inventories, including empty ones, cannot establish correspondence.

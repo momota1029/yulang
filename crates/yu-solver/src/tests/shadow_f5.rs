@@ -416,3 +416,149 @@ fn fresh_capture_discards_staged_fast_path_on_late_failure_and_retry() {
     assert_eq!(capture.routes[0].use_id, routes[0]);
     assert!(capture.routes[0].rows.is_empty());
 }
+
+#[cfg(feature = "shadow-scc-observer")]
+#[test]
+fn fresh_capture_retained_states_and_opaque_rows() {
+    use crate::shadow_f5::{FreshBinderRef, FreshCaptureState};
+    for source in [
+        "my f x = x; my a = f; my b = f",
+        "my f x = g; my g y = f; my a = f; my b = f",
+        "my f = 1; my a = f; my b = f",
+    ] {
+        let batch = collect(source_hir(&parsed(source)));
+        let topology = batch.shadow_scc_topology();
+        let captured = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+        let ordinary = SolvedModule::solve(batch.clone()).unwrap();
+        for occurrence in ordinary.occurrences() {
+            assert_eq!(
+                ordinary.projection_for(occurrence),
+                captured.projection_for(occurrence)
+            );
+        }
+        let another = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+        let mut count = 0;
+        let mut captures = Vec::new();
+        for component in topology.components() {
+            for use_ref in component.incoming_uses() {
+                let pending = topology
+                    .pending_use_instantiation(&captured, use_ref)
+                    .unwrap();
+                assert!(matches!(
+                    topology
+                        .pending_use_instantiation(&ordinary, use_ref)
+                        .unwrap()
+                        .current_fresh_capture(),
+                    FreshCaptureState::NotRequested
+                ));
+                let FreshCaptureState::Captured(trace) = pending.current_fresh_capture() else {
+                    panic!("successful incoming use retains complete capture");
+                };
+                assert!(trace.scheme().same_identity(pending.current_scheme()));
+                let expected = trace.scheme().quantifiers().count()
+                    + trace.scheme().recursive_binders().count();
+                assert_eq!(trace.bindings().count(), expected);
+                if source == "my f = 1; my a = f; my b = f" {
+                    assert_eq!(expected, 0);
+                }
+                let FreshCaptureState::Captured(other) = topology
+                    .pending_use_instantiation(&another, use_ref)
+                    .unwrap()
+                    .current_fresh_capture()
+                else {
+                    panic!()
+                };
+                let FreshCaptureState::Captured(repeated) = pending.current_fresh_capture() else {
+                    panic!("repeated lookup retains the same successful capture");
+                };
+                assert_eq!(trace.bindings().count(), repeated.bindings().count());
+                for (((binder, row), (_, foreign)), (_, repeated_row)) in trace
+                    .bindings()
+                    .zip(other.bindings())
+                    .zip(repeated.bindings())
+                {
+                    let owner = match binder {
+                        FreshBinderRef::Quantified(q) => q.scheme(),
+                        FreshBinderRef::Recursive(r) => r.scheme(),
+                    };
+                    assert!(owner.same_identity(pending.current_scheme()));
+                    assert!(row.same_identity(repeated_row));
+                    assert!(!row.same_identity(foreign));
+                }
+                captures.push((use_ref, trace));
+                count += 1;
+            }
+            for use_ref in component.internal_uses() {
+                assert!(matches!(
+                    topology
+                        .pending_use_instantiation(&captured, use_ref)
+                        .unwrap()
+                        .current_fresh_capture(),
+                    FreshCaptureState::NoClosedInstantiation
+                ));
+            }
+        }
+        assert!(count >= 2);
+        let mut distinct_use_row_checks = 0;
+        for (index, (use_ref, trace)) in captures.iter().enumerate() {
+            for (previous_use, previous) in &captures[..index] {
+                if !trace.scheme().same_identity(previous.scheme()) {
+                    continue;
+                }
+                assert!(!use_ref.same_identity(*previous_use));
+                assert_eq!(trace.bindings().count(), previous.bindings().count());
+                for ((binder, row), (previous_binder, previous_row)) in
+                    trace.bindings().zip(previous.bindings())
+                {
+                    match (binder, previous_binder) {
+                        (FreshBinderRef::Quantified(q), FreshBinderRef::Quantified(previous_q)) => {
+                            assert!(q.same_identity(previous_q));
+                        }
+                        (FreshBinderRef::Recursive(r), FreshBinderRef::Recursive(previous_r)) => {
+                            assert!(r.same_identity(previous_r));
+                        }
+                        _ => panic!("same-scheme inventories retain the same binder order"),
+                    }
+                    assert!(!row.same_identity(previous_row));
+                    distinct_use_row_checks += 1;
+                }
+            }
+        }
+        if source != "my f = 1; my a = f; my b = f" {
+            assert!(distinct_use_row_checks > 0);
+        }
+        // Missing evidence in a requested capture must not look like zero binders.
+        let mut unavailable = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+        let use_ref = topology
+            .components()
+            .flat_map(|c| c.incoming_uses())
+            .next()
+            .unwrap();
+        unavailable.shadow_fresh_capture.as_mut().unwrap().routes[0].complete = false;
+        assert!(matches!(
+            topology
+                .pending_use_instantiation(&unavailable, use_ref)
+                .unwrap()
+                .current_fresh_capture(),
+            FreshCaptureState::Unavailable
+        ));
+        unavailable
+            .shadow_fresh_capture
+            .as_mut()
+            .unwrap()
+            .positions
+            .clear();
+        let use_ref = topology
+            .components()
+            .flat_map(|c| c.incoming_uses())
+            .next()
+            .unwrap();
+        assert!(matches!(
+            topology
+                .pending_use_instantiation(&unavailable, use_ref)
+                .unwrap()
+                .current_fresh_capture(),
+            FreshCaptureState::Unavailable
+        ));
+    }
+}
