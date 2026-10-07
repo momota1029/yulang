@@ -88,6 +88,25 @@ undefined judgment followed from unchanged prior rules or that every
 separately fixed original family is identical. ORIGINAL_ASSOC remains
 OPEN-SEMANTIC; all 90 node statuses and 196 dependency edges are unchanged.
 
+The default-off `yu-core::shadow_call_formation` slice now derives the
+established captured-formal singleton's symbolic source record and applies the
+adopted root/effect constructors. It retains the callee Use, checking
+occurrence, source `call.effect`, invocation-output leg and shared captured
+registration. Original `B/X/xi`, type/scope correspondence, emitted-record
+membership, semantic invocation interpretation and legal whole-tuple
+substitution remain explicit unresolved premises. This does not generate
+records for arbitrary Apply nodes or alter solver/production behavior. Its
+focused three-test target and independent compiler-referee review passed.
+
+An independent constructive and adversarial O1 attack reaches O0 typed
+incidence plus S1 upper protection, but neither derives original
+`Slots_orig(beta)` membership nor `Own_orig(beta,s,u_f,p0,o;X)`. The minimal
+missing operation must retain distinct lexical `u_f` and generated upper `u`
+and independently justify any semantic shared-contract premise. The bounded
+rule-fragment non-entailment is not a pair of complete Authority-consistent
+semantics, so it establishes no user decision. No status promotion follows;
+O1 / ORIGINAL_ASSOC stays OPEN. No standalone localization note was added.
+
 ### Immediate work order
 
 1. Use O0-selected directly for actual emitted Gen-Call-0 records. Construct
