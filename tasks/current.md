@@ -649,11 +649,11 @@ these missing introductions into D-only bookkeeping.
 Do not launch another equivalent proof variant or repeat the bounded Oracle
 attribution search. The repaired [Gen-Call-0/O0 bridge audit](../notes/progress/2026-10-07-original-call-gen-call0-o0-bridge-audit.md)
 separates the generated `F_c`/`VIncl` constraint and immediate-port address
-schema from round-4's original upper-use witness `U` and its typed-path
-interpretation. The earlier bridge proof had treated exact `U=F_c` as a
-premise, not a Gen-Call-0 output. Even a decorated realization does not close
-original-sort O0; source-demand identity and an original Function-elimination
-map at the same root, scope and xi remain. The selector-swap discriminator
+schema from round-4's original typed-path interpretation. Naming the emitted
+constraint `u_c` and its demand `U_c=F_c` is valid bookkeeping; no distinct
+upper type variable is needed. Even a decorated realization does not close
+original-sort O0: an original Function-elimination map for this same Call at
+the same root, scope and xi remains. The selector-swap discriminator
 shows why equal row/type shapes cannot reconstruct the immediate path, but
 does not give an admitted-source counterexample. Next, find or derive the
 direct original Call introduction before K-Owner, preserving all original

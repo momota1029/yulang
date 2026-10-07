@@ -26,13 +26,14 @@ The unconditional original-sort O0 judgment is **not closed** by the static
 schema. Round 4 requires
 `TypedOutputCorrespondence(U,outEff(U),p0; scope,xi)` in original sorts. The
 source-call constructor names `F_c` in its generated decorated upper
-constraint, but the reviewed rule does not separately construct round 4's
-original upper-use witness `U` or state an original-sort interpretation of
-that witness. The earlier bridge sequent treated “`U` is this Call's emitted
-upper use and is identified with `F_c`” as a premise; it is not an output
-proved by Gen-Call-0. Even granting a well-formed decorated realization of
-`F_c`, its conditional observation-port interpretation does not establish
-the original typed-path judgment.
+constraint. It is valid bookkeeping to name that constraint occurrence
+`u_c` and set its demanded interface `U_c := F_c`; no separate upper type
+variable is required. The earlier bridge sequent's `U=F_c` clause can be read
+as this naming/link. What Gen-Call-0 does not derive is the original-sort
+interpretation of that source upper-use occurrence and its typed output map.
+Even granting a well-formed decorated realization of `F_c`, its conditional
+observation-port interpretation does not establish the original typed-path
+judgment.
 
 This result does not derive complete `Slots_orig(beta)`, `Own_orig`, an
 original contribution, or a joint original association. In particular,
@@ -95,14 +96,15 @@ plus a decorated Call constraint containing VIncl(A_f,F_c;xi,e_value)
 
 Under a well-formed decorated realization, the reviewed construction gives a
 conditional decorated observation-port correspondence. This remains distinct
-from original-sort O0. The precise missing interface has two linked parts:
-introduce the original upper-use witness `U` for this exact Call and identify
-it with the generated Function demand; then interpret the immediate
-`call.effect` map as an original typed-path derivation at the same source root,
-scope, and `xi`. Typed-core §§3/6 do not fill this gap: translation consumes
-typed-path premises and source Call synthesis retains them as obligations.
-Neither part follows from `Own_orig`, `Slots_orig`, a successful comparison,
-or endpoint/type-shape equality.
+from original-sort O0. The precise missing interface is an original typed
+interpretation of this same-source upper-use and its immediate `call.effect`
+map, at the same source root, scope, and `xi`. Its constructor may reuse
+`U_c=F_c` directly; that is an unverified representation choice, not a need
+for another independent semantic variable. Typed-core §§3/6 do not fill the
+interpretation gap: translation consumes typed-path premises and source Call
+synthesis retains them as obligations. The original map does not follow from
+`Own_orig`, `Slots_orig`, a successful comparison, or endpoint/type-shape
+equality.
 
 A bounded selector-swap discriminator explains why shape reconstruction is
 insufficient. For a candidate `F_c = Fun(Value(B), Comp(E, Comp(E,B)))`, the
@@ -130,9 +132,11 @@ The following shortcuts are invalid:
 - restricting original witnesses, production Option 2 extras, or `xi` to
   make the bridge fit.
 
-The next proof cut is narrow: expose an exact original upper-use witness for
-the generated Call demand and prove its immediate output-map interpretation
-in the original typed-path judgment, retaining `c`, `R_f`, scope and `xi`.
+The next proof cut is narrow: prove the original typed interpretation of the
+generated Call upper-use occurrence and its immediate output map, retaining
+`c`, `R_f`, scope and `xi`. The already generated `VIncl` occurrence may name
+`U_c=F_c`; the missing result is the original typed-path derivation, not a
+second independent Function variable.
 The current shadow HIR/core/solver records preserve the lexical Call, operands
 and unresolved structural rows but do not make that semantic witness. Then
 address O1 via complete source-profile/owner introduction; do not restart
