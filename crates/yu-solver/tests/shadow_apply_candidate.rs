@@ -416,6 +416,26 @@ fn module_names_join_target_fresh_rows_and_receiving_schemes_without_calls() {
         candidate.calls().is_empty(),
         "module Names introduce no source call premise"
     );
+    let ordinary_hir = module(text, false);
+    assert_eq!(ordinary_hir.diagnostics(), hir.diagnostics());
+    let ordinary =
+        SolvedModule::solve(ConstraintBatch::collect(ordinary_hir.clone()).unwrap()).unwrap();
+    for index in 0..4 {
+        let candidate_export = candidate.export(root(&hir, index)).unwrap();
+        assert_eq!(
+            candidate_export.value,
+            ordinary.root_value_for(root(&ordinary_hir, index)).unwrap()
+        );
+        assert!(
+            candidate_export.endpoints().alpha_eq(
+                ordinary
+                    .shadow_closed_schemes()
+                    .for_root(root(&ordinary_hir, index))
+                    .unwrap()
+                    .endpoints()
+            )
+        );
+    }
     let crosswalk = CandidateSourceModuleUses::new(&source, &hir, &candidate).unwrap();
     assert_eq!(crosswalk.uses().len(), 3);
     for use_ in crosswalk.uses() {
@@ -446,7 +466,11 @@ fn module_names_join_target_fresh_rows_and_receiving_schemes_without_calls() {
         );
         assert_eq!(observation.unresolved(), UNRESOLVED);
         let export = observation.receiving_export().unwrap();
-        assert!(export.scheme().same_identity(observation.receiving_scheme()));
+        assert!(
+            export
+                .scheme()
+                .same_identity(observation.receiving_scheme())
+        );
         assert_eq!(
             export.scheme().owner(),
             observation.receiving_scheme().owner()

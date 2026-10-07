@@ -159,8 +159,10 @@ observer now also returns the exact same-solve receiving-root `CandidateExport`
 and its scheme; this records the implemented value projection while retaining
 that unresolved correspondence premise. Successor transport and other semantic
 premises remain unresolved; production behavior is unchanged. The focused
-candidate/single-root/multi-root targets passed 15/2/3, and both regression
-reviews passed after two ownership-coverage repairs. This advances executable
+candidate/single-root/multi-root targets passed 15/2/3, with same-fixture
+differential against ordinary collection/solve comparing all four root values
+and alpha-equivalent closed endpoints; both regression reviews passed after
+two ownership-coverage repairs. This advances executable
 `HIR_WIRING` only; no DAG node status changed.
 
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
@@ -907,6 +909,20 @@ round-3 composition proof; DESC_CLAUSES, ADMISSION_CLAUSES and SEM_JOINT stay
 OPEN. C1–C7 are not adopted. The candidate's suggested approval handoff is
 not an active user-decision blocker: no pair of complete Authority-consistent
 semantics with different outcomes on the same admitted source is established.
+
+A bounded constructive cut was reviewed against selected contextual Function
+membership. At an actual callee Return, same-tuple hereditary
+`ValueMem_Af`, independently supplied same-value `VIncl(Af,Fc)`, and a
+constructed complete challenge `d ∈ D_Fc` yield `ActualAdm` and all actual
+receiver observations in `P_Fc(d)` on the original tuple. The compiler-referee
+confirmed this conditional elimination, but found that it does not construct
+legacy CI-StepFrame's full next `Input` and incident CI-Bind interfaces; it may
+bypass that proof route as receiver-preservation evidence only. The same review
+confirmed the computed-callee discriminator: an inner effectful callee can
+request before the outer Delay/receipt/entry, so structural Name/Return cannot
+be extended to computed callees. CALL_TYPE remains conditional; callee-prefix
+typing, returned-event argument/challenge realization, original result/Bind
+law, whole-Call arms, and production correspondence remain open.
 
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
