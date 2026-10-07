@@ -98,22 +98,28 @@ substitution remain explicit unresolved premises. This does not generate
 records for arbitrary Apply nodes or alter solver/production behavior. Its
 focused three-test target and independent compiler-referee review passed.
 
-An independent constructive and adversarial O1 attack reaches O0 typed
-incidence plus S1 upper protection, but neither derives original
-`Slots_orig(beta)` membership nor `Own_orig(beta,s,u_f,p0,o;X)`. The minimal
-missing operation must retain distinct lexical `u_f` and generated upper `u`
-and independently justify any semantic shared-contract premise. The bounded
-rule-fragment non-entailment is not a pair of complete Authority-consistent
-semantics, so it establishes no user decision. No status promotion follows;
-O1 / ORIGINAL_ASSOC stays OPEN. No standalone localization note was added.
+An O1 candidate arm is now fully written in
+[`original-call-source-introduction-contract`](../notes/design/2026-10-07-original-call-source-introduction-contract.md#31-candidate-o1-static-slot-and-upper-owner-formation).
+It defines a static `CallSlot_orig(beta,p0)` and `Own_orig(...,u,...)` at the
+generated upper checking occurrence, while retaining lexical callee `u_f`
+only as resolution/capture evidence. Its J0 interface now uses the same `u`
+coordinate required by K-Incidence. Fresh compiler-referee and spec-auditor
+delta reviews found no remaining occurrence-composition defect. This is a
+new unadopted original formation arm: it does not derive the historical
+K-Owner rule, prove compatibility with a separately fixed owner kernel, or
+supply contribution, source-image, uniform-coverage, licensing or admission
+evidence. ORIGINAL_ASSOC remains OPEN-SEMANTIC; the DAG status is unchanged.
+The earlier fragment non-entailment still establishes no user decision.
 
 ### Immediate work order
 
-1. Use O0-selected directly for actual emitted Gen-Call-0 records. Construct
-   O1 original Slots/Own at the same typed upper occurrence, retaining actual
-   registration/capture, seed, scope and shared-`xi` premises. Do not restart
-   signature-root or OC-CallEff formation, turn kappa into a slot/member by
-   identity, or expand the singleton proof to all-source generation.
+1. Attack the exact adoption/derivation gap for the reviewed O1 arm against
+   original source authority. Keep the static source-owned constructor
+   distinct from historical K-Owner, and do not infer semantic provider
+   admission or an incidence witness from its `Own_orig` output. Do not
+   restart signature-root or OC-CallEff formation, turn kappa into a
+   slot/member by identity, or expand the singleton proof to all-source
+   generation.
 2. Establish the independent actual Call inputs and complete production
    descriptor/member/admission clauses. C0 and the static O0/O1 branch may
    progress independently; preserve same-provider/world and original scopes.

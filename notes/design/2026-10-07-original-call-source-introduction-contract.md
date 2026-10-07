@@ -4,7 +4,7 @@ Status: Reviewed
 Scope: Typed source-generation evidence for the ordinary Call in
        `my apply f = { my step x = f x; step }`
 Approved-by: none
-Reviewed-by: `compiler_referee` and `spec_auditor` (O1 §3.1 candidate; delta review)
+Reviewed-by: `compiler_referee` and `spec_auditor` (O1 §3.1 candidate; upper-occurrence/J0 composition delta review)
 Supersedes: none
 Semantic and implementation authority: none
 
@@ -72,10 +72,10 @@ rules:
 | Port | Required original evidence | Independent justification still required |
 | --- | --- | --- |
 | O0 | For an actual emitted Gen-Call-0 record, adopted `kappa_e` gives the typed correspondence from `U_e,outEff(U_e)` to original `p0` at its recorded root/scope. | All-source record generation remains open; O0 does not supply O1, semantic provider admission or contribution facts. |
-| O1 | Proposed §3.1 static-only constructor supplies `s_e in Slots_orig(beta)` and `Own_orig(beta,s_e,u_f,p0,o_e;X)` for the selected source. | The new original arm is unadopted. Compatibility with a separately fixed historical owner interpretation remains unproved. |
+| O1 | Proposed §3.1 static-only constructor supplies `s_e in Slots_orig(beta)` and `Own_orig(beta,s_e,u,p0,o_e;X)` for the selected source. | The new original arm is unadopted. Compatibility with a separately fixed historical owner interpretation remains unproved. |
 | C0 | Independent complete typing of `R_U_all`, retaining every compatible filling and extension dependency. | Actual primitive, lookup/Return, Call, entry, Bind, receipt, response, resumption and future-provider laws with their joint inputs. |
 | C1 | `Contrib_orig(c,rho_U;X)` and certified `Emb_orig` for the complete typed invocation image. | Original contribution-domain closure/preimage rule, including required independently licensed alternatives. |
-| J0 | `a in I_orig(X)`, `Inc_orig(a,beta,s,p0,u_f,c;X)` and complete-family coverage by that same `a`. | Original joint owned-image introduction and coverage elimination at the unchanged coordinates. |
+| J0 | `a in I_orig(X)`, `Inc_orig(a,beta,s,p0,u,c;X)` and complete-family coverage by that same `a`, where `u` is the generated upper checking occurrence. The lexical callee use `u_f` remains evidence in `o_e` and is not substituted for `u`. | Original joint owned-image introduction and coverage elimination at the unchanged coordinates. |
 
 For a successful original introduction, the required conclusion remains:
 
@@ -152,8 +152,8 @@ introduction are:
 ```text
 o_e := CallUpperOwner_orig(
   e,kappa_e,h_res,h_cap,h_reg,h_ann,h_seed,h_exp,h_up)
-  : OwnerEvidence_orig(beta,s_e,u_f,p0;
-      upper=u,seed=k,capture=h_cap,
+  : OwnerEvidence_orig(beta,s_e,u,p0;
+      lexicalUse=u_f,seed=k,capture=h_cap,
       B,X,xi,sigma_apply,sigma_step,ElimOrigin)
 
 e : actual emitted Gen-Call-0 at the indices above
@@ -161,7 +161,7 @@ kappa_e : O0 typed output correspondence for this same e
 h_res   h_cap   h_reg   h_ann   h_seed   h_exp   h_up
 s_e in Slots_orig(beta)
 ----------------------------------------------- O1-Own-Call
-Own_orig(beta,s_e,u_f,p0,o_e;X)
+Own_orig(beta,s_e,u,p0,o_e;X)
 ```
 
 These are **proposed new original formation cases**, not consequences of O0
@@ -172,11 +172,14 @@ constructors or erase their evidence. No complete `SharedContract` or
 provider-admission judgment is inferred from registration; this arm is
 deliberately scoped to static ownership of this typed source output.
 
-The key `(beta,p0)` is not the equation `s_e=p0`. Multiple exposure
-derivations at that same static source position share `s_e`; each owner
-evidence term retains its own upper occurrence, seed and capture provenance.
-No singleton or exhaustive inventory claim follows. Other original slots,
-owners, providers and licensed witnesses remain present and unchanged.
+The key `(beta,p0)` is not the equation `s_e=p0`. The `Own_orig` incidence is
+indexed by upper checking occurrence `u`, as required by K-Incidence; its
+evidence retains lexical callee use `u_f`. The two occurrences are never
+identified. Multiple exposure derivations at that same static source
+position share `s_e`; each owner evidence term retains its own upper
+occurrence, seed and capture provenance. No singleton or exhaustive
+inventory claim follows. Other original slots, owners, providers and licensed
+witnesses remain present and unchanged.
 
 The proposed interpretation of `o_e` is static ownership of the protected
 upper output at this source Call. Its defining elimination returns the exact
