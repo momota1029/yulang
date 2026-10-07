@@ -1222,6 +1222,13 @@ evidence. A bounded Name/Name CALL_TYPE construction derived the normalized
 source head is sound whole-carrier argument checking plus independently
 justified Name/Return typing jointly realized at actual `C1` for every retained
 CalRet witness. This adds no semantic rule or closure.
+The reviewed [captured-environment frame audit](../notes/progress/2026-10-07-calltype-captured-env-frame-leaf.md)
+refines the fixed Name/Name premise: lexical resolution preserves the
+parameter's reference identity, but does not establish its live provider and
+latent-dependency adequacy after a state-changing callee reaches `C1`. The
+initial adequacy and callee typing must share one original CI-Operands
+witness; current-world preservation and actual-provider compatibility remain
+separate open inputs. CALL_TYPE's status is unchanged.
 Production inference and cutover remain gated.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
