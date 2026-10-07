@@ -3,7 +3,8 @@
 Date: 2026-10-08
 Baseline: `2f85ec1790156a08fab87db677fc0d6c06aceb17`
 Branch: `research/simple-sub-intrusion`
-Status: unreviewed research checkpoint; bounded structural characterization
+Status: reviewed research checkpoint; bounded structural characterization
+Reviewed-by: compiler_referee
 Method: countermodel construction, with a deterministic finite truth-table check
 Lease: this new note only
 Authority/implementation/gate closure: none
@@ -376,8 +377,8 @@ Commit packet:
 - Dependency changes: live DAG differs from its baseline fingerprint as
   recorded above; no other direct dependency changed at freeze. Only
   committed baseline bytes were consumed.
-- Review status: producer-authored, unreviewed research; no independently
-  reviewed theorem, gate promotion or production authority.
+- Review status: independent compiler-referee review passed for the bounded
+  structural claims; no gate promotion or production authority.
 - Checks: embedded finite truth-table check and leased-path whitespace check;
   exact commands/results in the submission report. No compiler tests/builds.
 - Proposed checkpoint message: `research: falsify weak generalize export bridges`.
@@ -387,4 +388,5 @@ Commit packet:
   port-correlation and hiding countermodels rather than reopening their
   completed bounded results. No task/index/authority/question change proposed.
 
-Writes stop before submission; this artifact is frozen for review.
+The artifact is frozen after independent review; its bounded structural
+claims do not establish Yulang source realizability or close a compiler gate.

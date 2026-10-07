@@ -408,4 +408,4 @@ Commit packet:
   designated-export all-view evidence as open; no task/index/design-authority
   edit requested as part of this checkpoint.
 
-Writes stop before submission; this candidate is frozen for review.
+The candidate is frozen after independent semantic and specification review.
