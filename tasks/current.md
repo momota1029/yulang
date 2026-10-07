@@ -24,6 +24,29 @@ its retained premises, closed lemmas, smallest remaining claim, direct
 prerequisites/downstream gates and production relevance. Exact cited theorem
 scopes govern; navigation text supplies no new Authority.
 
+### Latest multi-front attack: round 6
+
+At starting remote `d8ddbb0a3a3ab80b7cca67de09a8310617ba1170`, the DAG had
+90 nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
+19 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY and 0 BLOCKED. The O0 attacks locate
+the exact bottleneck: typed-core forms a body/result skeleton, while complete
+`J_call` and its original signature/output map remain unintroduced. Theorem C
+preserves pre-supplied maps only. Frozen Oracle lineage yields a historical
+App demand/provenance mechanism, but not the current original-sort map,
+owner/slot or complete contribution; Oracle semantics remain
+non-authoritative. The same attack sharpens INIT_WORLD to an importer-incidence
+clause with overlap/restriction and fixed-import substitution equations.
+Direct REC_DESC and Name/Name CALL_TYPE routes reach their already-known
+cyclic-Return and checking-to-`ArgCompatible` leaves. No node or edge moved;
+counts remain unchanged. Compiler-referee and spec-auditor reviews passed for
+the semantic boundaries and authority attribution; they did not reproduce
+the historical Oracle blob lineage. The requested nested/grouped pending-Apply
+to eight-address shadow join already exists at the pinned HEAD, so no code or
+test change was needed. See
+[round 6 frontier attack](../notes/progress/2026-10-07-successor-frontier-attack-round6.md).
+Next: attack an actual independent original signature-elimination clause at
+the fixed Call; do not spend another round wrapping supplied maps in transport.
+
 The [full-attack review](../notes/progress/2026-10-07-successor-full-attack-review.md)
 records actual proof/review/repair/check results. The
 [theorem dependency map](../notes/theory/inference-theorem-dependencies.md)
@@ -69,6 +92,26 @@ Apply row, or DAG status promotion was found. Counts remain 7 CLOSED,
 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and
 1 IMPLEMENTATION-ONLY. The exact remaining constructor is recorded in
 [round 5](../notes/progress/2026-10-07-original-call-output-introduction-round5.md).
+
+### Latest O0 continuation: round 6
+
+At latest remote baseline `d8ddbb0a3a3ab80b7cca67de09a8310617ba1170`, two
+independent read-only routes specialized and inverted Theorem C and the
+source-indexed realization theorem at the captured `f x` Call. Both found the
+same boundary: the realization theorem preserves typed paths and static maps
+already supplied by the decorated source schema; it does not introduce the
+original-sort output correspondence from the independently formed Function
+signature to `p0`. Supplying that map assumes O0, while withholding it leaves
+no construction step. This sharpens the route limitation, not a theorem that
+no other source producer exists. No semantic clause, counterexample or
+complete competing semantics was found; no user decision is indicated.
+`ORIGINAL_ASSOC` remains OPEN-SEMANTIC and DAG counts remain
+7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC,
+1 IMPLEMENTATION-ONLY, 0 BLOCKED. See
+[round 6](../notes/progress/2026-10-07-original-call-theorem-c-output-map-round6.md).
+The next attack is the owning original Function-signature
+interpretation/elimination producer at the fixed Call, not another
+reference-bound transport wrapper.
 
 ### Latest reviewed continuation: round 3
 
