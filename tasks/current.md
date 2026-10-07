@@ -158,6 +158,17 @@ judgments. All three notes passed bounded compiler-referee review with no
 findings; `CALL_TYPE`, `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT`
 remain open.
 
+The compiler-referee-reviewed [fixed-cut last-rule reconstruction](../notes/progress/2026-10-07-call-type-fixed-cut-reconstruction.md)
+accounts for the Name/Return, inert whole-argument, actual receiver-phase and
+pending-suffix branches without supplying their semantic last rules. An
+independent premise audit confirms that `CALL_TYPE`'s current
+“independently admitted operand/world assignment” does not explicitly say
+whether captured-value/provider/world and callee-Return typing are included;
+`Gamma` identity alone supplies neither. A weak one-row separation is not a
+model of completed `SEM_JOINT` or an admitted-source counterexample. The
+operand-premise granularity and matching Return rule remain unresolved inputs;
+no gate status or semantic rule changed.
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the

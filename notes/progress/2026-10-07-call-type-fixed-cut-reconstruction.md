@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 Baseline: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
-Status: frozen research-only premise-gap accounting; independent review pending
+Status: frozen research-only premise-gap accounting; compiler-referee reviewed PASS
 Method: reconstruct source judgments and inspect the required semantic last rule, without a supplied closure package
 Exclusive lease: `notes/progress/2026-10-07-call-type-fixed-cut-reconstruction.md`
 Semantic/implementation authority: none
@@ -295,8 +295,8 @@ de4b87744a9e791c2483c9fdd7f1f38354d17f223f71500f2196800764f7f172 unchanged notes
   Its narrow diff changes the unrelated shadow State declaration-candidate
   follow-on record only; the CALL_TYPE frontier and all 14 other dependencies
   remain unchanged. Baseline source meaning and this reconstruction are unaffected.
-- Claim/review status: frozen premise-gap accounting; independent review pending;
-  no theorem, counterexample, semantic-rule adoption or gate relabel.
+- Claim/review status: frozen premise-gap accounting; compiler-referee reviewed
+  PASS; no theorem, counterexample, semantic-rule adoption or gate relabel.
 - Checks already run: governing/prior-note reads, baseline equality,
   leased-path absence, 15 dependency byte/hash comparisons; final narrow
   path/hash/integrity evidence accompanies handoff. No semantic execution.
@@ -305,3 +305,30 @@ de4b87744a9e791c2483c9fdd7f1f38354d17f223f71500f2196800764f7f172 unchanged notes
   branch reconstruction and premise-granularity distinction; retain existing
   gate statuses. No shared task, theory, index, authority, question, code,
   manifest or lockfile change.
+
+## Independent review and operand-premise adjudication
+
+The independent compiler-referee review passed on the frozen content with
+SHA-256 `c5557dc0b9def692c38ee00beba979e020b7f1fa74ed946a1ec605b822e86692`.
+It found no blocking, major, or minor issue in the branch/suffix accounting or
+the non-closure boundary. This appended record does not alter that reviewed
+mathematical content.
+
+A separate architecture audit and an independent premise-inversion producer
+both inspected the exact canonical `CALL_TYPE`/`SEM_JOINT` premise. It names a
+fixed interpretation and quantifies over independently admitted operand/world
+assignments, but does not state whether such admission includes captured-value
+provider/world membership or callee `Return` descriptor membership. Structural
+`Gamma`/lookup equations alone supply neither. An explicit operand-membership
+conjunct would permit premise elimination; alternatively, a defined typed
+environment plus a proved lookup-preservation rule could establish it. The
+current clauses specify neither route. The researcher's one-row separation
+refutes only the weak implication from structural equations plus an
+uninterpreted admission predicate; it is not a model of completed `SEM_JOINT`
+and not a source counterexample.
+
+No new semantic rule, gate edge, or status is selected here. Keep
+`CALL_TYPE`/`SEM_JOINT` open. The next proof step is to make the ordinary
+operand/world premise's typed conjuncts explicit and invert them, then supply
+or prove the matching `Return` rule before proceeding to Delay, whole-carrier,
+receiver-phase, and pending-Bind typing.
