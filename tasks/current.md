@@ -1698,6 +1698,46 @@ publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
 plumbing does not supply production authority.
 
+## Current reattack: demand-event realization (2026-10-07)
+
+At freshly fetched remote/local baseline `f4d4558895e4e8dd72e3e9dc38df061b63ea207e`,
+the DAG checker passed with the same 90 nodes / 196 edges: 7 CLOSED, 20
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. A reviewed correction to the unadopted CALL_TYPE C5/C6
+candidate records that `eta` includes a world while the proposed demand clauses
+vary current configurations, and that `RunCert` omitted C5's original root
+parameter. The exact missing semantic head is a total, coherent lift from every
+independently admitted demand to an original-scoped event realization preserving
+the original projection, `xi`, captures, provider incidences and retained joint
+evidence, with a joint EnvStore/JointWF realization. Round-3 supplies extension
+discipline but not this lift; source-contracts §3.3 enumerates admission forms
+but does not construct it. Compiler-referee and spec-auditor reviews passed the
+research-only correction. Option 2, all compatible contexts and every prior
+status remain unchanged. See the [C5/C6 parameterization correction](../notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md#parameterization-correction-independent-demands-and-event-witnesses).
+
+Complementary attacks on CALL_TYPE, ORIGINAL_ASSOC P2, INIT_WORLD/REC_DESC,
+and ALL_VIEW/PRINCIPAL found no discharged node. P2 still lacks original typed
+slot/contribution/owner-view introduction at one `xi` and scope. INIT_WORLD
+still lacks zero-step independent-import/root extension. REC_DESC still lacks
+ordinary captured-Name descriptor introduction with independent guards/world
+validity. PRINCIPAL's actual `Direct(B_common,...)` rule still requires its
+non-coverage interface after nonidentity `VIncl` and finite result-check
+evidence are granted. Frozen Oracle archaeology found historical resolved-name,
+call-upper, specialization and thunk environment/provider-map machinery, but no
+semantic evidence for demand-world captured-binding adequacy or actual-provider
+compatibility; Oracle remains archaeology only. The shadow identity crosswalk
+already joins Apply/operand identities, all eight endpoint labels and solver
+premises, so no additional identity-only slice was justified.
+
+The approved exact singleton recursive-self-init execution boundary remains
+closed as a source theorem, but production pre-execution enforcement is absent:
+the only recognizer is default-off shadow evidence, and this workspace has no
+initializer execution acceptance entrypoint. Its approved receipt prohibits
+production routing/cutover at this stage; do not reject in inference or parsing.
+No status changed, no semantic clause was proven, and no tests/builds ran. The
+only substantive research artifact change is the reviewed, non-authoritative
+C5/C6 correction, synchronized here without changing theorem status.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.

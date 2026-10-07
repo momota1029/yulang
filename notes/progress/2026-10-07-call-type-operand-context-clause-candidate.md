@@ -391,3 +391,81 @@ admission completeness, or any closed theorem. `CALL_TYPE`, `DESC_CLAUSES`,
 `ADMISSION_CLAUSES` and `SEM_JOINT` remain open. Any future semantic adoption
 requires explicit user approval and a new proof/adequacy review of the
 selected clauses.
+
+## Parameterization correction: independent demands and event witnesses
+
+Audit baseline: `f4d4558895e4e8dd72e3e9dc38df061b63ea207e`.
+Status: reviewed research correction; no semantic adoption or gate closure.
+Review: compiler-referee PASS; spec-auditor PASS.
+The earlier C1–C7 text and its review remain historical proposals. This audit
+qualifies C5/C6's signature and their claimed substitution step; it does not
+replace the approved broad domain or supply a new interpretation.
+
+The fixed-coordinate paragraph puts a world in `eta`, whereas C5/C6 vary the
+actual current demand world. Their relationship is underspecified. If
+compatibility requires that current world to equal one fixed `eta.world`, two
+independently admitted distinct current configurations cannot both be covered.
+If compatibility instead retains original records while adding event-local
+world witnesses, the projection, allowed extensions and coherence laws must
+be specified. The existing schemas therefore are not established judgments
+with a complete signature; this audit does not prove that they are ill-typed
+under every possible interpretation.
+
+A possible signature shape, **not a selected semantic definition**, fixes one
+interpretation `I`, original `xi`, binder tree, lexical references, provider
+roots, scopes and incidences, abbreviated `kappa`, and an original filling
+`eta0`. Let `D_I(kappa,r;eta0)` index every independently admitted designated
+demand, including Init/Response/Resume/FutureUse and all approved compatible
+contexts. It must retain Option 2 observations without a mandatory source
+constructor witness. A family `Theta` would assign each demand `d` an event
+witness `e_d` whose actual current configuration is `C_d`, whose original
+projection agrees with `eta0`, and whose retained evidence agrees on shared
+events and incident dependencies. Different branches may have different
+current configurations and fresh event coordinates at their original scopes.
+The projection must distinguish retained creation/event records from the
+live configuration; fixing a creation record must not freeze `C_d`.
+
+The missing independent head is a **total coherent demand-to-event lift**:
+for every original independently admitted filling, construct such a scoped
+`Theta` over the entire independent `D_I`, preserving original coordinates
+and evidence along admitted developments. Defining a free event forest gives
+indices but supplies no joint EnvStore/JointWF realization. Restricting the
+index to source-reachable histories, selecting only demands with successful
+descriptor checks, or using an empty lift fiber changes or vacuously avoids
+the required obligation. Separate per-demand existentials do not establish
+agreement on shared retained witnesses. An empty independent demand domain
+still proves no inhabitance.
+
+With that family independently supplied, the corrected code-certificate
+signature must name the original root:
+
+```text
+RunCert_R^I(J,rho,r;eta0,xi,Theta)
+  : forall d in D_I(kappa,r;eta0), forall raw complete/pending executions
+      from the actual C_d, the C5 descriptor/world/provider consequences
+      hold at compatible event extensions with coherent retained evidence.
+```
+
+C5 and C6 must use the same demand index, original root, interpretation and
+scoped family; only then is their Force/Run substitution justified. This
+repairs the proposed parameter list, not RunCert's truth. Even for
+`J=Return(lookup x)`, C1/C3/C4 require the captured provider and JointWF facts
+at each demand event. Their construction or transport remains unsupplied.
+
+[Round-3 §2.1](2026-10-07-call-original-rule-round3.md) records compatible
+original-scope extensions and coherent event witnesses but explicitly leaves
+CI-Operands and CI-ArgFrame open. [Source contracts §3.3](../design/2026-10-05-source-contracts-and-common-allowance.md)
+lists independent admission cases; it gives neither this event lift nor its
+joint realization. Sections 2.2 and 3.5 require or assume local typing.
+The compatibility boundary's EnvStore/JointWF construction remains open.
+Approved inlet-domain q1/d1 items 1–5 and denotation q1/d1 items 1–5 select
+the domain and independent semantic basis, not these missing rules. Thus the
+signature can be clarified without narrowing the approved quantifiers, but
+the required event projection/lift remains an unadopted semantic obligation.
+
+Checks: bounded static source reads and dependency hashes only; no checker,
+Oracle, tests, builds, mutation execution or Git operation. No full competing
+source models or source-valid counterexample are claimed. Independent
+compiler-referee and spec-auditor reviews passed. Only this note changed in the
+producer lease; shared records and semantic status updates are owned by the
+primary. No implementation or gate status changed.
