@@ -1109,6 +1109,122 @@ fn pending_use_instantiation_preserves_distinct_uses_and_empty_premises() {
 
 #[cfg(feature = "shadow-f5")]
 #[test]
+fn exact_source_uses_join_nonempty_current_qr_captures_without_successor_evidence() {
+    use crate::shadow_f5::{FreshBinderRef, FreshCaptureState};
+    use crate::shadow_scc::PendingUseInstantiationPremise;
+    use yu_syntax::SyntaxKind;
+
+    let parsed = parsed("my id x = x; my a = id; my b = id");
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let solved = crate::SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    let another = crate::SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    let topology = batch.shadow_scc_topology();
+    let before = batch.counters();
+    let solved_before = solved.counters();
+
+    // Parse-owned positions identify occurrences, not semantic slots or binders.
+    let mut positions = Vec::new();
+    let mut stack = vec![parsed.source_root()];
+    while let Some(node) = stack.pop() {
+        if node.syntax().kind() == SyntaxKind::IdentifierExpression
+            && node.syntax().text().to_string() == "id"
+        {
+            positions.push(shadow.source_position(&node.key()).unwrap());
+        }
+        stack.extend(node.children());
+    }
+    assert_eq!(positions.len(), 2);
+    assert_ne!(positions[0], positions[1]);
+
+    let uses = topology
+        .components()
+        .flat_map(|component| component.incoming_uses())
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 2);
+    assert!(!uses[0].same_identity(uses[1]));
+    let same_binder = |a: FreshBinderRef<'_>, b: FreshBinderRef<'_>| match (a, b) {
+        (FreshBinderRef::Quantified(a), FreshBinderRef::Quantified(b)) => a.same_identity(b),
+        (FreshBinderRef::Recursive(a), FreshBinderRef::Recursive(b)) => a.same_identity(b),
+        _ => false,
+    };
+    let mut observed_positions = Vec::new();
+    let mut captures = Vec::new();
+    for occurrence in uses {
+        let position = topology.use_source_position(&shadow, occurrence).unwrap();
+        assert!(positions.contains(&position));
+        assert!(!observed_positions.contains(&position));
+        observed_positions.push(position);
+        // The exact source occurrence survives even without a skeleton UseId.
+        assert!(
+            topology
+                .use_shadow_ref(&crosswalk, occurrence)
+                .unwrap()
+                .is_none()
+        );
+        let pending = topology
+            .pending_use_instantiation(&solved, occurrence)
+            .unwrap();
+        assert!(pending.occurrence().same_identity(occurrence));
+        assert_eq!(
+            pending.qr_correspondence_premise(),
+            PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+        );
+        assert_eq!(
+            pending.shared_contract_transport_premise(),
+            PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+        );
+        let FreshCaptureState::Captured(capture) = pending.current_fresh_capture() else {
+            panic!("successful source use must retain its current capture");
+        };
+        let scheme = pending.current_scheme();
+        assert!(capture.scheme().same_identity(scheme));
+        let inventory = scheme
+            .quantifiers()
+            .map(FreshBinderRef::Quantified)
+            .chain(scheme.recursive_binders().map(FreshBinderRef::Recursive))
+            .collect::<Vec<_>>();
+        assert!(
+            !inventory.is_empty(),
+            "fixture must generate nonempty current Q/R"
+        );
+        let bindings = capture.bindings().collect::<Vec<_>>();
+        assert_eq!(bindings.len(), inventory.len());
+        for (index, (binder, row)) in bindings.iter().enumerate() {
+            assert!(same_binder(*binder, inventory[index]));
+            for (previous_binder, previous_row) in &bindings[..index] {
+                assert!(!same_binder(*binder, *previous_binder));
+                assert!(!row.same_identity(*previous_row));
+            }
+        }
+        // A second solve has a separate capture owner, even for the same use.
+        let FreshCaptureState::Captured(other) = topology
+            .pending_use_instantiation(&another, occurrence)
+            .unwrap()
+            .current_fresh_capture()
+        else {
+            panic!("second requested solve must retain its current capture");
+        };
+        assert_eq!(other.bindings().count(), bindings.len());
+        for ((_, row), (_, other_row)) in bindings.iter().zip(other.bindings()) {
+            assert!(!row.same_identity(other_row));
+        }
+        captures.push(capture);
+    }
+    assert!(captures[0].scheme().same_identity(captures[1].scheme()));
+    for ((binder, row), (other_binder, other_row)) in
+        captures[0].bindings().zip(captures[1].bindings())
+    {
+        assert!(same_binder(binder, other_binder));
+        assert!(!row.same_identity(other_row));
+    }
+    assert_eq!(before, batch.counters());
+    assert_eq!(solved_before, solved.counters());
+}
+
+#[cfg(feature = "shadow-f5")]
+#[test]
 fn pending_use_instantiation_rejects_foreign_and_missing_evidence() {
     use crate::shadow_scc::{
         PendingUseInstantiationLookupError as Error, SccClosedSchemeLookupError,

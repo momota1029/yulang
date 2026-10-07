@@ -451,6 +451,21 @@ activation liveness, internal SCC sharing, split/merge/rebuild correctness,
 dependency completeness or atomic publication. `FRESH_LIFE` remains
 OPEN-PROOF; no semantic or production rule changed.
 
+### Source-use to current-capture shadow slice at `400fa1a91`
+
+Starting DAG counts were 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
+19 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY; they remain unchanged. A
+default-off focused observer test now joins two distinct parse-owned source
+positions to two incoming current-solver uses, the same finalized target
+scheme, and complete nonempty Q/R captures. Each use has a separate row map
+and owner, while repeated binders inside each map remain shared. The fixture's
+optional shadow `UseId` is absent, but raw source occurrence identity survives.
+Regression review passed; the focused target passed after bypassing the
+configured sccache wrapper. Both successor Q/R correspondence and shared
+contract transport remain explicitly unresolved. This closes no semantic
+gate and supplies no source-owned versus fixed successor partition.
+See the [focused crosswalk record](../notes/progress/2026-10-09-shadow-source-use-current-qr-crosswalk.md).
+
 The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)
 minimizes the missing producer to the five-node
 `call(result(name f),result(name x))` proof cut. Source generation `H_gen`,

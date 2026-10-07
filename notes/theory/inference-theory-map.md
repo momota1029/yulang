@@ -349,6 +349,10 @@ complete successful current capture; its compiler-referee-reviewed scope
 excludes arbitrary generic finalizer inputs and proves no successor use,
 liveness, rebuild or atomic-publication correspondence. `FRESH_LIFE` retains
 those open leaves.
+The [source-use/current-capture shadow crosswalk](../progress/2026-10-09-shadow-source-use-current-qr-crosswalk.md)
+joins exact parse-owned positions, admitted current Name uses, the same target
+scheme, and complete fresh row captures for two independent uses. Its
+source-to-successor correspondence and shared-contract premises stay pending.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/
