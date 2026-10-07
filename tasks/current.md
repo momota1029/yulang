@@ -354,6 +354,48 @@ boundary. No redundant identity carrier or production inference change was
 added. Production cutover remains prohibited by the open source, semantic and
 conformance prerequisites.
 
+### Latest exact-leaf attack at `8f40797c7`
+
+Start DAG counts: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
+19 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY. Final counts are unchanged. No gate
+closed in this attack wave, and no same-source competing-semantics pair or
+admitted-source counterexample was established.
+
+- **ALL_VIEW:** the compiler-referee-reviewed [ordinary result-checking bridge](../notes/progress/2026-10-07-all-view-result-checking-bridge.md)
+  traces the concrete F5 result-child and its retained products. It does not
+  construct successful decorated `VIncl` evidence: result work retains
+  diagnostic/incompatibility information, ordinary Lambda synthesis supplies
+  its body result directly, and final export rebuilds an F5 predicate. The
+  smaller remaining construction is an original-scoped decorated result-check
+  certificate from independently established nonidentity `VIncl(A,B)`, plus
+  its consumption by an applicable whole-Function resolver at actual
+  `B_common`. The independent inclusion and resolver/export obligations stay
+  open; this is not a universal resolver counterexample.
+- **CALL_TYPE:** a fresh minimal-constructor pass leaves the next exact input
+  at joint argument typing and actual returned-provider carrier compatibility
+  at the retained current world, represented by existing CI-ArgFrame. Separate
+  marginal witnesses, Q success, and solved Function shape do not produce it.
+  No status or edge changes.
+- **INTRO:** the first missing classification remains ordinary unannotated
+  parameter introduction: freshness and `Gamma(x)=Value(A)` do not classify
+  `A` or its semantic introduction scope. Request-opening rigid coordinates
+  remain the already selected subcase; no generalization or reclassification
+  rule was added.
+- **GUARD_INSERT:** constructive and falsification routes stop at the same
+  source-realization head for q1, before preservation: the source judgment must
+  identify whether `B(z)<:z` restores a declared bound or creates a new
+  specialization obligation, preserving the original quantifiers and binder
+  incidence. No admitted-source counterexample was found.
+
+The proposal to add more captured-source lifecycle assertions was discarded
+after inspection showed the committed
+[`shadow_captured_source_retention.rs`](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
+already checks the same artifact identity through HIR, collection and solve,
+all seven pending premises, and foreign-root rejection. No duplicate code or
+semantic stub was added. The canonical DAG validator passes at 90 nodes / 196
+edges; only the `ALL_VIEW` exact construction locator was refined, with all
+statuses and dependencies preserved.
+
 ## Priority frontier: complete original source contribution
 
 Use the normalized route
