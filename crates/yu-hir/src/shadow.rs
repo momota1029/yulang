@@ -239,6 +239,7 @@ pub struct ShadowArtifact {
     positions: Vec<Position>,
     annotations: Vec<AnnotationOccurrence>,
     skeleton: Result<Skeleton, ShadowError>,
+    declaration_skeletons: HashMap<usize, Result<Skeleton, ShadowError>>,
 }
 
 /// Caller-selected declaration candidate, branded by its exact parse position.
@@ -448,17 +449,58 @@ impl ShadowArtifact {
             positions: Vec::new(),
             annotations: Vec::new(),
             skeleton: Err(ShadowError::MalformedSource),
+            declaration_skeletons: HashMap::new(),
         };
         let positions = artifact.retain(root.clone());
         artifact.skeleton = build_skeleton(
             &artifact.parsed,
             identity,
-            root,
+            root.clone(),
             &positions,
             &artifact.positions,
             &artifact.annotations,
         );
+        for statement in root
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+        {
+            let position = retained_position(&positions, &statement)?;
+            if artifact.skeleton.is_ok() {
+                continue;
+            }
+            let skeleton = build_declaration_skeleton(
+                &artifact.parsed,
+                Arc::new(()),
+                artifact.identity.clone(),
+                &statement,
+                &positions,
+                &artifact.positions,
+                &artifact.annotations,
+            );
+            artifact
+                .declaration_skeletons
+                .insert(position.0.index, skeleton);
+        }
         Ok(artifact)
+    }
+    /// Borrows a separately branded projection of this exact retained declaration.
+    /// Singular module projection and its unsupported-source errors are unchanged.
+    pub fn declaration_skeleton(&self, declaration: &PositionId) -> Result<&Skeleton, ShadowError> {
+        self.position(declaration)?;
+        if let Ok(skeleton) = &self.skeleton {
+            if skeleton
+                .root_declaration_header()
+                .map(RootDeclarationHeader::statement)
+                == Some(declaration)
+            {
+                return Ok(skeleton);
+            }
+        }
+        self.declaration_skeletons
+            .get(&declaration.0.index)
+            .ok_or(ShadowError::MalformedSource)?
+            .as_ref()
+            .map_err(Clone::clone)
     }
     /// Joins an admitted HIR declaration to its exact raw-CST position.
     pub fn definition_source_position(
@@ -964,6 +1006,7 @@ impl RootDeclarationHeader {
 
 #[derive(Debug)]
 pub struct Skeleton {
+    position_identity: Arc<()>,
     root_header: Option<RootDeclarationHeader>,
     identity: Arc<()>,
     pub(crate) binders: Vec<Binder>,
@@ -1358,7 +1401,6 @@ fn build_skeleton(
     raw_positions: &[Position],
     annotations: &[AnnotationOccurrence],
 ) -> Result<Skeleton, ShadowError> {
-    let source = parsed.source();
     // The shared envelope is one direct root binding. Root trivia (the four
     // syntax trivia kinds) and the root parser's semicolon separators may
     // surround it; no sibling or enclosing semantic node is discarded.
@@ -1383,6 +1425,27 @@ fn build_skeleton(
     let [statement] = statements.as_slice() else {
         return Err(ShadowError::MalformedSource);
     };
+    build_declaration_skeleton(
+        parsed,
+        identity.clone(),
+        identity,
+        statement,
+        positions,
+        raw_positions,
+        annotations,
+    )
+}
+
+fn build_declaration_skeleton(
+    parsed: &ParsedFile,
+    identity: Arc<()>,
+    position_identity: Arc<()>,
+    statement: &SyntaxNode,
+    positions: &HashMap<SyntaxNode, Option<PositionId>>,
+    raw_positions: &[Position],
+    annotations: &[AnnotationOccurrence],
+) -> Result<Skeleton, ShadowError> {
+    let source = parsed.source();
     let header = only_child(statement, SyntaxKind::BindingHeader)?;
     let target = only_child(&header, SyntaxKind::Pattern)?;
     let parts = target.children().collect::<Vec<_>>();
@@ -1441,6 +1504,7 @@ fn build_skeleton(
     let body = only_child(statement, SyntaxKind::BindingBody)?;
     let chain = only_child(&body, SyntaxKind::OperatorChain)?;
     let mut artifact = Skeleton {
+        position_identity,
         root_header: None,
         body: ExprId(LocalId {
             artifact: identity.clone(),
@@ -1840,7 +1904,14 @@ impl Skeleton {
 
     fn validate_positions(&self, positions: &[Position]) -> Result<(), ShadowError> {
         for expression in &self.expressions {
-            self.check_id(&expression.position.0, positions.len())?;
+            if !Arc::ptr_eq(&self.position_identity, &expression.position.0.artifact) {
+                return Err(ShadowError::ForeignArtifact);
+            }
+            if expression.position.0.index >= positions.len() {
+                return Err(ShadowError::MissingReference {
+                    index: expression.position.0.index,
+                });
+            }
             let position = &positions[expression.position.0.index];
             let kind = match &expression.form {
                 Form::Lambda { .. } => SyntaxKind::BindingStatement,

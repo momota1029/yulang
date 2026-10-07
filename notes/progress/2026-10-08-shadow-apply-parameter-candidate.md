@@ -183,11 +183,36 @@ justify the interaction of ordinary references, direct bounds and guarded
 recursive owners under current F5 authority. Oracle representation is evidence
 of an implementation mechanism, not the authority for that judgment.
 
-Canonical status counts remain 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
-19 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY. No proof or semantic node closes.
-The production generic-chain defect and recursive forwarding judgment remain
+At this candidate checkpoint the earlier counts were 7 CLOSED, 20
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. No proof or semantic node closed in that slice. The
+production generic-chain defect and recursive forwarding judgment remain
 explicit blockers for adopting this generalizer algorithm. Source typing,
 effects, original contracts, principality and production conformance require
-their existing independent proofs. The next implementation gate replaces
-unresolved candidate premises only with reviewed rules; production cutover
-remains prohibited.
+their existing independent proofs. Production cutover remains prohibited.
+
+## Multi-root source identity crosswalk (2026-10-08)
+
+The test-wired default-off crosswalk now handles two independent top-level
+Lambda declarations in one parsed module and one candidate solver observation.
+Each declaration receives a separate skeleton/binder identity while retained
+source positions keep the original parse identity. The crosswalk derives each
+candidate occurrence's owning root from the retained HIR tree, verifies its
+source declaration, formal, application, callee and argument positions, then
+publishes the specifically selected root's borrowed export. Foreign roots,
+foreign positions and cross-root binders fail before a result is returned.
+The existing singular skeleton API and exact single-root premise identities
+remain intact. All candidate typing, admission, carrier-provider compatibility
+and successor correspondence premises stay unresolved.
+
+Regression review passed after a test-only repair added exact per-call position,
+owner-distribution, foreign-position and cross-root-binder assertions. The
+multi-root focused target passed 3/3; the existing single-root crosswalk target
+passed 2/2. This is additional source identity/evidence plumbing under
+`HIR_WIRING`; it closes no proof or semantic gate. Current DAG counts are 7
+CLOSED, 21 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. Captured local Bind/Lambda, multi-definition fresh-use,
+semantic typing/admission and production publisher correspondence remain open.
+The crosswalk builds one structural projection per declaration and one linear
+HIR occurrence-owner map per construction; it is test-wired/default-off, and no
+production traversal or timing claim is introduced.

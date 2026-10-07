@@ -130,21 +130,25 @@ focused three-test target and independent compiler-referee review passed.
 
 The default-off, test-wired
 [`CandidateSourceCrosswalk`](../crates/yu-solver/src/shadow_candidate_source_crosswalk.rs)
-joins a one-root Lambda's exact declaration/formal/application/callee/
-argument source positions to the same solve's executed candidate Calls and
-borrowed whole-root export. It borrows the existing `SourceCallUseInput` and
-matching `PendingPremise` identities, queries rather than assumes incoming
-fresh rows, and exposes the absent ordinary own-formal route in this envelope.
-Foreign parse/HIR-root joins fail. Candidate calls and export retain their full
-unresolved premise inventory. Independent compiler-referee review passed; the
-focused target passed 2/2. This advances only the `HIR_WIRING`
-implementation-only node. Multi-definition fresh-use, captured local
-Bind/Lambda, semantic typing/admission, successor correspondence and production
-behavior remain open.
+joins independent root Lambdas' exact declaration/formal/application/callee/
+argument positions to the same solve's candidate Calls and selected borrowed
+root export. Each declaration has a separately branded skeleton while source
+positions retain the common parse identity. The crosswalk assigns every
+candidate call to its owning HIR declaration and formal, retains existing
+`SourceCallUseInput`/`PendingPremise` identities, and validates all root
+incidences before publishing an export. Foreign parse/HIR roots and cross-root
+binder access fail. Candidate calls and exports retain their full unresolved
+premise inventory. The focused multi-root target passed 3/3 and the existing
+single-root target passed 2/2. Regression review passed after a test-only
+coverage repair asserted exact declaration/formal/application/callee/argument
+positions, owner distribution, foreign positions and cross-root binders. This
+advances only the `HIR_WIRING` implementation-only node. Multi-definition
+fresh-use, captured local Bind/Lambda, semantic typing/admission, successor
+correspondence and production behavior remain open.
 
-The canonical successor DAG remains 90 nodes / 196 edges with 7 CLOSED, 20
-CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
-IMPLEMENTATION-ONLY. No proof or semantic node changed status.
+The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. No status changed in this shadow slice.
 
 ### Current shared static owner construction
 

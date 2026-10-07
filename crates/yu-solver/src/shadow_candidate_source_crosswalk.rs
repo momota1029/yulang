@@ -1,4 +1,4 @@
-//! Test-wired, default-off observational crosswalk for one root Lambda.
+//! Test-wired, default-off observational crosswalk for independent root Lambdas.
 //! Exact source incidence and candidate solver output never discharge premises.
 #![cfg(feature = "shadow-apply-candidate")]
 
@@ -10,14 +10,9 @@ use yu_solver::shadow_apply::{
     CandidateCall, CandidateExport, CandidateFreshRow, CandidateValueObservation,
 };
 
-/// The existing one-binding source skeleton supplies no ordinary incoming-use
-/// join. Captured local Bind/Lambda source remains outside the solver envelope.
+/// Validates all observed calls using each exact owning declaration before export.
 pub struct CandidateSourceCrosswalk<'a> {
-    source: &'a ShadowArtifact,
-    skeleton: &'a Skeleton,
-    hir: &'a HirModule,
-    candidate: &'a CandidateValueObservation,
-    source_parameter: &'a yu_hir::shadow::BinderId,
+    calls: Vec<CandidateSourceCall<'a>>,
     export: CandidateExport<'a>,
 }
 
@@ -62,111 +57,133 @@ impl<'a> CandidateSourceCrosswalk<'a> {
         root: &DefinitionRootId,
     ) -> Result<Self, CrosswalkError> {
         let missing = || CrosswalkError::MissingExactSourceIncidence;
-        let skeleton = source.skeleton().map_err(|_| missing())?;
-        let [HirItem::Binding(binding)] = hir.items() else {
-            return Err(missing());
-        };
-        if binding.definition_root() != root {
-            return Err(missing());
-        }
-        let ResolvedExpr::Lambda { parameter, .. } = binding.value() else {
-            return Err(missing());
-        };
-        let declaration = source
-            .definition_source_position(hir, root)
-            .map_err(CrosswalkError::Source)?;
-        // Ordinary one-binding skeletons designate the body expression. Their
-        // separately retained root Lambda is located by the declaration position.
-        let source_crosswalk = source.skeleton_source_crosswalk();
-        let (expression, _) = source_crosswalk
-            .definition_at_position(&declaration)
-            .map_err(|_| missing())?
-            .ok_or_else(missing)?;
-        let Form::Lambda {
-            parameter: source_parameter,
-            ..
-        } = expression.form()
-        else {
-            return Err(missing());
-        };
-        let formal = source
-            .parameter_source_position(hir, parameter)
-            .map_err(CrosswalkError::Source)?;
-        if expression.position() != &declaration
-            || skeleton
+        let mut owners = std::collections::HashMap::new();
+        let mut selected = false;
+        for item in hir.items() {
+            let HirItem::Binding(binding) = item else {
+                return Err(missing());
+            };
+            let ResolvedExpr::Lambda { parameter, .. } = binding.value() else {
+                return Err(missing());
+            };
+            let declaration = source
+                .definition_source_position(hir, binding.definition_root())
+                .map_err(CrosswalkError::Source)?;
+            let skeleton = source
+                .declaration_skeleton(&declaration)
+                .map_err(|_| missing())?;
+            let expression = skeleton
+                .expressions()
+                .iter()
+                .find(|expression| expression.position() == &declaration)
+                .ok_or_else(missing)?;
+            let Form::Lambda {
+                parameter: source_parameter,
+                ..
+            } = expression.form()
+            else {
+                return Err(missing());
+            };
+            let formal = source
+                .parameter_source_position(hir, parameter)
+                .map_err(CrosswalkError::Source)?;
+            if skeleton
                 .binder(source_parameter)
                 .map_err(|_| missing())?
                 .position()
                 != &formal
-        {
+            {
+                return Err(missing());
+            }
+            selected |= binding.definition_root() == root;
+            // Ownership follows the retained HIR tree, never IDs, spelling or shape.
+            let mut pending = vec![binding.value()];
+            while let Some(expression) = pending.pop() {
+                if owners
+                    .insert(expression.occurrence(), (skeleton, source_parameter))
+                    .is_some()
+                {
+                    return Err(missing());
+                }
+                match expression {
+                    ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                    ResolvedExpr::Group { inner, .. } => pending.push(inner),
+                    ResolvedExpr::Apply {
+                        callee, argument, ..
+                    } => {
+                        pending.push(callee);
+                        pending.push(argument);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if !selected {
             return Err(missing());
         }
         let export = candidate
             .export(root)
             .map_err(|_| CrosswalkError::ForeignCandidate)?;
-        let result = Self {
-            source,
-            skeleton,
-            hir,
-            candidate,
-            source_parameter,
-            export,
-        };
-        // Validate the complete bounded observation before returning a crosswalk.
+        let mut calls = Vec::new();
         for call in candidate.calls() {
-            result.call(call)?;
+            let (skeleton, source_parameter) =
+                owners.get(&call.occurrence).copied().ok_or_else(missing)?;
+            if owners.get(&call.callee).map(|(_, formal)| *formal) != Some(source_parameter)
+                || owners.get(&call.argument).map(|(_, formal)| *formal) != Some(source_parameter)
+            {
+                return Err(missing());
+            }
+            let position = source
+                .occurrence_source_position(hir, &call.occurrence)
+                .map_err(CrosswalkError::Source)?;
+            let input = skeleton
+                .source_call_use_inputs()
+                .find(|input| input.application().position() == &position)
+                .ok_or_else(missing)?;
+            let callee = source
+                .occurrence_source_position(hir, &call.callee)
+                .map_err(CrosswalkError::Source)?;
+            let argument = source
+                .occurrence_source_position(hir, &call.argument)
+                .map_err(CrosswalkError::Source)?;
+            if input.binder() != source_parameter
+                || skeleton
+                    .use_position(input.occurrence())
+                    .map_err(|_| missing())?
+                    != &callee
+                || skeleton
+                    .expression(input.argument())
+                    .map_err(|_| missing())?
+                    .position()
+                    != &argument
+                || candidate.fresh_rows(&call.callee).is_some()
+            {
+                return Err(missing());
+            }
+            calls.push(CandidateSourceCall {
+                input,
+                candidate: call,
+                skeleton,
+                observation: candidate,
+            });
         }
-        Ok(result)
+        Ok(Self { calls, export })
     }
     pub fn export(&self) -> &CandidateExport<'a> {
         &self.export
     }
     pub fn calls(&self) -> impl Iterator<Item = CandidateSourceCall<'a>> + '_ {
-        self.candidate.calls().iter().map(|call| {
-            self.call(call)
-                .expect("immutable crosswalk was completely validated")
-        })
-    }
-    fn call(&self, call: &'a CandidateCall) -> Result<CandidateSourceCall<'a>, CrosswalkError> {
-        let missing = || CrosswalkError::MissingExactSourceIncidence;
-        let position = self
-            .source
-            .occurrence_source_position(self.hir, &call.occurrence)
-            .map_err(CrosswalkError::Source)?;
-        let input = self
-            .skeleton
-            .source_call_use_inputs()
-            .find(|input| input.application().position() == &position)
-            .ok_or_else(missing)?;
-        let callee = self
-            .source
-            .occurrence_source_position(self.hir, &call.callee)
-            .map_err(CrosswalkError::Source)?;
-        let argument = self
-            .source
-            .occurrence_source_position(self.hir, &call.argument)
-            .map_err(CrosswalkError::Source)?;
-        if input.binder() != self.source_parameter
-            || self
+        self.calls.iter().map(|call| CandidateSourceCall {
+            input: call
                 .skeleton
-                .use_position(input.occurrence())
-                .map_err(|_| missing())?
-                != &callee
-            || self
-                .skeleton
-                .expression(input.argument())
-                .map_err(|_| missing())?
-                .position()
-                != &argument
-            || self.candidate.fresh_rows(&call.callee).is_some()
-        {
-            return Err(missing());
-        }
-        Ok(CandidateSourceCall {
-            input,
-            candidate: call,
-            skeleton: self.skeleton,
-            observation: self.candidate,
+                .source_call_use_inputs()
+                .find(|input| {
+                    input.application().expression() == call.input.application().expression()
+                })
+                .expect("validated immutable source incidence"),
+            candidate: call.candidate,
+            skeleton: call.skeleton,
+            observation: call.observation,
         })
     }
 }
