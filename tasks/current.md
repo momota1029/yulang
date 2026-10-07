@@ -1282,6 +1282,32 @@ witness; current-world preservation and actual-provider compatibility remain
 separate open inputs. CALL_TYPE's status is unchanged.
 Production inference and cutover remain gated.
 
+From baseline `33d8cd4ef95d85712d2ab99dca0190e15c4d06bf`, a dependency-ordered
+research pass reattacked `ORIGINAL_ASSOC` P2, INIT_WORLD W0 and REC_DESC.
+ORIGINAL_ASSOC's candidate positive abstraction still cannot lift an
+unanchored extra into the independently interpreted original contribution
+sort; INIT_WORLD reduces source aliases to identity copying but still lacks
+independent open-import introduction and zero-step root extension. For REC_DESC,
+the finite-history route retains the necessary `exists h. forall e` failure
+quantifiers but needs an independent descriptor readout; direct two-closure
+introduction is narrower for the concrete recursive knot, but still lacks the
+ordinary latent-Function membership/introduction clause. No exact competing
+Authority-consistent complete semantics or admitted-source counterexample was
+found. These results add no DAG closure; retain all statuses.
+
+The reviewed [two-tail Apply shadow slice](../notes/progress/2026-10-07-shadow-two-tail-application-retention.md)
+extends only the default-off structural lane: `f 1 2` and `f f f` retain two
+left-associated Apply nodes through HIR, Core, collection and solve. The
+computed outer callee has six common unresolved premises and no direct-use
+registration; the direct inner callee has its six common plus two
+direct-use-specific premises. Each remains unsupported by production HIR and
+untyped by shadow solving. The DAG remains 90 nodes / 196 edges: 7 CLOSED, 20
+CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF and 19 OPEN-SEMANTIC.
+Start/final DAG counts for this attack were identical: 7 CLOSED, 20
+CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF and 19 OPEN-SEMANTIC.
+Next semantic attack remains the original source producer for P2; the shadow
+slice is not evidence for that producer.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow

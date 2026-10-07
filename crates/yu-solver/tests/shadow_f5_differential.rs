@@ -701,3 +701,303 @@ fn pending_application_direct_names_preserve_positions_and_resolution_variants()
         }
     }
 }
+
+#[test]
+fn two_ml_tails_join_computed_callee_without_direct_use_registration() {
+    for text in ["my invoke f = f 1 2", "my invoke f = f f f"] {
+        assert_two_ml_tail_source_join(text);
+    }
+}
+
+fn assert_two_ml_tail_source_join(text: &str) {
+    let source: Arc<SourceText> = Arc::from(text);
+    let header = Arc::new(scan_header(source.clone()));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+    let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+        "shadow-f5-differential",
+        "nested-pending-application.yu",
+    )));
+    let shadow_hir = Arc::new(
+        lower_module_with_shadow_applications(identity.clone(), &parsed, SemanticImports::empty())
+            .expect("opt-in HIR retains the nested application structure"),
+    );
+    let current_hir = lower_module(identity, &parsed, SemanticImports::empty())
+        .expect("current HIR characterizes the production support boundary");
+    assert!(
+        current_hir
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+    assert!(
+        current_hir
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| { diagnostic.kind() == HirErrorKind::UnsupportedExpression })
+    );
+
+    let current_batch = ConstraintBatch::collect(Arc::new(current_hir)).unwrap();
+    assert!(current_batch.pending_applications().is_empty());
+    assert!(
+        SolvedModule::solve(current_batch)
+            .unwrap()
+            .hir()
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+
+    let shadow = ShadowArtifact::from_parsed(parsed).expect("shared parse shadow artifact");
+    let skeleton = shadow.skeleton().expect("nested application skeleton");
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let raw = RawStructuralArena::from_artifact(&shadow)
+        .expect("the same source artifact retains its raw structural inventory");
+    let batch = ConstraintBatch::collect(shadow_hir.clone())
+        .expect("shadow applications remain collectible as pending structure");
+    assert!(batch.occurrences().is_empty());
+    let retained_row_addresses: Vec<_> = batch
+        .pending_applications()
+        .iter()
+        .map(|row| row as *const _)
+        .collect();
+    let solved = SolvedModule::solve(batch).unwrap();
+    assert!(Arc::ptr_eq(solved.hir(), &shadow_hir));
+    let rows = solved.pending_applications();
+    assert_eq!(
+        rows.iter().map(|row| row as *const _).collect::<Vec<_>>(),
+        retained_row_addresses
+    );
+    assert_eq!(rows.len(), 2);
+    assert!(
+        rows.iter()
+            .all(|row| { row.state == PendingApplicationState::ApplicationTypingRuleUnresolved })
+    );
+
+    let [HirItem::Binding(binding)] = shadow_hir.items() else {
+        panic!("binding");
+    };
+    let root = binding.definition_root();
+    let root_position = shadow
+        .definition_source_position(&shadow_hir, root)
+        .unwrap();
+    let counters = solved.counters();
+    assert!(solved.store().facts().is_empty());
+    let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+        panic!("lambda")
+    };
+    let ResolvedExpr::Apply {
+        callee: inner,
+        argument: second,
+        ..
+    } = body.as_ref()
+    else {
+        panic!("outer Apply")
+    };
+    let ResolvedExpr::Apply {
+        callee: head,
+        argument: first,
+        ..
+    } = inner.as_ref()
+    else {
+        panic!("inner Apply")
+    };
+    assert_eq!(&rows[0].occurrence, body.occurrence());
+    assert_eq!(&rows[0].callee.occurrence, inner.occurrence());
+    assert_eq!(&rows[0].argument.occurrence, second.occurrence());
+    assert_eq!(&rows[1].occurrence, inner.occurrence());
+    assert_eq!(&rows[1].callee.occurrence, head.occurrence());
+    assert_eq!(&rows[1].argument.occurrence, first.occurrence());
+    assert!(rows[0].callee.direct_name_resolution.is_none());
+    let direct_uses: Vec<_> = solved.shadow_pending_application_source_uses().collect();
+    assert_eq!(
+        direct_uses.len(),
+        if text.ends_with("f f f") { 3 } else { 1 }
+    );
+    assert!(
+        direct_uses
+            .iter()
+            .all(|use_| !(std::ptr::eq(use_.application(), &rows[0])
+                && use_.position() == PendingApplicationOperandPosition::Callee))
+    );
+    for row in rows {
+        assert_eq!(row.enclosing_root.as_ref(), Some(root));
+        assert_eq!(
+            shadow
+                .definition_source_position(&shadow_hir, row.enclosing_root.as_ref().unwrap())
+                .unwrap(),
+            root_position
+        );
+    }
+    let mut endpoint_views = Vec::new();
+    for row in rows {
+        let application_position = shadow
+            .occurrence_source_position(&shadow_hir, &row.occurrence)
+            .expect("solver retains a HIR identity from the shared parse");
+        let application = crosswalk
+            .application_at_position(&application_position)
+            .expect("application position belongs to this source artifact")
+            .expect("the retained source position is an Apply");
+        let Form::Apply {
+            callee, argument, ..
+        } = application.form()
+        else {
+            panic!("crosswalk returns an Apply");
+        };
+        let node = raw
+            .nodes()
+            .iter()
+            .find(|node| std::ptr::eq(skeleton.expression(&node.source).unwrap(), application))
+            .expect("the exact solver Apply has a retained raw node");
+        let endpoints = raw
+            .pending_apply_endpoint_skeleton(&node.source)
+            .expect("the supported Apply retains its structural endpoint skeleton");
+        assert!(std::ptr::eq(endpoints.source(), &node.source));
+        assert_eq!(
+            skeleton.expression(endpoints.source()).unwrap().position(),
+            &application_position
+        );
+        assert!(std::ptr::eq(endpoints.callee(), callee));
+        assert!(std::ptr::eq(endpoints.argument(), argument));
+        assert!(std::ptr::eq(
+            endpoints.call(),
+            node.call
+                .as_ref()
+                .expect("the retained Apply has raw call metadata")
+        ));
+        assert_eq!(
+            endpoints.addresses().map(|address| address.position()),
+            [
+                ApplyStructuralPosition::CalleeValue,
+                ApplyStructuralPosition::CalleeEffect,
+                ApplyStructuralPosition::ArgumentValue,
+                ApplyStructuralPosition::ArgumentEffect,
+                ApplyStructuralPosition::CandidateFunctionReturnEffect,
+                ApplyStructuralPosition::CandidateFunctionResult,
+                ApplyStructuralPosition::WholeApplyValue,
+                ApplyStructuralPosition::WholeApplyEffect,
+            ]
+        );
+        for (index, address) in endpoints.addresses().iter().enumerate() {
+            assert!(std::ptr::eq(address.application(), endpoints.source()));
+            for previous in &endpoints.addresses()[..index] {
+                assert_ne!(address, previous);
+            }
+        }
+        let pending = skeleton
+            .pending()
+            .iter()
+            .filter(|premise| premise.call() == endpoints.source())
+            .collect::<Vec<_>>();
+        let direct = std::ptr::eq(row, &rows[1]);
+        assert_eq!(pending.len(), if direct { 8 } else { 6 });
+        for premise in [
+            yu_hir::shadow::Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+            yu_hir::shadow::Premise::SourceDirectionalOutputEffectProtectionIntroduction,
+        ] {
+            assert_eq!(
+                pending.iter().any(|pending| pending.premise() == premise),
+                direct
+            );
+        }
+        assert_eq!(endpoints.call().application_premises.len(), pending.len());
+        for (actual, expected) in endpoints.call().application_premises.iter().zip(pending) {
+            assert!(std::ptr::eq(*actual, expected));
+        }
+        for (operand, retained) in [(&row.callee, callee), (&row.argument, argument)] {
+            let operand_position = shadow
+                .occurrence_source_position(&shadow_hir, &operand.occurrence)
+                .expect("operand identity belongs to the shared parse");
+            assert_eq!(
+                skeleton.expression(retained).unwrap().position(),
+                &operand_position
+            );
+        }
+
+        let registered = crosswalk
+            .application_direct_use_at_position(&application_position)
+            .unwrap();
+        if std::ptr::eq(row, &rows[0]) {
+            assert!(registered.is_none());
+            assert!(endpoints.call().source_use_input.is_none());
+            assert!(node.pending_source_call_registration().is_none());
+        } else {
+            let callee_position = shadow
+                .occurrence_source_position(&shadow_hir, &row.callee.occurrence)
+                .unwrap();
+            let use_id = crosswalk
+                .use_at_position(&callee_position)
+                .unwrap()
+                .unwrap();
+            let (registered_use, binder) = registered.unwrap();
+            assert_eq!(registered_use, use_id);
+            let Some(NameResolution::Parameter(parameter)) =
+                row.callee.direct_name_resolution.as_ref()
+            else {
+                panic!("direct parameter callee")
+            };
+            let parameter_position = shadow
+                .parameter_source_position(&shadow_hir, parameter)
+                .unwrap();
+            let (_, source_binder) = crosswalk
+                .parameter_at_position(&parameter_position)
+                .unwrap()
+                .unwrap();
+            assert_eq!(binder, source_binder);
+            let registration = node.pending_source_call_registration().unwrap();
+            assert_eq!(registration.source_use_input.occurrence(), use_id);
+            assert_eq!(registration.source_use_input.binder(), binder);
+            assert_eq!(registration.source, endpoints.source());
+            assert_eq!(
+                registration.source_use_input.application().expression(),
+                endpoints.source()
+            );
+            assert!(std::ptr::eq(
+                registration.source_use_input.application().callee(),
+                callee
+            ));
+            assert!(std::ptr::eq(
+                registration.source_use_input.argument(),
+                argument
+            ));
+            let source_use = direct_uses
+                .iter()
+                .find(|use_| {
+                    std::ptr::eq(use_.application(), row)
+                        && use_.position() == PendingApplicationOperandPosition::Callee
+                })
+                .unwrap();
+            assert_eq!(source_use.occurrence(), &row.callee.occurrence);
+        }
+        endpoint_views.push(endpoints);
+    }
+    // Retained solver order is outer then inner. These addresses label syntax
+    // bookkeeping only; they establish no typed endpoint or port equality.
+    let [outer, inner] = endpoint_views.as_slice() else {
+        panic!("exactly two retained Apply rows");
+    };
+    assert_eq!(outer.callee(), inner.source());
+    assert_ne!(outer.source(), inner.source());
+    for outer_address in outer.addresses() {
+        for inner_address in inner.addresses() {
+            assert_ne!(outer_address, inner_address);
+        }
+    }
+    assert_ne!(outer.addresses()[0], inner.addresses()[6]);
+    assert_ne!(outer.addresses()[1], inner.addresses()[7]);
+    assert_eq!(outer.addresses()[0].application(), outer.source());
+    assert_eq!(outer.addresses()[1].application(), outer.source());
+    assert_eq!(inner.addresses()[6].application(), inner.source());
+    assert_eq!(inner.addresses()[7].application(), inner.source());
+    assert!(
+        rows.iter()
+            .all(|row| { row.state == PendingApplicationState::ApplicationTypingRuleUnresolved })
+    );
+    assert_eq!(solved.counters(), counters);
+    assert!(
+        solved
+            .hir()
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+}

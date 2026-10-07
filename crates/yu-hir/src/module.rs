@@ -1608,6 +1608,7 @@ struct ShadowApplicationPlan {
     tail: SyntaxNode,
     argument: SyntaxNode,
     nested: Option<Box<ShadowApplicationPlan>>,
+    nested_callee: Option<Box<ShadowApplicationPlan>>,
     grouped: bool,
     range: Range<usize>,
 }
@@ -1641,10 +1642,66 @@ fn shadow_application_plan(
         return Ok(None);
     };
     let leaf = |shape: &HirExpr| matches!(shape, HirExpr::Value { kind: SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral, children, .. } if children.is_empty());
+    let children = chain.children().collect::<Vec<_>>();
+    if allow_nested && source_form == SyntaxKind::MlArgument && leaf(argument_shape) {
+        if let (
+            HirExpr::Value {
+                kind: SyntaxKind::MlArgument,
+                children: inner,
+                range: inner_range,
+            },
+            [head, first_tail, second_tail],
+        ) = (callee_shape, children.as_slice())
+        {
+            if let [first_callee, first_argument] = inner.as_slice() {
+                if leaf(first_callee)
+                    && leaf(first_argument)
+                    && range_of(head) == *first_callee.range()
+                    && first_tail.kind() == SyntaxKind::MlArgument
+                    && second_tail.kind() == SyntaxKind::MlArgument
+                {
+                    let operand_node = |tail: &SyntaxNode, shape: &HirExpr| {
+                        let HirExpr::Value { kind, .. } = shape else {
+                            return None;
+                        };
+                        let nodes = tail
+                            .descendants()
+                            .filter(|node| node.kind() == *kind && range_of(node) == *shape.range())
+                            .collect::<Vec<_>>();
+                        match nodes.as_slice() {
+                            [node] => Some(node.clone()),
+                            _ => None,
+                        }
+                    };
+                    if let (Some(first_argument), Some(argument)) = (
+                        operand_node(first_tail, first_argument),
+                        operand_node(second_tail, argument_shape),
+                    ) {
+                        return Ok(Some(ShadowApplicationPlan {
+                            callee: head.clone(),
+                            tail: second_tail.clone(),
+                            argument,
+                            nested: None,
+                            grouped: false,
+                            range,
+                            nested_callee: Some(Box::new(ShadowApplicationPlan {
+                                callee: head.clone(),
+                                tail: first_tail.clone(),
+                                argument: first_argument,
+                                nested: None,
+                                nested_callee: None,
+                                grouped: false,
+                                range: inner_range.clone(),
+                            })),
+                        }));
+                    }
+                }
+            }
+        }
+    }
     if !leaf(callee_shape) {
         return Ok(None);
     }
-    let children = chain.children().collect::<Vec<_>>();
     let [callee_node, tail] = children.as_slice() else {
         return Ok(None);
     };
@@ -1724,6 +1781,7 @@ fn shadow_application_plan(
         tail: tail.clone(),
         argument: argument_node.clone(),
         nested,
+        nested_callee: None,
         grouped,
         range,
     }))
@@ -1746,6 +1804,7 @@ fn lower_shadow_application_plan(
         tail,
         argument: argument_node,
         nested,
+        nested_callee,
         grouped,
         range,
     } = plan;
@@ -1758,6 +1817,30 @@ fn lower_shadow_application_plan(
         attachment.clone(),
         range.clone(),
     )?];
+    let computed_callee = if let Some(plan) = nested_callee {
+        let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
+        let callee = lower_shadow_application_plan(
+            parsed,
+            *plan,
+            namespace,
+            counters,
+            child_occurrence,
+            scope,
+            next_occurrence_ordinal,
+            sink,
+            attachment.clone(),
+        )?;
+        if let ResolvedExpr::Apply {
+            errors: nested_errors,
+            ..
+        } = &callee
+        {
+            errors.extend(nested_errors.iter().copied());
+        }
+        Some(callee)
+    } else {
+        None
+    };
     let mut lower_operand = |node: &SyntaxNode| -> Result<ResolvedExpr, HirAvailabilityError> {
         let mut tokens = node
             .children_with_tokens()
@@ -1788,7 +1871,10 @@ fn lower_shadow_application_plan(
         }
         Ok(expression)
     };
-    let callee = lower_operand(&callee_node)?;
+    let callee = match computed_callee {
+        Some(callee) => callee,
+        None => lower_operand(&callee_node)?,
+    };
     let argument = if let Some(nested) = nested {
         let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
         let nested_occurrence = if grouped {

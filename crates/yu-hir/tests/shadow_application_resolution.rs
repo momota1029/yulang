@@ -432,7 +432,12 @@ fn assert_grouped_nested_source_structure(
 #[test]
 fn unsupported_applications_are_rejected_atomically() {
     for source in [
-        "my invoke f = f 1 2",
+        "my invoke f = f 1 2 3",
+        "my invoke f = f (f 1 2)",
+        "my invoke f = (f) 1 2",
+        "my invoke f = f(1) 2",
+        "my invoke f = f 1(2)",
+        "my invoke f = f 1 (2)",
         "my invoke f = (f) 1",
         "my invoke f = f (1)",
         "my invoke f = f(1, 2)",
@@ -487,4 +492,80 @@ fn malformed_grouped_application_does_not_publish_shadow_structure() {
     let shadow = shadow(&parsed);
     assert!(matches!(value(&shadow, 0), ResolvedExpr::Error { .. }));
     assert_eq!(shadow.diagnostics(), ordinary.diagnostics());
+}
+
+#[test]
+fn two_ml_tails_retain_left_association_and_exact_source_nodes() {
+    for source in ["my invoke f = f 1 2", "my invoke f = f f f"] {
+        let parsed = parsed(source);
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        assert_normal_paths_unchanged(&parsed, 0);
+        let hir = shadow(&parsed);
+        let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+        let outer = value(&hir, 0);
+        let ResolvedExpr::Apply {
+            callee: inner,
+            argument: second,
+            errors,
+            ..
+        } = outer
+        else {
+            panic!("outer Apply")
+        };
+        let ResolvedExpr::Apply {
+            callee: head,
+            argument: first,
+            errors: inner_errors,
+            ..
+        } = inner.as_ref()
+        else {
+            panic!("inner Apply")
+        };
+        assert_eq!(errors.len(), 2);
+        assert_eq!(inner_errors.len(), 1);
+        for error in errors.iter().chain(inner_errors.iter()) {
+            assert_eq!(
+                hir.errors()[error.index() as usize].kind(),
+                HirErrorKind::UnsupportedExpression
+            );
+        }
+        let expressions = [
+            outer,
+            inner.as_ref(),
+            head.as_ref(),
+            first.as_ref(),
+            second.as_ref(),
+        ];
+        for (index, expression) in expressions.iter().enumerate() {
+            assert!(hir.owns_occurrence(expression.occurrence()));
+            for other in &expressions[..index] {
+                assert_ne!(expression.occurrence(), other.occurrence());
+            }
+        }
+        let operand_kind = if source.ends_with("f f f") {
+            SyntaxKind::IdentifierExpression
+        } else {
+            SyntaxKind::IntegerLiteral
+        };
+        for (expression, kind, range) in [
+            (outer, SyntaxKind::MlArgument, 18..19),
+            (inner.as_ref(), SyntaxKind::MlArgument, 16..17),
+            (head.as_ref(), SyntaxKind::IdentifierExpression, 14..15),
+            (first.as_ref(), operand_kind, 16..17),
+            (second.as_ref(), operand_kind, 18..19),
+        ] {
+            let position = artifact
+                .occurrence_source_position(&hir, expression.occurrence())
+                .unwrap();
+            assert_eq!(artifact.position(&position).unwrap().kind(), kind);
+            assert_eq!(*artifact.position(&position).unwrap().range(), range);
+        }
+        assert_eq!(
+            hir.diagnostics()
+                .iter()
+                .filter(|diagnostic| diagnostic.kind() == HirErrorKind::UnsupportedExpression)
+                .count(),
+            2
+        );
+    }
 }
