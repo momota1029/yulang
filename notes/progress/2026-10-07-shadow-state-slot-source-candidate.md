@@ -70,3 +70,39 @@ when recovery-free source identities for the relevant occurrences exist and
 the corresponding ownership/resolution premises are specified. Do not infer
 them from sigils or from Frozen Oracle behavior. Production acceptance remains
 behind the existing proof and conformance gates.
+
+## Reviewed follow-on: declaration-to-initializer carrier
+
+Baseline: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`.
+
+The default-off shadow carrier now also exposes
+`ShadowArtifact::pending_state_slot_declaration(BindingStatement)`. It derives
+the candidate from the exact direct sigiled `IdentifierPattern`, retains only
+the target Pattern's optional direct `PatternTypeAnnotation`, and returns the
+existing `BindingBody` wrapper as an opaque initializer position. The
+initializer is not lowered or typed here. Unsupported targets, wrong/foreign
+identities, and ambiguous direct layouts are rejected. The annotated
+same-spelling fixture is recovery-free under the existing parser and
+`ShadowArtifact::from_parsed` admission guard; no parser or ordinary-HIR
+behavior changed.
+
+The focused test verifies the statement/pattern/header/annotation/body parent
+relations and distinct identities for equal-spelling declarations, plus
+foreign identity, wrong node, plain/destructuring/extra target shapes,
+malformed annotation rejection, and an unannotated candidate. The original
+`UnsupportedTarget` assertion remains. No occurrence identity or role,
+resolved `StateSlotId`, read/write/handle judgment, effect, transition,
+runtime activation, solver fact, or inference acceptance is produced.
+
+Independent compiler-referee review: PASS, no blocking/major/minor findings.
+Focused verification, rerun at integration baseline:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-hir --features shadow --test shadow_state_slot_identity -j 2 -- --test-threads=1
+rustfmt --edition 2024 --check crates/yu-hir/src/shadow.rs crates/yu-hir/tests/shadow_state_slot_identity.rs
+git diff --check -- crates/yu-hir/src/shadow.rs crates/yu-hir/tests/shadow_state_slot_identity.rs
+```
+
+Result: all 3 tests passed; formatting and whitespace checks passed. No broad
+suite or performance sample was run. `STATE-ID`, `STATE-RW`, and
+`STATE-RESUME` remain open, along with production cutover gates.
