@@ -53,6 +53,21 @@ checks passed with one pre-existing rustfmt discrepancy explicitly retained.
 These remain unresolved premise markers, not O0 evidence. DAG counts and all
 semantic statuses remain unchanged.
 
+### Priority attacks from `61651a3`
+
+The reviewed bounded attacks are in
+[`successor-priority-leaf-attacks`](../notes/progress/2026-10-08-successor-priority-leaf-attacks.md).
+O0 is narrowed to original signature-local immediate Call-effect position
+formation in the dependent `Delta_c`, followed by the separate typed
+`OC-CallEff` introduction. P2's exact next head is original `Slots(beta)` /
+`Own(beta,...)` introduction with lexical `u_f` distinct from checking `u`;
+it is still conditional on O0. CALL_TYPE's actual-provider path now separates
+the `F_c` membership link, whole-carrier inclusion to `U`, and same-witness
+argument typing. Compiler-referee review passed these boundaries, but no
+unproved rule was promoted. Before and after: CLOSED 7, CONDITIONAL-CLOSED 20,
+OPEN-PROOF 43, OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1 (90 nodes / 196
+edges). The next direct attack remains O0 position formation.
+
 ### Other round 7 fronts from the same baseline
 
 Started from remote `f3be02da1ba169a88acc154ac29621634f3cc89b` (historical
