@@ -311,6 +311,138 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
 }
 
 #[test]
+fn recursive_alias_receiving_origin_retains_exact_incoming_fresh_row() {
+    let source: Arc<SourceText> = Arc::from("my f x = f; pub alias = f");
+    let parsed = parse_file(
+        source.clone(),
+        Arc::new(scan_header(source)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let hir = Arc::new(
+        lower_module_with_source_identity(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "shadow-receiving",
+                "recursive-alias.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+    let batch = ConstraintBatch::collect(hir.clone()).unwrap();
+    let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    let foreign = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert!(solved.errors().is_empty());
+    assert!(foreign.errors().is_empty());
+    let before = solved.counters();
+    let batch_before = batch.counters();
+    let HirItem::Binding(alias) = &hir.items()[1] else {
+        panic!("receiving alias binding");
+    };
+    assert!(matches!(alias.value(), ResolvedExpr::Name { .. }));
+    let position = shadow
+        .occurrence_source_position(&hir, alias.value().occurrence())
+        .unwrap();
+    let topology = batch.shadow_scc_topology();
+    let uses = topology
+        .components()
+        .flat_map(|component| component.incoming_uses())
+        .filter(|&occurrence| {
+            topology.use_source_position(&shadow, occurrence).unwrap() == position
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 1);
+    let occurrence = uses[0];
+    let pending = topology
+        .pending_use_instantiation(&solved, occurrence)
+        .unwrap();
+    assert!(pending.occurrence().same_identity(occurrence));
+    assert_eq!(
+        pending.current_route().unwrap().kind(),
+        CurrentUseRouteKind::IncomingStructured
+    );
+    let (parent, target) = topology.use_definitions(occurrence).unwrap();
+    assert!(pending.parent().same_identity(parent));
+    assert!(pending.target().same_identity(target));
+    let receiving = topology.definition_closed_scheme(&solved, parent).unwrap();
+    assert_eq!(receiving.owner(), alias.definition_root());
+    assert!(
+        pending
+            .current_scheme()
+            .same_identity(topology.definition_closed_scheme(&solved, target).unwrap())
+    );
+    assert!(!receiving.same_identity(pending.current_scheme()));
+    let recursive = receiving.recursive_binders().collect::<Vec<_>>();
+    assert!(!recursive.is_empty());
+    let GeneralizationOriginState::Captured(origins) = receiving.current_generalization_origins()
+    else {
+        panic!("complete receiving recursive origins");
+    };
+    assert!(origins.scheme().same_identity(receiving));
+    let FreshCaptureState::Captured(capture) = pending.current_fresh_capture() else {
+        panic!("incoming recursive alias capture");
+    };
+    assert!(capture.scheme().same_identity(pending.current_scheme()));
+    let rows = capture.bindings().collect::<Vec<_>>();
+    let origin_rows = origins.bindings().collect::<Vec<_>>();
+    for binder in recursive {
+        let matching = origin_rows
+            .iter()
+            .filter(|(origin_binder, _)| {
+                same_binder(*origin_binder, FreshBinderRef::Recursive(binder))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(matching.len(), 1);
+        let (_, historical) = *matching[0];
+        assert_eq!(
+            rows.iter()
+                .filter(|(fresh_binder, fresh)| {
+                    matches!(fresh_binder, FreshBinderRef::Recursive(_))
+                        && historical.same_identity(*fresh)
+                })
+                .count(),
+            1
+        );
+    }
+    let GeneralizationOriginState::Captured(repeated) = receiving.current_generalization_origins()
+    else {
+        panic!("stable receiving origins");
+    };
+    assert_eq!(origin_rows.len(), repeated.bindings().count());
+    for ((binder, row), (other_binder, other_row)) in origin_rows.iter().zip(repeated.bindings()) {
+        assert!(same_binder(*binder, other_binder));
+        assert!(row.same_identity(other_row));
+    }
+    let foreign_receiving = topology.definition_closed_scheme(&foreign, parent).unwrap();
+    assert!(!receiving.same_identity(foreign_receiving));
+    let GeneralizationOriginState::Captured(foreign_origins) =
+        foreign_receiving.current_generalization_origins()
+    else {
+        panic!("foreign complete origins");
+    };
+    for (binder, row) in origin_rows {
+        assert!(foreign_origins.bindings().all(|(other_binder, other_row)| {
+            !same_binder(binder, other_binder) && !row.same_identity(other_row)
+        }));
+    }
+    assert_eq!(
+        pending.pending_generalization().premise(),
+        PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+    );
+    assert_eq!(
+        pending.qr_correspondence_premise(),
+        PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+    );
+    assert_eq!(
+        pending.shared_contract_transport_premise(),
+        PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+    );
+    assert_eq!(solved.counters(), before);
+    assert_eq!(batch.counters(), batch_before);
+}
+
+#[test]
 fn recursive_and_integer_uses_observe_recorded_routes_including_factless_bottom() {
     for (text, incoming_kind) in [
         (
