@@ -114,7 +114,7 @@ def main():
         itertools.combinations(possible_edges, 2))
     assignments = tuple(itertools.product(range(8), repeat=3))
     count = satisfying = cyclic = guarded = 0
-    mutation_witness = direct_mutation_witness = None
+    mutation_witness = one_edge_mutation_witness = None
     for edges, side, argument, result, scalar in itertools.product(
             edge_sets, (1, -1), range(3), range(3), (0, 1, -1)):
         graph = (edges, side, argument, result, scalar)
@@ -128,7 +128,7 @@ def main():
         cyclic += bool(traces)
         guarded += any(is_guarded for _, is_guarded in traces)
         forest = compile_forest(expressions)
-        mutant = None if mutation_witness and direct_mutation_witness else compile_forest([
+        mutant = None if mutation_witness and one_edge_mutation_witness else compile_forest([
             expand(graph, row, polarity, alias=True)[0]
             for row, polarity in itertools.product(range(3), (1, -1))])
         for assignment in assignments:
@@ -147,13 +147,13 @@ def main():
                                    expected=expected, observed=mutated)
                     if mutation_witness is None:
                         mutation_witness = witness
-                    if edges and direct_mutation_witness is None:
-                        direct_mutation_witness = witness
+                    if edges and one_edge_mutation_witness is None:
+                        one_edge_mutation_witness = witness
     # One-row repeated-port witness: split h's argument/result coordinates.
     # Shared q=Bottom permits k,h; independently replace argument by Top, retain
     # result Bottom, and both are lost. This is a mutation, not the candidate.
     assert FUNCTION[0][0] == 6 and FUNCTION[7][0] == 0
-    assert mutation_witness is not None and direct_mutation_witness is not None
+    assert mutation_witness is not None and one_edge_mutation_witness is not None
     print(json.dumps(dict(
         claim="conditional finite raw-expansion characterization",
         graphs=count, assignments_per_graph=len(assignments),
@@ -161,7 +161,7 @@ def main():
         satisfying_assignments=satisfying, row_side_equalities=6 * satisfying,
         cyclic_graphs=cyclic, guarded_reentry_graphs=guarded,
         active_owner_alias_mutation=mutation_witness,
-        direct_active_owner_alias_mutation=direct_mutation_witness,
+        active_owner_alias_with_direct_edge=one_edge_mutation_witness,
         repeated_port_split=dict(shared_q=0, independent_argument=7,
                                  retained_result=0, before=6, after=0),
         seed=None, elapsed_seconds=round(time.monotonic() - START, 6),

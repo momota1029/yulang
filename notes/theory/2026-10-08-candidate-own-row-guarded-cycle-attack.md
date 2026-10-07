@@ -1,7 +1,7 @@
 # Candidate own rows on guarded cycles: assignment-preservation attack
 
 Date: 2026-10-08
-Status: frozen, unreviewed research characterization and conditional derivation
+Status: frozen, independently reviewed bounded characterization and conditional derivation
 Gate: `CandidateOwnRowGeneralizationModelUnresolved`
 Baseline: `8cadc7453404237c789c488db8c62c8b9cd747bf`
 Production authority: none
@@ -128,12 +128,13 @@ owner `{h}`, it rejects a formerly satisfying assignment. Thus recursive
 owner identity is a substantive condition. This is a deliberate mutation,
 not evidence the current implementation aliases owners.
 
-The executable witness is `[r,s,unused]=[4,5,0]`, with one lower Function,
-one edge `(0,1)` and no scalar bound. Its row-side outputs are
+The one-edge owner-alias mutation witness is `[r,s,unused]=[4,5,0]`, with one
+lower Function, one edge `(0,1)` and no scalar bound. Its row-side outputs are
 `[6,4,7,5,0,0]` rather than `[4,4,5,5,0,0]`. The unused third coordinate can
 be removed. One direct edge and one Function bound are minimal in number for
-the stipulated interaction shape; no global minimality claim is made.
-The mutation also fails without the direct edge on
+the stipulated interaction shape; no global minimality claim is made. The
+graph has a direct inequality edge but no direct cycle; the owner alias is
+exposed by guarded Function reentry. The mutation also fails without that edge on
 `F(r,r)<=r, rho(r)={h}, rho(s)={i}`.
 
 A separate repeated-port mutation uses `F(q,q)` with the shared coordinate
@@ -166,7 +167,7 @@ Command: `python3 -B tools/research_candidate_own_row_guarded_cycle.py`.
 Final run: exit 0, elapsed 0.221417 seconds, peak RSS 11,520 KiB on Linux.
 One Python process at a time; in-process SIGALRM hard stop 10 seconds;
 generation cap 5,000. Three focused executions used approximately 0.668
-seconds combined checker wall time. The latter executions added the direct
+seconds combined checker wall time. The latter executions added the one-edge
 mutation witness and corrected guarded-cycle counting to measure Function
 ports *after owner entry*. They are refinements of this single method, not
 additional premise-discharge attempts. CPU time was not separately measured.
@@ -195,7 +196,10 @@ Another larger raw-expansion search would leave that same premise untouched.
   and `tools/research_candidate_own_row_guarded_cycle.py`.
 - Baseline: `8cadc7453404237c789c488db8c62c8b9cd747bf`.
 - Dependency hashes: above; changed dependency hashes: none at freeze.
-- Review: unreviewed producer artifact; no independent certification.
+- Review: independent compiler-referee audit passed for the finite
+  characterization, source boundary, and mutation witnesses. The review
+  prompted the output-label correction distinguishing a direct inequality
+  edge from a direct cycle. No Yulang semantic or DAG promotion was reviewed.
 - Checks: final deterministic Python run above; leased-path diff whitespace
   check reported separately in the handoff.
 - Proposed commit: `research: bound own-row expansion on guarded cycles`.
