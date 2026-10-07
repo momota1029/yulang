@@ -236,8 +236,10 @@ search/build workers and imposed a 15-minute wall target. Independent source
 reads briefly used at most three lightweight shell processes; mutations and
 final checks were sequential. Aggregate CPU/RSS and actual total wall time
 were not instrumented. Frozen note checks are readback, trailing whitespace,
-local links, lease/baseline and direct dependency hashes. Independent review is
-pending; producer reread is not independent certification.
+local links, lease/baseline and direct dependency hashes. At producer freeze,
+independent review was pending; the current header and commit packet record
+the subsequent compiler-referee review. Producer reread is not independent
+certification.
 
 Unverified scope: actual admission of the structural envelope; independent
 open-import clauses and their joint interpretation; scalar cross-world

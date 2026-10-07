@@ -23,15 +23,33 @@ protection is retained. No E/R or normalized blanket policy is selected.
 Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
 Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
 external dependency revalidation through
-`6cd43ea855acdd1e7f47a46408715a03d192ffd4`. The canonical DAG now has
-**90 nodes / 195 edges**: CLOSED 7, CONDITIONAL-CLOSED 19, OPEN-PROOF 44,
-OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. Only CALL_TYPE and
-PRINCIPAL move from OPEN-PROOF to CONDITIONAL-CLOSED, preserving their
-prerequisites; their actual upstream semantic inputs remain open. One new
-CLOSED exact self-init subcase becomes a REC_INIT prerequisite. Thus existing
-OPEN nodes fall from 65 to 63 by two; the new subcase is not an old-node
-reduction. This is accepted-result navigation synchronization, not independent
-proof certification or semantic adoption.
+`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. The final canonical DAG has
+**90 nodes / 196 edges**: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43,
+OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. CALL_TYPE,
+PRINCIPAL and SOUND move from OPEN-PROOF to CONDITIONAL-CLOSED;
+CALL_TYPE/PRINCIPAL preserve their prerequisites, while SOUND adds exactly
+the existing HIR_WIRING obligation. Their actual upstream inputs remain
+open. One new CLOSED exact self-init subcase becomes a REC_INIT prerequisite.
+Thus existing OPEN nodes fall from 65 to 62 by three; the new subcase is not
+an old-node reduction. The first reviewed round-3 checkpoint remains historical:
+90 nodes / 195 edges, CONDITIONAL-CLOSED 19 and OPEN-PROOF 44.
+This is accepted-result navigation synchronization, not independent proof
+certification or semantic adoption.
+
+The final policy delta receives the design-debt audit in the review record
+§14: retain facts actually known by the owning construction; do not turn
+missing semantics into assumed certificates. The explicit all-view/all-world
+task and current governing contracts survive. No gate or production
+dependency is removed merely by labeling it stronger characterization.
+
+The independently revalidated final research delta (§15 of the same record)
+retains the [active ordered contribution map](../progress/2026-10-07-original-association-adversarial-round5.md)
+and [open-import incidence action](../progress/2026-10-07-world-open-import-action-round1.md)
+as existing correspondence obligations. Static IDs cannot certify the former;
+generic relation-image transport cannot establish the fixed import meaning
+for the latter. The [current producer chronology](../progress/2026-10-07-original-association-current-producer-crosswalk-round1.md)
+shows only the exact missing semantic source path, not repository-wide absence.
+Counts, statuses and prerequisite edges are unchanged.
 
 The [round-2 review](../progress/2026-10-07-successor-round2-review.md)
 remains history: its original-kernel candidate, actual recursive certificate/
@@ -108,6 +126,15 @@ OPEN-SEMANTIC and SEM_JOINT stays OPEN-PROOF; all actual law/source-world
 instance construction remains. No attachment/licensing/assembly/profile is
 obtained from the conditional theorem.
 
+The concurrently integrated [C1–C7 operand/context note](../progress/2026-10-07-call-type-operand-context-clause-candidate.md)
+is an independently reviewed **unadopted research candidate**. Its proposed
+joint environment, Return, whole-carrier, Delay and pending-suffix schemas
+supply conditional operand derivations only if those clauses are adopted and
+jointly realized. They instantiate none of the independent Call-input laws,
+construct no admitted source/world tuple and change no gate status or edge.
+Its baseline-era CALL_TYPE OPEN wording is historical; the current conditional
+composition is separate. No qualifying user-decision blocker is established.
+
 The same note §§3–6 sharpens ORIGINAL_ASSOC P2 to an **owned, indexed full
 typed-image preimage** jointly incident at the original static owner/slot/path.
 Separate global representability and ownership do not suffice. P3 needs one
@@ -119,6 +146,16 @@ profiles** on the fixed owned/typed fiber; finite Slots/source/descriptor graphs
 do not establish it. A proved OC-Owned-Image plus original coverage elimination
 would suffice only for that exact route. ATTACH and licensing remain open
 independent correspondences with unchanged original scopes/`xi`.
+
+The later reviewed [captured-Call producer cut](../progress/2026-10-09-original-call-fiber-construction-round4.md)
+retains distinct O0 typed output/root, O1 static owner/seed-at-exposure,
+C0 whole-inlet typing, C1 original contribution preimage and J0 joint uniform
+incidence. The [pairwise-projection obstruction](../progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+requires an actual joint certificate or witness-linked lossless decomposition;
+disconnected retained license IDs do not supply it. The bounded
+[K-Owner pair audit](../progress/2026-10-09-original-kowner-underdetermination-round1.md)
+establishes no two competing complete semantics. ORIGINAL_ASSOC stays open
+with no added edge, global ordering claim or user-decision blocker.
 
 ## 3. Recursive source, origin permissions and Generalize
 
@@ -234,10 +271,49 @@ Option 2 extras need no source construction. SOUND also retains actual
 publication/use preservation from exported residual/hiding/evidence to the
 same original solved relation. Correct joint solving and semantic conformance
 alone do not certify the publisher. These are refined existing rule heads,
-not new gate reductions or compiler-defect claims; statuses and edges are
-unchanged. IFACE/FRESH actual operation hypotheses remain unchanged.
+not gate reductions or compiler-defect claims. The later SOUND synthesis
+below proves the expanded conditional route with its existing HIR_WIRING leg;
+the earlier narrower-route countermodel remains valid. PROD_CONFORMANCE and
+IFACE/FRESH actual operation hypotheses remain unchanged.
+
+The reviewed [sound publication synthesis](../progress/2026-10-07-sound-publication-synthesis-round3.md)
+makes **SOUND CONDITIONAL-CLOSED** under SOURCE_ADEQUACY, JOINT_DEC,
+PROD_CONFORMANCE and the one added **existing HIR_WIRING** prerequisite.
+Full HIR semantic-stage input/result correspondence, its PROJECTION whole
+ordinary-use/evidence reflection, and actual FRESH_LIFE maps/internal sharing/
+reference/barrier plus RESOURCE exactness supply the publication leg.
+HIR_WIRING's definition remains unchanged, IMPLEMENTATION-ONLY and pending.
+
+Reflect each actual accepted finite joint use to the complete actual solver
+graph or a strategy satisfying all retained residual obligations. Undo
+freshening with the use-indexed inverse `iota_u(x) -> (u,x)` so independent
+copies remain separate, aliases of one event share that copy, and rigid/shared
+coordinates stay fixed. Reflect the whole joint use/evidence strategy through
+PROJECTION at the original binders, then apply same-original source/production
+semantics. Option 2 extras use upper containment, not source inversion.
+No ALL_VIEW or universal Q success is used, and syntax/residual acceptance
+alone does not prove every assignment valid.
+
+Fresh complete snapshots receive this soundness argument first. REUSE's
+sound/principal-valid rebuild hypothesis does not prove SOUND; only actual
+FRESH_LIFE maps/sharing/reference/barrier correspondence enters the fresh
+snapshot proof. Reuse of an already covered complete snapshot follows later,
+with any needed principality established separately. Actual full semantics and
+pipeline correspondence remain unattained; cutover stays open and prohibited.
 
 ## 6. Production and lifecycle boundary
+
+The reviewed [continued constructor attacks](../progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+leave SOURCE_ADEQUACY and IFACE_FORM OPEN-PROOF at explicit local equations.
+Actual Lambda invocation reduces to raw body Run versus the emitted decorated
+body under the same original environment/current world and complete
+consumer/return suffix; typing-atom emission and conditional decorated
+simulation alone do not prove that square. The finite interface must decode
+each original constructor's exact atoms and satisfy its actual downstream
+accessor equations. If full PROJECTION/GENERALIZE are established, their
+ordinary-use/evidence transport still does not enumerate every such accessor.
+An evidence-reference equation applies only after identifying the actual
+required read. No new observer, semantic adoption, or promotion is claimed.
 
 The [rebuild addendum](../design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md)
 retires inverse intrusive mutation as a prerequisite; [conditional lifecycle](../progress/2026-10-05-scc-generalized-boundary-contract.md)
@@ -254,6 +330,19 @@ likewise groups only existing direct-Use registrations and leaves complete
 source-use coverage and all semantic judgments open.
 The [all-retained-Use inventory](../progress/2026-10-07-shadow-retained-source-use-groups.md)
 extends structural grouping to non-call uses without semantic aggregation.
+Reviewed default-off [shadow initialization retention](../progress/2026-10-07-shadow-initialization-retention-round3.md)
+retains original HIR self-edge/use/SCC identities through solve. Its exact
+q1 recognition and pre-execution enforcement remain pending; no execution
+outcome, admission, provider, type fact or theorem discharge is supplied.
+This structural slice does not complete HIR_WIRING or enforce the closed
+semantic q1 boundary in the compiler.
+The independently reviewed [current Q/R capture](../progress/2026-10-07-shadow-current-qr-freshening-capture.md)
+is separately opt-in and retains only successful current use/target/binder/
+opaque-row identity. The [Frozen Oracle Call crosswalk](../progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md)
+links historical spans to the same pending HIR/Core/solver occurrence. Both
+remain structural evidence, with current-to-successor correspondence and
+source acceptance unresolved. Their final integration and focused checks
+are recorded in the round-3 record §13.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/

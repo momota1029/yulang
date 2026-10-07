@@ -34,10 +34,10 @@ navigation into this ledger, not independent duplicate gate lists.
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
 starts from current remote `6fb5d7f6`, preserving all intervening work since
-round 2, and revalidates the additive remote through `6cd43ea8`. The current
-canonical ledger has **90 nodes / 195 edges**: 7 CLOSED, 19 CONDITIONAL-CLOSED,
-1 IMPLEMENTATION-ONLY, 44 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
-blocker. Two existing OPEN nodes move to conditional closure: **65 → 63 OPEN**.
+round 2, and revalidates the additive remote through `d27f4090`. The current
+canonical ledger has **90 nodes / 196 edges**: 7 CLOSED, 20 CONDITIONAL-CLOSED,
+1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
+blocker. Three existing OPEN nodes move to conditional closure: **65 → 62 OPEN**.
 The one added CLOSED exact self-init subcase is reported separately.
 
 - **CALL_TYPE is CONDITIONAL-CLOSED** by the repaired
@@ -55,6 +55,17 @@ The one added CLOSED exact self-init subcase is reported separately.
   yield one finite ordinary-use map for every valid finite public view,
   preserving the original strategy and actual `B_common` Direct evidence.
   Actual all-view acceptance, source adequacy and effective projection remain OPEN.
+- **SOUND is CONDITIONAL-CLOSED** by the subsequently reviewed
+  [publication/use synthesis](../notes/progress/2026-10-07-sound-publication-synthesis-round3.md).
+  Its existing source/solver/production contracts plus the full existing
+  HIR_WIRING stage correspondence reflect an actual accepted joint use into
+  the same original scoped solution and semantics. One HIR_WIRING dependency
+  is added; no new semantic postulate or node is introduced. Whole-use/evidence
+  PROJECTION, actual indexed fresh maps, valid references and complete
+  publication remain required. Fresh snapshots receive this proof before
+  reuse; REUSE's assumed sound/principal rebuild cannot prove that base.
+  HIR_WIRING remains implementation pending and all semantic prerequisites
+  remain at their existing status. This certifies no current compiler path.
 - **REC_INIT_SELF is CLOSED** by the
   [approved exact source rule](../notes/design/2026-10-07-recursive-self-init-executable-boundary.md):
   q1 singleton `my f = f` is rejected before initialization/self-read while
@@ -83,11 +94,42 @@ The one added CLOSED exact self-init subcase is reported separately.
   current scheme, with exact q1 recognition and enforcement still pending.
   Four focused tests and a feature-off core/HIR/solver check pass. No normal
   inference path is switched or given an unproved semantic judgment.
+- The reviewed [continued source/interface attacks](../notes/progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+  retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. The first actual Lambda
+  operational square is raw body Run versus the emitted decorated body under
+  the same original environment/current world and complete consumer/return
+  suffix. The interface producer must emit each original constructor's finite
+  record, decode its exact RAW_SOURCE atoms, and preserve every actual
+  downstream accessor. Full PROJECTION/GENERALIZE contracts alone do not
+  enumerate those accessors. Both independent reviews passed; the referee's
+  minor conditional-wording clarification is applied. These are exact local
+  proof targets, not further status reductions or new source semantics.
+- Latest remote `4a9d969d` is integrated. Its independently reviewed original
+  Call O0/O1/C0/C1/J0 cut, witness-linked incidence obstruction and unsuccessful
+  K-Owner pair audit refine ORIGINAL_ASSOC without changing statuses or edges.
+  The opt-in current Q/R capture and historical Call crosswalk are preserved;
+  their current-to-successor typing, association and q1 enforcement remain
+  pending. Fresh integration reviews found no blocking or major issue. The
+  ten focused initialization/capture/crosswalk tests and feature-off
+  core/HIR/solver build passed on the merged code. §13 of the round-3 record
+  accounts for the historical producer-hash discrepancy without rewriting it.
+- Remote `ead43c6d` adds proof-obligation-economy policy. The §14 design-debt
+  audit distinguishes already known construction evidence from missing
+  semantic judgments. Retention can remove reconstruction of the former;
+  it cannot invent original owner/licensing or world/member proofs. The
+  user's explicit all-view/all-world/adequacy targets and governing contracts
+  remain in force. No node, status, edge or production boundary changes.
+- The final `d27f4090` research-only delta is integrated and independently
+  checked in §15. It adds no semantic supplier: C-realization retains its
+  original input, the source contribution needs its active ordered map,
+  and open imports need an incidence action identified with their fixed
+  independent meaning. The exact current nested path does not generate
+  semantic association and then discard it. All statuses/edges remain intact.
 
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.
 Earlier per-attempt OPEN statements below are interpreted at their pinned
-snapshots and are superseded only for the two named composition nodes and
+snapshots and are superseded only for the three named composition nodes and
 the exact approved q1 subcase. Their semantic-input cuts remain current.
 
 ### Preserved reviewed continuation: round 2

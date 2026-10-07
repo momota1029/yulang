@@ -62,15 +62,35 @@ production caller. Complete semantic interface generation is still IFACE_FORM.
 
 The current attack starts at `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 and includes read-only dependency revalidation through
-`6cd43ea855acdd1e7f47a46408715a03d192ffd4`. The primary accepted the exact
+`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. The primary accepted the exact
 independently compiler-referee/spec-auditor reviewed scopes linked in the
 [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md).
-The canonical inventory is now **90 nodes / 195 edges**: CLOSED 7,
-CONDITIONAL-CLOSED 19, OPEN-PROOF 44, OPEN-SEMANTIC 19,
+The final canonical inventory is **90 nodes / 196 edges**: CLOSED 7,
+CONDITIONAL-CLOSED 20, OPEN-PROOF 43, OPEN-SEMANTIC 19,
 IMPLEMENTATION-ONLY 1, BLOCKED-BY-USER-DECISION 0. The old 65 OPEN nodes
-become 63 because CALL_TYPE and PRINCIPAL have proved conditional
-compositions; the added CLOSED exact self-init subcase is a new node,
-not another reduction of an existing OPEN node.
+become 62 because CALL_TYPE, PRINCIPAL and SOUND have proved conditional
+compositions. The added CLOSED exact self-init subcase is a new node,
+not another reduction of an existing OPEN node. The first integrated round-3
+checkpoint was historically 90 nodes / 195 edges, CLOSED 7,
+CONDITIONAL-CLOSED 19 and OPEN-PROOF 44; the final SOUND delta adds only
+one HIR_WIRING dependency and makes no new node. All other prerequisite
+lists and actual-attainment statuses remain unchanged.
+
+The later proof-obligation-economy policy is applied in the integration record
+§14. Already known construction evidence should be retained at its owner;
+an unproved semantic owner/license/world fact cannot be manufactured as a
+certificate. Stronger characterizations explicitly requested here remain
+within the task and their governing contracts. This policy supplies no
+closure, semantic weakening or automatic removal of a cutover dependency.
+
+The final research-only delta is independently revalidated in §15. The
+[ordered-map discriminator](../progress/2026-10-07-original-association-adversarial-round5.md)
+retains ORIGINAL_ASSOC's active original suffix/resumption correspondence;
+identity tokens alone do not certify it. The [open-import action cut](../progress/2026-10-07-world-open-import-action-round1.md)
+requires licensed original-incidence/witness transport, fixed-interpretation
+identification and joint importer root extension. The [actual producer trace](../progress/2026-10-07-original-association-current-producer-crosswalk-round1.md)
+locates the bounded missing semantic producer before collection, not an
+already established association later discarded. No node or edge is added.
 
 The [full principal synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
 closes PRINCIPAL's composition under its unchanged SOURCE_ADEQUACY,
@@ -82,7 +102,8 @@ The latter already requires ordinary-use/evidence factorization; marginal
 projection equality is insufficient. Certified-use Theorem 3 then gives
 exact public factorization for every independently valid finite public scheme
 in the declared conservative abstraction. All three actual upstream gates
-remain open; SOUND, production containment and cutover are not proved.
+remain open; this PRINCIPAL proof does not establish SOUND, production
+containment or cutover. SOUND has its separate conditional proof below.
 
 The repaired [full Call composition](../progress/2026-10-07-call-original-rule-round3.md)
 §2.1 closes CALL_TYPE conditionally under unchanged CALL_REL/SEM_JOINT
@@ -90,6 +111,37 @@ edges. Its independent local laws **and their constructed input instances**
 remain in the semantic component below. No actual descriptor membership,
 assignment inhabitance, attachment/licensing, complete assembly or profile
 is obtained by recording the implication.
+
+The [sound publication synthesis](../progress/2026-10-07-sound-publication-synthesis-round3.md)
+closes SOUND conditionally under SOURCE_ADEQUACY, JOINT_DEC,
+PROD_CONFORMANCE and the **existing full HIR_WIRING** contract. The added
+HIR_WIRING edge brings its existing PROJECTION/FRESH_LIFE/RESOURCE cone;
+no direct ALL_VIEW edge, universal query-success premise or new semantic
+node is introduced. The HIR definition is unchanged: complete actual
+semantic-stage input/result correspondence remains IMPLEMENTATION-ONLY and
+unattained, along with its actual semantic and lifecycle inputs.
+
+For each supported complete publication and actual accepted finite joint
+use, reflect its result to the complete actual solver graph or a scoped
+strategy **satisfying every retained residual obligation**. Undo the actual
+fresh maps with the inverse indexed by `(use event, original local identity)`:
+independent incoming copies remain independent, aliases of one event share
+that event's copy, and rigid/shared identities remain fixed. Preserve the
+whole client conjunction, submitted query operands and evidence, then use
+full original-scoped PROJECTION ordinary-use/evidence reflection. The
+same-original source and production correspondences apply to this reflected
+joint strategy. Option 2 extras are justified by upper containment, never by
+source-image inversion. No accepted syntax or pending residual is treated as
+proof of successful Q.
+
+The soundness proof first covers each **fresh complete snapshot**, using actual
+FRESH_LIFE maps/internal sharing/reference/barrier correspondence and RESOURCE
+exactness. REUSE's sound/principal-valid rebuild premise does not prove that
+snapshot sound. Only afterward may lifecycle correspondence reuse a result
+from an already covered snapshot; any separately required PRINCIPAL premise
+must be established independently. This proves the conditional publication/use
+leg without circular lifecycle reasoning, while full semantic and actual
+pipeline proofs remain pending. Production cutover remains open and prohibited.
 
 ## Independent semantic specifications and realization
 
@@ -143,6 +195,18 @@ SEM_JOINT stays OPEN-PROOF; actual law instantiation and source/world input
 construction remain open. The conditional proof derives whole suffix typing
 from those inputs rather than assuming it.
 
+The concurrent [C1–C7 Call operand/context candidate](../progress/2026-10-07-call-type-operand-context-clause-candidate.md)
+is independently reviewed **research only**, preserved without semantic
+adoption. Its candidate environment/Return/whole-carrier/Delay/saved-suffix
+schemas expose possible CI-Operands inputs and conditional Name/Return
+elimination; they construct no common interpretation, actual admitted tuple,
+CI-ArgFrame returned-world transport or full receiver/Bind law. They change no
+canonical status or prerequisite and do not instantiate the Call laws above.
+The candidate's baseline-era OPEN wording for CALL_TYPE is historical;
+current CALL_TYPE conditional closure is the separate repaired composition.
+No qualifying complete competing semantics or new user-decision blocker is
+inferred from the candidate.
+
 ## Source contribution dependency route
 
 | Gate | Necessary input | Smallest unfinished step | Downstream |
@@ -189,6 +253,18 @@ those outside any constructor image, remain. Projecting origin fields is
 bookkeeping; ATTACH still needs its independent correspondence and licensing
 still needs actual introduction and exhaustive inversion rules. Their statuses
 and original scopes/`xi` remain unchanged.
+
+The later reviewed [captured-Call cut](../progress/2026-10-09-original-call-fiber-construction-round4.md)
+separates O0 original typed output/root correspondence, O1 static owner
+introduction with actual seed-at-exposure, C0 whole-inlet independent typing,
+C1 original contribution preimage and J0 joint uniform incidence. Its
+owner-first traversal is not a new global dependency order. The reviewed
+[pairwise-projection obstruction](../progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+requires a joint certificate or a proved witness-linked lossless decomposition;
+retained disconnected license IDs do not prevent invented incidence. The
+[K-Owner pair audit](../progress/2026-10-09-original-kowner-underdetermination-round1.md)
+constructs no competing complete semantics or user-decision blocker. These
+locators refine ORIGINAL_ASSOC only; all statuses and edges are unchanged.
 
 The complete Call has both callee evaluation and designated receiver
 invocation. A computed-callee prefix cannot inherit the target formal's
@@ -280,19 +356,35 @@ JOINT_DEC and PROJECTION remain the complete residual/effective source gates.
 
 ## Production and final dependencies
 
+The independently reviewed [continued constructor attacks](../progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. RAW_SOURCE's typing
+emission/inversion and decorated REF_SIM do not alone prove the actual raw
+operational square. For the actual Lambda invocation, the first remaining
+square is raw body Run versus its emitted decorated body at the same original
+environment/current world and complete consumer/return suffix, with the
+independent entry/world/history certificates retained. For each actual
+interface constructor, prove exact atom decoding and
+`Observe_r(original data;xi) = Eval_accessor_r(emitted record;xi)` for every
+actual downstream read. The full PROJECTION/GENERALIZE contracts, if proved,
+cover ordinary-use/evidence observations; they do not themselves enumerate
+all accessors. The canonical leaves retain these local equations without
+another dependency, semantic clause adoption, or status promotion.
+
 | Final target | Necessary unfinished claims |
 | --- | --- |
 | General source adequacy | Complete raw source generation and rows, all-world admission, typed incidence/liveness, adapters/dispatch/subtraction/release, State/reference/world and role/method fixed point |
 | Independent production meaning | SAT_A exhaustive original Option A/2 member clauses and ADM_A independently typed punctured contexts |
 | Production conformance | Same-original generated-source to actual descriptor/Sat_A lower membership, independently of D_C subset D_A and P_A subset P_C for every original checked-admitted challenge, including Option 2 extras |
-| Sound successor inference | Complete source/production correspondence, effective exact joint solver and actual exported-residual/publication/accepted-use preservation to the original solved relation |
+| Sound successor inference, conditional composition closed | Actual SOURCE_ADEQUACY, JOINT_DEC, PROD_CONFORMANCE and existing full HIR_WIRING stage correspondence, including PROJECTION/FRESH_LIFE/RESOURCE, remain pending |
 | All-view principality, conditional composition closed | Actual SOURCE_ADEQUACY, ALL_VIEW and full original-scope ordinary-use/evidence PROJECTION remain open, including common formation/totality |
 | Generalized SCC lifecycle | Complete actual interface, primitive equivariance, fresh/internal use correspondence, split/merge/rebuild/reference/atomic publication |
 | Production cutover | All preceding claims, exact practical resource boundary, full HIR/pipeline implementation, Oracle capability evidence, independent final reviews and explicit concrete rollout authority |
 
 The accepted reviewed [round-3 aggregate attack](../progress/2026-10-07-aggregate-obligation-attack-round3.md)
-refines existing PROD_CONFORMANCE/SOUND obligations without changing their
-statuses or edges. Its fixed-original-fiber model has nonempty actual
+refined existing PROD_CONFORMANCE/SOUND obligations at the first checkpoint
+without changing their statuses or edges. The later SOUND synthesis adds the
+existing full HIR_WIRING leg and proves that expanded conditional implication;
+the earlier narrower-route discriminator remains valid. Its fixed-original-fiber model has nonempty actual
 admission and observations and satisfies both `D_C subset D_A` and
 `P_A subset P_C`, yet omits an original generated source observation.
 The required lower head is generated source observation plus independent
@@ -318,6 +410,21 @@ supplied evidence; it is not a semantic prerequisite for a particular
 production representation. Its source producers remain the incidence and
 liveness gates. No new production call site or rule is approved here.
 
+The reviewed default-off [shadow initialization retention](../progress/2026-10-07-shadow-initialization-retention-round3.md)
+adds structural original HIR/self-edge/use/SCC identity retention through solve.
+Exact q1 source-envelope recognition and actual pre-execution enforcement
+remain pending in its carrier. It produces no execution outcome, semantic
+admission, runtime provider, new type fact or theorem discharge; the full
+HIR_WIRING contract and its implementation-only status remain unchanged.
+
+The later reviewed [current Q/R capture](../progress/2026-10-07-shadow-current-qr-freshening-capture.md)
+retains successful use/target/binder/opaque-row identities only when explicitly
+requested. The [legacy Call crosswalk](../progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md)
+joins historical spans to the same pending HIR/Core/solver row. Current-to-
+successor Q/R, original association, source acceptance and complete wiring
+remain pending; the round-3 integration record §13 distinguishes these
+parallel-worker contributions and their merged-state checks.
+
 ## Retirements and review
 
 The canonical ledger has the exhaustive old-to-current retirement table:
@@ -325,7 +432,8 @@ pure FMP subtargets, opaque selected SV/capture, opaque K/LX providers/imports,
 fresh contribution labels, repeated completed-P premises, selected SC role
 substitution, blanket O classification, a separate m_V calculus, reverse
 mutation across edits, absence of any finite alpha equality, old E/R, generic
-Call/principality composition, and exact q1 executable ambiguity. Their open
+Call/principality composition, the generic SOUND wrapper under its existing
+full HIR route, and exact q1 executable ambiguity. Their open
 semantic input clauses and actual implementation obligations are retained.
 
 Read the [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md)

@@ -170,3 +170,12 @@ already open in the global synthesis; it is not a newly closed or discharged
 semantic obligation. The SOUND illustration concerns valid public solution
 and accepted-use assignments, not a permitted Option 2 observation
 overapproximation. See the [integration record](2026-10-07-successor-round3-review.md).
+
+Subsequent direct attack: the independently reviewed
+[SOUND publication synthesis](2026-10-07-sound-publication-synthesis-round3.md)
+supplies §3's missing application leg using the existing **full** HIR_WIRING
+contract and its PROJECTION/fresh/resource cone. SOUND's generic composition
+is now CONDITIONAL-CLOSED on that strengthened sufficient route, with only
+the existing HIR_WIRING edge added. This does not invalidate the narrower
+countermodel above or establish any actual upstream implementation. The
+source-to-actual production membership head remains OPEN.
