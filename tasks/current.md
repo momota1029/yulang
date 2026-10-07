@@ -91,9 +91,13 @@ The one added CLOSED exact self-init subcase is reported separately.
   Option 2 extras retain their independent all-member upper containment.
 - The reviewed [initialization shadow](../notes/progress/2026-10-07-shadow-initialization-retention-round3.md)
   carries original HIR/self-Name/use/SCC identities through solve to the
-  current scheme, with exact q1 recognition and enforcement still pending.
-  Four focused tests and a feature-off core/HIR/solver check pass. No normal
-  inference path is switched or given an unproved semantic judgment.
+  current scheme. The focused [q1 execution-boundary shadow](../notes/progress/2026-10-07-shadow-exec-self-q1-boundary.md)
+  now recognizes only the exact approved singleton and carries cold
+  `Reject(SelfInitNoValue, binder, rhs)` evidence; every near-miss stays
+  `Unresolved`. Five focused tests and the feature-off core/HIR/solver check
+  pass across the preserved implementation slice. Production enforcement and
+  other initializer classes remain open; no normal inference path is switched
+  or given an unproved semantic judgment.
 - The reviewed [continued source/interface attacks](../notes/progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
   retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. The first actual Lambda
   operational square is raw body Run versus the emitted decorated body under

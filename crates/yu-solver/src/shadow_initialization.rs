@@ -1,14 +1,14 @@
 //! Cold structural evidence for whole-Name resolved self initializers.
 //!
-//! A candidate is not the exact q1 source judgment, an execution decision,
-//! a type admission, or a runtime value. Both premises remain pending after solve.
+//! Whole-Name candidates are broader than the exact q1 source judgment.
+//! The cold boundary records that judgment without enforcing production execution.
 
 use crate::{
     ConstraintBatch, DefinitionOrderId, DefinitionRootId, DefinitionUseId, HirOccurrenceId,
     SolvedModule, scc::SccComponentId,
 };
 use std::sync::Arc;
-use yu_hir::{HirItem, HirModule, NameResolution, ResolvedExpr};
+use yu_hir::{HirItem, HirModule, HirVisibility, NameResolution, ResolvedExpr};
 
 /// Owned collection-branded evidence that can survive consuming the batch.
 /// Captured only by an explicit cold observer call; production retains no new rows.
@@ -16,6 +16,7 @@ pub struct InitializationCandidates {
     hir: Arc<HirModule>,
     artifact: Arc<crate::CollectionArtifactToken>,
     candidates: Vec<InitializationCandidate>,
+    exact_q1: bool,
 }
 
 impl ConstraintBatch {
@@ -59,15 +60,43 @@ impl ConstraintBatch {
                 component,
             });
         }
+        // These original HIR constructors admit only simple unannotated binders
+        // and direct Name bodies; grouped/annotated syntax is not erased into them.
+        let exact_q1 = matches!(self.hir.items(), [HirItem::Binding(binding)]
+            if binding.visibility() == HirVisibility::Private
+                && binding.parameters().is_empty()
+                && self.hir.errors().is_empty())
+            && candidates.len() == 1
+            && self
+                .scc_plan()
+                .members(&candidates[0].component)
+                .expect("candidate belongs to frozen SCC plan")
+                .len()
+                == 1;
         InitializationCandidates {
             hir: self.hir.clone(),
             artifact: self.collection_artifact.clone(),
             candidates,
+            exact_q1,
         }
     }
 }
 
 impl InitializationCandidates {
+    /// Structural EXEC-SELF-Q1 evidence only, before or independently of solve.
+    /// Unresolved carries no permission to start initialization or read the RHS.
+    pub fn boundary_outcome(&self) -> InitializationBoundaryOutcome<'_> {
+        if self.exact_q1 {
+            let candidate = &self.candidates[0];
+            InitializationBoundaryOutcome::Reject {
+                reason: InitializationRejectionReason::SelfInitNoValue,
+                binder: &candidate.root,
+                rhs: &candidate.occurrence,
+            }
+        } else {
+            InitializationBoundaryOutcome::Unresolved
+        }
+    }
     pub fn candidates(&self) -> impl Iterator<Item = InitializationCandidateRef<'_>> {
         self.candidates
             .iter()
@@ -158,7 +187,11 @@ impl<'a> InitializationCandidateRef<'a> {
         self.candidate.component.canonical_definition().ordinal()
     }
     pub fn original_q1_source_envelope_premise(self) -> InitializationPremise {
-        InitializationPremise::OriginalQ1SourceEnvelopeRecognitionPending
+        if self.inventory.exact_q1 {
+            InitializationPremise::OriginalQ1SourceEnvelopeRecognized
+        } else {
+            InitializationPremise::OriginalQ1SourceEnvelopeRecognitionPending
+        }
     }
     pub fn pre_execution_enforcement_premise(self) -> InitializationPremise {
         InitializationPremise::PreExecutionEnforcementPending
@@ -179,8 +212,25 @@ impl<'a> InitializationCandidateRef<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationPremise {
+    OriginalQ1SourceEnvelopeRecognized,
     OriginalQ1SourceEnvelopeRecognitionPending,
     PreExecutionEnforcementPending,
+}
+
+/// Default-off source evidence; this is not a production acceptance decision.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InitializationBoundaryOutcome<'a> {
+    Reject {
+        reason: InitializationRejectionReason,
+        binder: &'a DefinitionRootId,
+        rhs: &'a HirOccurrenceId,
+    },
+    Unresolved,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InitializationRejectionReason {
+    SelfInitNoValue,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationLookupError {

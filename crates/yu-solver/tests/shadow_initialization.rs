@@ -7,7 +7,10 @@ use yu_hir::{
 };
 use yu_solver::{
     ConstraintBatch, SolvedModule,
-    shadow_initialization::{InitializationLookupError, InitializationPremise},
+    shadow_initialization::{
+        InitializationBoundaryOutcome, InitializationLookupError, InitializationPremise,
+        InitializationRejectionReason,
+    },
 };
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
@@ -34,6 +37,15 @@ fn exact_self_name_retains_original_edge_and_current_never_without_production_ch
     let inventory = batch.shadow_initialization_candidates();
     assert_eq!(batch.counters(), before);
     let candidate = inventory.candidates().next().unwrap();
+    let outcome = inventory.boundary_outcome();
+    assert_eq!(
+        outcome,
+        InitializationBoundaryOutcome::Reject {
+            reason: InitializationRejectionReason::SelfInitNoValue,
+            binder: candidate.root(),
+            rhs: candidate.rhs_occurrence(),
+        }
+    );
     assert_eq!(inventory.candidates().count(), 1);
     assert_eq!(candidate.parent_ordinal(), candidate.target_ordinal());
     assert_eq!(
@@ -50,6 +62,7 @@ fn exact_self_name_retains_original_edge_and_current_never_without_production_ch
     let before_facts = solved.store().facts().to_vec();
     let joined = solved.shadow_initialization(&inventory).unwrap();
     let retained = joined.candidates().next().unwrap();
+    assert_eq!(inventory.boundary_outcome(), outcome);
     assert!(retained.same_use_identity(candidate));
     assert!(retained.same_component_identity(candidate));
     assert_eq!(
@@ -66,7 +79,7 @@ fn exact_self_name_retains_original_edge_and_current_never_without_production_ch
     ));
     assert_eq!(
         retained.original_q1_source_envelope_premise(),
-        InitializationPremise::OriginalQ1SourceEnvelopeRecognitionPending
+        InitializationPremise::OriginalQ1SourceEnvelopeRecognized
     );
     assert_eq!(
         retained.pre_execution_enforcement_premise(),
@@ -99,6 +112,10 @@ fn multi_definition_candidate_does_not_discharge_exact_q1_or_execution_premises(
     let batch = ConstraintBatch::collect(hir).unwrap();
     let inventory = batch.shadow_initialization_candidates();
     assert_eq!(inventory.candidates().count(), 1);
+    assert_eq!(
+        inventory.boundary_outcome(),
+        InitializationBoundaryOutcome::Unresolved
+    );
     let solved = SolvedModule::solve(batch).unwrap();
     let joined = solved.shadow_initialization(&inventory).unwrap();
     let candidate = joined.candidates().next().unwrap();
@@ -111,6 +128,35 @@ fn multi_definition_candidate_does_not_discharge_exact_q1_or_execution_premises(
         candidate.pre_execution_enforcement_premise(),
         InitializationPremise::PreExecutionEnforcementPending
     );
+}
+
+#[test]
+fn source_near_misses_never_supply_execution_permission() {
+    for source in [
+        "my f x = f",
+        "my f = g; my g = f",
+        "my f = f; my g = 1",
+        "my f = (f)",
+        "my (f) = f",
+        "my f: Integer = f",
+        "my f = f: Integer",
+        "my f = g",
+        "our f = f",
+        "pub f = f",
+    ] {
+        let (hir, _) = input(source);
+        // Collection retains unsupported and unresolved source as existing error
+        // evidence. Boundary classification must not turn it into permission.
+        let batch = ConstraintBatch::collect(hir).unwrap();
+        let before = batch.counters();
+        let inventory = batch.shadow_initialization_candidates();
+        assert_eq!(
+            inventory.boundary_outcome(),
+            InitializationBoundaryOutcome::Unresolved,
+            "source: {source}"
+        );
+        assert_eq!(batch.counters(), before);
+    }
 }
 
 #[test]
@@ -135,6 +181,23 @@ fn same_spelling_and_even_shared_hir_cannot_join_foreign_collection() {
     let separate = ConstraintBatch::collect(separate_hir)
         .unwrap()
         .shadow_initialization_candidates();
+    let (
+        InitializationBoundaryOutcome::Reject {
+            binder: first_b,
+            rhs: first_n,
+            ..
+        },
+        InitializationBoundaryOutcome::Reject {
+            binder: other_b,
+            rhs: other_n,
+            ..
+        },
+    ) = (inventory.boundary_outcome(), separate.boundary_outcome())
+    else {
+        panic!("both independent exact sources carry their own rejecting evidence");
+    };
+    assert_ne!(first_b, other_b);
+    assert_ne!(first_n, other_n);
     assert!(
         !inventory
             .candidates()
