@@ -970,6 +970,10 @@ fn retained_source_use_captures_supply_receiver_namespaces_for_exported_transpor
         FaultInjection::default(),
     )
     .unwrap();
+    assert_eq!(
+        parent.graph,
+        reference_substitute(&snapshot, &parent.identity_map)
+    );
     let overlays = make_uses(&parent, &receivers, FaultInjection::default()).unwrap();
     assert_eq!(overlays.len(), 2);
     assert_eq!(
@@ -1003,6 +1007,146 @@ fn retained_source_use_captures_supply_receiver_namespaces_for_exported_transpor
             PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
         );
     }
+}
+
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[test]
+fn retained_recursive_uses_export_and_freshen_r_binders() {
+    use super::*;
+    use crate::shadow_f5::{FreshBinderRef, FreshCaptureState, FreshRowRef};
+
+    let hir = module(
+        "my f x = g; my g y = f; my a = f; my b = f",
+        "transport-retained-recursive-captures.yu",
+    );
+    assert!(hir.errors().is_empty());
+    assert!(hir.diagnostics().is_empty());
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("expected first recursive binding");
+    };
+    let batch = collect(hir.clone());
+    let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert!(solved.errors().is_empty());
+    let topology = batch.shadow_scc_topology();
+    let occurrences = topology
+        .components()
+        .flat_map(|component| component.incoming_uses())
+        .collect::<Vec<_>>();
+    let pending = occurrences
+        .iter()
+        .filter_map(|occurrence| {
+            let use_pending = topology
+                .pending_use_instantiation(&solved, *occurrence)
+                .unwrap();
+            (use_pending.current_scheme().owner() == binding.definition_root())
+                .then_some(use_pending)
+        })
+        .collect::<Vec<_>>();
+    assert!(pending.len() >= 2, "expected multiple uses of recursive f");
+    let target = pending[0].current_scheme();
+    assert!(
+        pending
+            .iter()
+            .all(|use_pending| use_pending.current_scheme().same_identity(target))
+    );
+    let exported = export_scheme(target.endpoints()).unwrap();
+    assert!(
+        exported
+            .binders
+            .keys()
+            .any(|binder| matches!(binder, SchemeBinder::Recursive(_)))
+    );
+    assert!(!exported.recursive_bounds.is_empty());
+
+    let mut row_tokens: Vec<(FreshRowRef<'_>, Identity)> = Vec::new();
+    let mut receivers = Vec::new();
+    for use_pending in &pending {
+        let FreshCaptureState::Captured(capture) = use_pending.current_fresh_capture() else {
+            panic!("each successful recursive source use must retain its capture");
+        };
+        assert!(capture.scheme().same_identity(target));
+        let mut matched = HashSet::new();
+        let mut receiver = Vec::new();
+        for (binder, row) in capture.bindings() {
+            let key = match binder {
+                FreshBinderRef::Quantified(q) => {
+                    assert!(q.scheme().same_identity(target));
+                    *exported
+                        .binders
+                        .keys()
+                        .find(|key| {
+                            matches!(key,
+                            SchemeBinder::Quantified(id) if id.ordinal() == q.ordinal())
+                        })
+                        .expect("captured Q must occur in the exact recursive export")
+                }
+                FreshBinderRef::Recursive(r) => {
+                    assert!(r.scheme().same_identity(target));
+                    *exported
+                        .binders
+                        .keys()
+                        .find(|key| {
+                            matches!(key,
+                            SchemeBinder::Recursive(id) if id.ordinal() == r.ordinal())
+                        })
+                        .expect("captured R must occur in the exact recursive export")
+                }
+            };
+            assert!(
+                matched.insert(key),
+                "capture must cover each Q/R binder once"
+            );
+            let token = row_tokens
+                .iter()
+                .find(|(known, _)| row.same_identity(*known))
+                .map(|(_, token)| *token)
+                .unwrap_or_else(|| {
+                    let token = Identity(100 + u32::try_from(row_tokens.len()).unwrap());
+                    row_tokens.push((row, token));
+                    token
+                });
+            receiver.push(token);
+        }
+        assert_eq!(matched.len(), exported.binders.len());
+        receivers.push(receiver);
+    }
+    let mut receiver_ids = HashSet::new();
+    for receiver in &receivers {
+        assert!(
+            receiver
+                .iter()
+                .all(|identity| receiver_ids.insert(*identity))
+        );
+    }
+    let snapshot = exported.graph.clone();
+    let parent = make_parent(
+        &snapshot,
+        &snapshot.identities,
+        &[],
+        &receiver_ids.iter().copied().collect::<Vec<_>>(),
+        FaultInjection::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        parent.graph,
+        reference_substitute(&snapshot, &parent.identity_map)
+    );
+    let overlays = make_uses(&parent, &receivers, FaultInjection::default()).unwrap();
+    assert_eq!(overlays.len(), pending.len());
+    let mut fresh_ids = HashSet::new();
+    for overlay in &overlays {
+        assert_eq!(
+            overlay.graph,
+            reference_substitute(&parent.graph, &overlay.identity_map)
+        );
+        for (_, fresh) in &overlay.identity_map {
+            assert!(fresh_ids.insert(*fresh));
+            assert!(!receiver_ids.contains(fresh));
+            assert!(!snapshot.identities.contains(fresh));
+            assert!(!parent.graph.identities.contains(fresh));
+        }
+    }
+    assert_eq!(exported.graph, snapshot);
 }
 
 #[test]
