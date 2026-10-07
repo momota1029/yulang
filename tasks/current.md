@@ -233,6 +233,26 @@ Attach/licensing/profile/rows, active-consumer or production gate. The DAG
 counts now read 7 CLOSED / 21 CONDITIONAL-CLOSED / 43 OPEN-PROOF / 18
 OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY.
 
+### Selected attachment and licensing constructor cases (2026-10-08)
+
+The complete-Call definition §5 now supplies an adoptable `A-UpperCallRef`
+source-reference constructor and a separate `LC-OwnCall` static-applicability
+introduction for the same captured Call. Exact Q authenticity, independent C0,
+the complete Theorem IF graph, the original shared slot and separate
+lexical/checking facets are retained. The constructor-local inverse recovers
+these same inputs; its J-Owned license premise is formed without licensing or
+attachment. Injective old-case inclusions and every W/Z alternative remain.
+Independent compiler-referee and spec-auditor reviews passed after a repair
+that retains `SpecCall_e` in the source-reference payload.
+
+This proves only the new source-reference and licensing constructor cases
+conditionally. Aggregate ATTACH, LIC_FORWARD and LIC_INVERT remain
+OPEN-PROOF; the exact residuals now target old attachment/licensing cases,
+fixed-interpretation maps and active-consumer preservation. Profile/rows,
+source adequacy, production conformance and cutover remain open. Node and edge
+counts are unchanged at 90 / 196: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43
+OPEN-PROOF, 18 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY.
+
 ### Current original semantic Call inputs
 
 The [contextual Function membership definition](../notes/design/2026-10-08-contextual-function-membership-definition.md)

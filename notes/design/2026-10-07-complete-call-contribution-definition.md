@@ -2,10 +2,10 @@
 
 Date: 2026-10-07
 Status: Authoritative constructor formalization under the existing source direction and current user authorization
-Scope: authentic original receiver/complete-Call contribution cases and conditional dependent routing/accounting cases
+Scope: authentic original receiver/complete-Call contribution cases, dependent routing/accounting, and the selected captured-Call attachment/licensing constructors
 Current instruction at: `2026-10-07T23:02:56+09:00`
 Drafted-by: primary selection of the independently reviewed constructor proof
-Reviewed-by: independent compiler-referee repair delta and independent spec-auditor; both pass within the stated scope
+Reviewed-by: independent compiler-referee and spec-auditor for §5; both pass after the retained SpecCall_e repair. Earlier sections retain their recorded reviews.
 Review record: [source-constructor completion](../progress/2026-10-07-source-constructor-completion-review.md)
 Supersedes: missing constructor formalization on this route only; no independently fixed foreign kernel or production contract
 Production implementation / cutover authority: none
@@ -167,3 +167,130 @@ conditional proofs. It changes no production semantics, current compiler
 routing, canonical DAG status/prerequisite, cutover dependency or rollout
 authority. The independent source-interface/semantic suppliers and actual
 consumer correctness must precede production use.
+
+## 5. Selected upper-Call reference and applicability cases
+
+Under the current authorization to construct legitimate missing definitions,
+select one additional source-reference case for an actual captured Call. This
+is a completion of the selected reference judgments, not a theorem about a
+separately fixed historical `Attach_M` or `Lic_M` interpretation. All existing
+attachment and licensing cases remain available as distinct cases; this
+selection does not restrict either judgment to its new constructor image.
+
+Fix the unchanged complete index
+
+```text
+Idx(e) = (B,X,xi,Delta_e;
+          d_f,A_f,R_f,u_f,u_x,c,u,U_e,beta,p0,p_out(c),ElimOrigin),
+xi=(nu,K,D), beta=(d_f,R_f).
+```
+
+Let `q_e` be the actual resolved captured-Call formation. Its authentic
+registration/capture route, selected O0 construction and O1 owner supply one
+shared `s_beta = SharedInvoke(beta)` with two separate indexed facets:
+
+```text
+lex_e : Own_orig(beta,s_beta,u_f,p0,o_e;X)
+chk_e : Own_orig(beta,s_beta,u,p0,o_e;X).
+```
+
+Let `Q_e` be the authentic complete original Call declaration aligned with
+`q_e`, with `SpecCall_e` and independent complete typing `C0_e`. The selected
+Theorem IF construction at this same Call supplies `kappa_e`, the complete
+contextual source/reference graph, retaining the open whole-carrier hole,
+actual returned-provider/current-world Bind inlet, both occurrence facets and
+exposure, all original declaration insertions, dependent return/future ports,
+and lawful whole-map interfaces. `kappa_e` is the single incidence authority;
+the rule below retains it and creates no parallel diagram.
+
+The new source-reference constructor is:
+
+```text
+q_e       : actual resolved source Call formation retaining Idx(e)
+reg_e     : authentic registration for beta
+route_e   : actual resolved Name/capture route from reg_e to u_f
+seed_e    : selected SeedExposure(k,e)
+O0_e      : selected O0 construction at q_e
+O1_e      : selected O1 owner and separate lex_e/chk_e facets
+Q_e       : authentic complete Call declaration aligned with q_e
+SpecCall_e: authenticity/unfolding of Q_e
+C0_e      : independent complete typing of its unchanged full interface
+kappa_e   : complete selected Theorem IF graph for q_e and Q_e
+---------------------------------------------------------------- A-UpperCallRef
+alpha_e = UpperCallRef(q_e,reg_e,route_e,seed_e,O0_e,O1_e,
+                       Q_e,SpecCall_e,C0_e,kappa_e)
+Attach_C^+(B,X,xi,Delta_e;
+  e,(beta,s_beta,p0,CallContract(Q_e;B,X,xi,Delta_e)); alpha_e)
+```
+
+`Attach_C^+` retains every prior attachment case through a judgment-preserving
+inclusion `in_A : Attach_C -> Attach_C^+`; this inclusion is injective on the
+entire original indexed witness, including its scope and evidence. It adds
+this constructor as a distinct case.
+Its new case records contextual source incidence from the exposed registered
+upper entry to the authentic suspended complete-Call contract. It does not
+map arbitrary tuples to satisfying tuples, and it does not assert a license.
+The existing `CallMem` fiber remains the authority for complete membership
+evidence. Constructor-local inversion of `A-UpperCallRef` recovers exactly its
+displayed source Call, registration, route, seed, O0/O1 evidence, both
+occurrence facets, authentic `Q_e` together with its retained `SpecCall_e`,
+independent `C0_e`, and the one complete `kappa_e`; indices compute to
+`s_beta = SharedInvoke(beta)` and the displayed
+`CallContract`. It does not identify `s_beta` with `p0`, `u_f` with `u`, or
+either occurrence with an endpoint. Legal whole-map wrappers invert to their
+actual antecedent plus map certificate; joint hiding keeps its original
+admission certificate. This is not exhaustive inversion of every retained
+attachment case.
+
+Under §8.2's unchanged hypotheses, the new constructor fixes `alpha_e` and
+the §4 contribution `c_e` before any `z` is selected. The existing §8
+J-Owned and §8.1 checking constructions then give both exact incidences, and
+§8.2 gives `forall z in F_C(X;xi). Cover_orig(a_e,z;X)`. The proof uses the
+actual §12.3 Call insertion and Theorem IF; all contribution evidence stays
+inside its unchanged fiber before `Pi`, including every W/Z arm. An
+unanchored Z observation needs its genuine declaration insertion and source
+reference but no source execution. No new admission or membership premise is
+derived.
+
+For the same selected captured-Call constructor, add one static signature
+applicability introduction:
+
+```text
+q_e, reg_e, route_e, seed_e, O0_e, O1_e : the exact A-UpperCallRef inputs
+Q_e, SpecCall_e, C0_e, kappa_e : the identical authentic operation/interface inputs
+a_e : OwnedCall(o_e,CallEff_orig(e),c_e,kappa_e)
+o_e,c_e,kappa_e : the exact jointly indexed O1/C-Call/IF objects
+---------------------------------------------------------------- LC-OwnCall
+OwnCallLicense(e,q_e,o_e,c_e,kappa_e,a_e) : Lic_C^+(X,(beta,s_beta,p0,c_e))
+```
+
+The premise `a_e` is formed by the selected J-Owned construction from the
+same owner, complete contribution and `kappa_e`; J-Owned does not consume
+`Lic_C^+` or `Attach_C^+`. The rule therefore does not consume its licensing
+conclusion or define licensing as attachment. `Lic_C^+` retains every prior
+licensing case and adds this
+introduction at the exact original slot and complete contribution through an
+injective, index- and evidence-preserving inclusion `in_L : Lic_C -> Lic_C^+`.
+Here licensing means static applicability of that signature contribution. It
+grants no primitive authority, event protection, removal permission or
+liveness, and does not mark every event in the complete Call as an own-upper
+event. Existing primitive validity, guards, admissions and lawful actions
+remain their independent premises.
+
+Inverting `A-UpperCallRef` recovers the identical source and interface inputs.
+The selected J-Owned construction independently forms the required `a_e`;
+`LC-OwnCall` then applies. Thus the selected case proves
+`Attach_C^+ => Lic_C^+` at the same `X,xi,beta,s,p0,c` without query success,
+endpoint equality or witness projection. This closes
+only the forward case for this added constructor. It neither proves the
+forward law for every retained attachment case nor exhaustive
+`LIC_INVERT`/`A_invert` for every license. In particular, original W/Z
+alternatives retain their original licenses and output-dependent provider and
+future maps verbatim; no per-observation execution anchor is added.
+
+A separately fixed original attachment/licensing interpretation still needs
+index-preserving forward/back maps and active-consumer preservation/reflection
+laws. The selected clauses do not establish those maps, profile completeness,
+all-source source adequacy, or production conformance. The canonical ATTACH,
+LIC_FORWARD and LIC_INVERT aggregate gates stay open, and production cutover
+remains forbidden until their remaining proofs and dependencies close.

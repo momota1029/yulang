@@ -1223,10 +1223,15 @@
         "ORIGINAL_ASSOC"
       ],
       "premises": "The inhabited original fiber and exact source constructor/transport derivation, at the same X.",
-      "minimal_lemma_or_closed_scope": "Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.",
+      "minimal_lemma_or_closed_scope": "The selected `A-UpperCallRef` rule in the complete-Call definition now constructs and constructor-locally inverts the captured-Call reference case conditionally, retaining SpecCall, complete C0, the single IF graph, distinct occurrence facets and all W/Z evidence. Remaining: account for every retained historical attachment case and prove index-preserving maps/back laws to any separately fixed Attach_M, including active-consumer preservation/reflection. Aggregate ATTACH remains open.",
       "references": [
         "assoc",
-        "newassoc"
+        "newassoc",
+        "callcontribdef",
+        "callcontrib",
+        "callifdef",
+        "callif",
+        "callinterfaceReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1246,10 +1251,15 @@
         "SIG_RULES"
       ],
       "premises": "Original licensing introduction clauses, rather than a fresh licensing predicate defined to mean Attach.",
-      "minimal_lemma_or_closed_scope": "For each actual Attach constructor derive Lic_C at identical original s,c,beta,p,X and retain every original dependency. No successful Q or endpoint shape premise.",
+      "minimal_lemma_or_closed_scope": "For the added captured-Call reference case, inverting `A-UpperCallRef` recovers its source inputs; selected J-Owned independently forms a_e and `LC-OwnCall` introduces static Lic_C+ applicability. No query success, endpoint equality, activation or removal permission is used. Remaining: prove the forward law for each retained historical Attach case and map to any separately fixed Lic_M with active-consumer preservation/reflection. Aggregate LIC_FORWARD remains open.",
       "references": [
         "lic",
-        "assoc"
+        "assoc",
+        "callcontribdef",
+        "callcontrib",
+        "callifdef",
+        "callif",
+        "callinterfaceReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2634,6 +2644,7 @@
     }
   ],
   "references": {
+    "callinterfaceReview": "notes/progress/2026-10-08-call-interface-admission-review.md",
     "attack4": "notes/progress/2026-10-07-successor-frontier-attack4.md",
     "charter": "notes/design/2026-09-29-scc-intrusion-redesign-charter.md",
     "direction": "notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md",

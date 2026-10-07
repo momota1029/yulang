@@ -64,8 +64,11 @@ This index is a navigation aid. The listed source document remains authoritative
   fibers under independent C0. The later IF supplier above now constructs its
   complete diagram on the stated source/contract route; full J0 still needs
   independent complete C0 and the genuine original contracts. No source
-  execution of Option 2 extras is required. No concrete W/Z grammar, fixed-kernel conservation,
-  production semantics or cutover is selected.
+  execution of Option 2 extras is required. Section 5 also selects the
+  captured-Call `A-UpperCallRef` and `LC-OwnCall` constructor cases with
+  injective retained-case inclusions; aggregate ATTACH/LIC_FORWARD/LIC_INVERT,
+  fixed-kernel conservation, production semantics and cutover remain open. No
+  concrete W/Z grammar is selected.
 
 - **Reviewed complete source-input construction (2026-10-07):**
   [Call-input proof](../theory/2026-10-07-call-input-construction-proof.md)

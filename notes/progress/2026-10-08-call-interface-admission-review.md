@@ -362,3 +362,13 @@ IMPLEMENTATION-ONLY to the same 90 / 196 with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY. Its validator passed after regeneration. This is a
 conditional theorem result, not an all-model comparison or a production claim.
+
+## 11. Selected captured-Call attachment and licensing constructors
+
+The primary added §5 to the existing [complete Call definition](../design/2026-10-07-complete-call-contribution-definition.md#5-selected-upper-call-reference-and-applicability-cases). The new `A-UpperCallRef` constructor retains the actual resolved captured Call, registration/capture route, O0/O1 evidence, distinct lexical/checking facets, authentic complete `Q_e` and `SpecCall_e`, independent complete `C0_e`, and the one complete Theorem IF graph. Its constructor-local inverse returns those same inputs. It introduces no second incidence diagram and preserves the complete Call contribution unchanged.
+
+The conditional composition with §8.2 fixes attachment, both indexed incidences and full-family coverage before arbitrary `z`. A separate `LC-OwnCall` rule consumes the independently formed `OwnedCall` witness and introduces static applicability for this exact contribution. It does not consume its licensing conclusion, grant event protection/removal/activation, or identify licensing with attachment. Old attachment and licensing cases are retained through injective, index/evidence-preserving inclusions. W/Z alternatives, output-provider futures and unanchored Z observations remain intact.
+
+Independent compiler-referee review found the selected rule noncircular and source-rooted, with no missing typed input on this envelope. Independent spec-auditor review passed Authority and Option 2 conformance; it required retaining the exact `SpecCall_e` derivation in the `UpperCallRef` payload, which was repaired and delta-reviewed. No tests or compiler code changed.
+
+This establishes an adoptable selected constructor and its conditional forward licensing case. It does not prove the same claims for an independently fixed `Attach_M`/`Lic_M`, the forward law for every retained attachment constructor, exhaustive LIC_INVERT, profile completeness, active-consumer preservation, or production conformance. Aggregate ATTACH, LIC_FORWARD and LIC_INVERT remain OPEN-PROOF. The DAG node counts therefore remain unchanged at 90 / 196: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY; the exact residuals have been reduced in the canonical gate entries.

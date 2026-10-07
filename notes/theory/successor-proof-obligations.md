@@ -592,9 +592,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [ORIGINAL_ASSOC](#original-assoc).
 - Premises retained: The inhabited original fiber and exact source constructor/transport derivation, at the same X.
 - Already closed lemmas reused directly: [ORIGINAL_ASSOC](#original-assoc).
-- Minimal remaining lemma / exact closed scope: Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.
+- Minimal remaining lemma / exact closed scope: The selected `A-UpperCallRef` rule in the complete-Call definition now constructs and constructor-locally inverts the captured-Call reference case conditionally, retaining SpecCall, complete C0, the single IF graph, distinct occurrence facets and all W/Z evidence. Remaining: account for every retained historical attachment case and prove index-preserving maps/back laws to any separately fixed Attach_M, including active-consumer preservation/reflection. Aggregate ATTACH remains open.
 - Unblocks: [LIC_FORWARD](#lic-forward), [LIC_INVERT](#lic-invert).
-- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [callcontribdef](../../notes/design/2026-10-07-complete-call-contribution-definition.md); [callcontrib](../../notes/theory/2026-10-07-owned-call-contribution-construction.md); [callifdef](../../notes/design/2026-10-08-call-source-interface-definition.md); [callif](../../notes/theory/2026-10-08-call-source-interface-construction.md); [callinterfaceReview](../../notes/progress/2026-10-08-call-interface-admission-review.md).
 
 ### LIC-FORWARD
 
@@ -603,9 +603,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [ATTACH](#attach), [SIG_RULES](#sig-rules).
 - Premises retained: Original licensing introduction clauses, rather than a fresh licensing predicate defined to mean Attach.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: For each actual Attach constructor derive Lic_C at identical original s,c,beta,p,X and retain every original dependency. No successful Q or endpoint shape premise.
+- Minimal remaining lemma / exact closed scope: For the added captured-Call reference case, inverting `A-UpperCallRef` recovers its source inputs; selected J-Owned independently forms a_e and `LC-OwnCall` introduces static Lic_C+ applicability. No query success, endpoint equality, activation or removal permission is used. Remaining: prove the forward law for each retained historical Attach case and map to any separately fixed Lic_M with active-consumer preservation/reflection. Aggregate LIC_FORWARD remains open.
 - Unblocks: [PROFILE](#profile).
-- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md).
+- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [callcontribdef](../../notes/design/2026-10-07-complete-call-contribution-definition.md); [callcontrib](../../notes/theory/2026-10-07-owned-call-contribution-construction.md); [callifdef](../../notes/design/2026-10-08-call-source-interface-definition.md); [callif](../../notes/theory/2026-10-08-call-source-interface-construction.md); [callinterfaceReview](../../notes/progress/2026-10-08-call-interface-admission-review.md).
 
 ### LIC-INVERT
 
