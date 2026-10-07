@@ -17,3 +17,6 @@ pub mod shadow_interface_alpha;
 
 #[cfg(feature = "shadow")]
 pub mod shadow_typed_evidence;
+
+#[cfg(feature = "shadow")]
+pub mod shadow_call_formation;
