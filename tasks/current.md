@@ -30,6 +30,31 @@ records actual proof/review/repair/check results. The
 and [theory map](../notes/theory/inference-theory-map.md) are synchronized
 navigation into this ledger, not independent duplicate gate lists.
 
+### Latest dependency attack: round 4
+
+At remote baseline `1001c274cbf8bc867a03e72edbbfb08b3618e950`, the
+canonical DAG started and ended at 90 nodes / 196 edges: 7 CLOSED,
+20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC,
+1 IMPLEMENTATION-ONLY, 0 BLOCKED. The reviewed
+[round-4 attack](../notes/progress/2026-10-07-successor-dependency-attack-round4.md)
+did not promote statuses. It sharpens the exact next source producer for
+ORIGINAL_ASSOC after the reviewed S1 seed/exposure derivation; proves only a
+conditional immediate `C1=C0` projection inside CALL_TYPE; keeps INIT_WORLD
+at independent importer-incidence introduction, REC_INIT at another-member
+initialization, and ALL_VIEW at result-certificate production plus actual
+`B_common` Function evidence introduction. No new semantic clause was
+proved, no complete alternate semantics or source counterexample was found,
+and production cutover remains blocked.
+
+The default-off
+[receiving-root/current-scheme shadow crosswalk](../notes/progress/2026-10-07-shadow-receiving-root-scheme-crosswalk.md)
+extends the structural observer through three source Name occurrences,
+current Q/R captures, receiving alias schemes and retained visibility markers.
+It does not infer export eligibility or successor shared-contract transport.
+Compiler-referee and spec-auditor reviews passed the semantic attack note;
+regression-auditor review and the focused one-test Cargo target passed. No
+production inference path changed.
+
 ### Latest reviewed continuation: round 3
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
