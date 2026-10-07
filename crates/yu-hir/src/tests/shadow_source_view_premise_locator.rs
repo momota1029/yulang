@@ -38,7 +38,7 @@ fn shadow_source_view_premise_locator_borrows_exact_input_and_preserves_pending(
             OriginalSignatureApplicabilityAndContributionFormation,
         ]
     );
-    assert_eq!(before.len(), 7);
+    assert_eq!(before.len(), 8);
     assert_eq!(
         before,
         skeleton

@@ -16,6 +16,7 @@ fn assert_pending(skeleton: &Skeleton, row: &SourceCallUseInput<'_>) {
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
+            Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction
         ]
@@ -61,7 +62,7 @@ fn shadow_call_use_source_inputs_retains_nested_capture_and_whole_argument() {
     assert_eq!(&source[argument.range().clone()], "x");
     assert!(row.parameter_annotations().next().is_none());
     assert_pending(skeleton, row);
-    assert_eq!(before, 7);
+    assert_eq!(before, 8);
     assert_eq!(skeleton.pending().len(), before);
     let other = foreign.skeleton().unwrap();
     for id in [
@@ -100,7 +101,7 @@ fn shadow_call_use_source_inputs_repeated_calls_preserve_occurrences() {
     for row in &rows {
         assert_pending(skeleton, row);
     }
-    assert_eq!(skeleton.pending().len(), 14);
+    assert_eq!(skeleton.pending().len(), 16);
 }
 
 #[test]
@@ -136,7 +137,7 @@ fn shadow_call_use_source_inputs_joins_exact_noninitial_annotation_incidence() {
         );
         assert_pending(skeleton, row);
     }
-    assert_eq!(skeleton.pending().len(), 14);
+    assert_eq!(skeleton.pending().len(), 16);
 }
 
 #[test]
@@ -146,7 +147,7 @@ fn shadow_call_use_source_inputs_excludes_grouped_and_computed_callees() {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.application_source_occurrences().count(), 1);
         assert_eq!(skeleton.source_call_use_inputs().count(), 0);
-        assert_eq!(skeleton.pending().len(), 5);
+        assert_eq!(skeleton.pending().len(), 6);
         assert!(skeleton.pending().iter().all(|pending| {
             pending.premise() != Premise::SourceDirectionalOutputEffectProtectionIntroduction
         }));
@@ -157,7 +158,7 @@ fn shadow_call_use_source_inputs_excludes_grouped_and_computed_callees() {
     let rows = skeleton.source_call_use_inputs().collect::<Vec<_>>();
     assert_eq!(rows.len(), 1);
     assert_pending(skeleton, &rows[0]);
-    assert_eq!(skeleton.pending().len(), 12);
+    assert_eq!(skeleton.pending().len(), 14);
     let directional = skeleton
         .pending()
         .iter()

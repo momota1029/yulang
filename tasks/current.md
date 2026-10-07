@@ -1196,6 +1196,20 @@ successor Q/R correspondence and shared-contract transport. Compiler-referee
 review and focused capture/shadow tests passed; ordinary solve stays
 uncaptured, and no production inference route changed.
 
+The [CALL_TYPE CI-ArgFrame shadow marker](../notes/progress/2026-10-07-shadow-calltype-argframe-marker.md)
+now records the still-unresolved joint argument-typing and actual-returned-
+provider carrier-compatibility obligation at each structural Apply. The HIR
+marker fabricates no provider/world/evidence, emits no constraint and does not
+change the solver's unresolved application state. Compiler-referee and
+regression-auditor reviews passed; focused HIR/Core/solver shadow tests passed.
+This is an HIR_WIRING implementation slice only; CALL_TYPE stays
+CONDITIONAL-CLOSED and no semantic or DAG status changed. The same attack wave
+kept ORIGINAL_ASSOC P2 and REC_DESC open at their independent source-rule
+introductions, localized INIT_WORLD's separate zero-step semantic-import
+root-extension clause, and retained ALL_VIEW open at actual-export result
+evidence.
+Production inference and cutover remain gated.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow

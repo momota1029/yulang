@@ -122,7 +122,7 @@ fn approved_captured_source_survives_refused_collection_and_solve() {
     assert_ne!(f_use, step_use);
     assert_ne!(x_use, step_use);
     assert_eq!(skeleton.uses().len(), 3);
-    assert_eq!(skeleton.pending().len(), 7);
+    assert_eq!(skeleton.pending().len(), 8);
     assert_eq!(
         skeleton
             .pending()
@@ -135,6 +135,7 @@ fn approved_captured_source_survives_refused_collection_and_solve() {
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
+            Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction,
         ]
@@ -537,7 +538,7 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
         .as_ref()
         .unwrap();
     assert!(std::ptr::eq(*call, raw_call));
-    assert_eq!(call.application_premises.len(), 7);
+    assert_eq!(call.application_premises.len(), 8);
     assert!(
         call.application_premises
             .iter()

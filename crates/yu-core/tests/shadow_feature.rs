@@ -31,7 +31,7 @@ fn facade_reads_the_hir_snapshot_without_resolving_pending_judgments() {
         skeleton.expression(skeleton.body()).unwrap().form(),
         Form::Apply { .. }
     ));
-    assert_eq!(skeleton.pending().len(), 14);
+    assert_eq!(skeleton.pending().len(), 16);
     assert!(
         skeleton
             .pending()
@@ -111,13 +111,14 @@ fn facade_exposes_lexical_capture_use_without_semantic_discharge() {
     let position = artifact.position(incidence.position()).unwrap();
     assert_eq!(position.kind(), yu_syntax::SyntaxKind::IdentifierExpression);
     assert_eq!(*position.range(), 27..28);
-    assert_eq!(skeleton.pending().len(), 7);
+    assert_eq!(skeleton.pending().len(), 8);
     for (pending, expected) in skeleton.pending().iter().zip([
         Premise::CallableRole,
         Premise::FullFunctionMembership,
         Premise::CallViewRealization,
         Premise::QIndependentSourceCallViewFormation,
         Premise::SourceEventContributionAndTypedOutputObservation,
+        Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
         Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
         Premise::SourceDirectionalOutputEffectProtectionIntroduction,
     ]) {

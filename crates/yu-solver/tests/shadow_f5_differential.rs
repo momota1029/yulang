@@ -396,7 +396,7 @@ fn assert_pending_solver_application_source_join(text: &str) {
             .iter()
             .filter(|premise| premise.call() == endpoints.source())
             .collect::<Vec<_>>();
-        assert_eq!(pending.len(), 7);
+        assert_eq!(pending.len(), 8);
         assert_eq!(endpoints.call().application_premises.len(), pending.len());
         for (actual, expected) in endpoints.call().application_premises.iter().zip(pending) {
             assert!(std::ptr::eq(*actual, expected));

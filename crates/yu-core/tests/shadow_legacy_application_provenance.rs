@@ -28,7 +28,7 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
         .iter()
         .map(|premise| (premise.call().clone(), premise.premise()))
         .collect::<Vec<_>>();
-    assert_eq!(pending_before.len(), 7);
+    assert_eq!(pending_before.len(), 8);
 
     let applications = skeleton
         .application_source_occurrences()
@@ -90,7 +90,7 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
     assert_eq!(*core_binder, binder);
     assert_eq!(*core_use, occurrence);
     assert!(std::ptr::eq(call.application_premises, skeleton.pending()));
-    assert_eq!(call.application_premises.len(), 7);
+    assert_eq!(call.application_premises.len(), 8);
     assert!(
         call.application_premises
             .iter()
@@ -180,7 +180,7 @@ fn frozen_old_infer_application_joins_shadow_source_and_pending_call() {
     };
     assert_eq!(source_input.argument(), *source);
     assert!(std::ptr::eq(registration.capture.unwrap(), call.capture));
-    assert_eq!(registration.application_premises.len(), 7);
+    assert_eq!(registration.application_premises.len(), 8);
     for (registered, original) in registration
         .application_premises
         .iter()

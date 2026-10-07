@@ -228,7 +228,7 @@ fn ordinary_unary_projection_preserves_body_declaration_and_call_rows() {
                         .iter()
                         .all(|row| row.call() == node.source)
                 );
-                assert_eq!(call.application_premises.len(), 7);
+                assert_eq!(call.application_premises.len(), 8);
                 assert!(call.capture.is_none());
                 Some(node.source)
             })
@@ -498,7 +498,7 @@ fn header_aware_unary_and_captured_calls_preserve_distinct_membership_and_owner(
             .iter()
             .filter(|row| row.call() == &node.source)
             .collect::<Vec<_>>();
-        assert_eq!(call.application_premises.len(), 7);
+        assert_eq!(call.application_premises.len(), 8);
         assert_eq!(call.application_premises.len(), expected_rows.len());
         for (actual, expected) in call.application_premises.iter().zip(expected_rows) {
             assert!(std::ptr::eq(*actual, expected));
@@ -571,7 +571,7 @@ fn header_aware_grouped_and_computed_callees_do_not_invent_membership() {
                 .collect::<Vec<_>>();
             assert_eq!(
                 call.application_premises.len(),
-                if call.direct_use.is_some() { 7 } else { 5 }
+                if call.direct_use.is_some() { 8 } else { 6 }
             );
             assert_eq!(call.application_premises.len(), expected_rows.len());
             for (actual, expected) in call.application_premises.iter().zip(expected_rows) {

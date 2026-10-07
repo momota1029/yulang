@@ -27,7 +27,7 @@ fn retained_source_registration_joins_only_supplied_conditional_incidence() {
         .iter()
         .map(|premise| (premise.call().clone(), premise.premise()))
         .collect::<Vec<_>>();
-    assert_eq!(pending_before.len(), 7);
+    assert_eq!(pending_before.len(), 8);
     let arena = RawStructuralArena::from_artifact(&artifact).unwrap();
     let registrations = arena
         .nodes()
@@ -55,7 +55,7 @@ fn retained_source_registration_joins_only_supplied_conditional_incidence() {
         registration.source_use_input.binder(),
         declaration.parameter
     );
-    assert_eq!(registration.application_premises.len(), 7);
+    assert_eq!(registration.application_premises.len(), 8);
 
     // Nonzero-sized caller-owned tokens supply semantic assumptions independently.
     // No source position, BinderId or declaration is cast into a semantic token.
@@ -235,7 +235,7 @@ fn retained_source_registration_joins_only_supplied_conditional_incidence() {
             .inc_c
     );
 
-    // Structural declaration ownership and all seven unresolved semantic rows
+    // Structural declaration ownership and all eight unresolved semantic rows
     // survive the conditional chain; no source acceptance or scheme is obtained.
     let retained = arena
         .nodes()
@@ -255,7 +255,7 @@ fn retained_source_registration_joins_only_supplied_conditional_incidence() {
         retained.application_premises,
         registration.application_premises
     ));
-    assert_eq!(retained.application_premises.len(), 7);
+    assert_eq!(retained.application_premises.len(), 8);
     assert_eq!(
         skeleton
             .pending()
