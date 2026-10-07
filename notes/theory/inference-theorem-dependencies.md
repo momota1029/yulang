@@ -266,6 +266,17 @@ retained disconnected license IDs do not prevent invented incidence. The
 constructs no competing complete semantics or user-decision blocker. These
 locators refine ORIGINAL_ASSOC only; all statuses and edges are unchanged.
 
+The [minimal O0 clause](../progress/2026-10-07-original-call-output-minimal-clause.md)
+refines the candidate static head to an existing dependent `Gen-Call-0` record
+and independently formed signature-local `H_eff`, followed by the unadopted
+original occurrence introduction `OC-CallEff`. Its typed introduction, not
+its two endpoint projections, is the missing clause. Formation of `H_eff`
+also remains open. Seed truth and actual Call execution are unused by this
+local candidate; the aggregate ORIGINAL_ASSOC dependencies are not removed.
+Keep `U_c` in its actual dependency context and the captured root at its
+original binder. This is no O0 closure, derivability equivalence or semantic
+adoption; no status or edge changes.
+
 The complete Call has both callee evaluation and designated receiver
 invocation. A computed-callee prefix cannot inherit the target formal's
 upper `p0` merely by sharing the complete-root contribution. The exact selected

@@ -157,6 +157,17 @@ disconnected retained license IDs do not supply it. The bounded
 establishes no two competing complete semantics. ORIGINAL_ASSOC stays open
 with no added edge, global ordering claim or user-decision blocker.
 
+The [reviewed O0 constructor reduction](../progress/2026-10-07-original-call-output-minimal-clause.md)
+now separates independently formed signature-local `H_eff` from interpretation
+of the existing dependent `Gen-Call-0` record. Its single unadopted
+`OC-CallEff` head introduces original typed occurrence incidence with explicit
+projection equations. Both that introduction and actual `H_eff` formation
+remain open; this is a candidate-interface reduction, not a theorem equating
+derivability judgments. It consumes no seed truth or actual Call execution,
+retains their original dependencies, and never hoists locally dependent `U_c`
+to the captured root's outer scope. ORIGINAL_ASSOC and all graph edges remain
+unchanged. The next order for this task is O0, then O1, then actual C0 inputs.
+
 ## 3. Recursive source, origin permissions and Generalize
 
 [K/KP/KV](../progress/2026-10-06-recursive-source-validation-construction.md)

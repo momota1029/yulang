@@ -24,6 +24,25 @@ its retained premises, closed lemmas, smallest remaining claim, direct
 prerequisites/downstream gates and production relevance. Exact cited theorem
 scopes govern; navigation text supplies no new Authority.
 
+### Current O0 result: one unadopted occurrence constructor
+
+At latest remote `f3be02da1ba169a88acc154ac29621634f3cc89b`, the
+[reviewed minimal-clause result](../notes/progress/2026-10-07-original-call-output-minimal-clause.md)
+reduces the candidate local head to the existing dependent `Gen-Call-0`
+record plus independently formed signature-local `H_eff`. The missing
+`OC-CallEff` introduces their original typed occurrence incidence and specifies
+its source/signature projection equations. Neither the equations nor an
+untyped graph proves that introduction. `H_eff` itself remains unconstructed;
+this is a candidate-interface reduction, not O0 closure or a derivability
+equivalence. Seed truth and actual Call execution are not consumed by the
+local head; all original seed/provider/upper/scope/`xi` dependencies remain.
+Keep locally dependent `U_c` in its actual context at `sigma_step`, with the
+captured root still anchored at `sigma_apply`. Both independent reviews passed.
+The DAG statuses and edges are unchanged. Next independently form `H_eff`
+and justify `OC-CallEff`; only after O0 closes attack O1, then actual C0
+checking inputs. No new user-decision blocker or implementation authority.
+The linked note contains the four-part repository handoff.
+
 ### Latest multi-front attack: round 6
 
 At starting remote `d8ddbb0a3a3ab80b7cca67de09a8310617ba1170`, the DAG had
