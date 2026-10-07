@@ -22,6 +22,17 @@ unselected concrete abstraction grammar. C1-Call is complete under authentic
 SpecCall_e and independent C0; full J0 remains conditional on genuine
 SourceInterfaceFormation_e. No aggregate node or production gate is closed.
 
+**Finite structural completion selected (2026-10-08).** The same governing
+definition now selects §12's missing static constructor cases. Independent
+compiler-referee and spec-auditor reviews passed the frozen §7/§12 addition at
+SHA-256 `47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
+The primary accepts those exact scopes. The proposal/review-pending wording
+inside §12 is historical for this selected structural completion. Independent
+operator typing/actions, contextual hole/world binding, actual-provider
+dispatch/phase maps, all opaque declaration insertions and foreign-root uses,
+C0, K-Image membership lifting and active-consumer preservation remain. The
+reviewed mathematical body is unchanged; no aggregate status is promoted.
+
 ## 1. Result and corrected scope
 
 The adopted O0 root denotes **receiver invocation**, not the complete source
@@ -520,6 +531,18 @@ This is the exact remaining semantic theorem, not an allegation of semantic
 inconsistency or a demonstrated new user choice. The complete contribution
 construction and full evidence transport in §§4–5 are independent of it.
 
+**Proposed constructive refinement, not yet selected or reviewed.** Section 12
+supplies missing structural source-frame constructors for the finite resolved
+Data/Code grammar of the reviewed source-input construction. Its theorem
+derives items 1–2 and the structural part of item 4 from individual source
+origins and authentic interface references, rather than assuming a complete
+source frame. Item 3 still requires every actual opaque declaration insertion,
+license and whole-interface map, and item 4 still requires the legal actions
+on those independent contracts. Actual provider phase declarations remain
+inputs. Thus the new theorem can replace the structural supplier on that
+explicit grammar after selection; the adopted original judgment and the
+unchanged universal family are not silently replaced here.
+
 ## 8. J-Owned: full accounting with exact lexical ownership
 
 Specify proposed coverage for the missing owned-image case independently as
@@ -774,3 +797,406 @@ Startup/navigation only; no mathematical conclusions use their live state
 | `tasks/current.md` | `1d41f8f5c6626dfb247dfb79ad149ab775d09f9d86305f747b3114406c910aea` | changed / not semantic input |
 | `tasks/research-lab.md` | `d8794543008221be430c3b676929b8601fb4534799fc67856e99ad140da0975d` | match |
 | `notes/design/INDEX.md` | `e8f5d96e7e2f7f6a7767a00f76972fcb7d0c90cdcf77c41a61830d1f90749a6f` | changed / not semantic input |
+
+## 12. Proposed finite structural source-frame completion
+
+Status: producer derivation; independent review and selection pending.
+Baseline: `ffab2079e806883342621083a39828567534adc4`.
+Claim: conditional theorem for explicit missing static constructors, together
+with their erasure and naturality. This section does not change the selected
+§§3–6/8 definitions, interpret an already fixed foreign kernel, supply C0 or
+select any W/Z meaning. Its grammar is exactly source-input construction
+§3: Name, Result, designated one-layer Consumer, Reify/Carrier-Delay, Lambda,
+the two source-selected entries, sequential Bind and Call; its telescope is
+Empty/Import/ValueBind/RetainBind/ResultBind. Roots may be registered
+references; derivations are finite and acyclic.
+
+### 12.1 Independent inputs and the missing definition being completed
+
+Use the reviewed source-input certificates `q`, their exact original
+registration/Resolve/Capture/ConsumerOrigin/ReifyOrigin/ParameterOrigin/
+ClosureOrigin/BindOrigin/BindResultOrigin/Application origins, and their
+symbolic typed interfaces. Origins are static source derivations, not truth
+of emitted obligations. A bare Gen-Call-0 without the additional Application
+origins does not construct a Check certificate or satisfy this hypothesis.
+
+An authentic root reference identifies an independently specified original
+contract interface, its scope, original provider/root parameters, ports and
+legal whole-map action. It need not enumerate that interface's observations.
+Each referenced binding, designated consumer, registered reification and
+closure uses its actual declaration interface. Reference authenticity is
+checked against the retained origin, not by equal endpoints. It is not a
+placement into a source use. Where no such independent interface was
+specified, the present construction does not manufacture its meaning.
+Each operator reference retains its original typed signature and its actual
+structural operation definition. The independently interpreted Return, Bind,
+Delay/closure and designated-consumer definitions therefore supply their
+ordinary witness eliminators. Static sorted incidence does not prove those
+signatures semantically valid; any independent typing obligation for them
+remains an input. The added fact is their placement at this source constructor.
+
+For a Call, use the authentic complete `Q_e` of §4 and its original contextual
+operand-hole declarations. Its structural expression uses the callee
+reference, carrier hole, dispatch and return reference of that same source
+Application origin. This is a reference/operand equation, called `Align`;
+it has no source map or coverage conclusion. Choosing that original source
+operation gives `Align` by unfolding its declaration. An arbitrary typed
+relation cannot satisfy it by matching its endpoints. A contextual filling
+uses that operation's original typed hole binding and lawful whole world
+action; their existence for the admitted context domain remains independent.
+
+An actual provider declaration supplies its complete phase interface and
+the original typed subincidences for entry, receipt, body, selected consumer,
+native delimiters and invocation return, in their original order. These are
+the existing S-Phase premises, not inferred from `Suffix_c(U)` tags or from
+the demanded `F_c`. The schema below is parameterized by this declaration
+and the actual returned provider/current world. It never chooses an actual
+provider by descriptor shape. Independent C0 remains necessary for semantic
+membership and for applying §8; it is not used to generate static maps.
+The actual-provider-to-demand incidence comes from that original dispatch
+interface; O0 then places its demanded receiver root at this source upper.
+Neither phase tags nor source endpoints supply a missing dispatch incidence.
+
+For abstract arms retain exactly §7's original `DeclAt(alpha,t)` insertion,
+whole-interface/license/origin/introduced-provider/future maps and lawful
+actions. No independent arm is deleted when an input is unavailable. The
+theorem's exhaustion premise is exhaustion of the *original declarations*,
+including parameterized or opaque declarations; it is not exhaustion of
+source executions or a new finite W/Z grammar.
+
+The missing definition is a constructor-directed *static source incidence*
+judgment `SrcFrame+`. Introduce the cases below while retaining every old
+independent case injectively. Do not define the entire original source-image
+sort to be this grammar's image. No new semantic image/membership rule,
+receipt, license, permission or runtime event is introduced. In particular,
+this is not a proof of K-Image's membership lifting law.
+
+### 12.2 Port interfaces and map syntax
+
+At the fixed whole `(B,X,xi,Delta)` define these dependent static port
+interfaces using the original contract's port names and types:
+
+```text
+Val(A)        : (v,r,C; original value/root/scope/joint indices,
+                Fut_A(v,r,C))
+Comp(R)       : (in C; original execution/response/raw-continuation ports;
+                ret (v,r,C') : Val(A), for R=Comp(E,A))
+Carrier(R)    : (t,r_t,C; inert creation/capture/alias ports;
+                latent original Comp(R) reference)
+Invoke(pd,f,t,C) : the complete original provider-declaration interface pd,
+                   at this same f,t,C, with its original ordered phases
+```
+
+`Fut_A(v,r,C)` denotes the original latent/future contract reference at that
+very provider and current configuration, including its original dependencies.
+It is neither a fresh future predicate nor a rule granting a future use.
+`Comp(R)` retains all declared response and continuation schemas; it does
+not assert those ports execute. Parameterized/opaque interfaces remain
+references, so their semantic sets need not be finite. Finiteness here counts
+source constructor and reference nodes, not descriptor states or observations.
+
+Map syntax consists of child-port insertion with an original origin, typed
+dependent binding at a declared binder, latent insertion, actual declaration
+subincidence, composition, and legal whole transport. A map carries its
+domain and codomain interfaces, binder tree and original origin as indices.
+Its typing is introduced by a constructor below. It is not obtained by
+asserting equality of endpoint values. Each constructor graph is a tagged
+ordered list of its child/reference ports and the explicitly listed connecting
+edges. Shared imports retain the same reference; distinct occurrences retain
+distinct tags even if all types later become equal.
+
+Gluing here means: retain the two child graphs, bind only the declared middle
+port by the displayed dependent substitution, and record the displayed edge.
+It does not quotient all equal endpoints, solve constraints, combine marginal
+world witnesses or identify original roots. World/response/provider variables
+in these schemas are bound by the original operator, not guessed values.
+
+**Action on original evidence.** A constructed map's action is elimination
+of its authentic operator reference, followed by the retained child/reference
+insertion. At Return it returns exactly the same value/provider/current-world
+and future evidence. At Bind it follows the original whole Bind witness:
+completed first-child evidence binds the second-child interface at its actual
+returned provider/world; a pending first-child witness retains the original
+raw continuation and unreached suffix reference. Delay and closure expose
+only their original inert/capture/latent references. Consumer and dispatch
+follow their original designated-port and phase eliminators. These maps do
+not manufacture child membership, Force or an executed suffix. Their source
+incidence diagrams commute because both routes select the same retained
+operator field and dependent binding, before any observation projection.
+This is an explicit interpretation of the new map syntax; its evidence
+eliminators are justified by the independently fixed operator definitions,
+not by declaring every typed relation to have those eliminators.
+
+### 12.3 Constructor clauses, maps and exact erasures
+
+Write `F_D(q)`, `F_C(q)`, `F_T(t)` and `F_Entry(j)` for the following static
+frames. Every clause consumes only its child certificates, the origins in
+§12.1 and any indicated authentic independent interface reference.
+
+**Name and import.** Follow the certificate's actual Resolve/Capture proof
+to its original binding `b`. Insert `b`'s declared `Val(A)` or `Carrier(R)`
+reference at the original source-use port; retain the complete capture path
+and dependencies. This constructs the root-to-use map. Import reuses `b`
+and the same path under the import scope. Its erasure is exactly the original
+lookup/reference, with no force or changed provider.
+
+**Result.** Insert `F_D(q)` inertly at the original result port. Add the
+return edge
+
+```text
+(v,r,C) at the data output -> (v,r,C) at the result output;
+Fut_A(v,r,C) -> the same Fut_A(v,r,C) at the result port.
+```
+
+These are dependent identity edges at this constructor's same retained
+provider, not an endpoint cast to an unrelated source value. Its erasure is
+`Return(T_D[q])`. No latent port is executed.
+
+**Designated Consumer.** Insert the data frame at `ConsumerOrigin`'s actual
+designated computation port and insert that independent consumer interface.
+Use its original result/response/continuation ports as the code output;
+forward each returned provider's future reference unchanged. The erasure is
+the original one-layer `Execute_p(T_D[q])`. No consumer of the latent result
+is synthesized from its type.
+
+**Reify and Carrier-Delay.** Insert `F_C(q)` under a latent edge at the
+actual registered `ReifyOrigin` root/view; insert each lexical/capture
+reference with the same dependency and alias sharing. The immediate output
+is inert `Carrier(R)` (or its original computation-data Value wrapper in
+Data-Reify). Its latent interface references exactly this child code, not
+the child's result-latent code. Erasure is `Delay(T_C[q],references)`.
+Construction and this map perform no child action or receipt.
+
+**Capture and Entry.** Restrict to the actual dependency-closed free-binding
+subgraph and retain each Import edge. Value entry inserts, in declaration
+order, Receive, receipt, the one-layer argument Force and its result rebind
+into `ValueBind`; retained entry inserts Receive, receipt and the original
+same-carrier binding into `RetainBind`. The middle endpoint is exactly the
+ParameterOrigin's result or declared computation view. Erasure is the same
+source-selected `entry_P`; construction creates only ports, not activation.
+No force is inserted in the retained case. Response/current-world ports
+belong to the declared Force continuation, so a resumed entry uses C' and
+the remainder of that entry, with no repeated receipt.
+
+**Lambda.** At `ClosureOrigin`, create the original closure-root output,
+insert the capture frame and `F_Entry`, then insert the body code frame
+under the original latent body/result edge. Other complete invocation and
+consumer/native/future interfaces are the closure declaration's separate
+references. Compose their authentic typed subincidences at the same closure
+root. Erasure is `Closure(entry_P;T_C[body],references)`. `R_b` stays the
+body interface; this clause does not equate it with complete invocation.
+
+**Bind.** Retain `F_C(q1)` and `F_C(q2)` at the original ordered Bind ports.
+At the original RHS-result/rebind origin bind the *whole* returned dependent
+pair and current world:
+
+```text
+ret_1(v,r,C') -> ResultBind(E,x,r_x,A1,RHS-origin)[x := (v,r), current := C']
+             -> in_2 under that same binding;
+ret_2(v2,r2,C'') -> original Bind-result Val(A2) at (v2,r2,C'');
+Fut_A2(v2,r2,C'') -> the same original future interface.
+```
+
+`r_x` remains the source binding root; the map records its actual value's
+provider `r` rather than equating the two roots. The binder stays at its
+original location. The symbolic `E_bind` is retained, with no row-union
+equation. The ordered pending-continuation schema is
+
+```text
+Request(q,C,k1) -> Request(q,C,lambda(response,C').
+                   k1(response,C') >>= rebind_x ; code_2 ; result_B).
+```
+
+This is the old operator's continuation schema, preserving its raw handle
+and current configuration, not a new transition rule or a proof of pending
+soundness. Erasure is exactly `T_C[q1] >>= lambda v. T_C[q2] in E[x:=v]`.
+
+**Call.** Instantiate the preceding Bind clause at the actual Application
+origin. The first child is the callee frame. Under its returned `(f,r_f,C1)`
+bind the operation's original *open whole-carrier hole* `t` and its declared
+carrier-view/root/capture ports. Insert the complete actual
+`Invoke(pd,f,t,C1)` interface by the authentic dispatch reference. Each
+phase submap is the original declaration subincidence composed with this
+insertion. Insert O0's `CallEff_orig(e)` receiver edge and retain the actual
+source exposure bridge from lexical u_f to checking u; no equality of the
+two occurrences, no equality of callee-prefix and receiver effects, and no
+provider selected at F_c is used. The original complete Call result port
+forwards the invocation's actual returned provider/current world and its
+original return/future reference.
+
+The argument-hole insertion maps an independently filled whole inert
+`Carrier(R)` interface into that declared argument coordinate. It does not
+assert that the filling is generated by qa. At the source diagonal only,
+the already constructed `F_T(Carrier-Delay(qa,o_arg))` supplies a section
+of the hole binding and erases to `Delay(T_C[qa],references)`. On all other
+admitted fillings the original independent hole reference remains. Thus
+the source code erasure is
+
+```text
+T_C[qf] >>= lambda f.
+  let t = Delay(T_C[qa],references) in ExecuteCallable(f,t),
+```
+
+whereas the contextual operation erasure is precisely
+`CalleeRef_e(h) >>= ExecuteCallable(actual_f,WholeArgRef_e(h),C1)`.
+The diagram never substitutes the diagonal section for the universal hole.
+The callee-pending suffix retains the still-unreached inert-hole binding and
+complete receiver expansion. A receiver-pending suffix retains its original
+remaining entry/body/native/consumer/return tail; receipt appears only at
+its declared place. Return/future forwarding uses the actual provider, not a
+different provider with the same descriptor.
+
+### 12.4 Structural supplier theorem and proof
+
+**Theorem F1-Struct+.** Let q be any finite acyclic resolved Data/Code
+certificate of the stated grammar, with the authentic local origin/interface
+references above. For each actual Call e with an authentic aligned Q_e,
+original contextual hole binding and actual provider phase declarations,
+the clauses construct a complete static structural frame, both occurrences
+and their exposure, and the local S-SourceLeaf/S-Bind/S-Delay/S-Receiver/
+S-Phase/S-ReturnFuture formation inputs at the same original indices.
+No complete frame, full coverage, source run, satisfying assignment, semantic
+image inclusion or desired association occurs in the premises.
+
+**Proof.** Simultaneously induct on q, the telescope and its finite resolution
+proofs. Empty has no binding ports. Each binding extension introduces exactly
+its origin's binder; Import follows the existing reference/path without
+copying its root. Name terminates at that retained binding and the Name clause
+introduces its source-use edge, giving S-SourceLeaf. Result and Consumer add
+only their specified typed result/consumer insertion; the returned dependent
+identity edges give S-ReturnFuture. Reify/Carrier-Delay places the constructed
+child under its original registered latent edge and capture references, giving
+S-Delay. Capture is a dependency-closed restriction, so every captured
+reference used by the child exists and every alias still denotes the same
+binding. The two Entry clauses extend that telescope with exactly the
+source-selected binding, so induction applies to Lambda's body in its actual
+scope. Lambda composes these with its authentic declaration subincidences.
+
+For Bind, induction gives both child frames in their actual telescope scopes.
+The origin already specifies the RHS result endpoint A1 and the binder used
+by q2. The displayed whole returned-pair binding therefore has matching
+dependent domain/codomain before any value or world is chosen. It introduces
+S-Bind; its return/future edges have the identical dependent provider index.
+The original ordered continuation schema retains the whole suffix rather than
+forgetting an unreached child. No execution induction is needed to construct
+this static schema.
+
+For Call, use that same dependent Bind at its retained Application origin.
+The hole binding is its original carrier coordinate, so it constructs the
+argument insertion without restricting fillings. The child's delayed frame
+is used only for the separate diagonal section. Authentic dispatch imports
+the phase interface at the actual formal returned-provider/world variables;
+the supplied typed phase subincidences compose with that insertion, and O0
+supplies the distinct receiver leg. The Application exposure record supplies
+the lexical/checking bridge. Align ensures all inserted references belong
+to this same original structural operation. Forwarding the operation's
+actual return reference constructs the final S-ReturnFuture edge. This
+completes all grammar cases. QED.
+
+**Full supplier corollary.** Additionally suppose every original independent
+arm declaration has its actual S-DeclaredArm insertion with complete maps,
+and each original contract-root use lies at one of these constructor-generated
+ports or has its own independent typed source-use map. At a generated port,
+the constructed reference insertion is S-Use. Compose it with DeclAt and
+the existing scope/union/conjunction/ref rules. This gives item 3 of §7 for
+every declaration, including opaque parameterized Z alternatives without
+source executions. Any arm whose containing root is not in this grammar's
+generated source interface keeps its independent source-use premise; the
+theorem does not pretend Name lookup reaches an unrelated root. Together
+with the lawful opaque-contract actions below this is
+`SourceInterfaceFormation_e+`, permitting the existing §8 implication under
+independent C0 and exact O1 in this proposed interpretation.
+
+### 12.5 Erasure, naturality and precise failure conditions
+
+**Erasure.** Forget only the constructed port maps/certificates. Each rule's
+displayed erasure is the original source-input translation; structural
+induction substitutes the same child code/references. Bind preserves its
+ordered suffix; Call has the original callee Bind, original inert Delay and
+actual receiver. The universal contextual hole reference and every opaque
+arm declaration remain verbatim. Thus this completion has the same symbolic
+constraint inventory and executable reduct. It does not establish acceptance
+parity or all-model conservativity for active consumers of completed original
+source-image predicates; §9 still governs those claims.
+
+**Naturality.** For every independently legal whole original sorted map g,
+including its lawful action on each referenced opaque contract, transport
+all binder/root/provider/port/origin/world/xi indices once. Every generated
+edge is a constructor insertion, dependent binding, latent insertion or
+composition. Such syntax obeys
+
+```text
+g(insert(q,o)) = insert(g(q),g(o))
+g(bind_edge(q1,x,q2)) = bind_edge(g(q1),g(x),g(q2))
+g(k composed j) = g(k) composed g(j)
+g(F_*(q)) = F_*(g(q)).
+```
+
+Simultaneous induction proves these equations for all displayed cases.
+Resolved imports move with their actual path, captures restrict the same
+dependency-closed image, shared references remain shared, and Call transports
+its full formal provider/world family and hole binder. Noninjective endpoint
+substitution identifies no occurrences or roots. Provider phases and opaque
+DeclAt/maps commute only by their independently legal actions, which are
+explicit inputs. This proof neither establishes Generalize eligibility nor
+creates lawful substitutions for an unspecified foreign interpretation.
+
+**Small falsifier of a stronger certificate-only claim.** Take one
+`call(result(name f),result(name x))` derivation and retain all q origins
+and suffix tags. Interpret its independently typed receiver interface with
+two original phase ports but leave the original source-image subincidence
+judgment unspecified/without a rule relating either port to this source
+Call. The static source certificate remains constructible, but no original
+S-Phase source insertion can be eliminated from it. One Call and one missing
+phase insertion suffice: q is not a proof of an independently fixed original
+source-image interpretation. Section 12 supplies an explicit structural
+definition, retaining the genuine provider phase premise, rather than
+claiming that this absent rule followed from tags. This is a logical witness
+to insufficiency of the old supplied premises, not a second complete
+Authority-consistent language semantics or an executed counterexample.
+
+Omitting any declared arm insertion/root use, substituting a provider with
+the same descriptor, replacing the carrier hole by its diagonal, moving a
+binder independently, using an unsupported source constructor or accepting
+a cyclic source proof invalidates the corresponding theorem hypothesis.
+None is repaired by deleting observations from F_C. C0 and typed phase
+membership still need their independent semantic proofs; this result closes
+the structural *construction* supplier on the stated completion only.
+
+### 12.6 Evidence and frozen-review packet
+
+Method: simultaneous structural derivation with exact operator erasures.
+There is no executable checker, independent Oracle or bounded enumeration.
+The old source-input translation and the proposed maps share the original
+source origins and operator interfaces; erasure checks representation
+agreement, not independent validation of those source semantics. No seeds,
+search ranges, stochastic samples or mutations were run. The named failure
+conditions above are proof exclusions, not observed test results.
+
+Exclusive changed path: this file only. No compiler/test/manifest/question/
+shared-record edit, build, probe, delegation or Git mutation occurred.
+Resource use: short single-process reads and one edit; CPU/RSS were not
+measured. Direct independent dependency hashes at this baseline:
+
+| Path | SHA-256 |
+| --- | --- |
+| `notes/theory/2026-10-07-call-input-construction-proof.md` | `35ae7634f8eb7c7076f4a4aba573f6ecabc1c9353d1ce5d296b06450caac8849` |
+| `notes/design/2026-10-07-complete-call-contribution-definition.md` | `246e957bb29cb63f7b9db59e8b29211a11bc975babbb2dbf15493d69fbd9eff7` |
+| `notes/design/2026-10-07-original-call-owner-definition.md` | `0b86e367cf8170f4f9d095f0afe8e9f6003209189dc358e294941727962ff110` |
+| `notes/design/2026-10-07-original-call-formation-definition.md` | `4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f` |
+| `notes/design/2026-10-05-inferred-function-call-views.md` | `4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1` |
+| `notes/design/2026-10-02-typed-computation-core-elaboration.md` | `0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e` |
+
+Recommended next action: independently review the complete §12 definition
+and induction, particularly open carrier-hole binding and actual-provider
+phase insertion, before selecting these structural source constructors.
+
+Commit packet: lease this file; baseline
+`ffab2079e806883342621083a39828567534adc4`; direct external dependency hashes
+above unchanged; artifact/review status proposed conditional derivation,
+unreviewed and unadopted. Checks are scoped reads and diff/hash integrity
+only, with no tests. Proposed checkpoint message:
+`research: construct finite structural Call source frames`.
+Primary/curator retain all task/index/design-status deltas; record the
+conditional structural supplier, keep provider/arm/semantic/active-consumer
+premises open, and make no aggregate DAG or production-status promotion.

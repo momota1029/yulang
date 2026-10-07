@@ -49,6 +49,14 @@ full-family J0 conditional on genuine SourceInterfaceFormation_e. That original
 source/declaration supplier, independent semantic input realization and active
 consumer/fixed-kernel laws remain; no aggregate status or cutover changes.
 
+The selected finite structural completion in that proof §12 now constructs
+dependent operand/Bind/carrier/return/future source placements on its acyclic
+Data/Code/telescope grammar. Both independent reviews pass. It keeps the
+whole-carrier hole universal and `qa` as its diagonal section. Complete
+operator typing/actions, provider dispatch/phase incidences, contextual world
+binding and all opaque declaration insertion/foreign-root-use maps remain
+independent; the full SourceInterfaceFormation supplier and J0 are still open.
+
 ## Read this map
 
 The [Call-input constructor theorem](2026-10-07-call-input-construction-proof.md)

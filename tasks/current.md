@@ -1,6 +1,6 @@
 # Current task: complete SCC-intrusion successor inference
 
-Date: 2026-10-07 UTC
+Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
 Status: original O0, paired seeded O1 and authentic complete-Call constructors supplied; genuine semantic/source-interface and production gates remain
 
@@ -153,6 +153,21 @@ unconditional J0, fixed-kernel comparison and active-consumer preservation
 remain outside the result.
 
 ### Immediate work order
+
+The selected finite structural source-frame completion in the complete Call
+proof §12 now derives dependent operand, Bind, latent carrier/capture and
+return/future maps by simultaneous constructor induction, with exact erasure
+and lawful whole-map naturality. Independent compiler-referee and spec-auditor
+reviews pass at SHA-256
+`47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
+The full carrier is an open hole; the source `qa` is only its diagonal section.
+This is a selected static constructor completion under the existing source
+direction. Actual operator typing/actions, contextual hole/world binding,
+provider dispatch/phase incidences and every original opaque declaration
+insertion/foreign-root-use map remain independent. C0, J0, licensing,
+active-consumer and production gates are not closed by static placements.
+The next source-interface attack is on those original declaration/dispatch
+suppliers, using the completed structural maps rather than reconstructing them.
 
 The independently reviewed [Call-input construction](../notes/theory/2026-10-07-call-input-construction-proof.md)
 is published at `f981c63`. It completely constructs the finite acyclic resolved

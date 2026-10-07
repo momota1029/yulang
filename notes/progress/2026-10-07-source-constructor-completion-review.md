@@ -394,3 +394,32 @@ the commit because no questioner-imported question/draft/answer bundle is
 being integrated. Exact blob/tree and single-parent commit verification,
 followed by an expected-head non-forced ref update and remote read-back,
 govern publication. No compiler tests or broader measurements are claimed.
+
+## 12. Finite structural source-frame completion (2026-10-08)
+
+At `ffab2079e806883342621083a39828567534adc4`, a bounded producer added
+the complete Call proof's §7 refinement and §12 constructor theorem.
+The frozen file SHA-256 was
+`47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
+Independent compiler-referee and spec-auditor reviews both passed with no
+blocking, major or minor findings. The primary accepts their conditional
+static-construction scope and selects those cases in the governing definition.
+Post-freeze changes are the leading selection/review notice only.
+
+The mathematical result constructs dependent source-port placements for
+the stated finite acyclic Data/Code/telescope grammar by simultaneous induction,
+with exact old-operation erasure and lawful whole-map naturality. It uses
+authentic source/operator references, not arbitrary typed relations. The
+independent whole-carrier hole remains universal; `qa` is its diagonal section.
+Every opaque Option 2 declaration remains in the family, even where its
+insertion or foreign-root-use map is unavailable.
+
+The remaining inputs are original operator typing/witness actions, actual
+provider dispatch and phase maps, contextual hole/world binding and all
+original declaration insertions/licenses/foreign-root-use maps. C0, K-Image
+membership lifting, J0, fixed-original embedding and active-consumer
+preservation are not derived. Neither review inspected production code or
+machine-checked the mathematics. The DAG validator passes unchanged at
+90 nodes / 196 edges and counts 7 / 20 / 43 / 19 / 1; no node is promoted.
+This completion replaces an unsupplied structural constructor component,
+not its independent semantic/provider/declaration suppliers.

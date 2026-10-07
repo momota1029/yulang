@@ -119,9 +119,21 @@ exists fixed c_e,a_e before z:
   forall z in unchanged F_C(X;xi). Cover_orig(a_e,z;X).
 ```
 
-`SourceInterfaceFormation_e` is not adopted as true. Its complete source frame,
-structural formation inputs, exhaustive original arm-root insertions and legal
-whole-map coherence must still be constructed at their genuine owning phases.
+The reviewed finite structural completion in proof §12 is selected for the
+stated acyclic Data/Code/telescope grammar. Its typed reference ports and
+constructor maps derive operand, dependent Bind, latent carrier/capture and
+return/future placements by simultaneous induction. The whole argument is
+an open carrier hole; the source `qa` supplies only its diagonal section.
+Compiler-referee and spec-auditor reviews passed the frozen proof at SHA-256
+`47320e66b976d55ec4e06d2669f7ccc60b58e2522de68bdfa1399cb7610fb0a5`.
+
+`SourceInterfaceFormation_e` is not adopted as unconditionally true. Actual
+operator typing and witness actions, provider dispatch/phase incidences,
+contextual hole/world binding, exhaustive original arm-root insertions and
+foreign-root-use maps remain independently supplied at their owning phases.
+The static constructor completion derives their source placements; it does
+not construct those semantic/operator/declaration inputs or K-Image membership
+lifting. Its erasure and naturality have exactly the retained original scope.
 O0's single output correspondence, O1 ownership and C0 semantic typing do not
 alone supply them. The same restriction applies when an independent complete
 operation has not yet been specified at all.
