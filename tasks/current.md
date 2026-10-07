@@ -1738,6 +1738,35 @@ No status changed, no semantic clause was proven, and no tests/builds ran. The
 only substantive research artifact change is the reviewed, non-authoritative
 C5/C6 correction, synchronized here without changing theorem status.
 
+At the resulting `0756150ee0113f62f959dd69c28bd10795b1f1cd` baseline, a second
+constructor-by-constructor CALL_TYPE pass separated demand indexing from event
+recording, semantic EnvStore/JointWF realization, and local Val/DescMem typing.
+Init/Response/Resume/FutureUse inputs provide occurrence or handle identity;
+none constructs the total coherent `Theta` family. One already jointly typed
+initial event admits identity reuse conditionally, but supplies no later-world
+or all-context theorem. Round-3 assumes the retained coherent extensions and
+CI-Operands/CI-ArgFrame; it does not derive them.
+
+The matching INIT_WORLD inversion distinguishes premise levels: if an open
+`Delta_i` certificate is already supplied at the actual importer incidence and
+`C0`, the remaining first leaf is joint root-extension introduction with old-
+tuple restriction. If the grant is only exporter/external validity, importer
+installation is earlier. PCInit-source derives the open source-owned schema
+conditionally on these import/world leaves, but cannot install an opaque
+Option-2 import or manufacture the independent EnvStore/JointWF root. Neither
+version yields a source counterexample or status change.
+
+Targeted Frozen Oracle archaeology of signature-local P2 construction found
+correlated polarized Function ports, formal-owned effect-marker rows and
+receiver endpoints, but no joint original slot/contribution/owner-view
+certificate. In the inspected `ArgEffectContractMarker` sidecar, argument- and
+return-effect ports at the same path/depth collapse to the same marker; the
+complete annotation/type AST may retain their distinction, so this is not a
+whole-compiler information-loss claim. Historical sharing and allocation IDs
+do not supply typed `p0`, a Call occurrence, original `xi`/scope or complete
+family coverage. P2 remains OPEN-SEMANTIC. These attacks were bounded producer
+audits, not independent closure reviews; no DAG node or authority changed.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.
