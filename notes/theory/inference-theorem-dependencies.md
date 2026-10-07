@@ -328,6 +328,20 @@ JOINT_DEC and PROJECTION remain the complete residual/effective source gates.
 
 ## Production and final dependencies
 
+The independently reviewed [continued constructor attacks](../progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. RAW_SOURCE's typing
+emission/inversion and decorated REF_SIM do not alone prove the actual raw
+operational square. For the actual Lambda invocation, the first remaining
+square is raw body Run versus its emitted decorated body at the same original
+environment/current world and complete consumer/return suffix, with the
+independent entry/world/history certificates retained. For each actual
+interface constructor, prove exact atom decoding and
+`Observe_r(original data;xi) = Eval_accessor_r(emitted record;xi)` for every
+actual downstream read. The full PROJECTION/GENERALIZE contracts, if proved,
+cover ordinary-use/evidence observations; they do not themselves enumerate
+all accessors. The canonical leaves retain these local equations without
+another dependency, semantic clause adoption, or status promotion.
+
 | Final target | Necessary unfinished claims |
 | --- | --- |
 | General source adequacy | Complete raw source generation and rows, all-world admission, typed incidence/liveness, adapters/dispatch/subtraction/release, State/reference/world and role/method fixed point |

@@ -278,6 +278,18 @@ pipeline correspondence remain unattained; cutover stays open and prohibited.
 
 ## 6. Production and lifecycle boundary
 
+The reviewed [continued constructor attacks](../progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+leave SOURCE_ADEQUACY and IFACE_FORM OPEN-PROOF at explicit local equations.
+Actual Lambda invocation reduces to raw body Run versus the emitted decorated
+body under the same original environment/current world and complete
+consumer/return suffix; typing-atom emission and conditional decorated
+simulation alone do not prove that square. The finite interface must decode
+each original constructor's exact atoms and satisfy its actual downstream
+accessor equations. If full PROJECTION/GENERALIZE are established, their
+ordinary-use/evidence transport still does not enumerate every such accessor.
+An evidence-reference equation applies only after identifying the actual
+required read. No new observer, semantic adoption, or promotion is claimed.
+
 The [rebuild addendum](../design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md)
 retires inverse intrusive mutation as a prerequisite; [conditional lifecycle](../progress/2026-10-05-scc-generalized-boundary-contract.md)
 requires complete interfaces, fresh/internal uses, valid references and atomic

@@ -344,3 +344,102 @@ source/interface results must pass final navigation/whitespace checks and
 another expected-HEAD publication. Code is unchanged from the reviewed
 four-test feature-on and successful feature-off build snapshot; documentary
 status changes do not justify a repeated broad build.
+
+## 12. Downstream attacks after SOUND: no further promotion
+
+The primary immediately tested SOURCE_ADEQUACY and IFACE_FORM against their
+full existing prerequisite contracts. Fresh independent research packets
+returned the following exact remaining interfaces. Neither packet wrote a
+standalone note or recommended another conditional node: the current
+prerequisites do not discharge these additional actual correspondence laws.
+The purpose here is to preserve the concrete next local targets, not to count
+signature extraction as another OPEN-node reduction.
+
+### Raw operational constructor correspondence
+
+RAW_SOURCE's existing complete atom generation/inversion concerns independent
+typing derivations. REF_SIM's simulation consumes decorated constructor and
+world certificates. General source adequacy additionally needs, for each
+actually included constructor `r`, the local head
+
+```text
+Emit_r(original constructor, children, decorated derivation, J_r; X,xi)
+and the independent local/world/history/descriptor certificates
+and OpCorr(child_i, decorated_child_i; same original witness family)
+  => OpCorr(r(children), decorated_r; same original witness family).
+```
+
+`OpCorr` here abbreviates the existing target's two operational derivation
+transports: actual `SourceExec` and the emitted decorated computation agree on
+corresponding finite prefixes/admitted histories, actual provider roots,
+entry/body/consumer/result ports, raw handles, pending suffix, re-entry
+delimiters, original `nu,K,D` and witness scopes. It is a local rule to prove,
+not a new source semantics or a new sufficient assumption to relabel the
+aggregate closed.
+
+The actual Lambda/source-function constructor was attacked after the already
+covered Name/Return operand cut. [Ordinary computation semantics](../design/2026-10-02-ordinary-computation-semantics-package.md)
+§3 and [typed core](../design/2026-10-02-typed-computation-core-elaboration.md)
+§§3,6 establish inert creation and the original retained lexical references.
+Their source `ApplyValue(Closure(entry;body,...),t,Cnow)` and decorated
+`Invoke(entry_P,X[body],t)` heads reduce future invocation to **actual raw
+body Run versus the emitted decorated body relation**, at the same original
+environment/current world and complete remaining consumer/return suffix.
+Head reduction and identity retention do not establish that body square.
+The independently supplied entry/world/history certificates remain required.
+No interpretation of an unlisted raw wrapper, raw-source-as-core-image
+definition, or full current-Authority countermodel is claimed. SOURCE_ADEQUACY
+therefore remains OPEN-PROOF at this actual constructor correspondence.
+
+### Finite interface records and actual accessor correspondence
+
+If the full existing PROJECTION and GENERALIZE contracts are established,
+the whole exported relation, ordinary-use/evidence transport, original eligible
+binders and fixed imports are available.
+Packing those outputs together with original typed ports and anchors covers
+the ordinary-use observation class. IFACE_FORM additionally quantifies over
+every actual downstream inference observer, as required by the
+[Authoritative interface comparison boundary](../design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md)
+and the [lifecycle theorem](2026-10-05-inference-lifecycle-interface-conditional.md)
+§2's independent interface-only interaction hypothesis. Those sources do not
+identify all such observers with ordinary scheme queries.
+
+The minimum constructor record laws to derive are
+
+```text
+emit_iface_r(original constructor data, child records) = E_r;
+decode_atoms(E_r) = RAW_SOURCE's exact original r-atoms;
+Observe_r(original constructor/child data; xi)
+  = Eval_accessor_r(E_r; xi).
+```
+
+The finite typed record must carry original sort/scope/binder and rigid-input
+references, ordered primitive/kernel operands, recursive roots/operator back
+references, original origin/receipt/owner/continuation/path incidence, evidence
+and admission dependencies, and every field the actual observer reads.
+For an actual required evidence accessor the smallest concrete equation is
+its selected evidence reference equals the emitted record reference, with
+all original scope/identity dependencies. This does not claim that the
+current compiler exposes an additional selection observer: the actual read
+interface must first be identified, then its equation proved. No opaque
+AllFuture predicate, printed-scheme equality or allocation ID substitutes.
+
+These laws are narrower than assuming a complete interface, but their actual
+constructor/accessor instances remain unproved. IFACE_FORM and IFACE_EQUIV
+therefore retain their existing statuses. No speculative evidence-selection
+model is promoted to an actual Yulang counterexample or user-decision claim.
+
+### Independent frontier review
+
+Fresh `round3_final_frontier_referee` and `round3_final_frontier_spec` reviewed
+only §12 and its direct governing contracts, independently and read-only.
+Both verified frozen whole-file SHA-256
+`a5a56f0b578c6d82f4adf70a38999f3e4c3e1f01201d8e3b3e6e63ba8388ba83`.
+Neither found a blocking or major issue. The referee's one minor wording
+clarification is applied above: PROJECTION/GENERALIZE supply those outputs
+**if their full contracts are established**; their OPEN status is unchanged.
+The spec auditor reported no findings. The primary accepted both reviews and
+the exact clarification; no additional review round was required by either.
+The canonical SOURCE_ADEQUACY and IFACE_FORM leaves now retain the reviewed
+local operational and actual-accessor equations. There is no further node,
+edge, status promotion, semantic adoption or user-decision blocker.

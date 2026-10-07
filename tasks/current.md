@@ -94,6 +94,16 @@ The one added CLOSED exact self-init subcase is reported separately.
   current scheme, with exact q1 recognition and enforcement still pending.
   Four focused tests and a feature-off core/HIR/solver check pass. No normal
   inference path is switched or given an unproved semantic judgment.
+- The reviewed [continued source/interface attacks](../notes/progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
+  retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. The first actual Lambda
+  operational square is raw body Run versus the emitted decorated body under
+  the same original environment/current world and complete consumer/return
+  suffix. The interface producer must emit each original constructor's finite
+  record, decode its exact RAW_SOURCE atoms, and preserve every actual
+  downstream accessor. Full PROJECTION/GENERALIZE contracts alone do not
+  enumerate those accessors. Both independent reviews passed; the referee's
+  minor conditional-wording clarification is applied. These are exact local
+  proof targets, not further status reductions or new source semantics.
 
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.
