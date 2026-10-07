@@ -225,12 +225,23 @@ consistency evidence, not independent source-semantics validation. Keep finite
 characterization, conditional theorem, reviewed theorem and production authority
 distinct. Mutation tests should attack named shortcuts rather than tautologies.
 
-After two successive variants of a toy model leave the same main premise
-untouched, reframe that lane: extract the missing source rule, change method,
-connect to actual artifacts, or return a precise blocker. Do not accumulate
-larger case counts or another restatement of the same open gate as progress.
-Close or repurpose idle/duplicate workers; no polling daemon or busy loop is
-required by this policy.
+After two successive materially different proof/model variants leave the same
+main premise untouched, do not launch a third proof variant mechanically. First
+apply the proof-obligation-economy classification in
+`compiler-engineering.md`: decide whether the premise is cutover-critical
+safety/correctness, required natural inference behavior, stronger research
+characterization, or reconstruction debt caused by discarded compiler evidence.
+For reconstruction debt, redirect a lane toward the owning construction point
+and test a canonical retained certificate/invariant before adding another
+semantic relation. For stronger characterization, keep the theorem as research
+unless current Authority actually makes it a production prerequisite. For a
+true correctness or natural-inference obligation, continue with a different
+proof method, exact missing source rule, or artifact bridge. This audit never
+silently weakens semantics or changes a DAG status.
+
+Do not accumulate larger case counts or another restatement of the same open
+gate as progress. Close or repurpose idle/duplicate workers; no polling daemon
+or busy loop is required by this policy.
 
 ## Curation and handoff
 

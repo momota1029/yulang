@@ -169,6 +169,7 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - Do not implement a new durable decision before user approval is recorded.
 - Do not reopen a sufficiently specified Authoritative gate without a concrete contradiction or scope expansion.
 - Fix the cause at its owning responsibility; do not mask a symptom downstream.
+- Do not make approved ordinary compiler behavior less natural merely to simplify a proof. Treat recurring proof/reconstruction obligations as design feedback; before adding another semantic clause, proof-only relation, or reconstruction layer, apply the proof-obligation-economy rules in `rules/compiler-engineering.md`. This rule does not itself weaken an Authoritative semantic contract or close an existing proof gate.
 - Do not alter snapshots, golden files, fixtures, diagnostics expectations, semantic assertions, or test names merely to match current output.
 - Do not mix unrelated cleanup, formatting drift, later gates, or broad refactors into a focused change. Warnings observed in a touched package or direct dependency are an exception to scope deferral, not to commit coherence: audit and fix a safe, ownership-local pre-existing cause in a separate coherent commit, while a warning caused by the active diff closes in that diff's commit. Do not defer solely because a warning predates the active diff. If a safe fix needs broader authority, record its exact owner and blocker in `tasks/current.md`.
 - Account for new work on hot paths; invoke performance review only under the material-risk trigger and measurement budget in `rules/performance.md`.
@@ -196,7 +197,7 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - parallel research, assignment packets, replenishment, and compute budgets: `rules/research-lab.md`
 - workflow and handoffs: `rules/workflow.md`
 - goal-driven questions and approved answer handoffs: `rules/question-board.md`
-- compiler structure and diagnostics: `rules/compiler-engineering.md`
+- compiler structure, natural behavior, proof-obligation economy and diagnostics: `rules/compiler-engineering.md`
 - chasa parser idioms: `rules/parser-chasa.md`
 - bug fixing: `rules/bug-fixing.md`
 - performance and adaptive measurement budget: `rules/performance.md`
