@@ -5,7 +5,9 @@
 use std::sync::Arc;
 use yu_hir::{
     FileId, FileKey, HirItem, HirVisibility, ModuleIdentity, ResolvedExpr, SemanticImports,
-    shadow::{ShadowArtifact, lower_module_with_source_identity},
+    shadow::{
+        ShadowArtifact, lower_module_with_shadow_applications, lower_module_with_source_identity,
+    },
 };
 use yu_solver::{
     ConstraintBatch, SolvedModule,
@@ -624,6 +626,180 @@ fn recursive_and_integer_uses_observe_recorded_routes_including_factless_bottom(
         assert_eq!(solved.counters(), before);
         assert_eq!(batch.counters(), batch_before);
     }
+}
+
+#[test]
+fn pending_apply_formal_identity_stops_before_target_origin_binder_join() {
+    // Historical construction identities; Apply typing remains unresolved.
+    let source: Arc<SourceText> =
+        Arc::from("my apply f = f input; my input = 1; pub alias = apply");
+    let parsed = parse_file(
+        source.clone(),
+        Arc::new(scan_header(source)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let hir = Arc::new(
+        lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "shadow-receiving",
+                "apply-alias.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let HirItem::Binding(apply) = &hir.items()[0] else {
+        panic!("apply binding")
+    };
+    let HirItem::Binding(alias) = &hir.items()[2] else {
+        panic!("alias binding")
+    };
+    assert_eq!(alias.visibility(), HirVisibility::Public);
+    let f = apply.parameters()[0].id();
+    let formal_position = shadow.parameter_source_position(&hir, f).unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    // The bounded single-body skeleton is unavailable for this multi-item
+    // module; do not invent a source registration from positions or ordinals.
+    assert!(
+        crosswalk
+            .parameter_at_position(&formal_position)
+            .unwrap()
+            .is_none()
+    );
+    let batch = ConstraintBatch::collect(hir.clone()).unwrap();
+    let ordinary = SolvedModule::solve(batch.clone()).unwrap();
+    let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    let foreign = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert_eq!(ordinary.errors(), solved.errors());
+    for occurrence in solved.occurrences() {
+        assert_eq!(
+            ordinary.projection_for(occurrence).unwrap(),
+            solved.projection_for(occurrence).unwrap()
+        );
+    }
+    let before = solved.counters();
+    let batch_before = batch.counters();
+    let [row] = solved.pending_applications() else {
+        panic!("one Apply")
+    };
+    assert_eq!(
+        row.state,
+        yu_solver::PendingApplicationState::ApplicationTypingRuleUnresolved
+    );
+    assert_eq!(row.enclosing_root.as_ref(), Some(apply.definition_root()));
+    assert!(
+        matches!(&row.callee.direct_name_resolution, Some(yu_hir::NameResolution::Parameter(id)) if id == f)
+    );
+    let call_position = shadow
+        .occurrence_source_position(&hir, &row.occurrence)
+        .unwrap();
+    let callee_position = shadow
+        .occurrence_source_position(&hir, &row.callee.occurrence)
+        .unwrap();
+    assert_ne!(formal_position, callee_position);
+    assert!(
+        crosswalk
+            .application_direct_use_at_position(&call_position)
+            .unwrap()
+            .is_none()
+    );
+    let source_uses = solved
+        .shadow_pending_application_source_uses()
+        .filter(|source_use| source_use.occurrence() == &row.callee.occurrence)
+        .collect::<Vec<_>>();
+    assert_eq!(source_uses.len(), 1);
+    assert!(std::ptr::eq(source_uses[0].application(), row));
+    assert!(source_uses[0].same_identity(source_uses[0]));
+    assert!(
+        foreign
+            .shadow_pending_application_source_uses()
+            .all(|other| !source_uses[0].same_identity(other))
+    );
+    assert!(matches!(
+        ordinary.shadow_parameter_row(f).unwrap(),
+        ParameterRowState::NotRequested
+    ));
+    let ParameterRowState::Captured(startup) = solved.shadow_parameter_row(f).unwrap() else {
+        panic!("startup row")
+    };
+    let ParameterRowState::Captured(repeated) = solved.shadow_parameter_row(f).unwrap() else {
+        panic!("repeated row")
+    };
+    let ParameterRowState::Captured(other) = foreign.shadow_parameter_row(f).unwrap() else {
+        panic!("foreign row")
+    };
+    assert!(startup.same_identity(repeated));
+    assert!(!startup.same_identity(other));
+    let topology = batch.shadow_scc_topology();
+    let alias_position = shadow
+        .occurrence_source_position(&hir, alias.value().occurrence())
+        .unwrap();
+    let incoming = topology
+        .components()
+        .flat_map(|component| component.incoming_uses())
+        .filter(|&occurrence| {
+            topology.use_source_position(&shadow, occurrence).unwrap() == alias_position
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(incoming.len(), 1);
+    let pending = topology
+        .pending_use_instantiation(&solved, incoming[0])
+        .unwrap();
+    let target = pending.current_scheme();
+    assert_eq!(target.owner(), apply.definition_root());
+    let receiving = topology
+        .definition_closed_scheme(&solved, pending.parent())
+        .unwrap();
+    assert_eq!(receiving.owner(), alias.definition_root());
+    assert!(!target.same_identity(receiving));
+    let GeneralizationOriginState::Captured(target_origins) =
+        target.current_generalization_origins()
+    else {
+        panic!("target origins")
+    };
+    let selected = target_origins
+        .bindings()
+        .filter(|(_, origin)| startup.same_identity(*origin))
+        .collect::<Vec<_>>();
+    // Pending Apply contributes no typed body recipe. Its formal's startup
+    // row is not selected by the current target generalizer, so there is no
+    // exact binder to carry through alias freshening into receiving origins.
+    assert!(selected.is_empty());
+    let FreshCaptureState::Captured(capture) = pending.current_fresh_capture() else {
+        panic!("incoming capture")
+    };
+    assert!(capture.scheme().same_identity(target));
+    assert!(
+        capture
+            .bindings()
+            .all(|(_, fresh)| !startup.same_identity(fresh))
+    );
+    let GeneralizationOriginState::Captured(origins) = receiving.current_generalization_origins()
+    else {
+        panic!("receiving origins")
+    };
+    assert!(origins.scheme().same_identity(receiving));
+    assert!(
+        origins
+            .bindings()
+            .all(|(_, origin)| !startup.same_identity(origin))
+    );
+    assert_eq!(
+        pending.pending_generalization().premise(),
+        PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+    );
+    assert_eq!(
+        pending.qr_correspondence_premise(),
+        PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+    );
+    assert_eq!(
+        pending.shared_contract_transport_premise(),
+        PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+    );
+    assert_eq!(solved.counters(), before);
+    assert_eq!(batch.counters(), batch_before);
 }
 
 fn same_binder(a: FreshBinderRef<'_>, b: FreshBinderRef<'_>) -> bool {
