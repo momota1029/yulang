@@ -1308,6 +1308,25 @@ CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF and 19 OPEN-SEMANTIC.
 Next semantic attack remains the original source producer for P2; the shadow
 slice is not evidence for that producer.
 
+The subsequent bounded proof/review wave kept the same canonical counts
+(7 CLOSED, 20 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF,
+19 OPEN-SEMANTIC). A source-elaboration induction on the approved nested-call
+example reaches the typed core skeleton and lexical identities, then first
+fails at Application/Normalize: no rule introduces typed output
+correspondence to the original `p0`; neither Name child supplies it. The same
+induction introduces no original slot/owner incidence, so P2 remains open.
+The strict two-model user-decision criterion was not met. Even granting P2/P3,
+the next distinct leaf is an original `Attach_C` introduction retaining the
+source attachment and contribution witness; `Lic_C` introduction and
+exhaustive licensing inversion remain separate. The CALL_TYPE follow-up also
+isolates checking-to-`ArgCompatible` against the actual returned provider's
+whole carrier as an independent leaf after argument typing at `C1` is granted.
+No semantic rule or DAG status changed. Architecture review found no consumer
+that would justify splitting the existing premise inventory into duplicate
+bookkeeping records. Next attack: derive the original typed upper/output
+introduction at the actual `f x` Call, then its owned slot incidence while
+preserving the same original `xi`, scope, and provider witness.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
