@@ -588,7 +588,7 @@ producer: anchors are constructed after body/Function constraints and supply
 no original `beta`/`Slots(beta)`, typed `p0`, complete contribution, or shared
 `xi`. It closes no semantic gate.
 
-The unreviewed [Frozen Oracle typed-provenance route](../notes/progress/2026-10-08-frozen-oracle-typed-provenance-route.md)
+The spec-audited [Frozen Oracle typed-provenance route](../notes/progress/2026-10-08-frozen-oracle-typed-provenance-route.md)
 traces explicit `ArgEffectContract` metadata from source annotation through
 parameter identity and compiled-runtime remapping to call-spine hygiene, and
 separately traces finalized typed-ACT identity/scheme transport. Its local

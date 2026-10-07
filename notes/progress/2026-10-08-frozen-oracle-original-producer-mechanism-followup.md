@@ -131,7 +131,7 @@ The dependency chain is therefore:
 
 ```text
 arm CST + scrutinee endpoint
-  -> pattern endpoint + PatId + shared local binder
+  -> pattern endpoint + PatId [+ shared local binder under H-name]
   -> Pattern boundary/origin
   -> two endpoint constraints, possibly drained
   -> upper-bound IDs newly present since pattern lowering
