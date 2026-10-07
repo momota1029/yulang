@@ -647,13 +647,19 @@ discarded. The current structural carrier is therefore insufficient to turn
 these missing introductions into D-only bookkeeping.
 
 Do not launch another equivalent proof variant or repeat the bounded Oracle
-attribution search. The next task is to derive a concrete K-Owner introduction
-and its O0 typed-output/source-root premises at typed source generation, then
-test whether it follows from the approved construction without assuming the
-desired association. Preserve all original witnesses and same-`X,xi`
-obligations. The reviewed interface remains non-authoritative; any new slot,
-contribution or architecture meaning still needs the required user approval
-before implementation. Soundness, principality, source adequacy and
+attribution search. The reviewed [Gen-Call-0/O0 bridge audit](../notes/progress/2026-10-07-original-call-gen-call0-o0-bridge-audit.md)
+finds that source generation already supplies the shared root, dependent
+Function variable, beta/address schema and conditional decorated
+observation-port correspondence. It does not close original-sort O0: the
+missing bridge must identify the exact emitted upper use and interpret that
+map as an original typed-path witness at the same root, scope and xi. The next
+task is to formulate and check that typed-elaboration bridge without assuming
+the desired association, then derive a concrete K-Owner introduction while
+preserving all original witnesses and same-`X,xi` obligations. Initial seed
+slots do not establish the complete slot inventory or ownership. The reviewed
+interface remains non-authoritative; any new slot, contribution or
+architecture meaning still needs the required user approval before
+implementation. Soundness, principality, source adequacy and
 production-conformance cutover gates remain intact.
 
 ## Priority frontier: recursive/generalized source
