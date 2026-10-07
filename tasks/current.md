@@ -463,7 +463,13 @@ optional shadow `UseId` is absent, but raw source occurrence identity survives.
 Regression review passed; the focused target passed after bypassing the
 configured sccache wrapper. Both successor Q/R correspondence and shared
 contract transport remain explicitly unresolved. This closes no semantic
-gate and supplies no source-owned versus fixed successor partition.
+gate and supplies no source-owned versus fixed successor partition. The exact
+next source judgment must derive, from an original component and enclosing
+context, member roots, eligible owned coordinates, fixed captures/imports,
+binder scopes/order and the complete joint relation/evidence; only then can
+use-time freshening act on owned coordinates while holding imports fixed.
+The current F5 Q/R inventory does not determine that boundary, and successor
+representation need not preserve F5's Q/R layout.
 See the [focused crosswalk record](../notes/progress/2026-10-09-shadow-source-use-current-qr-crosswalk.md).
 
 The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)

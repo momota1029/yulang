@@ -23,6 +23,15 @@ versus fixed classification, shared-contract transport, or source acceptance.
 Internal same-SCC uses and parameters/captured local applications remain
 distinct cases.
 
+The exact successor-side missing judgment is source generation from an
+original component `C` and its actual enclosing context `Gamma` of the member
+roots, eligible owned coordinates, fixed captures/imports, original binder
+scopes/order, and complete joint relation/evidence. Only with that partition
+can an ordinary source use coherently freshen owned coordinates and keep
+imports fixed. The current F5 Q/R inventory does not generate this partition,
+and the charter does not require successor binders to preserve F5's Q/R
+representation. Adding a current-source row query would not discharge it.
+
 ## Review and checks
 
 Regression-auditor review passed with no findings. The reviewer confirmed the
