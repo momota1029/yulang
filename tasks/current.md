@@ -2,7 +2,7 @@
 
 Date: 2026-10-07 UTC
 Branch: `research/simple-sub-intrusion`
-Status: original Call formation definitions approved; local emitted-record O0 supplied, owner/Call-input and production gates remain
+Status: original O0, paired seeded O1 and authentic complete-Call constructors supplied; genuine semantic/source-interface and production gates remain
 
 ## Objective and canonical obligation ledger
 
@@ -98,32 +98,86 @@ substitution remain explicit unresolved premises. This does not generate
 records for arbitrary Apply nodes or alter solver/production behavior. Its
 focused three-test target and independent compiler-referee review passed.
 
-An O1 candidate arm is now fully written in
-[`original-call-source-introduction-contract`](../notes/design/2026-10-07-original-call-source-introduction-contract.md#31-candidate-o1-static-slot-and-upper-owner-formation).
-It defines a static `CallSlot_orig(beta,p0)` and `Own_orig(...,u,...)` at the
-generated upper checking occurrence, while retaining lexical callee `u_f`
-only as resolution/capture evidence. Its J0 interface now uses the same `u`
-coordinate required by K-Incidence. Fresh compiler-referee and spec-auditor
-delta reviews found no remaining occurrence-composition defect. This is a
-new unadopted original formation arm: it does not derive the historical
-K-Owner rule, prove compatibility with a separately fixed owner kernel, or
-supply contribution, source-image, uniform-coverage, licensing or admission
-evidence. ORIGINAL_ASSOC remains OPEN-SEMANTIC; the DAG status is unchanged.
-The earlier fragment non-entailment still establishes no user decision.
+### Current shared static owner construction
+
+The user's `2026-10-07T23:02:56+09:00` instruction authorizes continuing
+legitimate definitions under the fixed natural source behavior. The
+[static owner definition](../notes/design/2026-10-07-original-call-owner-definition.md)
+and [complete O1-static proof](../notes/theory/2026-10-07-call-owner-construction-proof.md)
+now supply `s in Slots_orig(beta)` and both lexical `Own(...,u_f,...)`
+and checking `Own(...,u,...)` from one canonical owner certificate for
+every actual emitted Gen-Call-0 exposure carrying the independently justified
+selected formal seed. S1 supplies that seed for the approved nested source.
+The lexical mathematics/specification reviews and fresh paired-facet delta
+review pass; the minor review-provenance clarification is repaired. The
+[completion record](../notes/progress/2026-10-07-source-constructor-completion-review.md)
+records exact scope, frozen hashes and consumer substitutions.
+
+Registration owns a shared position schema; an actual O0 exposure introduces
+its typed membership and seeded upper ownership. Capture imports the original
+registration. Local demands remain in their own scopes, and lexical `u_f`
+and checking `u` remain distinct. No unused-formal Function validity, whole
+slot inventory or semantic SharedContract membership is inferred. These are
+constructor and elimination proofs, not a reconstruction from IDs or Q.
+
+The incoming reviewed §3.1 owner candidate at `465c2af` is preserved in the
+[source-introduction contract](../notes/design/2026-10-07-original-call-source-introduction-contract.md#31-candidate-o1-static-slot-and-upper-owner-formation).
+It states a checking-`u` owner/J0 port and remains an unadopted candidate;
+the paired construction supplies its checking existential port under the
+selected definition, without identifying its separate concrete kernel terms.
+This supersedes the earlier bounded O1 attack's missing-static-rule stop.
+All-source generation, other seed/owner cases, complete C0, full source
+interface/J0 and licensing/profile/row completeness remain open. C1 is now
+supplied under its independent inputs as recorded next. The aggregate
+ORIGINAL_ASSOC and canonical ninety-node status/dependency inventory are unchanged.
+
+### Current complete Call construction
+
+The [selected complete Call definition](../notes/design/2026-10-07-complete-call-contribution-definition.md)
+and [reviewed constructor proof](../notes/theory/2026-10-07-owned-call-contribution-construction.md)
+form C-Call from the authentic original operation, including callee evaluation,
+the independent whole carrier, actual receiver, result/future interfaces and
+all original alternatives. Under independent complete C0, C1-Call gives a
+fixed original contribution and exact evidence-fiber embedding before Pi.
+Receiver-only C-Inv stays distinct. No additional per-primitive inverse or
+source execution of Option 2 extras is required for this retained contract.
+
+The same proof supplies structural/abstract source-routing induction and one
+fixed joint accounting witness before arbitrary family members, conditional
+on genuine `SourceInterfaceFormation_e`. That supplier must construct the
+complete source frame and each original declaration/root/use placement,
+including licenses and introduced-provider/future maps. O0/O1/C0 do not
+create it. This is the remaining source-incidence bottleneck, not another
+missing Contrib wrapper. Both mathematical and specification reviews pass;
+unconditional J0, fixed-kernel comparison and active-consumer preservation
+remain outside the result.
 
 ### Immediate work order
 
-1. Attack the exact adoption/derivation gap for the reviewed O1 arm against
-   original source authority. Keep the static source-owned constructor
-   distinct from historical K-Owner, and do not infer semantic provider
-   admission or an incidence witness from its `Own_orig` output. Do not
-   restart signature-root or OC-CallEff formation, turn kappa into a
-   slot/member by identity, or expand the singleton proof to all-source
-   generation.
-2. Establish the independent actual Call inputs and complete production
-   descriptor/member/admission clauses. C0 and the static O0/O1 branch may
-   progress independently; preserve same-provider/world and original scopes.
-3. Construct staged canonical evidence and prove the four families by their
+The independently reviewed [Call-input construction](../notes/theory/2026-10-07-call-input-construction-proof.md)
+is published at `f981c63`. It completely constructs the finite acyclic resolved
+source input tree and exact nested term (Theorem S). In its independently
+defined semantic fragment, Name/Return inversion and full constant-delay
+soundness yield actual-U argument acceptance at the same CalRet provider/live
+world (Lemma N/Theorem I). Original-family realization of the persistent
+telescope and checked-view inlet action, plus general complete Call phase
+preservation, remain genuine C0 inputs. The fragment is not adopted as a new
+production membership rule. Its static source cases need no further
+reconstruction from Name/Apply IDs.
+
+1. Use O0-selected and O1-static directly on their stated emitted-record/seed
+   envelope. Retain their actual source, registration/capture, scope and
+   shared-`xi` derivations. Do not reschedule local root/occurrence/owner
+   introduction or transport, turn kappa into a complete source image, or
+   expand these proofs to all-source generation and general seed eligibility.
+2. Use the completed static Call-input constructors and fragment consequence;
+   establish their original semantic realization and the full Call phase
+   laws, with complete production descriptor/member/admission clauses.
+   C0 and complete original source-interface formation may progress
+   independently; preserve same-provider/world and original scopes.
+3. Supply the authentic complete source/arm declaration interfaces and prove
+   their local source placements; then use C-Call and J-Owned directly.
+   Construct other staged canonical evidence and prove the four families by their
    shared constructor, transition and source-derivation cases. Retained owner,
    license and profile-entry lookup become local projections only after their
    original introduction. Joint ROWS and exhaustive licensing do not disappear.

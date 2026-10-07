@@ -216,10 +216,11 @@ in the independent production/license semantics and be covered there.
 | `H_eff`, `q_c` | Source signature-demand formation, selected case | Adopted OSig-Demand derivation and exact immediate projection | Retain/project in actual `Delta_c` | Closed on actual emitted Gen-Call-0 records by O0-selected; general source-generation coverage remains |
 | O0 occurrence | Source Call formation, selected case | Adopted `CallEff_orig(e_c)` with typed incidence/kappa | Retain derivation; project signature/source legs | Local O0-selected is closed; current compiler construction/retention and other source cases remain. No original owner/inventory follows |
 | Directional seed | Source formal/exposure processing | Protected-variable evidence tied to the source upper occurrence | Apply proved directional action; retain independent provider protection | All source introduction/use applicability, not another transport wrapper |
-| O1 slot/owner | Static source upper-owner introduction | Original Slots/Own derivation | Borrow exact witness | Original slot/owner rule; no singleton or per-use slot assumption |
-| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Actual input construction and whole-carrier compatibility |
-| C1 original contribution | Original contribution interpretation | Complete typed image plus Contrib/Emb and its active witness relation | Retain original image/branch witness | Original-domain introduction, including independently licensed alternatives |
-| J0 joint association | Original joint owned-image introduction | One `a`, joint incidence, uniform coverage derivation | Eliminate coverage at any admitted member | Joint compatibility and `exists a. forall z` coverage |
+| O1 slot/owner | Registration owns the shared schema; actual typed seeded source exposure owns membership/attachment | Reviewed SharedInvoke/OwnUpper derivation with original route, O0 and SeedExposure | Borrow/project the exact witness, moving all indices together | O1-static closed on the actual emitted selected-seed envelope; other owner cases and semantic realization remain, with no complete singleton inventory or per-use slot assumption |
+| Static Call inputs | Resolved source Data/Code/telescope constructors | Reviewed Name/Return/Delay/Capture/Lambda/Bind/Call input tree and original check origins | Retain typed code; project actual binding/capture evidence | Theorem S closed on the stated finite acyclic resolved source envelope, including the nested term; general source generation remains |
+| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Name/Return/constant-delay and actual-input consequence are proved in the explicit independent fragment; its original-family realization, full carrier/phase preservation and complete C0 remain |
+| C1 original contribution | Authentic complete Call operation formation | Selected C-Call/CallMem retaining the original callee, whole carrier, receiver, return/future and full alternative interface | Retain/project the same whole witness | C1-Call proved under authentic SpecCall_e and independent complete C0; separately fixed kernel/active-consumer comparison remains |
+| J0 joint association | Original source/operator/arm declaration formation, then owned-image constructor | Complete source frame and genuine declaration-to-root-to-use placements; selected J-Owned retains one compatible diagram and witness | Apply proved structural/abstract routing and accounting elimination to any admitted member | SourceInterfaceFormation_e remains genuine; fixed-witness full-family implication is proved under it, exact O1 and complete C0 |
 | Emitted ATTACH/LIC_FORWARD | Original source/annotation/provider license rule | Its actual original attachment/license derivation | Project; preserve its indices | Constructor agreement, not arbitrary fact fields |
 | All-license inversion | Independent exhaustive license interpretation | Complete last-rule inventory and elimination principle | Induct on actual license derivation | Must cover every licensed arm, including extras; cannot be defined away |
 | Complete PROFILE | Original signature/profile formation | Complete incidence inventory with original policies | Lookup and transport entries | Exhaustive coverage and legality; not just one local slot |
@@ -373,10 +374,33 @@ supplies independent H_eff, exact typed Call-effect/root incidence, root
 realization and whole-index coherence on actual emitted Gen-Call-0 records.
 `IndependentFunctionPositions -> InterpretedCallEffect` is available in that
 selected fragment; the current compiler is not thereby claimed to construct
-it. O1/OwnedUpper, TypedInvocation, OriginalContribution, OwnedInvocation,
+it. TypedInvocation, OriginalContribution, OwnedInvocation,
 PROFILE, ROWS and all-source generation remain separate. No entire original
 domain is restricted to this constructor image. This narrow approved result
 does not adopt the audit's other proposals or change a cutover dependency.
+
+**Later static-owner completion.** The [selected owner definition](2026-10-07-original-call-owner-definition.md)
+and [O1-static theorem](../theory/2026-10-07-call-owner-construction-proof.md)
+now provide `InterpretedCallEffect -> OwnedUpper` when the actual emitted
+source exposure has its independently certified selected-formal seed. The
+approved nested source is included. Registration constructs the source-port
+schema, O0 supplies each local typed exposure, and the owner constructor
+retains their exact source/upper association. Constructor elimination supplies
+later lookup; no extra owner-reconstruction theorem is scheduled. The paired
+lexical/checking formation and exact consumer delta also passed a fresh review;
+neither occurrence is cast to the other. General source/seed cases, semantic SharedContract
+validity and complete source-to-contribution routing remain separate.
+
+**Complete-operation retention.** The [selected C-Call definition](2026-10-07-complete-call-contribution-definition.md)
+and [constructor proof](../theory/2026-10-07-owned-call-contribution-construction.md)
+now provide `TypedInvocation -> OriginalContribution` for an authentic
+complete original Call operation, under independent complete C0. Its evidence
+fiber retains both callee and receiver stages and the entire original arm
+interface, which may be opaque. No arbitrary relation coercion or per-arm
+contribution inverse is scheduled. `OwnedInvocation` follows by the proved
+local routing/accounting cases only after genuine SourceInterfaceFormation_e.
+That supplier, independent semantic interpretation and active-consumer laws
+remain; its fields are not made true by adopting the conditional constructors.
 
 The remainder of this section records the pre-adoption audit and its decision
 boundary. Its former missing-definition/unadopted wording is historical for

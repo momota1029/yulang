@@ -18,6 +18,24 @@ pre-adoption interface/status text is historical where it asks for that
 selected local formation again; no owner/slot/contribution/profile result
 follows from the adoption.
 
+**Selected static successor.** The [shared owner definition](2026-10-07-original-call-owner-definition.md)
+and reviewed [paired O1-static proof](../theory/2026-10-07-call-owner-construction-proof.md)
+now supply both lexical-`u_f` and checking-`u` existential owner ports from one
+actual source certificate with independently certified selected-formal seed;
+S1 includes this exact nested source. This selects no term equality with the
+separate unadopted §3.1 CallSlot/CallUpperOwner candidate preserved below.
+Generic K-Incidence requires one matching coordinate throughout its premises;
+its bound variable does not independently mandate checking `u`. The selected
+paired definition needs no new approval or downstream occurrence cast.
+
+The [complete Call contribution definition](2026-10-07-complete-call-contribution-definition.md)
+also supplies C1 by retaining the authentic complete operation under independent
+C0. Its joint accounting result remains conditional on the genuine full
+source-interface formation supplier. No complete source image, licensing,
+semantic SharedContract or aggregate J0 follows from static O1. The historical
+body and candidate below remain intact; their unadopted wording does not
+reopen the distinct selected definitions.
+
 ## 1. Purpose and authority boundary
 
 This proposal specifies interfaces for missing original source introductions.

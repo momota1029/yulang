@@ -170,6 +170,29 @@ that selected route. The audit's baseline classification/machine rows and
 parent statuses remain unchanged; all-source generation and other original
 semantic introductions remain outside this local result.
 
+The later [selected static owner definition](../design/2026-10-07-original-call-owner-definition.md)
+and independently reviewed [O1-static theorem](../theory/2026-10-07-call-owner-construction-proof.md)
+also supply `O1.Slots_Own` for actual emitted records with the independently
+certified selected-formal seed. Its A/B purpose is unchanged; constructor
+introduction is now proved on that envelope and later owner retention/access
+is D. This does not claim a complete slot inventory, general seed eligibility,
+semantic shared-contract membership or an aggregate ORIGINAL_ASSOC closure.
+The baseline table and machine classification stay unchanged.
+
+The [source-input proof](../theory/2026-10-07-call-input-construction-proof.md)
+now supplies static Data/Code/telescope construction and the exact nested
+term, with Name/Return/constant-delay actual-input consequences proved in its
+explicit independent fragment. The [complete Call definition](../design/2026-10-07-complete-call-contribution-definition.md)
+and [reviewed construction](../theory/2026-10-07-owned-call-contribution-construction.md)
+supply C1.Contrib_Emb for an authentic complete operation under independent
+C0; complete callee and receiver stages and every original arm survive.
+The source-routing and J0 fixed-witness implications are proved from genuine
+local source/declaration formation. C0's original semantic realization and
+SourceInterfaceFormation_e remain A/B; their absence is not D. Once those
+premises hold, contribution preimage/lookup and joint diagram retention use
+the selected constructors instead of separate reconstruction theorems. The
+baseline classifications and all parent statuses below remain unchanged.
+
 These rows refine existing gate clauses. Parent status is inherited for navigation; the audit assigns no new sublemma status. Required uniform-family and actual-export exactness are A/B work; the broader arbitrary-view remainder stays C in its recorded route. D notes explicitly distinguish retained known source evidence from certificates awaiting introduction.
 
 | Sublemma | Parent / unchanged status | Classes / treatment | Required clause and reason | D boundary | Primary source keys |
