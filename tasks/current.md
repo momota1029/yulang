@@ -292,6 +292,21 @@ assembly only after complete applicability; it does not discharge
 `elim_legacy`. ROWS remains separate because independent admission and all
 world/history predicates must still share one original tuple.
 
+The frozen research-only [legacy-license elimination attempt](../notes/theory/2026-10-08-legacy-license-elimination-attempt.md)
+was independently accepted by compiler-referee review and checkpointed in
+`b649790e3`. It proves `elim_legacy` conditionally from an exhaustive
+well-founded `Lic_C` grammar and same-index attachment action for every last
+rule. The examined sources do not provide that original rule inventory: the
+five requested families remain non-exhaustive, Theorem IF supplies contextual
+placement rather than `Attach_C`, and `A-UpperCallRef` supplies only
+`Attach_C+`. Joint hiding also needs an original-scope attachment action that
+retains one shared witness and admission certificate. No licensed-unattached
+Yulang counterexample is established; ATTACH, LIC_FORWARD, LIC_INVERT, profile,
+ROWS, and production statuses remain open. Next, recover or construct the
+actual original signature-applicability introduction at `beta`, then check its
+attachment action against each real legacy last rule before adopting any new
+constructor.
+
 ### Current original semantic Call inputs
 
 The [contextual Function membership definition](../notes/design/2026-10-08-contextual-function-membership-definition.md)
