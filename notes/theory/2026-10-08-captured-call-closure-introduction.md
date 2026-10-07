@@ -18,6 +18,13 @@ the producer's pending-review wording below is historical for this review.
 The proposed definition cases are not adopted by this research checkpoint,
 and no aggregate theorem, production behavior or cutover is certified.
 
+**Subsequent definition selection.** The independently reviewed
+[complete closure definition](../design/2026-10-08-captured-closure-constructor-definition.md)
+now selects exactly §§3–5 and their scoped Step/Block/OuterTrace consequences.
+The [integration record](../progress/2026-10-08-native-constructor-theorems-review.md)
+records both verdicts. The frozen producer's candidate/pending-selection wording
+is historical for those cases; all stated independent inputs and residuals remain.
+
 ## 1. Result and interpretation boundary
 
 The theorem below introduces the **newly constructed actual step closure** in

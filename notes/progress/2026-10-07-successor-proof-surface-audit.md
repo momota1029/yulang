@@ -26,6 +26,33 @@ A = safety/correctness; B = natural inference; C = stronger characterization; D 
 
 ## Exact coverage
 
+**Further constructor completion (2026-10-08).** The reviewed and selected
+[captured closure theorem](../theory/2026-10-08-captured-call-closure-introduction.md)
+now supplies actual source prefixes and simultaneous Step/world introduction
+on the approved nested source, followed by Block and conditional OuterTrace.
+The [native recursive interface theorem](../theory/2026-10-08-recursive-original-interface-embedding.md)
+constructs the exact pair's original interfaces and finite source witnesses;
+its total tagged presentation and parameter definitions prove whole native
+background correspondence before Knu/Fin. These are completed A/B constructor
+cases with later D projections, not merely additional transport hypotheses.
+Actual independent guards/contracts and fixed-original correspondence laws
+remain; the complete original package inventory and all-source families are
+not thereby solved. See the [math/spec adjudication](2026-10-08-native-constructor-theorems-review.md).
+The historical A/B/C/D table and machine snapshot below remain unchanged;
+no C-class cutover dependency or aggregate status is removed.
+
+The separately reviewed [native signature construction](../theory/2026-10-08-source-signature-incidence-construction.md)
+now completes the previously unspecified native support/license/attachment
+grammar and proves its compiler correspondence, forward licensing, exhaustive
+all-anchor inversion and governed source-owned profile consequence together.
+Original constituent origins are constructed before receiving-root insertion;
+all composite/Ref/whole cases preserve them. This discharges native formation
+and D reconstruction suppliers without asserting primitive/annotation truth.
+Its stronger E_C specialization is exactly direct-upper. The old unqualified
+all-license-to-E_C target and any actually used fixed consumer retain their
+genuine obligations; no arbitrary foreign model becomes an extra native
+production prerequisite merely because it can be imagined.
+
 **Reviewed construction update (2026-10-08).** The tables below retain their
 audit-baseline classifications and the machine snapshot remains unchanged.
 The [source-interface constructor proof](../theory/2026-10-08-call-source-interface-construction.md)

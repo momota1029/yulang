@@ -8,6 +8,12 @@
 > separate selection/integration record. Fixed-original laws, the conditional
 > CompleteMem inventory and all production/cutover boundaries remain.
 
+> Subsequent selection: the independently reviewed
+> [native interface definition](../design/2026-10-08-native-recursive-interface-definition.md)
+> now adopts exactly §§3–6. The [integration record](../progress/2026-10-08-native-constructor-theorems-review.md)
+> records both verdicts. Candidate wording in the frozen body is historical
+> for that scope; §8's exhaustive CompleteMem inventory remains unselected.
+
 # Original-indexed embedding of the immutable recursive pair
 
 Date: 2026-10-08

@@ -30,6 +30,39 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Authoritative exhaustive native signature formation (2026-10-08):**
+  [signature definition](2026-10-08-native-signature-formation-definition.md)
+  and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)
+  construct support, independent licensing/attachment and their compiler
+  correspondence from actual declarations/source/whole transformations.
+  Complete constituent-origin partitions preserve inherited owners separately
+  from receiving roots, with empty support fibers and one joint hidden package.
+  All native licenses invert to actual formation-anchor packages; only the
+  exact own-upper subfamily yields original E_C, with unchanged old objects.
+  Actual primitive/C0/annotation laws, fixed consumer bridges, ROWS and
+  production remain separate. Fresh math/spec delta reviews closed the
+  accepted composite-owner defect; see the
+  [integration record](../progress/2026-10-08-native-constructor-theorems-review.md).
+
+- **Authoritative captured closure constructors (2026-10-08):**
+  [complete closure definition](2026-10-08-captured-closure-constructor-definition.md)
+  and [Step/Block/OuterTrace](../theory/2026-10-08-captured-call-closure-introduction.md)
+  construct the approved nested step's membership and installed world together,
+  with complete Value-entry effects and actual finite source witnesses.
+  Actual captured f evidence and independent checking/guard/domain inputs
+  remain; arbitrary outer descriptor membership and full C0 do not follow.
+
+- **Authoritative native recursive interface (2026-10-08):**
+  [native presentation definition](2026-10-08-native-recursive-interface-definition.md)
+  and [OE/O-pair/ME-pair](../theory/2026-10-08-recursive-original-interface-embedding.md)
+  supply the exact two-closure original interfaces, finite source witnesses
+  and whole native background correspondence to the selected immutable
+  interpretation. Missing native parameters receive explicit definitions;
+  fixed-original meanings require actual laws and guard proofs. CompleteMem
+  inventory, foreign models, broader recursion and production remain separate.
+  Both new selections have independent math/spec review in the
+  [integration record](../progress/2026-10-08-native-constructor-theorems-review.md).
+
 - **Authoritative complete contextual source interfaces (2026-10-08):**
   [source-interface definition](2026-10-08-call-source-interface-definition.md)
   and [Theorem IF](../theory/2026-10-08-call-source-interface-construction.md)
@@ -50,8 +83,9 @@ This index is a navigation aid. The listed source document remains authoritative
   Complete receiver behavior follows from that same Function contract.
   Its selected [positive immutable recursive case](../theory/2026-10-08-simultaneous-immutable-root-introduction.md)
   introduces the exact two-closure Value-entry pair and installed root world
-  together, using a proved declared-hole background lift. Original descriptor
-  and exhaustive foreign-domain embedding remain unproved; no aggregate closes.
+  together, using a proved declared-hole background lift. The native interface
+  selection above now supplies its original presentation; exhaustive fixed
+  foreign-domain embedding remains separate, and no aggregate closes.
   Independent descriptor/history/primitive contracts and hereditary binding
   inputs remain; no exhaustive model, full C0 or production cutover is claimed.
 

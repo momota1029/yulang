@@ -76,10 +76,46 @@ under [contextual Function membership](../design/2026-10-08-contextual-function-
 constructs the original telescope from hereditary binding inputs, proves
 Name/Return/whole Name Delay, and derives same-provider/current-world argument
 acceptance without raw ViewInlet. Its receiver theorem uses that same complete
-Function contract. Exhaustive semantic model/primitive realization, complete
-source-result/closure introduction, general effectful code and full C0 remain.
+Function contract. Exhaustive semantic model/primitive realization, other source-result/closure
+cases, general effectful code and full C0 remain; the selected captured step
+and native immutable pair are completed constructor cases below.
 Both new constructions passed independent math/spec reviews; see the
 [integration record](../progress/2026-10-08-call-interface-admission-review.md).
+
+### Current completed native constructor cases
+
+The primary adjudicated all three packages' mathematical and specification reviews as PASS
+and selected the exact definitions below. Reuse these cases in F1/F2; do not
+schedule their already proved introductions again. The
+[native-constructor integration record](../progress/2026-10-08-native-constructor-theorems-review.md)
+§4 records the frozen proof and selection hashes. This is navigation of those
+accepted results, not another proof or source of Authority.
+
+| Completed case | Exact constructed result and independent inputs | Boundaries and reuse |
+| --- | --- | --- |
+| [Captured Step, Block and OuterTrace](2026-10-08-captured-call-closure-introduction.md#6-main-theorem-introduce-the-newly-captured-step), selected by the [complete captured-closure definition](../design/2026-10-08-captured-closure-constructor-definition.md) | Step introduces the newly created actual step and its installed immutable world simultaneously from the actual captured f's ordinary certificate, same-value `VIncl`, and complete independently admitted entry/carrier/world/guard/action inputs. No prior step membership or completed step world is assumed. Generic `Strict` retains all whole entry-carrier effects, raw pending/resume, divergence prefixes and future use; the native least-fixed-point source-prefix constructors are supplied. Block types the local sequential binding and returned step; OuterTrace covers the complete outer entry under those independent inputs. | Proof checkpoint `c008eee`. Reuse the actual local closure/result and ordered entry cases. Independent complete `F_apply` still requires full challenge/interface/result correspondence; unrelated nonidentity result checking, foreign models, complete W/Z C0 and general code remain. |
+| [OE, O-pair and ME-pair](2026-10-08-recursive-original-interface-embedding.md#6-native-original-clauses-and-exhaustive-background-embedding), selected by the [native recursive-interface definition](../design/2026-10-08-native-recursive-interface-definition.md) | A full typed tagged copy of the entire selected positive presentation retains all four universes, graphs/sharing, equality and full challenge/demand domains. Missing-native parameters are explicit full-argument pullbacks; already fixed original parameters require their actual full laws, and guard truth requires actual proofs. OE proves full greatest-fixed-point/background conjugacy. O-pair reuses Knu/Fin to introduce the actual `my f x = g; my g y = f` native values and installed world together; ME-pair constructs their finite least-fixed-point source witnesses. | Proof checkpoint `e5ed650`. Reuse this exact immutable pair's native interface, hereditary readout and source-prefix cases. No complete old/foreign identity is asserted. §8's exact CompleteMem/KV factorization is conditional on the actual exhaustive inventory and remaining fields; that inventory is neither supplied nor adopted. |
+| [Native SIG](2026-10-08-source-signature-incidence-construction.md#7-complete-construction-and-correspondence-theorem), selected by the [native signature-formation definition](../design/2026-10-08-native-signature-formation-definition.md) | SIG constructs complete support `S`, independent license/attachment `L/A`, witness-preserving `Build(G)` correspondence, `A -> L` and exhaustive `L -> FormationAnchors`, whole naturality/joint hiding and complete native profile incidence with the source-owned policy consequence. Constructor-built `Omega` origin partitions stay separate from receiving `beta_r`; inherited Ref/operand and Pair/operator origins are preserved pointwise, including empty/unselected schema. No global ownership premise is assumed. | Exact old `OwnCallLicense(V;o,c,kappa_orig,a_owned)` embeds with `forget(embed(w))=w`, retaining the distinguished upper and inherited full frame. Only the exact direct-upper specialization returns receiving `E_C`; general inversion returns the whole formation-anchor package. Native exhaustive formation and legacy payload reconstruction are no longer independent Pro tasks. Actual annotation/role/ROWS/full C0 obligations and bridges to any actually used fixed foreign/scalar/active-consumer interpretation remain. |
+
+The next genuine work is the independent `F_apply`/unrelated-result interface
+comparison; actual primitive/profile/annotation/admission and whole W/Z C0
+laws; the exhaustive CompleteMem/KV inventory and its remaining original local
+fields; and broader recursion, State, open semantic imports and fixed-foreign
+correspondence where required. Source/production adequacy, solving, projection,
+all-view lifting and principality keep their exact independent obligations.
+The repaired SIG mathematical body is frozen at SHA-256
+`e698ad0467a6986029f5f5d21ff3e0bf8a2cc836c9410f1fa0be4b717be915d2`;
+fresh mathematical and specification delta reviews passed, and the primary
+selected its exact native formation scope. Reuse that exhaustive native
+formation and exact old payload preservation. A foreign/scalar/active-consumer
+bridge is required only for an actually used independently fixed meaning,
+not an imagined arbitrary model. The stronger canonical all-license-to-receiving-
+`E_C` target is not closed by general formation-anchor inversion.
+
+The canonical inventory remains **90 nodes / 196 edges**, with **7 CLOSED /
+21 CONDITIONAL-CLOSED / 43 OPEN-PROOF / 18 OPEN-SEMANTIC /
+1 IMPLEMENTATION-ONLY**. None of these constructor results changes those aggregate
+statuses or dependencies; the F1–F4 target statements remain unchanged.
 
 Use the canonical DAG for exact statuses, premises, minimum remaining lemmas,
 dependency order, downstream use and production relevance. This map locates
@@ -94,10 +130,10 @@ practice. The current directional upper-output policy is fixed. Internal
 inferred views do not change actual callable role/entry; provider-owned
 protection is retained. No E/R or normalized blanket policy is selected.
 
-Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
+Historical round-3 continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
 Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
 external dependency revalidation through
-`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. The final canonical DAG has
+`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. That checkpoint's canonical DAG had
 **90 nodes / 196 edges**: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43,
 OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. CALL_TYPE,
 PRINCIPAL and SOUND move from OPEN-PROOF to CONDITIONAL-CLOSED;
@@ -107,8 +143,9 @@ open. One new CLOSED exact self-init subcase becomes a REC_INIT prerequisite.
 Thus existing OPEN nodes fall from 65 to 62 by three; the new subcase is not
 an old-node reduction. The first reviewed round-3 checkpoint remains historical:
 90 nodes / 195 edges, CONDITIONAL-CLOSED 19 and OPEN-PROOF 44.
-This is accepted-result navigation synchronization, not independent proof
-certification or semantic adoption.
+These are historical checkpoint counts; the current inventory is stated
+above. Navigation synchronization is not independent proof certification or
+semantic adoption.
 
 The final policy delta receives the design-debt audit in the review record
 §14: retain facts actually known by the owning construction; do not turn
@@ -157,13 +194,18 @@ Then the [S1/S2/S3 judgment](../progress/2026-10-06-directional-joint-source-jud
 and [RS/SC/LX supplier](../progress/2026-10-06-directional-recursive-generalization-supplier.md)
 locate the already closed local and conditional machinery.
 
-The new [original-fiber audit](../progress/2026-10-07-successor-source-association-falsification.md)
+The historical [original-fiber audit](../progress/2026-10-07-successor-source-association-falsification.md)
 identifies the semantic frontier without redoing those transports. Complete
 Call interpretation already exists. Its source-owned original slot/contribution
 fiber, independent licensing clauses, attachment/licensing inversion, complete
-profile assembly and joint row nonemptiness remain the source formation route.
+profile assembly and joint row nonemptiness were its source formation frontier.
+The selected native SIG above now supplies exhaustive native support, L/A
+formation/inversion and profile incidence. It preserves all old own-upper
+objects; do not reschedule native licensing or legacy-payload reconstruction.
+The stronger receiving-`E_C` target, actual annotation/role/ROWS/full C0 and
+any actually used fixed-interpretation bridges remain separate.
 
-The reviewed [five-node Call cut](../progress/2026-10-07-original-association-constructor-derivation-attempt.md)
+The historical reviewed [five-node Call cut](../progress/2026-10-07-original-association-constructor-derivation-attempt.md)
 and [primitive-kernel inversion boundary](../progress/2026-10-07-original-association-inversion-attack.md)
 refine that same original-fiber obligation. The [bounded clause audit](../progress/2026-10-07-original-association-source-kernel-audit.md)
 supplies no missing source introduction or exhaustive internal licensing inverse.
@@ -233,16 +275,17 @@ disconnected retained license IDs do not supply it. The bounded
 establishes no two competing complete semantics. ORIGINAL_ASSOC stays open
 with no added edge, global ordering claim or user-decision blocker.
 
-The [reviewed O0 constructor reduction](../progress/2026-10-07-original-call-output-minimal-clause.md)
+The historical [reviewed O0 constructor reduction](../progress/2026-10-07-original-call-output-minimal-clause.md)
 now separates independently formed signature-local `H_eff` from interpretation
 of the existing dependent `Gen-Call-0` record. Its single unadopted
 `OC-CallEff` head introduces original typed occurrence incidence with explicit
-projection equations. Both that introduction and actual `H_eff` formation
-remain open; this is a candidate-interface reduction, not a theorem equating
+projection equations. At that checkpoint, both that introduction and actual `H_eff` formation
+remained open; this is a candidate-interface reduction, not a theorem equating
 derivability judgments. It consumes no seed truth or actual Call execution,
 retains their original dependencies, and never hoists locally dependent `U_c`
 to the captured root's outer scope. ORIGINAL_ASSOC and all graph edges remain
-unchanged. The next order for this task is O0, then O1, then actual C0 inputs.
+unchanged. Its O0-then-O1 scheduling is historical: the later selected O0 and
+O1-static cases above must be reused; actual complete C0 inputs remain.
 
 ## 3. Recursive source, origin permissions and Generalize
 
@@ -267,29 +310,29 @@ conditional arbitrary finite joint-use preservation. It leaves independent
 ordinary descriptor finite-elimination, actual local discharge, semantic
 Generalize, complete interface production and primitive covariance real.
 
-The reviewed [round-3 world/recursive cut](../progress/2026-10-07-world-recursive-rule-round3.md)
+The historical reviewed [round-3 world/recursive cut](../progress/2026-10-07-world-recursive-rule-round3.md)
 §§3–6 retains INIT_WORLD/INIT_VALID/REC_DESC/MEMBER_DISCHARGE statuses.
-The later selected [positive immutable introduction](2026-10-08-simultaneous-immutable-root-introduction.md)
-supplies the exact two-closure value and root-world constructor theorem in
-its stated interpretation. Its same-operator ground/carrier/world/continuation
-background and relative-coinduction lemma close the local missing background
-construction, without assuming opposite membership or completed own-root
-world validity. Complete Value-entry interfaces retain arbitrary carrier
-effects and pending/future histories. Exhaustive foreign certificate/domain
-and original descriptor/interface embedding, all CompleteMem/KV conjuncts and
-broader recursion remain open; none of these aggregate statuses is promoted.
-Source-root installation needs an independently typed external base, actual
-open-import action where needed, original constructor/provisional-root data,
-joint incidence/current-world compatibility and an independent root-extension
-last rule. Scalar exporter validity still needs cross-world importer
-installation. A world premise already entailing own-member `d_f,d_g` cannot
-be assumed to introduce them; K lookup identities give no ordinary typing
-readout. The restricted simultaneous rule must conclude actual installed-root
-world validity, ordinary member typing, every CompleteMem/KV conjunct and
-transition/lookup preservation. Its ordinary **cyclic Return acceptance**
-for exposed latent occurrences, local clauses and independent nonrecursive
-guards remain unproved; operational progress supplies no acceptance law.
-No EnvStore predicate is weakened or original witness scope changed.
+The selected [positive immutable introduction](2026-10-08-simultaneous-immutable-root-introduction.md)
+and the later repaired [native original-interface theorem](2026-10-08-recursive-original-interface-embedding.md)
+now supply this exact two-lambda pair's hereditary value, installed immutable
+world, ordinary Name/Return/Bind readout and finite source-prefix construction.
+OE's complete presentation/background conjugacy and O-pair's reuse of Knu/Fin
+replace the older scheduling of this native embedding and cyclic Return
+constructor case. They assume neither opposite membership nor a completed
+own-root world. Complete Value-entry interfaces retain arbitrary carrier
+effects and pending/future histories; actual independent guard truth and any
+fixed-original full parameter laws remain required.
+
+CompleteMem/KV is still conditional on the actual exhaustive original field
+inventory and its remaining local/profile/primitive/annotation obligations;
+§8's factorization is not an adopted inventory. General recursive initializers,
+mutable State, semantic open-import/cross-world installation and exhaustive
+fixed-foreign correspondence are separate. The pair's native source-root
+construction does not supply an importer's substitution action or foreign
+zero-step installation. No aggregate status, EnvStore meaning or original
+witness scope changes. Reuse the completed pair at its selected native
+interfaces; a different descriptor/incidence needs actual whole comparison
+and evidence, rather than K lookup identities or a blanket foreign equality.
 
 **REC_INIT_SELF is CLOSED** under the reviewed
 [exact rule](../design/2026-10-07-recursive-self-init-executable-boundary.md)

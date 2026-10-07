@@ -42,8 +42,9 @@ constructs that telescope from hereditary binding inputs and proves same-U
 argument acceptance by contextual Function membership and independent checked
 challenge formation. The old raw ViewInlet action is no longer a supplied
 premise on this route. Full receiver behavior follows from that same Function
-contract; complete source-result/closure introduction, general effectful code,
-original model/primitive realization and full C0 remain.
+contract; other source-result/closure introduction, general effectful code,
+original model/primitive realization and full C0 remain. The exact captured
+step and native immutable pair now have the completed cases below.
 
 The [authentic complete Call theorem](2026-10-07-owned-call-contribution-construction.md)
 under the [selected contribution definition](../design/2026-10-07-complete-call-contribution-definition.md)
@@ -59,7 +60,7 @@ declaration/reference formation, rather than assuming a placement at e.
 The former two broad Call suppliers have therefore been reduced by genuine
 constructor proofs. Complete source placement and the additional raw inlet
 action are not separate Pro tasks on the selected route. The immediate F1/F2
-semantic work is actual result/closure introduction and general code, original
+semantic work is the remaining result/closure interfaces and general code, original
 operator/phase/dispatch and contextual hole/world validity, and every original
 primitive/provider/future/admission contract, including whole-Call abstractions.
 Those independently typed complete contracts are IF's inputs; it does not
@@ -71,12 +72,49 @@ raw ViewInlet wrapper. Use these results as F1/F2 constructor cases, without
 claiming either entire family is proved.
 
 All-source generation, other original occurrence/owner/contribution cases,
-license introduction and complete production descriptor/member/admission
-rules are still not all supplied. Identify and specify those under their
+other license cases and complete production descriptor/member/admission
+rules are still not all supplied. The selected native signature grammar below
+now supplies its exhaustive formation rather than another assumed Lic/Attach
+input; reuse that exact case. Identify and specify those under their
 actual Authority. The local definition supplies neither those judgments nor
 their whole original domains. Any genuinely new semantic choice has its own
 reviewed, approved scope; missing formalization alone demonstrates no competing
 observable behavior.
+
+### Reuse the adjudicated native constructor cases
+
+The following are completed F1/F2 cases after mathematical and specification
+PASS and primary selection. Their exact proof/definition hashes are in the
+[native-constructor integration record](../progress/2026-10-08-native-constructor-theorems-review.md)
+§4; the captured and recursive mathematical checkpoints are `c008eee` and
+`e5ed650`. The repaired SIG body has SHA-256
+`e698ad0467a6986029f5f5d21ff3e0bf8a2cc836c9410f1fa0be4b717be915d2`.
+Do not reopen these constructions merely because an aggregate family remains
+open.
+
+| Case to reuse | Completed scope | Genuine residual |
+| --- | --- | --- |
+| [Captured Step / Block / OuterTrace](2026-10-08-captured-call-closure-introduction.md), under the [selected closure definition](../design/2026-10-08-captured-closure-constructor-definition.md) | Step constructs the newly created actual closure and its installed immutable world together, using the actual captured f's ordinary certificate, `VIncl` and the independent complete entry/carrier/world/guard/action contracts. Prior step membership/world is not a premise. Complete `Strict` includes arbitrary carrier effects, raw pending/resume, divergence prefixes and future use. Native least-fixed-point source prefixes, the sequential local block and complete conditional OuterTrace are constructed. | Membership at an independent full `F_apply` needs actual complete challenge/interface/result correspondence. Unrelated nonidentity result comparison, foreign interpretations, whole W/Z C0 and general effectful code remain independent. |
+| [Native OE / O-pair / ME-pair](2026-10-08-recursive-original-interface-embedding.md), under the [selected native-interface definition](../design/2026-10-08-native-recursive-interface-definition.md) | OE proves full greatest-fixed-point/background conjugacy using the typed tagged copy of the entire selected positive presentation, all four universes, graphs/sharing, equality and full domains. Missing-native parameters use explicit full-argument pullbacks; fixed-original parameters require actual full laws and guards require actual truth proofs. O-pair consumes Knu/Fin to introduce the actual `my f x = g; my g y = f` native values and installed world simultaneously; ME-pair builds their finite least-fixed-point source witnesses. | No complete old/foreign identity follows. §8's exact CompleteMem/KV factorization remains conditional on an actual exhaustive original inventory and remaining fields; that inventory is neither supplied nor selected. Broader recursion, State, open semantic imports and full foreign correspondence remain. |
+| [Native SIG](2026-10-08-source-signature-incidence-construction.md), under the [selected native signature-formation definition](../design/2026-10-08-native-signature-formation-definition.md) | Complete support `S`, independent `L/A`, witness-preserving `Build(G)` correspondence, `A -> L`, exhaustive `L -> FormationAnchors`, whole naturality/joint hiding, complete native profile incidence and the source-owned policy consequence are supplied. Constructor-built `Omega` origin partitions retain Ref/operand and Pair/operator origins pointwise, including empty/unselected schema, separately from receiving `beta_r`; no global ownership premise is assumed. Exact old `OwnCallLicense(V;o,c,kappa_orig,a_owned)` objects are retained by embedding/forgetting with identity, alongside their inherited full frame. | General inversion is to the complete formation-anchor package; receiving `E_C` follows only for the exact direct-upper specialization. The canonical stronger target/status is unchanged. Annotation/role/ROWS/full C0 remain; foreign/scalar/active-consumer bridges are genuine tasks only for an actually used independently fixed interpretation. |
+
+Immediate genuine tasks are the independent outer `F_apply` and unrelated
+result comparisons; actual whole W/Z/primitive/profile/admission contracts
+for complete C0; and the exhaustive CompleteMem/KV inventory, remaining local
+field proofs and any fixed-original parameter correspondence actually used.
+Reuse the selected native pair's world/value/readout/prefix introductions
+inside those tasks. Continue F3/F4 at their exact solver/export/projection/
+all-view obligations. SIG's fresh mathematical and specification delta reviews
+passed and the primary selected the exact native interface. Reuse its exhaustive
+native formation and old payload preservation; neither is an independent Pro
+reconstruction task now. Investigate foreign/scalar/active-consumer bridges only
+for an actually used independently fixed interpretation. General anchor
+inversion does not close the stronger canonical receiving-`E_C` target.
+
+This delta changes no F1–F4 theorem body or dependency. The canonical DAG
+remains **90 nodes / 196 edges: 7 CLOSED / 21 CONDITIONAL-CLOSED /
+43 OPEN-PROOF / 18 OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY**; these local cases
+do not close either entire family or authorize implementation/cutover.
 
 ### Shared notation and immutable constraints
 

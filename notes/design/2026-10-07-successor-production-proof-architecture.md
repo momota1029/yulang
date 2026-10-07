@@ -218,12 +218,13 @@ in the independent production/license semantics and be covered there.
 | Directional seed | Source formal/exposure processing | Protected-variable evidence tied to the source upper occurrence | Apply proved directional action; retain independent provider protection | All source introduction/use applicability, not another transport wrapper |
 | O1 slot/owner | Registration owns the shared schema; actual typed seeded source exposure owns membership/attachment | Reviewed SharedInvoke/OwnUpper derivation with original route, O0 and SeedExposure | Borrow/project the exact witness, moving all indices together | O1-static closed on the actual emitted selected-seed envelope; other owner cases and semantic realization remain, with no complete singleton inventory or per-use slot assumption |
 | Static Call inputs | Resolved source Data/Code/telescope constructors | Reviewed Name/Return/Delay/Capture/Lambda/Bind/Call input tree and original check origins | Retain typed code; project actual binding/capture evidence | Theorem S closed on the stated finite acyclic resolved source envelope, including the nested term; general source generation remains |
-| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Selected original contextual Function/world cases now prove Name/Return/full Name Delay and same-U/live-world input acceptance without raw ViewInlet; receiver behavior follows from that same contract. Full result/closure/general code and complete original C0 remain |
+| C0 whole invocation | Independent Call typing/composition | Callee and argument typing at actual returned world/provider; full suffix | Compose same-witness phase laws | Selected Name/Return/Delay and same-U input cases compose with the captured Step/Block/OuterTrace construction and its actual finite source witnesses. Different outer/result descriptors, general effectful code, original primitive/world laws and complete W/Z C0 remain |
+| Newly captured closure / immutable recursive pair | Actual source closure/interface construction | Complete Strict entry/body/return graph; same-tuple value/world coinduction certificate; finite source-prefix witness | Read the constructed member/world together and retain original captures/current-state fields | Step/Block/OuterTrace and native OE/O-pair/ME-pair are proved in their selected scopes. Actual independent guards/contracts and fixed-original laws remain; no arbitrary CompleteMem inventory or foreign model follows |
 | C1 original contribution | Authentic complete Call operation formation | Selected C-Call/CallMem retaining the original callee, whole carrier, receiver, return/future and full alternative interface | Retain/project the same whole witness | C1-Call proved under authentic SpecCall_e and independent complete C0; separately fixed kernel/active-consumer comparison remains |
 | J0 joint association | Original source/operator/arm declaration formation, then owned-image constructor | Selected IF-Insert/IF-Use and source constructors generate complete structural/abstract placements; J-Owned retains one compatible diagram and witness | Apply proved structural/abstract routing and accounting elimination to any admitted member | Theorem IF supplies SourceInterfaceFormation on actual source/complete-contract formation; original operator/phase/hole/world and primitive validity, authentic SpecCall, exact O1 and complete C0 remain genuine. Foreign interpretations retain their maps |
-| Emitted ATTACH/LIC_FORWARD | Original source/annotation/provider license rule | Its actual original attachment/license derivation | Project; preserve its indices | Constructor agreement, not arbitrary fact fields |
-| All-license inversion | Independent exhaustive license interpretation | Complete last-rule inventory and elimination principle | Induct on actual license derivation | Must cover every licensed arm, including extras; cannot be defined away |
-| Complete PROFILE | Original signature/profile formation | Complete incidence inventory with original policies | Lookup and transport entries | Exhaustive coverage and legality; not just one local slot |
+| Emitted ATTACH/LIC_FORWARD | Actual native source/declaration/annotation/whole constructor | Selected SIG record with complete PortProv/DeclContribution, independently justified license and full origin/receiver partition | Use the proved A/L correspondence; retain every constituent field and route | Every native constructor case is proved. Actual primitive/C0/annotation inputs and any actually used fixed consumer bridge remain |
+| All-license inversion | Selected independent native licensing grammar | Exhaustive constructor tags, complete FormationAnchor forest and exact old own-upper subrecord | One finite constructor induction and record elimination | SIG proves all native anchors; exact direct-upper yields original E_C. The historical stronger all-license-to-receiving-E_C target and fixed foreign meanings are not inferred |
+| Complete PROFILE | Original signature/profile formation | Complete typed support separate from licensed fibers; original constituent policies on one whole tuple | Lookup licensed governed-field projections and apply the same whole action | SIG supplies complete native incidence and the source-owned no-annotation component; annotation/role laws, complete profile legality/principality and ROWS remain |
 | ROWS realization | Joint semantic interpretation at original solution | One compatible strategy for all row/admission/history obligations | Transport the same strategy | Inhabited fragments do not imply joint realization; empty effect support may be valid |
 | World/import and provider contracts | Import/admission boundary and source transitions | Independent context/root installation and extension evidence | Preserve live provider/current-state relation | All approved compatible contexts, not only current reachability |
 | Generalization eligibility | Generalizer over certified source relation | Eligible/local versus fixed-import partition and original scopes | One joint graft/freshening map | Eligibility and exact solution/use preservation |
@@ -420,6 +421,48 @@ primitive/world/abstraction contract. The two original constructor packages
 are independently reviewed and selected; they neither close F1/F2 wholesale
 nor provide exhaustive descriptor/model realization. See their
 [review and cutover account](../progress/2026-10-08-call-interface-admission-review.md).
+
+**Captured and recursive constructor completion.** The later selected
+[captured closure definition](2026-10-08-captured-closure-constructor-definition.md)
+and [Step/Block/OuterTrace proof](../theory/2026-10-08-captured-call-closure-introduction.md)
+now supply that exact newly created step's membership and installed world,
+including actual finite source witnesses and full entry effects. A prior step
+membership or completed own-root world is not an input. The
+[native recursive interface definition](2026-10-08-native-recursive-interface-definition.md)
+and [OE/O-pair/ME-pair proof](../theory/2026-10-08-recursive-original-interface-embedding.md)
+construct the actual pair's original interfaces and finite source witnesses,
+then prove total whole-native-presentation correspondence before reusing
+Knu/Fin. Missing native parameters are explicit full-argument definitions;
+fixed-original meanings retain actual correspondence laws and guard evidence.
+No independent meaning is changed merely to make that proof commute.
+
+These are completed F1/F2 cases. Arbitrary outer/result descriptors, general
+code, complete original primitive/world/Option 2 laws, the exhaustive
+CompleteMem inventory and all remaining source/inference/production cases
+stay genuine. The [independent math/spec record](../progress/2026-10-08-native-constructor-theorems-review.md)
+states their exact scopes. No cutover prerequisite or whole-family theorem
+is removed by using them directly.
+
+**Exhaustive native signature completion.** The selected
+[native formation definition](2026-10-08-native-signature-formation-definition.md)
+and [SIG proof](../theory/2026-10-08-source-signature-incidence-construction.md)
+now replace the unspecified native licensing/attachment supplier with actual
+declaration, source, reference, annotation and whole-operation constructors.
+Support, contribution applicability and attachment are separately defined;
+their compiler correspondence, forward law and all-anchor inverse follow by
+one shared finite constructor induction. Complete constituent-origin partitions
+are built before receiving-root insertion; they preserve inherited origins,
+empty fibers and all original contracts. Profile incidence and its governed
+source-owned policy consequence reuse those same licensed fields.
+
+There is no further native legacy-payload inversion task. The exact old
+own-upper objects embed and project identically, including their original E_C
+specialization. A general formation-anchor forest is not a receiving upper
+exposure, so the historical stronger E_C target remains unclosed. A bridge to
+a separately fixed scalar/foreign interpretation is required when an actual
+consumer uses it; hypothetical alternative models are not additional native
+cutover prerequisites. This leaves actual primitive/annotation/role laws,
+complete profile legality, ROWS and all other F1–F4/I5 requirements intact.
 
 The remainder of this section records the pre-adoption audit and its decision
 boundary. Its former missing-definition/unadopted wording is historical for
