@@ -68,6 +68,12 @@ unproved rule was promoted. Before and after: CLOSED 7, CONDITIONAL-CLOSED 20,
 OPEN-PROOF 43, OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1 (90 nodes / 196
 edges). The next direct attack remains O0 position formation.
 
+### Latest priority attack: round 8
+
+At fetched remote `b1d37c03b979b842f169f74a407162b1d3d27dad`, the canonical DAG started and ended at 90 nodes / 196 edges: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43, OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1. The source-producer audit found no original typed signature-local `q_c` producer; O0 remains at independent original position-family formation, with `OC-CallEff` still separate. CALL_TYPE's `F_c` checked-membership link is conditional on same-witness returned `A_f` membership, `VIncl`, and the common interpretation; actual-provider whole-carrier inclusion remains a separate universal leaf. ORIGINAL_ASSOC, INIT_WORLD, REC_DESC and ALL_VIEW likewise remained open at their existing exact source constructors. No status changed.
+
+The default-off solver shadow now borrows each rooted pending Apply row together with its exact enclosing root and current finalized scheme; rootless rows are omitted and cross-solve identities remain distinct. This establishes only current definition ownership, not Apply typing or successor generalization. One compiler-referee review passed; the focused integration test, package check, formatting, and diff checks passed. `HIR_WIRING` remains IMPLEMENTATION-ONLY and production inference is untouched. See [round 8 priority attack](../notes/progress/2026-10-07-successor-priority-attack-round8.md). Next semantic target remains original signature-local position formation (O0), then separate `OC-CallEff`; no production cutover.
+
 ### Other round 7 fronts from the same baseline
 
 Started from remote `f3be02da1ba169a88acc154ac29621634f3cc89b` (historical

@@ -54,6 +54,34 @@ impl<'a> PendingApplicationSourceUseRef<'a> {
     }
 }
 
+/// Enclosing-definition association for one exact retained application row.
+/// The current finalized scheme belongs to the enclosing root; it does not
+/// type the Apply or supply a successor/generalized-scheme correspondence.
+#[derive(Clone, Copy)]
+pub struct PendingApplicationClosedSchemeRef<'a> {
+    row: &'a PendingApplicationOccurrence,
+    root: &'a DefinitionRootId,
+    scheme: ClosedSchemeRef<'a>,
+}
+
+impl<'a> PendingApplicationClosedSchemeRef<'a> {
+    pub fn application(self) -> &'a PendingApplicationOccurrence {
+        self.row
+    }
+
+    pub fn enclosing_root(self) -> &'a DefinitionRootId {
+        self.root
+    }
+
+    pub fn scheme(self) -> ClosedSchemeRef<'a> {
+        self.scheme
+    }
+
+    pub fn same_identity(self, other: Self) -> bool {
+        std::ptr::eq(self.row, other.row) && self.scheme.same_identity(other.scheme)
+    }
+}
+
 impl ConstraintBatch {
     /// Borrows the HIR-owned nested carrier without creating application rows.
     pub fn shadow_captured_source(
@@ -76,6 +104,24 @@ impl ConstraintBatch {
 }
 
 impl SolvedModule {
+    /// Retained row order, omitting applications without an enclosing root.
+    /// Each association borrows this result's exact row and current root scheme
+    /// through the existing root index; no schemes are inferred or cloned.
+    /// ApplicationTypingRuleUnresolved remains unchanged: this is structural
+    /// definition ownership only, with no application typing or premise discharge.
+    pub fn shadow_pending_application_closed_schemes(
+        &self,
+    ) -> impl Iterator<Item = PendingApplicationClosedSchemeRef<'_>> {
+        self.pending_applications().iter().filter_map(|row| {
+            let root = row.enclosing_root.as_ref()?;
+            let scheme = self
+                .shadow_closed_schemes()
+                .for_root(root)
+                .expect("retained enclosing root owns its current finalized scheme");
+            Some(PendingApplicationClosedSchemeRef { row, root, scheme })
+        })
+    }
+
     /// Borrows the same carrier through the retained immutable HIR module.
     pub fn shadow_captured_source(
         &self,

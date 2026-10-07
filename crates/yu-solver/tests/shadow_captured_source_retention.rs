@@ -635,6 +635,52 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
         .for_root(captured_root)
         .unwrap();
     assert_eq!(captured_root, retained_root);
+    let mut associations = solved.shadow_pending_application_closed_schemes();
+    let association = associations.next().unwrap();
+    assert!(associations.next().is_none());
+    assert!(std::ptr::eq(
+        association.application(),
+        &solved.pending_applications()[0]
+    ));
+    assert!(std::ptr::eq(association.enclosing_root(), retained_root));
+    assert!(association.scheme().same_identity(current_scheme));
+    assert!(
+        association.same_identity(
+            solved
+                .shadow_pending_application_closed_schemes()
+                .next()
+                .unwrap()
+        )
+    );
+    let captured_association = captured
+        .shadow_pending_application_closed_schemes()
+        .next()
+        .unwrap();
+    assert!(std::ptr::eq(
+        captured_association.application(),
+        &captured.pending_applications()[0]
+    ));
+    assert!(std::ptr::eq(
+        captured_association.enclosing_root(),
+        captured_root
+    ));
+    assert!(captured_association.scheme().same_identity(captured_scheme));
+    // Shared HIR root identities do not identify rows or finalized schemes
+    // across independent solves, even when their endpoint views are equal.
+    assert!(!association.same_identity(captured_association));
+    assert!(
+        !association
+            .scheme()
+            .same_identity(captured_association.scheme())
+    );
+    assert_eq!(
+        association.application().state,
+        yu_solver::PendingApplicationState::ApplicationTypingRuleUnresolved
+    );
+    assert_eq!(
+        captured_association.application().state,
+        yu_solver::PendingApplicationState::ApplicationTypingRuleUnresolved
+    );
     assert_eq!(captured_scheme.owner(), captured_root);
     assert!(
         captured_scheme.same_identity(captured.shadow_closed_schemes().for_root(root).unwrap())
@@ -693,6 +739,32 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
             assert_eq!(topology.outgoing_uses(component).unwrap().count(), 0);
         }
     }
+    let source: Arc<SourceText> = Arc::from("missing 1");
+    let header = Arc::new(scan_header(source.clone()));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+    let no_root_hir = Arc::new(
+        yu_hir::shadow::lower_module_with_shadow_applications(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("shadow", "no-root.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let no_root = SolvedModule::solve(ConstraintBatch::collect(no_root_hir).unwrap()).unwrap();
+    let [no_root_row] = no_root.pending_applications() else {
+        panic!("one retained top-level application")
+    };
+    assert!(no_root_row.enclosing_root.is_none());
+    assert_eq!(
+        no_root_row.state,
+        yu_solver::PendingApplicationState::ApplicationTypingRuleUnresolved
+    );
+    assert!(
+        no_root
+            .shadow_pending_application_closed_schemes()
+            .next()
+            .is_none()
+    );
     assert_eq!(solved.counters(), baseline_counters);
     assert_eq!(captured.counters(), baseline_counters);
     assert!(solved.store().facts().is_empty());
