@@ -228,6 +228,15 @@ impl CandidateValueObservation {
     pub fn observes_hir(&self, hir: &HirModule) -> bool {
         std::ptr::eq(self.solved.hir.as_ref(), hir)
     }
+    /// Borrows the retained startup row for this candidate's exact HIR parameter.
+    /// `FreshRowRef::same_identity` compares it with retained generalization
+    /// origins without assigning source meaning or successor ownership.
+    pub fn parameter_row(
+        &self,
+        parameter: &HirParameterId,
+    ) -> Result<crate::shadow_f5::ParameterRowState<'_>, yu_hir::shadow::SourceIdentityError> {
+        self.solved.shadow_parameter_row(parameter)
+    }
     /// Ordinary incoming source-use substitution; aliases receive one route,
     /// with no second candidate-specific freshening.
     pub fn fresh_rows(&self, occurrence: &HirOccurrenceId) -> Option<Vec<CandidateFreshRow<'_>>> {

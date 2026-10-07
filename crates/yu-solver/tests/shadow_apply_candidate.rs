@@ -33,15 +33,41 @@ fn root(hir: &HirModule, index: usize) -> &yu_hir::DefinitionRootId {
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[test]
-fn int_observation_retains_every_unresolved_duty() {
-    let hir = module("my id x = x; my n = id 1; pub exported = n", true);
+fn application_candidate_exposes_inference_delta_and_retains_unresolved_duties() {
+    let text = "my id x = x; my n = id 1; pub exported = n";
+    let hir = module(text, true);
     let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
     assert!(candidate.candidate_conflicts().is_empty());
-    let export = candidate.export(root(&hir, 2)).unwrap();
-    assert_eq!(export.value, SolvedValue::Int);
-    assert_eq!(export.unresolved, UNRESOLVED);
+    let exported = candidate.export(root(&hir, 2)).unwrap();
+    assert_eq!(exported.value, SolvedValue::Int);
+    assert_eq!(exported.unresolved, UNRESOLVED);
     assert_eq!(candidate.calls().len(), 1);
     assert_eq!(candidate.calls()[0].unresolved, UNRESOLVED);
+
+    let ordinary_hir = module(text, false);
+    assert_eq!(ordinary_hir.diagnostics(), hir.diagnostics());
+    let ordinary =
+        SolvedModule::solve(ConstraintBatch::collect(ordinary_hir.clone()).unwrap()).unwrap();
+    assert_eq!(
+        ordinary.root_value_for(root(&ordinary_hir, 1)).unwrap(),
+        SolvedValue::Never,
+        "the current-inference value projection for ordinary Apply stays visible"
+    );
+    assert_ne!(
+        exported.value,
+        ordinary.root_value_for(root(&ordinary_hir, 2)).unwrap(),
+        "the default-off candidate exposes the current-inference delta"
+    );
+    assert!(
+        !exported.endpoints().alpha_eq(
+            ordinary
+                .shadow_closed_schemes()
+                .for_root(root(&ordinary_hir, 2))
+                .unwrap()
+                .endpoints()
+        ),
+        "the unresolved differential must stay visible beside both schemes"
+    );
 }
 #[cfg(feature = "shadow-apply-candidate")]
 #[test]

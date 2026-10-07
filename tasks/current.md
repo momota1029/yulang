@@ -2310,6 +2310,26 @@ run. `cargo check -p yu-solver --all-targets --features shadow-apply-candidate
 -j 2 --offline` passed at this phase boundary. Production cutover remains blocked by the existing semantic and
 conformance obligations.
 
+### Default-off source-call identity crosswalk (2026-10-08)
+
+The shadow-only source lane now retains exact HIR Apply identities per selected
+definition, joins them to the paired CST boundary and annotation inventory, and
+crosswalks ordinary Calls through same-solve candidate observations and their
+receiving exports. Partial direct-Use projections preserve branded IDs and
+fail closed on unsupported or annotated selected declarations; sibling
+annotations remain scoped to their own declaration. This adds identity and
+ancestry evidence only. The Call clause, initial source/descriptor relation,
+finite emission-conformance certificate, invocation interpretation, typing,
+admission and joint semantic witness remain unresolved. Independent identity,
+regression and specification reviews accepted their assigned structural scopes;
+the separate source-base supplier audit identifies the missing semantic
+producer and is recorded in the pushed research note. Focused shadow targets
+were previously run for Core call formation (6/6), annotation boundaries
+(3/3), source annotation crosswalk (5/5), HIR call inventory (3/3), and solver
+call crosswalk (5/5); no broad suite was run for this integration. No canonical
+DAG status or production behavior changed. The exact next supplier remains
+source-derived Call emission with its original joint witness.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.

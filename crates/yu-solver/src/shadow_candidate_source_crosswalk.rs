@@ -6,6 +6,7 @@
     reason = "test-wired crosswalk APIs are exercised by separate integration targets"
 )]
 
+use yu_core::shadow_call_formation::{PendingResolvedSourceCallStub, PendingSourceCallStub};
 use yu_hir::shadow::{
     CapturedCallInput, Form, PendingPremise, ShadowArtifact, Skeleton, SourceCallUseInput,
     SourceIdentityError,
@@ -29,6 +30,108 @@ pub enum CrosswalkError {
     ForeignCandidate,
 }
 
+/// Exact ordinary Call / module Name-use / receiving export incidence only.
+/// Successful joining supplies no source-base, typing or invocation evidence.
+pub struct CandidateSourceCallUseSpine<'a> {
+    pending: &'a PendingResolvedSourceCallStub<'a>,
+    call: &'a CandidateCall,
+    module_use: CandidateSourceModuleUse<'a>,
+    export: CandidateExport<'a>,
+}
+impl<'a> CandidateSourceCallUseSpine<'a> {
+    pub fn new(
+        source: &'a ShadowArtifact,
+        hir: &'a HirModule,
+        candidate: &'a CandidateValueObservation,
+        root: &DefinitionRootId,
+        pending: &'a PendingResolvedSourceCallStub<'a>,
+    ) -> Result<Self, CrosswalkError> {
+        let missing = || CrosswalkError::MissingExactSourceIncidence;
+        if !candidate.observes_hir(hir) {
+            return Err(CrosswalkError::ForeignCandidate);
+        }
+        if pending.root() != root {
+            return Err(missing());
+        }
+        let inventory = hir
+            .shadow_resolved_call_inventory(root)
+            .map_err(|_| missing())?;
+        let retained = pending.call();
+        let mut matching = inventory.iter().filter(|call| {
+            std::ptr::eq(call.occurrence, retained.occurrence)
+                && std::ptr::eq(call.callee, retained.callee)
+                && std::ptr::eq(call.argument, retained.argument)
+                && call.source_form == retained.source_form
+                && std::ptr::eq(call.errors, retained.errors)
+        });
+        matching.next().ok_or_else(missing)?;
+        if matching.next().is_some() {
+            return Err(missing());
+        }
+        // Validate all three source positions against the same parsed artifact.
+        for occurrence in [retained.occurrence, retained.callee, retained.argument] {
+            source
+                .occurrence_source_position(hir, occurrence)
+                .map_err(CrosswalkError::Source)?;
+        }
+        let mut matching = candidate.calls().iter().filter(|call| {
+            &call.occurrence == retained.occurrence
+                && &call.callee == retained.callee
+                && &call.argument == retained.argument
+        });
+        let call = matching.next().ok_or_else(missing)?;
+        if matching.next().is_some() {
+            return Err(missing());
+        }
+        let uses = CandidateSourceModuleUses::new(source, hir, candidate)?;
+        let mut matching = uses
+            .uses
+            .into_iter()
+            .filter(|use_| use_.observation().occurrence() == retained.callee);
+        let module_use = matching.next().ok_or_else(missing)?;
+        if matching.next().is_some() {
+            return Err(missing());
+        }
+        let observation = module_use.observation();
+        let export = candidate
+            .export(root)
+            .map_err(|_| CrosswalkError::ForeignCandidate)?;
+        let receiving = observation
+            .receiving_export()
+            .map_err(|_| CrosswalkError::ForeignCandidate)?;
+        if observation.receiving_scheme().owner() != root
+            || !observation
+                .receiving_scheme()
+                .same_identity(export.scheme())
+            || !receiving.scheme().same_identity(export.scheme())
+        {
+            return Err(CrosswalkError::ForeignCandidate);
+        }
+        Ok(Self {
+            pending,
+            call,
+            module_use,
+            export,
+        })
+    }
+    pub fn pending(&self) -> &'a PendingResolvedSourceCallStub<'a> {
+        self.pending
+    }
+    pub fn candidate_call(&self) -> &'a CandidateCall {
+        self.call
+    }
+    pub fn module_use(&self) -> &CandidateSourceModuleUse<'a> {
+        &self.module_use
+    }
+    pub fn export(&self) -> &CandidateExport<'a> {
+        &self.export
+    }
+    /// Actual target-use state, including unavailable capture; never fabricated.
+    pub fn fresh_instantiation(&self) -> yu_solver::shadow_f5::FreshCaptureState<'a> {
+        self.module_use.observation().fresh_instantiation()
+    }
+}
+
 /// Borrows the original symbolic carrier and candidate call; neither is rebuilt.
 pub struct CandidateSourceCall<'a> {
     input: SourceCallUseInput<'a>,
@@ -42,6 +145,21 @@ impl<'a> CandidateSourceCall<'a> {
     }
     pub fn candidate_call(&self) -> &'a CandidateCall {
         self.candidate
+    }
+    /// Checks that a partial source-call identity carrier names this exact
+    /// candidate/source incidence. This comparison contributes no semantics.
+    pub fn matches_source_call_stub(&self, stub: &PendingSourceCallStub) -> bool {
+        let argument_use = match self.skeleton.expression(self.input.argument()) {
+            Ok(expression) => match expression.form() {
+                Form::Use { occurrence, .. } => Some(occurrence),
+                _ => None,
+            },
+            Err(_) => return false,
+        };
+        stub.call() == self.input.application().expression()
+            && stub.callee_use() == self.input.occurrence()
+            && stub.argument() == self.input.argument()
+            && stub.argument_use() == argument_use
     }
     pub fn pending(&self) -> impl Iterator<Item = &'a PendingPremise> + '_ {
         self.skeleton

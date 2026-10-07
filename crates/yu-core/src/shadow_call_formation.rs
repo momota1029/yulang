@@ -1,7 +1,7 @@
 //! Default-off symbolic OSig-Demand / OC-CallEff slice. These terms are not
 //! original semantic witnesses and have no solver or production consumer.
 
-use crate::shadow::{BinderId, ExprId, Form, ShadowArtifact, UseId};
+use crate::shadow::{BinderId, ExprId, Form, PositionId, ShadowArtifact, Skeleton, UseId};
 
 /// Every bridge below remains unresolved, including on successful generation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -11,19 +11,176 @@ pub enum UnresolvedPremise {
     OriginalTypes,
     OriginalScopes,
     EmittedGenCall0Membership,
+    CompleteEmittedOriginalCallClauseAndJointWitness,
+    InitialSourceDescriptorRelation,
+    FiniteSourceBaseEmissionConformanceCertificate,
     CompleteInvocationInterpretation,
     LegalOldWholeTupleSubstitution,
 }
 
-const UNRESOLVED: [UnresolvedPremise; 7] = [
+const UNRESOLVED: [UnresolvedPremise; 10] = [
     UnresolvedPremise::OriginalBX,
     UnresolvedPremise::OriginalXi,
     UnresolvedPremise::OriginalTypes,
     UnresolvedPremise::OriginalScopes,
     UnresolvedPremise::EmittedGenCall0Membership,
+    UnresolvedPremise::CompleteEmittedOriginalCallClauseAndJointWitness,
+    UnresolvedPremise::InitialSourceDescriptorRelation,
+    UnresolvedPremise::FiniteSourceBaseEmissionConformanceCertificate,
     UnresolvedPremise::CompleteInvocationInterpretation,
     UnresolvedPremise::LegalOldWholeTupleSubstitution,
 ];
+
+const SOURCE_BASE_UNRESOLVED: [UnresolvedPremise; 4] = [
+    UnresolvedPremise::CompleteEmittedOriginalCallClauseAndJointWitness,
+    UnresolvedPremise::InitialSourceDescriptorRelation,
+    UnresolvedPremise::FiniteSourceBaseEmissionConformanceCertificate,
+    UnresolvedPremise::CompleteInvocationInterpretation,
+];
+
+/// Pending source-base premises over one retained HIR Apply and its exact root.
+/// The inventory entry borrows HIR identities and errors; it grants no call
+/// admission, typing, or emitted Gen-Call-0 membership.
+#[derive(Debug)]
+pub struct PendingResolvedSourceCallStub<'a> {
+    root: &'a yu_hir::DefinitionRootId,
+    call: yu_hir::shadow::ResolvedCallOccurrence<'a>,
+}
+
+impl<'a> PendingResolvedSourceCallStub<'a> {
+    pub fn root(&self) -> &'a yu_hir::DefinitionRootId {
+        self.root
+    }
+
+    pub fn call(&self) -> &yu_hir::shadow::ResolvedCallOccurrence<'a> {
+        &self.call
+    }
+
+    pub fn unresolved_premises(&self) -> &'static [UnresolvedPremise] {
+        &SOURCE_BASE_UNRESOLVED
+    }
+}
+
+/// Transports the owning HIR inventory without reconstructing source calls.
+/// Invalid roots/projections retain the inventory's fail-closed error. This
+/// default-off bookkeeping has no production or hot-path consumer; removing it
+/// removes only the carrier, without changing compiler behavior.
+pub fn generate_resolved_source_calls<'a>(
+    module: &'a yu_hir::HirModule,
+    root: &'a yu_hir::DefinitionRootId,
+) -> Result<Vec<PendingResolvedSourceCallStub<'a>>, yu_hir::shadow::ResolvedCallInventoryError> {
+    Ok(module
+        .shadow_resolved_call_inventory(root)?
+        .into_iter()
+        .map(|call| PendingResolvedSourceCallStub { root, call })
+        .collect())
+}
+
+/// Partial, default-off source identity retention for a direct-Use Apply.
+/// Clones preserve artifact brands; they supply no typing or semantic evidence.
+/// This shadow-owned stub has no production or hot-path consumer.
+#[derive(Debug)]
+pub struct PendingSourceCallStub {
+    call: ExprId,
+    callee_use: UseId,
+    argument: ExprId,
+    argument_use: Option<UseId>,
+}
+
+impl PendingSourceCallStub {
+    pub fn call(&self) -> &ExprId {
+        &self.call
+    }
+
+    pub fn callee_use(&self) -> &UseId {
+        &self.callee_use
+    }
+
+    pub fn argument(&self) -> &ExprId {
+        &self.argument
+    }
+
+    pub fn argument_use(&self) -> Option<&UseId> {
+        self.argument_use.as_ref()
+    }
+
+    pub fn unresolved_premises(&self) -> &'static [UnresolvedPremise] {
+        &SOURCE_BASE_UNRESOLVED
+    }
+}
+
+/// Retains direct-Use Apply identities from one exact retained declaration.
+/// Annotations beneath that declaration fail closed. Grouped/computed callees
+/// are not inferred through. Empty output establishes neither completeness nor
+/// semantic absence.
+/// Removing this generator removes only bookkeeping, not compiler behavior.
+pub fn generate_source_calls(
+    artifact: &ShadowArtifact,
+    declaration: &PositionId,
+) -> Option<Vec<PendingSourceCallStub>> {
+    if declaration_has_annotations(artifact, declaration)? {
+        return None;
+    }
+    let skeleton = artifact.declaration_skeleton(declaration).ok()?;
+    skeleton
+        .source_call_use_inputs()
+        .map(|input| {
+            let argument_use = match skeleton.expression(input.argument()).ok()?.form() {
+                Form::Use { occurrence, .. } => Some(occurrence.clone()),
+                _ => None,
+            };
+            Some(PendingSourceCallStub {
+                call: input.application().expression().clone(),
+                callee_use: input.occurrence().clone(),
+                argument: input.argument().clone(),
+                argument_use,
+            })
+        })
+        .collect()
+}
+
+/// Annotation rejection follows the selected source boundary. An annotation
+/// in a sibling declaration does not change this declaration's inventory.
+/// Errors fail closed; an empty inventory grants no semantic permission.
+fn declaration_has_annotations(
+    artifact: &ShadowArtifact,
+    declaration: &PositionId,
+) -> Option<bool> {
+    Some(
+        !crate::shadow_annotation_boundaries::annotation_boundaries(artifact, declaration)
+            .ok()?
+            .is_empty(),
+    )
+}
+
+/// Pending source-generation output, borrowing exact operands without evidence.
+/// The shadow generator owns this stub; it has no production or hot-path consumer.
+/// Unsupported projections still return None. Removing this carrier rolls back
+/// only bookkeeping; it cannot supply a witness or authorize a comparison.
+#[derive(Debug)]
+pub struct PendingSourceBaseStub<'a> {
+    call: &'a ExprId,
+    callee_use: &'a UseId,
+    argument_use: &'a UseId,
+}
+
+impl<'a> PendingSourceBaseStub<'a> {
+    pub fn call(&self) -> &'a ExprId {
+        self.call
+    }
+
+    pub fn callee_use(&self) -> &'a UseId {
+        self.callee_use
+    }
+
+    pub fn argument_use(&self) -> &'a UseId {
+        self.argument_use
+    }
+
+    pub fn unresolved_premises(&self) -> &'static [UnresolvedPremise] {
+        &SOURCE_BASE_UNRESOLVED
+    }
+}
 
 /// Tagged construction terms, never numeric semantic identities or type casts.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,12 +211,17 @@ pub struct SymbolicDemand<'a> {
 #[derive(Debug)]
 pub struct SymbolicGenCall0<'a> {
     demand: SymbolicDemand<'a>,
+    source_base_stub: PendingSourceBaseStub<'a>,
     callee_use: &'a UseId,
     argument_use: &'a UseId,
     returned_use: &'a UseId,
 }
 
 impl<'a> SymbolicGenCall0<'a> {
+    pub fn source_base_stub(&self) -> &PendingSourceBaseStub<'a> {
+        &self.source_base_stub
+    }
+
     pub fn demand(&self) -> &SymbolicDemand<'a> {
         &self.demand
     }
@@ -128,6 +290,23 @@ pub fn generate_captured_singleton(artifact: &ShadowArtifact) -> Option<[Symboli
         return None;
     }
     let skeleton = artifact.skeleton().ok()?;
+    generate_captured_from_skeleton(skeleton)
+}
+
+/// Projects the captured singleton from one exact retained direct declaration.
+/// Foreign positions and unsupported declaration projections produce no record.
+pub fn generate_captured_declaration<'a>(
+    artifact: &'a ShadowArtifact,
+    declaration: &PositionId,
+) -> Option<[SymbolicGenCall0<'a>; 1]> {
+    if declaration_has_annotations(artifact, declaration)? {
+        return None;
+    }
+    let skeleton = artifact.declaration_skeleton(declaration).ok()?;
+    generate_captured_from_skeleton(skeleton)
+}
+
+fn generate_captured_from_skeleton(skeleton: &Skeleton) -> Option<[SymbolicGenCall0<'_>; 1]> {
     let input = skeleton.captured_call_input()?;
     let Form::Lambda {
         parameter,
@@ -178,6 +357,11 @@ pub fn generate_captured_singleton(artifact: &ShadowArtifact) -> Option<[Symboli
         return None;
     };
     Some([SymbolicGenCall0 {
+        source_base_stub: PendingSourceBaseStub {
+            call,
+            callee_use,
+            argument_use,
+        },
         demand: SymbolicDemand {
             registration: SymbolicRegistration {
                 declaration: binder,

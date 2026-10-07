@@ -132,7 +132,123 @@ pub struct ShadowLocalUse {
     pub range: Range<usize>,
 }
 
+/// Borrowed identities of one already retained HIR Apply. This is not an
+/// admitted call, a call view, or evidence of solver success. Existing Apply
+/// errors (including UnsupportedExpression) remain attached and unresolved.
+#[derive(Debug)]
+pub struct ResolvedCallOccurrence<'a> {
+    pub occurrence: &'a HirOccurrenceId,
+    pub callee: &'a HirOccurrenceId,
+    pub argument: &'a HirOccurrenceId,
+    pub source_form: SyntaxKind,
+    pub errors: &'a [crate::HirErrorId],
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResolvedCallInventoryError {
+    ForeignRoot,
+    MissingRoot,
+    UnsupportedProjection,
+}
+
 impl HirModule {
+    /// Traverses only this binding's retained value and optional cold local
+    /// initializer. Lambda/Group descend without interpretation; an Apply
+    /// collects existing Apply nodes and orders them by retained range start/end.
+    /// Ranges supply ordering only; identities remain the retained HIR IDs.
+    /// No completeness claim is made about source calls absent from this HIR.
+    pub fn shadow_resolved_call_inventory(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<Vec<ResolvedCallOccurrence<'_>>, ResolvedCallInventoryError> {
+        use crate::ResolvedExpr;
+        use ResolvedCallInventoryError::*;
+        if !self.owns_definition_root(root) {
+            return Err(ForeignRoot);
+        }
+        let binding = self
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                crate::HirItem::Binding(binding) if binding.definition_root() == root => {
+                    Some(binding)
+                }
+                _ => None,
+            })
+            .ok_or(MissingRoot)?;
+        let source = self.source_identity.as_ref().ok_or(UnsupportedProjection)?;
+        let mut pending = vec![binding.value()];
+        let local = self.shadow_local_binding(root).map_err(|_| ForeignRoot)?;
+        if let Some(local) = local {
+            if local.range.start < binding.range().start || local.range.end > binding.range().end {
+                return Err(UnsupportedProjection);
+            }
+            if local.initializer.range().start < local.range.start
+                || local.initializer.range().end > local.range.end
+            {
+                return Err(UnsupportedProjection);
+            }
+            pending.insert(0, &local.initializer);
+        }
+        let mut calls = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        while let Some(expression) = pending.pop() {
+            let occurrence = expression.occurrence();
+            if !self.owns_occurrence(occurrence)
+                || !seen.insert(occurrence)
+                || expression.range().start > expression.range().end
+                || expression.range().start < binding.range().start
+                || expression.range().end > binding.range().end
+            {
+                return Err(UnsupportedProjection);
+            }
+            match expression {
+                ResolvedExpr::Apply {
+                    callee,
+                    argument,
+                    source_form,
+                    errors,
+                    ..
+                } => {
+                    if !matches!(source_form, SyntaxKind::CallTail | SyntaxKind::MlArgument)
+                        || !source.occurrences.contains_key(occurrence)
+                        || !source.occurrences.contains_key(callee.occurrence())
+                        || !source.occurrences.contains_key(argument.occurrence())
+                        || errors.is_empty()
+                        || errors
+                            .iter()
+                            .any(|id| !self.errors().iter().any(|error| error.id() == *id))
+                    {
+                        return Err(UnsupportedProjection);
+                    }
+                    calls.push((
+                        expression.range(),
+                        ResolvedCallOccurrence {
+                            occurrence,
+                            callee: callee.occurrence(),
+                            argument: argument.occurrence(),
+                            source_form: *source_form,
+                            errors,
+                        },
+                    ));
+                    pending.push(argument);
+                    pending.push(callee);
+                }
+                ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                ResolvedExpr::Group { inner, .. } => pending.push(inner),
+                ResolvedExpr::Name { .. } | ResolvedExpr::Integer { .. } => {}
+                ResolvedExpr::Error { .. }
+                    if local.is_some()
+                        && matches!(binding.value(),
+                        ResolvedExpr::Lambda { body, .. } if std::ptr::eq(body.as_ref(), expression)) =>
+                    {}
+                ResolvedExpr::Error { .. } => return Err(UnsupportedProjection),
+            }
+        }
+        calls.sort_by_key(|(range, _)| (range.start, range.end));
+        Ok(calls.into_iter().map(|(_, call)| call).collect())
+    }
+
     pub fn shadow_local_binding(
         &self,
         root: &DefinitionRootId,

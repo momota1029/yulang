@@ -1,6 +1,9 @@
 //! Backend-neutral core boundary for Yulang3.
 
 #[cfg(feature = "shadow")]
+pub mod shadow_annotation_boundaries;
+
+#[cfg(feature = "shadow")]
 pub mod shadow;
 
 #[cfg(feature = "shadow")]
@@ -20,3 +23,6 @@ pub mod shadow_typed_evidence;
 
 #[cfg(feature = "shadow")]
 pub mod shadow_call_formation;
+
+#[cfg(feature = "shadow")]
+pub mod shadow_source_annotation_crosswalk;
