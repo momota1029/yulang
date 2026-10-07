@@ -144,6 +144,21 @@ The next attack is the owning original Function-signature
 interpretation/elimination producer at the fixed Call, not another
 reference-bound transport wrapper.
 
+### O1 after the selected exposure
+
+A separate read-only attack at `f9d41cdbde0ad5448073c1575abfdb0062818933`
+granted the fixed source derivation, shared capture, reviewed S1 seed/exposure,
+and O0 map. It still found no introduction for an original
+`s ∈ Slots_orig(beta)` and `Own_orig(beta,s,u_f,p0,o;X)`. This is a distinct
+static owner/slot gap; it does not equate `u_f` with the upper-check occurrence
+`u`, and it needs no receiver activation. The interface is an obligation
+signature, not a new rule, and its sequential dependency on O0 is only this
+route's decomposition: a joint rule could produce both. No status or edge
+changed. See the existing [source-introduction contract](../notes/design/2026-10-07-original-call-source-introduction-contract.md)
+and canonical ORIGINAL_ASSOC leaf; next attack the independent
+source-directed `Slots_orig` / `Own_orig` constructor with dischargeable
+premises.
+
 ### Latest reviewed continuation: round 3
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
