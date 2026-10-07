@@ -1207,7 +1207,11 @@ CONDITIONAL-CLOSED and no semantic or DAG status changed. The same attack wave
 kept ORIGINAL_ASSOC P2 and REC_DESC open at their independent source-rule
 introductions, localized INIT_WORLD's separate zero-step semantic-import
 root-extension clause, and retained ALL_VIEW open at actual-export result
-evidence.
+evidence. A bounded Name/Name CALL_TYPE construction derived the normalized
+`Comp(empty, Ax)` and inert `Return(lookup x)` skeleton; the exact remaining
+source head is sound whole-carrier argument checking plus independently
+justified Name/Return typing jointly realized at actual `C1` for every retained
+CalRet witness. This adds no semantic rule or closure.
 Production inference and cutover remain gated.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/

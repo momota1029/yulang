@@ -1083,7 +1083,7 @@
         "SEM_JOINT"
       ],
       "premises": "One fixed SEM_JOINT ordinary descriptor/carrier/provider-entry/consumer interpretation and original X/xi, universally over every independently admitted operand/world assignment. Independently supply CalRet, including current-world and latent/future returned-provider facts; DelayIntro for the whole inert carrier; Phase_r for every actual receipt, entry, body/native, designated-consumer and return phase, with exhaustive finite/zero-step prefixes and future developments; and BindTyped for the complete ordered pending suffix at every admitted response/current state and returned-provider future use. Construct CI-Operands joint captured-environment/provider/current-world and both operand typing facts; CI-Bind every original ordered interface; CI-ArgFrame for every retained CalRet witness, preserving its evidence while jointly extending argument typing at the actual returned C1 and ArgCompatible with that actual provider (C0 typing alone is insufficient); CI-Receipt the complete first independent receipt/authority inputs; and CI-StepFrame complete next-phase inputs and their incident Bind interfaces jointly at the actual current returned world. Keep one coherent original-scope evidence family, not separately selected existential worlds or witnesses; no bridge assumes whole invocation/Call membership.",
-      "minimal_lemma_or_closed_scope": "The repaired full conditional composition derives existing target typing of every complete output/pending Call observation from precisely these independent local laws and constructed-input bridge instances. Build the actual whole receiver suffix backwards through the original ordered Binds; callee Requests retain Delay/invocation before receipt, receiver Requests retain the remaining suffix without replaying receipt. All finite prefixes, current-state raw resumptions and future returned-provider uses retain the same scoped evidence family. No actual local law/input is instantiated, no assignment inhabitance or whole-source coverage is proved, and no original association, attachment, licensing, assembly or profile is inferred. On the fixed Name/Name cut, CI-Operands still needs independent joint Env/Name/Return introduction at C0; CI-ArgFrame then needs evidence-preserving joint argument typing and actual-provider carrier compatibility at returned C1. Adequate Name lookup can specialize C1=C0 but proves neither predicate.",
+      "minimal_lemma_or_closed_scope": "The repaired full conditional composition derives existing target typing of every complete output/pending Call observation from precisely these independent local laws and constructed-input bridge instances. Build the actual whole receiver suffix backwards through the original ordered Binds; callee Requests retain Delay/invocation before receipt, receiver Requests retain the remaining suffix without replaying receipt. All finite prefixes, current-state raw resumptions and future returned-provider uses retain the same scoped evidence family. No actual local law/input is instantiated, no assignment inhabitance or whole-source coverage is proved, and no original association, attachment, licensing, assembly or profile is inferred. On the fixed Name/Name cut, CI-Operands still needs independent joint Env/Name/Return introduction at C0; CI-ArgFrame then needs evidence-preserving joint argument typing and actual-provider carrier compatibility at returned C1. The bounded constructor audit derives only Gamma(x)=Value(Ax), Result(Value(Ax))=Comp(empty,Ax), and inert Return(lookup x). Its exact missing source head is the original argument-to-actual-provider whole-carrier checking certificate plus independently justified Name/Return typing, soundly and jointly realized at C1 for every retained CalRet witness; it yields neither Typed nor ArgCompatible from syntax, generated constraints, C1=C0, provider view or Q. This refines the missing input, not its semantics or status.",
       "references": [
         "source",
         "core",
@@ -1091,7 +1091,8 @@
         "call3",
         "round3review",
         "operandcandidate",
-        "attack4"
+        "attack4",
+        "argframeconstruct"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2648,6 +2649,7 @@
     "legacycrosswalk": "notes/progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md",
     "argframe": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "initworldw0": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
+    "argframeconstruct": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "fiber4": "notes/progress/2026-10-09-original-call-fiber-construction-round4.md",
     "incidence4": "notes/progress/2026-10-09-original-call-fiber-adversarial-round4.md",
     "ownerpair": "notes/progress/2026-10-09-original-kowner-underdetermination-round1.md",

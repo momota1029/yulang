@@ -29,6 +29,22 @@ source-use list. Thus grouped, computed and indirect callees retain the same
 unresolved requirement. Existing Core and solver lifecycle code forwards HIR
 premises generically and was not changed.
 
+A subsequent bounded constructive audit of the fixed Name/Name cut made the
+pending semantic head more concrete. From `Gamma(x)=Value(Ax)`, typed-core §6
+produces `Result(Value(Ax))=Comp(empty,Ax)` and the inert
+`Return(lookupρ_X x)` skeleton. After granting independent initial typing and
+an actual callee Return, the required conclusion remains, for **every**
+retained CalRet extension `w_f`, one compatible `w1 >= w_f` that preserves its
+evidence and jointly establishes argument `Typed_X` at actual `C1` plus
+`ArgCompatible_X` with `CarrierContract(U)`. The missing source head introduces
+that `result(name x)` at the actual returned-provider carrier port. It needs
+both independently justified Name/Return descriptor typing and soundness of
+the original whole-carrier argument check. Neither generated constraints,
+Name lookup/C1=C0, nor provider view alone supplies the two judgments. This is
+a bounded premise localization. A fresh compiler-referee delta review found no
+findings on the derivation, quantifier order, or status boundary. It is not a
+new semantic rule or a CALL_TYPE closure.
+
 ## Review and verification
 
 Independent compiler-referee review passed the conjunction, scope and
