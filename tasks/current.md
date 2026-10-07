@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: selected O0/O1/C1, complete contextual source-interface construction and same-provider Call input realization; genuine semantic/production gates remain
+Status: selected O0/O1/C1/IF and same-provider Call input realization; approved captured-Call original association family theorem conditionally closed; remaining semantic/production gates stay open
 
 ## Objective and canonical obligation ledger
 
@@ -51,8 +51,8 @@ actual designated export. They are proof families, not four proved theorems or
 four remaining atomic lemmas. Actual implementation/lifecycle correspondence
 remains a separate engineering invariant.
 
-The canonical DAG remains 90 nodes / 196 edges: 7 CLOSED, 20
-CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+The canonical DAG now has 90 nodes / 196 edges: 7 CLOSED, 21
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY. No status, prerequisite, original predicate or
 production-relevance field changes in this audit. Stronger arbitrary-view and
 generated-domain characterization remain intact as existing research targets;
@@ -208,6 +208,27 @@ With those inputs, authentic SpecCall, exact seeded O1 and complete C0,
 J-Owned constructs fixed c/a before every z in the unchanged full family.
 Foreign-kernel and active-consumer laws remain where needed.
 
+### Conditional complete-family association closure (2026-10-08)
+
+The reviewed composition in [owned-call construction §8.2](../notes/theory/2026-10-07-owned-call-contribution-construction.md#82-selected-captured-call-full-family-composition)
+conditionally closes `ORIGINAL_ASSOC` for the approved captured `f x` instance.
+One shared slot, canonical owner, authentic complete-Call contribution, full
+source image and association are fixed before the universal over unchanged
+`F_C(X;xi)`. C-Call preserves each complete original witness fiber before
+projection, so W/Z witnesses and their licenses, providers, pending suffixes
+and future evidence remain distinct. Lexical `u_f` and checking `u` facets
+remain separate and joined by the actual exposure.
+
+The exact retained premises are complete C0 over every independently admitted
+carrier and its full evidence tuple; the selected O0/O1 constructors; and
+Theorem IF's authentic source/reference, independent operator/primitive/guard,
+and lawful whole-map inputs. Compiler-referee review passed the universal
+composition; spec-auditor review passed source, incidence and Option 2
+conformance. This closes no all-source association, foreign-kernel embedding,
+Attach/licensing/profile/rows, active-consumer or production gate. The DAG
+counts now read 7 CLOSED / 21 CONDITIONAL-CLOSED / 43 OPEN-PROOF / 18
+OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY.
+
 ### Current original semantic Call inputs
 
 The [contextual Function membership definition](../notes/design/2026-10-08-contextual-function-membership-definition.md)
@@ -259,11 +280,10 @@ or production prerequisite changed.
 
 ### Immediate work order
 
-1. Consume O0, paired O1, C1, IF and the original same-provider input result
-   directly on their stated source/complete-contract envelopes. Retain the
-   original typed derivations and joint scopes. Do not schedule separate
-   owner recovery, per-arm contribution inversion, full source-placement
-   reconstruction or the old raw ViewInlet supplier again.
+1. Attack `ATTACH → LIC_FORWARD/LIC_INVERT → PROFILE → ROWS` using the reviewed
+   full-family association witness. Preserve every licensed witness, including
+   Option 2 extras; source provenance alone does not imply attachment or
+   licensing.
 2. Complete the genuine semantic Call inputs: actual result checking and
    complete closure introduction; general effectful code; lawful original
    operator/phase/dispatch and contextual world actions; every independent
@@ -282,9 +302,10 @@ or production prerequisite changed.
    and both complete Option 2 inclusions intact.
 
 The canonical DAG remains 90 nodes / 196 edges, with status counts
-7 / 20 / 43 / 19 / 1. This integration changes navigation and remaining-clause
-text only, not statuses, prerequisites, original predicates or production
-relevance. No source restriction, production semantics or cutover is introduced.
+7 / 21 / 43 / 18 / 1. This integration records the reviewed conditional
+ORIGINAL_ASSOC closure for its exact selected instance; aggregate dependent
+gates, original predicates and production relevance stay unchanged. No source
+restriction, production semantics or cutover is introduced.
 
 ## Preserved earlier proof-attack history
 

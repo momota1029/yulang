@@ -671,6 +671,63 @@ its exact consumer and exposure-based constructor to be adjudicated separately;
 this note does not consume or supersede that unintegrated candidate. Both
 occurrences and the original provider/upper dependency survive any integration.
 
+### 8.2 Selected captured-Call full-family composition
+
+For the approved captured `f x` source, the selected O0/O1, complete-Call and
+Theorem IF constructions compose the conditional J-Owned result above over the
+entire original family. Fix the unchanged dependent index
+
+```text
+Idx(e) = (B,X,xi,Delta_e;
+          d_f,A_f,R_f,u_f,u_x,c,u,U_e,beta,p0,p_out(c),ElimOrigin)
+xi = (nu,K,D).
+```
+
+Keep `sigma_apply`, `sigma_step`, lexical use `u_f`, checking occurrence `u`,
+and each original provider, world, scope and witness distinct. Registration and
+O1 supply the shared `s_beta = SharedInvoke(beta) in Slots_orig(beta)` and one
+canonical owner certificate with its separately introduced lexical and
+checking facets. Choose the authentic complete source Call declaration `Q_e`;
+its source correspondence retains `j_call`, while its argument coordinate is
+the complete open carrier hole. Under complete independent C0, C-Call forms
+one suspended `c_e = CallContract(Q_e; B,X,xi,Delta_e)` before selecting any
+family member. For every full evidence fiber
+
+```text
+d : R_U_all^e(h,y),
+B_e(d) = CallMem(Q_e,h,y,d),
+Elim(B_e(d)) = d,
+```
+
+the contribution contains the same original `d` verbatim. It therefore retains
+the arm tag, license, raw handle, pending suffix, actual provider and future
+evidence before `Pi`; equal projections do not identify distinct witnesses.
+Theorem IF supplies the full original source-stage/view image from the actual
+operator and complete declaration/reference derivations, including the two
+occurrence facets, without assuming placement at this use. J-Owned then forms
+the fixed `a_e = OwnedCall(o_e,CallEff_orig(e),c_e,kappa_e^full)` and its
+lexical incidence; J-Owned-check consumes the actual exposure for the checking
+incidence rather than casting `u_f` to `u`.
+
+Thus the same `s_beta`, `o_e`, `c_e`, full image and `a_e` are fixed before
+arbitrary `z in F_C(X;xi)`, and the selected construction proves
+`Cover_orig(a_e,z;X)` for every such `z`. Whole-Call W/Z alternatives remain in
+the unchanged family; each retains its own original full-operation witness,
+even when it has no source execution anchor. Callee events keep their actual
+callee placement. This closes the selected P2 complete-family incidence
+construction conditionally for this captured source instance; it does not
+close all-source association, attachment, licensing, profile, a separately
+fixed foreign kernel, or any production gate.
+
+The retained conditions are the complete C0 obligation for every independently
+admitted `h` and original `d`, including its full descriptor, world,
+guarantee, authority, incidence, continuation and future envelope; the genuine
+independent primitive/operator/guard and lawful whole-map inputs consumed by
+Theorem IF; and the already stated O0/O1 selected source constructor instances.
+In particular, typing alone does not establish Theorem IF's authentic source
+reference or a licensed W/Z placement. No query success, endpoint equality,
+source position, shadow ID or source diagonal supplies these conditions.
+
 ## 9. Conservation and separately fixed original interpretations
 
 Three claims must remain distinct.

@@ -328,3 +328,37 @@ there is no proof-assistant certificate. Dependency hash of the selected
 definition after review and before primary status synchronization:
 
 “8d1eb7ecea3e63d7ba0ae091dc673f3321e52fc0e31c5d824bdf4f1656b99488”.
+
+## 10. Captured-Call full-family association closure
+
+The selected O0/O1, complete-Call and Theorem IF constructors now compose the
+J-Owned output into one full-family theorem in
+[owned-call construction §8.2](../theory/2026-10-07-owned-call-contribution-construction.md#82-selected-captured-call-full-family-composition).
+For the approved captured `f x` instance, the theorem fixes the slot, owner,
+complete contribution, full source image and association before quantifying
+over unchanged `F_C(X;xi)`. C-Call retains each original evidence fiber
+verbatim before projection; J-Owned and J-Owned-check preserve separate
+lexical `u_f` and checking `u` facets. Every licensed W/Z alternative remains
+in the family with its own complete witness, including arms without source
+execution anchors.
+
+Independent compiler-referee review passed the synthesized family derivation:
+the universal is over each actual full witness, not one C1 observation, and no
+licensed evidence is merged or dropped. The same referee identified one scope
+condition now explicit in §8.2: this is conditional on the genuine source and
+complete-contract formation inputs to Theorem IF, in addition to complete C0
+and selected O0/O1. An unrelated typed Z cannot acquire placement at this
+source root by endpoint equality. Independent spec-auditor review passed §8.2
+against the adopted source, complete-Call and Option 2 contracts. No repair or
+user decision was required.
+
+This conditionally closes the canonical ORIGINAL_ASSOC node only for the
+approved captured source instance under the selected constructor route. The
+separately fixed foreign-kernel maps, other source/owner cases, all-source
+generation, Attach, licensing, profile/rows, active-consumer preservation and
+production conformance remain open. The DAG moved from 90 nodes / 196 edges,
+7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY to the same 90 / 196 with 7 CLOSED, 21
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. Its validator passed after regeneration. This is a
+conditional theorem result, not an all-model comparison or a production claim.
