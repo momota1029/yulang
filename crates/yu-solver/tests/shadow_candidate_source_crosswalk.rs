@@ -4,7 +4,10 @@ mod crosswalk;
 
 use crosswalk::{CandidateSourceCrosswalk, CrosswalkError};
 use std::sync::Arc;
-use yu_hir::shadow::{ShadowArtifact, lower_module_with_shadow_applications};
+use yu_hir::shadow::{
+    ShadowArtifact, lower_module_with_shadow_applications,
+    lower_module_with_shadow_local_binding,
+};
 use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports};
 use yu_solver::shadow_apply::{CandidateValueObservation, UNRESOLVED};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
@@ -68,6 +71,57 @@ fn exact_source_carriers_join_executed_candidate_and_whole_export() {
         );
     }
 }
+
+#[test]
+fn captured_local_source_positions_join_the_candidate_call_and_export() {
+    let text = "my apply f = { my step x = f x; step }";
+    let source: Arc<SourceText> = Arc::from(text);
+    let parsed = parse_file(
+        source.clone(),
+        Arc::new(scan_header(source)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = Arc::new(
+        lower_module_with_shadow_local_binding(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "crosswalk",
+                "captured-local.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+            artifact.clone(),
+        )
+        .unwrap(),
+    );
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("binding")
+    };
+    let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+    let joined =
+        CandidateSourceCrosswalk::new(&artifact, &hir, &candidate, binding.definition_root())
+            .unwrap();
+    let captured = joined.captured_input().expect("retained Bind topology");
+    let [call] = candidate.calls() else {
+        panic!("one candidate Apply")
+    };
+    let source_calls = joined.calls().collect::<Vec<_>>();
+    let [source_call] = source_calls.as_slice() else {
+        panic!("one source/candidate incidence")
+    };
+    assert_eq!(captured.call(), source_call.source_input().application().expression());
+    assert_eq!(captured.callee_use(), source_call.source_input().occurrence());
+    assert_eq!(captured.outer_parameter(), source_call.source_input().binder());
+    assert_eq!(call.unresolved, UNRESOLVED);
+    assert_eq!(source_call.candidate_call().occurrence, call.occurrence);
+    assert!(source_call.ordinary_incoming_rows().is_none());
+    assert_eq!(joined.export().unresolved, UNRESOLVED);
+    assert!(joined
+        .export()
+        .endpoints()
+        .alpha_eq(candidate.export(binding.definition_root()).unwrap().endpoints()));
+}
+
 #[test]
 fn mismatched_parse_and_candidate_cannot_publish_crosswalk() {
     let (source, hir) = inputs("my apply f = f 1");

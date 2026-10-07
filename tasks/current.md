@@ -175,16 +175,20 @@ actual outer `f` row and distinct local `x` row, and returns the local
 initializer endpoint without a terminal Call or local freshening. The
 candidate keeps every semantic premise unresolved and uses the current F5
 solver/generalizer machinery; it is not successor generalization or production
-inference. The focused feature test passed 16/16 and checks ordinary
-collection/solve diagnostics, facts, provenance, counters and exported schemes
-remain unchanged around the candidate call. A regression review accepted the
-three-file implementation; its minor unsupported-sidecar coverage gap was
-closed by asserting both negative source forms are rejected by the same local
-sidecar lowering path, then rerunning the focused target. Broader local Bind
-forms, the local source-position/candidate crosswalk, local generalization,
-source typing/admission, capture/evidence transport, successor correspondence
-and publisher behavior remain open. This advances `HIR_WIRING` only and
-changes no DAG status.
+inference. The focused feature target passes 17/17. Its differential now
+records that the candidate's returned-Function scheme differs from the current
+collector's result for this retained local Bind; it asserts only the observed
+delta and leaves which result is semantically correct unresolved. The old
+collection/solve path remains stable in diagnostics, facts, provenance,
+counters and exported schemes. A focused crosswalk test now joins the original
+source Bind/Lambda/formal/Apply/callee/argument/return positions to that same
+candidate call and export while retaining all pending premises; its target
+passes 3/3. The candidate slice's regression review accepted it after the
+unsupported-sidecar path was covered; an independent regression review also
+accepted the crosswalk within its structural scope. Broader local Bind forms,
+local generalization, source typing/admission, capture/evidence transport,
+successor correspondence and publisher behavior remain open. This advances
+`HIR_WIRING` only and changes no DAG status.
 
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1

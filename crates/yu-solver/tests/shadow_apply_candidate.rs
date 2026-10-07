@@ -201,6 +201,23 @@ fn captured_local_function_returns_value_and_retains_outer_parameter() {
     let export = candidate.export(root(&hir, 0)).unwrap();
     assert_eq!(export.unresolved, UNRESOLVED);
     let scheme = export.endpoints();
+    // This retained local binding is intentionally not understood by the
+    // current collector. Keep its output beside the candidate result instead
+    // of treating either side as the selected semantics.
+    assert_ne!(
+        before.root_value_for(root(&hir, 0)).unwrap(),
+        export.value,
+        "the shadow extension must keep exposing its current-infer delta"
+    );
+    assert!(
+        !before
+            .shadow_closed_schemes()
+            .for_root(root(&hir, 0))
+            .unwrap()
+            .endpoints()
+            .alpha_eq(scheme),
+        "the candidate/legacy scheme mismatch remains an unresolved premise"
+    );
     let PositiveValueView::Function {
         argument: outer_argument,
         result: returned,
@@ -902,4 +919,99 @@ fn module_use_crosswalk_checks_owners_even_when_inventory_is_empty() {
     );
     let empty_candidate = CandidateValueObservation::solve(empty_hir.clone()).unwrap();
     assert!(CandidateSourceModuleUses::new(&empty_source, &empty_hir, &empty_candidate).is_err());
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[test]
+fn captured_local_crosswalk_borrows_exact_source_and_candidate_identities() {
+    use source_crosswalk::CandidateSourceCrosswalk;
+    let text = "my apply f = { my step x = f x; step }";
+    let make = || {
+        let source: Arc<SourceText> = Arc::from(text);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let artifact =
+            Arc::new(yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+        let hir = Arc::new(
+            yu_hir::shadow::lower_module_with_shadow_local_binding(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "candidate",
+                    "crosswalk-local.yu",
+                ))),
+                &parsed,
+                SemanticImports::empty(),
+                artifact.clone(),
+            )
+            .unwrap(),
+        );
+        let candidate = CandidateValueObservation::solve(hir.clone()).unwrap();
+        (artifact, hir, candidate)
+    };
+    let (source, hir, candidate) = make();
+    let crosswalk =
+        CandidateSourceCrosswalk::new(&source, &hir, &candidate, root(&hir, 0)).unwrap();
+    let input = crosswalk.captured_input().unwrap();
+    let skeleton = source.skeleton().unwrap();
+    let original = skeleton.captured_call_input().unwrap();
+    assert_eq!(input.call(), original.call());
+    assert_eq!(input.local_binding(), original.local_binding());
+    assert_eq!(input.returned_use(), original.returned_use());
+    let calls: Vec<_> = crosswalk.calls().collect();
+    assert_eq!(calls.len(), 1);
+    assert!(std::ptr::eq(
+        calls[0].candidate_call(),
+        &candidate.calls()[0]
+    ));
+    assert_eq!(
+        calls[0].source_input().application().expression(),
+        input.call()
+    );
+    assert_eq!(
+        calls[0].pending().count(),
+        skeleton
+            .pending()
+            .iter()
+            .filter(|p| p.call() == input.call())
+            .count()
+    );
+    assert!(calls[0].pending().count() > 0);
+    assert!(calls[0].ordinary_incoming_rows().is_none());
+    assert_eq!(calls[0].candidate_call().unresolved, UNRESOLVED);
+    assert_eq!(crosswalk.export().unresolved, UNRESOLVED);
+    assert!(
+        crosswalk
+            .export()
+            .scheme()
+            .same_identity(candidate.export(root(&hir, 0)).unwrap().scheme())
+    );
+    let (foreign_source, foreign_hir, foreign_candidate) = make();
+    assert!(
+        CandidateSourceCrosswalk::new(&foreign_source, &hir, &candidate, root(&hir, 0)).is_err()
+    );
+    assert!(
+        CandidateSourceCrosswalk::new(&source, &foreign_hir, &candidate, root(&foreign_hir, 0))
+            .is_err()
+    );
+    assert!(
+        CandidateSourceCrosswalk::new(&source, &hir, &foreign_candidate, root(&hir, 0)).is_err()
+    );
+    assert!(
+        CandidateSourceCrosswalk::new(&source, &hir, &candidate, root(&foreign_hir, 0)).is_err()
+    );
+    for other in [
+        "my apply f = { my step x = f 1; step }",
+        "my apply f = { my step x = f x; step 1 }",
+    ] {
+        let text: Arc<SourceText> = Arc::from(other);
+        let parsed = parse_file(
+            text.clone(),
+            Arc::new(scan_header(text)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let adjacent = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
+        assert!(CandidateSourceCrosswalk::new(&adjacent, &hir, &candidate, root(&hir, 0)).is_err());
+    }
 }

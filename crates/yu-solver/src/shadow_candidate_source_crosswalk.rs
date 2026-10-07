@@ -7,7 +7,8 @@
 )]
 
 use yu_hir::shadow::{
-    Form, PendingPremise, ShadowArtifact, Skeleton, SourceCallUseInput, SourceIdentityError,
+    CapturedCallInput, Form, PendingPremise, ShadowArtifact, Skeleton, SourceCallUseInput,
+    SourceIdentityError,
 };
 use yu_hir::{DefinitionRootId, HirItem, HirModule, ResolvedExpr};
 use yu_solver::shadow_apply::{
@@ -18,6 +19,7 @@ use yu_solver::shadow_apply::{
 pub struct CandidateSourceCrosswalk<'a> {
     calls: Vec<CandidateSourceCall<'a>>,
     export: CandidateExport<'a>,
+    captured: Option<CapturedCallInput<'a>>,
 }
 
 #[derive(Debug)]
@@ -60,6 +62,16 @@ impl<'a> CandidateSourceCrosswalk<'a> {
         candidate: &'a CandidateValueObservation,
         root: &DefinitionRootId,
     ) -> Result<Self, CrosswalkError> {
+        if !candidate.observes_hir(hir) {
+            return Err(CrosswalkError::ForeignCandidate);
+        }
+        if hir
+            .shadow_local_binding(root)
+            .map_err(CrosswalkError::Source)?
+            .is_some()
+        {
+            return Self::captured(source, hir, candidate, root);
+        }
         let missing = || CrosswalkError::MissingExactSourceIncidence;
         let mut owners = std::collections::HashMap::new();
         let mut selected = false;
@@ -171,7 +183,184 @@ impl<'a> CandidateSourceCrosswalk<'a> {
                 observation: candidate,
             });
         }
-        Ok(Self { calls, export })
+        Ok(Self {
+            calls,
+            export,
+            captured: None,
+        })
+    }
+    /// Borrows existing structural topology; every typed premise stays unresolved.
+    pub fn captured_input(&self) -> Option<&CapturedCallInput<'a>> {
+        self.captured.as_ref()
+    }
+    fn captured(
+        source: &'a ShadowArtifact,
+        hir: &'a HirModule,
+        candidate: &'a CandidateValueObservation,
+        root: &DefinitionRootId,
+    ) -> Result<Self, CrosswalkError> {
+        let missing = || CrosswalkError::MissingExactSourceIncidence;
+        let [HirItem::Binding(binding)] = hir.items() else {
+            return Err(missing());
+        };
+        if binding.definition_root() != root {
+            return Err(missing());
+        }
+        let skeleton = source.skeleton().map_err(|_| missing())?;
+        let input = skeleton.captured_call_input().ok_or_else(missing)?;
+        let local = hir
+            .shadow_local_binding(root)
+            .map_err(CrosswalkError::Source)?
+            .ok_or_else(missing)?;
+        let ResolvedExpr::Lambda {
+            parameter: outer, ..
+        } = binding.value()
+        else {
+            return Err(missing());
+        };
+        let ResolvedExpr::Lambda {
+            parameter: inner,
+            body,
+            ..
+        } = &local.initializer
+        else {
+            return Err(missing());
+        };
+        let ResolvedExpr::Apply {
+            occurrence,
+            callee,
+            argument,
+            ..
+        } = body.as_ref()
+        else {
+            return Err(missing());
+        };
+        let [call] = candidate.calls() else {
+            return Err(missing());
+        };
+        if &call.occurrence != occurrence
+            || &call.callee != callee.occurrence()
+            || &call.argument != argument.occurrence()
+            || local.local.definition_root() != root
+            || local.continuation.local != local.local
+            || local.captures.as_ref() != std::slice::from_ref(outer)
+            || hir
+                .shadow_parameter_local_owner(inner)
+                .map_err(CrosswalkError::Source)?
+                != Some(&local.local)
+            || !matches!(callee.as_ref(), ResolvedExpr::Name { resolution: yu_hir::NameResolution::Parameter(p), .. } if p == outer)
+            || !matches!(argument.as_ref(), ResolvedExpr::Name { resolution: yu_hir::NameResolution::Parameter(p), .. } if p == inner)
+        {
+            return Err(missing());
+        }
+        let root_expression = skeleton
+            .expression(skeleton.body())
+            .map_err(|_| missing())?;
+        let Form::Lambda { body: bind, .. } = root_expression.form() else {
+            return Err(missing());
+        };
+        let lambda = skeleton
+            .expression(input.local_lambda())
+            .map_err(|_| missing())?;
+        let Form::Lambda {
+            parameter: local_parameter,
+            ..
+        } = lambda.form()
+        else {
+            return Err(missing());
+        };
+        let application = skeleton.expression(input.call()).map_err(|_| missing())?;
+        let Form::Apply {
+            argument: source_argument,
+            ..
+        } = application.form()
+        else {
+            return Err(missing());
+        };
+        let positions = [
+            (
+                source.definition_source_position(hir, root),
+                root_expression.position(),
+            ),
+            (
+                source.parameter_source_position(hir, outer),
+                skeleton
+                    .binder(input.outer_parameter())
+                    .map_err(|_| missing())?
+                    .position(),
+            ),
+            (
+                source.local_source_position(hir, &local.local),
+                skeleton
+                    .binder(input.local_binding())
+                    .map_err(|_| missing())?
+                    .position(),
+            ),
+            (
+                source.occurrence_source_position(hir, &local.occurrence),
+                skeleton.expression(bind).map_err(|_| missing())?.position(),
+            ),
+            (
+                source.occurrence_source_position(hir, local.initializer.occurrence()),
+                lambda.position(),
+            ),
+            (
+                source.parameter_source_position(hir, inner),
+                skeleton
+                    .binder(local_parameter)
+                    .map_err(|_| missing())?
+                    .position(),
+            ),
+            (
+                source.occurrence_source_position(hir, occurrence),
+                application.position(),
+            ),
+            (
+                source.occurrence_source_position(hir, callee.occurrence()),
+                input.capture_position(),
+            ),
+            (
+                source.occurrence_source_position(hir, argument.occurrence()),
+                skeleton
+                    .expression(source_argument)
+                    .map_err(|_| missing())?
+                    .position(),
+            ),
+            (
+                source.occurrence_source_position(hir, &local.continuation.occurrence),
+                skeleton
+                    .use_position(input.returned_use())
+                    .map_err(|_| missing())?,
+            ),
+        ];
+        for (actual, expected) in positions {
+            if actual.map_err(CrosswalkError::Source)? != *expected {
+                return Err(missing());
+            }
+        }
+        let source_call = skeleton
+            .source_call_use_inputs()
+            .find(|call| call.application().expression() == input.call())
+            .ok_or_else(missing)?;
+        if source_call.binder() != input.outer_parameter()
+            || source_call.occurrence() != input.callee_use()
+            || candidate.fresh_rows(&call.callee).is_some()
+        {
+            return Err(missing());
+        }
+        let export = candidate
+            .export(root)
+            .map_err(|_| CrosswalkError::ForeignCandidate)?;
+        Ok(Self {
+            calls: vec![CandidateSourceCall {
+                input: source_call,
+                candidate: call,
+                skeleton,
+                observation: candidate,
+            }],
+            export,
+            captured: Some(input),
+        })
     }
     pub fn export(&self) -> &CandidateExport<'a> {
         &self.export
