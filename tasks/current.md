@@ -1747,14 +1747,31 @@ initial event admits identity reuse conditionally, but supplies no later-world
 or all-context theorem. Round-3 assumes the retained coherent extensions and
 CI-Operands/CI-ArgFrame; it does not derive them.
 
-The matching INIT_WORLD inversion distinguishes premise levels: if an open
+The matching INIT_WORLD inversion distinguishes premise levels. If an open
 `Delta_i` certificate is already supplied at the actual importer incidence and
 `C0`, the remaining first leaf is joint root-extension introduction with old-
-tuple restriction. If the grant is only exporter/external validity, importer
-installation is earlier. PCInit-source derives the open source-owned schema
-conditionally on these import/world leaves, but cannot install an opaque
-Option-2 import or manufacture the independent EnvStore/JointWF root. Neither
-version yields a source counterexample or status change.
+tuple restriction:
+
+```text
+independent external base at original (B_orig,xi,C0)
+open Delta_i at importer incidence, both hypothetical hole interfaces,
+  licensed provider/dependency maps, joint overlap and source-owned open roots
+-------------------------------------------------------------------------- ?
+joint EnvStore/JointWF root introduction at the importer;
+restriction recovers every old external incidence; holes remain hypothetical
+```
+
+If the grant is only exporter/external validity, importer installation is
+earlier. PCInit-source derives the open source-owned schema conditionally on
+these import/world leaves, but cannot install an opaque Option-2 import or
+manufacture the independent EnvStore/JointWF root. Neither version yields a
+source counterexample or status change. A conditional identity extension works
+only when the exact initial filling already has the joint world and local
+typing at `C0`; it does not provide the admission constructor or later demand
+transport. Response, raw-resume and future-use cases additionally need
+prefix-preserving current-world extensions, same-operation/handle/provider
+incidence, and activation expiry. This was a bounded producer rule audit; no
+independent closure review or semantic status change is claimed.
 
 Targeted Frozen Oracle archaeology of signature-local P2 construction found
 correlated polarized Function ports, formal-owned effect-marker rows and
