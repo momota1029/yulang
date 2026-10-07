@@ -23,7 +23,7 @@ protection is retained. No E/R or normalized blanket policy is selected.
 Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
 Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
 external dependency revalidation through
-`7423c12ac1269049a9159b5bb4355f761991d19c`. The final canonical DAG has
+`4a9d969db09be881bdc0ce6888cc3d651dfc2405`. The final canonical DAG has
 **90 nodes / 196 edges**: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43,
 OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. CALL_TYPE,
 PRINCIPAL and SOUND move from OPEN-PROOF to CONDITIONAL-CLOSED;
@@ -131,6 +131,16 @@ profiles** on the fixed owned/typed fiber; finite Slots/source/descriptor graphs
 do not establish it. A proved OC-Owned-Image plus original coverage elimination
 would suffice only for that exact route. ATTACH and licensing remain open
 independent correspondences with unchanged original scopes/`xi`.
+
+The later reviewed [captured-Call producer cut](../progress/2026-10-09-original-call-fiber-construction-round4.md)
+retains distinct O0 typed output/root, O1 static owner/seed-at-exposure,
+C0 whole-inlet typing, C1 original contribution preimage and J0 joint uniform
+incidence. The [pairwise-projection obstruction](../progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+requires an actual joint certificate or witness-linked lossless decomposition;
+disconnected retained license IDs do not supply it. The bounded
+[K-Owner pair audit](../progress/2026-10-09-original-kowner-underdetermination-round1.md)
+establishes no two competing complete semantics. ORIGINAL_ASSOC stays open
+with no added edge, global ordering claim or user-decision blocker.
 
 ## 3. Recursive source, origin permissions and Generalize
 
@@ -311,6 +321,13 @@ q1 recognition and pre-execution enforcement remain pending; no execution
 outcome, admission, provider, type fact or theorem discharge is supplied.
 This structural slice does not complete HIR_WIRING or enforce the closed
 semantic q1 boundary in the compiler.
+The independently reviewed [current Q/R capture](../progress/2026-10-07-shadow-current-qr-freshening-capture.md)
+is separately opt-in and retains only successful current use/target/binder/
+opaque-row identity. The [Frozen Oracle Call crosswalk](../progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md)
+links historical spans to the same pending HIR/Core/solver occurrence. Both
+remain structural evidence, with current-to-successor correspondence and
+source acceptance unresolved. Their final integration and focused checks
+are recorded in the round-3 record §13.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/

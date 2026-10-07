@@ -34,7 +34,7 @@ navigation into this ledger, not independent duplicate gate lists.
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
 starts from current remote `6fb5d7f6`, preserving all intervening work since
-round 2, and revalidates the additive remote through `7423c12a`. The current
+round 2, and revalidates the additive remote through `4a9d969d`. The current
 canonical ledger has **90 nodes / 196 edges**: 7 CLOSED, 20 CONDITIONAL-CLOSED,
 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
 blocker. Three existing OPEN nodes move to conditional closure: **65 → 62 OPEN**.
@@ -104,6 +104,15 @@ The one added CLOSED exact self-init subcase is reported separately.
   enumerate those accessors. Both independent reviews passed; the referee's
   minor conditional-wording clarification is applied. These are exact local
   proof targets, not further status reductions or new source semantics.
+- Latest remote `4a9d969d` is integrated. Its independently reviewed original
+  Call O0/O1/C0/C1/J0 cut, witness-linked incidence obstruction and unsuccessful
+  K-Owner pair audit refine ORIGINAL_ASSOC without changing statuses or edges.
+  The opt-in current Q/R capture and historical Call crosswalk are preserved;
+  their current-to-successor typing, association and q1 enforcement remain
+  pending. Fresh integration reviews found no blocking or major issue. The
+  ten focused initialization/capture/crosswalk tests and feature-off
+  core/HIR/solver build passed on the merged code. §13 of the round-3 record
+  accounts for the historical producer-hash discrepancy without rewriting it.
 
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.

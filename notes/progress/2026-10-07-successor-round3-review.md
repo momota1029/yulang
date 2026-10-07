@@ -5,8 +5,9 @@ Branch: `research/simple-sub-intrusion`
 Primary: Astra; source self-init synthesis and final proof adjudication
 Start remote: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 External remote delta revalidated: `6cd43ea855acdd1e7f47a46408715a03d192ffd4`
+Latest external remote revalidated: `4a9d969db09be881bdc0ce6888cc3d651dfc2405`
 First published checkpoint: `31b97ed3b56db5a642ae9eddeebda366af74233e`
-Status: proof panels and canonical-record delta passed; final integration and downstream attack in progress
+Status: proof panels, repaired deltas and final remote integration reviewed; final counts in §10 and integration checks in §13
 Production cutover: prohibited; no production inference routing change
 
 ## 1. Exact starting state and result accounting
@@ -339,11 +340,13 @@ expected-HEAD update. The fetched published tree is exactly
 Original local history is retained on a checkpoint branch; no force update
 or worker rollback occurred.
 
-The subsequently reviewed SOUND record delta and any remaining narrow
-source/interface results must pass final navigation/whitespace checks and
-another expected-HEAD publication. Code is unchanged from the reviewed
-four-test feature-on and successful feature-off build snapshot; documentary
-status changes do not justify a repeated broad build.
+At this published checkpoint, the subsequently reviewed SOUND record delta
+and narrow source/interface results still needed final navigation/whitespace
+checks and another expected-HEAD publication. §§12–13 record their completed
+review and the later external integration, which added a concrete code delta
+and therefore received new focused integration checks. The exact final
+published ref is reported by the primary after its expected-HEAD update and
+fetched-tree verification; no document claims its own future commit hash.
 
 ## 12. Downstream attacks after SOUND: no further promotion
 
@@ -443,3 +446,132 @@ the exact clarification; no additional review round was required by either.
 The canonical SOURCE_ADEQUACY and IFACE_FORM leaves now retain the reviewed
 local operational and actual-accessor equations. There is no further node,
 edge, status promotion, semantic adoption or user-decision blocker.
+
+## 13. Final external delta and merged-state validation
+
+The next pre-publication ref check found remote
+`4a9d969db09be881bdc0ce6888cc3d651dfc2405`, whose first-parent work includes
+`d48ed5eb` (three captured-Call original-fiber notes) and `bf66cec6` (current
+Q/R capture and a historical Call crosswalk). The remote merge retains the
+already published `64e459e3` checkpoint. The primary fetched it, committed
+the reviewed SOUND and §12 changes separately, and merged it as local
+`56c66234c51892db2af2dacd4eff1f4f0e271bd2`. Git merged the additive task
+record cleanly. All eleven remote changed files are preserved, with no
+governing design, approved answer or question receipt changed by this delta.
+
+### Semantic dependency review
+
+`round3_final_frontier_referee` received a separate read-only integration
+packet for all three newly merged original-fiber notes and their direct
+governing contracts. It found no blocking or major semantic finding and
+confirmed that all three conditional closures and exact q1 remain valid at
+their existing scopes. The primary accepted this review. Current bytes are:
+
+| Remote artifact | Current SHA-256 |
+| --- | --- |
+| [Captured-Call construction](2026-10-09-original-call-fiber-construction-round4.md) | `2d55271aaaaa5d4af7b912116fa3299431bc10cc16926118767182695b2c4977` |
+| [Joint-incidence obstruction](2026-10-09-original-call-fiber-adversarial-round4.md) | `86bca1a6fbb88479192bc548a9f8d35ca436766555998d8941b59d862db3a262` |
+| [K-Owner pair audit](2026-10-09-original-kowner-underdetermination-round1.md) | `4856d0848d50cb07f2d10ef048970d2450a1328805a2d51b57da3b9ca7e1b6c8` |
+
+These files visibly record their previous compiler-referee reviews but do
+not identify those reviewer sessions or reviewed-byte hashes. This integration
+review independently checked the **current** displayed contracts. The
+canonical ORIGINAL_ASSOC leaf retains O0/O1/C0/C1/J0 separately, preserves
+the stronger owned full-image and complete-family requirements, and adds
+the actual joint-certificate/witness-linked-lossless-decomposition cut.
+The even/odd parity example is a sorted algebraic information-loss theorem;
+it is neither two complete Yulang semantics nor failure of the existential
+original-fiber target. The unsuccessful K-Owner pair audit establishes no
+user-decision blocker. No additional node, edge or status promotion follows.
+
+The referee's one minor finding concerned dependency provenance. The K-Owner
+note records a construction hash `a24dd836...`, while its present reviewed
+dependency has the `2d55271a...` bytes above. The earlier producer snapshot
+is not independently retained in this integration packet, so **no claim of
+exact historical byte equality or metadata-only change is made**. The current
+O0/O1 content was directly rechecked and agrees with the audit's substantive
+use; its current-byte integration review is the evidence for this merge.
+The original hash record is preserved unchanged. This closes the integration
+accounting issue without rewriting history or certifying an unavailable
+snapshot.
+
+The primary also compared every plain recorded dependency hash against both
+the pinned `7423c12a` objects and current files. Construction has 23 exact
+matches and one historical canonical-ledger hash; adversarial has 16 exact
+matches; K-Owner has 10 exact matches and the construction snapshot exception
+above. The construction note's ledger is explicitly navigation only. Its
+`152572e5...` hash matches that pinned baseline, while the current ledger has
+the separately reviewed round-3 reductions. All governing design/answer/
+receipt inputs in these lists are byte-identical. No obsolete navigation
+status is treated as proof authority.
+
+### Shadow dependency review and executed checks
+
+`round3_final_frontier_spec` separately inspected the two remote shadow notes,
+their exact implementation/test cone, and compatibility with the retained
+initialization collection token. It found no blocking, major or minor issue;
+the primary accepted the review. Reviewed note hashes are
+`09d184cf3c1bf7e041ae58e2a338dbcc151b12d5cece77ceaf8051543bb48540`
+for Q/R capture and
+`61a559d11fa631f3c3211f231560224508d28382198fba8ba35c6e2a0f71ff69`
+for the legacy crosswalk. The latter test still matches its recorded
+`91452cb80f3cd51a9317779825973e4e077d6c0ccce50eac03d211022ec1eb42`.
+
+Only the explicit shadow solve entrypoint requests Q/R capture; ordinary
+solve stays uncaptured. Failed routes publish no successful evidence, and
+incomplete retained traces remain `Unavailable`. The cold observer qualifies
+rows by the capture, uses by the collection
+and binders by the finalized scheme. Initialization keeps its exact token
+and both pending q1 obligations. No directional protection or provider-role
+judgment is produced. The crosswalk retains the ordinary refusal boundary,
+empty semantic facts and every pending application/source-view premise.
+The remote note's former task-record deferral is now reconciled: the current
+task contains both slices, the canonical ledger and maps link them, and no
+old index ambiguity remains in the primary's integrated tree.
+
+On that merged code the primary executed, sequentially with the already
+owned Rust 1.90/cache/target configuration, two Cargo jobs and a 180-second
+per-command cap:
+
+| Focused check | Actual result |
+| --- | --- |
+| Combined-feature `shadow_initialization` integration target | 4 passed |
+| Combined-feature `shadow_legacy_local_application_provenance` target | 1 passed |
+| Combined-feature library filter `fresh_capture` | 5 passed, 470 filtered |
+| Feature-off `cargo check --locked -p yu-core -p yu-hir -p yu-solver --offline` | Passed without warnings |
+
+The first two targets shared one Cargo invocation (`--offline`, both
+`shadow-f5,shadow-scc-observer`, one test thread), compiling in 5.85 seconds.
+The five capture tests compiled in 18.69 seconds and ran in 0.42 seconds;
+the feature-off check finished in 1.04 seconds. These are focused integration
+checks, not a broad suite, performance claim, semantic proof or rerun of the
+historical Oracle. No further code changed after these checks.
+
+The final canonical scope remains §10's **90 nodes / 196 edges**, with
+7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC,
+1 IMPLEMENTATION-ONLY and no user-decision blocker. Existing OPEN nodes
+decrease by exactly three from the original latest-remote baseline. The
+current source/interface and original-fiber cuts are reviewed reductions of
+remaining leaves, not additional closures. Production inference cutover
+remains prohibited.
+
+Final documentary checks passed after that synchronization: the canonical
+generator validates 90 nodes / 196 edges and all 32 requested families;
+an exact comparison to starting `6fb5d7f6` finds only CALL_TYPE, PRINCIPAL
+and SOUND promoted, only new CLOSED REC_INIT_SELF, and exactly the two
+added prerequisite edges REC_INIT_SELF -> REC_INIT and HIR_WIRING -> SOUND.
+No previous edge or node was removed. All four preserved ledger/map files
+remain byte-identical to the starting remote, and all three approved q1
+question/draft/answer files remain byte-identical to `a814bc76`. The two
+reviewed initialization code/test hashes are unchanged. All 706 relative
+Markdown file-link targets in the complete changed-file set exist; this
+checks file targets, not every fragment anchor. Baseline-to-worktree
+`git diff --check` passed.
+
+The final bounded round-3 Call/original checker rerun also passed under
+the original 1 GiB address-space / 60-second cap: 64 finite assemblies,
+128 analytical-diagonal instances, all 512 finite 3-by-3 coverage matrices
+(169 positive), three independent-rule seams and the repaired Call-input
+vacuity/coherent-witness checks. Its scope remains sorted algebra; it
+constructs no original source kernel or admitted semantic world. The DAG
+validator likewise explicitly reports `semantic_proof_checked: false`.

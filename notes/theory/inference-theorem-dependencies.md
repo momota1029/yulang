@@ -62,7 +62,7 @@ production caller. Complete semantic interface generation is still IFACE_FORM.
 
 The current attack starts at `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 and includes read-only dependency revalidation through
-`7423c12ac1269049a9159b5bb4355f761991d19c`. The primary accepted the exact
+`4a9d969db09be881bdc0ce6888cc3d651dfc2405`. The primary accepted the exact
 independently compiler-referee/spec-auditor reviewed scopes linked in the
 [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md).
 The final canonical inventory is **90 nodes / 196 edges**: CLOSED 7,
@@ -238,6 +238,18 @@ bookkeeping; ATTACH still needs its independent correspondence and licensing
 still needs actual introduction and exhaustive inversion rules. Their statuses
 and original scopes/`xi` remain unchanged.
 
+The later reviewed [captured-Call cut](../progress/2026-10-09-original-call-fiber-construction-round4.md)
+separates O0 original typed output/root correspondence, O1 static owner
+introduction with actual seed-at-exposure, C0 whole-inlet independent typing,
+C1 original contribution preimage and J0 joint uniform incidence. Its
+owner-first traversal is not a new global dependency order. The reviewed
+[pairwise-projection obstruction](../progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+requires a joint certificate or a proved witness-linked lossless decomposition;
+retained disconnected license IDs do not prevent invented incidence. The
+[K-Owner pair audit](../progress/2026-10-09-original-kowner-underdetermination-round1.md)
+constructs no competing complete semantics or user-decision blocker. These
+locators refine ORIGINAL_ASSOC only; all statuses and edges are unchanged.
+
 The complete Call has both callee evaluation and designated receiver
 invocation. A computed-callee prefix cannot inherit the target formal's
 upper `p0` merely by sharing the complete-root contribution. The exact selected
@@ -388,6 +400,14 @@ Exact q1 source-envelope recognition and actual pre-execution enforcement
 remain pending in its carrier. It produces no execution outcome, semantic
 admission, runtime provider, new type fact or theorem discharge; the full
 HIR_WIRING contract and its implementation-only status remain unchanged.
+
+The later reviewed [current Q/R capture](../progress/2026-10-07-shadow-current-qr-freshening-capture.md)
+retains successful use/target/binder/opaque-row identities only when explicitly
+requested. The [legacy Call crosswalk](../progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md)
+joins historical spans to the same pending HIR/Core/solver row. Current-to-
+successor Q/R, original association, source acceptance and complete wiring
+remain pending; the round-3 integration record §13 distinguishes these
+parallel-worker contributions and their merged-state checks.
 
 ## Retirements and review
 
