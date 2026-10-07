@@ -1148,10 +1148,19 @@ fn retained_recursive_uses_export_and_freshen_r_binders() {
         FaultInjection::default(),
     )
     .unwrap();
+    assert_injective_mapping(&parent.identity_map);
     assert_eq!(
         parent.graph,
         reference_substitute(&snapshot, &parent.identity_map)
     );
+    assert_eq!(
+        reference_substitute(&parent.graph, &inverse_map(&parent.identity_map)),
+        snapshot
+    );
+    for (_, fresh) in &parent.identity_map {
+        assert!(!receiver_ids.contains(fresh));
+        assert!(!snapshot.identities.contains(fresh));
+    }
     let overlays = make_uses(&parent, &receivers, FaultInjection::default()).unwrap();
     assert_eq!(overlays.len(), pending.len());
     let mut fresh_ids = HashSet::new();
