@@ -211,6 +211,8 @@ mod scc;
 pub mod shadow_f5;
 #[cfg(feature = "shadow-scc-observer")]
 pub mod shadow_scc;
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+pub mod shadow_initialization;
 use scc::{SccComponentId, SccPlan};
 #[cfg(test)]
 mod intrusion_transport;
