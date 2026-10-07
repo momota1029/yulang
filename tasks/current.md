@@ -955,6 +955,15 @@ inferred. The focused three-test target and formatting/whitespace checks pass;
 the follow-on projection passed compiler-referee review. `STATE-ID`,
 `STATE-RW` and `STATE-RESUME` remain open.
 
+The reviewed [Frozen Oracle State-frame archaeology](../notes/progress/2026-10-07-frozen-oracle-state-frame-mechanism.md)
+recovers historical local-State lowering, synthetic effect registration,
+dynamic frame/scope identities, live payload replacement and snapshot
+restoration. It is useful for locating operational responsibilities only:
+neither `SnapshotFork` nor Oracle's equations are current semantics. The
+current typed captured-environment preservation at `C1` and its compatible
+join with retained `CalRet` evidence remain open in STATE_RW/REF_WORLD and
+CALL_TYPE CI-ArgFrame.
+
 The remote [pending binder-use grouping](../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md)
 borrows existing direct-Use registrations under exact artifact-branded binder
 identity. It preserves distinct Apply/Use identities and retained-node order;

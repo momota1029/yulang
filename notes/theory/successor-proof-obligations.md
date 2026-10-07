@@ -412,9 +412,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [STATE_ID](#state-id).
 - Premises retained: Actual source location and incoming live store.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule.
+- Minimal remaining lemma / exact closed scope: Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule. Frozen Oracle archaeology found an explicit historical local-State lowering and snapshot/frame runtime route, useful only to locate operational responsibilities: it supplies neither current xi/typed EnvStore preservation nor the successor equations.
 - Unblocks: [REF_WORLD](#ref-world).
-- Sources: [state](../../notes/progress/2026-10-04-local-state-capture-observation.md).
+- Sources: [state](../../notes/progress/2026-10-04-local-state-capture-observation.md); [oraclestate](../../notes/progress/2026-10-07-frozen-oracle-state-frame-mechanism.md).
 
 ### STATE-RESUME
 
@@ -445,9 +445,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [INIT_WORLD](#init-world), [STATE_RW](#state-rw), [STATE_RESUME](#state-resume).
 - Premises retained: Original typed open source identity graph, semantic imports, same world/xi and hole-dependent aliases.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.
+- Minimal remaining lemma / exact closed scope: Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure. The recovered historical State frame mechanism separates static operation identity, dynamic frame identity and live payload, but does not provide the current typed preservation theorem.
 - Unblocks: [SOURCE_ADEQUACY](#source-adequacy).
-- Sources: [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [state](../../notes/progress/2026-10-04-local-state-capture-observation.md); [importaction1](../../notes/progress/2026-10-07-world-open-import-action-round1.md).
+- Sources: [compat](../../notes/design/2026-10-03-concrete-compatibility-boundary.md); [state](../../notes/progress/2026-10-04-local-state-capture-observation.md); [oraclestate](../../notes/progress/2026-10-07-frozen-oracle-state-frame-mechanism.md); [importaction1](../../notes/progress/2026-10-07-world-open-import-action-round1.md).
 
 ### GUARD-INSERT
 

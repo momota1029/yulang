@@ -84,6 +84,7 @@ REFS = {
     "freshcapture": "notes/progress/2026-10-07-shadow-current-qr-freshening-capture.md",
     "legacycrosswalk": "notes/progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md",
     "argframe": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
+    "oraclestate": "notes/progress/2026-10-07-frozen-oracle-state-frame-mechanism.md",
     "initworldw0": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "argframeconstruct": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "frameleaf": "notes/progress/2026-10-07-calltype-captured-env-frame-leaf.md",
@@ -334,13 +335,13 @@ n("STATE_ID", "OPEN-SEMANTIC", "Source State location and activation identity", 
   "Give source introduction of dynamic storage locations/activations and capture alias identity across same/different invocations, without deriving it from an Oracle fixture.", "state")
 n("STATE_RW", "OPEN-SEMANTIC", "State read, replacement and restart source equations", "STATE_ID",
   "Actual source location and incoming live store.",
-  "Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule.", "state")
+  "Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule. Frozen Oracle archaeology found an explicit historical local-State lowering and snapshot/frame runtime route, useful only to locate operational responsibilities: it supplies neither current xi/typed EnvStore preservation nor the successor equations.", "state oraclestate")
 n("STATE_RESUME", "OPEN-SEMANTIC", "Raw resumption store and multi-shot branch equations", "STATE_ID",
   "Original raw handle, current resumed state and repeated branch identities.",
   "Specify which store each resume receives and how repeated/re-entered branches relate; sampled candidate branch equations are not source authority.", "multishot ordinary")
 n("REF_WORLD", "OPEN-PROOF", "Reference/import alias plugging and world transition closure", "INIT_WORLD STATE_RW STATE_RESUME",
   "Original typed open source identity graph, semantic imports, same world/xi and hole-dependent aliases.",
-  "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.", "compat state importaction1")
+  "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure. The recovered historical State frame mechanism separates static operation identity, dynamic frame identity and live payload, but does not provide the current typed preservation theorem.", "compat state oraclestate importaction1")
 n("CTX_FINITE", "OPEN-PROOF", "Finite source guard-context canonicalization", "GUARD_COVER RAW_SOURCE",
   "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
   "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. A reviewed restricted trace represents unsealed outward permission restriction; it does not cover a sealed result/store packet. That trace needs a source-justified scoped target interface and bound-capture/pack/open correspondence preserving every original witness, provider, scope, K,D dependency and suffix. This is only the next uncovered operation in that trace, not a global ordering or the sole leaf. Remaining: enumerate every actual source child-context operation and identity observer in the syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.", "contexts newglobal projection2 ctxpacket round2review")

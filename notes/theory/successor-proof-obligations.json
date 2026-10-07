@@ -786,9 +786,10 @@
         "STATE_ID"
       ],
       "premises": "Actual source location and incoming live store.",
-      "minimal_lemma_or_closed_scope": "Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule.",
+      "minimal_lemma_or_closed_scope": "Specify exact Read/update/replacement/restart equations, including the store passed to saved suffix and later captured reads; ordinary Bind's threading is not a replacement rule. Frozen Oracle archaeology found an explicit historical local-State lowering and snapshot/frame runtime route, useful only to locate operational responsibilities: it supplies neither current xi/typed EnvStore preservation nor the successor equations.",
       "references": [
-        "state"
+        "state",
+        "oraclestate"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -851,10 +852,11 @@
         "STATE_RESUME"
       ],
       "premises": "Original typed open source identity graph, semantic imports, same world/xi and hole-dependent aliases.",
-      "minimal_lemma_or_closed_scope": "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure.",
+      "minimal_lemma_or_closed_scope": "Prove plugging and every source transition preserve EnvStore/JointWF for references and imports; static reachability alone supplies neither typing nor arbitrary-world closure. The recovered historical State frame mechanism separates static operation identity, dynamic frame identity and live payload, but does not provide the current typed preservation theorem.",
       "references": [
         "compat",
         "state",
+        "oraclestate",
         "importaction1"
       ],
       "production_authority": "required-before-cutover",
@@ -2653,6 +2655,7 @@
     "freshcapture": "notes/progress/2026-10-07-shadow-current-qr-freshening-capture.md",
     "legacycrosswalk": "notes/progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md",
     "argframe": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
+    "oraclestate": "notes/progress/2026-10-07-frozen-oracle-state-frame-mechanism.md",
     "initworldw0": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "argframeconstruct": "notes/progress/2026-10-07-shadow-calltype-argframe-marker.md",
     "frameleaf": "notes/progress/2026-10-07-calltype-captured-env-frame-leaf.md",
