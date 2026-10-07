@@ -124,6 +124,34 @@ graphs are omitted. No benchmark processes or samples were consumed.
 
 ## Remaining authority and gates
 
+### Frozen mechanism correspondence
+
+A bounded explorer read immutable Oracle objects at
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` from the original workspace's
+object database; no Oracle execution or semantics adoption occurred.
+Historical locators refer to that revision, not the current source tree.
+
+- `crates/infer/src/compact/collect/mod.rs:746,765`: ordinary bound projection
+  retains the same variable's own polarized occurrence.
+- The same file at `1099` and `952–972`: bare positive and eligible unweighted
+  negative variable bounds become Secondary references without recursively
+  expanding the target's complete bounds. The fixture at
+  `compact/tests/case_01.rs:609` checks that distinction.
+- Collection at `761,776` and `collect/type_nodes.rs:653`: recursive reentry
+  stores the complete side in an interval table and returns an owner reference.
+- `compact/analysis/mod.rs:213` and `analysis/occurrence/mod.rs:490`: polarity
+  elimination and co-occurrence run to a fixed point; recursive centers receive
+  distinct co-occurrence treatment.
+- `generalize/core/free_vars.rs:30` and `generalize/tests.rs:784`: historical
+  recursive owners may also be quantified. This differs from current separate
+  Q/R ownership and prevents direct transplantation.
+
+Thus the candidate shares the historical own-symbol mechanism but not the
+whole historical generalization algorithm. The next production repair must
+justify the interaction of ordinary references, direct bounds and guarded
+recursive owners under current F5 authority. Oracle representation is evidence
+of an implementation mechanism, not the authority for that judgment.
+
 Canonical status counts remain 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
 19 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY. No proof or semantic node closes.
 The production generic-chain defect and recursive forwarding judgment remain
