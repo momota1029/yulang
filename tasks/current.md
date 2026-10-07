@@ -1257,6 +1257,16 @@ successor Q/R correspondence and shared-contract transport. Compiler-referee
 review and focused capture/shadow tests passed; ordinary solve stays
 uncaptured, and no production inference route changed.
 
+The local captured-Call test now also compares ordinary solve with explicitly
+requested current fresh-capture solve, using separate collections of the same
+immutable HIR so SCC query accounting and collection brands stay independent.
+Current facts/errors/counters, pending unresolved Apply, retained source/local
+identities, and the enclosing root's alpha-equivalent finalized current scheme
+agree. Both runs retain zero SCC operand uses and unresolved successor
+generalization; this confirms opt-in capture does not create a use or alter the
+current result, and does not claim application-operand freshening or successor
+Q/R correspondence. Its focused test passed.
+
 The [CALL_TYPE CI-ArgFrame shadow marker](../notes/progress/2026-10-07-shadow-calltype-argframe-marker.md)
 now records the still-unresolved joint argument-typing and actual-returned-
 provider carrier-compatibility obligation at each structural Apply. The HIR

@@ -588,8 +588,29 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
     );
     #[cfg(feature = "shadow-scc-observer")]
     let collected = batch.clone();
+    // Recollect the same immutable HIR so the solves have independent SCC
+    // query accounting; each later SCC join uses its own collection brand.
+    let capture_batch = ConstraintBatch::collect(hir.clone()).unwrap();
+    #[cfg(feature = "shadow-scc-observer")]
+    let captured_collected = capture_batch.clone();
     let solved = SolvedModule::solve(batch).unwrap();
+    let captured = SolvedModule::solve_with_shadow_fresh_capture(capture_batch).unwrap();
     assert_row(solved.pending_applications());
+    assert_row(captured.pending_applications());
+    assert_eq!(captured.store().facts(), solved.store().facts());
+    assert_eq!(captured.errors(), solved.errors());
+    let baseline_counters = solved.counters();
+    assert_eq!(captured.counters(), baseline_counters);
+    assert_eq!(captured.occurrences(), solved.occurrences());
+    assert!(Arc::ptr_eq(captured.hir(), &hir));
+    assert_eq!(
+        captured.hir().shadow_local_binding(root).unwrap().unwrap() as *const _,
+        sidecar
+    );
+    assert!(Arc::ptr_eq(
+        captured.shadow_captured_source(root).unwrap().unwrap(),
+        &artifact
+    ));
     let retained_root = solved.pending_applications()[0]
         .enclosing_root
         .as_ref()
@@ -601,41 +622,77 @@ fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
     assert_eq!(retained_root, root);
     assert_eq!(current_scheme.owner(), retained_root);
     assert!(current_scheme.same_identity(solved.shadow_closed_schemes().for_root(root).unwrap()));
+    // This is the enclosing apply root's current finalized scheme, not a
+    // generalized local step scheme or an application typing judgment.
+    let captured_root = captured.pending_applications()[0]
+        .enclosing_root
+        .as_ref()
+        .unwrap();
+    let captured_scheme = captured
+        .shadow_closed_schemes()
+        .for_root(captured_root)
+        .unwrap();
+    assert_eq!(captured_root, retained_root);
+    assert_eq!(captured_scheme.owner(), captured_root);
+    assert!(
+        captured_scheme.same_identity(captured.shadow_closed_schemes().for_root(root).unwrap())
+    );
+    assert!(
+        captured_scheme
+            .endpoints()
+            .alpha_eq(current_scheme.endpoints())
+    );
+    assert_eq!(
+        captured_scheme
+            .definition_source_position(&artifact)
+            .unwrap(),
+        artifact.definition_source_position(&hir, root).unwrap()
+    );
     assert!(!solved.occurrences().contains(callee.occurrence()));
     assert!(!solved.occurrences().contains(argument.occurrence()));
+    assert!(!captured.occurrences().contains(callee.occurrence()));
+    assert!(!captured.occurrences().contains(argument.occurrence()));
     #[cfg(feature = "shadow-scc-observer")]
     {
         use yu_solver::shadow_scc::PendingSccGeneralizationPremise;
 
-        let topology = collected.shadow_scc_topology();
-        let definitions = topology.definitions().collect::<Vec<_>>();
-        let [definition] = definitions.as_slice() else {
-            panic!("only the enclosing root is a current SCC member");
-        };
-        let joined = topology
-            .definition_closed_scheme(&solved, *definition)
-            .unwrap();
-        assert_eq!(joined.owner(), retained_root);
-        assert!(joined.same_identity(current_scheme));
-        let component = topology.component_of(*definition).unwrap();
-        let components = topology.components().collect::<Vec<_>>();
-        let [only_component] = components.as_slice() else {
-            panic!("one current SCC component");
-        };
-        assert!(component.same_identity(*only_component));
-        assert!(component.canonical_definition().same_identity(*definition));
-        let generalization = component.pending_successor_generalization();
-        assert!(generalization.component().same_identity(component));
-        assert_eq!(
-            generalization.premise(),
-            PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
-        );
-        // Neither Apply operand supplies an SCC dependency usable by the
-        // current use-instantiation/fresh-capture lookup.
-        assert_eq!(component.internal_uses().count(), 0);
-        assert_eq!(component.incoming_uses().count(), 0);
-        assert_eq!(topology.outgoing_uses(component).unwrap().count(), 0);
+        for (retained, result, scheme) in [
+            (&collected, &solved, current_scheme),
+            (&captured_collected, &captured, captured_scheme),
+        ] {
+            let topology = retained.shadow_scc_topology();
+            let definitions = topology.definitions().collect::<Vec<_>>();
+            let [definition] = definitions.as_slice() else {
+                panic!("only the enclosing root is a current SCC member");
+            };
+            let joined = topology
+                .definition_closed_scheme(result, *definition)
+                .unwrap();
+            assert_eq!(joined.owner(), retained_root);
+            assert!(joined.same_identity(scheme));
+            let component = topology.component_of(*definition).unwrap();
+            let components = topology.components().collect::<Vec<_>>();
+            let [only_component] = components.as_slice() else {
+                panic!("one current SCC component");
+            };
+            assert!(component.same_identity(*only_component));
+            assert!(component.canonical_definition().same_identity(*definition));
+            let generalization = component.pending_successor_generalization();
+            assert!(generalization.component().same_identity(component));
+            assert_eq!(
+                generalization.premise(),
+                PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+            );
+            // Both operands are parameters, and local step has no current SCC
+            // member. Capture is requested, but there is no DefinitionUseId for
+            // either operand to query: no fresh use or Q/R correspondence follows.
+            assert_eq!(component.internal_uses().count(), 0);
+            assert_eq!(component.incoming_uses().count(), 0);
+            assert_eq!(topology.outgoing_uses(component).unwrap().count(), 0);
+        }
     }
+    assert_eq!(solved.counters(), baseline_counters);
+    assert_eq!(captured.counters(), baseline_counters);
     assert!(solved.store().facts().is_empty());
     assert!(Arc::ptr_eq(solved.hir(), &hir));
     assert_eq!(
