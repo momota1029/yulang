@@ -5,7 +5,7 @@ Branch: `research/simple-sub-intrusion`
 Primary: Astra; source self-init synthesis and final proof adjudication
 Start remote: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 External remote delta revalidated: `6cd43ea855acdd1e7f47a46408715a03d192ffd4`
-Latest external remote revalidated: `ead43c6db67767cc55def85a7670b2aef903ef1f`
+Latest external remote revalidated: `d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`
 First published checkpoint: `31b97ed3b56db5a642ae9eddeebda366af74233e`
 Status: proof panels, repaired deltas and final remote integration reviewed; final counts in §10 and integration checks in §13
 Production cutover: prohibited; no production inference routing change
@@ -610,3 +610,72 @@ Only revalidation metadata and this policy application are added to the
 canonical records; counts, statuses, prerequisite edges and production
 authority are identical to §13. No repeat Cargo build is justified by this
 policy/document-only delta.
+
+## 15. Publication lease recheck and final research-only merge
+
+After creating the immutable publication objects for §14, the immediate ref
+check found `d27f4090` instead of expected `ead43c6d`. **No ref update was
+attempted against that changed HEAD.** The primary fetched and cleanly merged
+the five-file research/task delta. It preserves the four new research notes
+and all additive task content. No tested code, language design, approved
+answer, manifest or lockfile changed.
+
+The primary reread all four artifacts. `round3_final_frontier_referee` checked
+the three semantic/relation notes and their direct contracts; it found no
+blocking or major issue and confirmed the three conditional closures and q1
+are unaffected. `round3_final_frontier_spec` independently checked the actual
+producer chronology, its repaired feature premise and direct source/HIR/
+solver consumers; it reported no findings. Both reviews are accepted.
+
+| Artifact | Frozen integration-review SHA-256 |
+| --- | --- |
+| [C-realization input accounting](2026-10-07-original-association-constructive-round5.md) | `cb3119bdcf336d452f03da53ae688491dc32cd600757e0ed029da13dc6e528b7` |
+| [Ordered contribution map](2026-10-07-original-association-adversarial-round5.md) | `0655c093aaca5b674a0918f98e5d06172b0a230b2461a8b5417c9dc8f2b37bc3` |
+| [Open import action](2026-10-07-world-open-import-action-round1.md) | `0c16e657edd46bdf0b972da3ebc8f3544966485895ce7781b6868c3b8a704ba3` |
+| [Current producer chronology](2026-10-07-original-association-current-producer-crosswalk-round1.md) | `57c92c2848b388c7af7360a367ce2c5e73374f71d0766ce3509274b6a74c8d38` |
+
+The first three display prior compiler-referee review and the fourth displays
+its repaired regression review; they do not expose those prior session
+locators. This new integration review is pinned to their current bytes.
+The referee's one minor record finding is repaired: the import note's old
+"Independent review is pending" sentence is explicitly marked as the
+historical producer-freeze state, with its current header/commit packet
+recording the subsequent review. Only that review-status wording changes
+from the frozen import hash above. No mathematical claim changes or further
+review round is required for this correction.
+
+The original association target remains the same owned complete-family
+fiber. C-realization transports an actual input derivation and cannot supply
+that original inhabitant. The ordered-suffix mutation preserves static tokens
+while corrupting their active map; the actual constructor must retain and
+justify the original ordered source-to-contribution/suffix/resumption map.
+This is not an independently admitted Yulang counterexample or exclusion of
+separately licensed Option 2 observations.
+
+For imports, a legal change from `(a,a)` to `(b,a)` cannot act only on the
+closed identity `a` after forgetting which occurrence is a hole and which is
+rigid. An occurrence-aware representation escapes that structural obstruction.
+The still-independent semantic rule must identify the incidence/witness
+action with the fixed import interpretation and jointly extend the importer
+world at the original `X/xi` and binder positions. Closed-filling validity
+and generic relation-image transport do not provide that rule. Actual
+admission of the fixture is unproved; no new IMPORT node or user decision is
+introduced.
+
+The producer chronology is restricted to the exact approved nested source
+with `yu-solver/shadow-f5`. The cold sidecar contributes one pending Apply;
+ordinary semantic collection still receives the outer Lambda's Error body
+and emits no local occurrence facts, Lambda recipe or definition-use edge.
+Solve moves that row unchanged. These semantic association facts were not
+first produced and then discarded on this path. All 19 pinned direct
+dependencies of that chronology match current bytes. The semantic-note
+language/answer/prior-research hashes also match; the recorded policy/task/
+DAG differences are the already documented later policy and navigation.
+
+The canonical ORIGINAL_ASSOC, INIT_WORLD and SEM_JOINT leaves retain the two
+reviewed map/action refinements; REF_WORLD and HIR_WIRING gain the relevant
+locators only. All 90 statuses and 196 prerequisite edges are unchanged.
+The generator/maps/task are synchronized to this revalidated remote. Code
+is byte-identical to the §13 tested snapshot, so no extra Cargo run or model
+enumeration is justified. The complete semantic signatures remain the next
+source-constructor targets under §14's design-debt audit.

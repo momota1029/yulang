@@ -34,7 +34,7 @@ navigation into this ledger, not independent duplicate gate lists.
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
 starts from current remote `6fb5d7f6`, preserving all intervening work since
-round 2, and revalidates the additive remote through `ead43c6d`. The current
+round 2, and revalidates the additive remote through `d27f4090`. The current
 canonical ledger has **90 nodes / 196 edges**: 7 CLOSED, 20 CONDITIONAL-CLOSED,
 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
 blocker. Three existing OPEN nodes move to conditional closure: **65 → 62 OPEN**.
@@ -119,6 +119,12 @@ The one added CLOSED exact self-init subcase is reported separately.
   it cannot invent original owner/licensing or world/member proofs. The
   user's explicit all-view/all-world/adequacy targets and governing contracts
   remain in force. No node, status, edge or production boundary changes.
+- The final `d27f4090` research-only delta is integrated and independently
+  checked in §15. It adds no semantic supplier: C-realization retains its
+  original input, the source contribution needs its active ordered map,
+  and open imports need an incidence action identified with their fixed
+  independent meaning. The exact current nested path does not generate
+  semantic association and then discard it. All statuses/edges remain intact.
 
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.

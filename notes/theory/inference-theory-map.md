@@ -23,7 +23,7 @@ protection is retained. No E/R or normalized blanket policy is selected.
 Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
 Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
 external dependency revalidation through
-`ead43c6db67767cc55def85a7670b2aef903ef1f`. The final canonical DAG has
+`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. The final canonical DAG has
 **90 nodes / 196 edges**: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43,
 OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. CALL_TYPE,
 PRINCIPAL and SOUND move from OPEN-PROOF to CONDITIONAL-CLOSED;
@@ -41,6 +41,15 @@ The final policy delta receives the design-debt audit in the review record
 missing semantics into assumed certificates. The explicit all-view/all-world
 task and current governing contracts survive. No gate or production
 dependency is removed merely by labeling it stronger characterization.
+
+The independently revalidated final research delta (§15 of the same record)
+retains the [active ordered contribution map](../progress/2026-10-07-original-association-adversarial-round5.md)
+and [open-import incidence action](../progress/2026-10-07-world-open-import-action-round1.md)
+as existing correspondence obligations. Static IDs cannot certify the former;
+generic relation-image transport cannot establish the fixed import meaning
+for the latter. The [current producer chronology](../progress/2026-10-07-original-association-current-producer-crosswalk-round1.md)
+shows only the exact missing semantic source path, not repository-wide absence.
+Counts, statuses and prerequisite edges are unchanged.
 
 The [round-2 review](../progress/2026-10-07-successor-round2-review.md)
 remains history: its original-kernel candidate, actual recursive certificate/

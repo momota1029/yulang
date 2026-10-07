@@ -62,7 +62,7 @@ production caller. Complete semantic interface generation is still IFACE_FORM.
 
 The current attack starts at `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 and includes read-only dependency revalidation through
-`ead43c6db67767cc55def85a7670b2aef903ef1f`. The primary accepted the exact
+`d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c`. The primary accepted the exact
 independently compiler-referee/spec-auditor reviewed scopes linked in the
 [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md).
 The final canonical inventory is **90 nodes / 196 edges**: CLOSED 7,
@@ -82,6 +82,15 @@ an unproved semantic owner/license/world fact cannot be manufactured as a
 certificate. Stronger characterizations explicitly requested here remain
 within the task and their governing contracts. This policy supplies no
 closure, semantic weakening or automatic removal of a cutover dependency.
+
+The final research-only delta is independently revalidated in §15. The
+[ordered-map discriminator](../progress/2026-10-07-original-association-adversarial-round5.md)
+retains ORIGINAL_ASSOC's active original suffix/resumption correspondence;
+identity tokens alone do not certify it. The [open-import action cut](../progress/2026-10-07-world-open-import-action-round1.md)
+requires licensed original-incidence/witness transport, fixed-interpretation
+identification and joint importer root extension. The [actual producer trace](../progress/2026-10-07-original-association-current-producer-crosswalk-round1.md)
+locates the bounded missing semantic producer before collection, not an
+already established association later discarded. No node or edge is added.
 
 The [full principal synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
 closes PRINCIPAL's composition under its unchanged SOURCE_ADEQUACY,
