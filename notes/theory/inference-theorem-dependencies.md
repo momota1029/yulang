@@ -24,13 +24,13 @@ The previous expanding ledger is preserved as
 Its old open wording is superseded by the explicitly scoped current nodes,
 not merged into a second active inventory.
 
-## Round-2 revalidation and constructive delta
+## Round-2 history and reviewed constructive delta
 
-The current continuation starts at `ad514061` and revalidates the additive
+Round 2 started at `ad514061` and revalidated the additive
 remote through `3cf6bb70`. Both independent compiler/spec reviews accepted
 the [round-2 packet](../progress/2026-10-07-successor-round2-review.md).
-Its restricted results refine existing minimum obligations; all 89 node
-statuses and 194 edges remain unchanged. No original source semantic leaf
+Its restricted results refined existing minimum obligations; at that round,
+all 89 node statuses and 194 edges remained unchanged. No original source semantic leaf
 is closed by a supplied-input implementation or candidate clause.
 
 The [original-kernel construction](../progress/2026-10-07-successor-original-kernel-construction-round2.md)
@@ -40,22 +40,6 @@ typed invocation in the original contribution domain, introduce the static
 owner and prove joint incidence coherence. Exhaustive licensing inversion
 must recover every actual original witness. A source argument diagonal does
 not replace independent whole-carrier inlet admission.
-
-## Round-3 conditional principality composition
-
-The independently compiler-referee/spec-auditor-reviewed [actual-export
-synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md) proves the
-existing `PRINCIPAL` composition node from the **full unchanged**
-`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts. For each independent
-finite public scheme, it fixes a whole-copy/query graph before selecting a
-public solution, transports one joined original-scope strategy together with
-the actual exported-root `Direct` evidence through PROJECTION's ordinary-use
-factorization, then applies certified-use Theorem 3 for exact public
-projection. Binder strategy, imports, correlations and all evidence remain
-in scope. This changes only `PRINCIPAL` to `CONDITIONAL-CLOSED`; all three
-prerequisites remain open. It supplies neither actual-root resolver acceptance
-nor nonidentity decorated descriptor proofs, closes no `ALL_VIEW` or
-`SOURCE_ADEQUACY` leaf, and grants no production-cutover authority.
 
 The [recursive certificate](../progress/2026-10-07-successor-recursive-coinduction-round2.md)
 offers an alternative to the listed FH/reflection method inside REC_DESC.
@@ -74,27 +58,99 @@ and [atom evaluator](../progress/2026-10-07-shadow-atom-orbits-round2.md)
 implement their supplied-input slices, with explicit exhaustion and no
 production caller. Complete semantic interface generation is still IFACE_FORM.
 
+## Round-3 integration and counts
+
+The current attack starts at `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
+and includes read-only dependency revalidation through
+`6cd43ea855acdd1e7f47a46408715a03d192ffd4`. The primary accepted the exact
+independently compiler-referee/spec-auditor reviewed scopes linked in the
+[current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md).
+The canonical inventory is now **90 nodes / 195 edges**: CLOSED 7,
+CONDITIONAL-CLOSED 19, OPEN-PROOF 44, OPEN-SEMANTIC 19,
+IMPLEMENTATION-ONLY 1, BLOCKED-BY-USER-DECISION 0. The old 65 OPEN nodes
+become 63 because CALL_TYPE and PRINCIPAL have proved conditional
+compositions; the added CLOSED exact self-init subcase is a new node,
+not another reduction of an existing OPEN node.
+
+The [full principal synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
+closes PRINCIPAL's composition under its unchanged SOURCE_ADEQUACY,
+ALL_VIEW and PROJECTION premises. It computes one finite legal `P_S` before
+choosing `V`, fixes one whole ordinary-use copy/query graph before choosing
+assignments, and transports ALL_VIEW's single coherent original-scope joined
+strategy and actual `B_common` Direct evidence through **full** PROJECTION.
+The latter already requires ordinary-use/evidence factorization; marginal
+projection equality is insufficient. Certified-use Theorem 3 then gives
+exact public factorization for every independently valid finite public scheme
+in the declared conservative abstraction. All three actual upstream gates
+remain open; SOUND, production containment and cutover are not proved.
+
+The repaired [full Call composition](../progress/2026-10-07-call-original-rule-round3.md)
+§2.1 closes CALL_TYPE conditionally under unchanged CALL_REL/SEM_JOINT
+edges. Its independent local laws **and their constructed input instances**
+remain in the semantic component below. No actual descriptor membership,
+assignment inhabitance, attachment/licensing, complete assembly or profile
+is obtained by recording the implication.
+
 ## Independent semantic specifications and realization
 
 DESC_CLAUSES and ADMISSION_CLAUSES specify the complete descriptor/carrier/
 constructor and response/resume/future-use clauses; INIT_WORLD specifies the
 original open-world/import clauses. SEM_JOINT constructs their one justified
 simultaneous interpretation, without source-image membership or an assumed
-greatest fixed point. Only then do CALL_TYPE, REC_DESC and REC_LOCAL prove
-actual pointwise laws. INIT_VALID constructs the source base separately,
-and MEMBER_DISCHARGE combines it with FH and the independent descriptor law.
+greatest fixed point. CALL_TYPE now has a reviewed full conditional
+composition; its actual local laws and joint input instances still require
+independent clause construction and SEM_JOINT realization. REC_DESC and
+REC_LOCAL remain open pointwise proofs. INIT_VALID constructs the actual
+source base; MEMBER_DISCHARGE requires that same base, local checks and
+ordinary descriptor discharge, or an independently proved restricted
+simultaneous rule that concludes those facts together.
 ROWS also requires all-world coverage before its joint source witness can be
 claimed. This split closes the inventory review finding that missing
 semantic definitions had been hidden in upstream proof premises.
+
+The canonical DESC_CLAUSES, SEM_JOINT and CALL_TYPE records explicitly retain
+all of the following from repaired Call §2.1:
+
+- **CalRet:** actual callee Return gives current-world and actual callable
+  membership, including the provider's latent/future obligations.
+- **DelayIntro:** membership of the whole inert computation carrier from
+  argument typing and the actual provider's whole-carrier compatibility.
+- **Phase_r:** every actual receipt, entry, body/native, designated-consumer
+  and return phase, including all independently specified finite/zero-step
+  prefix and future developments.
+- **BindTyped:** every complete original ordered suffix and target, with all
+  admitted responses, current-state raw resumes and returned-provider uses.
+- **CI-Operands:** construct both typed operands jointly with original
+  captured-environment/provider/current-world adequacy; original lookup or
+  `Gamma` identity alone is insufficient.
+- **CI-Bind:** construct every actual ordered original Bind interface with
+  its typed ports, suffix, world and dependencies.
+- **CI-ArgFrame:** for **every retained CalRet witness**, preserve its evidence
+  and jointly extend argument typing at the actual returned `C1` and
+  `ArgCompatible` with that actual provider. Argument typing at `C0` supplies
+  neither returned-world transport nor that compatibility.
+- **CI-Receipt:** construct the complete first independent receipt/authority
+  inputs jointly with retained CalRet/carrier/frame facts.
+- **CI-StepFrame:** construct each complete next-phase input and its incident
+  Bind interface jointly at the actual returned current world, retaining the
+  phase's output evidence and original dependencies.
+
+All laws/instances use one coherent evidence family under original scopes
+and `xi`; separately chosen existential worlds or witnesses cannot be
+conjoined. The bridge constructs ordinary local inputs and interfaces,
+never whole invocation/Call membership. DESC_CLAUSES stays OPEN-SEMANTIC,
+SEM_JOINT stays OPEN-PROOF; actual law instantiation and source/world input
+construction remain open. The conditional proof derives whole suffix typing
+from those inputs rather than assuming it.
 
 ## Source contribution dependency route
 
 | Gate | Necessary input | Smallest unfinished step | Downstream |
 | --- | --- | --- | --- |
 | CALL_REL, conditional closed | Original decorated provider/entry/consumer meaning | None for complete relational Call construction | CALL_TYPE |
-| CALL_TYPE | Independent ordinary descriptors/carriers and original whole invocation | Prove complete output/pending constructor typing without assuming attachment | ORIGINAL_ASSOC |
+| CALL_TYPE, conditional closed | Every independent local law and joint Call-input instance above on one original tuple | None for full conditional composition; actual DESC_CLAUSES/SEM_JOINT law/input construction remains | ORIGINAL_ASSOC |
 | SIG_RULES | Original source introduction, annotations/arms, scopes and direction | Exhaustive independent licensing introduction/transport clauses | ORIGINAL_ASSOC and inversion |
-| ORIGINAL_ASSOC | Same original kernel and complete typed Call | Inhabit original source-owned typed slot/contribution fiber; retain all witnesses | ATTACH |
+| ORIGINAL_ASSOC | Same original kernel and complete typed Call | P2 owned full typed-image incidence; P3 actual complete-family witness and all original licensed witnesses | ATTACH |
 | ATTACH | Original fiber and actual source constructor | Forward/inverse source attachment construction at identical original coordinates | LIC_FORWARD, LIC_INVERT |
 | LIC_FORWARD / LIC_INVERT | All original licensing rules | Attach implies original license; every license has an original source/transport arm | PROFILE |
 | PROFILE | Both licensing directions on one original relation | Exact complete beta/Slots assembly and inversion | ROWS and typed source incidence |
@@ -117,6 +173,23 @@ same X/xi. Realization's primitive witness copy cannot replace internal
 licensing last-rule accounting. H_gen/H_typed do not imply H_assoc; no
 same-X counterexample or new theorem edge is supplied by these attacks.
 
+The reviewed [round-3 P2/P3 and rule cut](../progress/2026-10-07-call-original-rule-round3.md)
+§§3–6 requires an original full-denotation typed preimage **jointly incident**
+at its original static owner/slot/path. Global representability and a
+separately inhabited owner fiber do not give this owned indexed preimage.
+P3 requires one original witness covering the complete family before
+observation choice; all finite-observation assemblies, even retaining all
+input licenses/evidence, do not imply that result. A proved OC-Owned-Image
+with original coverage elimination would suffice for this exact route.
+Alternatively, finite-family coverage plus a finite quotient of **semantic
+complete-coverage profiles** on the fixed owned/typed fiber yields an actual
+original complete-family witness. Finite Slots, source graphs or descriptors
+do not establish that quotient. All original licensed witnesses, including
+those outside any constructor image, remain. Projecting origin fields is
+bookkeeping; ATTACH still needs its independent correspondence and licensing
+still needs actual introduction and exhaustive inversion rules. Their statuses
+and original scopes/`xi` remain unchanged.
+
 The complete Call has both callee evaluation and designated receiver
 invocation. A computed-callee prefix cannot inherit the target formal's
 upper `p0` merely by sharing the complete-root contribution. The exact selected
@@ -131,6 +204,46 @@ Name callee is returning/event-free under its original Name interpretation.
 | RS whole actual rule-occurrence provenance; LX lexical imports | INTRO semantic coordinate classification, GUARD_INSERT/GUARD_TERMINAL and complete derived coverage |
 | PG1 source-selected projection endpoints/fixed captures | GENERALIZE semantically eligible views, binders/anchors, fixed imports and legitimate fresh use |
 | CI_ALPHA effective complete finite alpha-isomorphism; CI_USE conditional finite joint uses | IFACE_FORM complete actual producer and IFACE_EQUIV every primitive/consumer law |
+
+The reviewed [source-root/world minimum cut](../progress/2026-10-07-world-recursive-rule-round3.md)
+§§3–6 sharpens INIT_WORLD/INIT_VALID/REC_DESC/MEMBER_DISCHARGE without
+promoting them. The restricted acyclic interface needs one independently
+typed external base, the actual open-import action where needed, original
+source constructor data/provisional roots, joint cross-boundary/current-world
+compatibility and an independent root-extension last rule. An exporter scalar
+still needs cross-world installation at the importer; pointwise closed filled
+roots give no hole-dependent open-import action. Preserve original witness
+dependencies rather than imposing one new witness across all fillings.
+
+For the actual K pair, a world/lookup premise that entails `d_f,d_g` cannot
+be assumed in order to introduce those same own-member facts. K's captured
+lookup identities are not ordinary typing readouts. The restricted
+simultaneous rule must conclude actual installed-root validity with ordinary
+member typing, every original CompleteMem/KV conjunct and pointwise
+transition/lookup preservation. Its independent external/current base,
+exhaustive actual local clause instances, nonrecursive guards and **ordinary
+cyclic Return acceptance theorem** for the exposed latent occurrences remain
+unproved. No unspecified world predicate is weakened by deleting conjuncts;
+operational Return progress does not prove latent ordinary acceptance. Both
+this direct method and FH retain all original scopes and independent inlet/
+world domains. Successful discharge would still leave Generalize's complete
+anchor/admission/reflection obligations.
+
+The [approved exact self-init rule](../design/2026-10-07-recursive-self-init-executable-boundary.md)
+and [reviewed proofs](../progress/2026-10-07-self-init-and-conformance-round3.md)
+close **REC_INIT_SELF** with no open semantic dependencies. Authority is the
+validated [q1/d1 answer](../../questions/2026-10-07-recursive-self-initialization/approved-answer.md)
+and [receipt](../../questions/2026-10-07-recursive-self-initialization/receipt.md),
+integrated at `a814bc76aa107f2ffb7aae9cb2e2887c5b078792`. Only the exact
+singleton `my f = f`, without annotation/parameters and with a direct RHS
+Name resolving to its original binder, is rejected at executable acceptance
+before initialization/RHS self-read. F4's existing `Never` inference remains.
+Source-envelope inversion, no-start and that exact source-adequacy subcase
+are closed; actual compiler enforcement remains an **implementation
+obligation pending**. REC_INIT adds this closed prerequisite and remains
+OPEN-SEMANTIC for other initializer classes, including the separately
+unresolved another-member InitRead availability/world outcome. No general
+`Never` rejection, recursive-initializer rule or production cutover follows.
 
 Finite-history induction and recursive operator conjugacy are different proofs.
 Neither permits an already validated member environment or an assumed kernel
@@ -171,11 +284,34 @@ JOINT_DEC and PROJECTION remain the complete residual/effective source gates.
 | --- | --- |
 | General source adequacy | Complete raw source generation and rows, all-world admission, typed incidence/liveness, adapters/dispatch/subtraction/release, State/reference/world and role/method fixed point |
 | Independent production meaning | SAT_A exhaustive original Option A/2 member clauses and ADM_A independently typed punctured contexts |
-| Production conformance | D_C subset D_A and P_A subset P_C for every original checked-admitted challenge, including Option 2 production-only observations |
-| Sound successor inference | Complete source/production correspondence and effective exact joint solver |
-| All-view principality | Conditional composition is proved; the complete SOURCE_ADEQUACY, ALL_VIEW and PROJECTION premises remain open, including legal common descriptor/totality, actual-export universal Direct/resolver acceptance and effective original-scope projection conformance |
+| Production conformance | Same-original generated-source to actual descriptor/Sat_A lower membership, independently of D_C subset D_A and P_A subset P_C for every original checked-admitted challenge, including Option 2 extras |
+| Sound successor inference | Complete source/production correspondence, effective exact joint solver and actual exported-residual/publication/accepted-use preservation to the original solved relation |
+| All-view principality, conditional composition closed | Actual SOURCE_ADEQUACY, ALL_VIEW and full original-scope ordinary-use/evidence PROJECTION remain open, including common formation/totality |
 | Generalized SCC lifecycle | Complete actual interface, primitive equivariance, fresh/internal use correspondence, split/merge/rebuild/reference/atomic publication |
 | Production cutover | All preceding claims, exact practical resource boundary, full HIR/pipeline implementation, Oracle capability evidence, independent final reviews and explicit concrete rollout authority |
+
+The accepted reviewed [round-3 aggregate attack](../progress/2026-10-07-aggregate-obligation-attack-round3.md)
+refines existing PROD_CONFORMANCE/SOUND obligations without changing their
+statuses or edges. Its fixed-original-fiber model has nonempty actual
+admission and observations and satisfies both `D_C subset D_A` and
+`P_A subset P_C`, yet omits an original generated source observation.
+The required lower head is generated source observation plus independent
+admission yielding membership of the **corresponding actual descriptor/
+Sat_A**, including its independently interpreted descriptor conjunct and
+one original scope-preserving witness transport. Endpoint predicates alone
+are insufficient. Actual constructor induction must derive that head from
+child membership and original constructor witnesses, universally over the
+retained original contexts/valuations/future histories. Production extras
+remain permitted and need no source construction. This is the already
+listed source-to-actual commuting leg, not another gate reduction.
+
+SOUND likewise retains actual publication/use preservation: exported residual,
+hiding, evidence and accepted uses must correspond to the same original
+solved relation. JOINT_DEC and semantic conformance do not by themselves
+certify a publisher/instantiator with the correct public fiber. The
+algebraic falsifier is no compiler defect claim. IFACE_EQUIV and FRESH_LIFE
+retain their unchanged actual primitive/lifecycle hypotheses; finite
+alpha equality and conditional fresh-use/reuse do not construct them.
 
 PATH_QUERY is a separately verified finite shadow consequence operation over
 supplied evidence; it is not a semantic prerequisite for a particular
@@ -188,9 +324,11 @@ The canonical ledger has the exhaustive old-to-current retirement table:
 pure FMP subtargets, opaque selected SV/capture, opaque K/LX providers/imports,
 fresh contribution labels, repeated completed-P premises, selected SC role
 substitution, blanket O classification, a separate m_V calculus, reverse
-mutation across edits, absence of any finite alpha equality, and old E/R.
+mutation across edits, absence of any finite alpha equality, old E/R, generic
+Call/principality composition, and exact q1 executable ambiguity. Their open
+semantic input clauses and actual implementation obligations are retained.
 
-Read the [current review/integration record](../progress/2026-10-07-successor-full-attack-review.md)
+Read the [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md)
 for actual review scopes, repaired findings and executed checks. Missing
 semantic clauses are research obligations; no two complete competing
 Authority-consistent semantics on the same admitted source have been

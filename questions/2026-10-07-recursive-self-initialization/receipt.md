@@ -1,4 +1,4 @@
-# Receipt — validated handoff; implementation not yet applied
+# Receipt — validated handoff; governing source applied, compiler enforcement pending
 
 Question ID: `recursive-self-initialization`
 Question revision: `q1`
@@ -21,7 +21,7 @@ The question, current draft and approved answer all identify `recursive-self-ini
 
 The approved choice excludes only the exact singleton `my f = f` from the executable-source envelope, preserves its existing F4 inference result, and requires deterministic rejection before execution or self-read. It does not select runtime error, nontermination or a value-producing rule, and does not extend to other recursion forms or general `Never` expressions.
 
-## Outcome and reason
+## Original handoff outcome and reason
 
 Accepted as a valid user-approved semantic handoff and integrated without changing its content. The answer is not yet applied to compiler behavior. Its scope does not independently authorize implementation or production cutover; a reviewed governing-source record and the existing inference proof/cutover gates remain required before implementation.
 
@@ -30,3 +30,26 @@ Repository records/gates: `REC_INIT` and `RAW_SOURCE` remain open pending a revi
 Affected work waiting: implementation of this exact pre-execution rejection rule and any source-adequacy claim that depends on it.
 History retained: q1, `answer-draft.md` d1 and `approved-answer.md` in this directory.
 User-facing rejection returned: not applicable.
+
+## Governing-source application, 2026-10-07 round 3
+
+The primary revalidated `question.md`, `answer-draft.md` and
+`approved-answer.md` byte-for-byte against the handoff commit
+`a814bc76aa107f2ffb7aae9cb2e2887c5b078792`, including the exact saved draft
+inside the approved answer. None of those three files was changed.
+
+The reviewed [exact singleton governing rule](../../notes/design/2026-10-07-recursive-self-init-executable-boundary.md)
+now applies q1/d1 to execution acceptance. Independent compiler-referee and
+spec-auditor both passed its exact source rule, source-envelope inversion,
+unchanged F4 `Never` inference and pre-execution/no-self-read proof. The
+primary accepted the reviews. Authority remains this already approved q1/d1
+answer; the new record makes no wider recursive-initialization decision.
+
+The canonical DAG records `REC_INIT_SELF` CLOSED for this exact source
+subcase. Aggregate `REC_INIT` and `RAW_SOURCE` stay open for their other
+premises. The original handoff's pending-governing-source prerequisite is
+retired only for q1. Compiler recognition of the exact original envelope and
+enforcement before initialization are still unimplemented; the new default-off
+shadow carries structural candidates with both premises explicitly pending.
+Production cutover remains prohibited. See the
+[round-3 review/integration record](../../notes/progress/2026-10-07-successor-round3-review.md).

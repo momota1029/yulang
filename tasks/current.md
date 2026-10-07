@@ -1,6 +1,6 @@
 # Current task: complete SCC-intrusion successor inference
 
-Date: 2026-10-07 (JST; session UTC date 2026-10-06)
+Date: 2026-10-07 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full proof/source/implementation attack in progress; production cutover not authorized
 
@@ -32,14 +32,71 @@ navigation into this ledger, not independent duplicate gate lists.
 
 ### Latest reviewed continuation: round 3
 
-The [round-3 actual-export synthesis](../notes/progress/2026-10-07-actual-export-synthesis-round3.md)
-adds a strong conditional proof of the existing all-view principality
-composition node, reviewed independently by a compiler referee and spec
-auditor. The prior [round-2 review/integration record](../notes/progress/2026-10-07-successor-round2-review.md)
-starts from `ad514061` and revalidates the additive remote through `3cf6bb70`;
-its full preserved ledger and all 32 requested families remain the baseline.
-The canonical inventory remains **89 nodes / 194 edges**: 6 CLOSED,
-18 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 45 OPEN-PROOF,
+The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
+starts from current remote `6fb5d7f6`, preserving all intervening work since
+round 2, and revalidates the additive remote through `6cd43ea8`. The current
+canonical ledger has **90 nodes / 195 edges**: 7 CLOSED, 19 CONDITIONAL-CLOSED,
+1 IMPLEMENTATION-ONLY, 44 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
+blocker. Two existing OPEN nodes move to conditional closure: **65 → 63 OPEN**.
+The one added CLOSED exact self-init subcase is reported separately.
+
+- **CALL_TYPE is CONDITIONAL-CLOSED** by the repaired
+  [whole Call composition proof](../notes/progress/2026-10-07-call-original-rule-round3.md)
+  §2.1. Actual CalRet, whole-carrier DelayIntro, each receiver/body/native/consumer
+  phase and complete pending Bind laws remain independently unconstructed,
+  together with CI-Operands, CI-Bind, CI-ArgFrame, CI-Receipt and CI-StepFrame.
+  The returned-callee world must support jointly compatible argument typing
+  and the actual provider contract at that world. The compiler's accepted
+  major finding was repaired by a fresh producer; fresh delta review passed
+  the proof and required these full premises in the canonical records.
+- **PRINCIPAL is CONDITIONAL-CLOSED** by the
+  [whole-relation synthesis](../notes/progress/2026-10-07-actual-export-synthesis-round3.md).
+  Its unchanged SOURCE_ADEQUACY / ALL_VIEW / full PROJECTION prerequisites
+  yield one finite ordinary-use map for every valid finite public view,
+  preserving the original strategy and actual `B_common` Direct evidence.
+  Actual all-view acceptance, source adequacy and effective projection remain OPEN.
+- **REC_INIT_SELF is CLOSED** by the
+  [approved exact source rule](../notes/design/2026-10-07-recursive-self-init-executable-boundary.md):
+  q1 singleton `my f = f` is rejected before initialization/self-read while
+  F4 `Never` inference remains. Both independent reviews passed the governing
+  rule and its envelope/inference/adequacy proofs. Other initializers and
+  actual compiler enforcement remain separate; aggregate REC_INIT is OPEN-SEMANTIC.
+- The same Call attack supplies an owned-image P2 discriminator, a stronger
+  P3 finite-family-assembly obstruction and its finite semantic coverage
+  quotient alternative. It preserves all original licensed witnesses;
+  original slot/owner/view introduction, complete assembly, Attach and both
+  licensing directions remain OPEN at their exact rule heads.
+- The [world/recursive attack](../notes/progress/2026-10-07-world-recursive-rule-round3.md)
+  exposes circular use of an ordinary world that already entails the member
+  typing being introduced. Simultaneous root/world introduction must instead
+  construct both from independent imports and provisional own roots. The
+  next concrete cuts are source-root installation at the importer incidence,
+  a uniform open action for semantic imports, and ordinary acceptance of
+  the latent returned recursive provider.
+- The [aggregate falsifier](../notes/progress/2026-10-07-aggregate-obligation-attack-round3.md)
+  keeps the original tuple and nonempty production/admission while refuting
+  source-to-actual coverage from domain and upper-observation inclusions alone.
+  The actual descriptor's source-constructor membership head remains OPEN;
+  Option 2 extras retain their independent all-member upper containment.
+- The reviewed [initialization shadow](../notes/progress/2026-10-07-shadow-initialization-retention-round3.md)
+  carries original HIR/self-Name/use/SCC identities through solve to the
+  current scheme, with exact q1 recognition and enforcement still pending.
+  Four focused tests and a feature-off core/HIR/solver check pass. No normal
+  inference path is switched or given an unproved semantic judgment.
+
+The round-3 integration record is authoritative for actual review completion
+and final publication; the DAG generator checks synchronization, not proofs.
+Earlier per-attempt OPEN statements below are interpreted at their pinned
+snapshots and are superseded only for the two named composition nodes and
+the exact approved q1 subcase. Their semantic-input cuts remain current.
+
+### Preserved reviewed continuation: round 2
+
+The [round-2 review/integration record](../notes/progress/2026-10-07-successor-round2-review.md)
+starts from `ad514061` and revalidates the additive remote through `3cf6bb70`.
+The full preserved ledger and all 32 requested families were re-audited.
+The round-2 canonical inventory was **89 nodes / 194 edges**: 6 CLOSED,
+17 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 46 OPEN-PROOF,
 19 OPEN-SEMANTIC and 0 BLOCKED-BY-USER-DECISION. New restricted results
 refine existing leaves rather than adding conditional gate names.
 
@@ -134,7 +191,8 @@ suffix obligation. The complementary [rejected separation](../notes/progress/202
 shows the displayed raw Call equations alone do not entail the descriptor
 fact, but its erasure fails the complete `SEM_JOINT`/local-typing premise; it
 is not a Yulang source counterexample. `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
-`SEM_JOINT`, and `CALL_TYPE` remain open.
+`SEM_JOINT` remain open. Round 3 conditionally closes CALL_TYPE's composition
+while retaining their concrete semantic construction.
 
 The compiler-referee-reviewed [computed-callee/retained-entry attempt](../notes/progress/2026-10-08-call-type-computation-entry-attempt.md)
 adds the distinct computational-callee route: a callee Request retains
@@ -158,50 +216,42 @@ finds no additional structural identity loss in the retained ordinary Apply
 path: source syntax and endpoint addresses still do not produce typed ports
 or the independently interpreted callee/provider/world and pending-Bind
 judgments. All three notes passed bounded compiler-referee review with no
-findings; `CALL_TYPE`, `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT`
-remain open.
+findings; their then-open CALL_TYPE composition is superseded by round 3's
+reviewed repair. `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT` remain open.
 
 The compiler-referee-reviewed [fixed-cut last-rule reconstruction](../notes/progress/2026-10-07-call-type-fixed-cut-reconstruction.md)
 accounts for the Name/Return, inert whole-argument, actual receiver-phase and
 pending-suffix branches without supplying their semantic last rules. An
-independent premise audit confirms that `CALL_TYPE`'s current
+independent premise audit confirms that `CALL_TYPE`'s pre-round-3
 “independently admitted operand/world assignment” does not explicitly say
 whether captured-value/provider/world and callee-Return typing are included;
 `Gamma` identity alone supplies neither. A weak one-row separation is not a
 model of completed `SEM_JOINT` or an admitted-source counterexample. The
-operand-premise granularity and matching Return rule remain unresolved inputs;
-no gate status or semantic rule changed.
+operand-premise granularity is now explicit in round 3's CI-Operands and
+related bridge requirements. Their actual construction and matching Return
+rule remain unresolved; the reconstruction itself changed no semantic rule.
 
-The reviewed [operand-context clause candidate](../notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md)
-states conditional C1–C7 schemas for ordinary environment elimination,
-Name/Return, compatible punctured-context filling, constructor-independent
-whole-carrier admission, Delay introduction and complete saved suffixes. One
-compiler-referee and one spec-auditor review found no blocking, major or minor
-issue within the candidate's research-only scope. The candidate makes the
-missing environment and Return clauses explicit, preserves the approved broad
-inlet and Option 2 boundaries, and retains one joint witness; it does not
-prove realization, inhabitance, admission completeness or semantic adequacy.
-No clause is adopted and no gate status changes: `CALL_TYPE`,
-`DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT` remain open pending actual
-rules and proofs (and explicit user approval before any semantic adoption).
+The later remote-reviewed [operand-context candidate](../notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md)
+adds C1–C7 proposals for a joint ordinary lexical environment, independent
+punctured filling, Name/Return, whole-carrier admission, all-demand Delay and
+complete saved suffixes. Both independent reviews passed its explicitly
+conditional scope. Root revalidated it when merging `7423c12a`: it constructs
+no common interpretation, actual world, descriptor law or original association.
+Its C1 environment already contains the value/member facts used by C3; source
+generation still has to justify that environment, and C4 remains a proposed
+Return introduction. Current CI-Operands/CI-ArgFrame and recursive own-root
+cuts therefore remain. CALL_TYPE is conditionally closed by the separate
+round-3 composition proof; DESC_CLAUSES, ADMISSION_CLAUSES and SEM_JOINT stay
+OPEN. C1–C7 are not adopted. The candidate's suggested approval handoff is
+not an active user-decision blocker: no pair of complete Authority-consistent
+semantics with different outcomes on the same admitted source is established.
 
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
 same original witness, and that derivation must produce accepted `Direct`
 evidence at the actual `B_common` export. The note gives only a conditional
-composition; `ALL_VIEW` remains open.
-
-The independently reviewed [round-3 synthesis](../notes/progress/2026-10-07-actual-export-synthesis-round3.md)
-now proves the existing final composition node conditionally: assuming the
-complete existing `SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts, it
-constructs one finite ordinary-use graph before any public solution is chosen,
-transports the joined strategy and actual `Direct` evidence, and derives exact
-public projection while preserving binder strategy and correlation. The
-compiler-referee and spec-auditor reviews accepted this proof. `PRINCIPAL` is
-therefore `CONDITIONAL-CLOSED` with those three unchanged premises; each
-prerequisite remains open, including actual-root resolver acceptance,
-nonidentity decorated value inclusion and common/export conformance.
+composition; it does not close `ALL_VIEW` or `PRINCIPAL`.
 
 The compiler-referee-reviewed [actual-export constructor attempt](../notes/progress/2026-10-08-principal-actual-export-rule-attempt.md)
 constructs a finite candidate §5.3 certificate for matched acyclic allocation
@@ -210,8 +260,8 @@ Acceptance remains conditional on resolution conformance and complete
 independent descriptor/admission contracts. A checked `Value` with a
 nonidentical interface reaches an unmatched `VIncl(A,B)` evidence leaf; this
 is not a source counterexample or proof that no other resolver case applies.
-`ALL_VIEW` remains open; `PRINCIPAL` is conditionally closed from the complete
-`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` premises above.
+`ALL_VIEW` remains open. Round 3 closes only PRINCIPAL's full conditional
+composition, using all three unchanged prerequisite contracts.
 
 The compiler-referee-reviewed [Integer/Top actual-root bridge attempt](../notes/progress/2026-10-08-principal-vincl-actual-root-bridge-attempt.md)
 extracts the current integer literal's occurrence-local producer, then stops
@@ -294,9 +344,11 @@ the complete family. Pointwise coverage alone cannot establish it; a factored
 schema yields it only under an independently supplied original assembly rule
 that builds the same complete-family witness. This conditional proof shape
 does not choose slot/contribution denotations or a licensing grammar. The
-remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
+remaining cuts were `CALL_TYPE` (P1), original slot/contribution introduction
 (P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
-(P4); no semantic rule or new gate edge is adopted.
+(P4); no semantic rule or new gate edge was adopted by that candidate. Round 3
+conditionally closes P1 composition while retaining its explicit constructor
+and joint-input laws; P2/P3/P4 still require original semantic construction.
 
 The bounded authority audit of [inferred Function call views](../notes/design/2026-10-05-inferred-function-call-views.md)
 confirms that the approved formation direction requires source-owned
@@ -344,8 +396,9 @@ shows that at the fixed Name/Name source cut, the ordinary `x` formal makes
 the normalized argument a `Return`; a latent returned value adds no recursive
 Force. This excludes an effectful-argument mutation as a counterexample for
 that exact cut. No admitted source counterexample, original incidence or
-complete Call typing is established; `CALL_TYPE` and `ORIGINAL_ASSOC` remain
-open.
+complete Call typing is established by that falsifier. Round 3's conditional
+CALL_TYPE theorem supplies composition only; actual law instantiation and
+`ORIGINAL_ASSOC` remain open.
 
 The bounded [shadow/original-association correspondence audit](../notes/progress/2026-10-08-original-association-shadow-correspondence-audit.md)
 maps retained source, core and solver identities to the required original
@@ -618,9 +671,12 @@ derived no actual divergence, rejection or source counterexample. The approved
 [q1 handoff and receipt](../questions/2026-10-07-recursive-self-initialization/receipt.md)
 now select pre-execution deterministic rejection for this exact singleton
 only, while preserving its existing F4 inference result. This does not approve
-implementation or cutover. REC_INIT still requires a reviewed governing-source
-record and a source-adequacy argument for the selected boundary; no other
-recursive initializer form or general `Never` expression is covered.
+implementation or cutover. Round 3's independently reviewed
+[governing-source record](../notes/design/2026-10-07-recursive-self-init-executable-boundary.md)
+and source-adequacy argument now close exactly REC_INIT_SELF. The former q1
+governing-record and execution-disposition obligations are retired; aggregate
+REC_INIT and actual enforcement remain open. No other recursive initializer
+form or general `Never` expression is covered.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual

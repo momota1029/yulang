@@ -20,18 +20,26 @@ practice. The current directional upper-output policy is fixed. Internal
 inferred views do not change actual callable role/entry; provider-owned
 protection is retained. No E/R or normalized blanket policy is selected.
 
-Latest reviewed continuation: [round-3 actual-export synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md), building on the [round-2 review and integration](../progress/2026-10-07-successor-round2-review.md).
-The original kernel has explicit whole-contract and OC-Call-Intro candidate
-clauses; the actual recursive knot has a direct certificate and an exact
-absorption obstruction; finite relational contexts and equality-only scoped
-atom projection have constructive restricted proofs. Both compiler/spec
-reviews are clean. Round 3 proves the existing `PRINCIPAL` composition
-conditionally from the complete unchanged `SOURCE_ADEQUACY`, `ALL_VIEW` and
-`PROJECTION` premises; it leaves their source/resolver obligations open. The
-DAG remains 89 nodes / 194 edges, with 18 conditional closures and no new gate.
-Two independently reviewed default-off Rust utilities now implement supplied
-finite-interface alpha comparison and pointwise atom-orbit evaluation; their
-14 focused tests pass. The latest local-binding sidecar remains structural.
+Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
+Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
+external dependency revalidation through
+`6cd43ea855acdd1e7f47a46408715a03d192ffd4`. The canonical DAG now has
+**90 nodes / 195 edges**: CLOSED 7, CONDITIONAL-CLOSED 19, OPEN-PROOF 44,
+OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. Only CALL_TYPE and
+PRINCIPAL move from OPEN-PROOF to CONDITIONAL-CLOSED, preserving their
+prerequisites; their actual upstream semantic inputs remain open. One new
+CLOSED exact self-init subcase becomes a REC_INIT prerequisite. Thus existing
+OPEN nodes fall from 65 to 63 by two; the new subcase is not an old-node
+reduction. This is accepted-result navigation synchronization, not independent
+proof certification or semantic adoption.
+
+The [round-2 review](../progress/2026-10-07-successor-round2-review.md)
+remains history: its original-kernel candidate, actual recursive certificate/
+absorption obstruction, finite relational contexts and equality-only scoped
+atom projection refined the then-89-node / 194-edge DAG without status
+promotions. Reviewed default-off supplied-interface alpha comparison and
+pointwise atom-orbit evaluation retain their exact restricted implementation
+scopes; the local-binding sidecar remains structural.
 
 ## 1. Structural carrier, residual relation and effects
 
@@ -75,10 +83,42 @@ at each fragment. Actual world/history quantifiers remain universal.
 
 Independent complete descriptor/world/admission clause specifications are
 now explicit nodes DESC_CLAUSES, INIT_WORLD and ADMISSION_CLAUSES. Their
-joint interpretation SEM_JOINT precedes actual pointwise typing proofs;
+joint interpretation SEM_JOINT precedes actual pointwise law instantiation;
 INIT_VALID and MEMBER_DISCHARGE separately construct the source base and
 complete simultaneous member result. This avoids hiding missing meanings
 inside an apparently acyclic proof route.
+
+The repaired [round-3 Call rule](../progress/2026-10-07-call-original-rule-round3.md)
+§2.1 proves full **conditional CALL_TYPE composition**. DESC_CLAUSES,
+SEM_JOINT and CALL_TYPE all retain the independent **CalRet** current/latent
+provider law, **DelayIntro** whole-carrier law, every actual **Phase_r**
+(receipt, entry, body/native, designated consumer, return, exhaustive finite/
+zero-step prefixes and future family), and **BindTyped** complete ordered
+pending suffix with every admitted response/current state/future use.
+The constructed-input bridge retains **CI-Operands** joint typed operands/
+capture/provider/world facts, **CI-Bind** all ordered interfaces,
+**CI-ArgFrame** preserving every retained CalRet witness while jointly
+extending argument typing at returned `C1` and actual-provider
+`ArgCompatible` (initial `C0` typing is insufficient), **CI-Receipt** complete
+first receipt/authority inputs, and **CI-StepFrame** complete next-phase inputs
+and incident interfaces at the actual returned current world. These form one
+coherent original-scope evidence family, never separately chosen existential
+witnesses. No bridge assumes whole invocation membership. DESC_CLAUSES stays
+OPEN-SEMANTIC and SEM_JOINT stays OPEN-PROOF; all actual law/source-world
+instance construction remains. No attachment/licensing/assembly/profile is
+obtained from the conditional theorem.
+
+The same note §§3–6 sharpens ORIGINAL_ASSOC P2 to an **owned, indexed full
+typed-image preimage** jointly incident at the original static owner/slot/path.
+Separate global representability and ownership do not suffice. P3 needs one
+actual complete-family original witness and retention of all licensed witnesses,
+including those outside a constructor image. All finite-observation assemblies
+with evidence retention still do not suffice. The conditional finite-family
+coverage alternative needs a finite quotient of **semantic complete-coverage
+profiles** on the fixed owned/typed fiber; finite Slots/source/descriptor graphs
+do not establish it. A proved OC-Owned-Image plus original coverage elimination
+would suffice only for that exact route. ATTACH and licensing remain open
+independent correspondences with unchanged original scopes/`xi`.
 
 ## 3. Recursive source, origin permissions and Generalize
 
@@ -102,6 +142,35 @@ witness extensions, and finite complete-presentation alpha-isomorphism with
 conditional arbitrary finite joint-use preservation. It leaves independent
 ordinary descriptor finite-elimination, actual local discharge, semantic
 Generalize, complete interface production and primitive covariance real.
+
+The reviewed [round-3 world/recursive cut](../progress/2026-10-07-world-recursive-rule-round3.md)
+§§3–6 retains INIT_WORLD/INIT_VALID/REC_DESC/MEMBER_DISCHARGE statuses.
+Source-root installation needs an independently typed external base, actual
+open-import action where needed, original constructor/provisional-root data,
+joint incidence/current-world compatibility and an independent root-extension
+last rule. Scalar exporter validity still needs cross-world importer
+installation. A world premise already entailing own-member `d_f,d_g` cannot
+be assumed to introduce them; K lookup identities give no ordinary typing
+readout. The restricted simultaneous rule must conclude actual installed-root
+world validity, ordinary member typing, every CompleteMem/KV conjunct and
+transition/lookup preservation. Its ordinary **cyclic Return acceptance**
+for exposed latent occurrences, local clauses and independent nonrecursive
+guards remain unproved; operational progress supplies no acceptance law.
+No EnvStore predicate is weakened or original witness scope changed.
+
+**REC_INIT_SELF is CLOSED** under the reviewed
+[exact rule](../design/2026-10-07-recursive-self-init-executable-boundary.md)
+and [source proofs](../progress/2026-10-07-self-init-and-conformance-round3.md),
+using the validated [q1/d1 approval](../../questions/2026-10-07-recursive-self-initialization/approved-answer.md)
+and [receipt](../../questions/2026-10-07-recursive-self-initialization/receipt.md)
+at `a814bc76aa107f2ffb7aae9cb2e2887c5b078792`. Exactly singleton original
+`my f = f`, no annotation/parameters, direct self-bound RHS Name, is rejected
+at executable acceptance before initialization/self-read; original F4 `Never`
+inference is unchanged. Its source-envelope inversion/no-start/exact source
+adequacy is proved without open semantic prerequisites. Actual compiler
+enforcement remains an **implementation obligation pending**. REC_INIT remains
+OPEN-SEMANTIC for other initializer classes; no general recursive or `Never`
+rule follows, and no code enforcement or production cutover is claimed.
 
 ## 4. Typed source evidence and independent admission
 
@@ -134,6 +203,17 @@ already replace a separate m_V calculus. The remaining universal sequent
 must succeed through the actual common export for every independently valid
 view, with original scope/correlation/evidence preserved.
 
+The reviewed [full principal composition](../progress/2026-10-07-actual-export-synthesis-round3.md)
+makes **PRINCIPAL CONDITIONAL-CLOSED** under its unchanged SOURCE_ADEQUACY,
+ALL_VIEW and PROJECTION requirements. It fixes one finite computed `P_S`
+before public `V`, one whole ordinary-use graph before assignments/challenges/
+histories, and ALL_VIEW's one coherent original-scope joined strategy with
+actual `B_common` Direct evidence. Full PROJECTION transports its ordinary-use
+and query evidence; marginal equality cannot replace this existing clause.
+Certified-use Theorem 3 gives universal exact public factorization for every
+valid finite public scheme in the declared conservative abstraction. Actual
+source adequacy, all-view Direct lifting and full projection remain open.
+
 The [global synthesis](../progress/2026-10-07-successor-global-synthesis.md)
 shares original signature/world/primitive inputs across source and production
 proofs, removes repeated opaque completion premises, and keeps two independent
@@ -143,15 +223,19 @@ allow production-only licensed members. Reference constructor simulation is
 not their exhaustive definition. Common totality, all-view Direct, source
 nonemptiness and production-extra containment remain separate quantifiers.
 
-The reviewed [round-3 synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
-proves the final `PRINCIPAL` composition conditionally from the full existing
-`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts: one finite ordinary
-copy/query graph is fixed per public scheme, then the joined all-view strategy
-and actual export evidence are transported through ordinary-use factorization.
-Exact public projection follows from certified-use Theorem 3. This is a
-conditional theorem only. The three prerequisites remain open; actual-root
-resolver acceptance, nonidentity decorated membership and production
-conformance remain unresolved.
+The reviewed [round-3 aggregate attack](../progress/2026-10-07-aggregate-obligation-attack-round3.md)
+refines the existing PROD_CONFORMANCE lower leg: generated source observation
+under independent admission must yield actual descriptor/`Sat_A` membership
+on the same original tuple, with the descriptor conjunct and one scope-
+preserving witness correspondence. Its nonempty fixed-fiber falsifier shows
+that `D_C subset D_A` and `P_A subset P_C` alone do not imply this source-to-
+actual inclusion. The full actual constructor/member head remains open;
+Option 2 extras need no source construction. SOUND also retains actual
+publication/use preservation from exported residual/hiding/evidence to the
+same original solved relation. Correct joint solving and semantic conformance
+alone do not certify the publisher. These are refined existing rule heads,
+not new gate reductions or compiler-defect claims; statuses and edges are
+unchanged. IFACE/FRESH actual operation hypotheses remain unchanged.
 
 ## 6. Production and lifecycle boundary
 
@@ -176,6 +260,6 @@ Complete HIR/source coverage, State/world equations, method/role/associated/
 visible-impl fixed point, deterministic practical limits, full semantic
 conformance and final capability compatibility remain the production route.
 
-See the [full-attack review](../progress/2026-10-07-successor-full-attack-review.md)
+See the [current round-3 review](../progress/2026-10-07-successor-round3-review.md)
 for executed checks and repaired independent findings. No production inference
 cutover or new semantic user-decision blocker is asserted.
