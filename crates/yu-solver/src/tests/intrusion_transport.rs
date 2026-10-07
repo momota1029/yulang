@@ -868,7 +868,15 @@ fn retained_source_use_captures_supply_receiver_namespaces_for_exported_transpor
         panic!("expected identity binding");
     };
     let batch = collect(hir.clone());
+    let ordinary = SolvedModule::solve(batch.clone()).unwrap();
     let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert_eq!(ordinary.errors(), solved.errors());
+    for occurrence in ordinary.occurrences() {
+        assert_eq!(
+            ordinary.projection_for(occurrence),
+            solved.projection_for(occurrence)
+        );
+    }
     assert!(solved.errors().is_empty());
     let topology = batch.shadow_scc_topology();
     let occurrences = topology
@@ -1025,7 +1033,15 @@ fn retained_recursive_uses_export_and_freshen_r_binders() {
         panic!("expected first recursive binding");
     };
     let batch = collect(hir.clone());
+    let ordinary = SolvedModule::solve(batch.clone()).unwrap();
     let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert_eq!(ordinary.errors(), solved.errors());
+    for occurrence in ordinary.occurrences() {
+        assert_eq!(
+            ordinary.projection_for(occurrence),
+            solved.projection_for(occurrence)
+        );
+    }
     assert!(solved.errors().is_empty());
     let topology = batch.shadow_scc_topology();
     let occurrences = topology
@@ -1044,6 +1060,11 @@ fn retained_recursive_uses_export_and_freshen_r_binders() {
         .collect::<Vec<_>>();
     assert!(pending.len() >= 2, "expected multiple uses of recursive f");
     let target = pending[0].current_scheme();
+    let ordinary_target = ordinary
+        .shadow_closed_schemes()
+        .for_root(binding.definition_root())
+        .unwrap();
+    assert!(ordinary_target.endpoints().alpha_eq(target.endpoints()));
     assert!(
         pending
             .iter()
