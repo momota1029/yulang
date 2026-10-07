@@ -48,6 +48,10 @@ This index is a navigation aid. The listed source document remains authoritative
   supply the original Name/Return/Delay input cases and actual-U argument
   acceptance at the same CalRet event without the extra raw ViewInlet premise.
   Complete receiver behavior follows from that same Function contract.
+  Its selected [positive immutable recursive case](../theory/2026-10-08-simultaneous-immutable-root-introduction.md)
+  introduces the exact two-closure Value-entry pair and installed root world
+  together, using a proved declared-hole background lift. Original descriptor
+  and exhaustive foreign-domain embedding remain unproved; no aggregate closes.
   Independent descriptor/history/primitive contracts and hereditary binding
   inputs remain; no exhaustive model, full C0 or production cutover is claimed.
 

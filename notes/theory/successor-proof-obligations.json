@@ -1034,7 +1034,7 @@
         "SEM_JOINT"
       ],
       "premises": "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Establish semantic adequacy of each captured Name lookup at that same scope/assignment as a static/root premise or a complete local check; Gamma identity alone is insufficient. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
-      "minimal_lemma_or_closed_scope": "For the listed FH route, prove exact finite-failure reflection at the original scoped (xi,w), including static/zero-step checks, captured lookup, actual returned handles and all independent future admissions. If FH is forall h exists e. L(h,e), failure must yield exists h forall e. not L(h,e); one failing extension is insufficient. Alternatively derive the ordinary two-closure introduction for the actual K certificate, with all inlet/world/static checks and original shared witnesses, without assuming opposite member validity. Under exactly the same independent guards G and an established G => forall h exists e. L(h,e), restricted reflection and direct G => D are classically equivalent, with negation retaining exists h forall e. not L(h,e); this rewrite supplies neither the history premise nor cyclic descriptor acceptance. Unfolding D=F(D) and postfixedness do not prove absorption, even for F(Z)_f=Z_g,F(Z)_g=Z_f. This alternative replaces the descriptor proof method only; neither route supplies M_E, carrier/world or CompleteMem discharge. The reviewed own-member dependency cut requires auditing every actual world/lookup premise: K lookup identity supplies no ordinary readout, and a world implying d_f/d_g cannot be assumed to introduce them. The restricted simultaneous alternative must expose the independent external/current base, actual K/provisional interfaces, exhaustive ordinary local clause instances, all nonrecursive guards and original CompleteMem conjuncts, and a proved ordinary cyclic Return acceptance theorem for only the exposed latent occurrences. Operational Return/lookup progress supplies no such theorem; its source-root/world conclusions remain unproved, and the independent inlet/world domains and original witness scopes are retained. The direct two-closure attack at round 6 constructs the operational knot and prefix but still cannot instantiate that ordinary cyclic Return-acceptance leaf; it does not strengthen the FH reflection result.",
+      "minimal_lemma_or_closed_scope": "For the listed FH route, prove exact finite-failure reflection at the original scoped (xi,w), including static/zero-step checks, captured lookup, actual returned handles and all independent future admissions. If FH is forall h exists e. L(h,e), failure must yield exists h forall e. not L(h,e); one failing extension is insufficient. Alternatively derive the ordinary two-closure introduction for the actual K certificate, with all inlet/world/static checks and original shared witnesses, without assuming opposite member validity. Under exactly the same independent guards G and an established G => forall h exists e. L(h,e), restricted reflection and direct G => D are classically equivalent, with negation retaining exists h forall e. not L(h,e); this rewrite supplies neither the history premise nor cyclic descriptor acceptance. Unfolding D=F(D) and postfixedness do not prove absorption, even for F(Z)_f=Z_g,F(Z)_g=Z_f. This alternative replaces the descriptor proof method only; neither route supplies M_E, carrier/world or CompleteMem discharge. The reviewed own-member dependency cut requires auditing every actual world/lookup premise: K lookup identity supplies no ordinary readout, and a world implying d_f/d_g cannot be assumed to introduce them. The restricted simultaneous alternative must expose the independent external/current base, actual K/provisional interfaces, exhaustive ordinary local clause instances, all nonrecursive guards and original CompleteMem conjuncts, and a proved ordinary cyclic Return acceptance theorem for only the exposed latent occurrences. Operational Return/lookup progress supplies no such theorem; its full original-source-root/world conclusions outside the selected positive interpretation remain unproved, and the independent inlet/world domains and original witness scopes are retained. The direct two-closure attack at round 6 constructs the operational knot and prefix but still cannot instantiate that ordinary cyclic Return-acceptance leaf; it does not strengthen the FH reflection result. The later selected positive immutable interpretation supplies Knu/Fin for the exact full Value-entry two-closure graph, including simultaneous root-world validity and a proved same-operator declared-hole background lift. Original descriptor/interface and exhaustive foreign admitted-certificate/domain embedding, every CompleteMem/KV conjunct and broader recursive cases remain independent; the candidate theorem does not promote this aggregate.",
       "references": [
         "newrec",
         "k",
@@ -1047,7 +1047,9 @@
         "world3",
         "round3review",
         "attack4",
-        "frontier6"
+        "frontier6",
+        "immutablepair",
+        "callmemdef"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1387,13 +1389,15 @@
         "REC_LOCAL"
       ],
       "premises": "Original independent world/admission interpretation, actual source environment/imports and actual recursive knot, with local preservation laws rather than already validated member contracts.",
-      "minimal_lemma_or_closed_scope": "Construct the actual initial punctured-world/alias/environment witnesses at original scope and show Init/EnvStore/JointWF, including recursive captures where present. Derive this base without assuming completed member membership or defining admission by source-solution existence; returned-only/empty-world fixtures do not suffice. The exact source-root/import extension inputs must be constructed, including scalar cross-world installation and any hole-dependent open-import action. If an ordinary world premise entails own-member facts d_f/d_g, assuming that completed world merely relocates the recursive obligation: installed own-root validity is a simultaneous conclusion with ordinary member typing, not an already completed premise. Do not invent an EnvStore predicate by deleting unspecified conjuncts.",
+      "minimal_lemma_or_closed_scope": "Construct the actual initial punctured-world/alias/environment witnesses at original scope and show Init/EnvStore/JointWF, including recursive captures where present. Derive this base without assuming completed member membership or defining admission by source-solution existence; returned-only/empty-world fixtures do not suffice. The exact source-root/import extension inputs must be constructed, including scalar cross-world installation and any hole-dependent open-import action. If an ordinary world premise entails own-member facts d_f/d_g, assuming that completed world merely relocates the recursive obligation: installed own-root validity is a simultaneous conclusion with ordinary member typing, not an already completed premise. Do not invent an EnvStore predicate by deleting unspecified conjuncts. The selected positive immutable case now constructs the exact two-closure installed world jointly with its values, using same-operator ground/carrier/world/continuation background and no completed own-root world premise. Exhaustive foreign world/domain embedding, original interface correspondence, open semantic imports and other initializers remain unproved.",
       "references": [
         "init",
         "compat",
         "k",
         "world3",
-        "round3review"
+        "round3review",
+        "immutablepair",
+        "callmemdef"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2719,6 +2723,7 @@
     "callif": "notes/theory/2026-10-08-call-source-interface-construction.md",
     "callmemdef": "notes/design/2026-10-08-contextual-function-membership-definition.md",
     "callreal": "notes/theory/2026-10-08-call-semantic-input-realization.md",
+    "immutablepair": "notes/theory/2026-10-08-simultaneous-immutable-root-introduction.md",
     "frontier6": "notes/progress/2026-10-07-successor-frontier-attack-round6.md",
     "allviewunion1": "notes/progress/2026-10-07-all-view-nonidentity-export-attack-round1.md",
     "producerchronology": "notes/progress/2026-10-07-original-association-current-producer-crosswalk-round1.md",

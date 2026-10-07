@@ -269,6 +269,15 @@ Generalize, complete interface production and primitive covariance real.
 
 The reviewed [round-3 world/recursive cut](../progress/2026-10-07-world-recursive-rule-round3.md)
 §§3–6 retains INIT_WORLD/INIT_VALID/REC_DESC/MEMBER_DISCHARGE statuses.
+The later selected [positive immutable introduction](2026-10-08-simultaneous-immutable-root-introduction.md)
+supplies the exact two-closure value and root-world constructor theorem in
+its stated interpretation. Its same-operator ground/carrier/world/continuation
+background and relative-coinduction lemma close the local missing background
+construction, without assuming opposite membership or completed own-root
+world validity. Complete Value-entry interfaces retain arbitrary carrier
+effects and pending/future histories. Exhaustive foreign certificate/domain
+and original descriptor/interface embedding, all CompleteMem/KV conjuncts and
+broader recursion remain open; none of these aggregate statuses is promoted.
 Source-root installation needs an independently typed external base, actual
 open-import action where needed, original constructor/provisional-root data,
 joint incidence/current-world compatibility and an independent root-extension

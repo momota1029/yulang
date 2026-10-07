@@ -60,6 +60,34 @@ the alternate cutover route is not available until every retained consumer
 obligation in the architecture is established. Required completed-contract
 principality, all compatible contexts and exhaustive production extras remain.
 
+### Selected immutable recursive introduction (2026-10-08)
+
+The [positive immutable constructor theorem](../notes/theory/2026-10-08-simultaneous-immutable-root-introduction.md)
+now introduces the actual pair `my f x=g; my g y=f` and its installed world
+simultaneously in the selected interpretation. Complete Value-entry interfaces
+retain arbitrary argument effects, divergence, pending resumptions and future
+uses. A proved relative-coinduction lift preserves the complete same-operator
+background; only the exact two value holes are assumed, with no world/authority
+hole. Neither opposite membership nor completed own-root validity is an input.
+
+The initial independent mathematical review found a Unit/background coverage
+gap. One batched repair closed it; compiler-referee and spec delta reviews both
+passed. The [membership definition](../notes/design/2026-10-08-contextual-function-membership-definition.md)
+selects the exact local clauses under the existing authorization; the
+[review record](../notes/progress/2026-10-08-call-interface-admission-review.md#8-positive-immutable-recursive-introduction)
+records hashes and scopes. This is an adoptable semantic construction rather
+than another premise-localization note.
+
+Original descriptor/interface correspondence and exhaustive foreign
+value/carrier/world/domain embedding remain separate. CompleteMem/KV,
+Generalize, broader recursion and State do not follow. REC_DESC/INIT_VALID
+remain OPEN-PROOF with all aggregate counts, premises and edges unchanged.
+The next theory attack is a constructive embedding of the actual original
+interface and complete independent background fields into these selected
+clauses, followed by the remaining CompleteMem/KV conjuncts. The pushed
+parameter Apply lane continues independently with its explicit unresolved
+generalization/effect/admission premises; production cutover remains forbidden.
+
 ### Current adopted Call formation and local O0 result
 
 The user explicitly approved the two formation cases at

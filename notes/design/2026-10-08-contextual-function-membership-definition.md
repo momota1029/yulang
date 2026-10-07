@@ -2,7 +2,7 @@
 
 Date: 2026-10-08
 Status: Authoritative constructor formalization under the current user authorization
-Scope: missing original callable membership, checked-challenge and immutable input constructor cases
+Scope: missing original callable membership, checked-challenge and immutable input cases; positive two-closure immutable introduction
 Current user instruction: continue the proof and permit legitimate definitions
 Drafted-by: primary, selecting the exact candidate constructor scope below
 Reviewed-by: independent compiler-referee and spec-auditor; both passed without findings
@@ -97,6 +97,34 @@ obligations. Its original reify license and valid scope/capture interpretation
 remain necessary. The Name Delay proof supplies both obligations from the
 actual source constructors, without assuming an execution certificate.
 Other independently licensed carrier formations remain available.
+
+### Selected positive immutable recursive constructor case
+
+Under the same current definition authorization, select the displayed positive
+operator, exact declared-hole interpretation and constructor rules in
+[simultaneous immutable introduction](../theory/2026-10-08-simultaneous-immutable-root-introduction.md)
+§§2–5. The repaired frozen SHA-256 is
+`9d2e16706e53c696ff2d8f8c71e17b0b9ac7a817422223575efa36c7a5df5006`.
+Independent mathematical and specification delta reviews passed; the accepted
+background-certificate finding and its constructive repair are recorded in
+[the integration record](../progress/2026-10-08-call-interface-admission-review.md#8-positive-immutable-recursive-introduction).
+
+Hereditary value, immutable world, observation and whole-carrier validity use
+the stated greatest fixed point of the same positive clauses. Independent
+challenge/demand domains and immediate guards are fixed before that operator.
+The declared-hole background grants assumptions only for the exact two actual
+value tuples, with no world, carrier, continuation or authority hole. Its
+relative-coinduction lift is proved; the actual source constructors replace
+those two assumptions and conclude value/root-world validity simultaneously.
+
+This selects the exact complete Value-entry pair `my f x=g; my g y=f` in that
+interpretation. Arbitrary argument effects, divergence, pending resumptions
+and all independent future demands remain. Ground/external values and full
+carrier/world/continuation fields belong to the same operator. Foreign
+certificates do not acquire that meaning by relabelling: exhaustive host-domain
+and original descriptor/interface embedding remain independent obligations.
+No broader recursive initializer, negative recursive clause, State transition,
+CompleteMem/KV discharge, compiler behavior or production cutover is selected.
 
 ## 4. What follows and what remains
 

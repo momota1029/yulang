@@ -221,3 +221,72 @@ Publication uses exact explicit-path blob/tree comparison, inspection of the
 whole single-parent outbound change, a non-forced expected-head ref update,
 and remote read-back. A moved remote is inspected before reconciliation;
 existing work is preserved and no canonical status is promoted by publication.
+
+## 8. Positive immutable recursive introduction
+
+The primary selected the bounded extension in the
+[contextual membership definition](../design/2026-10-08-contextual-function-membership-definition.md#selected-positive-immutable-recursive-constructor-case),
+under the same explicit authorization to give legitimate missing definitions.
+The [constructor proof](../theory/2026-10-08-simultaneous-immutable-root-introduction.md)
+defines the positive hereditary value/world/observation/carrier operator and
+introduces the actual two-closure Value-entry graph and its installed world
+together. This is an adoptable semantic construction, not a note merely
+renaming the missing cyclic membership premise.
+
+One disjoint researcher owned only that proof path; the primary owns selection,
+review adjudication, navigation and Git. Mode M2 used two independent reviewers,
+compiler-referee and spec-auditor, with one batched mathematical repair.
+
+| Frozen proof | Independent review | Verdict |
+| --- | --- | --- |
+| `4d4601ec23d3e496ecad4f8d2760cedfa4d2ea8a1b8814b69e42f2f772f3221e` | Compiler referee | Major M1: the world coalgebra omitted parameter/external value and full carrier background realization |
+| Same initial proof | Spec auditor | PASS within candidate conformance; mathematical review remained required |
+| `9d2e16706e53c696ff2d8f8c71e17b0b9ac7a817422223575efa36c7a5df5006` | Compiler-referee delta | PASS; M1 closed by explicit same-operator background and proved relative-coinduction lift |
+| Same repaired proof | Spec-auditor delta | PASS; original scope, independent domain, actual worlds, complete Value-entry effects and Option 2 boundaries preserved |
+
+The initial proof put only the two closures in its value coalgebra while its
+worlds also contained arbitrary parameter results. A Unit-returning argument
+already refuted that postfixedness argument. The repair adds explicit ground,
+fixed external and whole-carrier cases to the same operator and includes the
+entire hereditary background in the coalgebra.
+
+The declared-hole family is the greatest fixed point of those same clauses
+with assumptions only for the two exact source value tuples. It grants no
+world, carrier, continuation, guard or authority hole. Unfolding and monotonicity
+prove that its background embeds into the final postfixed relation once the
+actual source cases replace the two value assumptions. This handles arbitrary
+returned Functions, every binding, pending prefix world, typed response and
+raw-resume continuation without assuming completed own-root validity or
+relabeling a foreign certificate.
+
+The immediate guards, ActualAdm and complete challenge/demand domains are
+exogenous. Successful background membership does not define a smaller domain.
+The independent proof fields have the selected declared-hole interpretation;
+proving exhaustive realization of a separately fixed foreign domain is still
+required. Full original descriptor/interface correspondence, CompleteMem/KV,
+Generalize, broader recursion/State and production conformance remain open.
+No aggregate status, premise, edge or production prerequisite changes.
+
+During this repair remote `3cdbd712e` selected the predecessor contextual input
+and source-interface cases. They were merged with the already pushed parameter
+Apply experiment and frozen-mechanism record at `d1785aa1e`. The producer
+revalidated the direct governing mathematical sections and records both old
+and current dependency snapshots. Those selections do not automatically prove
+the new background lift or select this recursive interpretation.
+
+The primary accepts both repaired verdicts in their exact local scope. The
+frozen mathematical body is preserved; the leading selection notice records
+integration. This documentary extension runs no compiler suite or benchmark.
+Integrity checks and canonical navigation results are recorded with the final
+integration below; no mechanical proof certificate is claimed.
+
+Final documentary checks preserve the exact repaired frozen proof after
+removing only the leading selection notice, resolve 754 local Markdown links
+in the changed documents, check balanced fences and whitespace, and pass the
+canonical DAG validator. Field comparison with `d1785aa1e` permits only
+REC_DESC/INIT_VALID remaining-clause navigation and references to change;
+statuses, premises, prerequisite edges and production authority are unchanged.
+Counts remain 7 CLOSED / 20 CONDITIONAL-CLOSED / 43 OPEN-PROOF /
+19 OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY. Nine explicit documentary/navigation
+paths form this integration; the already verified compiler slice is unchanged
+and its suites are not repeated for these records.
