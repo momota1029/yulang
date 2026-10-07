@@ -142,7 +142,7 @@ fn source_call_registration_borrows_exact_parameter_declaration_owner() {
                         .iter()
                         .filter(|row| row.call() == input.application().expression())
                         .collect::<Vec<_>>();
-                    assert_eq!(registration.application_premises.len(), 8);
+                    assert_eq!(registration.application_premises.len(), 10);
                     assert_eq!(registration.application_premises.len(), expected.len());
                     for (actual, expected) in registration.application_premises.iter().zip(expected)
                     {

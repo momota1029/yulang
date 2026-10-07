@@ -396,7 +396,20 @@ fn assert_pending_solver_application_source_join(text: &str) {
             .iter()
             .filter(|premise| premise.call() == endpoints.source())
             .collect::<Vec<_>>();
-        assert_eq!(pending.len(), 8);
+        assert_eq!(pending.len(), 10);
+        for marker in [
+            yu_hir::shadow::Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            yu_hir::shadow::Premise::OriginalTypedCallEffectOccurrenceIntroduction,
+        ] {
+            assert_eq!(
+                pending
+                    .iter()
+                    .filter(|premise| premise.premise() == marker)
+                    .count(),
+                1
+            );
+            assert!(pending.iter().all(|premise| premise.call() == &node.source));
+        }
         assert_eq!(endpoints.call().application_premises.len(), pending.len());
         for (actual, expected) in endpoints.call().application_premises.iter().zip(pending) {
             assert!(std::ptr::eq(*actual, expected));
@@ -450,6 +463,10 @@ fn assert_pending_solver_application_source_join(text: &str) {
         assert!(std::ptr::eq(
             skeleton.expression(registration.source).unwrap(),
             application
+        ));
+        assert!(std::ptr::eq(
+            registration.application_premises,
+            endpoints.call().application_premises.as_slice()
         ));
         assert_eq!(registration.source_use_input.occurrence(), use_id);
         assert_eq!(
@@ -889,7 +906,7 @@ fn assert_two_ml_tail_source_join(text: &str) {
             .filter(|premise| premise.call() == endpoints.source())
             .collect::<Vec<_>>();
         let direct = std::ptr::eq(row, &rows[1]);
-        assert_eq!(pending.len(), if direct { 8 } else { 6 });
+        assert_eq!(pending.len(), if direct { 10 } else { 8 });
         for premise in [
             yu_hir::shadow::Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             yu_hir::shadow::Premise::SourceDirectionalOutputEffectProtectionIntroduction,
@@ -898,6 +915,19 @@ fn assert_two_ml_tail_source_join(text: &str) {
                 pending.iter().any(|pending| pending.premise() == premise),
                 direct
             );
+        }
+        for marker in [
+            yu_hir::shadow::Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            yu_hir::shadow::Premise::OriginalTypedCallEffectOccurrenceIntroduction,
+        ] {
+            assert_eq!(
+                pending
+                    .iter()
+                    .filter(|premise| premise.premise() == marker)
+                    .count(),
+                1
+            );
+            assert!(pending.iter().all(|premise| premise.call() == &node.source));
         }
         assert_eq!(endpoints.call().application_premises.len(), pending.len());
         for (actual, expected) in endpoints.call().application_premises.iter().zip(pending) {
@@ -944,6 +974,10 @@ fn assert_two_ml_tail_source_join(text: &str) {
                 .unwrap();
             assert_eq!(binder, source_binder);
             let registration = node.pending_source_call_registration().unwrap();
+            assert!(std::ptr::eq(
+                registration.application_premises,
+                endpoints.call().application_premises.as_slice()
+            ));
             assert_eq!(registration.source_use_input.occurrence(), use_id);
             assert_eq!(registration.source_use_input.binder(), binder);
             assert_eq!(registration.source, endpoints.source());

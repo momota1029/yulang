@@ -31,7 +31,41 @@ fn facade_reads_the_hir_snapshot_without_resolving_pending_judgments() {
         skeleton.expression(skeleton.body()).unwrap().form(),
         Form::Apply { .. }
     ));
-    assert_eq!(skeleton.pending().len(), 16);
+    assert_eq!(skeleton.pending().len(), 20);
+    let raw = yu_core::shadow_derivation::RawStructuralArena::from_artifact(&artifact).unwrap();
+    let calls: Vec<_> = raw
+        .nodes()
+        .iter()
+        .filter(|node| node.call.is_some())
+        .collect();
+    assert_eq!(calls.len(), 2);
+    for node in calls {
+        let call = node.call.as_ref().unwrap();
+        let pending: Vec<_> = skeleton
+            .pending()
+            .iter()
+            .filter(|premise| premise.call() == &node.source)
+            .collect();
+        assert_eq!(call.application_premises.len(), 10);
+        for (actual, expected) in call.application_premises.iter().zip(&pending) {
+            assert!(std::ptr::eq(*actual, *expected));
+        }
+        for marker in [
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
+        ] {
+            assert_eq!(
+                pending.iter().filter(|row| row.premise() == marker).count(),
+                1
+            );
+        }
+        let registration = node.pending_source_call_registration().unwrap();
+        assert_eq!(registration.source, &node.source);
+        assert!(std::ptr::eq(
+            registration.application_premises,
+            call.application_premises.as_slice()
+        ));
+    }
     assert!(
         skeleton
             .pending()
@@ -111,7 +145,7 @@ fn facade_exposes_lexical_capture_use_without_semantic_discharge() {
     let position = artifact.position(incidence.position()).unwrap();
     assert_eq!(position.kind(), yu_syntax::SyntaxKind::IdentifierExpression);
     assert_eq!(*position.range(), 27..28);
-    assert_eq!(skeleton.pending().len(), 8);
+    assert_eq!(skeleton.pending().len(), 10);
     for (pending, expected) in skeleton.pending().iter().zip([
         Premise::CallableRole,
         Premise::FullFunctionMembership,
@@ -119,6 +153,8 @@ fn facade_exposes_lexical_capture_use_without_semantic_discharge() {
         Premise::QIndependentSourceCallViewFormation,
         Premise::SourceEventContributionAndTypedOutputObservation,
         Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+        Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+        Premise::OriginalTypedCallEffectOccurrenceIntroduction,
         Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
         Premise::SourceDirectionalOutputEffectProtectionIntroduction,
     ]) {

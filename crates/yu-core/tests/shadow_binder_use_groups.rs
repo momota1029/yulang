@@ -57,7 +57,7 @@ fn repeated_calls_share_exact_binder_and_preserve_each_registration() {
         // This existing projection lacks a declaration join; grouping supplies none.
         assert!(actual.parameter_declaration.is_none());
         assert!(actual.source_view_premise_locator().is_none());
-        assert_eq!(actual.application_premises.len(), 8);
+        assert_eq!(actual.application_premises.len(), 10);
     }
 }
 

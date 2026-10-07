@@ -1147,7 +1147,7 @@ impl<'input, 'artifact> SourceViewPremiseLocator<'input, 'artifact> {
     }
 
     /// Exact upstream inventory for the scoped construction, separate from
-    /// the existing eight PendingPremise rows and from broader production gates.
+    /// the existing PendingPremise rows and from broader production gates.
     pub fn unresolved_premises(&self) -> &'static [UnresolvedSourceViewPremise] {
         Self::unresolved_premise_inventory()
     }
@@ -1278,6 +1278,18 @@ pub enum Premise {
     /// actual provider, C1, w1, xi or evidence data. No Q success discharges it;
     /// it supplies no constraint conversion or application typing judgment.
     JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+    /// Unresolved original signature-local formation only: independently form
+    /// H_eff and select the immediate complete-invocation call.effect position
+    /// q_c of locally dependent U_c in its actual Delta_c. No H_eff or q_c
+    /// judgment is asserted; exact original scope, whole xi = (nu, K, D),
+    /// root/provider/dependency indices and source incidence remain pending.
+    SourceSignatureLocalImmediateCallEffectPositionFormation,
+    /// Unresolved original occurrence introduction only: OC-CallEff is unadopted.
+    /// No ce_orig(e_c, q_c) judgment or typed incidence at p0 is asserted.
+    /// Exact original scope, whole xi = (nu, K, D), source/signature incidence
+    /// and ElimOrigin's separate p_out(c) leg remain pending. Structural IDs
+    /// establish no q_c/p0 equality, Flow, receipt or semantic discharge.
+    OriginalTypedCallEffectOccurrenceIntroduction,
     /// Named source-producer stub only: both rule applicability and interpretation
     /// remain pending. A direct resolved use need not denote a formal. Formal status,
     /// the relevant component, annotation status and ordinary-Value typing are
@@ -2144,6 +2156,8 @@ impl Skeleton {
                 Premise::QIndependentSourceCallViewFormation,
                 Premise::SourceEventContributionAndTypedOutputObservation,
                 Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+                Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+                Premise::OriginalTypedCallEffectOccurrenceIntroduction,
             ] {
                 self.pending.push(PendingPremise {
                     call: id.clone(),
@@ -2794,7 +2808,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         let pending_before = skeleton.pending().len();
-        assert_eq!(pending_before, 8);
+        assert_eq!(pending_before, 10);
         let crosswalk = artifact.skeleton_source_crosswalk();
         let crate::HirItem::Binding(binding) = &hir.items()[0] else {
             panic!("binding")
@@ -2874,7 +2888,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         let crosswalk = artifact.skeleton_source_crosswalk();
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
         let mut count = 0;
         for expression in skeleton.expressions() {
             if let Form::Lambda { parameter, .. } = expression.form() {
@@ -2888,7 +2902,7 @@ mod tests {
             }
         }
         assert_eq!(count, 2);
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
 
         let parsed = parsed("my f x = x; my g x = x");
         let hir =
@@ -3015,7 +3029,7 @@ mod tests {
             );
         }
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
         for (pending, expected) in skeleton.pending().iter().zip([
             Premise::CallableRole,
             Premise::FullFunctionMembership,
@@ -3023,6 +3037,8 @@ mod tests {
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction,
         ]) {
@@ -3079,7 +3095,7 @@ mod tests {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 7);
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
         assert_eq!(
             skeleton
                 .binders()
@@ -3318,7 +3334,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(&source)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 17);
-        assert_eq!(skeleton.pending().len(), 50);
+        assert_eq!(skeleton.pending().len(), 66);
         assert_eq!(skeleton.uses().len(), 9);
         drop(artifact);
     }
@@ -3359,7 +3375,7 @@ mod tests {
         skeleton.body = skeleton.project(synthetic, &source, &positions).unwrap();
         skeleton.validate().unwrap();
         assert_eq!(skeleton.expressions().len(), 8_001);
-        assert_eq!(skeleton.pending().len(), 24_000);
+        assert_eq!(skeleton.pending().len(), 32_000);
         assert_eq!(skeleton.uses().len(), 4_001);
         drop(skeleton);
     }
@@ -3381,7 +3397,7 @@ mod tests {
             skeleton.expression(argument).unwrap().form(),
             Form::Use { .. }
         ));
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
     }
 
     #[test]

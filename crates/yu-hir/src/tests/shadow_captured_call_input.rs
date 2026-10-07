@@ -30,7 +30,7 @@ fn shadow_captured_call_input_retains_exact_edges_and_pending_inventory() {
         panic!("returned Use")
     };
     assert_eq!(binder, row.local_binding());
-    assert_eq!(before.len(), 8);
+    assert_eq!(before.len(), 10);
     assert_eq!(
         before,
         skeleton
@@ -119,6 +119,6 @@ fn shadow_captured_call_input_absent_for_broken_or_foreign_edges() {
             }
         }
         assert!(skeleton.captured_call_input().is_none());
-        assert_eq!(skeleton.pending().len(), 8);
+        assert_eq!(skeleton.pending().len(), 10);
     }
 }

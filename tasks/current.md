@@ -26,7 +26,8 @@ scopes govern; navigation text supplies no new Authority.
 
 ### Current O0 result: one unadopted occurrence constructor
 
-At latest remote `f3be02da1ba169a88acc154ac29621634f3cc89b`, the
+At remote `2eb1660453ad325f8a2a3e95cb79cd9c368f9aaf`, subsequently integrated
+with the reviewed shadow checkpoint at `413c337bc0cdecaeb539829596fcd97521cf087b`, the
 [reviewed minimal-clause result](../notes/progress/2026-10-07-original-call-output-minimal-clause.md)
 reduces the candidate local head to the existing dependent `Gen-Call-0`
 record plus independently formed signature-local `H_eff`. The missing
@@ -43,9 +44,19 @@ and justify `OC-CallEff`; only after O0 closes attack O1, then actual C0
 checking inputs. No new user-decision blocker or implementation authority.
 The linked note contains the four-part repository handoff.
 
+The next default-off HIR inventory slice is recorded in
+[`shadow-original-call-effect-premises`](../notes/progress/2026-10-08-shadow-original-call-effect-premises.md).
+Two per-Apply rows now name signature-local immediate Call-effect position
+formation and original typed Call-effect occurrence introduction. The
+pre-write scope audit and compiler-referee review passed; producer focused
+checks passed with one pre-existing rustfmt discrepancy explicitly retained.
+These remain unresolved premise markers, not O0 evidence. DAG counts and all
+semantic statuses remain unchanged.
+
 ### Other round 7 fronts from the same baseline
 
-Started from latest remote `f3be02da1ba169a88acc154ac29621634f3cc89b`.
+Started from remote `f3be02da1ba169a88acc154ac29621634f3cc89b` (historical
+round-7 baseline; the newer O0 note and shadow checkpoint are recorded above).
 The canonical 90-node / 196-edge DAG remains 7 CLOSED, 20
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY; no semantic gate moved.

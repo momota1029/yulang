@@ -153,7 +153,7 @@ fn annotations_and_pending_calls_borrow_exact_root_header_membership() {
             .iter()
             .filter(|premise| premise.call() == registration.source)
             .collect::<Vec<_>>();
-        assert_eq!(registration.application_premises.len(), 8);
+        assert_eq!(registration.application_premises.len(), 10);
         assert_eq!(registration.application_premises.len(), expected.len());
         for (actual, expected) in registration.application_premises.iter().zip(expected) {
             assert!(std::ptr::eq(*actual, expected));

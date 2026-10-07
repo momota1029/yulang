@@ -22,7 +22,7 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
     // with the rationale recorded here under testing.md protection items 1–4.
     assert_eq!(
         skeleton.pending().len(),
-        expected_calls * 6 + 2 * skeleton.resolved_call_incidences().count()
+        expected_calls * 8 + 2 * skeleton.resolved_call_incidences().count()
     );
     for (index, occurrence) in occurrences.iter().enumerate() {
         let expression = skeleton.expression(occurrence.expression()).unwrap();
@@ -52,6 +52,8 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
         ];
         if matches!(
             skeleton.expression(occurrence.callee()).unwrap().form(),

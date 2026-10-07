@@ -318,6 +318,8 @@ fn shadow_source_core_unary_nested_repeated_use_preserves_identity_and_inventory
         Premise::QIndependentSourceCallViewFormation,
         Premise::SourceEventContributionAndTypedOutputObservation,
         Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+        Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+        Premise::OriginalTypedCallEffectOccurrenceIntroduction,
     ];
     let source_use = [
         Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
@@ -497,7 +499,7 @@ fn shadow_source_core_unary_application_retains_declaration_and_pending_calls() 
         }
         assert_eq!(
             skeleton.pending().len(),
-            6 + 2 * skeleton.resolved_call_incidences().count()
+            8 + 2 * skeleton.resolved_call_incidences().count()
         );
         assert!(
             skeleton
@@ -512,6 +514,8 @@ fn shadow_source_core_unary_application_retains_declaration_and_pending_calls() 
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
         ];
         if callee_kind == SyntaxKind::IdentifierExpression {
             expected.push(Premise::SourceFormalUseRuleApplicabilityAndInterpretation);
@@ -579,7 +583,7 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
     }
     // FVIEW §§2,5 require unresolved shared-component source formation; counting
     // its per-call reference records that obligation without semantic acceptance.
-    assert_eq!(artifact.pending.len(), 16);
+    assert_eq!(artifact.pending.len(), 20);
     for call in [&artifact.body, inner] {
         let premises = artifact
             .pending
@@ -596,6 +600,8 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
                 Premise::QIndependentSourceCallViewFormation,
                 Premise::SourceEventContributionAndTypedOutputObservation,
                 Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+                Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+                Premise::OriginalTypedCallEffectOccurrenceIntroduction,
                 Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
                 Premise::SourceDirectionalOutputEffectProtectionIntroduction
             ]
@@ -1087,7 +1093,7 @@ fn shadow_source_core_nested_candidate_matches_independent_cst_projection() {
     );
     assert_eq!(
         skeleton.pending().len(),
-        6 + 2 * skeleton.resolved_call_incidences().count()
+        8 + 2 * skeleton.resolved_call_incidences().count()
     );
     for (pending, premise) in skeleton.pending().iter().zip([
         Premise::CallableRole,
@@ -1096,6 +1102,8 @@ fn shadow_source_core_nested_candidate_matches_independent_cst_projection() {
         Premise::QIndependentSourceCallViewFormation,
         Premise::SourceEventContributionAndTypedOutputObservation,
         Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+        Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+        Premise::OriginalTypedCallEffectOccurrenceIntroduction,
         Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
         Premise::SourceDirectionalOutputEffectProtectionIntroduction,
     ]) {

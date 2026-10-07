@@ -187,6 +187,8 @@ fn frozen_legacy_application_joins_local_sidecar_and_unsolved_solver_row() {
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction,
         ]
@@ -304,7 +306,7 @@ fn frozen_legacy_application_joins_local_sidecar_and_unsolved_solver_row() {
         .as_ref()
         .unwrap();
     assert!(std::ptr::eq(*call, raw_call));
-    assert_eq!(call.application_premises.len(), 8);
+    assert_eq!(call.application_premises.len(), 10);
     assert!(
         call.application_premises
             .iter()

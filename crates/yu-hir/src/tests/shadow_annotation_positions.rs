@@ -285,6 +285,8 @@ fn shadow_annotation_positions_associates_only_grouped_parameter_identifier() {
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceEventContributionAndTypedOutputObservation,
             Premise::JointArgumentTypingAndActualReturnedProviderCarrierCompatibility,
+            Premise::SourceSignatureLocalImmediateCallEffectPositionFormation,
+            Premise::OriginalTypedCallEffectOccurrenceIntroduction,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
             Premise::SourceDirectionalOutputEffectProtectionIntroduction
         ]
