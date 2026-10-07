@@ -61,12 +61,13 @@ principality, all compatible contexts and exhaustive production extras remain.
 
 ### Immediate work order
 
-1. Close an original-rule gate or produce an adoptable semantic clause for
-   `H_eff` / OC-CallEff, then continue to source owner/contribution/licensing
-   introductions. Do not add another note that only localizes the missing
-   constructor. Any candidate clause must preserve the existing Authority,
-   same-`xi` scope, and comparison-independent formation; OC-CallEff remains
-   unadopted until that clause is reviewed and approved.
+1. Use the compiler-referee/spec-auditor-reviewed two-head candidate in
+   [the O0 clause continuation](../notes/progress/2026-10-07-original-call-output-minimal-clause.md#7-candidate-two-head-original-formation-clause)
+   as a fixed target. Next prove original well-typing, realization,
+   substitution coherence and conservativity, or establish that adopting a
+   primitive rule requires an explicit new decision. Do not add another note
+   that only localizes the constructor. Preserve same-`xi` scope and
+   comparison-independent formation.
 2. Establish the independent actual Call inputs and complete production
    descriptor/member/admission clauses. C0 and the static O0/O1 branch may
    progress independently; preserve same-provider/world and original scopes.
@@ -1841,6 +1842,23 @@ checks. Both successor correspondence/transport premises remain unresolved,
 and the all-local partition is still an explicit experimental premise. This
 fixture exercises Q but not an R-bearing incoming use. Compiler-referee review
 found no issues. No semantic DAG status changed.
+
+## O0 reviewed clause candidate (2026-10-07)
+
+The existing [O0 minimal-clause record](../notes/progress/2026-10-07-original-call-output-minimal-clause.md#7-candidate-two-head-original-formation-clause)
+now contains a concrete two-head candidate: `OSig-Demand` forms the immediate
+complete-invocation position for the actual dependent `U_c`; `OC-CallEff`
+must consume exactly `rho_c = demand(e_c)` and `q_c = inv_eff(rho_c)`. A
+compiler-referee caught the prior arbitrary-position defect (which admitted a
+latent result-effect position); the repaired clause received clean
+compiler-referee and spec-auditor delta reviews, and the architect classed it
+as an unadopted formalization of the approved direction, not a demonstrated
+new observable choice. Original constructor typing, realization, substitution
+coherence and conservativity remain unproved, so O0 and `ORIGINAL_ASSOC` stay
+open. The next attack is on those proofs against the fixed clause, not another
+description of the missing head. The canonical DAG remains 90 nodes / 196
+edges with counts 7 / 20 / 43 / 19 / 1 for CLOSED / CONDITIONAL-CLOSED /
+OPEN-PROOF / OPEN-SEMANTIC / IMPLEMENTATION-ONLY.
 
 ## Preserved history and next integration steps
 

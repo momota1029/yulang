@@ -268,3 +268,89 @@ USER DECISION NEEDED:
 `ORIGINAL_ASSOC` stays OPEN-SEMANTIC. All statuses and dependency edges remain
 unchanged; its O0 leaf is refined only. O1/C0 and C1/J0/ATTACH/licensing/PROFILE
 were not expanded. This note authorizes no production cutover.
+
+## 7. Candidate two-head original formation clause
+
+This continuation turns the remaining O0 locator into a concrete rule
+proposal. It is **proposed and unadopted**; it does not close O0. The previous
+candidate let `OC-CallEff` consume any `EffPosition_sig` for the same Function
+schema. Independent review found that this allowed a latent result-effect
+position to pair with `p0 = call.effect`. The rule below ties both premises to
+the unique designated projection of the exact demand retained by `e_c`.
+
+Retain the complete dependent demand record `rho_c` at the actual inner Call
+scope `Delta_c / sigma_step`, with the captured root `R_f` and provider
+`(d_f,A_f)` anchored at `sigma_apply`, and the original shared
+`xi=(nu,K,D)`. `rho_c` contains no `p0` correspondence, occurrence-typing
+witness, comparison result, or source execution.
+
+`GenCallDemand`, `H_eff`, and `EffPosition_sig,orig` below are proposed
+metanotation for the candidate rule's input/output sorts; they are not
+predicates or judgments already defined by the Authoritative sources.
+
+```text
+rho_c : GenCallDemand(U_c; B,X,xi,Delta_c,d_f,A_f,R_f,c)
+---------------------------------------------------------------- OSig-Demand [PROPOSED]
+H_eff(rho_c) : original signature-position family for U_c
+inv_eff(rho_c) : EffPosition_sig,orig(U_c;B,X,xi,Delta_c)
+```
+
+The proposed projections are fixed by the existing complete-invocation
+direction:
+
+```text
+descriptor(inv_eff(rho_c)) := U_c
+root/provider(inv_eff(rho_c)) := R_f / (d_f,A_f)
+scope/dependencies(inv_eff(rho_c)) := rho_c's actual Delta_c at sigma_step
+designation(inv_eff(rho_c)) := immediate complete invocation,
+  including entry and designated consumers; excluding result.latent.effect
+```
+
+Its original realization and substitution laws remain proof obligations:
+
+```text
+for every legal original assignment theta in the same (X,xi):
+  interpret(theta,inv_eff(rho_c))
+    = completeInvocationEffectPosition(interpret(theta,U_c))
+  theta(inv_eff(rho_c)) = inv_eff(theta(rho_c))
+```
+
+These laws must be proved in the independently fixed original signature
+interpretation; they are not consequences of equal endpoint shapes or of the
+generated constraint declaration alone.
+
+The source occurrence head consumes the very demand and projection formed
+above, not an arbitrary member of the Function's other effect positions:
+
+```text
+e_c : Gen-Call-0 record
+rho_c = demand(e_c)
+q_c = inv_eff(rho_c)
+---------------------------------------------------------------- OC-CallEff [PROPOSED]
+ce_orig(e_c,q_c) : original typed Call-effect occurrence at
+  (B,X,xi,Delta_c; U_c,q_c,beta,u,p0,c)
+```
+
+The occurrence must preserve all of `e_c`'s original dependency indices and
+incidence, including `ElimOrigin(c,u_f,d_f,R_f,p0,p_out(c))`. Its
+substitution/coherence obligation is:
+
+```text
+theta(ce_orig(e_c,q_c))
+  = ce_orig(theta(e_c), theta(q_c))
+```
+
+The typing of `ce_orig` in the existing original occurrence family is still
+the clause's central unproved obligation. The equations do not assert row
+equality, successful `Q`, source execution, receipt, admission, owner/profile
+completion, or `p0` correspondence. The local existential `U_c` remains under
+all of `Delta_c`; no outer-scope hoisting is permitted.
+
+**Review state and limit.** An independent compiler-referee found the
+arbitrary-position defect above. The primary repaired it by tying the exact
+projection to the demand retained by `e_c`; fresh compiler-referee and
+spec-auditor delta reviews found no further issues. An architect classed these
+as an unadopted source-constructor formalization, not a demonstrated new
+observable choice. O0 remains open until original well-typing, realization,
+substitution coherence and conservativity are established. No implementation
+or production-cutover authority follows.
