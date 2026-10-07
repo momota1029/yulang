@@ -126,6 +126,26 @@ substitution remain explicit unresolved premises. This does not generate
 records for arbitrary Apply nodes or alter solver/production behavior. Its
 focused three-test target and independent compiler-referee review passed.
 
+### Exact source-to-candidate Apply crosswalk
+
+The default-off, test-wired
+[`CandidateSourceCrosswalk`](../crates/yu-solver/src/shadow_candidate_source_crosswalk.rs)
+joins a one-root Lambda's exact declaration/formal/application/callee/
+argument source positions to the same solve's executed candidate Calls and
+borrowed whole-root export. It borrows the existing `SourceCallUseInput` and
+matching `PendingPremise` identities, queries rather than assumes incoming
+fresh rows, and exposes the absent ordinary own-formal route in this envelope.
+Foreign parse/HIR-root joins fail. Candidate calls and export retain their full
+unresolved premise inventory. Independent compiler-referee review passed; the
+focused target passed 2/2. This advances only the `HIR_WIRING`
+implementation-only node. Multi-definition fresh-use, captured local
+Bind/Lambda, semantic typing/admission, successor correspondence and production
+behavior remain open.
+
+The canonical successor DAG remains 90 nodes / 196 edges with 7 CLOSED, 20
+CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and 1
+IMPLEMENTATION-ONLY. No proof or semantic node changed status.
+
 ### Current shared static owner construction
 
 The user's `2026-10-07T23:02:56+09:00` instruction authorizes continuing

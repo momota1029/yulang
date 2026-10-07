@@ -116,6 +116,37 @@ stable traversal/fact counters and exported schemes before/after candidate
 execution, including a parameter/group body. It is same-binary noninterference
 evidence, not cross-feature behavioral equivalence.
 
+## Exact source-to-candidate identity crosswalk
+
+The test-wired, default-off
+[`shadow_candidate_source_crosswalk`](../../crates/yu-solver/src/shadow_candidate_source_crosswalk.rs)
+joins the one-binding Lambda source envelope to executed candidate Calls and
+the borrowed whole-root export. It requires exact declaration, formal,
+application, callee and argument positions from the same parsed artifact. It
+retains the existing `SourceCallUseInput` and every matching `PendingPremise`
+by reference; it does not reconstruct source identities from spelling or
+solver rows.
+
+The crosswalk queries actual candidate fresh-row capture. An own formal has no
+ordinary incoming fresh route in this envelope, and the accessor exposes that
+absence. It does not assert a freshening rule or claim the multi-definition,
+captured-local Bind/Lambda join. Candidate Call and export continue to carry
+the full `UNRESOLVED` premise inventory. A foreign parse and a candidate from a
+different HIR root are rejected before the crosswalk is returned.
+
+Independent compiler-referee review found no findings. The focused target
+passed 2/2 after the final identity-error assertion:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate \\
+  --test shadow_candidate_source_crosswalk -j 2 --offline -- \\
+  --test-threads=1
+```
+
+This extends the executable source/candidate observation only. It proves no
+source typing, provider compatibility, semantic admission, result checking,
+successor correspondence or production behavior.
+
 `cargo check -p yu-solver --all-targets --features shadow-apply-candidate
 -j 2 --offline` passed at the phase boundary (5.37 seconds, no warnings).
 Whole-workspace
