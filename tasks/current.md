@@ -30,13 +30,16 @@ records actual proof/review/repair/check results. The
 and [theory map](../notes/theory/inference-theory-map.md) are synchronized
 navigation into this ledger, not independent duplicate gate lists.
 
-### Latest reviewed continuation: round 2
+### Latest reviewed continuation: round 3
 
-The [round-2 review/integration record](../notes/progress/2026-10-07-successor-round2-review.md)
-starts from `ad514061` and revalidates the additive remote through `3cf6bb70`.
-The full preserved ledger and all 32 requested families were re-audited.
+The [round-3 actual-export synthesis](../notes/progress/2026-10-07-actual-export-synthesis-round3.md)
+adds a strong conditional proof of the existing all-view principality
+composition node, reviewed independently by a compiler referee and spec
+auditor. The prior [round-2 review/integration record](../notes/progress/2026-10-07-successor-round2-review.md)
+starts from `ad514061` and revalidates the additive remote through `3cf6bb70`;
+its full preserved ledger and all 32 requested families remain the baseline.
 The canonical inventory remains **89 nodes / 194 edges**: 6 CLOSED,
-17 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 46 OPEN-PROOF,
+18 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 45 OPEN-PROOF,
 19 OPEN-SEMANTIC and 0 BLOCKED-BY-USER-DECISION. New restricted results
 refine existing leaves rather than adding conditional gate names.
 
@@ -187,7 +190,18 @@ localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
 same original witness, and that derivation must produce accepted `Direct`
 evidence at the actual `B_common` export. The note gives only a conditional
-composition; it does not close `ALL_VIEW` or `PRINCIPAL`.
+composition; `ALL_VIEW` remains open.
+
+The independently reviewed [round-3 synthesis](../notes/progress/2026-10-07-actual-export-synthesis-round3.md)
+now proves the existing final composition node conditionally: assuming the
+complete existing `SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts, it
+constructs one finite ordinary-use graph before any public solution is chosen,
+transports the joined strategy and actual `Direct` evidence, and derives exact
+public projection while preserving binder strategy and correlation. The
+compiler-referee and spec-auditor reviews accepted this proof. `PRINCIPAL` is
+therefore `CONDITIONAL-CLOSED` with those three unchanged premises; each
+prerequisite remains open, including actual-root resolver acceptance,
+nonidentity decorated value inclusion and common/export conformance.
 
 The compiler-referee-reviewed [actual-export constructor attempt](../notes/progress/2026-10-08-principal-actual-export-rule-attempt.md)
 constructs a finite candidate §5.3 certificate for matched acyclic allocation
@@ -196,7 +210,8 @@ Acceptance remains conditional on resolution conformance and complete
 independent descriptor/admission contracts. A checked `Value` with a
 nonidentical interface reaches an unmatched `VIncl(A,B)` evidence leaf; this
 is not a source counterexample or proof that no other resolver case applies.
-`ALL_VIEW` and `PRINCIPAL` remain open.
+`ALL_VIEW` remains open; `PRINCIPAL` is conditionally closed from the complete
+`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` premises above.
 
 The compiler-referee-reviewed [Integer/Top actual-root bridge attempt](../notes/progress/2026-10-08-principal-vincl-actual-root-bridge-attempt.md)
 extracts the current integer literal's occurrence-local producer, then stops

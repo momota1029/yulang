@@ -24,9 +24,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 | --- | ---: |
 | BLOCKED-BY-USER-DECISION | 0 |
 | CLOSED | 6 |
-| CONDITIONAL-CLOSED | 17 |
+| CONDITIONAL-CLOSED | 18 |
 | IMPLEMENTATION-ONLY | 1 |
-| OPEN-PROOF | 46 |
+| OPEN-PROOF | 45 |
 | OPEN-SEMANTIC | 19 |
 
 ## Full topological inventory
@@ -957,14 +957,14 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 
 ### PRINCIPAL
 
-**All-view principal successor inference — OPEN-PROOF**. Production relevance: required-before-cutover.
+**All-view principal successor inference — CONDITIONAL-CLOSED**. Production relevance: required-before-cutover.
 
 - Direct prerequisite gates: [SOURCE_ADEQUACY](#source-adequacy), [ALL_VIEW](#all-view), [PROJECTION](#projection).
-- Premises retained: Every independently valid view in the declared conservative abstraction and actual designated export.
+- Premises retained: The complete existing SOURCE_ADEQUACY, ALL_VIEW and PROJECTION scopes; every independently valid finite public scheme in the declared conservative abstraction; one computed actual designated export; original scopes, witness strategies, correlations and resolution/evidence alternatives.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Prove universal ordinary-use factorization of every valid public scheme through the computed whole relation, preserving correlations/scopes/evidence; no concrete-success transitivity shortcut.
+- Minimal remaining lemma / exact closed scope: For each public scheme, construct one finite ordinary whole-copy/query graph before selecting a public solution; transport the joined ALL_VIEW strategy and actual Direct evidence through PROJECTION's ordinary-use factorization; derive exact public projection using certified-use Theorem 3. This proves PRINCIPAL conditional on all three unchanged open prerequisites.
 - Unblocks: [CUTOVER](#cutover).
-- Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [use](../../notes/design/2026-10-04-certified-callback-and-constrained-use.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
+- Sources: [actualexport](../../notes/progress/2026-10-07-actual-export-synthesis-round3.md); [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [use](../../notes/design/2026-10-04-certified-callback-and-constrained-use.md); [newglobal](../../notes/progress/2026-10-07-successor-global-synthesis.md).
 
 ### FRESH-LIFE
 
@@ -1005,7 +1005,7 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 
 - Direct prerequisite gates: [SOUND](#sound), [PRINCIPAL](#principal), [PROD_CONFORMANCE](#prod-conformance), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource), [HIR_WIRING](#hir-wiring), [ORACLE_COMPAT](#oracle-compat).
 - Premises retained: Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.
-- Already closed lemmas reused directly: None.
+- Already closed lemmas reused directly: [PRINCIPAL](#principal).
 - Minimal remaining lemma / exact closed scope: Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.
 - Unblocks: None.
 - Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
@@ -1079,4 +1079,4 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 4. Extend actual typed source incidence and history/world admission beyond SV; the finite Path query computes consequences of supplied evidence and cannot create it.
 5. Complete the shared primitive/world/source predicates, source-derived finite context presentation, effective joint solving/projection, legal common descriptor and universal actual-export Direct lifting. Prove both production inclusions, including Option 2 extra observations, before cutover.
 
-The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md) and current [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md) identify actual proofs, implementations and checks. Round 2 keeps all 89 node statuses and 194 edges unchanged; restricted new results refine existing leaves rather than inflating conditional closure counts. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.
+The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md), [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md), and [round-3 actual-export synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md) identify exact scopes and reviews. Round 3 proves the existing PRINCIPAL composition conditionally from the unchanged full SOURCE_ADEQUACY, ALL_VIEW and PROJECTION premises; those prerequisites and actual-root resolver acceptance remain open. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.

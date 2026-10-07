@@ -1995,16 +1995,17 @@
     },
     {
       "id": "PRINCIPAL",
-      "status": "OPEN-PROOF",
+      "status": "CONDITIONAL-CLOSED",
       "gate": "All-view principal successor inference",
       "requires": [
         "SOURCE_ADEQUACY",
         "ALL_VIEW",
         "PROJECTION"
       ],
-      "premises": "Every independently valid view in the declared conservative abstraction and actual designated export.",
-      "minimal_lemma_or_closed_scope": "Prove universal ordinary-use factorization of every valid public scheme through the computed whole relation, preserving correlations/scopes/evidence; no concrete-success transitivity shortcut.",
+      "premises": "The complete existing SOURCE_ADEQUACY, ALL_VIEW and PROJECTION scopes; every independently valid finite public scheme in the declared conservative abstraction; one computed actual designated export; original scopes, witness strategies, correlations and resolution/evidence alternatives.",
+      "minimal_lemma_or_closed_scope": "For each public scheme, construct one finite ordinary whole-copy/query graph before selecting a public solution; transport the joined ALL_VIEW strategy and actual Direct evidence through PROJECTION's ordinary-use factorization; derive exact public projection using certified-use Theorem 3. This proves PRINCIPAL conditional on all three unchanged open prerequisites.",
       "references": [
+        "actualexport",
         "charter",
         "use",
         "newglobal"
@@ -2120,7 +2121,9 @@
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [],
-      "closed_lemmas": []
+      "closed_lemmas": [
+        "PRINCIPAL"
+      ]
     }
   ],
   "request_coverage": {
@@ -2510,6 +2513,7 @@
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
     "round2review": "notes/progress/2026-10-07-successor-round2-review.md",
+    "actualexport": "notes/progress/2026-10-07-actual-export-synthesis-round3.md",
     "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
     "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
     "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",

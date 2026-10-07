@@ -77,6 +77,7 @@ REFS = {
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
     "round2review": "notes/progress/2026-10-07-successor-round2-review.md",
+    "actualexport": "notes/progress/2026-10-07-actual-export-synthesis-round3.md",
     "kernel2": "notes/progress/2026-10-07-successor-original-kernel-construction-round2.md",
     "coind2": "notes/progress/2026-10-07-successor-recursive-coinduction-round2.md",
     "projection2": "notes/progress/2026-10-07-successor-effective-projection-round2.md",
@@ -380,9 +381,9 @@ n("PROD_CONFORMANCE", "OPEN-PROOF", "Complete production semantic conformance", 
 n("SOUND", "OPEN-PROOF", "Sound successor inference", "SOURCE_ADEQUACY JOINT_DEC PROD_CONFORMANCE",
   "Computed complete relation, independently valid admission and actual primitive semantics.",
   "Every published inferred scheme and accepted use satisfies the selected source/conservative-abstraction semantics, including effects, permissions, worlds, methods and recursive use.", "charter adequacy")
-n("PRINCIPAL", "OPEN-PROOF", "All-view principal successor inference", "SOURCE_ADEQUACY ALL_VIEW PROJECTION",
-  "Every independently valid view in the declared conservative abstraction and actual designated export.",
-  "Prove universal ordinary-use factorization of every valid public scheme through the computed whole relation, preserving correlations/scopes/evidence; no concrete-success transitivity shortcut.", "charter use newglobal")
+n("PRINCIPAL", "CONDITIONAL-CLOSED", "All-view principal successor inference", "SOURCE_ADEQUACY ALL_VIEW PROJECTION",
+  "The complete existing SOURCE_ADEQUACY, ALL_VIEW and PROJECTION scopes; every independently valid finite public scheme in the declared conservative abstraction; one computed actual designated export; original scopes, witness strategies, correlations and resolution/evidence alternatives.",
+  "For each public scheme, construct one finite ordinary whole-copy/query graph before selecting a public solution; transport the joined ALL_VIEW strategy and actual Direct evidence through PROJECTION's ordinary-use factorization; derive exact public projection using certified-use Theorem 3. This proves PRINCIPAL conditional on all three unchanged open prerequisites.", "actualexport charter use newglobal")
 n("CUTOVER", "OPEN-PROOF", "Final reviewed implementation and production inference cutover", "SOUND PRINCIPAL PROD_CONFORMANCE FRESH_LIFE RESOURCE HIR_WIRING ORACLE_COMPAT",
   "Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.",
   "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.", "charter rebuild review")
@@ -552,7 +553,7 @@ def render(doc):
             "3. Supply semantic eligible Generalize views and origin-relative insertion/terminal laws; use the closed provenance machinery and finite alpha equality only after their actual premises hold.",
             "4. Extend actual typed source incidence and history/world admission beyond SV; the finite Path query computes consequences of supplied evidence and cannot create it.",
             "5. Complete the shared primitive/world/source predicates, source-derived finite context presentation, effective joint solving/projection, legal common descriptor and universal actual-export Direct lifting. Prove both production inclusions, including Option 2 extra observations, before cutover.",
-            "", "The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md) and current [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md) identify actual proofs, implementations and checks. Round 2 keeps all 89 node statuses and 194 edges unchanged; restricted new results refine existing leaves rather than inflating conditional closure counts. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.", ""]
+            "", "The previous [full-attack review](../progress/2026-10-07-successor-full-attack-review.md), [round-2 review/integration record](../progress/2026-10-07-successor-round2-review.md), and [round-3 actual-export synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md) identify exact scopes and reviews. Round 3 proves the existing PRINCIPAL composition conditionally from the unchanged full SOURCE_ADEQUACY, ALL_VIEW and PROJECTION premises; those prerequisites and actual-root resolver acceptance remain open. The preserved pre-correction ledger is unchanged; old map snapshots are navigation history, not additional live gates.", ""]
     return "\n".join(out)
 
 

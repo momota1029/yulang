@@ -41,6 +41,22 @@ owner and prove joint incidence coherence. Exhaustive licensing inversion
 must recover every actual original witness. A source argument diagonal does
 not replace independent whole-carrier inlet admission.
 
+## Round-3 conditional principality composition
+
+The independently compiler-referee/spec-auditor-reviewed [actual-export
+synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md) proves the
+existing `PRINCIPAL` composition node from the **full unchanged**
+`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts. For each independent
+finite public scheme, it fixes a whole-copy/query graph before selecting a
+public solution, transports one joined original-scope strategy together with
+the actual exported-root `Direct` evidence through PROJECTION's ordinary-use
+factorization, then applies certified-use Theorem 3 for exact public
+projection. Binder strategy, imports, correlations and all evidence remain
+in scope. This changes only `PRINCIPAL` to `CONDITIONAL-CLOSED`; all three
+prerequisites remain open. It supplies neither actual-root resolver acceptance
+nor nonidentity decorated descriptor proofs, closes no `ALL_VIEW` or
+`SOURCE_ADEQUACY` leaf, and grants no production-cutover authority.
+
 The [recursive certificate](../progress/2026-10-07-successor-recursive-coinduction-round2.md)
 offers an alternative to the listed FH/reflection method inside REC_DESC.
 Its ordinary two-closure introduction/absorption law remains unproved;
@@ -157,7 +173,7 @@ JOINT_DEC and PROJECTION remain the complete residual/effective source gates.
 | Independent production meaning | SAT_A exhaustive original Option A/2 member clauses and ADM_A independently typed punctured contexts |
 | Production conformance | D_C subset D_A and P_A subset P_C for every original checked-admitted challenge, including Option 2 production-only observations |
 | Sound successor inference | Complete source/production correspondence and effective exact joint solver |
-| All-view principality | Legal common descriptor/totality, actual-export universal Direct lifting, effective original-scope projection |
+| All-view principality | Conditional composition is proved; the complete SOURCE_ADEQUACY, ALL_VIEW and PROJECTION premises remain open, including legal common descriptor/totality, actual-export universal Direct/resolver acceptance and effective original-scope projection conformance |
 | Generalized SCC lifecycle | Complete actual interface, primitive equivariance, fresh/internal use correspondence, split/merge/rebuild/reference/atomic publication |
 | Production cutover | All preceding claims, exact practical resource boundary, full HIR/pipeline implementation, Oracle capability evidence, independent final reviews and explicit concrete rollout authority |
 

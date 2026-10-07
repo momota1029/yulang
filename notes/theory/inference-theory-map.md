@@ -20,13 +20,15 @@ practice. The current directional upper-output policy is fixed. Internal
 inferred views do not change actual callable role/entry; provider-owned
 protection is retained. No E/R or normalized blanket policy is selected.
 
-Latest reviewed continuation: [round-2 review and integration](../progress/2026-10-07-successor-round2-review.md).
+Latest reviewed continuation: [round-3 actual-export synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md), building on the [round-2 review and integration](../progress/2026-10-07-successor-round2-review.md).
 The original kernel has explicit whole-contract and OC-Call-Intro candidate
 clauses; the actual recursive knot has a direct certificate and an exact
 absorption obstruction; finite relational contexts and equality-only scoped
 atom projection have constructive restricted proofs. Both compiler/spec
-reviews are clean. These results refine the existing 89-node / 194-edge DAG
-without promoting any original semantic leaf or adding conditional gate names.
+reviews are clean. Round 3 proves the existing `PRINCIPAL` composition
+conditionally from the complete unchanged `SOURCE_ADEQUACY`, `ALL_VIEW` and
+`PROJECTION` premises; it leaves their source/resolver obligations open. The
+DAG remains 89 nodes / 194 edges, with 18 conditional closures and no new gate.
 Two independently reviewed default-off Rust utilities now implement supplied
 finite-interface alpha comparison and pointwise atom-orbit evaluation; their
 14 focused tests pass. The latest local-binding sidecar remains structural.
@@ -140,6 +142,16 @@ and [Option 2](../../questions/2026-10-05-production-function-bound-membership/a
 allow production-only licensed members. Reference constructor simulation is
 not their exhaustive definition. Common totality, all-view Direct, source
 nonemptiness and production-extra containment remain separate quantifiers.
+
+The reviewed [round-3 synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
+proves the final `PRINCIPAL` composition conditionally from the full existing
+`SOURCE_ADEQUACY`, `ALL_VIEW` and `PROJECTION` contracts: one finite ordinary
+copy/query graph is fixed per public scheme, then the joined all-view strategy
+and actual export evidence are transported through ordinary-use factorization.
+Exact public projection follows from certified-use Theorem 3. This is a
+conditional theorem only. The three prerequisites remain open; actual-root
+resolver acceptance, nonidentity decorated membership and production
+conformance remain unresolved.
 
 ## 6. Production and lifecycle boundary
 
