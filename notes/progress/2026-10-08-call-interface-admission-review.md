@@ -371,4 +371,22 @@ The conditional composition with §8.2 fixes attachment, both indexed incidences
 
 Independent compiler-referee review found the selected rule noncircular and source-rooted, with no missing typed input on this envelope. Independent spec-auditor review passed Authority and Option 2 conformance; it required retaining the exact `SpecCall_e` derivation in the `UpperCallRef` payload, which was repaired and delta-reviewed. No tests or compiler code changed.
 
-This establishes an adoptable selected constructor and its conditional forward licensing case. It does not prove the same claims for an independently fixed `Attach_M`/`Lic_M`, the forward law for every retained attachment constructor, exhaustive LIC_INVERT, profile completeness, active-consumer preservation, or production conformance. Aggregate ATTACH, LIC_FORWARD and LIC_INVERT remain OPEN-PROOF. The DAG node counts therefore remain unchanged at 90 / 196: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY; the exact residuals have been reduced in the canonical gate entries.
+This establishes an adoptable selected constructor and its conditional forward licensing case. The added `OwnCallLicense` constructor has an explicit two-case eliminator: the new case returns its exact source/O1/C-Call/IF/J-Owned inputs unchanged, and the retained legacy case returns its original `Lic_C` witness without inventing an attachment or source origin. This closes inversion only for the new case; inversion of every retained original license is still open. It does not prove the same claims for an independently fixed `Attach_M`/`Lic_M`, the forward law for every retained attachment constructor, profile completeness, active-consumer preservation, or production conformance. Aggregate ATTACH, LIC_FORWARD and LIC_INVERT remain OPEN-PROOF. The DAG node counts therefore remain unchanged at 90 / 196: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY; the exact residuals have been reduced in the canonical gate entries.
+
+The §5 licensing extension is explicitly the tagged sum of an unchanged
+`Lic_C` witness and the new full-payload `OwnCallLicense` constructor. Its
+eliminator therefore returns every premise of the new case and faithfully
+reconstructs both tags. The compiler-referee and spec-auditor found the local
+inversion sound and precise after two repairs: the new constructor term now
+retains every LC premise, and the remaining legacy inverse quantifies over
+`e in E_C(beta)` at the same original tuple and scope. The exact still-open
+legacy clause is
+
+```text
+ell0 : Lic_C(X,(beta,s,p,c)) ->
+  exists e in E_C(beta), alpha.
+    Attach_C(B,X,xi,Delta; e,(beta,s,p,c);alpha).
+```
+
+No legacy origin, external fixed-kernel map or active-consumer law is supplied
+by tagged-sum inversion. LIC_INVERT remains aggregate OPEN-PROOF.

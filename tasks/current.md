@@ -240,10 +240,18 @@ source-reference constructor and a separate `LC-OwnCall` static-applicability
 introduction for the same captured Call. Exact Q authenticity, independent C0,
 the complete Theorem IF graph, the original shared slot and separate
 lexical/checking facets are retained. The constructor-local inverse recovers
-these same inputs; its J-Owned license premise is formed without licensing or
-attachment. Injective old-case inclusions and every W/Z alternative remain.
+these same inputs; LC-OwnCall's J-Owned evidence is formed independently,
+without licensing or attachment. Injective old-case inclusions and every W/Z
+alternative remain.
 Independent compiler-referee and spec-auditor reviews passed after a repair
 that retains `SpecCall_e` in the source-reference payload.
+`Lic_C+` now has an explicit tagged extension and eliminator. The new
+`OwnCallLicense` case returns its complete source/O1/C-Call/IF/J-Owned inputs
+unchanged; the legacy case returns the original license witness without
+inventing a source origin. This closes inversion of the added case; the exact
+legacy leaf is `ell0 : Lic_C(X,(beta,s,p,c)) -> exists e in E_C(beta),alpha.
+Attach_C(B,X,xi,Delta;e,(beta,s,p,c);alpha)`, with original scopes and lawful
+transports retained.
 
 This proves only the new source-reference and licensing constructor cases
 conditionally. Aggregate ATTACH, LIC_FORWARD and LIC_INVERT remain
@@ -252,6 +260,18 @@ fixed-interpretation maps and active-consumer preservation. Profile/rows,
 source adequacy, production conformance and cutover remain open. Node and edge
 counts are unchanged at 90 / 196: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43
 OPEN-PROOF, 18 OPEN-SEMANTIC, 1 IMPLEMENTATION-ONLY.
+
+Next dependency attack: prove `elim_legacy` at the original `beta` signature
+formation. Enumerate actual source-owned, inherited, annotated, generalized
+and conservative licensing constructors and their same-X/scope transport
+evidence; preserve complete W/Z declaration licenses without requiring
+execution origins. If this cannot be derived, formulate the source-owned
+`SigIncidenceFamily` introduction/elimination signature and test it against
+each real legacy rule before adoption. A single LC-OwnCall member is not the
+complete `Slots(beta)` inventory. Profile §3.3 supplies deterministic policy
+assembly only after complete applicability; it does not discharge
+`elim_legacy`. ROWS remains separate because independent admission and all
+world/history predicates must still share one original tuple.
 
 ### Current original semantic Call inputs
 

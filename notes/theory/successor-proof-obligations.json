@@ -1276,14 +1276,16 @@
         "ATTACH"
       ],
       "premises": "All original licensing last rules, including own upper/inherited transport/generalized/annotated arms and conservative licensed contributions.",
-      "minimal_lemma_or_closed_scope": "Invert every original Lic_C witness to its licensed attachment/source-origin arm. Last-rule accounting must reach inside the independently interpreted owner/view kernel instead of stopping at its supplied primitive witness. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.",
+      "minimal_lemma_or_closed_scope": "`Lic_C+` is now an explicit tagged extension: `LegacyLicense(ell0:Lic_C)` or `OwnCallLicense` with its complete source/SpecCall/C0/IF/J-Owned payload. The eliminator closes the added constructor case and leaves the exact residual `elim_legacy : ell0:Lic_C(X,(beta,s,p,c)) -> exists e in E_C(beta),alpha. Attach_C(B,X,xi,Delta;e,(beta,s,p,c);alpha)`. Prove it from the original owner/view last rules, including conservative declarations and lawful transport evidence. No per-observation execution for Option 2; no licensed-unattached counterexample is established.",
       "references": [
         "lic",
         "newassoc",
         "attachattack",
         "associnvert",
         "assockernel",
-        "option2"
+        "option2",
+        "callcontribdef",
+        "callinterfaceReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [

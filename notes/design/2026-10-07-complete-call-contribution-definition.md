@@ -261,21 +261,68 @@ Q_e, SpecCall_e, C0_e, kappa_e : the identical authentic operation/interface inp
 a_e : OwnedCall(o_e,CallEff_orig(e),c_e,kappa_e)
 o_e,c_e,kappa_e : the exact jointly indexed O1/C-Call/IF objects
 ---------------------------------------------------------------- LC-OwnCall
-OwnCallLicense(e,q_e,o_e,c_e,kappa_e,a_e) : Lic_C^+(X,(beta,s_beta,p0,c_e))
+OwnCallLicense(e,q_e,reg_e,route_e,seed_e,O0_e,O1_e,
+               Q_e,SpecCall_e,C0_e,kappa_e,o_e,c_e,a_e)
+  : Lic_C^+(X,(beta,s_beta,p0,c_e))
 ```
 
 The premise `a_e` is formed by the selected J-Owned construction from the
 same owner, complete contribution and `kappa_e`; J-Owned does not consume
 `Lic_C^+` or `Attach_C^+`. The rule therefore does not consume its licensing
-conclusion or define licensing as attachment. `Lic_C^+` retains every prior
-licensing case and adds this
-introduction at the exact original slot and complete contribution through an
-injective, index- and evidence-preserving inclusion `in_L : Lic_C -> Lic_C^+`.
-Here licensing means static applicability of that signature contribution. It
+conclusion or define licensing as attachment. Define `Lic_C^+` as the tagged
+sum of the complete original judgment and this one new constructor:
+
+```text
+Lic_C^+(X,t) := LegacyLicense(ell) with ell : Lic_C(X,t)
+             | OwnCallLicense(e,q_e,reg_e,route_e,seed_e,O0_e,O1_e,
+                              Q_e,SpecCall_e,C0_e,kappa_e,o_e,c_e,a_e)
+                 at t=(beta,s_beta,p0,c_e)
+```
+
+Thus `in_L(ell)=LegacyLicense(ell)` is injective on the entire original
+indexed witness, including its scopes and evidence. No original constructor
+or transport case is removed or quotiented. Here licensing means static
+applicability of that signature contribution. It
 grants no primitive authority, event protection, removal permission or
 liveness, and does not mark every event in the complete Call as an own-upper
 event. Existing primitive validity, guards, admissions and lawful actions
 remain their independent premises.
+
+The selected extension has the corresponding exact case analysis:
+
+```text
+ell : Lic_C^+(X,(beta,s,p,c))
+------------------------------------------------ LIC-OWNCALL-ELIM
+either
+  ell = LegacyLicense(ell0), with ell0 : Lic_C(X,(beta,s,p,c)),
+or
+  ell = OwnCallLicense(e,q_e,reg_e,route_e,seed_e,O0_e,O1_e,
+                       Q_e,SpecCall_e,C0_e,kappa_e,o_e,c_e,a_e),
+    with the original source and J-Owned inputs from LC-OwnCall.
+```
+
+This closes constructor inversion for the newly added `OwnCallLicense` case:
+its source origin, shared slot, original `p0`, complete contribution,
+occurrence facets, scope and J-Owned evidence are returned unchanged. The
+legacy branch deliberately returns the original `Lic_C` witness without
+inventing an attachment or source-origin map. Thus it is a real local
+`LIC_INVERT` closure, while exhaustive source-origin inversion remains open
+for every retained original licensing case. The remaining legacy leaf is the
+same-X/scope statement
+
+```text
+elim_legacy : ell0 : Lic_C(X,(beta,s,p,c)) ->
+  exists e in E_C(beta), alpha.
+    Attach_C(B,X,xi,Delta; e,(beta,s,p,c);alpha).
+```
+
+It must be proved by expanding the original owner/view license constructors,
+including conservative declaration arms; no definition of `Lic_C` by this
+conclusion is selected. This selected extension adds no
+separate post-hoc transport or hiding constructor. When a lawful map transports
+the entire LC-OwnCall input family, reapply that constructor at the transported
+indices; transports already in original `Lic_C` remain inside the unchanged
+legacy branch.
 
 Inverting `A-UpperCallRef` recovers the identical source and interface inputs.
 The selected J-Owned construction independently forms the required `a_e`;
