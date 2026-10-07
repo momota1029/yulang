@@ -312,6 +312,48 @@ granting that inclusion leaves the actual `B_common` evidence gap under §5.3's
 unchanged non-coverage interface premise. This does not derive accepted
 `Direct`, a counterexample, or close `ALL_VIEW`/`PRINCIPAL`.
 
+### Latest current-remote attack: precise frontier, no status promotion
+
+Attack 4 starts at the latest verified `origin/research/simple-sub-intrusion`
+HEAD `182cfebad42bd77e98dd96022f96c71bb4933759`. The canonical validator
+reports 90 nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED,
+1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF and 19 OPEN-SEMANTIC. The final counts
+remain exactly the same; none of the attacked gates closed and no admitted
+source counterexample was found. See the compiler-referee/spec-auditor-reviewed
+[attack 4 synthesis](../notes/progress/2026-10-07-successor-frontier-attack4.md)
+for per-gate before/after, exact remaining leaves, the existing shadow test
+result and qualified method limits.
+
+The attacks narrowed, without promoting, these existing leaves:
+
+- `CALL_TYPE` stays conditional: the first exact Name/Name input needs an
+  independent joint `Env/Name/Return` introduction at original `xi`; actual
+  provider compatibility and the complete receipt/phase/Bind/pending laws
+  remain separate.
+- `ORIGINAL_ASSOC` stays OPEN-SEMANTIC: P2 needs a source rule introducing
+  original `Slots(beta)` ownership, typed `p0`, complete Call contribution and
+  joint owner/view incidence at the same `X`, scope and `xi`. P3 assembly and
+  P4/ATTACH/licensing remain downstream.
+- `INIT_WORLD` needs a filling-independent zero-step open-root introduction at
+  the importing incidence; the step-index candidate's hole premise follows a
+  real transition, while Name/capture/Delay is inert.
+- `REC_DESC` keeps distinct FH failure-reflection and simultaneous two-closure
+  routes; the first preserves `forall h. exists e`, and the second cannot
+  assume a world that already entails the target member.
+- `ALL_VIEW` remains open at actual designated export. The displayed source
+  contract Function rule cannot build the widened Direct result from a leaf
+  `VIncl` alone; the independent decorated value leaf is still missing.
+- `SOURCE_ADEQUACY` remains open at raw `Run(f x)` versus the emitted complete
+  Call body, including actual consumer, return delimiters and pending suffix.
+
+The requested captured-source shadow slice was already implemented at this
+HEAD. Its focused `shadow_captured_source_retention` target passed four tests
+with `RUSTC_WRAPPER=` and one Cargo build job, checking retained source/HIR/Core
+identities through solve and preserving the unresolved-premise/refusal
+boundary. No redundant identity carrier or production inference change was
+added. Production cutover remains prohibited by the open source, semantic and
+conformance prerequisites.
+
 ## Priority frontier: complete original source contribution
 
 Use the normalized route

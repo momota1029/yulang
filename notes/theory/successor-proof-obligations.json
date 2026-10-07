@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-07",
   "baseline": "6fb5d7f697d5d592e0a39532ddb4967b54e18090",
-  "revalidated_remote_head": "d27f4090e5e7e5be3384c9d54c94e94ab59c7a5c",
+  "revalidated_remote_head": "182cfebad42bd77e98dd96022f96c71bb4933759",
   "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
   "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
   "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
@@ -547,14 +547,15 @@
         "PCINIT"
       ],
       "premises": "Original xi, semantic imports, source alias/activation identities, other environment/world state, checked hole kept open.",
-      "minimal_lemma_or_closed_scope": "Specify filling-independent EnvStore/JointWF clauses for initial context and all imported roots including hole-dependent aliases; exclude circular checked-membership admission. SEM_JOINT interprets them jointly, INIT_VALID realizes actual initial worlds, and HISTORY/ALL_WORLD prove preservation/coverage. Retain the reviewed restricted source-root interface: one independently typed external base, actual open-import substitution action where needed, original source constructor data/provisional roots, joint cross-boundary incidence/current-world compatibility and an independent root-extension last rule. Scalar exporter validity still needs actual cross-world installation at the importer; closed filled roots supply no hole-dependent open action. Preserve B_orig/xi and witness dependencies without requiring one new witness across fillings or restricting to source-reachable clients. For each independently legal open-import substitution, act on original hole/rigid incidences and all licensed dependent witnesses together; prove clause-by-clause identification with the fixed independent import/world interpretation and joint importer root extension preserving old external incidences at the same original X/xi and binder positions. Generic relation-image transport or independently valid closed fillings supplies neither that rule nor its witness transport. A conditional coincident-filling obstruction shows why closed identity substitution cannot replace this incidence action; no actual Yulang admission or semantic countermodel is established.",
+      "minimal_lemma_or_closed_scope": "Specify filling-independent EnvStore/JointWF clauses for initial context and all imported roots including hole-dependent aliases; exclude circular checked-membership admission. SEM_JOINT interprets them jointly, INIT_VALID realizes actual initial worlds, and HISTORY/ALL_WORLD prove preservation/coverage. Retain the reviewed restricted source-root interface: one independently typed external base, actual open-import substitution action where needed, original source constructor data/provisional roots, joint cross-boundary incidence/current-world compatibility and an independent root-extension last rule. Scalar exporter validity still needs actual cross-world installation at the importer; closed filled roots supply no hole-dependent open action. Preserve B_orig/xi and witness dependencies without requiring one new witness across fillings or restricting to source-reachable clients. For each independently legal open-import substitution, act on original hole/rigid incidences and all licensed dependent witnesses together; prove clause-by-clause identification with the fixed independent import/world interpretation and joint importer root extension preserving old external incidences at the same original X/xi and binder positions. Generic relation-image transport or independently valid closed fillings supplies neither that rule nor its witness transport. The step-index candidate grants a hole premise only after a concrete source transition; inert Name/capture/Delay needs an independently justified zero-step open-root introduction at the importing incidence. Treating installation as a transition adds an event not selected by the current source rules. This is a restricted guard-placement obstruction, not a source counterexample or a decision that rejects step indexing.",
       "references": [
         "compat",
         "init",
         "inlet",
         "world3",
         "round3review",
-        "importaction1"
+        "importaction1",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1037,7 +1038,8 @@
         "coind2",
         "round2review",
         "world3",
-        "round3review"
+        "round3review",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1080,14 +1082,15 @@
         "SEM_JOINT"
       ],
       "premises": "One fixed SEM_JOINT ordinary descriptor/carrier/provider-entry/consumer interpretation and original X/xi, universally over every independently admitted operand/world assignment. Independently supply CalRet, including current-world and latent/future returned-provider facts; DelayIntro for the whole inert carrier; Phase_r for every actual receipt, entry, body/native, designated-consumer and return phase, with exhaustive finite/zero-step prefixes and future developments; and BindTyped for the complete ordered pending suffix at every admitted response/current state and returned-provider future use. Construct CI-Operands joint captured-environment/provider/current-world and both operand typing facts; CI-Bind every original ordered interface; CI-ArgFrame for every retained CalRet witness, preserving its evidence while jointly extending argument typing at the actual returned C1 and ArgCompatible with that actual provider (C0 typing alone is insufficient); CI-Receipt the complete first independent receipt/authority inputs; and CI-StepFrame complete next-phase inputs and their incident Bind interfaces jointly at the actual current returned world. Keep one coherent original-scope evidence family, not separately selected existential worlds or witnesses; no bridge assumes whole invocation/Call membership.",
-      "minimal_lemma_or_closed_scope": "The repaired full conditional composition derives existing target typing of every complete output/pending Call observation from precisely these independent local laws and constructed-input bridge instances. Build the actual whole receiver suffix backwards through the original ordered Binds; callee Requests retain Delay/invocation before receipt, receiver Requests retain the remaining suffix without replaying receipt. All finite prefixes, current-state raw resumptions and future returned-provider uses retain the same scoped evidence family. No actual local law/input is instantiated, no assignment inhabitance or whole-source coverage is proved, and no original association, attachment, licensing, assembly or profile is inferred.",
+      "minimal_lemma_or_closed_scope": "The repaired full conditional composition derives existing target typing of every complete output/pending Call observation from precisely these independent local laws and constructed-input bridge instances. Build the actual whole receiver suffix backwards through the original ordered Binds; callee Requests retain Delay/invocation before receipt, receiver Requests retain the remaining suffix without replaying receipt. All finite prefixes, current-state raw resumptions and future returned-provider uses retain the same scoped evidence family. No actual local law/input is instantiated, no assignment inhabitance or whole-source coverage is proved, and no original association, attachment, licensing, assembly or profile is inferred. On the fixed Name/Name cut, CI-Operands still needs independent joint Env/Name/Return introduction at C0; CI-ArgFrame then needs evidence-preserving joint argument typing and actual-provider carrier compatibility at returned C1. Adequate Name lookup can specialize C1=C0 but proves neither predicate.",
       "references": [
         "source",
         "core",
         "newassoc",
         "call3",
         "round3review",
-        "operandcandidate"
+        "operandcandidate",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1168,7 +1171,8 @@
         "ownerpair",
         "assocconstruct5",
         "assocorder5",
-        "producerchronology"
+        "producerchronology",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1762,11 +1766,12 @@
         "GENERALIZE"
       ],
       "premises": "Independently valid public V, fixed original scopes and actual exported B_common with its resolver/evidence alternatives.",
-      "minimal_lemma_or_closed_scope": "Prove Valid_V(v) implies exists original-scope x,p,w,a: J_S and K_G and Q_common and Direct(B_common,R_V(v)) for every V. Exact rewriting or a retained unexported root cannot supply this Direct.",
+      "minimal_lemma_or_closed_scope": "Prove Valid_V(v) implies exists original-scope x,p,w,a: J_S and K_G and Q_common and Direct(B_common,R_V(v)) for every V. Exact rewriting or a retained unexported root cannot supply this Direct. In source-contracts §5.3's displayed certificate calculus, the Function Direct rule requires a matching non-coverage interface; a nonidentity widened result does not follow from a leaf VIncl or paired Option 2 extras alone. The separate decorated value-membership leaf and other actual resolver cases remain open, so this is not a universal resolver counterexample.",
       "references": [
         "use",
         "coverage",
-        "newglobal"
+        "newglobal",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1981,7 +1986,8 @@
         "source",
         "ordinary",
         "newglobal",
-        "round3review"
+        "round3review",
+        "attack4"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2576,6 +2582,7 @@
     }
   ],
   "references": {
+    "attack4": "notes/progress/2026-10-07-successor-frontier-attack4.md",
     "charter": "notes/design/2026-09-29-scc-intrusion-redesign-charter.md",
     "direction": "notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md",
     "fview": "notes/design/2026-10-05-inferred-function-call-views.md",
