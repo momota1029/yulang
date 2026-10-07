@@ -1,8 +1,8 @@
 //! Default-off observation of finalized current F5 member schemes.
 //!
 //! Q/R are current scheme-local binders, not source `beta` or `Slots`.
-//! This borrowed view supplies no successor semantics or use-time freshening
-//! observation. Typed endpoint/profile association remains unimplemented.
+//! Opt-in fresh rows are historical current-solver evidence only. Successor
+//! correspondence and typed endpoint/profile association remain unimplemented.
 
 use crate::{
     ArtifactMismatch, ConstraintBatch, DefinitionRootId, HirOccurrenceId,
@@ -248,5 +248,109 @@ impl<'a> RecursiveRef<'a> {
             .neutral_value(self.bound.bounds())
             .expect("finalized recursive bounds remain valid");
         (lower, upper)
+    }
+}
+
+/// Capture status for one validated SCC use. Captured may contain zero binders.
+#[derive(Clone, Copy)]
+pub enum FreshCaptureState<'a> {
+    NotRequested,
+    /// A closed route was expected, but no complete successful trace is retained.
+    Unavailable,
+    /// Current SCC execution does not instantiate an internal component use.
+    NoClosedInstantiation,
+    Captured(FreshInstantiationRef<'a>),
+}
+
+/// A complete successful route, borrowing its exact target scheme and capture.
+#[derive(Clone, Copy)]
+pub struct FreshInstantiationRef<'a> {
+    scheme: ClosedSchemeRef<'a>,
+    capture: &'a crate::ShadowFreshCapture,
+    route: &'a crate::ShadowFreshRoute,
+}
+
+/// Q/R identity stays qualified by the exact finalized scheme.
+#[derive(Clone, Copy)]
+pub enum FreshBinderRef<'a> {
+    Quantified(QuantifierRef<'a>),
+    Recursive(RecursiveRef<'a>),
+}
+
+/// Opaque historical live row. The capture owner brands its numeric identity.
+#[derive(Clone, Copy)]
+pub struct FreshRowRef<'a> {
+    capture: &'a crate::ShadowFreshCapture,
+    row: u32,
+}
+
+impl FreshRowRef<'_> {
+    pub fn same_identity(self, other: Self) -> bool {
+        std::ptr::eq(self.capture, other.capture) && self.row == other.row
+    }
+}
+
+impl<'a> FreshInstantiationRef<'a> {
+    pub fn scheme(self) -> ClosedSchemeRef<'a> {
+        self.scheme
+    }
+
+    /// Complete inventory in current Q then R order; no schemes/bounds are cloned.
+    pub fn bindings(self) -> impl Iterator<Item = (FreshBinderRef<'a>, FreshRowRef<'a>)> + 'a {
+        let mut recursive = self.scheme.recursive_binders();
+        self.route.rows.iter().map(move |&(kind, ordinal, row)| {
+            let binder = match kind {
+                crate::ShadowFreshBinderKind::Quantified => {
+                    FreshBinderRef::Quantified(QuantifierRef {
+                        scheme: self.scheme,
+                        ordinal,
+                    })
+                }
+                crate::ShadowFreshBinderKind::Recursive => {
+                    let binder = recursive.next().expect("complete capture retains every R");
+                    debug_assert_eq!(binder.ordinal(), ordinal);
+                    FreshBinderRef::Recursive(binder)
+                }
+            };
+            (
+                binder,
+                FreshRowRef {
+                    capture: self.capture,
+                    row,
+                },
+            )
+        })
+    }
+}
+
+impl<'a> ClosedSchemeRef<'a> {
+    #[cfg(feature = "shadow-scc-observer")]
+    pub(crate) fn fresh_capture(
+        self,
+        use_id: &crate::DefinitionUseId,
+        target: &crate::DefinitionOrderId,
+        closed_route: bool,
+    ) -> FreshCaptureState<'a> {
+        let Some(capture) = self.solved.shadow_fresh_capture.as_ref() else {
+            return FreshCaptureState::NotRequested;
+        };
+        if !closed_route {
+            return FreshCaptureState::NoClosedInstantiation;
+        }
+        let Some(route) = capture
+            .positions
+            .get(use_id)
+            .and_then(|&i| capture.routes.get(i))
+        else {
+            return FreshCaptureState::Unavailable;
+        };
+        if route.target != *target || !route.complete {
+            return FreshCaptureState::Unavailable;
+        }
+        FreshCaptureState::Captured(FreshInstantiationRef {
+            scheme: self,
+            capture,
+            route,
+        })
     }
 }

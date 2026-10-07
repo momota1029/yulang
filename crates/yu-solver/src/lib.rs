@@ -7277,6 +7277,15 @@ impl OrderingObserver {
 #[derive(Debug)]
 pub struct SolvedModule {
     #[cfg(feature = "shadow-f5")]
+    #[cfg_attr(
+        not(feature = "shadow-scc-observer"),
+        allow(
+            dead_code,
+            reason = "retained capture is queried through the SCC observer"
+        )
+    )]
+    shadow_fresh_capture: Option<ShadowFreshCapture>,
+    #[cfg(feature = "shadow-f5")]
     pending_applications: Vec<PendingApplicationOccurrence>,
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
     collection_artifact: Arc<CollectionArtifactToken>,
@@ -7312,29 +7321,46 @@ pub struct SolvedModule {
 /// F3b preserves the frozen F0--F2 admission and projection behavior while
 /// placing its mutable state behind the future SCC-closure boundary.
 // Private correspondence evidence: row ordinals belong only to this capture session.
-#[cfg(all(test, feature = "shadow-f5"))]
+#[cfg(feature = "shadow-f5")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ShadowFreshBinderKind {
     Quantified,
     Recursive,
 }
 
-#[cfg(all(test, feature = "shadow-f5"))]
+#[cfg(feature = "shadow-f5")]
+#[derive(Debug)]
 struct ShadowFreshRoute {
     use_id: DefinitionUseId,
+    #[cfg_attr(
+        not(feature = "shadow-scc-observer"),
+        allow(
+            dead_code,
+            reason = "capture target is validated through the SCC observer"
+        )
+    )]
     target: DefinitionOrderId,
     rows: Vec<(ShadowFreshBinderKind, u32, u32)>,
+    #[cfg_attr(
+        not(feature = "shadow-scc-observer"),
+        allow(
+            dead_code,
+            reason = "capture coverage is queried through the SCC observer"
+        )
+    )]
+    complete: bool,
 }
 
-#[cfg(all(test, feature = "shadow-f5"))]
-#[derive(Default)]
+#[cfg(feature = "shadow-f5")]
+#[derive(Debug, Default)]
 struct ShadowFreshCapture {
     pending: Option<ShadowFreshRoute>,
     routes: Vec<ShadowFreshRoute>,
+    positions: HashMap<DefinitionUseId, usize>,
 }
 
 struct InferenceSession {
-    #[cfg(all(test, feature = "shadow-f5"))]
+    #[cfg(feature = "shadow-f5")]
     shadow_fresh_capture: Option<ShadowFreshCapture>,
     f5c_draft_work: F5cDraftWorkMeter,
     batch: ConstraintBatch,
@@ -9472,7 +9498,7 @@ impl InferenceSession {
             route_attempt_physical_change: false,
             incoming_route_accounting_active: false,
             incoming_route_event_sample_failed: false,
-            #[cfg(all(test, feature = "shadow-f5"))]
+            #[cfg(feature = "shadow-f5")]
             shadow_fresh_capture: None,
             #[cfg(test)]
             incoming_term_event_snapshots: [None; 6],
@@ -14812,7 +14838,7 @@ impl InferenceSession {
     }
 
     fn route_incoming(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
-        #[cfg(all(test, feature = "shadow-f5"))]
+        #[cfg(feature = "shadow-f5")]
         if let Some(capture) = &mut self.shadow_fresh_capture {
             capture.pending = None;
         }
@@ -14880,7 +14906,7 @@ impl InferenceSession {
             self.instantiation_scratch.lane_growths = pending.3;
             #[cfg(test)]
             incoming_sample_trace::end_attempt();
-            #[cfg(all(test, feature = "shadow-f5"))]
+            #[cfg(feature = "shadow-f5")]
             if let Some(capture) = &mut self.shadow_fresh_capture {
                 capture.pending = None;
             }
@@ -14893,11 +14919,13 @@ impl InferenceSession {
         }
         #[cfg(test)]
         incoming_sample_trace::end_attempt();
-        #[cfg(all(test, feature = "shadow-f5"))]
+        #[cfg(feature = "shadow-f5")]
         if let Some(capture) = &mut self.shadow_fresh_capture {
             let pending = capture.pending.take();
             if !event_sample_failed && result.is_ok() {
-                capture.routes.push(pending.expect("successful inner route stages evidence"));
+                capture
+                    .routes
+                    .push(pending.expect("successful inner route stages evidence"));
             }
         }
         if event_sample_failed {
@@ -15125,29 +15153,28 @@ impl InferenceSession {
                 result = Err(error);
             }
         }
-        #[cfg(all(test, feature = "shadow-f5"))]
+        #[cfg(feature = "shadow-f5")]
         if result.is_ok() {
             if let Some(capture) = &mut self.shadow_fresh_capture {
                 let view = finalization.scheme_view(&scheme).expect("validated scheme");
-                let rows = (0..view.quantifier_count())
-                    .map(|ordinal| (ShadowFreshBinderKind::Quantified, ordinal))
-                    .chain(
-                        view.recursive_bounds()
-                            .iter()
-                            .map(|bound| {
-                                (ShadowFreshBinderKind::Recursive, bound.binder().ordinal())
-                            }),
-                    )
-                    .filter_map(|(kind, ordinal)| {
-                        scratch
-                            .substitution
-                            .get(&ordinal)
-                            .map(|&row| (kind, ordinal, row))
-                    })
-                    .collect();
+                let expected = view.quantifier_count() as usize + view.recursive_bounds().len();
+                let rows: Vec<_> =
+                    (0..view.quantifier_count())
+                        .map(|ordinal| (ShadowFreshBinderKind::Quantified, ordinal))
+                        .chain(view.recursive_bounds().iter().map(|bound| {
+                            (ShadowFreshBinderKind::Recursive, bound.binder().ordinal())
+                        }))
+                        .filter_map(|(kind, ordinal)| {
+                            scratch
+                                .substitution
+                                .get(&ordinal)
+                                .map(|&row| (kind, ordinal, row))
+                        })
+                        .collect();
                 capture.pending = Some(ShadowFreshRoute {
                     use_id: id.clone(),
                     target: use_record.target.clone(),
+                    complete: rows.len() == expected,
                     rows,
                 });
             }
@@ -15818,7 +15845,19 @@ impl InferenceSession {
         if self.f5c_matrix_observer.is_some() {
             self.store.terms.transfer_owner_events_to_solved_store();
         }
+        #[cfg(feature = "shadow-f5")]
+        if let Some(capture) = &mut self.shadow_fresh_capture {
+            debug_assert!(capture.pending.is_none());
+            capture.positions = capture
+                .routes
+                .iter()
+                .enumerate()
+                .map(|(position, route)| (route.use_id.clone(), position))
+                .collect();
+        }
         Ok(SolvedModule {
+            #[cfg(feature = "shadow-f5")]
+            shadow_fresh_capture: self.shadow_fresh_capture,
             #[cfg(feature = "shadow-f5")]
             pending_applications: self.batch.pending_applications,
             #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
@@ -15861,6 +15900,15 @@ impl SolvedModule {
     }
     pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
         InferenceSession::try_new(batch)?.run()
+    }
+    /// Opt in to current-solver Q/R row evidence; no successor semantics are asserted.
+    #[cfg(feature = "shadow-f5")]
+    pub fn solve_with_shadow_fresh_capture(
+        batch: ConstraintBatch,
+    ) -> Result<Self, SolveAvailabilityError> {
+        let mut session = InferenceSession::try_new(batch)?;
+        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        session.run()
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir

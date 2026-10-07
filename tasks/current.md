@@ -388,6 +388,20 @@ or consume it. Neither route constructs original slots, typed `p0`, ownership
 or complete contribution from the approved source cut. This is a bounded
 premise-gap localization, not semantic impossibility or a closed P2 gate.
 
+The compiler-referee-reviewed [round-4 constructor reduction](../notes/progress/2026-10-09-original-call-fiber-construction-round4.md)
+separates source `H_gen`, conditional complete typing `H_typed`, and the
+missing `H_assoc`. Its owner-first traversal isolates O0/O1: an independently
+typed original output correspondence and source-owner/seed-at-exposure
+introduction at the captured call. The ordering is only a selected traversal;
+it asserts no dependency theorem between owner and contribution realization.
+The separately reviewed [joint-incidence attack](../notes/progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+shows that even full pairwise projections plus retention of all license IDs
+can fabricate a tuple when original witness incidence links are discarded.
+Both are bounded conditional results. The reviewed [K-Owner pair audit](../notes/progress/2026-10-09-original-kowner-underdetermination-round1.md)
+establishes neither uniqueness nor nonuniqueness from the open constructor
+text. `ORIGINAL_ASSOC`, `CALL_TYPE`, licensing and admission remain open; no
+Oracle rule or new source meaning is adopted.
+
 The spec-audited [assembly witness-preservation falsifier](../notes/progress/2026-10-09-original-association-uniform-witness-falsifier.md)
 confirms the candidate's conditional assembly lemma under its stated
 existence/incidence premises. A separate finite presentation shows that
@@ -990,6 +1004,23 @@ projection, then checks the same evidence after solver collection/solve. Its
 focused integration test passed and received regression-auditor closure with
 no findings. This is source/HIR/Core identity correspondence, not an old-infer
 semantic differential or a typed derivation.
+
+The [Frozen Oracle local-call crosswalk](../notes/progress/2026-10-07-shadow-legacy-call-solver-crosswalk.md)
+joins the recorded old-infer application/callee source spans to that same
+shadow HIR/Core structure and its single pending application row before and
+after solver finish. The test keeps historical IDs and scheme text opaque,
+requires production HIR refusal, retains all seven pending premises, and
+checks that no semantic facts are emitted. Its focused target passed and
+received regression-auditor closure with no findings. This is structural
+incidence/refusal differential only; it does not establish old/new inference
+parity or discharge any call judgment.
+
+The opt-in [current Q/R freshening capture](../notes/progress/2026-10-07-shadow-current-qr-freshening-capture.md)
+retains complete successful current-solver route evidence behind the shadow
+feature and exposes it through SCC identity queries. It remains separate from
+successor Q/R correspondence and shared-contract transport. Compiler-referee
+review and focused capture/shadow tests passed; ordinary solve stays
+uncaptured, and no production inference route changed.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
