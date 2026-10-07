@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use crate::intrusion_transport::Term as GraphTerm;
 use crate::intrusion_transport::{
     AllocationLane, Atom, Bound, FaultInjection, Graph, Identity, ParentView, Term, TermId,
     TransportError, make_parent, make_uses,
@@ -548,4 +549,422 @@ fn injected_allocation_failures_return_no_partial_graph() {
         Err(TransportError::AllocationFailed(AllocationLane::Terms)),
     );
     assert_eq!(source, source_snapshot);
+}
+
+// This bridge observes one closed scheme only. Its identity namespace belongs
+// to this export, not to bare Q/R ordinals or to a successor classification.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum SchemeNode {
+    Positive(yu_types::PositiveValueId),
+    Negative(yu_types::NegativeValueId),
+    PositiveEffect(yu_types::PositiveEffectId),
+    NegativeEffect(yu_types::NegativeEffectId),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum SchemeBinder {
+    Quantified(yu_types::QuantifierId),
+    Recursive(yu_types::RecursiveBinderId),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SchemeExportError {
+    Lookup,
+    UnsupportedUnion,
+    UnsupportedIntersection,
+    NodeLimit,
+}
+
+struct ExportedScheme<'a> {
+    // Retaining the exact source view qualifies every sidecar binder key.
+    source: yu_types::ClosedValueSchemeView<'a>,
+    graph: Graph,
+    nodes: HashMap<SchemeNode, TermId>,
+    binders: HashMap<SchemeBinder, Identity>,
+    recursive_bounds: Vec<(SchemeBinder, usize)>,
+}
+
+fn export_scheme(
+    source: yu_types::ClosedValueSchemeView<'_>,
+) -> Result<ExportedScheme<'_>, SchemeExportError> {
+    use yu_types::{NegativeValueView as N, PositiveValueView as P};
+    let mut exported = ExportedScheme {
+        source,
+        graph: Graph {
+            terms: Vec::new(),
+            bounds: Vec::new(),
+            evidence: Vec::new(),
+            identities: Vec::new(),
+            root: TermId(0),
+        },
+        nodes: HashMap::new(),
+        binders: HashMap::new(),
+        recursive_bounds: Vec::new(),
+    };
+    let mut pending = Vec::new();
+    fn intern(
+        exported: &mut ExportedScheme<'_>,
+        pending: &mut Vec<SchemeNode>,
+        node: SchemeNode,
+    ) -> Result<TermId, SchemeExportError> {
+        if let Some(&id) = exported.nodes.get(&node) {
+            return Ok(id);
+        }
+        // A fixed envelope for this small research fixture; never truncate.
+        if exported.nodes.len() == 256 {
+            return Err(SchemeExportError::NodeLimit);
+        }
+        let id = TermId(exported.graph.terms.len());
+        exported.nodes.insert(node, id);
+        exported.graph.terms.push(GraphTerm::Bottom);
+        pending.push(node);
+        Ok(id)
+    }
+    fn binder(exported: &mut ExportedScheme<'_>, key: SchemeBinder) -> Identity {
+        if let Some(&identity) = exported.binders.get(&key) {
+            return identity;
+        }
+        let identity = Identity(exported.binders.len() as u32);
+        exported.binders.insert(key, identity);
+        exported.graph.identities.push(identity);
+        identity
+    }
+    // Public IDs are obtained from occurrences. Reject unused Q declarations
+    // below rather than silently omitting identities we cannot obtain.
+    exported.graph.root = intern(
+        &mut exported,
+        &mut pending,
+        SchemeNode::Positive(source.predicate()),
+    )?;
+    for bound in source.recursive_bounds() {
+        let key = SchemeBinder::Recursive(bound.binder());
+        binder(&mut exported, key);
+        let yu_types::NeutralValueView::Bounds { lower, upper } = source
+            .neutral_value(bound.bounds())
+            .map_err(|_| SchemeExportError::Lookup)?;
+        let lower = intern(&mut exported, &mut pending, SchemeNode::Positive(lower))?;
+        let upper = intern(&mut exported, &mut pending, SchemeNode::Negative(upper))?;
+        exported
+            .recursive_bounds
+            .push((key, exported.graph.bounds.len()));
+        // The closed view exposes no provenance. Empty evidence means absent
+        // evidence, never a certification of successor evidence validity.
+        exported.graph.bounds.push(Bound {
+            lower,
+            upper,
+            evidence: 0..0,
+        });
+    }
+    while let Some(node) = pending.pop() {
+        let term = match node {
+            SchemeNode::Positive(id) => match source
+                .positive_value(id)
+                .map_err(|_| SchemeExportError::Lookup)?
+            {
+                P::Bottom => GraphTerm::Bottom,
+                P::Int => GraphTerm::Atom(Atom::Int),
+                P::Quantified(q) => {
+                    GraphTerm::Variable(binder(&mut exported, SchemeBinder::Quantified(q)))
+                }
+                P::Recursive(r) => {
+                    GraphTerm::Variable(binder(&mut exported, SchemeBinder::Recursive(r)))
+                }
+                P::Union(_) => return Err(SchemeExportError::UnsupportedUnion),
+                P::Function {
+                    argument,
+                    argument_effect,
+                    result_effect,
+                    result,
+                } => GraphTerm::Function {
+                    argument: intern(&mut exported, &mut pending, SchemeNode::Negative(argument))?,
+                    argument_effect: intern(
+                        &mut exported,
+                        &mut pending,
+                        SchemeNode::NegativeEffect(argument_effect),
+                    )?,
+                    result_effect: intern(
+                        &mut exported,
+                        &mut pending,
+                        SchemeNode::PositiveEffect(result_effect),
+                    )?,
+                    result: intern(&mut exported, &mut pending, SchemeNode::Positive(result))?,
+                },
+            },
+            SchemeNode::Negative(id) => match source
+                .negative_value(id)
+                .map_err(|_| SchemeExportError::Lookup)?
+            {
+                N::Top => GraphTerm::Top,
+                N::Bottom => GraphTerm::Bottom,
+                N::Int => GraphTerm::Atom(Atom::Int),
+                N::Quantified(q) => {
+                    GraphTerm::Variable(binder(&mut exported, SchemeBinder::Quantified(q)))
+                }
+                N::Recursive(r) => {
+                    GraphTerm::Variable(binder(&mut exported, SchemeBinder::Recursive(r)))
+                }
+                N::Intersection(_) => return Err(SchemeExportError::UnsupportedIntersection),
+                N::Function {
+                    argument,
+                    argument_effect,
+                    result_effect,
+                    result,
+                } => GraphTerm::Function {
+                    argument: intern(&mut exported, &mut pending, SchemeNode::Positive(argument))?,
+                    argument_effect: intern(
+                        &mut exported,
+                        &mut pending,
+                        SchemeNode::PositiveEffect(argument_effect),
+                    )?,
+                    result_effect: intern(
+                        &mut exported,
+                        &mut pending,
+                        SchemeNode::NegativeEffect(result_effect),
+                    )?,
+                    result: intern(&mut exported, &mut pending, SchemeNode::Negative(result))?,
+                },
+            },
+            SchemeNode::PositiveEffect(id) => match source
+                .positive_effect(id)
+                .map_err(|_| SchemeExportError::Lookup)?
+            {
+                yu_types::PositiveEffectView::Bottom => GraphTerm::Bottom,
+            },
+            SchemeNode::NegativeEffect(id) => match source
+                .negative_effect(id)
+                .map_err(|_| SchemeExportError::Lookup)?
+            {
+                yu_types::NegativeEffectView::Empty => GraphTerm::Top,
+            },
+        };
+        exported.graph.terms[exported.nodes[&node].0] = term;
+    }
+    if exported
+        .binders
+        .keys()
+        .filter(|key| matches!(key, SchemeBinder::Quantified(_)))
+        .count()
+        != source.quantifier_count() as usize
+    {
+        return Err(SchemeExportError::Lookup);
+    }
+    Ok(exported)
+}
+
+#[test]
+fn real_identity_scheme_exports_all_ports_and_transports_supplied_partition() {
+    use super::*;
+    let hir = module(
+        "my id x = x; my a = id; my b = id",
+        "transport-real-scheme.yu",
+    );
+    assert!(hir.errors().is_empty());
+    assert!(hir.diagnostics().is_empty());
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("expected identity binding");
+    };
+    let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+    assert!(solved.errors().is_empty());
+    let position = solved.root_scheme_positions[binding.definition_root()];
+    let scheme = solved.schemes[position].as_ref().unwrap();
+    let exported = export_scheme(solved.closed_types.scheme_view(scheme).unwrap()).unwrap();
+    let yu_types::PositiveValueView::Function {
+        argument,
+        argument_effect,
+        result_effect,
+        result,
+    } = exported
+        .source
+        .positive_value(exported.source.predicate())
+        .unwrap()
+    else {
+        panic!("expected identity Function");
+    };
+    let ports = [
+        SchemeNode::Negative(argument),
+        SchemeNode::NegativeEffect(argument_effect),
+        SchemeNode::PositiveEffect(result_effect),
+        SchemeNode::Positive(result),
+    ];
+    let ids = ports.map(|node| exported.nodes[&node]);
+    assert_eq!(
+        exported.graph.terms[exported.graph.root.0],
+        GraphTerm::Function {
+            argument: ids[0],
+            argument_effect: ids[1],
+            result_effect: ids[2],
+            result: ids[3],
+        }
+    );
+    assert_eq!(
+        exported.graph.terms[ids[0].0],
+        exported.graph.terms[ids[3].0]
+    );
+    assert!(matches!(
+        exported.graph.terms[ids[0].0],
+        GraphTerm::Variable(_)
+    ));
+    assert_eq!(exported.graph.terms[ids[1].0], GraphTerm::Top);
+    assert_eq!(exported.graph.terms[ids[2].0], GraphTerm::Bottom);
+    assert_eq!(exported.nodes.len(), exported.graph.terms.len());
+    assert_eq!(exported.binders.len(), 1);
+    assert!(exported.recursive_bounds.is_empty());
+    // Experimental supplied premise: this test elects all exported identities
+    // local. Current Q/R membership does not establish successor eligibility.
+    let locals = exported.graph.identities.clone();
+    let anchors = Vec::new();
+    let snapshot = exported.graph.clone();
+    let parent = make_parent(
+        &exported.graph,
+        &locals,
+        &anchors,
+        &[Identity(100)],
+        FaultInjection::default(),
+    )
+    .unwrap();
+    let receivers = [vec![Identity(200)], vec![Identity(201)]];
+    let mut uses = make_uses(&parent, &receivers, FaultInjection::default()).unwrap();
+    assert_eq!(
+        parent.graph,
+        reference_substitute(&snapshot, &parent.identity_map)
+    );
+    let mut seen = HashSet::new();
+    for overlay in &uses {
+        assert_eq!(
+            overlay.graph,
+            reference_substitute(&parent.graph, &overlay.identity_map)
+        );
+        assert_eq!(
+            reference_substitute(&overlay.graph, &inverse_map(&overlay.identity_map)),
+            parent.graph
+        );
+        for (_, fresh) in &overlay.identity_map {
+            assert!(seen.insert(*fresh));
+            assert!(!snapshot.identities.contains(fresh));
+            assert!(!parent.graph.identities.contains(fresh));
+            assert!(!receivers.iter().flatten().any(|identity| identity == fresh));
+        }
+    }
+    let sibling = uses[1].clone();
+    uses[0].graph.terms[ids[3].0] = GraphTerm::Atom(Atom::Int);
+    assert_eq!(uses[1], sibling);
+    assert_eq!(exported.graph, snapshot);
+}
+
+#[test]
+fn scheme_export_rejects_union_and_intersection_without_partial_graph() {
+    let mut session = yu_types::ClosedTypeFinalizationSession::try_new().unwrap();
+    let union = session
+        .finalize_scheme(|f| {
+            let int = f.positive_int()?;
+            let bottom = f.positive_bottom()?;
+            let root = f.positive_union(&[int, bottom])?;
+            f.set_scheme(0, &[], root)
+        })
+        .unwrap()
+        .into_parts()
+        .0;
+    assert!(matches!(
+        export_scheme(session.scheme_view(&union).unwrap()),
+        Err(SchemeExportError::UnsupportedUnion)
+    ));
+    let intersection = session
+        .finalize_scheme(|f| {
+            let int = f.negative_int()?;
+            let top = f.negative_top()?;
+            let argument = f.negative_intersection(&[int, top])?;
+            let ae = f.negative_effect_empty()?;
+            let re = f.positive_effect_bottom()?;
+            let result = f.positive_int()?;
+            let root = f.positive_function(argument, ae, re, result)?;
+            f.set_scheme(0, &[], root)
+        })
+        .unwrap()
+        .into_parts()
+        .0;
+    assert!(matches!(
+        export_scheme(session.scheme_view(&intersection).unwrap()),
+        Err(SchemeExportError::UnsupportedIntersection)
+    ));
+}
+
+#[test]
+fn scheme_export_retains_recursive_bound_associations_and_shared_references() {
+    let mut session = yu_types::ClosedTypeFinalizationSession::try_new().unwrap();
+    let scheme = session
+        .finalize_scheme(|f| {
+            let r = f.recursive_binder(0);
+            let recursive = f.positive_recursive(r)?;
+            let argument = f.negative_recursive(r)?;
+            let ae = f.negative_effect_empty()?;
+            let re = f.positive_effect_bottom()?;
+            let root = f.positive_function(argument, ae, re, recursive)?;
+            let endpoints = f.neutral_bounds(root, argument)?;
+            let bound = f.recursive_bound(r, endpoints)?;
+            f.set_scheme(0, &[bound], root)
+        })
+        .unwrap()
+        .into_parts()
+        .0;
+    let exported = export_scheme(session.scheme_view(&scheme).unwrap()).unwrap();
+    let bound = exported.source.recursive_bounds()[0];
+    let key = SchemeBinder::Recursive(bound.binder());
+    assert_eq!(exported.recursive_bounds, [(key, 0)]);
+    assert_eq!(exported.graph.bounds.len(), 1);
+    assert_eq!(exported.graph.bounds[0].lower, exported.graph.root);
+    let GraphTerm::Function {
+        argument, result, ..
+    } = exported.graph.terms[exported.graph.root.0]
+    else {
+        panic!("expected recursive Function");
+    };
+    assert_eq!(exported.graph.bounds[0].upper, argument);
+    assert_eq!(
+        exported.graph.terms[argument.0],
+        GraphTerm::Variable(exported.binders[&key])
+    );
+    assert_eq!(
+        exported.graph.terms[result.0],
+        GraphTerm::Variable(exported.binders[&key])
+    );
+    // The sidecar links that shared identity to its ordered bound, preserving
+    // regular recursion without expanding the binder's body indefinitely.
+    let locals = exported.graph.identities.clone(); // supplied experimental premise
+    let parent = make_parent(
+        &exported.graph,
+        &locals,
+        &[],
+        &[],
+        FaultInjection::default(),
+    )
+    .unwrap();
+    let overlays = make_uses(&parent, &[vec![], vec![]], FaultInjection::default()).unwrap();
+    for overlay in &overlays {
+        assert_eq!(overlay.graph.bounds, exported.graph.bounds);
+        let renamed_parent = parent
+            .identity_map
+            .iter()
+            .find(|(from, _)| *from == exported.binders[&key])
+            .unwrap()
+            .1;
+        let renamed_use = overlay
+            .identity_map
+            .iter()
+            .find(|(from, _)| *from == renamed_parent)
+            .unwrap()
+            .1;
+        assert_eq!(
+            overlay.graph.terms[argument.0],
+            GraphTerm::Variable(renamed_use)
+        );
+        assert_eq!(
+            overlay.graph.terms[result.0],
+            GraphTerm::Variable(renamed_use)
+        );
+        assert_eq!(
+            reference_substitute(&overlay.graph, &inverse_map(&overlay.identity_map)),
+            parent.graph
+        );
+    }
+    assert_ne!(overlays[0].identity_map, overlays[1].identity_map);
 }

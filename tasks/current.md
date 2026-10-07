@@ -61,11 +61,12 @@ principality, all compatible contexts and exhaustive production extras remain.
 
 ### Immediate work order
 
-1. Prepare one independent original-rule formalization packet: `H_eff`,
-   OC-CallEff, and source owner/contribution/licensing introductions, with
-   exact existing Authority and any real new choice exposed. Do not add a
-   transport theorem for the missing original introduction. OC-CallEff stays
-   unadopted, and no unavoidable semantic alternative has been demonstrated.
+1. Close an original-rule gate or produce an adoptable semantic clause for
+   `H_eff` / OC-CallEff, then continue to source owner/contribution/licensing
+   introductions. Do not add another note that only localizes the missing
+   constructor. Any candidate clause must preserve the existing Authority,
+   same-`xi` scope, and comparison-independent formation; OC-CallEff remains
+   unadopted until that clause is reviewed and approved.
 2. Establish the independent actual Call inputs and complete production
    descriptor/member/admission clauses. C0 and the static O0/O1 branch may
    progress independently; preserve same-provider/world and original scopes.
@@ -1805,6 +1806,29 @@ IMPLEMENTATION-ONLY. The next implementation slice requires a source-derived
 successor construction judgment; current Q/R capture and endpoint parity do
 not establish eligible coordinates, fixed imports, complete shared-contract
 transport, or actual export evidence.
+
+## Experimental closed-scheme transport bridge (2026-10-07)
+
+The test-only [intrusion transport model](../crates/yu-solver/src/tests/intrusion_transport.rs)
+now exports a bounded real `ClosedValueSchemeView` into its finite graph model,
+retaining view-qualified Q/R identities, reachable constructor sharing, all
+four Function ports, and ordered recursive-bound associations. It rejects
+unsupported Union/Intersection and over-limit graphs without publishing a
+partial graph. Three focused tests exercise a real solved identity scheme,
+unsupported-constructor rejection, and recursive-reference transport. The
+local-vs-anchor partition remains explicit experimental input; current Q/R
+membership does not establish successor eligibility. Empty provenance and
+opaque negative-effect encoding remain representation limits. This executable
+slice does not close a semantic DAG node or establish successor adequacy,
+evidence validity, soundness, principality, or production cutover.
+
+The focused command `RUSTC_WRAPPER= cargo test -j 1 -p yu-solver scheme_export -- --nocapture`
+passed all three new tests. An independent compiler-referee delta review found
+no issues within the test-only boundary. The DAG checker passes unchanged at
+90 nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19
+OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. The next result must be a gate
+closure, adoptable semantic clause, or further executable implementation; do
+not add localization-only research notes.
 
 ## Preserved history and next integration steps
 
