@@ -315,6 +315,20 @@ or consume it. Neither route constructs original slots, typed `p0`, ownership
 or complete contribution from the approved source cut. This is a bounded
 premise-gap localization, not semantic impossibility or a closed P2 gate.
 
+The compiler-referee-reviewed [round-4 constructor reduction](../notes/progress/2026-10-09-original-call-fiber-construction-round4.md)
+separates source `H_gen`, conditional complete typing `H_typed`, and the
+missing `H_assoc`. Its owner-first traversal isolates O0/O1: an independently
+typed original output correspondence and source-owner/seed-at-exposure
+introduction at the captured call. The ordering is only a selected traversal;
+it asserts no dependency theorem between owner and contribution realization.
+The separately reviewed [joint-incidence attack](../notes/progress/2026-10-09-original-call-fiber-adversarial-round4.md)
+shows that even full pairwise projections plus retention of all license IDs
+can fabricate a tuple when original witness incidence links are discarded.
+Both are bounded conditional results. The reviewed [K-Owner pair audit](../notes/progress/2026-10-09-original-kowner-underdetermination-round1.md)
+establishes neither uniqueness nor nonuniqueness from the open constructor
+text. `ORIGINAL_ASSOC`, `CALL_TYPE`, licensing and admission remain open; no
+Oracle rule or new source meaning is adopted.
+
 The spec-audited [assembly witness-preservation falsifier](../notes/progress/2026-10-09-original-association-uniform-witness-falsifier.md)
 confirms the candidate's conditional assembly lemma under its stated
 existence/incidence premises. A separate finite presentation shows that
