@@ -1327,53 +1327,6 @@ bookkeeping records. Next attack: derive the original typed upper/output
 introduction at the actual `f x` Call, then its owned slot incidence while
 preserving the same original `xi`, scope, and provider witness.
 
-The next parallel attack wave used the same start/final DAG counts: 7 CLOSED,
-20 CONDITIONAL-CLOSED, 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF and 19
-OPEN-SEMANTIC. No node or edge changed. Its bounded producer reports refine
-the next exact heads:
-
-- **CALL_TYPE:** even granting `Typed(R_arg,J_arg,C1)` at the actual returned
-  provider, the remaining constructor is sound elimination of the original
-  whole-carrier argument check into `ArgCompatible(R_arg,CarrierContract(U))`
-  at the same retained CalRet evidence. A conditional factorization needs
-  complete checking soundness, formal-to-actual-provider domain inclusion and
-  joint compatibility evidence. A two-carrier separator refutes selected-
-  runtime-carrier success as a substitute, but is not an admitted-source
-  counterexample.
-- **ORIGINAL_ASSOC P2:** Gen-Call-0 already emits the dependent upper demand,
-  `beta`, designated `p0`, and elimination-origin schema. O0 still lacks an
-  original typed map from the upper Function's immediate invocation output to
-  `p0`; normalization exposes `p_run`, whose equality/correspondence to `p0`
-  is not supplied. O1 remains a separate seeded source-owner/slot introduction
-  using actual annotation absence and the directional exposure witness.
-  Neither proposed rule is adopted or derived; no admissible-source
-  counterexample was found.
-- **INIT_WORLD / REC_DESC:** the independent semantic import needs a
-  zero-step open-root introduction at its original import incidence, preserving
-  shared provider/reference/state identity and holes at one `(C0,xi)` over the
-  external base. Source alias copying and step-indexed introduction do not
-  supply it. For REC_DESC, K/KP/KV construct the actual mutually captured
-  providers, complete invocation suffixes, and ordinary Function body/result
-  skeletons. They do not derive `R_f=I_f`/`R_g=I_g` or original `DescMem`.
-  The simultaneous two-closure route first needs ordinary Lambda/Name
-  descriptor typing at both original incidences and one joint certificate for
-  every shared nonrecursive guard; only then can cyclic acceptance be attacked.
-  Separate per-closure guard witnesses are invalid in general (two opposite
-  predicates on one shared Boolean coordinate are individually inhabited but
-  jointly inconsistent); this is a logical discriminator, not a Yulang model.
-- **ALL_VIEW / PRINCIPAL:** the strongest combined theorem remains conditional
-  on whole decorated nonidentity result inclusion and an actual-root resolver
-  that consumes those proofs while accepting the changed result interface.
-  Checking only the selected returned source value misses an unanchored
-  Option-2 extra. ALL_VIEW remains OPEN-PROOF and PRINCIPAL remains
-  CONDITIONAL-CLOSED.
-
-These are producer results, not independent review or theorem closure. No
-same-source pair of complete Authority-consistent semantics was constructed,
-so no user decision is pending. The exact minimal clauses are already
-represented by the canonical DAG; this wave does not add another conditional
-note or alter its dependency graph.
-
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
