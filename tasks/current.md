@@ -169,6 +169,19 @@ model of completed `SEM_JOINT` or an admitted-source counterexample. The
 operand-premise granularity and matching Return rule remain unresolved inputs;
 no gate status or semantic rule changed.
 
+The reviewed [operand-context clause candidate](../notes/progress/2026-10-07-call-type-operand-context-clause-candidate.md)
+states conditional C1–C7 schemas for ordinary environment elimination,
+Name/Return, compatible punctured-context filling, constructor-independent
+whole-carrier admission, Delay introduction and complete saved suffixes. One
+compiler-referee and one spec-auditor review found no blocking, major or minor
+issue within the candidate's research-only scope. The candidate makes the
+missing environment and Return clauses explicit, preserves the approved broad
+inlet and Option 2 boundaries, and retains one joint witness; it does not
+prove realization, inhabitance, admission completeness or semantic adequacy.
+No clause is adopted and no gate status changes: `CALL_TYPE`,
+`DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT` remain open pending actual
+rules and proofs (and explicit user approval before any semantic adoption).
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
