@@ -585,6 +585,15 @@ hole-dependent occurrence when it coincides with a rigid occurrence. This is a
 representation obstruction, not an admitted-source counterexample; the
 importer incidence action and scalar world installation remain open.
 
+The [reviewed source-introduction interface](../notes/design/2026-10-07-original-call-source-introduction-contract.md)
+separates O0/O1 static ownership from C0/C1 complete invocation typing and
+contribution realization, then leaves J0 to establish their original joint
+incidence and complete-family coverage. Compiler-referee and spec-auditor
+reviews found no remaining issues after correcting the displayed source to
+the exact approved `...; step` candidate. The document remains
+non-authoritative: it selects no original-sort constructor, certificate type,
+or implementation, and proves no original fiber inhabitance.
+
 Following the new [proof-obligation-economy rule](../rules/compiler-engineering.md#natural-compiler-behavior-and-proof-obligation-economy),
 the design-debt audit classifies O0/O1/C0 as safety and natural-inference
 construction obligations. C1/J0 also retain stronger characterization
@@ -595,14 +604,15 @@ current path does not show those semantic facts were first produced and then
 discarded. The current structural carrier is therefore insufficient to turn
 these missing introductions into D-only bookkeeping.
 
-Do not launch another equivalent proof variant. The next task is to draft and
-independently review one source-directed original-introduction contract at
-typed source generation, evaluating a retained canonical derivation/map as
-evidence transport. It must retain original witnesses and all same-`X,xi`
-obligations. Drafting does not authorize implementation; any new slot,
-contribution or architecture meaning still needs the required review and user
-approval. Soundness, principality, source adequacy and production-conformance
-cutover gates remain intact.
+Do not launch another equivalent proof variant or repeat the bounded Oracle
+attribution search. The next task is to derive a concrete K-Owner introduction
+and its O0 typed-output/source-root premises at typed source generation, then
+test whether it follows from the approved construction without assuming the
+desired association. Preserve all original witnesses and same-`X,xi`
+obligations. The reviewed interface remains non-authoritative; any new slot,
+contribution or architecture meaning still needs the required user approval
+before implementation. Soundness, principality, source adequacy and
+production-conformance cutover gates remain intact.
 
 ## Priority frontier: recursive/generalized source
 
