@@ -1830,6 +1830,18 @@ OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. The next result must be a gate
 closure, adoptable semantic clause, or further executable implementation; do
 not add localization-only research notes.
 
+The follow-on test `retained_source_use_captures_supply_receiver_namespaces_for_exported_transport`
+now joins two actual retained SCC uses to their exact shared current scheme,
+exports that scheme, associates both complete captured Q inventories with the
+export sidecar, and runs parent plus per-use overlays. Historical rows are
+represented by opaque tokens derived from `FreshRowRef::same_identity`; no raw
+row ordinal or successor binder identity is inferred. The source-exported
+graph and overlays pass the independent substitution reference and freshness
+checks. Both successor correspondence/transport premises remain unresolved,
+and the all-local partition is still an explicit experimental premise. This
+fixture exercises Q but not an R-bearing incoming use. Compiler-referee review
+found no issues. No semantic DAG status changed.
+
 ## Preserved history and next integration steps
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.

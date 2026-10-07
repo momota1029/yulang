@@ -851,6 +851,160 @@ fn real_identity_scheme_exports_all_ports_and_transports_supplied_partition() {
     assert_eq!(exported.graph, snapshot);
 }
 
+#[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+#[test]
+fn retained_source_use_captures_supply_receiver_namespaces_for_exported_transport() {
+    use super::*;
+    use crate::shadow_f5::{FreshBinderRef, FreshCaptureState, FreshRowRef};
+    use crate::shadow_scc::PendingUseInstantiationPremise;
+
+    let hir = module(
+        "my id x = x; my a = id; my b = id",
+        "transport-retained-captures.yu",
+    );
+    assert!(hir.errors().is_empty());
+    assert!(hir.diagnostics().is_empty());
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("expected identity binding");
+    };
+    let batch = collect(hir.clone());
+    let solved = SolvedModule::solve_with_shadow_fresh_capture(batch.clone()).unwrap();
+    assert!(solved.errors().is_empty());
+    let topology = batch.shadow_scc_topology();
+    let occurrences = topology
+        .components()
+        .flat_map(|component| component.incoming_uses())
+        .collect::<Vec<_>>();
+    assert_eq!(occurrences.len(), 2);
+    assert!(!occurrences[0].same_identity(occurrences[1]));
+    let pending = occurrences
+        .iter()
+        .map(|occurrence| {
+            topology
+                .pending_use_instantiation(&solved, *occurrence)
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let target = pending[0].current_scheme();
+    assert_eq!(target.owner(), binding.definition_root());
+    assert!(target.same_identity(pending[1].current_scheme()));
+    let exported = export_scheme(target.endpoints()).unwrap();
+    assert!(!exported.binders.is_empty());
+
+    // Tokens represent opaque historical row identities only. No numeric live
+    // row ID is observed, and no token claims a successor semantic identity.
+    let mut row_tokens: Vec<(FreshRowRef<'_>, Identity)> = Vec::new();
+    let mut receivers = Vec::new();
+    for use_pending in &pending {
+        assert!(use_pending.current_scheme().same_identity(target));
+        let FreshCaptureState::Captured(capture) = use_pending.current_fresh_capture() else {
+            panic!("each successful source use must retain its complete capture");
+        };
+        assert!(capture.scheme().same_identity(target));
+        let mut matched = HashSet::new();
+        let mut receiver = Vec::new();
+        for (binder, row) in capture.bindings() {
+            // Ordinals are compared only after establishing the exact scheme
+            // owner shared by the capture and this export's source view.
+            let key = match binder {
+                FreshBinderRef::Quantified(q) => {
+                    assert!(q.scheme().same_identity(target));
+                    *exported
+                        .binders
+                        .keys()
+                        .find(|key| {
+                            matches!(key,
+                                SchemeBinder::Quantified(id) if id.ordinal() == q.ordinal()
+                            )
+                        })
+                        .expect("captured Q must occur in the exact export sidecar")
+                }
+                FreshBinderRef::Recursive(r) => {
+                    assert!(r.scheme().same_identity(target));
+                    *exported
+                        .binders
+                        .keys()
+                        .find(|key| {
+                            matches!(key,
+                                SchemeBinder::Recursive(id) if id.ordinal() == r.ordinal()
+                            )
+                        })
+                        .expect("captured R must occur in the exact export sidecar")
+                }
+            };
+            assert!(matched.insert(key), "capture must cover each binder once");
+            let token = if let Some((_, token)) = row_tokens
+                .iter()
+                .find(|(previous, _)| row.same_identity(*previous))
+            {
+                *token
+            } else {
+                let token = Identity(100 + u32::try_from(row_tokens.len()).unwrap());
+                assert!(!exported.graph.identities.contains(&token));
+                row_tokens.push((row, token));
+                token
+            };
+            assert!(
+                !receiver.contains(&token),
+                "distinct binders need distinct rows"
+            );
+            receiver.push(token);
+        }
+        assert_eq!(matched.len(), exported.binders.len());
+        receivers.push(receiver);
+    }
+    assert!(
+        receivers[0]
+            .iter()
+            .all(|token| !receivers[1].contains(token))
+    );
+    let all_receivers = receivers.iter().flatten().copied().collect::<Vec<_>>();
+    // Experimental supplied partition: elect all exported identities local.
+    // Current Q/R capture does not justify successor local/anchor classification.
+    let snapshot = exported.graph.clone();
+    let parent = make_parent(
+        &exported.graph,
+        &exported.graph.identities,
+        &[],
+        &all_receivers,
+        FaultInjection::default(),
+    )
+    .unwrap();
+    let overlays = make_uses(&parent, &receivers, FaultInjection::default()).unwrap();
+    assert_eq!(overlays.len(), 2);
+    assert_eq!(
+        parent.graph,
+        reference_substitute(&snapshot, &parent.identity_map)
+    );
+    let mut fresh = HashSet::new();
+    for overlay in &overlays {
+        assert_injective_mapping(&overlay.identity_map);
+        assert_eq!(
+            overlay.graph,
+            reference_substitute(&parent.graph, &overlay.identity_map)
+        );
+        for (_, token) in &overlay.identity_map {
+            assert!(fresh.insert(*token));
+            assert!(!all_receivers.contains(token));
+            assert!(!snapshot.identities.contains(token));
+            assert!(!parent.graph.identities.contains(token));
+        }
+    }
+    assert_eq!(exported.graph, snapshot);
+    // Executing transport promotes neither pending semantic premise nor the
+    // opaque bound evidence into current-type or successor correctness evidence.
+    for use_pending in pending {
+        assert_eq!(
+            use_pending.qr_correspondence_premise(),
+            PendingUseInstantiationPremise::CurrentToSuccessorQrCorrespondenceUnresolved
+        );
+        assert_eq!(
+            use_pending.shared_contract_transport_premise(),
+            PendingUseInstantiationPremise::UseTimeSharedContractTransportUnresolved
+        );
+    }
+}
+
 #[test]
 fn scheme_export_rejects_union_and_intersection_without_partial_graph() {
     let mut session = yu_types::ClosedTypeFinalizationSession::try_new().unwrap();
