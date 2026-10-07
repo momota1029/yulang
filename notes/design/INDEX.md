@@ -42,6 +42,17 @@ This index is a navigation aid. The listed source document remains authoritative
   production contract or cutover is adopted by this audit. Source principality,
   all compatible contexts and exhaustive Option 2 extras remain required.
 
+- **Unadopted O0 typed Call-effect clauses (2026-10-10):**
+  [original Call-effect typing clause candidate](2026-10-10-original-call-effect-typing-clause-candidate.md)
+  gives optional signature-position and original-occurrence typing rules over
+  fixed old semantic families, proves their syntactic whole-substitution laws
+  relative to an independently supplied typed telescope action, and states the
+  old-fiber sections and active-primitive pullback needed for conservative
+  interpretation. It also gives a finite countermodel to free-evidence
+  conservativity. The clauses remain Draft: no old-sort realization or
+  pullback proof exists, O0 remains open, and semantic adoption or production
+  implementation is not authorized by this candidate.
+
 - **Authoritative exact recursive singleton execution boundary:**
   [recursive self-init executable boundary](2026-10-07-recursive-self-init-executable-boundary.md)
   applies the existing approved `recursive-self-initialization/q1 d1` answer
