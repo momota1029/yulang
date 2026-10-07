@@ -5,7 +5,7 @@ Branch: `research/simple-sub-intrusion`
 Primary: Astra; source self-init synthesis and final proof adjudication
 Start remote: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 External remote delta revalidated: `6cd43ea855acdd1e7f47a46408715a03d192ffd4`
-Latest external remote revalidated: `4a9d969db09be881bdc0ce6888cc3d651dfc2405`
+Latest external remote revalidated: `ead43c6db67767cc55def85a7670b2aef903ef1f`
 First published checkpoint: `31b97ed3b56db5a642ae9eddeebda366af74233e`
 Status: proof panels, repaired deltas and final remote integration reviewed; final counts in §10 and integration checks in §13
 Production cutover: prohibited; no production inference routing change
@@ -495,7 +495,7 @@ The original hash record is preserved unchanged. This closes the integration
 accounting issue without rewriting history or certifying an unavailable
 snapshot.
 
-The primary also compared every plain recorded dependency hash against both
+At the `4a9d969d` checkpoint, the primary also compared every plain recorded dependency hash against both
 the pinned `7423c12a` objects and current files. Construction has 23 exact
 matches and one historical canonical-ledger hash; adversarial has 16 exact
 matches; K-Owner has 10 exact matches and the construction snapshot exception
@@ -575,3 +575,38 @@ the original 1 GiB address-space / 60-second cap: 64 finite assemblies,
 vacuity/coherent-witness checks. Its scope remains sorted algebra; it
 constructs no original source kernel or admitted semantic world. The DAG
 validator likewise explicitly reports `semantic_proof_checked: false`.
+
+## 14. Final policy delta: construction evidence before reconstruction
+
+The immediate remote check then found `ead43c6d`, adding the user's natural
+compiler/proof-obligation-economy policy in five operating-rule files. The
+primary read the complete changed policy and merged the delta without
+conflict. It changes no language design, approved answer, proof, compiler
+code, test, manifest or lockfile. The policy expressly changes no gate or
+semantic contract by itself. The following design-debt audit applies it
+before any third equivalent proof attempt or additional semantic layer.
+
+| Current seam | Claim class and owning construction | Consequence of the audit |
+| --- | --- | --- |
+| Original HIR/capture/use/SCC/collection identity and current successful freshening maps | A for correct transport; D if later reconstructed. HIR collection and the actual successful route own these facts. | The reviewed shadow lanes retain the actual original facts and qualify cold access by their owners. No shape, spelling, successful Q or unrelated numeric ID reconstructs semantic ownership. No further proof-only relation is needed for those already retained structural facts. |
+| Actual ordinary Call typing, returned-world argument compatibility, recursive latent Return and installed-world/member validity | A/B at the source typed constructor and joint world/member construction. | These facts have not yet been established by the current structural producer. A certificate field cannot prove them. Keep the exact local constructor/joint-world heads; do not restrict ordinary source or require extra annotations to make them true. |
+| Original typed output, static owner, complete contribution, joint incidence and licensing | A/B for the selected source contract; D only for later recovery of a judgment an actual source constructor already proved. | A future justified original constructor should return its typed certificate with all original witness arms once. Pattern matching that certificate can remove reconstruction, but no existing producer currently supplies O0/O1/C1/J0 or the exhaustive original licensing grammar. Retaining placeholders does not close these semantic introductions or their complete inversion. |
+| Whole-source operational square and complete interface accessors | A/B for accepted compiler behavior; any stronger converse retains its declared C scope. The actual source emitter, semantic constructor and consumer own the corresponding facts. | Prefer one finite construction output whose atom decoding and actual accessor equations are local. The §12 raw Lambda/body square and actual-accessor laws identify what remains genuinely to prove; no opaque second relation is adopted as semantics. |
+| All-view principality, complete all-world admission and original converse characterization | C where stronger than ordinary operation, with A/B dependencies where the selected contract requires them. | This user's current task explicitly requires these targets, and their governing contracts remain unchanged. The policy is not authority to erase them or silently shrink the production dependency cone. Only a separately reviewed contract argument could justify a future retirement. |
+
+This audit supplies no new semantic rule, rejection, runtime metadata, source
+restriction, proof-gate promotion or user question. The exact q1 rejection
+still comes solely from its earlier approved decision; it is not a new
+proof-convenience exclusion. The three conditional closures use existing full
+contracts and retain their inputs. The original-source and world clauses
+remain genuinely semantic at their exact signatures, rather than being
+invented certificate obligations.
+
+The five policy files are preserved from the external delta. Earlier frozen
+rule hashes and §13's dependency equality describe the `4a9d969d` checkpoint;
+the later policy changes are explicit here, not silently claimed byte-equal.
+All language-design/approved-answer inputs and tested code remain unchanged.
+Only revalidation metadata and this policy application are added to the
+canonical records; counts, statuses, prerequisite edges and production
+authority are identical to §13. No repeat Cargo build is justified by this
+policy/document-only delta.

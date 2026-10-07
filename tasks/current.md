@@ -34,7 +34,7 @@ navigation into this ledger, not independent duplicate gate lists.
 
 The [round-3 review/integration record](../notes/progress/2026-10-07-successor-round3-review.md)
 starts from current remote `6fb5d7f6`, preserving all intervening work since
-round 2, and revalidates the additive remote through `4a9d969d`. The current
+round 2, and revalidates the additive remote through `ead43c6d`. The current
 canonical ledger has **90 nodes / 196 edges**: 7 CLOSED, 20 CONDITIONAL-CLOSED,
 1 IMPLEMENTATION-ONLY, 43 OPEN-PROOF, 19 OPEN-SEMANTIC and no user-decision
 blocker. Three existing OPEN nodes move to conditional closure: **65 → 62 OPEN**.
@@ -113,6 +113,12 @@ The one added CLOSED exact self-init subcase is reported separately.
   ten focused initialization/capture/crosswalk tests and feature-off
   core/HIR/solver build passed on the merged code. §13 of the round-3 record
   accounts for the historical producer-hash discrepancy without rewriting it.
+- Remote `ead43c6d` adds proof-obligation-economy policy. The §14 design-debt
+  audit distinguishes already known construction evidence from missing
+  semantic judgments. Retention can remove reconstruction of the former;
+  it cannot invent original owner/licensing or world/member proofs. The
+  user's explicit all-view/all-world/adequacy targets and governing contracts
+  remain in force. No node, status, edge or production boundary changes.
 
 The round-3 integration record is authoritative for actual review completion
 and final publication; the DAG generator checks synchronization, not proofs.

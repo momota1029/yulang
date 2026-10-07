@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Audit baseline: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; read-only dependency revalidation through `4a9d969db09be881bdc0ce6888cc3d651dfc2405`.
+Audit baseline: `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; read-only dependency revalidation through `ead43c6db67767cc55def85a7670b2aef903ef1f`.
 
 Status: canonical **research navigation**, not an Authoritative semantic design.
 

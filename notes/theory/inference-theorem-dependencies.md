@@ -62,7 +62,7 @@ production caller. Complete semantic interface generation is still IFACE_FORM.
 
 The current attack starts at `6fb5d7f697d5d592e0a39532ddb4967b54e18090`
 and includes read-only dependency revalidation through
-`4a9d969db09be881bdc0ce6888cc3d651dfc2405`. The primary accepted the exact
+`ead43c6db67767cc55def85a7670b2aef903ef1f`. The primary accepted the exact
 independently compiler-referee/spec-auditor reviewed scopes linked in the
 [current round-3 review/integration record](../progress/2026-10-07-successor-round3-review.md).
 The final canonical inventory is **90 nodes / 196 edges**: CLOSED 7,
@@ -75,6 +75,13 @@ checkpoint was historically 90 nodes / 195 edges, CLOSED 7,
 CONDITIONAL-CLOSED 19 and OPEN-PROOF 44; the final SOUND delta adds only
 one HIR_WIRING dependency and makes no new node. All other prerequisite
 lists and actual-attainment statuses remain unchanged.
+
+The later proof-obligation-economy policy is applied in the integration record
+§14. Already known construction evidence should be retained at its owner;
+an unproved semantic owner/license/world fact cannot be manufactured as a
+certificate. Stronger characterizations explicitly requested here remain
+within the task and their governing contracts. This policy supplies no
+closure, semantic weakening or automatic removal of a cutover dependency.
 
 The [full principal synthesis](../progress/2026-10-07-actual-export-synthesis-round3.md)
 closes PRINCIPAL's composition under its unchanged SOURCE_ADEQUACY,

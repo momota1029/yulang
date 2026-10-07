@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-07",
   "baseline": "6fb5d7f697d5d592e0a39532ddb4967b54e18090",
-  "revalidated_remote_head": "4a9d969db09be881bdc0ce6888cc3d651dfc2405",
+  "revalidated_remote_head": "ead43c6db67767cc55def85a7670b2aef903ef1f",
   "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
   "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
   "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",

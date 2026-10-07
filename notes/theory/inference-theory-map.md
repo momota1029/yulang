@@ -23,7 +23,7 @@ protection is retained. No E/R or normalized blanket policy is selected.
 Latest reviewed continuation: [round-3 review and integration](../progress/2026-10-07-successor-round3-review.md).
 Attack baseline `6fb5d7f697d5d592e0a39532ddb4967b54e18090`; additive
 external dependency revalidation through
-`4a9d969db09be881bdc0ce6888cc3d651dfc2405`. The final canonical DAG has
+`ead43c6db67767cc55def85a7670b2aef903ef1f`. The final canonical DAG has
 **90 nodes / 196 edges**: CLOSED 7, CONDITIONAL-CLOSED 20, OPEN-PROOF 43,
 OPEN-SEMANTIC 19, IMPLEMENTATION-ONLY 1, BLOCKED 0. CALL_TYPE,
 PRINCIPAL and SOUND move from OPEN-PROOF to CONDITIONAL-CLOSED;
@@ -35,6 +35,12 @@ an old-node reduction. The first reviewed round-3 checkpoint remains historical:
 90 nodes / 195 edges, CONDITIONAL-CLOSED 19 and OPEN-PROOF 44.
 This is accepted-result navigation synchronization, not independent proof
 certification or semantic adoption.
+
+The final policy delta receives the design-debt audit in the review record
+§14: retain facts actually known by the owning construction; do not turn
+missing semantics into assumed certificates. The explicit all-view/all-world
+task and current governing contracts survive. No gate or production
+dependency is removed merely by labeling it stronger characterization.
 
 The [round-2 review](../progress/2026-10-07-successor-round2-review.md)
 remains history: its original-kernel candidate, actual recursive certificate/
