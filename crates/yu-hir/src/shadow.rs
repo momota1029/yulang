@@ -241,6 +241,36 @@ pub struct ShadowArtifact {
     skeleton: Result<Skeleton, ShadowError>,
 }
 
+/// Caller-selected declaration candidate, branded by its exact parse position.
+/// This is not a resolved StateSlotId or a runtime cell/activation identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StateSlotCandidateId(PositionId);
+
+impl StateSlotCandidateId {
+    pub fn declaration_position(&self) -> &PositionId {
+        &self.0
+    }
+}
+
+/// Unresolved caller-supplied association of sigiled source occurrences.
+/// The CST checks establish syntax shape only: origin resolution and
+/// read/write/handle classification remain pending, including across closures.
+#[derive(Debug)]
+pub struct PendingStateSlotSourceInput {
+    candidate: StateSlotCandidateId,
+    occurrences: Vec<PositionId>,
+}
+
+impl PendingStateSlotSourceInput {
+    pub fn candidate(&self) -> &StateSlotCandidateId {
+        &self.candidate
+    }
+
+    pub fn occurrences(&self) -> &[PositionId] {
+        &self.occurrences
+    }
+}
+
 pub const MAX_SYNTAX_DEPTH: usize = 128;
 pub const MAX_RAW_ELEMENTS: usize = 65_536;
 
@@ -567,6 +597,42 @@ impl ShadowArtifact {
     }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
+    }
+    /// Retains a caller-selected pending origin premise without resolving names.
+    /// No state role is inferred from sigil spelling or assignment context.
+    pub fn pending_state_slot_source_input(
+        &self,
+        declaration: &PositionId,
+        occurrences: &[PositionId],
+    ) -> Result<PendingStateSlotSourceInput, ShadowError> {
+        self.check_sigiled_source_shape(declaration, SyntaxKind::IdentifierPattern)?;
+        for occurrence in occurrences {
+            self.check_sigiled_source_shape(occurrence, SyntaxKind::IdentifierExpression)?;
+        }
+        Ok(PendingStateSlotSourceInput {
+            candidate: StateSlotCandidateId(declaration.clone()),
+            occurrences: occurrences.to_vec(),
+        })
+    }
+
+    fn check_sigiled_source_shape(
+        &self,
+        id: &PositionId,
+        kind: SyntaxKind,
+    ) -> Result<(), ShadowError> {
+        let position = self.position(id)?;
+        if !position.is_node() || position.kind() != kind {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        let mut has_sigil = false;
+        for child in position.children() {
+            let child = self.position(child)?;
+            has_sigil |= !child.is_node() && child.kind() == SyntaxKind::SigilIdentifier;
+        }
+        if !has_sigil {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        Ok(())
     }
     pub fn annotation(&self, id: &AnnotationId) -> Result<&AnnotationOccurrence, ShadowError> {
         if !Arc::ptr_eq(&self.identity, &id.0.artifact) {
