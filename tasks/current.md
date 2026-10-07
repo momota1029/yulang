@@ -47,6 +47,18 @@ test change was needed. See
 Next: attack an actual independent original signature-elimination clause at
 the fixed Call; do not spend another round wrapping supplied maps in transport.
 
+### Shadow crosswalk verification
+
+The nested/grouped pending-Apply to core eight-address identity crosswalk
+already exists in the current default-off differential test. The focused test
+`pending_solver_applications_join_exact_shadow_call_and_use_occurrences`
+passed (1 passed, 4 filtered out). The default `sccache` wrapper failed to
+start with `Operation not permitted`; rerunning the exact target with
+`RUSTC_WRAPPER=` bypassed that wrapper and passed. No compiler files or test
+expectations changed. Typed ports, semantic `beta`/`Slots`, call typing and
+original association remain unresolved; this checks structural bookkeeping
+only.
+
 ### Priority C continuation: nonidentity export
 
 At `b9ffbfc20f1cbd71f2b5deccea6ee8a033d55ceb`, the bounded Name-result union
