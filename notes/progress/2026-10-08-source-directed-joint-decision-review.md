@@ -223,3 +223,36 @@ executions for production-only alternatives, or equating the independent
 world domain with another generated-world relation are not newly imposed
 production requirements. The existing proof-economy architecture retains
 the exact consumer obligations for any alternative route.
+
+## 7. Checkpoints and final navigation integration
+
+The independently reviewed reference and this review record were preserved
+in `c7c848489327090e3d5e884b700eb77fcea5008b`, after the separate obstruction
+and theorem commits named above. Each checkpoint was pushed with an exact
+expected remote parent and without force. The primary then fetched and
+fast-forwarded through `6464b3ec142470f0a1376fa15bdfad38dedd7439`. That incoming
+range adds the annotated Function source map and source-bridge decision map;
+it changes no theorem, semantic constructor, reviewed reference or policy
+dependency. The incoming annotated map already distinguishes the completed
+SD-NPB boundary result from its unresolved parser/HIR and whole-Call bridge.
+The subsequent remote `6ce074f1c295f74e0acc011a47ca110ceb0bbc99` adds
+related task/review navigation; its source-bridge content is retained in the
+final synchronization, and it changes no proof or implementation dependency.
+
+The final M0 synchronization updates `tasks/current.md`, the design index and
+the historical JOINT_DEC review to cite this exact result. Canonical DAG
+navigation adds the reviewed SD-NPB and obstruction evidence to JOINT_DEC;
+it keeps every node status, premise, prerequisite and production-authority
+field unchanged. The closed sublemma is the bounded decision theorem, not
+JOINT_DEC itself. No new semantic review or repeated compiler suite is
+needed for these record-only references. The theorem and reference artifact
+hashes above remain the independently reviewed bytes.
+
+The curator regenerated and validated the canonical artifacts: PASS, 90 nodes,
+196 edges and 32 covered families; 7 CLOSED, 21 CONDITIONAL-CLOSED,
+43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY. A separate primary
+JSON comparison verified that the other 89 nodes and all graph metadata are
+identical; JOINT_DEC changes only descriptive text, references and its manual
+closed-sublemma list. The three accepted theorem/reference SHA-256 values
+were rechecked exactly. This is navigation/reference integrity validation,
+not mechanical checking of the mathematical proof.

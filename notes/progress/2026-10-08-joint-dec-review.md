@@ -2,15 +2,16 @@
 
 Date: 2026-10-08
 Branch: `research/simple-sub-intrusion`
-Status: six reviewed conditional artifacts; JOINT_DEC remains OPEN-PROOF
+Status: reviewed conditional attempts and completed bounded native decision; JOINT_DEC remains OPEN-PROOF
 Authority: no semantic or production authority added
 
 ## Scope and decisions
 
 This record adjudicates the bounded constructive and falsification attempts at
-the artifact snapshots below. It does not certify a finite complete Yulang
-solver, establish undecidability for Yulang, change the canonical proof DAG, or
-authorize F5 replacement.
+the artifact snapshots below and links the later completed SD-NPB decision.
+It does not certify a finite complete Yulang solver, establish undecidability
+for Yulang or authorize F5 replacement. Canonical navigation now records the
+reviewed bounded sublemma without changing any aggregate gate or dependency.
 
 ### Conditional residual decision construction
 
@@ -147,12 +148,14 @@ compiler properties from EPR/ER's particular machinery:
   J/Car/context certificates.
 
 The canonical DAG records a sufficient route rather than an Authoritative
-mandate to use EPR/ER or decide arbitrary semantic predicates. No alternative
-route is currently proved. The candidate route is source-directed inference
-over actual emitted obligations with typed argument/check certificates
-retained at their owners, exact export/fresh-use behavior, sound result
-reflection and a terminating practical resource boundary. Its completeness
-and termination are unproved. Any alternative to the current JOINT_DEC route
+mandate to use EPR/ER or decide arbitrary semantic predicates. A complete
+alternative for the full approved source envelope is not proved. The later
+[SD-NPB theorem](../theory/2026-10-08-source-directed-joint-decision.md) does
+prove termination and sound/complete source-directed decision for its native
+boundary envelope, with argument/check certificates constructed at their
+owners. Extending that result to every required enclosing source judgment,
+exact export/fresh-use behavior and a practical resource boundary remains
+unproved. Any full alternative to the current JOINT_DEC route
 needs a concrete reviewed algorithm, source-rule completeness, production
 correspondence, principality/required observables, Oracle capability evidence,
 resource/failure ownership and explicit user approval before implementation.
@@ -207,21 +210,20 @@ within their stated scopes:
   proof. Their compiler-referee and spec-auditor reviews found no BLOCKING,
   major or minor finding. H1–H5 remain assumptions; rejecting one proof term
   does not decide proof existence or joint admission.
-
-- The independently reviewed [source-directed joint-decision theorem](../theory/2026-10-08-source-directed-joint-decision.md)
-  (`2590b3d07`) and its [bounded reference implementation and review record](2026-10-08-source-directed-joint-decision-review.md)
-  (`c7c848489`) now decide the exact Native Projection Boundary envelope by
-  source-directed finite arithmetic and construct complete scoped strategies
-  for its admitted cases. The id/Any-input/Int-result case with a literal
-  argument checked and exported at Any is `NO`, retaining its independently
-  admitted Bool production alternative. This supplies the effective joint
-  decision previously missing for that generated envelope; it proves no
-  parser/HIR occurrence mapping, enclosing CallMem/C0, arbitrary source
-  residual, whole-language inference/principality, current F5 conformance or
-  production cutover. Its focused verification is recorded at one Python
-  process, 30 boundary/input/output cases, 400 inclusion pairs, 301 checked
-  countervalues, 33,600 bounded membership implications and a depth-360
-  complete-UNSUPPORTED regression; no Cargo or compiler suite ran.
+- The [SD-NPB theorem](../theory/2026-10-08-source-directed-joint-decision.md),
+  commit `2590b3d07`, constructs complete source DataArg/Car/gamma evidence,
+  decides the exact joint new/alias constraints, and builds actual ordinary
+  proofs and a strategy for all independent native challenges. Its
+  [independent mathematical/specification review and reference](2026-10-08-source-directed-joint-decision-review.md)
+  (`c7c848489`) record the completed termination, soundness and
+  satisfiable-strategy completeness proof, repaired same-world witness
+  clarification, and separately bounded arithmetic implementation. No winning
+  strategy, J/Car supplier or EPR/ER is a decision premise. The id case with a
+  literal argument checked and exported at Any and a whole-result view Int
+  is NO, retaining the independent Bool production alternative. This proves
+  no parser/HIR occurrence mapping, enclosing CallMem/C0, arbitrary source
+  residual decision, all-language principality, current F5 conformance or
+  production cutover.
 - The [annotated Function field map](2026-10-09-annotated-function-source-field-map.md)
   maps the declarative `Annotation(Name(id), target=R_bad)` and subsequent
   Call to tau/psi, original gamma/J/Car/context and binder scopes. Its
@@ -231,14 +233,28 @@ within their stated scopes:
   inventories the four approved q1/d1 scopes and keeps caller API, authentic
   source producers/H-bridge, resource/failure policy and adoption separate.
 
-No production code changed. The reference arithmetic ran only in the separately
-recorded bounded Python process; no Cargo, broad compiler tests or performance
-measurements ran. The next evidence is one exact ordinary parser-to-typed-check
-occurrence for the declarative Function annotation and Call, with authentic
-caller context and complete producer outputs, followed by its source/HIR
-correspondence and emitted Call consumer contribution. Preserve the original
-independent challenges/futures and the Bool rejection; do not mistake the
-generated-envelope theorem for a full-source decision. Keep `JOINT_DEC`
-OPEN-PROOF until all required source cases, production correspondence and
-cutover prerequisites are discharged or a separately reviewed and
-user-approved sufficient replacement route is proved.
+No production code changed. The reference implements only finite
+endpoint/frame arithmetic. Its final bounded Python process checked 30
+boundary/input/output scenarios, 400 inclusion pairs, 301 countervalues,
+33,600 bounded membership implications and the depth-360 complete-UNSUPPORTED
+regression. Those checks are recorded in the integration report, not used as
+mathematical completeness evidence. No Cargo, broad compiler tests or
+production acceptance measurements ran.
+
+The source-boundary obstruction rejects filtering to observed calls; SD-NPB
+now supplies complete same-inlet Function checking proofs in its stated
+source-owned envelope. The next complete-Call step needs each actual
+anchored/unanchored production arm's original relation and output-dependent
+typed-state/descriptor/guarantee evidence at the source consumer, preserving
+same-provider admission, the whole continuation/future action and all
+callee/argument/world/port/xi dependencies. That is not supplied by receiver
+VP membership or the conditional mu_result validator. The ordinary source
+bridge also needs an exact parser-to-typed-check occurrence for the
+Function annotation and Call, authentic caller context and complete producer
+outputs, with their source/HIR correspondence and emitted consumer
+contribution. Keep the independent challenges/futures and Bool rejection.
+General JOINT_DEC remains OPEN-PROOF until the required full-source decision
+and correspondence are proved, either on the existing sufficient route or
+on a separately reviewed replacement meeting the retained obligations.
+No arbitrary-strategy encoding requirement or production cutover follows
+from the bounded theorem.
