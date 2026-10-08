@@ -3959,3 +3959,22 @@ replacement gates open. The reviewed Direct proposal is
 `notes/design/2026-10-08-native-direct-consumer-plan.md`, SHA-256
 `1947eff96d4450f33f446988e75f5d818bf5d75b641bdbfbfbb0d0dc2e6aae60`; it
 remains uncommitted pending the scoped user decision.
+
+### Current F5 id/pick public-surface crosswalk (2026-10-08)
+
+The bounded current-path crosswalk is checkpointed at `dd92e447b` in
+`notes/progress/2026-10-08-current-f5-id-pick-public-surface-crosswalk.md`.
+It derives current scalar outputs `id: forall a. a -> a` and literal-backed
+`pick: Any -> Int`; neither output carries the selected native inlet, fixed
+import, whole certificate, or public-root frame records. A one-digit literal
+change (`z=0` to `z=1`) leaves the closed pick scheme unchanged while changing
+the selected `Fixed(J_z)` operand, so the scheme alone cannot recover that
+export. This is a bounded static information-loss witness, not a compiler
+execution counterexample, production conformance result, or cutover evidence.
+
+The next source-formation/publication design packet should identify canonical
+retained records for Parameter/Lambda formation, fixed-import installation,
+final-root extraction, decode, and Direct checking. Authentic source-owner
+telescopes, full H-bridge, import/general SCC cases, principality, approved
+Direct checker choice, and replacement/cutover remain open. No compiler code,
+tests, builds, or benchmarks ran; no inference gate is promoted by this note.
