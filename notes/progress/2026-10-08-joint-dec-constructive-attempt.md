@@ -1,10 +1,12 @@
 # JOINT-DEC: a conditional residual-game decision construction
 
 Date: 2026-10-08
-Status: Unreviewed conditional derivation; one bounded constructive attempt
+Status: Conditional derivation repaired after accepted MAJOR; delta review pending
 Implementation authority: none
 Gate status: unchanged; JOINT_DEC remains OPEN-PROOF
 Baseline: `87467e190cff6a8c208d07c1b1f0a1769e81389e`
+Repair baseline: `20375f34eeae91c7f29473f3a787514c37c74abb`
+Original artifact commit: `6967ac589` (primary-supplied identifier)
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only
 
@@ -20,7 +22,7 @@ does not construct that certificate for the whole Yulang source envelope.
 
 Exact governing inputs:
 
-- `successor-proof-obligations.md`, PURE-DEC, PRIMITIVES, ALL-WORLD,
+- [successor-proof-obligations.md](../theory/successor-proof-obligations.md#joint-dec), PURE-DEC, PRIMITIVES, ALL-WORLD,
   CTX-FINITE and JOINT-DEC. The edges are prerequisites of a sufficient route,
   not a theorem that their names jointly imply a solver.
 - `2026-10-05-pure-structural-effective-decision-corollary.md`, Claim and input
@@ -96,13 +98,41 @@ parts. These are research hypotheses, not established source rules.
    them; irrelevant alternatives may be represented parametrically rather
    than discarded. Constructing an exact public projection remains PROJECTION.
 
-For all-universal binder choices, mathematical backward existence is enough
-for truth equivalence. Effective existential/evidence lifting is additionally
-needed to return an actual original-scope solution recipe. We do not assume
-arbitrary semantic worlds are executable objects: a symbolic lift must have
-an independent interpretation over those worlds. If no such witness encoding
-is supplied, the result below gives conditional decision only, not an effective
-solver that emits the required original certificates.
+Mathematical backward existence is enough for truth equivalence at universal
+binders. The semantic `q_n` in clause 1 need not be computable. Effective
+existential/evidence lifting therefore does not alone supply an effective
+original-scope solution recipe. That stronger conclusion additionally requires
+candidate premise **ER (effective prefix classification and replay)**:
+
+- Specify a finite-data encoding interface for prefixes and challenges, with
+  an independent interpretation at each original tree position. An initial
+  prefix code represents the fixed original inputs. Codes retain the whole
+  earlier prefix and its original scope/incidence. Symbolic parameters require
+  an interpretation contract; they are not unexplained semantic oracles.
+- A terminating classifier `qhat_n(e)` returns `q_n(a)` whenever prefix code
+  `e` interprets as legal `a`. Its correctness holds for every permitted
+  interpretation of symbolic parameters. Computing it cannot assume access
+  to an uncomputable predicate or to the semantic `q_n` as an oracle.
+- For every represented legal prefix and every actual legal universal
+  challenge, the interface effectively provides a challenge code, and a
+  terminating replay operation computes the extended prefix code at the
+  original child position. It interprets as exactly `(a,t)` and classifies as
+  `q_child(a,t)`. Coverage includes every independently legal challenge,
+  rather than only a sampled or source-reachable challenge set.
+- Boolean descent preserves the same encoded prefix at its child position.
+  Each existential/evidence lift accepts the current prefix code and selected
+  abstract child and produces the original witness/evidence and its extended
+  prefix code. These operations preserve interpretation and remain in the
+  classifier's domain at every subsequent node. All encoding, classification,
+  replay and lifting operations terminate under the declared interface.
+
+ER is an additional research hypothesis; it does not follow from EPR's four
+clauses. Arbitrary semantic worlds are not assumed to be executable objects.
+If symbolic codes stand for them, the classifier/replay laws must hold under
+every independent interpretation. Without that contract, EPR gives the
+conditional truth decision below, with semantic winning choices where the
+ordinary set-based choice principle or total semantic lift maps supply them;
+it does not give an effective solver emitting the original certificates.
 
 This is smaller than requiring a finite structural graph bound for every
 original solution: it only requires a finite decision presentation with legal
@@ -113,8 +143,9 @@ supplied by merely attaching uninterpreted predicate names to finite nodes.
 
 **Claim class: conditional theorem, unreviewed.** If the actual admitted
 residual satisfies EPR, its truth is decidable by finite backward evaluation.
-When its existential/evidence lift constructors are effective, a true result
-also yields one original-scope simultaneous witness strategy.
+If ER also holds and the existential/evidence lifts are effective on its
+encoding interface, a true result yields one effective original-scope
+simultaneous witness strategy. Neither EPR nor ER is constructed for Yulang.
 
 At a leaf use the original Boolean expression on the exact predicate vector.
 At a Boolean node evaluate its children. At an existential binder take OR
@@ -139,14 +170,21 @@ Boolean cases apply the induction hypotheses without changing `a`.
   a listed child by clause 2; abstract universal truth and induction cover it.
 
 These four implications prove preservation and reflection, including empty
-domains. To emit a strategy, choose a successful existential child at its
-original position, lift it at the current prefix, and continue recursively.
-After an actual universal challenge, map that challenge and continue using
-the resulting child. Earlier witnesses are never reselected. Thus an early
-existential choice cannot depend on a later challenge, and all terminal
-predicates hold of one whole original tuple. The finite abstract strategy
-plus certified lift constructors is a finite recipe, not an enumeration of
-all concrete contexts. Branches share precisely the original earlier prefix.
+domains, without requiring computability of the semantic `q_n`.
+
+For the effective strategy conclusion, start from ER's initial prefix code.
+Classify it with `qhat_n`; at an existential node choose a successful listed
+child, apply the effective lift and retain its extended prefix code. At a
+Boolean node descend using ER's prefix-preserving operation. After each actual
+universal challenge, obtain its challenge code, replay the extension and
+classify the resulting prefix at the child position. ER's interpretation and
+closure laws justify these steps at every subsequent node. Earlier witnesses
+are never reselected. Thus an early existential choice cannot depend on a
+later challenge, and all terminal predicates hold of one whole original
+tuple. The finite abstract strategy together with ER and the certified lifts
+is a finite recipe, not an enumeration of all concrete contexts. Branches
+share precisely the original earlier prefix. This extraction paragraph is
+conditional on ER; the truth-equivalence induction above uses only EPR.
 
 Recursive semantic operators inside a leaf are not discharged by this finite
 tree induction. They need the exact independent leaf decision/lifting law
@@ -173,7 +211,7 @@ nor show that its regular replacement stays in that cell. Further, terminal
 vectors do not determine which child cells extend *each fixed earlier prefix*.
 Finding a witness in some other prefix's fiber does not supply clause 3.
 
-There are consequently two exact failure points:
+There are consequently three exact failure points:
 
 1. **Cell decision/reflection:** an independently proved effective law for the
    active non-pure predicates on original structural/world/witness operands is
@@ -183,6 +221,10 @@ There are consequently two exact failure points:
    that each listed abstract child has a legal lift at *every* original prefix
    in its parent fiber, retaining earlier provider identities, incidence and
    admission. Whole-tuple truth labels cannot substitute for that law.
+3. **Effective prefix replay:** even a semantic quotient with exact leaves
+   and effective existential lifts need not classify actual challenges.
+   ER's encoding, classifier and replay laws have not been derived from any
+   inspected Yulang source rule.
 
 The reviewed Record-chain extension already refutes the generic inference of
 the first law; this attempt does not reproduce that attack. The reviewed atom
@@ -191,6 +233,53 @@ this attempt does not reprove or extend its selected language meaning. Its
 remaining non-name `G` leaves are precisely where this construction stops.
 No finite quotient or computable graph-size bound covering all original
 Yulang predicates has been produced here. No Yulang undecidability follows.
+
+### 3.1 Accepted reviewer finding and minimized witness
+
+The primary accepted the assigned compiler-referee's **MAJOR** finding:
+clause 1 supplies only semantic `q_n(a)`, while effective strategy extraction
+must classify/replay each actual universal challenge before selecting later
+existential branches. Effective existential lifts do not make `q_n` computable.
+The original strategy-extraction claim without ER is withdrawn. Its
+truth-equivalence induction remains conditional on the same four EPR clauses.
+
+The reviewer supplied the countermodel
+
+```text
+forall n in N. exists b in {0,1}. b = H(n),
+```
+
+where `H : N -> {0,1}` is noncomputable and both values are inhabited. This
+has the original `forall`-then-`exists` order, one leaf and two witness values.
+Use root state `r`, universal successors `{0,1}`, and semantic prefix map
+`q_1(n)=H(n)`. At existential state `h`, list terminal successors
+`{(h,0),(h,1)}`. Map `(n,b)` to `(H(n),b)` and label terminal `(h,b)` by the
+computable equality `h=b`. The existential lift for child `(h,b)` returns `b`
+and extends the current concrete prefix with it.
+
+This is a finite effective state/edge presentation with semantic prefix maps.
+Forward extension and exact leaf laws hold. Root backward extension holds
+because each `h` is inhabited by some `n`; existential backward extension
+holds at each fixed `n` because both bits are legal. The existential lift
+is effective even though it does not compute `H(n)`. Finite evaluation returns
+true: each `h` has the successful child `(h,h)`. Semantic truth likewise holds.
+But an effective winning response on natural-number challenge `n` would return
+`b(n)=H(n)`, computing `H`, a contradiction. ER fails exactly at the challenge
+classifier; adding `H(n)` as an input oracle would change the computation
+contract and cannot establish effective extraction from the original inputs.
+
+This witness falsifies the omitted-premise implication; it neither defines a
+Yulang primitive nor proves Yulang undecidability. It uses the reviewer's
+supplied construction, so the repair producer claims no independent review or
+independently discovered counterexample. No executable search, seeds, ranges or
+mutation runs were used. A bounded computable stand-in for `H` would not test
+the noncomputability premise and is not proposed as another probe.
+
+Repair rationale: retain EPR's four premises and its truth theorem; require ER
+explicitly for the effective strategy conclusion and state the encoding
+contract in the extraction argument. Residual status: EPR's Yulang construction
+and ER's source-derived classifier/replay laws are unproved, JOINT_DEC stays
+OPEN-PROOF, and this repaired delta awaits independent review.
 
 ## 4. Evidence independence, limits and next action
 
@@ -207,13 +296,18 @@ original observer, altered rigid/scope incidence, an inhabited abstract child
 without a lift at the current prefix, or any primitive whose truth changes
 inside a terminal fiber. Any such failure invalidates this sufficient route;
 it neither authorizes rejection of ordinary source nor changes its meaning.
+Effective extraction additionally fails on an unencodable legal challenge,
+noncomputable or incorrect classifier, replay that changes the earlier prefix,
+or a lifted prefix outside the encoding interface. Failure of ER alone
+withdraws effective extraction without refuting EPR's truth equivalence.
 
 Unverified scope: actual exhaustive primitive inventory, full source-context
 closure, recursive future/admission decision, whole Yulang quotient formation,
 public projection/principality, production correspondence and cutover. One
 bounded constructive attempt was performed; no follow-up toy variant is
-proposed. The blocker is the absent effective original primitive/cell and
-prefix-extension law, rather than a shortage of sampled cases.
+proposed. The blocker is the absent effective original primitive/cell,
+prefix-extension and challenge-classification/replay laws, rather than a
+shortage of sampled cases.
 
 Recommended next action: select one actual active non-name admission/future
 primitive at its owning independent definition and prove or refute both its
@@ -222,9 +316,11 @@ after that primitive's regularization reflection is established. If the
 primitive needs an infinite but effective residual kernel, pursue that kernel
 instead of increasing a finite sample bound.
 
-## 5. Frozen snapshot and commit packet
+## 5. Original checkpoint snapshot and commit packet (historical)
 
-Pre-write dependency SHA-256 snapshot (all paths unchanged from baseline):
+The original checkpoint packet below records the pre-repair attempt at its
+original baseline. Section 6 supplies the current repair handoff.
+Pre-write dependency SHA-256 snapshot (all paths unchanged from that baseline):
 
 ```text
 59442db205d0bc381de74a373f1d58a753e3366ae0ba845e8c9c877465e738fc  notes/theory/successor-proof-obligations.md
@@ -258,3 +354,41 @@ ac69d1696dbe023d0886d15c0bee0e5e21fca5a189ab89b9b79b3c96bc3587fd  notes/progress
   this attempt under JOINT_DEC and record the cell-decision/prefix-lift blocker;
   do not change canonical status, prerequisites, language authority or cutover
   claims. No task/index/theory/question files were edited.
+
+## 6. Repair snapshot and commit packet
+
+- Exact leased/changed path:
+  `notes/progress/2026-10-08-joint-dec-constructive-attempt.md`.
+- Repair baseline SHA: `20375f34eeae91c7f29473f3a787514c37c74abb`.
+  Original artifact: `6967ac589` (primary-supplied identifier); original
+  derivation baseline and dependency hashes remain in section 5.
+- Dependency changes: none. All ten SHA-256 entries in section 5 matched at
+  repair start and after the substantive edit, including the approved inlet
+  answer and the governing JOINT-DEC ledger. Read-only filesystem inspection
+  of `.git/HEAD` and its named branch ref matched the repair baseline.
+  No Git command, index/ref mutation or question-bundle edit was performed.
+- Claim/review status: conditional research repair; accepted original MAJOR
+  recorded in section 3.1; repaired delta pending independent review. Producer
+  verification does not certify the repair. JOINT_DEC remains OPEN-PROOF;
+  EPR and ER remain unconstructed for Yulang.
+- Checks already run: targeted governing-rule/source reads; SHA-256 dependency
+  rechecks; Python `difflib.unified_diff` inspection against the pre-repair
+  in-memory lease snapshot; exact comparison confirming all four EPR clauses
+  unchanged; local Markdown path/anchor resolution; trailing-whitespace and
+  final-newline checks. No builds, tests or executable experiments were run.
+  Committed-tree/index equality is left to the primary's integration check
+  because this repair packet forbids Git operations.
+- Resource use: lightweight file reads, note patches and sequential Python
+  static-check processes; zero search/build/test processes and no generated
+  outputs. CPU time, peak RAM and total wall time were not measured. No numeric
+  repair budget was supplied; scope stopped after this one premise repair.
+- Recommended next action: independently delta-review ER's encoding/coverage
+  and the conditional extraction argument against the accepted MAJOR.
+- Proposed commit message:
+  `research: require effective prefix replay for JOINT-DEC strategy extraction`.
+- Shared-record deltas intentionally left for primary/curator: record the
+  accepted effective-extraction gap and conditional ER repair under JOINT_DEC;
+  retain OPEN-PROOF, original quantifiers, all prior predicates and prerequisites.
+  No task/index/authority/theory/question files were edited.
+
+Frozen at submission for independent delta review; no further producer writes.
