@@ -4894,6 +4894,15 @@ for the exact `f 1` body it already constructs an N-owned argument reify/Delay
 origin, argument check, and complete result/consumer ports under its whole
 contract inputs. This does not identify those N origins with the selected
 original Call consumer origins or pair the carrier across id/pick telescopes.
+The bounded N-to-original construction attempt localizes the first missing
+operand at the authentic original literal Result-node/port license, before
+Delay, checking, or Call attachment; its conditional map and endpoint-tag
+falsifier are recorded in
+[the Result bridge attempt](../notes/progress/2026-10-09-fixed-target-n-original-result-bridge.md).
+This does not establish that no original producer exists. Next, locate and
+construct that licensed owner output; only then extend through original
+Reify/check/result incidences and separately prove the `IF_pick`/`IF_id`
+carrier/event pairing. Keep `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
