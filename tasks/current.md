@@ -4095,8 +4095,7 @@ The [source comparison action attempt](../notes/theory/2026-10-08-rt2-source-com
 indices must be exactly retained, alternatives complete, and immediate target
 predicates independently preserved. The selected source Call owner does not
 supply those conditions for `A_f,F_c`; it retains final-model `VIncl` and
-supplied decoration. Both results remain conditional, with independent review
-pending. No gate status changed.
+supplied decoration.
 
 The [joint apply-source front attempt](../notes/theory/2026-10-08-rt2-joint-apply-source-front-attempt.md)
 (`38d1afbd3`) records a conditional construction order: first construct
@@ -4104,5 +4103,6 @@ The [joint apply-source front attempt](../notes/theory/2026-10-08-rt2-joint-appl
 captures apply. It does not establish the fronts for other returned providers
 or prove S postfixed. `N_S`, complete RT.1/RT.3 and checked/native interface
 identification remain open. Independent compiler-referee and spec-auditor
-review of the three follow-up artifacts is pending; no RT.2 or production gate
-has closed.
+reviews found no issue within the three artifacts' conditional claims; the
+[review record](../notes/progress/2026-10-08-rt2-followup-review.md) states
+the exact scope and omissions. No RT.2 or production gate has closed.
