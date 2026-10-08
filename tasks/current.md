@@ -4884,12 +4884,17 @@ follow-ups are recorded here and checkpointed in
 [the conditional Value bridge](../notes/progress/2026-10-09-native-export-fixed-target-value-bridge.md),
 [the Force-provenance construction attempt](../notes/progress/2026-10-09-native-export-force-law-construct.md),
 [its bounded falsification](../notes/progress/2026-10-09-native-export-force-law-falsification.md),
-and [the independent Fixed-pick target construction](../notes/progress/2026-10-09-native-export-fixed-target-independent-view-construction.md).
+the [independent Fixed-pick target construction](../notes/progress/2026-10-09-native-export-fixed-target-independent-view-construction.md),
+[the pick/id Value-comparison attempt](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-value-comparison.md),
+and [the scope-map falsification](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-scope-falsification.md).
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
 constructs a complete Fixed target at its own `IF_pick`; its root-relative map
-to id's unchanged `IF_id` and same-source validity remain unproved.
+to id's unchanged `IF_id` and same-source validity remain unproved. The
+selected bare ignored-input pick inlet has the same derivation as id's inlet;
+its Fixed result is a separate body premise, so Fixed itself does not restrict
+admitted inputs to `J_0`.
 
 The Value route's first unlocated premise is a raw actual subexecution
 certificate for the designated Force component of every arbitrary retained U,
@@ -4903,10 +4908,13 @@ certificate; the production-only false-result alternative is not licensed as
 an actual invocation. These are bounded owner gaps, not a counterexample or
 an absence theorem for all original kernels.
 
-Next: construct the complete ordinary comparison at the actual id and Fixed
-pick roots, including the same-provider carrier producer and original scope
-pairing; assess same-source validity separately. Also determine which retained
-U class the Value implication requires and whether authentic operation anchors
-cover it, keeping opaque-operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW
-and PRINCIPAL unchanged. No compiler changes, tests, builds or production
-authority follow.
+The Return(1) separation is still conditional: no actual literal-1 `J_1`
+publication and Call-owned `ReifyOrigin` were constructed, nor the same-event
+pairing of that carrier at both original inlet telescopes. If those producers
+are supplied, id returns `(1,p_1)` while Fixed requires `(0,p_0)`; this would
+still require an approved `Valid_V` witness before it could refute ALL_VIEW.
+Next: locate or construct those original source records and the cross-root
+scope pairing, then audit `Valid_V` eligibility separately. Keep the arbitrary
+U/`E_U` gap and opaque operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW and
+PRINCIPAL unchanged. No compiler changes, tests, builds or production authority
+follow.
