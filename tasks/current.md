@@ -4768,3 +4768,15 @@ Next for this seam is to recover or define the exact original registration
 constructor and one caller-context application before deriving any telescope.
 Do not fill it with an empty telescope, SCC cardinality, or an anchor inferred
 from empty captures. No DAG status or production authority changes.
+
+The existing [id-only SourceBuild proposal](../notes/design/2026-10-08-id-sourcebuild-owner-design.md)
+received independent M3 compiler-referee and spec-auditor review at
+`abd388a68`; it is **not ready for production approval**. Both reviews found a
+blocking missing caller-context/registration input, and the referee separately
+found that adding the context alone still leaves the noncircular registration
+constructor absent. Major issues also remain in schema representation,
+freeze/failure policy and the context integration seam. The selected
+Generalize/Parameter/Lambda meanings are preserved conditionally; no rule,
+API, representation or failure policy was adopted. Next: resolve the original
+registration action and one application, then repair and re-review the producer
+boundary before any approval request or implementation.
