@@ -5354,7 +5354,12 @@ source target/current endpoint are not mapped to Direct's complete ordinary
 roots and proof. The compiler-referee and spec-auditor reviews closed with no
 remaining findings after one minor HIR owner-locator correction. This remains
 non-authoritative research: no semantic or implementation gate changed. Next
-action is an owner-produced annotation package for exact roots, scope and
-proof-only versus executed conversion, then its actual attempt schedule.
-Preserve the Hreg no-repeat stop. No tests, builds, benchmarks or mutation
-probes ran.
+action is to establish one authentic occurrence's source `TypeExpression`
+elaboration into an ordinary typed target in its original scope, alongside an
+already available endpoint/root and prior-plus-local evidence. The current
+HIR/shadow/F5 scheme path has no such source elaborator; see the
+[annotation target elaboration owner gap](../notes/progress/2026-10-10-annotation-target-elaboration-owner-gap.md).
+Only after those typed records exist can the proof-only Direct case or
+separate executed-conversion case be applied and its actual attempt schedule
+measured. Preserve the Hreg no-repeat stop. No tests, builds, benchmarks or
+mutation probes ran.
