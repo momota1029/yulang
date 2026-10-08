@@ -4903,10 +4903,22 @@ This is the `ResultLiteral` subcase of the already identified R-flat typed
 original-registration/realization gate, not a separate gate; the owner scan
 found no selected constructor or current Rust operation that emits the
 certificate. This bounded scan does not establish repository-wide absence.
-Next, refine R-flat at that literal owner and construct its licensed output;
-only then extend through original Reify/check/result incidences and separately
-prove the `IF_pick`/`IF_id` carrier/event pairing. Keep H-original-install/
-E-flat, `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
+The exact minimal producer proposal is now drafted at
+[the original literal Result owner candidate](../notes/theory/2026-10-09-original-literal-result-owner-extension-candidate.md)
+(SHA-256 `0c5c58022c6834651fedff6c14d8cdf96002831c0c2d25292843abbae64d3924`);
+both compiler-referee and spec-auditor found no BLOCKING, major, or minor
+finding for its exact Draft scope. This only makes the proposal reviewable; it
+does not select the rule or prove its bridge. A separate conditional
+naturality audit found that authentic static registration alone does not
+transport the complete N Return witness fibers across distinct incidence keys.
+The exact missing Return-kernel reindexing law and discriminator are recorded
+in [the incidence naturality note](../notes/progress/2026-10-09-literal-result-incidence-naturality.md).
+Next, locate that independent kernel supplier and its whole-action/inverse
+laws, or retain them as explicit open premises. Then the user can decide
+whether to select the bounded original registration case. If selected and
+proved, extend through original Reify/check/result incidences and separately
+prove the `IF_pick`/`IF_id` carrier/event pairing.
+Keep H-original-install/E-flat, `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
