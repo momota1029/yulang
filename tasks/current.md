@@ -3933,3 +3933,29 @@ The draft remains uncommitted and non-authoritative. Authentic Parameter
 telescope, source owners, H-bridge, allocation manifest, teardown bounds,
 placement selection and failure policy remain open. No compiler code, tests,
 builds or measurements ran.
+
+### Native ordinary Direct consumer design gate (2026-10-08)
+
+The selected native projection contract already defines ordinary
+`Direct(u,V)` checking for Value, Computation and complete Function proofs. A
+new checker-only design proposal maps that contract to a flat proof arena,
+iterative validation, exact immutable root environments and one shared
+per-compilation work/byte budget. It remains non-authoritative and does not
+route production away from F5. Independent compiler-referee and spec-auditor
+reviews found no conformance/soundness issue; performance review prompted a
+batched accounting repair, and a focused delta review passed after charging
+root construction, environment preparation, proof-arena construction and all
+query attempts to one compilation budget. The proposal explicitly leaves
+numeric limits, full local-law owners and actual caller integration as gates.
+No code, tests, builds or measurements ran.
+
+The exact checker-architecture choice is now in pending question q1 at
+`questions/2026-10-08-native-direct-consumer/question.md`; it is not committed
+or treated as approval. Until resolved, checker implementation waits. The
+independent next production step is a source/HIR-to-public-root input/output
+and lifecycle manifest for the existing caller-managed F5 path, while keeping
+the authentic Parameter telescope, general H-bridge, principality and full F5
+replacement gates open. The reviewed Direct proposal is
+`notes/design/2026-10-08-native-direct-consumer-plan.md`, SHA-256
+`1947eff96d4450f33f446988e75f5d818bf5d75b641bdbfbfbb0d0dc2e6aae60`; it
+remains uncommitted pending the scoped user decision.
