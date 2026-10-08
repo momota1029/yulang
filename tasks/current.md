@@ -5388,3 +5388,13 @@ actionable findings. `INIT_WORLD` remains OPEN-SEMANTIC. Next evidence is the
 noncircular root-extension introduction and old-tuple restriction, with one
 scalar install, a source-open alias, and a hole-dependent external import.
 No tests, builds, probes, or measurements ran.
+
+The reviewed [INIT_WORLD zero-step extension attempt](../notes/progress/2026-10-09-init-world-zero-step-extension-attempt.md)
+narrows this to generic importer-incidence joint extension plus old-tuple
+restriction. Existing Lemma W, `PhiW`/inert registration, captured-closure
+Step, and Name/capture constructions provide selected partial suppliers, but
+none establishes arbitrary cross-world import merging. `PhiW` foreign-store
+application additionally requires an evidence-preserving embedding and
+exhaustive guard correspondence. Compiler-referee found no findings;
+spec-auditor's one minor wording finding is repaired. `INIT_WORLD` remains
+OPEN-SEMANTIC. No tests, builds, probes, or measurements ran.

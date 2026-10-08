@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 Baseline: `44e5c2612` on `research/simple-sub-intrusion`
-Status: conditional structural retraction plus semantic owner gap; review pending
+Status: conditional structural retraction plus semantic owner gap; independently reviewed
 Authority: none; `INIT_WORLD` remains OPEN-SEMANTIC
 Scope: one scalar cross-world install, one source-open alias, and one hole-dependent external import
 
@@ -78,8 +78,9 @@ does not establish rejected Yulang input.
   `notes/theory/2026-10-08-simultaneous-immutable-root-introduction.md`
   §§2–5, can install original source-constructor fields using supplied
   formation/license evidence plus joint registry, scope, authority, and
-  incidence guards. The rule requires the foreign `EnvStore` embedding and
-  exhaustive guard correspondence; it does not derive generic cross-world
+  incidence guards. Application to foreign `EnvStore` clauses requires an
+  evidence-preserving embedding and exhaustive guard correspondence; the rule
+  does not derive generic cross-world
   import guards or a restriction equation.
 - **Captured closure Step**, selected by
   `notes/design/2026-10-08-captured-closure-constructor-definition.md`
@@ -98,6 +99,12 @@ old-tuple restriction, including a separately licensed action for
 hole-dependent external evidence.
 
 ## Convergence and limits
+
+Compiler-referee and spec-auditor reviews found no blocking or major findings.
+The spec-auditor identified one wording correction: foreign `EnvStore`
+application is conditional on an evidence-preserving embedding and exhaustive
+guard correspondence. This revision makes that condition explicit. The note
+remains research-only and does not close `INIT_WORLD`.
 
 Four independent methods contributed: source-owner mapping, the structural
 and conditional construction, adversarial counterexamples, and current Rust
