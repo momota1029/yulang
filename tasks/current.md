@@ -3180,3 +3180,34 @@ semantic conflict. Retain both indices and discharge the kernel-signature and
 typed transport bridge before claiming original-consumer applicability. No
 divergence counterexample or acceptance change was established. No tests,
 builds, probes, or Git mutations occurred during this audit.
+
+## F5 regression-contract inventory (read-only, 2026-10-08)
+
+Inspection of `crates/yu-solver/src/lib.rs` tests and the shadow differential
+fixture separates existing user-visible behavior from F5 representation
+assertions. Preserve identity/constant-function inference, forward module-name
+resolution, lexical parameter shadowing, function recursion, root identity,
+error isolation/diagnostics, and atomic publication/rollback with clean retry.
+`SolvedValue`/`SolvedEffect` intentionally project functions and open facts to
+`Unknown`; this public projection is distinct from internal scheme detail.
+Current unsupported Apply still yields the HIR diagnostic and byte range
+`14..18` for `x(x)` in `crates/yu-solver/tests/shadow_f5_differential.rs`;
+shadow collection is
+separate and still solves through F5. Numeric binder ordinals, row counts,
+fact/provenance counts, visits and capacity lanes are representation/resource
+details unless a specific public diagnostic/API exposes them.
+
+The strongest existing independent-use witness is synthetic and constructs
+identity facts directly; it does not prove source-level polymorphic Apply.
+This contract inventory is assertion inspection only: no tests were run, no
+Oracle parity or successor correspondence is established, and existing
+unsupported-Apply expectations must change only under the reviewed cutover
+approval. Exact witnesses include
+`f5d_identity_lambda_admits_exact_effect_and_function_facts`,
+`f5d_constant_and_module_name_bodies_close_to_pure_functions`,
+`f5d_parameter_alpha_rename_shadows_module_name_and_does_not_leak`, and
+`f5d_productive_function_recursion_and_unproductive_names`; independent-use
+and publication/retry witnesses are
+`f5c_shared_closed_child_is_instantiated_once_per_use_with_disjoint_rows`,
+`f5c_internal_route_failure_restores_and_retries_cleanly`, and
+`f5c_incoming_union_representative_failure_has_no_public_route`.
