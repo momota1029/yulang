@@ -3212,6 +3212,27 @@ typed transport bridge before claiming original-consumer applicability. No
 divergence counterexample or acceptance change was established. No tests,
 builds, probes, or Git mutations occurred during this audit.
 
+A bounded constructive follow-up establishes a one-way conditional realization
+for the exact literal source image. Under independently supplied literal
+`ValueMem_Int`, authentic Result/Reify registration and one shared world,
+configuration and witness family, selected `Code-Result` constructs
+`ReturnMem_Int` at each admitted compatible event. Administrative/zero-step
+prefixes preserve that evidence, and the source-owned inert `Delay(Return(k))`
+plus `Carrier-Delay` establishes `CarrierMem_R_a` for the literal carrier. This
+is the literal case of the existing constructor route; it is neither
+`J_a = R_a` nor an inverse.
+
+The remaining owner is the Result/ArgDelay/Checks source construction plus the
+independent `WholeArgCompatible` kernel signature and its exact origin map from
+the installed literal occurrence to the original `J_a` consumer. That map must
+transport whole dependent indices, scopes, world, primitive witnesses and
+future evidence; adoption of the proposed owner and that correspondence remain
+open. Treating image and interface as equal would lose behavior: a
+terminating `Delay(Return(1))` and a divergent pure `Int` carrier can share
+`Comp(empty,Int)`. This is a conditional producer derivation only; imported
+literal/kernel premises were not independently validated, and no checker,
+tests, builds or probes ran.
+
 ## F5 regression-contract inventory (read-only, 2026-10-08)
 
 Inspection of `crates/yu-solver/src/lib.rs` tests and the shadow differential
