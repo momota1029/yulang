@@ -120,6 +120,15 @@ actual provider, the exact source/public evidence cut and actual-root Direct
 are still being constructed. No foreign W/Z identification, aggregate status
 or production cutover follows from this local result.
 
+The subsequent independent pre-review produced two
+[reviewed finite countermodels](../notes/theory/2026-10-08-projection-export-proof-countermodels.md):
+actual target-payload typing cannot discard broader complete carrier
+observations, and one canonical evidence constructor cannot erase an
+independent proof-choice fiber observed by W. Same-whole-I admission
+restriction and result weakening have direct valid proofs. These results
+falsify concrete attempted inference steps; they do not reject source id or
+claim that finite public export is impossible.
+
 Three further constructor bottlenecks now have complete scoped proofs and
 independent mathematical/specification review; the
 [integration record](../notes/progress/2026-10-08-native-constructor-theorems-review.md)

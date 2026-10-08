@@ -88,3 +88,45 @@ outbound commit range. Source-linked proof claims are established by the
 mathematical arguments and independent reviews, not by document checks.
 Shared task records identify this precise local closure; canonical aggregate
 statuses and original prerequisites are unchanged.
+
+## 4. Reviewed finite countermodels from the export pre-review
+
+Checkpoint 1 is published as
+`30842d31f1b40e39b8a5b9fb271adcf99934a048`. The concurrent remote additions
+`867cfdc` and `fc6c7f7` were read and incorporated before that publication;
+they add Draft F5-route/exclusion notes, with no selected dependency change.
+The GitHub ref was advanced with an expected-parent lease, and its complete
+tree matched the local reviewed checkpoint. Other contributors' files were
+preserved.
+
+Independent mathematical and specification pre-reviews of the primary's
+unpublished export/checker drafts found two material errors. The primary
+accepted both; the drafts' rejected claims are not integrated as theorems.
+The [finite countermodel result](../theory/2026-10-08-projection-export-proof-countermodels.md)
+gives the exact witnesses and direct safe cases:
+
+- One pure carrier actually returning an Int is certified by both a narrow
+  Int interface and a broader interface with an independently licensed Bool
+  Return. Admission embeds, but complete Echo production does not narrow.
+  Using the checked argument's actual payload type to cover every source
+  production observation is false.
+- A total canonical proof constructor cannot erase a two-valued logical
+  witness fiber while preserving W selecting its other member. This is a
+  countermodel to the draft's available premises, not an assertion that the
+  fixed Name rule in fact has that two-element fiber.
+- Keeping the same whole I/IF while conjoining an independent admission H,
+  or weakening the result through a genuine hereditary value rule, has the
+  direct same-tuple proof given in the note.
+
+A fresh independent specification review of the frozen integrated note
+checked these mathematical witnesses and source/Option 2 scope. It passed
+without blocking, major or minor findings. The original mathematical report
+and this fresh check agree on the complete-contract countermodel; both
+original independent reports agree on the evidence-fiber error. The primary
+only advanced review metadata after that review. No claim of overall export
+impossibility or actual compiler misbehavior is made.
+
+The next construction must keep full independent carrier observations and
+every non-definitional source-owned logical witness. Uniform actual inlet
+acceptance and exact witness-level normalization are distinct from the false
+arguments just ruled out. No production or canonical aggregate is changed.
