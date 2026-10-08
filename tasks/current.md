@@ -3099,3 +3099,15 @@ prerequisite by itself. The next artifact is still to complete and review that
 owner package; flat seed, CallInitial/I0 and later gates remain independent.
 No tests, builds, implementation or DAG status changes occurred. The latest
 checkpoint is synchronized with `origin/research/simple-sub-intrusion`.
+
+A fresh bounded owner-family proposal is checkpointed and pushed as
+`426135a17`: [flat Application owner completion](../notes/theory/2026-10-08-flat-application-owner-completion-decision-object.md).
+It supplies candidate constructors for the Name/Int literal, opaque complete
+contracts, registration, installation/lookup/inversion, old-family
+inclusion/retraction and consumer seams. This is a new proposed definition,
+not a claim about the independently fixed historical family. The frozen note
+is non-authoritative and pending independent compiler-referee and spec-auditor
+review. Adoption, exact correspondence if required, flat seed, CallInitial/I0,
+admission, solving/export/principality and Gate E remain open. No tests, builds,
+implementation or DAG status changes occurred. The proposal checkpoint is
+synchronized with `origin/research/simple-sub-intrusion`.
