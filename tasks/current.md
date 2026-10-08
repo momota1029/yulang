@@ -4357,3 +4357,32 @@ tests/builds, semantic promotion or F5 cutover occurred. Next: locate an
 already selected actual Call result-consumer rule and complete arm declaration
 if one exists; if none is selected, continue on an independent open inference
 gate without inventing their semantics.
+
+### SourceBuild owner review and caller-to-Parameter input cut (2026-10-09)
+
+The bounded [id/pick owner-to-consumer manifest](../notes/progress/2026-10-08-id-pick-owner-consumer-manifest.md)
+now passed separate semantic and code correspondence reviews. The
+`spec_auditor` found its retained source/public fields conform to selected
+Source Generalize and projection rules. The `regression_auditor` found no
+blocking mismatch in the bounded HIR/solver/types paths; current structural
+rows and scalar schemes do not carry the selected provider/world/inlet/
+certificate records. The draft SourceBuild layout/resource/failure policy
+remains non-authoritative and is not implementation-ready.
+
+The [caller-context-to-Parameter trace](../notes/progress/2026-10-09-caller-context-parameter-input-cut.md)
+grants approved q1 caller-supplied JointWF, distinguishes `sigma_a`,
+`Delta_a`, and whole-inlet `Delta`, and stops before claiming a missing source
+constructor: the selected source rules require an actual registration,
+component/binder tree and authentic anchor application, followed by the
+ordered owner/predecessor/incidence manifest for the Parameter operands. A
+specification review passed this scope. The bounded current-code census also
+found no corresponding caller evidence/telescope carrier in the inspected
+HIR/solver/types entrypoints.
+
+Next: produce one authentic `my id x=x` caller/source-formation application
+and enumerate each Parameter scope/telescope operand with its existing owner,
+predecessor binders and registered incidence. Do not infer empty telescopes,
+choose an anchor arm from HIR shape, or resolve API/storage/failure choices
+before this evidence exists. The F5 replacement, H-bridge, principality and
+resource/failure gates remain open. Details and review scopes:
+[SourceBuild input-cut integration](../notes/progress/2026-10-09-sourcebuild-input-cut-review.md).
