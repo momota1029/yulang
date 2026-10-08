@@ -5146,8 +5146,12 @@ The repaired directional-protection section of the non-authoritative
 has now passed focused independent compiler-referee and spec-auditor review
 over §§3–5, C5/C6, and the directly relevant §7 choices, with no findings.
 This closes only that proposal-delta review; it does not close C5/C6, prove
-§6's reused theorems, or authorize inference implementation. Two disjoint
-research lanes are deriving the C5 seed-to-exposure obligation and C6
-annotation-incidence/removal inputs. Their next evidence must distinguish
-what follows from current decisions from any genuinely new activation choice;
-keep the source/solver production gate and all aggregate statuses unchanged.
+§6's reused theorems, or authorize inference implementation. The C5
+[seed-to-exposure derivation](../notes/progress/2026-10-09-c5-protection-exposure-derivation.md)
+is checkpointed and pushed at `6d603a095`: selected direct/captured Name Call
+composition is conditional on retention, and universal source coverage still
+needs `ExposureCover` over an independently formed exposure inventory. This
+does not settle recursive/multi-use applicability, conflicts, or principal
+refinement. The independent C6 lane is deriving annotation-incidence/removal
+inputs and whether activation alternatives force a new semantic decision.
+Keep the source/solver production gate and all aggregate statuses unchanged.
