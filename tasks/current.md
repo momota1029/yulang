@@ -4028,3 +4028,16 @@ existing authentic owner. Next: trace one genuine initial-context constructor
 and Lambda registration to the selected id anchor, then extend through
 literal-install/capture for pick. No fabricated empty world or opaque
 validity flag is accepted as a supplier.
+
+The source-only trace is checkpointed at `3cd225d28` in
+`notes/progress/2026-10-08-l4-id-anchor-source-constructor-trace.md`. It
+clarifies that selected Lambda formation does construct `U_g`/`IF0`, and
+selected literal formation constructs `J_0`; the earliest unsupplied premise
+is the authentic initial `JointWF` registry/scope/authority/incidence world.
+The Empty environment/telescope case is conditional on that world and does
+not bootstrap it. The source rules assign no initial-world supplier to the
+caller or compiler factory, and current production has no such entrypoint.
+This is scoped to the inspected source chain, not a claim about all semantics.
+Next: resolve the authentic initial-world owner before selecting a compiler
+context API or adding production metadata. No tests, builds, measurements, or
+implementation ran; no gate promotion.
