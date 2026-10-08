@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: native source Generalize definition and direct joint soundness/lawful-use completeness reviewed and selected; remaining local-semantic, public inference and production gates stay open
+Status: native source Generalize and bounded transformed id/pick public-export theorems reviewed and selected; general public inference/principality and production gates remain separate
 
 ## Objective and canonical obligation ledger
 
@@ -104,7 +104,43 @@ PROJECTION / principality and the actual production Direct consumer are
 separate targets. GENERALIZE and INTRO keep their canonical statuses and
 all original prerequisites. No production implementation or cutover occurs.
 
-### Completed closure, recursive interface and signature construction (2026-10-08)
+### Completed native transformed projection export (2026-10-08)
+
+The current user-authorized [native projection selection](../notes/design/2026-10-08-native-projection-public-export-definition.md)
+and [integrated PE-ID/PE-PICK proof](../notes/theory/2026-10-08-projection-public-export-construction.md)
+now close the first transformed-public semantic gate for authentic immutable
+unannotated `my id x=x`, and for pick with the stated constructed finite public
+imports. This is the actual transformed public root, not a retained source
+root queried under another name. The finite object is a displayed scheme plus
+whole inlet/IF/scope/result-dependency data and ordinary certificate slots;
+there is no use-time source body or complete source relation accessor.
+
+PE-ID preserves exact retained solution-and-complete-observation fibers for
+every finite independent native source-lawful joint use grammar and arbitrary
+well-scoped W. Only forced raw aliases are eliminated; all logical choices,
+worlds, ports, intermediate evidence and original dependencies remain. The
+defined native ordinary consumer has Value, Computation and complete Function
+cases at the actual public roots, including whole-callable Any/union checks,
+nonidentity result checks and genuine domain restrictions. Concrete Option 2
+extras remain independent of source execution. PE-PICK covers literal captures
+and finite acyclic imports of already constructed public contracts, with
+their actual monomorphic free dependencies fixed.
+
+Both independent mathematical and specification final reviews passed after
+repairing the missing whole-value query case. The [review record](../notes/progress/2026-10-08-projection-public-export-review.md)
+records the frozen theorem, code checks, accepted findings and exact scope.
+The [reference checker](../tools/research_projection_public_direct.py) passed
+29/29 targeted cases but implements only a conditional same-I Function proof
+fragment under genuine independently typed whole-interface inputs. It does
+not implement the full native calculus or establish production H7/F5 behavior.
+
+The source Generalize algorithm, SRC/SRC-J/GS/GC and original fixed/foreign
+local meanings are not replaced. New native inlet/witness/production meanings
+are explicitly selected at owning formation before Build. All-language
+principality, unknown foreign W/Z/witness kernels, arbitrary capture summaries,
+general State/recursive constructors, automatic proof search and production
+lifecycle/cutover remain separate. Canonical aggregate statuses and prerequisites
+retain their full original scope.
 
 The transformed-export continuation has additionally constructed and
 independently reviewed [ordinary id invocation phases](../notes/theory/2026-10-08-id-public-phase-constructor.md).
@@ -123,10 +159,10 @@ actual provider. Full observation-index Delta proofs preserve every carrier
 alternative; no scalar complete-contract covariance is inferred. The
 [reviewed native witness constructors](../notes/theory/2026-10-08-native-projection-certificate-constructors.md)
 and CE now also provide exact local alias expansion while retaining every
-proof choice, world, port and original telescope. Full public-root allocation
-and ordinary Direct integration remain in progress. No foreign W/Z or witness
-kernel identification, aggregate status or production cutover follows from
-these local results.
+proof choice, world, port and original telescope. The integrated proof above
+now supplies their full public-root allocation and ordinary checking case.
+No foreign W/Z or witness-kernel identification, aggregate status promotion
+or production cutover follows from these bounded native results.
 
 The subsequent independent pre-review produced two
 [reviewed finite countermodels](../notes/theory/2026-10-08-projection-export-proof-countermodels.md):
@@ -136,6 +172,8 @@ independent proof-choice fiber observed by W. Same-whole-I admission
 restriction and result weakening have direct valid proofs. These results
 falsify concrete attempted inference steps; they do not reject source id or
 claim that finite public export is impossible.
+
+### Completed closure, recursive interface and signature construction (2026-10-08)
 
 Three further constructor bottlenecks now have complete scoped proofs and
 independent mathematical/specification review; the
