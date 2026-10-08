@@ -2781,6 +2781,19 @@ F5 source envelope and needs a reviewed semantic successor plus its existing
 approval gate before ordinary Apply typing can be enabled. The map used only
 source/test inspection; no tests/builds ran.
 
+That scope expansion does not mean every call rule is undecided. The approved
+[Function-call view](../questions/2026-10-05-function-call-view-formation/approved-answer.md)
+selects call roles, protection and independent admission boundaries; the
+conditional [initial-context generator](../notes/progress/2026-10-06-initial-context-source-construction.md)
+§4.4 and [typed-core synthesis](../notes/design/2026-10-02-typed-computation-core-elaboration.md)
+already give a relative Application recipe (`WF_Dec`, `VIncl`, whole-argument
+compatibility, `ReceiveSchema`, complete-result inclusion, and a computation
+result). They do not enumerate or install the exhaustive original emitted
+family. The successor work should retain these approved/conditional call
+meanings while supplying original occurrence ownership, actual source
+attachment and the ordinary HIR correspondence; it must not replace the
+missing owner proof with a weaker endpoint-only constraint.
+
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
 and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
 (with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
