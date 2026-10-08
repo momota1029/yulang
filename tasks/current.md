@@ -4569,3 +4569,29 @@ Rust survey found no production counterpart for this inlet/image or its
 certificate. Next: inventory every identity read in `m` and its checking
 tree, then establish whether the owning local laws supply typed forward and
 inverse actions; keep production correspondence and aggregate statuses open.
+
+The follow-on source-conformance audit now resolves the graft question more
+precisely. Source Generalize §5.2 does construct a deterministic whole-frame
+and event/proof graft at actual source scope, while the uniform inlet retains
+its complete independently checked `gamma`. Neither source grafting nor
+same-tuple local-law soundness supplies the exhaustive typed forward/inverse
+nominal actions and reflection required by successor §5.1. The remaining
+input-image seam is an action on the entire dependent `gamma`, image and
+checking derivation, preserving all proof choices and rigid registrations;
+actual history/current-event binders must remain coherent. The bounded Rust
+cross-check still finds no production inlet/image counterpart. This is scoped
+source evidence, not a completed covariance proof. The [presentation
+renaming construction](../notes/progress/2026-10-10-input-image-renaming-construction.md)
+and [bounded falsification](../notes/progress/2026-10-10-input-image-renaming-falsification.md)
+are now frozen and pushed as `822035a7d` and `6f9128d2b`. The construction's
+`compiler_referee` and `spec_auditor` reviews passed without findings: its
+pullback transports only presentation spellings over identical denoted
+operands, and the changed descriptor/root action remains explicitly open.
+The falsification artifact's independent `compiler_referee` and
+`spec_auditor` reviews also passed without findings: its whole-image equation
+is conditional on typed invertible input actions and local-rule covariance,
+and its no-counterexample claim stays bounded to the inspected native cases.
+No code, tests/builds, API, or F5 routing changed. Next: trace one authentic
+J/hereditary local contract to its owner and establish its typed forward/inverse
+action; keep IFACE_EQUIV and FRESH_LIFE open until actual local-law actions and
+compiler correspondence are established.
