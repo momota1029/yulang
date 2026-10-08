@@ -208,12 +208,37 @@ within their stated scopes:
   major or minor finding. H1–H5 remain assumptions; rejecting one proof term
   does not decide proof existence or joint admission.
 
-No production code, tests, builds or measurements ran. The next evidence is an
-exact selected source Function-checking occurrence with its original complete
-domain proof `tau`, whole-observation proof `psi`, all independently admitted
-challenges/futures and their binder dependencies, followed by a direct
-effective rule that preserves those domains. The source-boundary obstruction
-rejects filtering to observed calls; the mu_result validator remains only a
-conditional local consumer. Keep `JOINT_DEC` OPEN-PROOF until the complete
-prerequisites are discharged or a separately reviewed and user-approved
-sufficient replacement route is proved.
+- The independently reviewed [source-directed joint-decision theorem](../theory/2026-10-08-source-directed-joint-decision.md)
+  (`2590b3d07`) and its [bounded reference implementation and review record](2026-10-08-source-directed-joint-decision-review.md)
+  (`c7c848489`) now decide the exact Native Projection Boundary envelope by
+  source-directed finite arithmetic and construct complete scoped strategies
+  for its admitted cases. The id/Any-input/Int-result case with a literal
+  argument checked and exported at Any is `NO`, retaining its independently
+  admitted Bool production alternative. This supplies the effective joint
+  decision previously missing for that generated envelope; it proves no
+  parser/HIR occurrence mapping, enclosing CallMem/C0, arbitrary source
+  residual, whole-language inference/principality, current F5 conformance or
+  production cutover. Its focused verification is recorded at one Python
+  process, 30 boundary/input/output cases, 400 inclusion pairs, 301 checked
+  countervalues, 33,600 bounded membership implications and a depth-360
+  complete-UNSUPPORTED regression; no Cargo or compiler suite ran.
+- The [annotated Function field map](2026-10-09-annotated-function-source-field-map.md)
+  maps the declarative `Annotation(Name(id), target=R_bad)` and subsequent
+  Call to tau/psi, original gamma/J/Car/context and binder scopes. Its
+  post-freeze adjudication records the exact overlap with the new theorem and
+  preserves the missing parser-to-typed-check correspondence. The
+  [source-bridge decision map](2026-10-09-sourcebridge-decision-dependency-map.md)
+  inventories the four approved q1/d1 scopes and keeps caller API, authentic
+  source producers/H-bridge, resource/failure policy and adoption separate.
+
+No production code changed. The reference arithmetic ran only in the separately
+recorded bounded Python process; no Cargo, broad compiler tests or performance
+measurements ran. The next evidence is one exact ordinary parser-to-typed-check
+occurrence for the declarative Function annotation and Call, with authentic
+caller context and complete producer outputs, followed by its source/HIR
+correspondence and emitted Call consumer contribution. Preserve the original
+independent challenges/futures and the Bool rejection; do not mistake the
+generated-envelope theorem for a full-source decision. Keep `JOINT_DEC`
+OPEN-PROOF until all required source cases, production correspondence and
+cutover prerequisites are discharged or a separately reviewed and
+user-approved sufficient replacement route is proved.

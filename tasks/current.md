@@ -2247,6 +2247,28 @@ shows why rejecting one Identity proof is not a negative inclusion decision.
 The source map locator was corrected to the actual `ResolvedExpr` declaration
 before its checkpoint. `JOINT_DEC` remains OPEN-PROOF.
 
+The independently reviewed [source-directed joint-decision theorem](../notes/theory/2026-10-08-source-directed-joint-decision.md)
+and its [reference arithmetic/review record](../notes/progress/2026-10-08-source-directed-joint-decision-review.md)
+are now checkpointed at `2590b3d07` and `c7c848489`. They prove a terminating,
+sound and satisfiable-strategy-complete decision for the exact Native
+Projection Boundary envelope, with a bounded Python reference implementation
+and focused finite checks. The `id` case where a literal argument is checked
+and exported at `Any` but the whole-result view is `Int` is decided `NO` by
+retaining the genuine Bool production alternative. This discharges effective
+joint witness search for that envelope; it does not establish that an ordinary
+parser/HIR annotation occurrence emits the same complete judgment. The
+enclosing Call owner, arbitrary residuals, all source cases, production
+correspondence, principality, lifecycle/resource policy, and F5 cutover remain
+open. A bounded [annotated Function field map](../notes/progress/2026-10-09-annotated-function-source-field-map.md)
+now records the exact endpoint/target, tau/psi, gamma/J/Car and binder fields;
+it was adjudicated against this theorem in `6464b3ec1`. The [source bridge
+decision map](../notes/progress/2026-10-09-sourcebridge-decision-dependency-map.md)
+records that the four approved decisions still do not select the caller API,
+authentic source producer/H-bridge, storage/failure policy or production
+adoption. The next source gate is a parser-to-typed-check occurrence with its
+authentic caller context and complete producer outputs. `JOINT_DEC` remains
+OPEN-PROOF; no compiler production code changed.
+
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only
 members. Reference source simulation is a sufficient subcase, not an
