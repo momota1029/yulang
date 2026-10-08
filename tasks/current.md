@@ -3202,6 +3202,17 @@ and the note leaves natural applicability/open realization work unresolved;
 do not silently treat the bridge as identity. The reviews do not establish
 historical-original correspondence, adoption, or downstream gate closure.
 
+Question q1 selected `Application_N` as the successor definition for this
+bounded Name/Int literal Application seam (approved d1; integrated in
+`44526fd7f`, receipt at
+`questions/2026-10-08-flat-application-owner-family/receipt.md`). This
+selection is recorded against proposal SHA-256
+`61d5fd8e3a359c9ad7fce203ee7927553964b4eeae4a923319aca49a846f826a`; the
+proposal's frozen header remains historical provenance. No historical-family
+equivalence, implementation, cutover or Oracle-visible change is authorized.
+Exact literal Return-image realization, SeedExposure, CallInitial/I0,
+admission, solving, generalization/export, principality and Gate E remain open.
+
 ## Current F5 implementation locator audit (2026-10-08)
 
 Read-only mapping at `15e83939a` confirms production still enters through
