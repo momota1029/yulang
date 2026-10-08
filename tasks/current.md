@@ -3556,6 +3556,33 @@ failure policy, implementation authority and gate closure remain unresolved.
 The pending flat-Application owner question remains independent. The design
 draft and question remain uncommitted; no tests/builds/probes ran.
 
+A fresh bounded HIR/collection/SCC/session audit refines the missing supplier
+map in the draft. `DefinitionRootId`, `HirParameterId`, resolved Lambda,
+`LambdaRecipe`, `CollectedDefinition`, and the SCC plan provide branded
+structural joins only. The inspected ordinary path has no source publication
+`p_id`; scheme installation and terminal `SolvedModule` transfer are distinct
+events. It has no inert Lambda/Delay anchor with provider/role/IF0/world and
+lifetime evidence, nor a ReturnedInstallation `b`/arm/`Executed`/`OneShot`
+tuple. `AdmissionReceipt` is store-transaction provenance. `finish` does not
+retain the SCC plan, collection records or Lambda recipes. This is a bounded
+path finding, not global absence. Direct Arc ownership therefore solves only
+retention; it cannot supply the source event or anchor. The next compiler
+evidence must identify an authentic permitted formation and owner, then a
+separate source-publication output selecting complete `(C_id,R_id)`, and trace
+both through terminal lifetime.
+
+The non-authoritative draft now records this field-level audit and a
+conditional acyclic `Arc<IdPublicationOwnerRecord>` candidate linked to a
+separately formed anchor. Its structural origin-tuple estimate is 88 bytes
+under the stated 64-bit `repr(C)` assumptions, versus 96 for the alternative
+Arc-plus-index handle; both exclude owner payload and control blocks, and
+neither is a measured `size_of` or complete memory bound. This draft change is
+not independently re-reviewed (draft SHA-256
+`a4c1c3d9dd9bdfef2dc4ee1c2df4de8800421eabab17a480f468a897aa260173`) and
+remains uncommitted. No implementation,
+tests, builds, probes or measurements ran; the pending flat-Application owner
+question remains independent.
+
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
 The frozen [conditional construction](../notes/theory/2026-10-08-call-demand-formation-construction.md)
