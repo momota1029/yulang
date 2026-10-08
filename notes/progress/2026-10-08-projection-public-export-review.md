@@ -183,3 +183,43 @@ Exact public evidence normalization, actual public-root Direct and the final
 source-lawful export theorem are not claimed by this checkpoint. No compiler
 test or production route was changed. Reviewed documentary checks remain the
 verification method; no new executable semantic model was used here.
+
+## 6. Exact native witness-constructor checkpoint
+
+Artifact: [native projection certificate constructors](../theory/2026-10-08-native-projection-certificate-constructors.md).
+Frozen SHA-256:
+`d9c14da0fe504c78f6d33154cab2122e580a175a70ac185f108cdad39163ce56`.
+
+Both independent mathematical and specification reviews of the frozen note
+passed without a blocking, major or minor finding. The producer supplied no
+self-certification, and neither review used the other's report or unfinished
+export work. The primary accepted the verdicts for the exact native scope;
+only review-status metadata was changed afterward.
+
+The result defines the missing full native witness records for immutable
+Bind, Project/Restrict, pure Return/prefix and invocation-frame return before
+Build. These are global independently typed certificate constructors. Native
+source owning rules use those same constructors. Arbitrary original local
+checking terms, output/intermediate/auxiliary witnesses and proof scopes remain
+explicit. No unknown source-relation or desired equivalence is a registry leaf.
+
+Theorem CE expands the actual native id clauses and substitutes only forced
+runtime value/provider aliases using Install/Lookup and Return equations.
+The remaining ordinary certificate interface has exactly the same proof,
+world, port and checking tuple. F/G are identity on every logical field;
+private raw aliases have their explicit total reconstruction. In particular
+the original Identity-versus-Compose proof discriminator and arbitrary W
+are preserved. No canonical evidence constructor replaces a legal choice.
+
+Both reviews found this a finite ordinary certificate schema rather than a
+renamed source graph: its operands are typed slots, values, worlds, events,
+independent contracts and local proof terms. Its interpretation has no source
+body, Build root or source lookup. Production P remains the independently
+defined VP/Echo law, with a concrete source-less extra; CE supplies no source
+execution witness for that extra.
+
+This closes the local witness-level definition and exact expansion seam in
+the newly specified native grammar. It does not identify an unknown fixed
+foreign witness kernel, certify the full Generalize allocation/public root
+integration or install a production consumer. The uniform inlet checkpoint
+was separately published as `927ddb55e976e2e0ff7f8cf2c38083013909c24c`.

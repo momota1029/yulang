@@ -120,10 +120,13 @@ That first theorem fixes the complete inlet I. The separately
 now forms one fixed generic raw inlet before Generalize, injects each exact
 prechosen frame witness into it, and proves Uniform-ID/Joint-ID for that same
 actual provider. Full observation-index Delta proofs preserve every carrier
-alternative; no scalar complete-contract covariance is inferred. The exact
-source/public evidence cut and actual-root Direct are still being constructed.
-No foreign W/Z identification, aggregate status or production cutover follows
-from these local results.
+alternative; no scalar complete-contract covariance is inferred. The
+[reviewed native witness constructors](../notes/theory/2026-10-08-native-projection-certificate-constructors.md)
+and CE now also provide exact local alias expansion while retaining every
+proof choice, world, port and original telescope. Full public-root allocation
+and ordinary Direct integration remain in progress. No foreign W/Z or witness
+kernel identification, aggregate status or production cutover follows from
+these local results.
 
 The subsequent independent pre-review produced two
 [reviewed finite countermodels](../notes/theory/2026-10-08-projection-export-proof-countermodels.md):
