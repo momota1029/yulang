@@ -5152,6 +5152,13 @@ is checkpointed and pushed at `6d603a095`: selected direct/captured Name Call
 composition is conditional on retention, and universal source coverage still
 needs `ExposureCover` over an independently formed exposure inventory. This
 does not settle recursive/multi-use applicability, conflicts, or principal
-refinement. The independent C6 lane is deriving annotation-incidence/removal
-inputs and whether activation alternatives force a new semantic decision.
-Keep the source/solver production gate and all aggregate statuses unchanged.
+refinement. The [C6 conditional derivation](../notes/progress/2026-10-09-c6-annotation-realization-derivation.md)
+is checkpointed and pushed at `c88dc9551`: it separates authentic annotation
+incidence from a lawful local change/frame proof, and leaves activation and
+source adequacy open. Neither permission nor a direct boundary check supplies
+the missing realization producer. Both research notes are unreviewed,
+conditional checkpoints; no production implementation, tests, builds,
+authority or aggregate gate status changed. Next evidence must come from the
+owning annotation/source constructors or an authentic production bridge, not
+from relabeling supplied evidence. Keep the source/solver production gate and
+all aggregate statuses unchanged.
