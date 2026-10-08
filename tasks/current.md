@@ -3035,6 +3035,21 @@ meanings while supplying original occurrence ownership, actual source
 attachment and the ordinary HIR correspondence; it must not replace the
 missing owner proof with a weaker endpoint-only constraint.
 
+A bounded field-to-owner crosswalk for a corrected Name-only candidate shape
+`my id x = x; my wrap y = id y` is now in
+[the unary Name Call boundary candidate](../notes/theory/2026-10-09-unary-name-application-boundary-candidate.md).
+Both `compiler_referee` and `spec_auditor` found no findings at the reviewed
+hash recorded in that file. The first proposed spelling `my use y = ...` was
+rejected by parser dispatch as a `UseDeclaration`; the corrected `wrap` form
+was not executed or established as a successful typed source case. This
+candidate remains non-authoritative: q1/d1 covers formal Name/Int, not
+module-root Name/local-parameter Name. Its exact remaining Name/Name owner,
+whole-inlet admission and decorated consumer pairing (H3/H4) remain absent,
+as do `M_E`/ReadInvoke/IF/CallMem/C0. Next evidence should construct the
+same-origin Name argument and complete typed Call consumer under independently
+fixed native `id` admission. No implementation, gate closure or cutover
+authority follows.
+
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
 and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
 (with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
