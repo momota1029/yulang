@@ -617,6 +617,15 @@ was checkpointed in `7eab2767f`.
    literal Reify/result-port, checking and complete-result links. It does not
    equate the reference schema with those original records. Do not infer this
    package from the shadow candidate's `Int` fact.
+   The bounded [original-emission applicability audit](../notes/theory/2026-10-08-flat-apply-original-emission-applicability.md)
+   confirms this conclusion-sort gap by inversion of the inspected
+   constructors. Independent compiler-referee review found no issue in that
+   bounded inventory. The smallest remaining owner output is an attachment
+   from the actual flat `Apply(Name f, literal 1)` source derivation to original
+   Gen-Call-0 membership and its checking, Reify/result, registration and
+   scope origins. The current Name/Name generator cannot be instantiated by
+   inventing a literal Name binder. Keep SeedExposure and the separate
+   CallInitial/I0/action/insertion lane downstream.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
