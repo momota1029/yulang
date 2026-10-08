@@ -4464,3 +4464,17 @@ limits stay open until a successor caller and attempt schedule exist. No code,
 tests/builds, API or F5 routing changed. Next: define and independently review
 the typed `Instance`/`Alias` producer output and its validated frame-to-root
 slot correspondence before implementation approval.
+
+The [proposed PE frame-to-root-slot contract](../notes/progress/2026-10-10-pe-frame-slot-contract.md)
+now records that typed producer output and its candidate validation laws. It
+restricts this map to aliases of admitted PE instance frames; established
+`Mono` roots remain under their authentic installed-root owner. Frame and
+binder routing must preserve source allocation before assignments, challenges
+and histories. An independent `spec_auditor` review found the initial alias
+domain underspecified and allocation timing omitted; both findings were closed
+in a delta pass. The artifact remains a non-authoritative research proposal:
+actual producer/local-law correspondence, established-root mapping, lifecycle,
+failure policy and numeric limits remain open. No implementation, tests,
+builds, or F5 routing changed. Next: map the actual source caller and local-law
+owners, then connect those outputs to an ordinary-root producer/store/readout;
+implementation still requires explicit approval.
