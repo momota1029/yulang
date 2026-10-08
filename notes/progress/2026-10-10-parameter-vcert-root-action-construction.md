@@ -1,7 +1,7 @@
 # Parameter result certificates: construction under one changed-root action
 
 Date: 2026-10-10
-Status: frozen, unreviewed conditional derivation and bounded premise reduction
+Status: frozen research derivation; one accepted major repaired and delta review passed
 Gate/method: IFACE_EQUIV; typed construction for the native Identity/Compose fragment
 Baseline: `a1e81c984d4affdb486de4f33f8585688fdfdf82`
 Branch: `research/simple-sub-intrusion`
@@ -32,7 +32,8 @@ payload occurrence too. Keeping J's entire actual contract fixed while changing
 only the target occurrence cannot preserve this proof's Identity tag. A target
 evidence bijection alone cannot repair an unchanged source endpoint.
 
-Hereditary transport is conditional on a further restriction commutation law.
+Hereditary transport is conditional on restriction commutation for the complete
+retained record, including separately transported fields and binder domains.
 Original event restriction keeps the same root; it does not supply movement
 between two registered roots. No arbitrary checking tree, whole gamma/image,
 Function-domain action, CI_USE or aggregate IFACE_EQUIV result closes here.
@@ -264,17 +265,83 @@ action must first be independently supplied too; this smallest theorem keeps
 chi and the current-event anchors rigid. Equation N preserves the full
 restricted evidence object, not just membership of the same raw value.
 
-Given N at every original required future telescope, the Identity/Compose
-construction commutes with restriction: both sides retain the same proof
-tree, and every endpoint/intermediate field agrees by N. This is a finite
-structural induction on the checking tree applied under the **existing**
-event binder. It moves no witness outside that binder and supplies no later
-authority from origin. Full mu_result additionally needs N and domain actions
-for all actual latent/future/response dependencies in its original evidence.
+N covers the VCert field only. It does not cover a separately retained
+formation witness, intermediate auxiliary, equality-proof choice or any other
+field permitted by §§3–4. An invertible action on such a field can fail to
+commute with its restriction even when N holds. The hereditary conclusion
+therefore requires the following premise on the **complete retained record**,
+including those fields and their original binder domains.
+
+Write P_e for that record at e, H_e for its full action from §4, and R_chi for
+its independently supplied whole restriction. Write R_chi^h for restriction
+of the target record at the same rigid chi. The required complete-record square
+is
+
+```text
+forall original admissible e,chi:e->e',P_e.
+  H_e'(R_chi(P_e)) = R_chi^h(H_e(P_e)).               (N-record)
+```
+
+It is sufficient to supply the following exact field and binder squares,
+then derive N-record by dependent record and checking-tree induction. Let f
+range over **every retained field occurrence** in its original telescope,
+including source/target/intermediate VCerts, formation/incidence witnesses,
+world evidence, extra auxiliaries and stored equality-proof choices. At that
+position let u be the complete permitted preceding tuple, including any
+enclosing original binder assignments. Let F_f,e(u) be the actual field
+domain; A_f,e,u its typed inverse root action; rho_f,chi,u its supplied
+restriction. Let rho_<f,chi act on u, and H_<f,e be its already constructed
+action. Require
+
+```text
+forall f, original admissible e,chi:e->e',u.
+forall x in F_f,e(u).
+  A_f,e',rho_<f,chi(u)(rho_f,chi,u(x))
+    = rho^h_f,chi,H_<f,e(u)(A_f,e,u(x)).              (N-field)
+```
+
+The two sides have the same dependent target type only after the preceding
+tuple square is established. The record induction proves that prefix square
+first; it cannot apply A_f at a differently chosen prefix. For a VCert field,
+N-field specializes to N with its complete original operands. A rigid field
+can use the identity action only when its domain and owner restriction justify
+N-field. For a static field whose restrictions are identity, this premise
+requires its action to agree at e and e'; independent eventwise bijections
+alone do not imply that agreement.
+
+For every original subordinate binder telescope beta, let D_beta,e(u) be its
+independently admitted domain, S_beta,chi,u its supplied binder restriction,
+and H_beta,e,u its typed inverse root action. These domains/actions must exist;
+the square is not permission to define a new domain. Require
+
+```text
+forall beta, original admissible e,chi:e->e',u.
+forall d in D_beta,e(u).
+  H_beta,e',rho_<beta,chi(u)(S_beta,chi,u(d))
+    = S^h_beta,chi,H_<beta,e(u)(H_beta,e,u(d)).        (N-binder)
+```
+
+Here `<beta` denotes the permitted prefix before that binder. Apply N-binder
+in the original binder order, then N-field under the resulting corresponding
+u,d assignments. Repeat under every original response/raw-resumption/latent/
+future binder in the claimed record. A future-only field is quantified at its
+own later occurrence; this does not fabricate it before that binder. No
+quantifier is moved outside its original dependency telescope. If the owner
+does not supply a particular binder or field restriction, no hereditary
+commutation is claimed at that occurrence.
+
+Given N-field and N-binder exhaustively, dependent prefix induction establishes
+N-record; Identity/Compose induction keeps the same checking tree while every
+retained field agrees by its own square. Inverse commutation follows by applying
+the full inverse actions to N-record, using their two inverse equations at
+each corresponding prefix. The construction supplies no later authority from
+origin. Full mu_result requires these premises on its complete original
+hereditary record, not merely on its VCert projection.
 
 The first missing supplier is target descriptor formation plus the full
 VCert-domain action in §3, before Identity's target input can be typed. The
-restriction law N is a later independent seam. Selected Function membership
+complete restriction laws N-record/N-field/N-binder are a later independent
+seam. Selected Function membership
 provides same-provider realization under independently fixed complete
 admission/observation domains. It provides no changed-root bijections of those
 domains; other descriptor meanings remain independent parameters. Source
@@ -288,7 +355,8 @@ Method: dependent typing and constructor induction. No executable oracle,
 search, seed/range or random mutation was used. The derivation shares the
 selected Identity/Compose laws and the supplied independent domain maps;
 it proves their consequence, not those source laws or the existence of the
-maps. A checker encoding B and N as transitions would test consistency of
+maps. A checker encoding B and the complete restriction squares as transitions
+would test consistency of
 those premises and could not establish them. The target-only endpoint
 mutation in §5 is a typing discriminator, not a coherent-action falsification.
 
@@ -297,7 +365,8 @@ propositional evidence map; an untransported dependent/auxiliary field;
 independent mapping of shared intermediates; changed provider/event/consumer;
 canonicalization of proof tags; a moved root hidden in a supposedly rigid
 world or J field; future-dependent selection of an earlier proof; failure of
-N; an unlisted active identity observer. Any of these invalidates the stated
+any retained field or binder square; an unlisted active identity observer.
+Any of these invalidates the stated
 conditional action.
 
 This attempt reduces a whole-registry premise to the actual typed domain
@@ -324,23 +393,38 @@ Markdown/newline/whitespace and scope check. These are documentary integrity
 checks, not independent mathematical review. No compiler/test/build,
 benchmark, executable semantic probe, child or Git mutation was used.
 Heavyweight processes: 0. Probe processes: 0. CPU time, peak RSS and complete
-wall time were not instrumented; only bounded lightweight shell reads and one
-note write were used. The assignment supplied no separate numeric search
+wall time were not instrumented; only bounded lightweight shell reads and
+leased-note writes were used. The assignment supplied no separate numeric search
 budget. No incomplete enumeration is represented as a completed search.
 
 Unverified: existence of any nontrivial authentic changed-root formation and
-full B action, N, arbitrary L/registered recursion, entire J/Car/gamma/Delta
+full B action, N-record/N-field/N-binder, arbitrary L/registered recursion,
+entire J/Car/gamma/Delta
 transport, whole input image, foreign descriptors, State, actual compiler
 representation, ordinary queries, CI_USE/IFACE_EQUIV/FRESH_LIFE and cutover.
 The artifact is frozen at submission; further edits require a renewed lease.
+
+Independent review repair: the primary accepted one major compiler-referee
+finding in §6: the original N premise constrained VCert restriction only,
+while the hereditary conclusion covered additional independently transported
+fields. This scoped repair replaces that implication with exhaustive N-field
+and N-binder premises over the complete record and derives N-record by prefix
+induction. It explicitly withholds commutation for unsupplied restrictions.
+Status: producer repair complete and frozen; independent delta review passed
+with no remaining findings. The repair changes no semantic selection or
+aggregate gate status. Its scoped newline/whitespace/fence integrity check
+passed; no Git operations, builds, tests or executable semantic probes were
+used for the repair.
 
 Commit packet:
 
 - Exact leased path: `notes/progress/2026-10-10-parameter-vcert-root-action-construction.md`.
 - Baseline SHA: `a1e81c984d4affdb486de4f33f8585688fdfdf82`.
 - Direct dependencies: seven hashes in §2; no dependency hashes changed.
-- Claim/review status: unreviewed research-only conditional construction and
-  bounded premise reduction; producer self-inspection is not independent review.
+- Claim/review status: research-only conditional construction and bounded
+  premise reduction; one accepted independent major repaired and independent
+  delta review passed with no remaining findings. Producer self-inspection is
+  not independent review.
 - Checks: SHA-256/baseline equality, native source clause inspection and narrow
   Markdown/whitespace/scope integrity; no builds/tests/probes.
 - Proposed one-line research-checkpoint commit message:
@@ -349,5 +433,6 @@ Commit packet:
   Identity/Compose action follows from typed full-domain inverse maps without
   an extra registry-equivariance axiom; require coherent J.payload incidences
   in its minimal gamma use; retain target formation, VCert-domain and hereditary
-  N suppliers as open. Keep every aggregate status and production boundary.
+  complete-record N-field/N-binder suppliers as open. Keep every aggregate
+  status and production boundary.
   No task/index/authority/theory-map or question-board file was written.
