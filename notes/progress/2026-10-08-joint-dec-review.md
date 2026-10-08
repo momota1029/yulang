@@ -123,6 +123,41 @@ status. The source-owner audit used read-only Git inspection contrary to its
 packet's no-Git instruction; no index or ref changed, and the artifact records
 the deviation. No code, tests, builds or measurements ran.
 
+### Cutover relevance and proof-economy classification
+
+A separate read-only architecture audit checked the open witness obligations
+against the canonical DAG, selected native projection and repository
+proof-economy policy. It distinguishes the required
+compiler properties from EPR/ER's particular machinery:
+
+- Accepted-result reflection for every original active predicate and one
+  coherent original-scoped strategy remains **A**.
+- Effective completeness/termination for every satisfiable actual source
+  residual needed by the approved language remains **B**, with answer validity
+  an **A** obligation. The active domain is the actual generated relation, not
+  automatically every unrelated semantic predicate.
+- Same-prefix extension preservation is **A** for a quotient/prefix-game
+  algorithm. The universal classifier/replay construction is not proved
+  necessary for every possible algorithm.
+- Simultaneous identity of active evidence, aliases, new frames and original
+  dependencies remains **A/B**. Encoding every possible semantic strategy
+  irrespective of active observations is **C**.
+- Retaining genuine construction-owned evidence avoids **D** reconstruction,
+  but the inspected compiler does not presently supply the complete semantic
+  J/Car/context certificates.
+
+The canonical DAG records a sufficient route rather than an Authoritative
+mandate to use EPR/ER or decide arbitrary semantic predicates. No alternative
+route is currently proved. The candidate route is source-directed inference
+over actual emitted obligations with typed argument/check certificates
+retained at their owners, exact export/fresh-use behavior, sound result
+reflection and a terminating practical resource boundary. Its completeness
+and termination are unproved. Any alternative to the current JOINT_DEC route
+needs a concrete reviewed algorithm, source-rule completeness, production
+correspondence, principality/required observables, Oracle capability evidence,
+resource/failure ownership and explicit user approval before implementation.
+No gate is reclassified or closed by this audit.
+
 ## Verification and omissions
 
 - Constructive review baseline: `6967ac589`; repair baseline:
@@ -144,7 +179,9 @@ Find an effective representation and reflection law for the exact native
 original joint residuals, binder order and simultaneous witness identity.
 The relative transport only needs an already-coded strategy; the source audit
 locates no such effective owner, while the conditional mutation shows why
-prefix keys must preserve actual J-observers. Next, derive an independently
-interpreted effective witness interface for one complete native J/current-
-context family, addressing EPR.3–4 and ER. Keep `JOINT_DEC` OPEN-PROOF unless
-its complete prerequisites are discharged.
+prefix keys must preserve actual J-observers when a quotient is used. Next,
+inventory the actual source-generated observers and compare a direct effective
+residual solver with the EPR/ER route, preserving the full selected input and
+call domain. Neither route is established. Keep `JOINT_DEC` OPEN-PROOF unless
+its complete prerequisites are discharged or a separately reviewed and
+user-approved sufficient replacement route is proved.

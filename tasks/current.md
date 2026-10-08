@@ -2204,9 +2204,17 @@ maps 21 witness coordinates to selected source owners and current Rust seams.
 Its review confirmed that missing inhabited-cell reflection, whole-prefix
 classification and replay are semantic A obligations, not facts currently
 known by Rust and discarded; the sole minor precision finding was repaired.
-These results narrow the next step to an effective J/current-context witness
-interface and prefix-local EPR.3–4/ER laws. `JOINT_DEC` remains OPEN-PROOF;
-no production code or compiler checks ran.
+These results narrow the next step to inventorying actual source-generated
+observers and comparing a direct effective residual solver with the EPR/ER
+route. The architecture audit classifies accepted-result reflection as A,
+complete inference for every satisfiable actual generated residual as B, and
+encoding every arbitrary semantic strategy as C; it does not reclassify any
+gate or prove an alternate algorithm. Same-prefix lifting remains required
+when using a quotient. A replacement route still needs source completeness,
+production correspondence, principality/required observables, resource/failure
+ownership, Oracle evidence, independent review and user approval before
+implementation. `JOINT_DEC` remains OPEN-PROOF; no production code or compiler
+checks ran.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only
