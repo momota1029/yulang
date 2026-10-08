@@ -3212,6 +3212,25 @@ and publication/retry witnesses are
 `f5c_internal_route_failure_restores_and_retries_cleanly`, and
 `f5c_incoming_union_representative_failure_has_no_public_route`.
 
+## Flat Apply production source path (read-only, 2026-10-08)
+
+The concrete target `my apply f = f 1` parses successfully: syntax gives `f 1`
+as an `OperatorChain` containing `IdentifierExpression(f)` and an `MlArgument`
+whose child is `IntegerLiteral(1)` (`crates/yu-syntax/src/expression/operator_chain.rs`).
+Default production lowering does not preserve that Apply: `direct_atom` in
+`crates/yu-hir/src/lib.rs` only accepts one direct integer or identifier,
+`lower_simple_chain` therefore returns Unsupported, and HIR stores
+`Lambda(body = Error)` with `UnsupportedExpression` over bytes `13..16`,
+attached to `apply`. `ConstraintBatch::collect` marks it Error and `emit_lambda`
+creates no `LambdaRecipe` or facts for the body. The whole body is rejected
+before callee or argument uses are separately collected.
+
+The opt-in shadow HIR retains a `ResolvedExpr::Apply` but still reports the HIR
+error; `CandidateValueObservation` uses the separate shadow collector and
+existing F5 solver. There is no workspace production CLI renderer for this
+diagnostic. This source-path inventory is read-only and was not executed; no
+new behavior, test expectation, or production support is implied by it.
+
 ## Record-result source-owner inventory (read-only, 2026-10-08)
 
 The checkout has named-record type syntax, but no semantic Record expression or
