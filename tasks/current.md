@@ -3352,6 +3352,24 @@ equivalence, implementation, cutover or Oracle-visible change is authorized.
 Exact literal Return-image realization, SeedExposure, CallInitial/I0,
 admission, solving, generalization/export, principality and Gate E remain open.
 
+The bounded Return construction and falsification packet is now pushed as
+`574768eda`. Independent `spec_auditor` and `compiler_referee` reviews passed
+within their assigned scopes. The construction derives only the conditional
+`J_a^N` Return image and identifies `H_arg_origin` as the first selected-original
+consumer cut; the falsification lane found no legal fixed-path source witness
+and does not turn a missing bridge into a negative typing result. A separate
+read-only regression audit confirms that default HIR retains literal spelling
+and occurrence, while default solver recipes/projections classify Int/empty
+effect without a Result/Return certificate. Qualify that carefully: aggregate
+`SolvedModule` retains its HIR, so source spelling remains recoverable there.
+Test-only Result traces and feature-gated shadow rows are not default
+production evidence. No compiler implementation, tests/builds, semantic
+promotion or F5 cutover occurred. Next: obtain the independently declared
+`WholeArgCompatible` origin signature and typed map for this literal Result
+occurrence, preserving its dependent indices, witnesses, licenses and future
+evidence; then review that bridge before claiming original-consumer
+realization. The full q1 scope and all later gates remain open.
+
 ## Current F5 implementation locator audit (2026-10-08)
 
 Read-only mapping at `15e83939a` confirms production still enters through
