@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 Baseline: `1efde444c548f9f293c69775eecc0811dacfb6a7` on `research/simple-sub-intrusion`
-Status: bounded conditional derivation, adversarial shortcuts, and source-to-code map; review pending
+Status: bounded conditional derivation, adversarial shortcuts, and source-to-code map; independently reviewed
 Authority: none; `INIT_WORLD` remains OPEN-SEMANTIC
 Scope: PCINIT initial schema, fixed-support external import factors, and the current syntax/HIR/solver path
 
@@ -101,7 +101,9 @@ stated empty-import boundary; this work does not change it.
 Four independent methods contributed: owner/authority mapping, a conditional
 construction, adversarial shortcut analysis, and a current-source code map.
 No actionable conclusion promotes the gate. Independent compiler-referee and
-spec-auditor review is pending for the integrated claim and authority boundary.
+spec-auditor reviews found no findings in the integrated claim or authority
+boundary. The reviewed artifact SHA-256 before this metadata update was
+`5c45e2a78bd308e386b321f8150861d8141cc7aa39b361f257a1d95bde2403ed`.
 
 The smallest next evidence is a clause-level zero-step introduction and old-
 tuple restriction derivation, exercised on (a) one scalar cross-world install,

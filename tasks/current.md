@@ -5373,3 +5373,18 @@ pending and the directory remains uncommitted. No production implementation
 is authorized by the existing annotation/Direct answers. Continue independent
 inference lanes while that choice is pending, and preserve the Hreg no-repeat
 stop. No tests, builds, benchmarks or mutation probes ran.
+
+An independent [INIT_WORLD closed-import and Rust-seam pass](../notes/progress/2026-10-09-init-world-closed-import-factor-and-rust-seam.md)
+now proves only a conditional fixed-support result: an external certificate is
+filling-invariant when all semantic dependencies and original incidences are
+fixed. It does not construct the joint initial world or discharge the
+zero-step root-extension obligation. Adversarial cases rule out treating
+hole-dependent imports as fixed, admitting them through checked-hole
+membership, or inferring inhabitation from a puncture/receipt. The bounded code
+map finds production import syntax but no semantic-import input beyond
+`SemanticImports::empty()`; the authoritative first HIR slice intentionally
+keeps that boundary. Compiler-referee and spec-auditor reviews found no
+actionable findings. `INIT_WORLD` remains OPEN-SEMANTIC. Next evidence is the
+noncircular root-extension introduction and old-tuple restriction, with one
+scalar install, a source-open alias, and a hole-dependent external import.
+No tests, builds, probes, or measurements ran.
