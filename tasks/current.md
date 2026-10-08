@@ -4992,6 +4992,16 @@ actual source Call. HIR/core retain structural Apply/literal IDs and incomplete
 endpoints, but no typed Result, Delay, emitted check, carrier or consumer
 certificate.
 
+The [IF-Use certificate audit](../notes/progress/2026-10-09-ifuse-wholearg-reference-certificate-audit.md)
+derives faithful `wrap/extract` maps for an already supplied actual typed
+reference slot and its retained evidence. It does not form the reference or
+pair its complete index with N. The [kernel owner locator](../notes/progress/2026-10-09-whole-arg-kernel-owner-locator.md)
+traces `WholeArgCompatible` to an abstract independent descriptor-kernel
+input: N supplies a complete typed `WholeContract` schema, but no concrete
+checking declaration instance, `P_arg/T_arg`, admission or action supplier is
+identified along this route. This is bounded characterization, not global
+absence.
+
 The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
 confirms that no exhaustive selected `Valid_V` constructor was found and Draft
 `V_alloc` is not adopted. It distinguishes the hypothetical actual-0 H/t
@@ -5003,9 +5013,10 @@ containment-valid route, not from every possible `Valid_V` criterion. The
 and semantic-to-L completeness remain open. Two requested independent review
 roles were unavailable because their selected models were at capacity; these
 new artifacts remain unreviewed conditional research. Next: inspect the
-typed primitive-reference/constraint-emission owner assigned the complete
-`WholeArgCompatible` meaning in initial-context §4.4, then compare its exact
-declaration, scoped operand substitution, witness action and dependent
-result-extension against N §5 and original Code-Call §3.4. Keep the pending
+independent descriptor-kernel owner for one authentic `WholeArgCompatible`
+declaration instance and its complete `P_arg/T_arg`, admission and lawful
+action. Then have the typed reference/emission owner instantiate that same
+declaration at N and the original use with complete scoped operand maps, and
+extend the matching witnesses through dependent `e_out`. Keep the pending
 literal-owner decision and all aggregate gate statuses unchanged. No compiler
 changes, tests, builds or production authority follow.
