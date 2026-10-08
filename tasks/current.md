@@ -4651,3 +4651,18 @@ instance → decoded Function-root caller incidence, keeping the original
 `J_0=DataArg(Int)` fields fixed. Complete-Call realization and any genuinely
 changed argument-root action remain separate gates; no code, test, or F5 route
 changed.
+
+The [native PE-ID record-equivariance sublemma](../notes/theory/2026-10-09-native-projection-interface-equivariance.md)
+is checkpointed at `776cc00e6` and passed independent `compiler_referee` and
+`spec_auditor` review with no findings. It proves only dependent-record
+transport, transparent extraction/forced-alias substitution, decoded
+public-root record correspondence, and conditional finite Value-certificate
+recognition under corresponding supplied typed inputs and actual local-law
+preservation/reflection. Existing phase-constructor §6 is reused for VP
+admission/production/Echo action. Opaque registry/evidence observers and
+complete Function/Computation/recursive consumer laws remain unsupplied;
+IFACE_EQUIV, FRESH_LIFE, PRINCIPAL and CUTOVER remain open. No production
+correspondence, F5 routing, API, tests or builds changed. Next: trace the
+selected closed local-law inventory for one id inlet/Delta and Value
+certificate, retaining the published-id caller and complete-Call incidences
+as separate open source-to-production seams.
