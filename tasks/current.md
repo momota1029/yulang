@@ -4075,6 +4075,19 @@ source descriptor/environment relation at the original scope; structural
 solving supplies none of it. This remains a scoped static characterization;
 no code or executable checks ran.
 
+The conditional source-only [captured-formal chain](../notes/progress/2026-10-08-captured-formal-source-chain.md)
+maps genuine initial JointWF, Parameter Desc, generic Lambda entry,
+typed Force/Return/rebind, same-certificate capture and Name, then the
+Call-owner input and unsolved dependent `F_c` at `R_f`. Its independent
+[compiler-referee review](../notes/progress/2026-10-08-captured-formal-source-chain-review.md)
+found no issue within the conditional scope. Generic inlet applicability to
+`apply` remains a premise; the id/pick body theorem does not prove apply/step
+typing. The chain does not supply initial JointWF, interpreted production
+records, `VIncl`, whole-argument compatibility, invocation containment,
+principality, or cutover. Next: resolve the already-pending initial-context
+owner, then trace one authentic formal certificate through capture into the
+pre-admission Call constructor. No compiler code or executable checks ran.
+
 The bounded source-owner audit for `P.CallInitial` is pushed at `62337b13a`
 ([audit](../notes/progress/2026-10-08-callinitial-owner-correspondence.md)).
 No complete initial observation/evidence/action supplier was found in the
