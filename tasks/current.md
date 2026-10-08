@@ -3855,3 +3855,32 @@ Production readiness still lacks the actual schema/owner allocation manifest,
 validator algorithm, admitted-size envelope, and teardown implementation.
 The reviewed owner draft remains uncommitted pending explicit approval; no
 tests, builds or measurements ran.
+
+### SourceBuild owner, bridge, and failure evidence (2026-10-08)
+
+Three disjoint research checkpoints are pushed: the Parameter owner/telescope
+derivation (`23697b64b`), production H-bridge audit (`cb37ae6c7`), and failure
+policy/control-flow map (`7c10ba7a3`). The Parameter derivation stops at the
+first unsupplied output: an authentic ordered `sigma_a/Delta_a` manifest with
+typed dependency targets and local clauses. It rules out inferring that
+telescope from import-freedom, complete inlet `Delta`, or `Intrinsic`. The
+production audit confirms current HIR/solver data provides structural joins,
+not those semantic records, a source publication, complete root, or anchor
+formation. It also records that generic HIR equality can discard Parameter
+owner identity; the direct Parameter-handle comparison is stronger. The
+failure map shows optional metadata retained before F5 can change F5 resource
+availability, and apparently read-only batch queries may mutate shared atomic
+counters.
+
+The owner draft was repaired to qualify optional-sidecar acceptance under
+memory pressure and make counter isolation explicit. Focused performance and
+specification delta reviews passed at SHA-256
+`440e1ef94981ff00ad1515777d3afe5c933f67798619c9369cc0aba67083b9e0`.
+This closes only those wording findings. The three research notes are
+unreviewed, conditional evidence; the design remains non-authoritative and
+uncommitted. Exact owner/telescope suppliers, H-bridge, schema and allocation
+manifest, uncounted constructor path, admitted-size envelope, failure/error
+policy, and production consumer remain open. No compiler code, tests, builds
+or measurements ran. Next: obtain the authentic Parameter owner schema, then
+re-freeze and review a decision-ready producer contract before asking for any
+architecture approval. No F5 replacement is authorized.
