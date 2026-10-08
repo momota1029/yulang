@@ -4780,3 +4780,13 @@ Generalize/Parameter/Lambda meanings are preserved conditionally; no rule,
 API, representation or failure policy was adopted. Next: resolve the original
 registration action and one application, then repair and re-review the producer
 boundary before any approval request or implementation.
+
+The reviewed [open-context source generator](../notes/progress/2026-10-06-initial-context-source-construction.md)
+was checked as a possible alternate Hreg supplier. It can preallocate source
+roots and emit a whole open relation plus Lambda/parameter entry skeleton, but
+its input already contains the source binder tree, its current world `C_0` is
+not the validating component `C_src`, and its parameter root does not supply
+the authentic UV telescope or `IF0`/anchor. Its PCInit rule also targets a
+punctured Call graph, unlike standalone id. F0/SCC registration remains a
+structural topology output. This route does not close Hreg; no third equivalent
+premise probe or DAG status change follows.
