@@ -4065,11 +4065,15 @@ maps the exact `my apply f = { my step x = f x; step }` candidate through HIR
 occurrences, row allocation and polarized demand to `A_f/F_c/E_c/A_c`. It
 finds the interpreted environment/shared `xi` absent before the callee row can
 be interpreted as `A_f`; conditional on those inputs, complete dependent
-`F_c` at original `R_f` is the first missing Call-produced object. Next:
-search for a pre-admission owner that produces and transfers that complete
-`F_c` with its original-scope and Gen-Call-0 incidence, independently of
-structural solving. This remains a scoped static characterization; no code or
-executable checks ran.
+`F_c` at original `R_f` is the first missing Call-produced object. The
+[pre-admission owner cut](../notes/progress/2026-10-08-f5-apply-preadmission-owner-cut.md)
+then found a symbolic `Gen-Call-0`/demand constructor that retains lexical
+incidence, but not `InitialSourceDescriptorRelation`, original `xi`/types/
+scopes, complete `F_c`, or emitted membership. Its terms have no solver or
+production consumer. The earliest missing authentic input is the interpreted
+source descriptor/environment relation at the original scope; structural
+solving supplies none of it. This remains a scoped static characterization;
+no code or executable checks ran.
 
 The bounded source-owner audit for `P.CallInitial` is pushed at `62337b13a`
 ([audit](../notes/progress/2026-10-08-callinitial-owner-correspondence.md)).
