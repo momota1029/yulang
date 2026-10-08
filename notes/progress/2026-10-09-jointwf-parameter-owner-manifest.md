@@ -45,7 +45,7 @@ inlet construction and admission injection; SD-NPB's boundary construction
 and decision theorem for its stated envelope. Their independent reviews do
 not review this manifest.
 
-**Conditional derivation here:** let H0 be authentic caller initial
+**Input characterization:** let H0 be authentic caller initial
 `JointWF(C_init,w_init)` with its complete actual registry/scope/authority,
 incidence and installed immutable projections. Let H1 be the resolved source
 occurrences, original binder tree T, definition/component registration and
@@ -54,8 +54,15 @@ be the genuine local L1–L5 laws required by the included constructors, includi
 SD-NPB's native ground/record/union/Any contracts and immutable restriction.
 Let H3 be an NPB source/boundary graph exactly satisfying SD-NPB §3, with
 eligible unassigned descriptions and its original new/alias/event records.
-Under H0–H3 the forward steps below construct source-owned outputs in their
-original telescopes. H0 alone implies neither H1–H3 nor a compiler encoding.
+H0–H3 describe an input and its source owners; they do **not** imply that
+initial data checks, all shared-frame conditions, or the boundary judgment
+succeed. Consequently they do not by themselves construct successful check
+proofs, admitted gamma evidence, or a joint strategy. Source formation outputs
+are conditional on their own source-constructor premises. Checked targets and
+proof-valued outputs require corresponding positive checking premises, and
+SD-NPB emits its joint assignment/strategy only on YES. On NO, preserve the
+negative result; do not fabricate a proof or successful publication. H0 alone
+implies neither H1–H3 nor a compiler encoding.
 
 **Bounded characterization:** these selected sections do not define an
 exhaustive initial JointWF field type or enumerate the concrete `Delta_a`
@@ -108,27 +115,39 @@ may be moved into `sigma_a` to solve a use.
 
 ## Forward derivation and all eight gamma fields
 
-1. From H1's registered unannotated Value formal and H0/H2's context,
-   Parameter introduces exactly `Desc(C_src,q,ValueEndpoint,sigma_a,Delta_a):a`.
-   Its introduction is before challenge. UV §4.1 forms Intrinsic and
-   `I_q[a;Delta]` from already introduced incident operands. It specifies
-   checks; it does not conjure witnesses for inadmissible arguments.
+1. Given the authentic registration and already introduced operands required
+   by its source rule, Parameter introduces exactly
+   `Desc(C_src,q,ValueEndpoint,sigma_a,Delta_a):a`. Its introduction is before
+   challenge. UV §4.1 forms Intrinsic and `I_q[a;Delta]` from already
+   introduced incident operands. These are constructor-level outputs whose
+   own premises are needed; UV does not conjure witnesses for inadmissible
+   arguments.
 2. Lambda forms the one raw U_g, fixed `GenericValueInlet(q,IF0)` and separate
-   Internal description (UV §5.1). Raw formation consults no chosen a or
-   per-type dictionary. NPB records actual new/alias incidence; only new
-   opens eligible description/ViewLogic regions. Shared/OneShot remain fixed.
-3. SD-NPB §3.1 data constructors produce tight values; the optional initial
-   check installs its actual final target S and retains prior evidence.
+   Internal description when its selected formation premises hold (UV §5.1).
+   Raw formation consults no chosen a or per-type dictionary. NPB records
+   actual new/alias incidence; only new opens eligible description/ViewLogic
+   regions. Shared/OneShot remain fixed.
+3. SD-NPB §3.1 data constructors produce tight values. Each optional initial
+   check is a separate decision obligation. Only a successful check installs
+   its actual final target S and retains prior evidence; a failed check is NO
+   and supplies no target-membership certificate. Therefore `DataArg(S)` in
+   the next step is available only for the corresponding admitted data
+   argument, not for an incompatible initial check.
    At Result/inert argument registration, §2.1 constructs `J=DataArg(S)`
    from the ORIGINAL complete `Comp(empty,S)` registered fields. This is
    whole relation assembly, not an equality of actual trace and production.
-4. Data induction constructs actual Car at independently admitted designated
-   demands (SD-NPB §6.1). Literal, record, lookup/restriction and Return/prefix
-   rules preserve the same value/provider/current world. Complete J retains
-   every licensed non-source Request/pending/divergent/extra arm.
-5. At the actual checked-inlet boundary, §6.3 constructs the following gamma.
-   Each field is at the original argument-check telescope, with its indicated
-   dependent subtrees; none becomes a new type after challenge.
+4. For admitted data inputs covered by the selected constructors, data
+   induction constructs actual Car at independently designated demands
+   (SD-NPB §6.1). Literal, record, lookup/restriction and Return/prefix rules
+   preserve the same value/provider/current world. Complete J retains every
+   licensed non-source Request/pending/divergent/extra arm. No Car proof is
+   asserted for a failed data check.
+5. For a checking boundary whose required data and local Inc obligations
+   succeed, §6.3 constructs the following gamma fields at the original
+   argument-check telescope, with their indicated dependent subtrees; none
+   becomes a new type after challenge. The table identifies supplier schemas,
+   not evidence that each field exists for every NPB input. `mu_result`,
+   `delta_check` and current guards require their own positive proof premises.
 
 | gamma field | Actual supplier and dependency | Scope / missing production supplier |
 | --- | --- | --- |
@@ -141,11 +160,14 @@ may be moved into `sigma_a` to solve a use.
 | delta_check | UV §4.3 full-image projection/conjunction/binder-congruence term, covering all J alternatives | Each original observation/response/raw/future/current-event telescope; whole-image proof supplier **missing**. |
 | current_guards | Authentic supplied context or its actual immutable event image; independent punctured context/other values and IF0 guards | Actual boundary event and independently admitted future demands; guard/event-image supplier **missing**. |
 
-6. `PackGeneric(kappa,gamma)` injects that SAME prechosen frame/schema/witness
-   into actual admission before receipt. Force elimination then uses the same
-   Car/mu/delta_check at current observations; completed Return allows formal
-   Bind/Read/body Return/invocation return. Pending/raw/future paths preserve
-   original handles and suffixes. These conclusions certify receiver boundary
+6. Only when SD-NPB returns YES does §5.3 choose `a_i=L_i` once for each real
+   new frame, preserve aliased sharing, and §6 construct the joint
+   `PackGeneric(kappa,gamma)` strategy. It injects that SAME prechosen
+   frame/schema/witness into admission before receipt. Force elimination then
+   uses the same Car/mu/delta_check at current observations; completed Return
+   allows formal Bind/Read/body Return/invocation return. Pending/raw/future
+   paths preserve original handles and suffixes. On NO, none of these success
+   proofs is emitted. Even YES conclusions certify receiver-boundary
    invocation only; they do not discharge the excluded enclosing Call owner.
 
 ## Current compiler comparison and exact blocker
