@@ -2655,6 +2655,16 @@ run. `cargo check -p yu-solver --all-targets --features shadow-apply-candidate
 -j 2 --offline` passed at this phase boundary. Production cutover remains blocked by the existing semantic and
 conformance obligations.
 
+A focused production-entrypoint audit confirms that F5 replacement alone
+cannot enable application typing: ordinary `lower_module` uses default HIR
+options, `lower_simple_chain` rejects an Apply tail before literal children
+reach collection, and `ConstraintBatch::collect` calls `collect_mode(...,
+false)`. The supported shadow path is separate and explicitly retains
+`UnsupportedExpression`; its solver candidate uses `collect_mode(..., true)`.
+Thus the required cutover sequence includes ordinary source/HIR Call
+construction and typed argument/result origins before the replacement solver
+can consume them. This audit used source locators only; it ran no checks.
+
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
 and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
 (with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
