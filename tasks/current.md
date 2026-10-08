@@ -4426,3 +4426,25 @@ production correspondence closes here. No implementation or tests/builds
 occurred. Next: trace one selected decode/new operation to its actual identity
 inputs and supply or isolate its changed-operand law; separately preserve the
 default-path integration gap as a required F5 replacement deliverable.
+
+That Decode/new trace is now checkpointed and pushed as
+`eddaea292` (bounded falsification) and `3d15598b1` (construction). Independent
+`compiler_referee` and `spec_auditor` reviews passed both artifacts. Source
+Generalize §5.2 supplies frame/declaration/event allocation keys, whole-frame
+incidence and alias reuse; PE §4.2 supplies the seven ordinary-root equation
+entries, fresh public root requirement and actual-root reads. From those clauses
+the construction derives commutation of the frame and equation schema under a
+sort/scope-preserving presentation renaming, with Shared and runtime-event
+fields fixed. It still cannot derive the actual registered root identity or a
+changed-root allocation/readout square. A two-new/one-alias witness shows why
+equal `Int` endpoints cannot collapse distinct fresh roots or allocate again
+for an alias. The conditional two-fresh-atom no-choice argument remains
+hypothetical and is not a counterexample to PE.
+
+A focused current-code audit also traced F5 incoming instantiation: it allocates
+Q/R rows and reuses a substitution row per ordinal, but routes into an already
+collected use component. This is not a PE public-root allocator and has no
+retained whole-frame/Omega/alias action. It therefore does not fill the root
+supplier gap. Next: identify an authentic ordinary-root allocation, install,
+and readout owner with its complete identity observers and action laws; keep
+the F5-to-PE producer/consumer correspondence as a separate cutover obligation.
