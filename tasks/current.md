@@ -3896,3 +3896,12 @@ unreviewed and non-authoritative; no source counterexample or new semantic
 rule is claimed. The owner design draft remains at reviewed-delta hash
 `440e1ef94981ff00ad1515777d3afe5c933f67798619c9369cc0aba67083b9e0` and
 uncommitted pending architecture approval.
+
+Independent compiler-referee and specification delta reviews now pass both
+owner/telescope research notes at their frozen hashes, with no finding. This
+certifies only the conditional source-rule inversion and the minimal
+record-level dependency-direction discriminator; the authentic Parameter
+operand manifest remains absent. Review did not establish `Delta_a=[]`, a
+nonempty source counterexample, production H-bridge, or implementation
+authority. The checkpoint is pushed at `2c340b256`; no tests, builds or
+measurements ran.
