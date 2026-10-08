@@ -5140,3 +5140,14 @@ and `DataArg` constructors do not cover this annotated higher-order formal.
 No selected constructor supplies this package; this bounded owner result does
 not establish that no seed/protection applies. Keep SEED_SOURCE OPEN-PROOF and
 the prior implementation-authority gate unchanged.
+
+The repaired directional-protection section of the non-authoritative
+[production Call proposal](../notes/theory/2026-10-08-production-call-elaboration-proposal.md)
+has now passed focused independent compiler-referee and spec-auditor review
+over §§3–5, C5/C6, and the directly relevant §7 choices, with no findings.
+This closes only that proposal-delta review; it does not close C5/C6, prove
+§6's reused theorems, or authorize inference implementation. Two disjoint
+research lanes are deriving the C5 seed-to-exposure obligation and C6
+annotation-incidence/removal inputs. Their next evidence must distinguish
+what follows from current decisions from any genuinely new activation choice;
+keep the source/solver production gate and all aggregate statuses unchanged.
