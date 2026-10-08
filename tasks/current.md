@@ -3921,3 +3921,15 @@ a selected design or implementation authority. Next: revise the uncommitted
 draft to expose both timing alternatives and their resource boundaries, then
 obtain focused review before presenting any decision. No tests, builds or
 measurements ran.
+
+The owner draft now presents pre-session staging and terminal `finish`-time
+materialization as unresolved alternatives. Compiler-referee, specification,
+and performance delta reviews passed the frozen revision
+`f0ebb412e938ca3c7d823d07c597976158e1fad8f0d6178d5a68fdee0d5f467c` with no
+remaining finding in placement, failure, counter-isolation or resource-peak
+scope. The terminal candidate is explicitly after feature-gated capture
+collection and includes its validation scratch in the separate peak account.
+The draft remains uncommitted and non-authoritative. Authentic Parameter
+telescope, source owners, H-bridge, allocation manifest, teardown bounds,
+placement selection and failure policy remain open. No compiler code, tests,
+builds or measurements ran.
