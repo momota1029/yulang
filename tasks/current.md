@@ -3398,3 +3398,31 @@ drafting this as an id-only production record-construction gate. Its adoption
 requires explicit approval; it would not make F5 consume the closure or close
 Gate E. No compiler code, cfg(test) hook, API, expectation or Gate E approval
 follows. No tests/builds/probes ran.
+
+### Review status: id-only SourceBuild owner draft (2026-10-08)
+
+The non-authoritative [owner-design draft](../notes/design/2026-10-08-id-sourcebuild-owner-design.md)
+received independent M3 review from a compiler referee, specification auditor,
+and performance auditor. The reviewers found no counterexample to the
+conditional source-record model, but the draft is not approval-ready. They
+identified a major contradiction: the draft makes metadata allocation or
+validation failure abort the whole solve while also promising unchanged
+acceptance and resource behavior. The semantic and specification reviews also
+found the production owner map incomplete: the draft does not yet identify
+authentic outputs for the original parameter scope/telescope, generic inlet,
+invocation/event schema, fixed anchors, final root, and publication event.
+The performance review additionally requires exact admission ownership and
+frequency plus structural/resource accounting for the concrete representation
+and its peak coexistence with F5 state.
+
+The architecture assessment says the failure policy is a genuine adoption
+decision: required metadata explicitly changes the resource/failure boundary;
+optional metadata must remain absent and uncertified on failure; deferring
+production integration avoids choosing either policy before the supplier and
+representation design is complete. No policy is selected here. Exact supplier
+correspondence and resource counts remain unverified, so do not ask for
+implementation approval or treat this draft as an authorized gate. Next:
+finish the bounded production-owner crosswalk and structural accounting, then
+repair the packet and obtain delta review. Gate E and F5 consumption remain
+open. No implementation, tests, builds, measurements, or Git changes occurred
+in the reviews.
