@@ -3592,6 +3592,28 @@ design draft remains non-authoritative and uncommitted. No implementation,
 tests, builds, probes or measurements ran; the pending flat-Application owner
 question remains independent.
 
+A further bounded architecture pass narrows the missing `p_id` representation.
+For this exact one-binding source, the new publication constructor can
+conditionally reuse `DefinitionRootId` as a branded join key and use the
+unique `Arc<IdPublicationOwnerRecord>` identity as the immutable-binding event
+identity. Source Generalize does not require a fresh numeric token. This is
+valid only if the constructor proves a bijection: exactly one relevant
+publication for this binding, selecting the complete `(C_id,R_id)`, with no
+conflation with registration, RHS execution, scheme installation or result
+transfer. Root identity alone remains only a join key. The source theory
+distinguishes member publication from joint tuple publication, so this mapping
+cannot be generalized from singleton shape without a new proof. It may avoid
+a separate event-ID allocation, but still needs the owner-record allocation
+and authentic anchor payload.
+
+Compiler-referee, spec-auditor and performance reviews found no issue in this
+conditional representation at draft SHA-256
+`7dfc6e6a00d749089d15d24372e3258c511b5014364d834d666a1eec95b9e39d`. Their
+scope confirms the proposed join/event distinction and 88/96-byte origins
+arithmetic; it does not prove the publication bijection, current H-bridge,
+full owner types or a total resource bound. No production code or tests were
+added; the design remains a non-authoritative uncommitted draft.
+
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
 The frozen [conditional construction](../notes/theory/2026-10-08-call-demand-formation-construction.md)
