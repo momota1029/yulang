@@ -4595,3 +4595,23 @@ No code, tests/builds, API, or F5 routing changed. Next: trace one authentic
 J/hereditary local contract to its owner and establish its typed forward/inverse
 action; keep IFACE_EQUIV and FRESH_LIFE open until actual local-law actions and
 compiler correspondence are established.
+
+The bounded [VCert root-action construction](../notes/progress/2026-10-10-parameter-vcert-root-action-construction.md)
+and [falsification](../notes/progress/2026-10-10-parameter-vcert-root-action-falsification.md)
+are now checkpointed at `cd77994de`/`5cadcf97d`; the construction's complete-record
+hereditary repair is pushed at `c25b94240`. Independent reviews found no
+remaining findings after repair. The selected Identity/Compose constructors
+transport conditionally under typed inverse actions for every endpoint's full
+VCert domain and coherent shared intermediates; no blanket covariance premise
+for unrelated registry leaves is needed for this two-constructor fragment.
+However, when `J.payload=A`, moving only the target root breaks Identity's
+dependent typing. Coherent movement must also act on J's payload and carrier.
+Hereditary transport further requires restriction squares over every retained
+record field and subordinate binder, not only VCert evidence. No authentic
+target-descriptor formation/action or complete-record restriction supplier was
+identified here. The falsification model exposes missing ground evidence only
+at a hypothetical kernel boundary; it is not an admitted source counterexample.
+No code, tests/builds, APIs, or F5 routing changed. Next: inspect one authentic
+descriptor/ground-evidence owner and its restriction law, and keep the root
+action, full `gamma`, `IFACE_EQUIV`, `FRESH_LIFE`, source correspondence, and
+implementation gates open.
