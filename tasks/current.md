@@ -2179,6 +2179,17 @@ solving. Require preservation/reflection for every active original predicate,
 a terminating complete candidate/residual procedure and exact public
 projection. Practical resource rejection cannot silently truncate histories.
 
+Two reviewed [JOINT_DEC research attempts](../notes/progress/2026-10-08-joint-dec-review.md)
+now sharpen this boundary without closing it. The conditional residual-game
+construction needs exact predicate-cell decision and prefix-local lifts; its
+effective strategy output additionally needs computable challenge
+classification/replay. The repaired ER premise captures that distinction, but
+neither EPR nor ER is constructed for Yulang. A minimized three-predicate
+example rejects pairwise witness amalgamation, not a quotient with full
+pointwise reflection and coherent lifts. `JOINT_DEC` remains OPEN-PROOF. The
+next narrow inquiry is one actual non-name admission/future predicate's
+original operands, cell-decision law and prefix-local lift.
+
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only
 members. Reference source simulation is a sufficient subcase, not an

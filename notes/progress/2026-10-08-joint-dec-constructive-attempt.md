@@ -1,7 +1,7 @@
 # JOINT-DEC: a conditional residual-game decision construction
 
 Date: 2026-10-08
-Status: Conditional derivation repaired after accepted MAJOR; delta review pending
+Status: Reviewed conditional derivation; Yulang construction remains open
 Implementation authority: none
 Gate status: unchanged; JOINT_DEC remains OPEN-PROOF
 Baseline: `87467e190cff6a8c208d07c1b1f0a1769e81389e`
@@ -141,7 +141,7 @@ supplied by merely attaching uninterpreted predicate names to finite nodes.
 
 ## 2. Conditional theorem and derivation
 
-**Claim class: conditional theorem, unreviewed.** If the actual admitted
+**Claim class: reviewed conditional theorem.** If the actual admitted
 residual satisfies EPR, its truth is decidable by finite backward evaluation.
 If ER also holds and the existential/evidence lifts are effective on its
 encoding interface, a true result yields one effective original-scope
@@ -277,9 +277,10 @@ the noncomputability premise and is not proposed as another probe.
 
 Repair rationale: retain EPR's four premises and its truth theorem; require ER
 explicitly for the effective strategy conclusion and state the encoding
-contract in the extraction argument. Residual status: EPR's Yulang construction
-and ER's source-derived classifier/replay laws are unproved, JOINT_DEC stays
-OPEN-PROOF, and this repaired delta awaits independent review.
+contract in the extraction argument. The independent delta review found no
+remaining issue in ER or the extraction repair. Residual status: EPR's Yulang
+construction and ER's source-derived classifier/replay laws are unproved;
+JOINT_DEC stays OPEN-PROOF. See the [review record](2026-10-08-joint-dec-review.md).
 
 ## 4. Evidence independence, limits and next action
 
@@ -367,10 +368,10 @@ ac69d1696dbe023d0886d15c0bee0e5e21fca5a189ab89b9b79b3c96bc3587fd  notes/progress
   answer and the governing JOINT-DEC ledger. Read-only filesystem inspection
   of `.git/HEAD` and its named branch ref matched the repair baseline.
   No Git command, index/ref mutation or question-bundle edit was performed.
-- Claim/review status: conditional research repair; accepted original MAJOR
-  recorded in section 3.1; repaired delta pending independent review. Producer
-  verification does not certify the repair. JOINT_DEC remains OPEN-PROOF;
-  EPR and ER remain unconstructed for Yulang.
+- Claim/review status: reviewed conditional research repair; the original
+  accepted MAJOR is recorded in section 3.1 and closed by the independent
+  delta review. JOINT_DEC remains OPEN-PROOF; EPR and ER remain unconstructed
+  for Yulang. See `2026-10-08-joint-dec-review.md`.
 - Checks already run: targeted governing-rule/source reads; SHA-256 dependency
   rechecks; Python `difflib.unified_diff` inspection against the pre-repair
   in-memory lease snapshot; exact comparison confirming all four EPR clauses
@@ -382,13 +383,16 @@ ac69d1696dbe023d0886d15c0bee0e5e21fca5a189ab89b9b79b3c96bc3587fd  notes/progress
   static-check processes; zero search/build/test processes and no generated
   outputs. CPU time, peak RAM and total wall time were not measured. No numeric
   repair budget was supplied; scope stopped after this one premise repair.
-- Recommended next action: independently delta-review ER's encoding/coverage
-  and the conditional extraction argument against the accepted MAJOR.
+- Recommended next action: select one actual active non-name admission/future
+  predicate and establish its independent cell-decision and prefix-local lift
+  laws before extending the candidate residual route.
 - Proposed commit message:
   `research: require effective prefix replay for JOINT-DEC strategy extraction`.
 - Shared-record deltas intentionally left for primary/curator: record the
   accepted effective-extraction gap and conditional ER repair under JOINT_DEC;
   retain OPEN-PROOF, original quantifiers, all prior predicates and prerequisites.
-  No task/index/authority/theory/question files were edited.
+  At this repair checkpoint, no task/index/authority/theory/question files were
+  edited; the primary later synchronized the reviewed result as recorded in
+  `2026-10-08-joint-dec-review.md` and `tasks/current.md`.
 
-Frozen at submission for independent delta review; no further producer writes.
+Repair reviewed at the pinned artifact hash; no further producer writes.
