@@ -3541,9 +3541,19 @@ and primary inspection, not a fresh independent review.
 Next: specify one immutable concrete publication/anchor-owner representation,
 map its authentic formation and publication suppliers, and enumerate unique
 retained allocations, capacities, dependent closure, construction staging and
-terminal transfer peaks; then obtain focused resource review. The pending flat-
-Application owner question remains independent. No formation arm, failure
-policy, implementation authority or gate closure is selected. The design
+terminal transfer peaks; then obtain focused resource review. A bounded
+architectural assessment finds that a direct strong `Arc<IdPublicationOwnerRecord>`
+is conditionally compatible if the publication record retains actual `p_id`
+and `(C_id,R_id)` while owning a typed edge to the separately formed anchor
+record. The anchor still owns its actual inert-registration or
+ReturnedInstallation evidence; publication must not be identified with
+`Executed`. The records are proposed types, not production suppliers. On the
+stated 64-bit assumptions, replacing the provisional Arc-plus-index handle
+with one Arc pointer would reduce the tuple estimate from 96 to 88 bytes, but
+the complete payload/allocation cost remains unbounded. This representation
+and retention choice needs architecture approval; the source formation arm,
+failure policy, implementation authority and gate closure remain unresolved.
+The pending flat-Application owner question remains independent. The design
 draft and question remain uncommitted; no tests/builds/probes ran.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
