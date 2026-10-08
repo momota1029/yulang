@@ -3,7 +3,7 @@
 Date: 2026-10-10
 Baseline: `00bc2351bee96dbb705a680408e3ff436d70c313`
 Branch: `research/simple-sub-intrusion`
-Status: unreviewed conditional derivation and constructor-signature characterization
+Status: compiler-referee-reviewed conditional derivation and constructor-signature characterization
 Authority: research only; `INIT_WORLD` remains OPEN-SEMANTIC
 Exclusive lease: this file
 
@@ -149,7 +149,10 @@ Read-only commands: pinned `git show` section reads; baseline/branch/status
 inspection; SHA-256 dependency inspection. No Git mutation or question file
 read occurred. CPU/process budget consumed: zero build/test/probe processes;
 only short serial/paired documentary shell reads. Peak RSS and total wall
-time were not measured. No mechanical proof or independent review is claimed.
+time were not measured. An independent compiler-referee review passed with no
+findings in the conditional derivation, scope-preservation, and structural-
+restriction claims; foreign embeddings and Rust correspondence were outside
+its scope.
 
 Recommended next action: obtain or authorize for research one exact
 importer-owned ground-incidence/joint-guard clause with its `pi_B` evidence;
@@ -161,7 +164,7 @@ fixed-point toy probe would leave this same premise untouched.
 - Exact leased path: `notes/progress/2026-10-10-initworld-phiw-import-construct.md`.
 - Baseline: `00bc2351bee96dbb705a680408e3ff436d70c313`.
 - Dependency changes: none used; all source reads were pinned to baseline.
-- Review status: unreviewed research-only conditional derivation; frozen at handoff.
+- Review status: independent compiler-referee PASS; conditional derivation only.
 - Checks run: exact selected section reads and baseline dependency SHA-256;
   artifact scope/whitespace inspection. No builds/tests/probes.
 - Proposed commit message: `research: isolate scalar importer premises for PhiW introduction`.

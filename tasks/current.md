@@ -5398,3 +5398,15 @@ application additionally requires an evidence-preserving embedding and
 exhaustive guard correspondence. Compiler-referee found no findings;
 spec-auditor's one minor wording finding is repaired. `INIT_WORLD` remains
 OPEN-SEMANTIC. No tests, builds, probes, or measurements ran.
+
+The bounded [scalar PhiW importer derivation](../notes/progress/2026-10-10-initworld-phiw-import-construct.md)
+now instantiates the selected fixed-point constructor at one original fiber
+and event. Given importer-indexed ground evidence plus all immediate joint
+guards and witness agreement, it derives the extended world while preserving
+the supplied base certificate and a structural old-record projection. An
+independent compiler-referee review passed without findings. This does not
+derive the importer premises from exporter validity or provide semantic
+restriction for arbitrary extended evidence. The remaining owner seam is an
+importer introduction of `g_i`, `j+`, and `a+`, together with clause-preserving
+old-tuple restriction. `INIT_WORLD` remains OPEN-SEMANTIC; no implementation
+or source rule is selected. No tests, builds, probes, or measurements ran.
