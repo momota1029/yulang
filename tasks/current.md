@@ -3505,9 +3505,10 @@ justified while that representation is unspecified.
 A later representation delta makes the `ScopedClosure` graph a borrowed view
 over static `IdRuleSchema` plus the package origins, so the compact candidate
 does not allocate a second per-module graph. A symbolic phase model now
-accounts for the unchanged live F5 batch/session/finish set, new anchor-owner
-allocations, pre-existing data whose lifetime is extended, vector header and
-capacity, and pre-session validation scratch. At draft SHA-256
+accounts for the unchanged live F5 batch/session/finish set, new
+publication/anchor-owner allocations, pre-existing data whose lifetime is
+extended, vector header and capacity, and pre-session validation scratch. At
+draft SHA-256
 `7c12e7086ff507c62a0a1eb6748c1c811c9b1d29b4af410b4e8362e2728fe9ae`, spec and
 performance auditors confirmed the disjoint-set accounting and absence of the
 prior double-counting/batch-omission issue. The draft then received an M0
@@ -3517,10 +3518,30 @@ unique storage regions, count the `Vec` field in-object, and define peak as
 the maximum of phase snapshots; that clarification was primary-inspected but
 not separately re-reviewed.
 
-Next: specify one immutable concrete anchor-owner representation and map its
-authentic source formation/publication supplier; enumerate unique retained
-allocations, capacities, dependent closure, construction staging and terminal
-transfer peaks; then obtain focused resource review. The pending flat-
+Reviewing the new representation against the logical output `(p_id,C_id,... )`
+exposed one further missing identity: the earlier `IdAnchorOwnerRef` did not
+retain the actual source publication event `p_id` or its `(C_id,R_id)`
+incidence. The draft now uses `IdPublicationOwnerRef`, whose pointee must retain
+that event and its link to the independently owned anchor formation. At draft
+SHA-256 `1269b2d4aaef62450083e7dadc81dac5a545dc61440d48e2cd9b8d449bca5a4a`,
+independent semantic and specification reviews found the conditional contract
+consistent; the performance review confirmed the 96-byte tuple estimate only
+if this handle is still 16 bytes, with publication/anchor payload separately
+accounted.
+
+That performance review also found that the symbolic resource category
+`A_new` must include newly allocated publication records and links as well as
+anchor-owner records. The primary repair now includes those records and
+transitive dependencies in `A_new`, and describes the omitted payload as
+publication/anchor-owner storage. Current draft SHA-256 is
+`eac75ad72ab91575ff08426efdca51c2959425d175e7939dff349cb04f26aac1`; this is
+an M0 terminology/accounting-category repair, checked with `git diff --check`
+and primary inspection, not a fresh independent review.
+
+Next: specify one immutable concrete publication/anchor-owner representation,
+map its authentic formation and publication suppliers, and enumerate unique
+retained allocations, capacities, dependent closure, construction staging and
+terminal transfer peaks; then obtain focused resource review. The pending flat-
 Application owner question remains independent. No formation arm, failure
 policy, implementation authority or gate closure is selected. The design
 draft and question remain uncommitted; no tests/builds/probes ran.
