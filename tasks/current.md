@@ -4913,11 +4913,15 @@ naturality audit found that authentic static registration alone does not
 transport the complete N Return witness fibers across distinct incidence keys.
 The exact missing Return-kernel reindexing law and discriminator are recorded
 in [the incidence naturality note](../notes/progress/2026-10-09-literal-result-incidence-naturality.md).
-Next, locate that independent kernel supplier and its whole-action/inverse
-laws, or retain them as explicit open premises. Then the user can decide
-whether to select the bounded original registration case. If selected and
-proved, extend through original Reify/check/result incidences and separately
-prove the `IF_pick`/`IF_id` carrier/event pairing.
+The selected Return-kernel audit found no such supplier in the governing
+clauses, and current Rust has no literal Result-port owner. The exact choice
+to adopt the bounded static original registration is in the pending
+[question-board entry](../questions/2026-10-09-original-literal-result-owner/question.md).
+Keep only that dependent owner/consumer proof waiting; continue independent
+inference and implementation-correspondence work. If selected, still prove
+the Return-kernel domain, lossless witness map and action square, then extend
+through original Reify/check/result incidences and separately prove the
+`IF_pick`/`IF_id` carrier/event pairing.
 Keep H-original-install/E-flat, `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
