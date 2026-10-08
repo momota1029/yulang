@@ -799,6 +799,18 @@ fixed-semantic import-owner instance satisfying the full clause frontier,
 dependent overlap and action, then its zero-step importer extension. Any
 changed foreign-provider behavior still requires the normal approval gate.
 
+A bounded follow-up at `570fb742f` found no such supplier in the inspected
+owners. The exact missing instance is one importer root `r` with a concrete
+semantic `kappa` at its actual incidence, exhaustive frontier, and proofs of
+`ID-world-forward` (retained old world plus importer clause yields the joint
+extended world) and `ID-import` (the same clause/gluing tuple yields the fixed
+import predicate), together with the lawful action. Lemma W only restricts an
+existing binding and introduces no root/license; initial-context import is a
+supplied leaf; the simultaneous constructor takes import and guard validity as
+inputs; scalar exporter realization does not prove importer installation.
+This is a bounded source-premise audit, not a repository-wide nonderivability
+claim. No status changes or executable checks followed.
+
 ### Historical checkpoint: conditional Generalize/export bridge (2026-10-08)
 
 This section records the pre-PE-ID/PE-PICK checkpoint from `4976b0756` and
