@@ -223,3 +223,44 @@ the newly specified native grammar. It does not identify an unknown fixed
 foreign witness kernel, certify the full Generalize allocation/public root
 integration or install a production consumer. The uniform inlet checkpoint
 was separately published as `927ddb55e976e2e0ff7f8cf2c38083013909c24c`.
+
+## 7. Reviewed conditional reference consumer
+
+Artifact: [native Direct proof fragment](../../tools/research_projection_public_direct.py).
+Final reviewed SHA-256:
+`9b792dcc9c77c25733c4ed27a37693997587bb9bd6ac3916067c0914a4779d6b`.
+
+This reference consumer checks an intentionally bounded sufficient rule under
+an explicitly independently justified immutable semantic environment. It
+requires exact submitted public-root snapshots, identical whole inlet/IF/
+evidence operands, typed registered independent admission predicates, and a
+finite source-result-to-target-result proof. Echo/Fixed dependencies and typed
+public import snapshots remain active. Ground imports use exact primitive
+constructors; foreign imports need an explicit complete independent contract.
+No source root, body lookup, source relation or source callback is available.
+
+It is not a production resolver or a full implementation of the mathematical
+ordinary checking calculus. Its external complete interface laws are semantic
+premises, not facts established by matching an identifier or passing a test.
+The emitted result explicitly says conditional fragment consistency.
+
+The producer's corrected freeze passed 27 finite checks and narrow py_compile.
+Independent mathematical review ran those checks and identified one minor
+finite validator omission: an inlet residual at base scope could refer to an
+event-scoped proof. The primary applied the existing ancestry check to residuals
+and retained the declaration scopes of earlier residuals. Two targeted negative
+cases cover direct and earlier-residual scope escape. No proof grammar or
+production semantics was broadened in that repair.
+
+The primary and independent mathematical delta reviewer each ran the final
+script: **29/29 checks passed**. The independent specification delta review
+also passed the repaired code's exact conditional scope without an executable
+run. No blocking or major code finding remains. Tests cover actual-root/stale
+record rejection, the complete-contract Bool-extra counterexample, same-I
+result/domain positives, proof-choice composition, invalid imports/atoms,
+roles/entries and the two scope escapes. They are finite wiring/typing checks,
+not a mechanical proof of immutable/VP semantics or all source-lawful inference.
+
+No Cargo build, production test suite, broad formatting or production file
+was changed. The certificate-constructor checkpoint was published separately
+as `2b59de9d6a412be5f9c772af48201e48a94fd624`.
