@@ -3842,3 +3842,16 @@ Flat-Application question also remains uncommitted. No tests, builds or
 measurements ran. Next: repair the resource contract, obtain focused delta
 review, then present the bounded architecture and unresolved owner/failure
 choices for user decision. No implementation or F5 cutover is authorized.
+
+The follow-up resource revision withdrew the unsupported linear validation
+claim and now requires a concrete pass/work-unit algorithm, bounded target and
+scope checks, scratch accounting, allocation/failure inventory, and bounded
+teardown. Phase accounting excludes baseline-live storage from lifetime
+extension counts and includes transient replacement buffers in the peak.
+Focused performance and specification delta reviews passed with no remaining
+wording finding at draft SHA-256
+`785a5a4d5133d8c1790e1e0a5f85f19bab83e0d0c84c502951ab6f80f1596bca`.
+Production readiness still lacks the actual schema/owner allocation manifest,
+validator algorithm, admitted-size envelope, and teardown implementation.
+The reviewed owner draft remains uncommitted pending explicit approval; no
+tests, builds or measurements ran.
