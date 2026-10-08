@@ -264,10 +264,11 @@ its stated correspondence is too weak for this use. If it retains those
 origins with their lawful interpretation, the above is a restricted
 specialization, not a second independent seed-generation policy.
 
-Only **after** that construction may the selected O0/slot and paired O1
-consumers run with their other independent premises. Both Own facets have
-the same seed and owner evidence; their indexed occurrences stay `u_f` and
-`u_c`. This note provides no O0-to-seed or ownership-to-seed arrow.
+O0 and slot formation may proceed independently once their own actual-record,
+Reg/Route and typed-correspondence premises exist. Paired O1 additionally
+requires that `SeedExposure` construction and its own premises. Both Own
+facets have the same seed and owner evidence; their indexed occurrences stay
+`u_f` and `u_c`. This note provides no O0-to-seed or ownership-to-seed arrow.
 
 ## 5. Claim classes, independence and stop conditions
 
