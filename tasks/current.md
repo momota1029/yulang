@@ -2187,8 +2187,13 @@ classification/replay. The repaired ER premise captures that distinction, but
 neither EPR nor ER is constructed for Yulang. A minimized three-predicate
 example rejects pairwise witness amalgamation, not a quotient with full
 pointwise reflection and coherent lifts. `JOINT_DEC` remains OPEN-PROOF. The
-next narrow inquiry is one actual non-name admission/future predicate's
-original operands, cell-decision law and prefix-local lift.
+reviewed [native-id input-image owner cut](../notes/progress/2026-10-08-id-inlet-whole-output-image-owner-cut.md)
+shows a conditional whole-image law and prefix-local lift for authentic
+J/Car/context evidence plus one supplied joint strategy. The absent step is an
+effective representation and reflection law for those joint J/strategy
+witnesses; finite proof recognition does not provide it. Next, target that
+exact witness family while preserving arbitrary residuals and original
+quantifier order.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only

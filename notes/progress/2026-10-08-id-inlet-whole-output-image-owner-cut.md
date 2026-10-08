@@ -3,7 +3,7 @@
 Date: 2026-10-08
 Baseline: `b9fe8f927504513f35c13d655563f37bb2571455`
 Branch: `research/simple-sub-intrusion`
-Status: unreviewed research-only source correspondence and conditional derivation
+Status: reviewed bounded source correspondence; aggregate decision remains open
 Lease: this file only; frozen on submission
 Gate/method: PRIMITIVES -> JOINT-DEC; trace one selected native inlet law to its owning constructor
 Production implementation, semantic reselection and aggregate gate promotion: none
@@ -209,6 +209,11 @@ primitive/hereditary law premises. The script's matching metadata provides no
 independent oracle for those premises.
 
 ## Coverage, verification and resource report
+
+An independent compiler-referee review of the exact frozen artifact hash below
+found no BLOCKING, major or minor issue within this owner-cut and conditional
+lift. The review did not certify arbitrary residual decision or production
+correspondence. See the [review adjudication](2026-10-08-joint-dec-review.md).
 
 Static source reading only; no Python execution, compiler tests, builds,
 mutation runs or exhaustive searches. Commands used `rg -n`, bounded `sed -n`,

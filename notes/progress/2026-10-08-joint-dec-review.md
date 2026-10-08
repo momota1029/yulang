@@ -60,6 +60,29 @@ rerun it.
 Adjudication: accept this as a bounded shortcut falsifier only. It closes no
 canonical gate and supplies no implementation permission.
 
+### Selected native id input-image owner cut
+
+The [id inlet owner cut](2026-10-08-id-inlet-whole-output-image-owner-cut.md)
+was frozen at SHA-256
+`381371986bbf76490db5097a1efe1060bf5adb2be0c09f04cb222e982b8cf1c4`, commit
+`d9f452ec3`. Its independent compiler-referee review found no BLOCKING,
+major or minor finding within the original telescope, conditional prefix-local
+image lift, and checker-boundary comparison.
+
+The selected uniform-inlet construction supplies a concrete whole-image law
+for bare native `id` at its original scopes, given authentic J/Car/context and
+local-law evidence plus one coherent original strategy. This yields the
+conditional prefix lift for those supplied inputs. It does not construct such
+a strategy or decide arbitrary joint residual cells. The reference checker
+validates external-law metadata and references, not the law bodies; submitted
+finite proof recognition is not semantic proof search. The first missing
+effective decision field remains joint preservation/reflection of possible
+J/strategy witnesses. Production H7/F5 correspondence, foreign inlets and
+general State/recursive cases were not certified.
+
+Adjudication: accept the owner cut and conditional lift under their stated
+premises. No semantic definition, source language, or production gate changed.
+
 ## Verification and omissions
 
 - Constructive review baseline: `6967ac589`; repair baseline:
@@ -70,15 +93,13 @@ canonical gate and supplies no implementation permission.
   this did not affect the mathematical review.
 - No Cargo tests/builds or performance measurements ran. The bounded
   falsification artifact's own experiment is not a compiler test.
-- Actual Yulang primitive enumeration, effective residual construction,
-  production correspondence, principal public projection and F5 cutover were
-  outside review scope.
+- Actual exhaustive Yulang primitive enumeration, effective residual
+  construction, production correspondence, principal public projection and F5
+  cutover remain outside review scope.
 
 ## Next evidence
 
-Trace one actual active non-name admission/future predicate from its selected
-source owner through the original scoped operands. Establish, or identify the
-first missing supplier for, both effective joint-cell decision and
-prefix-local lift after arbitrary legal universal challenges. Keep the result
-conditional and retain the OPEN-PROOF status unless the full gate's exact
-prerequisites are discharged.
+Find an effective representation and reflection law for the exact native
+`id` J/strategy witnesses identified by the owner cut. Preserve arbitrary
+original joint residuals, binder order and simultaneous witness identity.
+Keep `JOINT_DEC` OPEN-PROOF unless its complete prerequisites are discharged.
