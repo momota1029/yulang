@@ -4888,6 +4888,12 @@ the [independent Fixed-pick target construction](../notes/progress/2026-10-09-na
 [the pick/id Value-comparison attempt](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-value-comparison.md),
 the [scope-map falsification](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-scope-falsification.md),
 and the [literal-1 contract construction](../notes/progress/2026-10-09-native-export-fixed-target-literal1-contract-construction.md).
+The q1/d1-approved `Application_N` crosswalk is recorded in
+[the N-carrier map](../notes/progress/2026-10-09-fixed-target-application-n-carrier-map.md):
+for the exact `f 1` body it already constructs an N-owned argument reify/Delay
+origin, argument check, and complete result/consumer ports under its whole
+contract inputs. This does not identify those N origins with the selected
+original Call consumer origins or pair the carrier across id/pick telescopes.
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
@@ -4909,16 +4915,19 @@ certificate; the production-only false-result alternative is not licensed as
 an actual invocation. These are bounded owner gaps, not a counterexample or
 an absence theorem for all original kernels.
 
-The Return(1) separation is still conditional, but its literal producer is now
-located: given the actual whole local relation, the authentic ground-literal
-rule plus PE-PICK constructs the monomorphic `J_1` for `my one=1`, retaining
-provider `p_1` and its whole hereditary contract. The Call-owned `ReifyOrigin`,
-complete carrier record, and same-carrier/event pairing at both original inlet
-telescopes remain unconstructed. If those producers are supplied, id returns
-`(1,p_1)` while Fixed requires `(0,p_0)`; this would still require an approved
-`Valid_V` witness before it could refute ALL_VIEW. Next: locate or construct those
-original Call/reify records and the cross-root scope pairing, then audit
-`Valid_V` eligibility separately. Keep the arbitrary
+The Return(1) separation is still conditional. Given the actual whole local
+relation, the authentic ground-literal rule plus PE-PICK constructs the
+monomorphic `J_1` for `my one=1`, retaining provider `p_1` and its whole
+hereditary contract. That binding is a different provider path from the literal
+occurrence in `f 1`. For the latter, selected `Application_N` supplies its own
+N-owned argument reify/Delay origin, but the typed attachment to the original
+Call consumer, the complete carrier evidence at both actual roots, and the
+cross-root scope/event pairing remain open. If those producers are supplied,
+id returns `(1,p_a)` for the actual `f 1` literal provider, while Fixed
+requires `(0,p_0)`; this would still require an approved `Valid_V` witness
+before it could refute ALL_VIEW. Next: construct or
+rule out the N-to-original consumer attachment and then the complete pairing;
+audit `Valid_V` eligibility separately. Keep the arbitrary
 U/`E_U` gap and opaque operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW and
 PRINCIPAL unchanged. No compiler changes, tests, builds or production authority
 follow.
