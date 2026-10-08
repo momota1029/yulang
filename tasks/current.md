@@ -4743,7 +4743,15 @@ collection marks it incomplete, and the opt-in shadow path emits no selected
 Application certificate. F5 still handles supported Name uses by fresh Q/R
 rows and structural Function constraints; that does not supply the selected
 Instance/frame or public-root lifecycle. No code, tests/builds, API or F5 route
-changed. Next: locate the Old module producer/eliminator declaration or a
-typed realization to its existing emission fiber, while separately recovering
-the authentic `Hreg` application. The overall inference/F5 replacement,
+changed. The frozen [Hreg trace](../notes/progress/2026-10-09-id-registration-application-trace.md)
+records two distinct attempts that leave the concrete registration action
+unsupported; stop equivalent probes. The current structural path creates
+DefId, parameter, lexical Name and Lambda joins, then static SCC topology, but
+`yu-hir::lower_module -> lower_plan` accepts no caller JointWF and creates no
+semantic registration, binder telescope, component identity or anchor
+application. Next: inspect the original registration owner's complete local
+constructor signature/action and one caller-context application; if that
+owner contract is absent, return that exact seam for authority resolution.
+Separately locate the Old module producer/eliminator declaration or a typed
+realization to its existing emission fiber. The overall inference/F5 replacement,
 Call/C0, H-bridge, principality, implementation and cutover gates remain open.
