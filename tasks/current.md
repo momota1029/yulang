@@ -4076,8 +4076,10 @@ The non-hole gap is the evidence-producing relative action on the complete
 observation family, `P_A_f[B_as] -> P_F_c[B_as]`; final-model VIncl and
 positivity do not provide it. An enlarged source coalgebra is a candidate for
 the apply-hole case, but complete fronts and postfixedness remain unproved.
-These are unreviewed conditional research checkpoints: no proof gate or
-production readiness changed. No tests, builds, experiments or performance
-measurements ran. Next: establish the actual full outer-domain carrier
-interpretation and source-owned relative comparison, then review the frozen
-RT.2 artifacts before any gate-status update.
+An independent compiler-referee review of both exact artifact hashes found no
+issue within their conditional claims; the [review record](../notes/progress/2026-10-08-rt2-relative-transfer-review.md)
+lists the scope and omissions. They remain conditional research, not a closed
+RT.2 proof. No proof gate or production readiness changed. No tests, builds,
+experiments or performance measurements ran. Next: establish the actual full
+outer-domain carrier interpretation and source-owned relative comparison
+before any gate-status update.
