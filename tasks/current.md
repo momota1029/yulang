@@ -3060,3 +3060,28 @@ complete, independently reviewed, and explicitly approved. The latest
 checkpoint is synchronized with `origin/research/simple-sub-intrusion`; keep
 substantial coherent slices committed and pushed promptly so external work
 continues from a current branch tip.
+
+## Flat Application source-owner residual (2026-10-08)
+
+Two separate, non-authoritative source audits are now checkpointed and pushed:
+[literal relation boundary](../notes/theory/2026-10-08-flat-apply-literal-relation-tree-audit.md)
+(`5b76b2cb7`) and [Application owner inventory](../notes/theory/2026-10-08-flat-apply-owner-inventory-gap-audit.md)
+(`accb579b0`). The literal audit isolates a bare `literal(1)` residual: the
+selected direct-Int decision and typed-core clauses fix `Value(Int)` and the
+Result/Return skeleton, while the complete primitive occurrence/alternative
+relation and its lawful action remain an imported input. The owner audit
+confirms that selected source-interface formation and inversion consume an
+actual emitted Application/Gen-Call-0 inventory, authentic complete operation,
+and independently typed primitive contracts/actions; they do not construct
+that upstream inventory. `ReceiveSchema`, `TypedCallCert_Dec`, the primitive
+relation, and Call-owned Result/Reify attachments remain separate inputs.
+Both notes are unreviewed bounded research; no test/build, implementation,
+authority promotion, or DAG status change occurred.
+
+The next source artifact must supply the authentic flat Application owner
+production, including complete occurrence/alternative inversion and typed
+attachments, actual installation/member lookup, old-family preservation and a
+lawful whole action. It must explicitly state whether a primitive relation is
+an opaque complete contract or expose its own finite occurrence tree; it may
+not get exhaustiveness by unioning downstream reference lists. Keep admission,
+CallInitial/I0, transformed export, principality and production cutover open.
