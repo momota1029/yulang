@@ -3480,18 +3480,35 @@ compiler referee and specification auditor close that specific finding
 conditionally: dereferencing must preserve the actual immutable anchor-owner
 record, formation identity and all dependent operands for the package's full
 lifetime. They verify the proposed 96-byte tuple arithmetic under its stated
-64-bit assumptions; it excludes the referenced owner payload. This does not
-identify a production owner type or supplier.
+64-bit assumptions; it excludes the referenced owner payload.
 
-Still open: actual source owner output and supplier, lifetime/retention proof,
-schema cardinalities and slot-resolution completeness, and total retained/peak
-storage including owner payload and F5 coexistence. No performance review of
-those unresolved totals occurred. The pending flat-Application owner question
-remains independent. No anchor arm, policy, implementation authority or gate
-closure is selected. Next: identify the authentic anchor-owner output from
-source construction, map its production supplier and complete payload cost,
-then obtain the targeted resource review. Keep the design draft and pending
-question uncommitted; no tests/builds/probes were run.
+The expanded frozen draft at SHA-256
+`a703fe7512613e02eb24b546f4134d429d24d912ef2cb27ddcd31e56626ad3c6` now
+records the minimum owner payload and lifetime by the two permitted source
+formations. Independent compiler-referee and specification reviews found no
+new issue: preserve the inert closure/delay registration and fixed captures, or
+the actual `Executed`/`OneShot` installation tuple; keep original Shared
+binders and separate `Internal` from fixed `Established`/`OneShot` edges. A
+bounded production-owner map found no corresponding owner object in current
+HIR/solver outputs. `FetchValue`, `AdmissionReceipt`, `LambdaRecipe`, F5 rows,
+scheme installation and terminal Rust result transfer each lack the required
+source ownership facts.
+
+The targeted performance review confirms the 96-byte calculation only under
+the proposed handle/layout assumptions. Total retained/peak bytes remain open:
+the representation has no concrete owner type, transitive payload bound,
+unique-allocation/capacity manifest, staging-plus-`ScopedClosure` cost or
+finish-output coexistence accounting. One source binding bounds record count,
+not necessarily the referenced dependency closure's size. No benchmark is
+justified while that representation is unspecified.
+
+Next: specify one immutable concrete anchor-owner representation and map its
+authentic source formation/publication supplier; enumerate unique retained
+allocations, capacities, dependent closure, construction staging and terminal
+transfer peaks; then obtain focused resource review. The pending flat-
+Application owner question remains independent. No formation arm, failure
+policy, implementation authority or gate closure is selected. The design
+draft and question remain uncommitted; no tests/builds/probes ran.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
