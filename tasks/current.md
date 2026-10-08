@@ -5002,6 +5002,21 @@ checking declaration instance, `P_arg/T_arg`, admission or action supplier is
 identified along this route. This is bounded characterization, not global
 absence.
 
+A separate bounded owner trace located authentic native checked-inlet evidence:
+selected native projection forms Parameter-owned `I_q` and
+`GenericValueInlet(q,IF0)`; the uniform-entry constructor defines the complete
+ordered `gamma` record, its whole-observation checks and actual `PackGeneric`
+admission; source-directed joint decision constructs `DataArg` at the actual
+Result/inert-argument owner. This narrows the next seam to the native
+checked-inlet/checking owner, but does not identify that native `gamma` with an
+instantiated original descriptor-kernel `WholeArgCompatible` declaration
+(`alpha_arg/t_arg`, ordered `P_arg/T_arg`, domain and lawful witness action),
+or pair it across N/original references. The selected Call/IF constructors
+consume authentic typed declaration/reference instances and construct their
+placements; they do not invent the declaration identity or the paired
+substitutions. Keep the native evidence and independent descriptor input
+distinct until that crosswalk is supplied.
+
 The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
 confirms that no exhaustive selected `Valid_V` constructor was found and Draft
 `V_alloc` is not adopted. It distinguishes the hypothetical actual-0 H/t
@@ -5012,10 +5027,11 @@ containment-valid route, not from every possible `Valid_V` criterion. The
 `IF_pick`/`IF_id` whole scope/event/admission pairing, arbitrary-U Force law,
 and semantic-to-L completeness remain open. Two requested independent review
 roles were unavailable because their selected models were at capacity; these
-new artifacts remain unreviewed conditional research. Next: inspect the
-independent descriptor-kernel owner for one authentic `WholeArgCompatible`
-declaration instance and its complete `P_arg/T_arg`, admission and lawful
-action. Then have the typed reference/emission owner instantiate that same
+new artifacts remain unreviewed conditional research. Next: obtain the explicit
+crosswalk from the selected native checked-inlet `gamma` to one authentic
+`WholeArgCompatible` declaration, or establish that the selected `F_c` lies
+outside that native envelope and retain the independent descriptor-kernel
+input. Then have the typed reference/emission owner instantiate that same
 declaration at N and the original use with complete scoped operand maps, and
 extend the matching witnesses through dependent `e_out`. Keep the pending
 literal-owner decision and all aggregate gate statuses unchanged. No compiler
