@@ -106,6 +106,20 @@ all original prerequisites. No production implementation or cutover occurs.
 
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
+The transformed-export continuation has additionally constructed and
+independently reviewed [ordinary id invocation phases](../notes/theory/2026-10-08-id-public-phase-constructor.md).
+The concrete native VP rules and direct actual id introduction cover zero-step
+pre-receipt, complete/pending/divergent entry, raw resumption at the current
+world, same-value Return and hereditary futures. A finite Echo refinement and
+its semantic inclusion are proved; PICK-J needs its actual public capture
+contract. The [review record](../notes/progress/2026-10-08-projection-public-export-review.md)
+records both independent clean reviews and the minor phase/future clarification.
+This closes the initial ordinary phase-guard supplier in that native scope.
+The theorem fixes the complete inlet I: uniform instantiation of the same
+actual provider, the exact source/public evidence cut and actual-root Direct
+are still being constructed. No foreign W/Z identification, aggregate status
+or production cutover follows from this local result.
+
 Three further constructor bottlenecks now have complete scoped proofs and
 independent mathematical/specification review; the
 [integration record](../notes/progress/2026-10-08-native-constructor-theorems-review.md)
