@@ -3978,3 +3978,15 @@ final-root extraction, decode, and Direct checking. Authentic source-owner
 telescopes, full H-bridge, import/general SCC cases, principality, approved
 Direct checker choice, and replacement/cutover remain open. No compiler code,
 tests, builds, or benchmarks ran; no inference gate is promoted by this note.
+
+The bounded owner-to-consumer inventory is now checkpointed at `9b1202ff3`
+in `notes/progress/2026-10-08-id-pick-owner-consumer-manifest.md`. It maps
+selected fields to actual current producers/consumers, scopes, lifetimes and
+transfer/drop boundaries, and marks missing H-bridge/local-law/source-owner
+suppliers explicitly. The `z=0`/`z=1` fixed-import distinction and alias versus
+separate-new frame obligations are recorded. The note is an unreviewed static
+manifest, not an implementation or readiness certification. The next gate is
+an architect-owned producer/layout packet for the canonical source record
+package, with every absent supplier assigned or retained as an explicit open
+owner. No representation, placement/failure policy, pick producer scope,
+Direct consumer integration, or implementation authority is selected here.
