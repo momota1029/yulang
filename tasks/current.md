@@ -4014,3 +4014,17 @@ repository-wide absence claim. No code or executable checks ran. Next: compare
 the selected L4 source contract with compile/session entrypoints to identify
 the smallest authentic world/registration input owner before drafting further
 production layout or placement choices.
+
+The L4 contract/entrypoint comparison confirms that L4 is a genuine semantic
+premise, but the selected definitions do not assign initial-world construction
+to the compilation caller or to a compiler-owned factory. Lambda formation,
+literal installation and capture have selected source rules; none creates the
+initial world or supplies its genuine registration evidence. Current
+`lower_module`/`SemanticImports`, `ConstraintBatch::collect`, and
+`SolvedModule::solve` expose no such context seam, and default core/backends
+provide no runtime owner. Thus caller-versus-compiler context ownership remains
+an architecture question only if source-constructor tracing cannot locate an
+existing authentic owner. Next: trace one genuine initial-context constructor
+and Lambda registration to the selected id anchor, then extend through
+literal-install/capture for pick. No fabricated empty world or opaque
+validity flag is accepted as a supplier.
