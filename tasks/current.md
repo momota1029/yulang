@@ -5258,3 +5258,22 @@ caller context, or establish the precise authority conflict that needs a user
 decision. No further general absence search is useful. The proof and
 production correspondence gates, and F5 cutover, remain open; no code, tests
 or builds changed.
+
+The follow-up [local scope/port construction](../notes/progress/2026-10-09-hreg-local-scope-port-schema-attempt.md)
+narrows the owner again. Selected Signature-Incidence injections preserve a
+complete dependent port and guard package once an actual typed local port is
+supplied; `LocalOrigin` and `Op` consume its original introduction, typing and
+license. Uniform Value Entry assigns the designated one-layer port and its
+Intrinsic evidence to actual Parameter formation. Therefore the previous
+pre-Parameter registration/IF0 ordering remains only a candidate recipe: its
+field split cannot move Parameter-owned Intrinsic evidence earlier without a
+new derived phase. Independent compiler-referee and spec-auditor reviews found
+no actionable findings in this bounded characterization. The exact unresolved
+input is now one authentic Parameter-local port/scope introduction at the
+caller insertion site, with its ordered dependency telescope and complete
+guard presentation; neither caller JointWF nor structural support supplies it.
+No specific guard atom or actual caller application was produced. Next work
+must construct that local owner rule and apply it once, without another
+assumed-rule or broad absence probe. Commit `5e64fc6be` preserves this result;
+Hreg, all aggregate gates, implementation authorization and F5 cutover remain
+open.
