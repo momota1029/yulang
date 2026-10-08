@@ -1663,7 +1663,10 @@ construct or consume the selected `ScopedClosure` certificate, and actual
 source/compiler identification remains open. Internal SCC sharing,
 activation liveness, split/merge/rebuild, dependency completeness and atomic
 publication also remain open. The node stays `OPEN-PROOF`; a focused independent
-review of this scope crosswalk is pending before theory-map synchronization.
+compiler-referee review found no issue in this bounded source-partition scope;
+no aggregate promotion follows. Canonical-ledger wording is being synchronized
+separately to distinguish the supplied native subclaim from its production and
+lifecycle residuals.
 
 The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)
 minimizes the missing producer to the five-node
