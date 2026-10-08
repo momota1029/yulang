@@ -1640,6 +1640,27 @@ The current F5 Q/R inventory does not determine that boundary, and successor
 representation need not preserve F5's Q/R layout.
 See the [focused crosswalk record](../notes/progress/2026-10-09-shadow-source-use-current-qr-crosswalk.md).
 
+### FRESH_LIFE native source-partition adjudication
+
+A subsequent source-theorem crosswalk finds that this exact partition
+construction is already supplied on the selected native source side, within
+its declared local-law envelope. Source Generalize §§3.3–5.2 derives the
+publication/root-indexed retain/fix walk, original scoped eligible declarations,
+whole relation, captures/imports and coherent incoming-use allocation before
+solutions. SRC/SRC-J/GS/GC prove the corresponding joint finite source-use
+fibers. Uniform inlet plus PE-ID instantiate the import-free `id` case; PE-PICK
+constructs the finite public-import `pick` case while fixing `J_0` and its free
+dependency closure. These facts are produced by source constructor records,
+not inferred from F5 Q/R ordinals.
+
+This supplies the bounded **source partition** leaf for those native cases. It
+does not close `FRESH_LIFE`: ordinary F5 and the default-off candidate do not
+construct or consume the selected `ScopedClosure` certificate, and actual
+source/compiler identification remains open. Internal SCC sharing,
+activation liveness, split/merge/rebuild, dependency completeness and atomic
+publication also remain open. The node stays `OPEN-PROOF`; a focused independent
+review of this scope crosswalk is pending before theory-map synchronization.
+
 The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)
 minimizes the missing producer to the five-node
 `call(result(name f),result(name x))` proof cut. Source generation `H_gen`,
