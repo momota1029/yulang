@@ -2,7 +2,7 @@
 
 Date: 2026-10-08
 Branch: `research/simple-sub-intrusion`
-Status: two reviewed conditional artifacts; JOINT_DEC remains OPEN-PROOF
+Status: six reviewed conditional artifacts; JOINT_DEC remains OPEN-PROOF
 Authority: no semantic or production authority added
 
 ## Scope and decisions
@@ -83,6 +83,46 @@ general State/recursive cases were not certified.
 Adjudication: accept the owner cut and conditional lift under their stated
 premises. No semantic definition, source language, or production gate changed.
 
+### Native id joint-witness representation and owner cut
+
+The [relative finite-code transport](2026-10-08-joint-witness-representation-constructive.md)
+was independently reviewed at SHA-256
+`3f7fc08e07e497aab5d155abe2b87e4ee4d89b16ccbe1a37938c9dfd232fe21b` by a
+compiler-referee. The review found no BLOCKING, major or minor issue in the
+conditional transport theorem. It confirmed preservation/reflection for
+arbitrary original residual predicates under the supplied effective input-code
+and replay hypotheses, while confirming those hypotheses are not supplied by
+Joint-ID, PE-ID or the native export. This is a relative transport result, not
+a finite code construction for every admitted argument or a residual solver.
+
+The independent [prefix-quotient mutation counterexample](2026-10-08-joint-witness-representation-counterexample.md)
+was reviewed at SHA-256
+`cdb0c2af8db72cd25193efc2002ddbb8916c0c14882b0d30fd71cf43d6f8a301` by a
+compiler-referee. No BLOCKING, major or minor issue was found. Under H1–H4,
+merging Unit and Bool description prefixes while retaining the original
+`Eq(J.payload, Unit)` observer violates EPR clause 3's prefix-local lift.
+The observer's actual source emission is not established; the counterexample
+does not apply to bare `id` or refute JOINT_DEC.
+
+The [native-id source-owner correspondence](2026-10-08-joint-witness-source-owner-correspondence.md)
+was reviewed at its pre-repair SHA-256
+`ad46e0959ef97e85427a423ec74a70ed0c303eed177210e1d3504ab38844feaf`. The
+compiler-referee found no BLOCKING or major issue and one minor precision
+issue. The primary corrected EPR.1 to require a finite layered presentation
+and semantic map on legal original prefixes, leaving inhabitance/reflection
+with EPR.3–4, and corrected the `ResolvedExpr::Lambda` locator. The final note
+is a conditional source/implementation map; it does not claim that Rust
+discarded a semantic witness it never constructed. The missing effective
+inhabited-cell reflection, whole-prefix classification and replay remain A
+correctness obligations; retaining genuinely constructed owner records may
+prevent D reconstruction debt but cannot prove those laws.
+
+Adjudication: accept all three research results within their exact scopes.
+Retain `JOINT_DEC` as OPEN-PROOF and preserve its required-before-cutover
+status. The source-owner audit used read-only Git inspection contrary to its
+packet's no-Git instruction; no index or ref changed, and the artifact records
+the deviation. No code, tests, builds or measurements ran.
+
 ## Verification and omissions
 
 - Constructive review baseline: `6967ac589`; repair baseline:
@@ -102,4 +142,9 @@ premises. No semantic definition, source language, or production gate changed.
 Find an effective representation and reflection law for the exact native
 `id` J/strategy witnesses identified by the owner cut. Preserve arbitrary
 original joint residuals, binder order and simultaneous witness identity.
-Keep `JOINT_DEC` OPEN-PROOF unless its complete prerequisites are discharged.
+The relative transport only needs an already-coded strategy; the source audit
+locates no such effective owner, while the conditional mutation shows why
+prefix keys must preserve actual J-observers. Next, derive an independently
+interpreted effective witness interface for one complete native J/current-
+context family, addressing EPR.3–4 and ER. Keep `JOINT_DEC` OPEN-PROOF unless
+its complete prerequisites are discharged.

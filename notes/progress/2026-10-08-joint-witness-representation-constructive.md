@@ -1,7 +1,7 @@
 # Native id joint witnesses: a relative finite-code construction
 
 Date: 2026-10-08
-Status: unreviewed conditional derivation; frozen research checkpoint
+Status: reviewed conditional derivation; JOINT_DEC remains OPEN-PROOF
 Gate: JOINT_DEC remains OPEN-PROOF
 Implementation authority: none
 Baseline: `2e2adc88e93d3aadd8079e764d58e25af786019b`

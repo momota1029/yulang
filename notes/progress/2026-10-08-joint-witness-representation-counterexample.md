@@ -1,7 +1,7 @@
 # Native checked-J witnesses: a conditional prefix-quotient counterexample
 
 Date: 2026-10-08
-Status: unreviewed research; conditional mutation counterexample
+Status: reviewed conditional mutation counterexample; no native-source claim
 Baseline: `2e2adc88e93d3aadd8079e764d58e25af786019b`
 Branch: `research/simple-sub-intrusion`
 Lease: this file only; frozen on submission

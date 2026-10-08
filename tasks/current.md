@@ -2193,7 +2193,20 @@ J/Car/context evidence plus one supplied joint strategy. The absent step is an
 effective representation and reflection law for those joint J/strategy
 witnesses; finite proof recognition does not provide it. Next, target that
 exact witness family while preserving arbitrary residuals and original
-quantifier order.
+quantifier order. The [relative native-id witness transport](../notes/progress/2026-10-08-joint-witness-representation-constructive.md)
+now proves a finite typed code transport only when the complete input strategy
+already has an effective faithful code; independent review found no issue in
+that conditional theorem. The [prefix-erasure counterexample](../notes/progress/2026-10-08-joint-witness-representation-counterexample.md)
+shows that a proposed key merging Unit/Bool prefixes fails EPR.3 if an original
+`Eq(J.payload, Unit)` observer is active; review passed, but that observer's
+actual source emission is unproved. The [source-owner correspondence](../notes/progress/2026-10-08-joint-witness-source-owner-correspondence.md)
+maps 21 witness coordinates to selected source owners and current Rust seams.
+Its review confirmed that missing inhabited-cell reflection, whole-prefix
+classification and replay are semantic A obligations, not facts currently
+known by Rust and discarded; the sole minor precision finding was repaired.
+These results narrow the next step to an effective J/current-context witness
+interface and prefix-local EPR.3–4/ER laws. `JOINT_DEC` remains OPEN-PROOF;
+no production code or compiler checks ran.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only

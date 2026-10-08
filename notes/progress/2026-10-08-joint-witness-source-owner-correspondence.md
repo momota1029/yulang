@@ -3,7 +3,7 @@
 Date: 2026-10-08
 Baseline: `2e2adc88e93d3aadd8079e764d58e25af786019b`
 Branch: `research/simple-sub-intrusion`
-Status: unreviewed bounded source/implementation correspondence; research only
+Status: reviewed conditional source/implementation correspondence; research only
 Gate/method: JOINT_DEC; one native-id source chain, scoped witness-owner audit
 Exclusive lease: this file only; frozen on submission
 Implementation/API/semantic authority: none; JOINT_DEC remains OPEN-PROOF
@@ -68,7 +68,7 @@ Narrow Rust anchors used below:
 | Anchor | Inspected code and actual retained information |
 | --- | --- |
 | H0 | `crates/yu-hir/src/module.rs:106,867`: SemanticImports is an opaque unit input with only empty construction; lower_module accepts identity, parsed source and that import input. No JointWF/context evidence parameter. |
-| H1 | `module.rs:378,443,1289,1338`: HirParameter has id/name/range; Lambda has occurrence/parameter/body/range; lower_plan mints the parameter and wraps the body. NameResolution::Parameter retains lexical identity. |
+| H1 | `module.rs:378,461,1289,1338`: HirParameter has id/name/range; the ResolvedExpr::Lambda variant has occurrence/parameter/body/range; lower_plan mints the parameter and wraps the body. NameResolution::Parameter retains lexical identity. |
 | H2 | `module.rs:631`: evaluation_class assigns FetchValue to this Lambda/Name form. That is an evaluation classification, not a Car, world or invocation certificate. |
 | S0 | `crates/yu-solver/src/lib.rs:697,796,855,1717`: LambdaRecipe and ConstraintBatch retain source occurrence/parameter/component positions and structural fact ordering. For the same-parameter body, emit_lambda sets body_value_component=None and retains body effect positions. |
 | S1 | `lib.rs:9755,10790`: startup allocates the parameter value row; admit_lambda_fact uses its negative argument and positive result endpoints, then emits positive_function_term(argument, empty, body_effect, result) below the root. This preserves a type-row link, not a decorated provider/world/proof tuple. |
@@ -168,7 +168,7 @@ the owning source constructors:
 
 | Effective request | Source contribution | Exact unsupplied premise |
 | --- | --- | --- |
-| EPR.1 finite effective residual presentation | Finite inlet/VP/local-proof/source grammar schemas | Terminating construction of inhabited joint residual states for complete J/Car/context/strategy tuples. Finite syntax is not finite semantic witness range. |
+| EPR.1 finite effective residual presentation | Finite inlet/VP/local-proof/source grammar schemas | Terminating construction of a finite layered residual presentation and a certified semantic map for every legal original prefix. This alone does not require every auxiliary state to represent an inhabited tuple. |
 | EPR.2 forward extension | Above conditional same-prefix action; P's legal history domains | A map q_n preserving every active predicate under a proposed abstraction, including all original choices. No such abstraction is selected here. |
 | EPR.3 prefix-local backward extension | PackGeneric and native action extend the supplied original prefix | Every listed abstract child must have a legal lift at **each fixed concrete prefix** in its fiber. Native transfer of an already coherent witness does not supply a witness in an empty or incompatible fiber. |
 | EPR.4 exact terminal labels/evidence | delta_check/L eliminators derive their conclusions from genuine premises | Effective joint cell decision/reflection for all actual retained predicates, not only recognition of a submitted proof or structural payload witness. |
@@ -227,6 +227,14 @@ despite the assignment's stricter no-Git-operations wording. HEAD matched the
 pinned SHA, initial status was clean and the inspected dependencies had no
 baseline differences. This was disclosed to the primary. Subsequent checks
 use filesystem reads and SHA-256 only; no index/ref was mutated.
+
+Independent compiler-referee review at the pre-repair artifact SHA-256
+`ad46e0959ef97e85427a423ec74a70ed0c303eed177210e1d3504ab38844feaf` found no
+blocking or major issue and one minor precision issue: EPR.1 should describe
+finite presentation construction and the map for legal prefixes, while
+inhabitance/reflection belongs to EPR.3–4. The primary corrected that wording
+and the HIR Lambda source locator (`443` -> `461`) without changing the
+conditional claim or gate status.
 
 Resources: lightweight read commands and one leased note write; no compute
 probe/build/test processes or generated output paths. Independent reads were
