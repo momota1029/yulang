@@ -4554,9 +4554,18 @@ falsification found no counterexample to coherent transport fixing rigid
 identities, and gives an admitted wrong-root operand discriminator. A bounded
 default-path code map found no production PE Extract/Decode/certificate/
 Direct counterpart: current inference still uses F5 Q/R routing, with the
-closed-scheme decoder test-only. These notes are unreviewed and do not close
-IFACE_EQUIV, FRESH_LIFE, or CUTOVER. Independent mathematical and exact-scope
-reviews are pending. No code, tests/builds, API, or F5 routing changed. Next:
-adjudicate both reviews, then trace the actual source owner of the complete
-input/image predicate and its identity action; keep production correspondence
-and all aggregate statuses open.
+closed-scheme decoder test-only. Independent `compiler_referee` and
+`spec_auditor` reviews of the frozen construction passed with no blocking,
+major, or minor findings. They certify only the stated structural commutation
+and exact PE-scope boundaries; the semantic covariance premises,
+implementation behavior, and aggregate gates remain unproved. The
+falsification report remains bounded research evidence. No code, tests/builds,
+API, or F5 routing changed. The follow-on owner map locates
+`I_q[A;Delta]` at Parameter-owned `ValueInletSchema` formation. The complete
+port/result image `m` is checked from an independently supplied J, carrier,
+hereditary evidence and whole-image proof at their original telescope. PE
+retains and decodes this data but does not prove its covariance. The scoped
+Rust survey found no production counterpart for this inlet/image or its
+certificate. Next: inventory every identity read in `m` and its checking
+tree, then establish whether the owning local laws supply typed forward and
+inverse actions; keep production correspondence and aggregate statuses open.
