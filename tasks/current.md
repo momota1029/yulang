@@ -2766,6 +2766,21 @@ immediate missing implementation seam is ordinary source/HIR Call formation
 with typed argument/result origins; solver replacement alone cannot satisfy
 the objective.
 
+A parser-to-HIR map refines this: `my invoke f = f 1` already parses without
+syntax errors as a structural `MlArgument` tail, and shadow source joins retain
+the exact callee and integer occurrences. Ordinary `lower_simple_chain`
+rejects the associated two-child expression before operand resolution; the
+existing shadow constructor reuses the same source evidence and local-first
+parameter resolution but keeps `UnsupportedExpression`. HIR containment is
+through Lambda/Apply child fields; occurrence IDs alone do not encode parent
+ownership. The exact semantic HIR seam is body lowering/classification, not
+parser acceptance or identity creation. Authoritative F5 explicitly excludes
+expression application typing, and the production Apply design remains Draft
+without implementation authority. Thus this objective extends the approved
+F5 source envelope and needs a reviewed semantic successor plus its existing
+approval gate before ordinary Apply typing can be enabled. The map used only
+source/test inspection; no tests/builds ran.
+
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
 and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
 (with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
