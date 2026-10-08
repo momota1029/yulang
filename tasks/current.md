@@ -4404,3 +4404,25 @@ choose an anchor arm from HIR shape, or resolve API/storage/failure choices
 before this evidence exists. The F5 replacement, H-bridge, principality and
 resource/failure gates remain open. Details and review scopes:
 [SourceBuild input-cut integration](../notes/progress/2026-10-09-sourcebuild-input-cut-review.md).
+
+### Native projection renaming sublemma toward IFACE_EQUIV (2026-10-09)
+
+The bounded [PE fixed-fiber derivation](../notes/progress/2026-10-09-native-projection-interface-equivariance.md)
+and complementary [identity-observer/falsification characterization](../notes/progress/2026-10-09-native-projection-interface-equivariance-falsification.md)
+are checkpointed and pushed. Independent `compiler_referee` and `spec_auditor`
+reviews passed. The derivation proves structural renaming for selected PE-ID
+and finite PE-PICK records, forced-alias F/G maps, supplied extraction/decode
+outputs, and finite Direct proof recognition when every external operation
+receives the same complete operands. The companion inventories rigid identity
+readers and shows why moving two equal-sort registered slots while fixing the
+world is an inadmissible mutation. Existing phase-constructor §6 and uniform-
+inlet §7.1 results are reused at their exact scopes.
+
+This is a design-level structural sublemma. Changed-operand covariance for
+opaque registry, admission, VP/history, hereditary, Strict/Exit and allocator
+operations remains unsupplied; the current default F5 publication/use path has
+no PE export or CI-use consumer. Neither IFACE_EQUIV nor CI_USE, FRESH_LIFE or
+production correspondence closes here. No implementation or tests/builds
+occurred. Next: trace one selected decode/new operation to its actual identity
+inputs and supply or isolate its changed-operand law; separately preserve the
+default-path integration gap as a required F5 replacement deliverable.
