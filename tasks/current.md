@@ -4967,14 +4967,37 @@ relation, the authentic ground-literal rule plus PE-PICK constructs the
 monomorphic `J_1` for `my one=1`, retaining provider `p_1` and its whole
 hereditary contract. That binding is a different provider path from the literal
 occurrence in `f 1`. For the latter, selected `Application_N` supplies its own
-N-owned argument reify/Delay origin, but the typed attachment to the original
-Call consumer, the complete carrier evidence at both actual roots, and the
-cross-root scope/event pairing remain open. If those producers are supplied,
-id returns `(1,p_a)` for the actual `f 1` literal provider, while Fixed
-requires `(0,p_0)`; this would still require an approved `Valid_V` witness
-before it could refute ALL_VIEW. Next: construct or
-rule out the N-to-original consumer attachment and then the complete pairing;
-audit `Valid_V` eligibility separately. Keep the arbitrary
-U/`E_U` gap and opaque operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW and
-PRINCIPAL unchanged. No compiler changes, tests, builds or production authority
-follow.
+N-owned argument reify/Delay origin. The [conditional N-to-original
+construction](../notes/progress/2026-10-09-n-to-original-consumer-construct.md)
+separates six original operands: literal registration; complete Return,
+prefix and future transport; original ReifyOrigin; emitted checking/Call
+origins; output/consumer attachment; and semantic applicability. Granting the
+Draft `Original-ResultLiteral` removes only the first cut. The conditional
+Delay derivation still assumes the actual Return-kernel action and does not
+establish source acceptance.
+
+The [downstream action discriminator](../notes/progress/2026-10-09-n-to-original-consumer-falsification.md)
+grants singleton lossless Return transport and static origins, then shows that
+a hypothetical legal action swapping two N checking alternatives while fixing
+the two original alternatives prevents any lossless equivariant map, despite
+equal fiber sizes. That action's source license is unproved, so this is a
+conditional obligation diagnostic, not a source counterexample or a new
+semantic gate. The current HIR/core map retains structural Apply/literal IDs
+and incomplete endpoints but no typed Result, Delay, emitted check, carrier or
+consumer certificate.
+
+The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
+confirms that no exhaustive selected `Valid_V` constructor was found and Draft
+`V_alloc` is not adopted. It distinguishes the hypothetical actual-0 H/t
+carrier with a nonexecuting Return(1) from actual `f 1`'s Return(1) witness.
+If the latter were lawfully paired/admitted at id, its result conflicts with
+Fixed(0); that excludes this instance from the sufficient same-callable
+containment-valid route, not from every possible `Valid_V` criterion. The
+`IF_pick`/`IF_id` whole scope/event/admission pairing, arbitrary-U Force law,
+and semantic-to-L completeness remain open. Two requested independent review
+roles were unavailable because their selected models were at capacity; these
+new artifacts remain unreviewed conditional research. Next: inspect the
+authentic whole-argument-check owner action for the N/original incidences and
+construct its same-tuple lawful transport, while keeping the pending literal
+owner decision and all aggregate gate statuses unchanged. No compiler changes,
+tests, builds or production authority follow.
