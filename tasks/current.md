@@ -4812,3 +4812,20 @@ owner-provided `B_common`/`Q_common` formation and a proof that the active
 common root is this same `u_i`; PE-ID explicitly forbids substituting an
 interior identity synthesis root for a distinct common or annotation root.
 ALL_VIEW, PRINCIPAL and production correspondence remain unchanged.
+
+The follow-up common-root owner map confirms that the selected contracts do
+not identify the native identity `B_common` with PE-ID's actual decoded root
+`u_i`. The common-allowance proposal requires its own guarantee inventory,
+allowance scope, active descriptor/admission/membership/production equations,
+and direct-check certificates in `Q_common`; its totality witness is not a
+solution equation. PE-ID supplies the actual `u_i` and explicitly excludes
+substituting an interior synthesis root when another common or annotation root
+was selected. The approved root-policy answer says adopting the common-
+allowance proposal does not follow from selecting transformed public export.
+No authentic native-id common-formation instance or identity bridge is
+recorded. This is a genuine unresolved design/owner seam, not evidence against
+the bounded `Direct(u_i, ...)` result. Do not identify the roots by convention
+or implement the common-allowance construction without a separate reviewed
+design and explicit approval. Next: resolve the intended common-root producer
+and its relation to decoded `u_i`, then supply its actual `Q_common` checks;
+ALL_VIEW and PRINCIPAL remain open.
