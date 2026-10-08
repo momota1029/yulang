@@ -4497,3 +4497,16 @@ selected. No implementation, tests/builds or F5 route changed. Next: decide
 the caller/admission envelope and its authentic law producers, then define the
 resource schedule and source/root publication bridge before any implementation
 approval.
+
+The [annotation-caller audit](../notes/progress/2026-10-10-pe-annotation-caller-audit.md)
+checked whether existing `as Type` syntax can serve that caller. It cannot in
+the default path: syntax retains the annotation structurally, production HIR
+rejects child-bearing expression annotations and typed pattern annotations,
+and no `ResolvedExpr`/solver check constructor consumes them. Shadow records
+only pending typed-port/profile incidence. Thus routing Direct through `view`
+would require a new source/compiler contract; an internal checker boundary
+would avoid syntax changes but still would not replace F5. An independent
+regression review passed after correcting one exact branch locator. No code,
+tests/builds, API or source semantics changed. The caller/admission choice is
+now the explicit next design decision; all independent owner/local-law and
+resource work remains open.
