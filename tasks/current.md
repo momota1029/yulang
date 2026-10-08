@@ -4755,3 +4755,16 @@ owner contract is absent, return that exact seam for authority resolution.
 Separately locate the Old module producer/eliminator declaration or a typed
 realization to its existing emission fiber. The overall inference/F5 replacement,
 Call/C0, H-bridge, principality, implementation and cutover gates remain open.
+
+A bounded original-registration owner scan at `a3c7efa6a` found no selected
+constructor signature/action deriving `T`, `C_src`, `q`, registration and anchor
+for this source from caller-owned JointWF plus the resolved binding. The source
+call owner document assigns responsibility but supplies no definition-register
+constructor; selected signature packaging and inert-root installation consume
+registrations rather than create this one. Current Rust `SemanticImports` is
+unit-backed and `lower_module` ignores it; its branded definition/parameter
+handles are structural only. This is not a repository-wide absence claim.
+Next for this seam is to recover or define the exact original registration
+constructor and one caller-context application before deriving any telescope.
+Do not fill it with an empty telescope, SCC cardinality, or an anchor inferred
+from empty captures. No DAG status or production authority changes.
