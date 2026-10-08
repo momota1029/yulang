@@ -606,16 +606,36 @@ was checkpointed in `7eab2767f`.
 ### Immediate work order
 
 1. Obtain and independently review the actual source-owned Application package
-   for the flat inner `f 1`: emitted Gen-Call-0 membership at its dependent
-   indices, registration/route/seed where applicable, and authentic literal
-   Result/Delay/Reify, VIncl, WholeArgCompatible and complete-result origins.
-   Do not infer this package from the shadow candidate's `Int` fact.
+   for the flat inner `f 1`. The frozen conditional
+   [source Code/Check derivation](../notes/theory/2026-10-08-flat-apply-code-call-source-instantiation.md)
+   now constructs child Name/Result, literal Result/Delay, both Lambda
+   skeletons, and the dependent ReceiveSchema from existing source constructors.
+   Independent compiler-referee review found no issue in that conditional
+   scope. It narrows the missing package to authentic original Application
+   origins at the actual dependent indices: emitted Gen-Call-0 membership,
+   registration/route/directional seed where applicable, and the original
+   literal Reify/result-port, checking and complete-result links. It does not
+   equate the reference schema with those original records. Do not infer this
+   package from the shadow candidate's `Int` fact.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
 3. Keep the conditional Record-result lane behind its actual H-R/H-K owner
    laws; current production HIR, solver terms and closed types do not provide
    Record construction or complete `K_box` laws.
+
+The frozen [bounded directional source inventory](../notes/theory/2026-10-08-directional-source-upper-exposure-coverage.md)
+constructs and inverts direct-Name Call upper demands for its displayed finite
+ordinary-core grammar. It composes the already selected seed derivation for
+the approved unannotated and exact captured examples, without using solved
+shape or Q. Independent spec review found no conformance issue. This is not
+whole-source upper-rule coverage: annotation boundaries, recursive seed
+applicability, computed callees and later seeds retain their owning source
+premises. The retired E/R framing stays superseded by the directional rule.
+The next annotation work is constructor-specific: derive or isolate its
+annotation-upper occurrence and the `ProtectedVarAt` applicability premises
+under approved annotation-scoped `[io]` permission, without deriving seeds
+from syntax alone.
 
 ### Post-PE higher-order and constructed-result frontier (2026-10-08)
 
