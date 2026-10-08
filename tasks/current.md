@@ -5183,3 +5183,21 @@ normalized target `T_a`, and original scope/occurrence correspondence. Typed
 contribution incidence, lawful local realization, and C5 seed/exposure remain
 later obligations. No compiler slice is authorized by this mapping or the C5/C6
 checkpoints; keep the production and cutover gates open.
+
+The historical annotation route is separate from current-branch F5. On this
+branch, `plain_binding_header` in `crates/yu-hir/src/lib.rs` rejects grouped
+annotations and ordinary `ResolvedExpr` lowering does not admit body Apply,
+so there is no current F5 annotated-formal removal path. Frozen `main` at
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` contains the older Oracle route:
+`crates/infer/src/lowering/annotation/constraints.rs` connects an
+`AnnType::Function` with `[io]` at `ret_eff`; `lambda.rs` builds family/depth
+stack predicates, `tail.rs::make_app_with_origins` applies formal call
+predicates, and `poly/src/expr.rs::ArgEffectContract` records family
+path/depth markers. Those markers do
+not retain the selected C6 annotation-to-contribution incidence or lawful
+local removal witness, and historical stack behavior is not semantic authority.
+The next useful bridge is one authenticated annotation occurrence with its
+typed return-effect position and direct boundary evidence, then a same-family
+two-position check for contribution attribution. No runtime or test behavior
+was executed, and this crosswalk grants no compatibility or implementation
+approval.
