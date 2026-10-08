@@ -3990,16 +3990,18 @@ query attempts to one compilation budget. The proposal explicitly leaves
 numeric limits, full local-law owners and actual caller integration as gates.
 No code, tests, builds or measurements ran.
 
-The exact checker-architecture choice is now in pending question q1 at
-`questions/2026-10-08-native-direct-consumer/question.md`; it is not committed
-or treated as approval. Until resolved, checker implementation waits. The
-independent next production step is a source/HIR-to-public-root input/output
-and lifecycle manifest for the existing caller-managed F5 path, while keeping
-the authentic Parameter telescope, general H-bridge, principality and full F5
-replacement gates open. The reviewed Direct proposal is
+Question q1 selected the reviewed flat-arena proposal as the checker-only
+architecture direction (approved d1; integrated in `852f70117`, receipt at
+`questions/2026-10-08-native-direct-consumer/receipt.md`). The proposal is
 `notes/design/2026-10-08-native-direct-consumer-plan.md`, SHA-256
-`1947eff96d4450f33f446988e75f5d818bf5d75b641bdbfbfbb0d0dc2e6aae60`; it
-remains uncommitted pending the scoped user decision.
+`1947eff96d4450f33f446988e75f5d818bf5d75b641bdbfbfbb0d0dc2e6aae60`. This
+does not authorize implementation, a public API, source semantics, inference
+routing, production use or F5 replacement. Next: map exact caller and
+local-law owners and set numeric limits against the supported caller envelope;
+checker implementation remains gated on those reviewed design choices. The
+independent source/HIR-to-public-root lifecycle manifest and existing F5
+crosswalk continue, with authentic Parameter telescope, general H-bridge,
+principality and full F5 replacement gates open.
 
 ### Current F5 id/pick public-surface crosswalk (2026-10-08)
 
