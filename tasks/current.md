@@ -3111,3 +3111,13 @@ review. Adoption, exact correspondence if required, flat seed, CallInitial/I0,
 admission, solving/export/principality and Gate E remain open. No tests, builds,
 implementation or DAG status changes occurred. The proposal checkpoint is
 synchronized with `origin/research/simple-sub-intrusion`.
+
+Both assigned reviews now pass for the proposal's stated fresh-family,
+conditional scope. The compiler-referee found no blocking, major or minor defect;
+the spec-auditor found no conformance issue. Primary adjudication retains one
+future realization obligation: the proposal's `R_a = Comp(empty, Int)` must be
+identified against the kernel's exact Return image `J_a` before claiming
+original consumer realization. This is not a defect in the proposed grammar,
+and the note leaves natural applicability/open realization work unresolved;
+do not silently treat the bridge as identity. The reviews do not establish
+historical-original correspondence, adoption, or downstream gate closure.
