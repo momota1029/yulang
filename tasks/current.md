@@ -4072,14 +4072,15 @@ Next: resolve the authentic initial-world owner before selecting a compiler
 context API or adding production metadata. No tests, builds, measurements, or
 implementation ran; no gate promotion.
 
-The owner decision is pending q1 at
-`questions/2026-10-08-l4-initial-jointwf-owner/question.md`. It asks whether
-the caller supplies genuine initial `JointWF` evidence or Yulang constructs the
-initial context under independently specified world rules. Until answered,
-context API/factory work and dependent SourceBuild freezing wait. Selected
-source-theory work that treats L4 as a premise and other independent inference
-gates remain active. The question directory stays untracked and excluded from
-checkpoints; its publication is not approval or implementation authority.
+Question q1 selected caller-supplied authentic initial `JointWF` evidence
+(approved d1; integrated in `9598eee7a`, receipt at
+`questions/2026-10-08-l4-initial-jointwf-owner/receipt.md`). This settles only
+the producer owner. It does not define the context API, evidence validation,
+storage/lifetime, versioning or invalidation, and authorizes no implementation
+or cutover. A reviewed durable context-input contract and exact dependency
+owners remain prerequisites before implementing the caller seam. Dependent
+SourceBuild freezing still requires genuine local-law and source/HIR
+correspondence suppliers; independent inference gates remain active.
 
 ### Independent proof and source-owner research checkpoints (2026-10-08)
 
