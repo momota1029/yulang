@@ -5340,14 +5340,21 @@ The bounded [native caller/resource-schedule cut](../notes/progress/2026-10-10-n
 narrows that caller task: SRC §3.4 `view(h,q,V)` annotates an actual source
 checking rule and is not itself an executable operation; published `id` plus
 monomorphic alias does not supply that checking occurrence. The inspected
-default path still has no established native occurrence producer, ordinary
-PE-root store or Direct consumer. Consequently the caller's retry/retention
-schedule is also missing, so numeric work/byte caps cannot be selected from
-the conditional Python checker or F5 counters. Static counterexamples show
+default path still has no established semantic annotation elaborator,
+ordinary PE-root store or Direct consumer. Consequently the caller's
+retry/retention schedule is also missing, so numeric work/byte caps cannot be
+selected from the conditional Python checker or F5 counters. Static
+counterexamples show
 dependency tuple length, payload bytes and repeated calls are separate budget
-dimensions. Compiler-referee and spec-auditor review found no actionable
-findings within their assigned scopes. This remains non-authoritative
-research: no semantic or implementation gate changed. Next action is an
-authentic source checking-rule application with its target/proof supplier and
-attempt schedule; preserve the
-Hreg no-repeat stop. No tests, builds, benchmarks or mutation probes ran.
+dimensions. The reviewed [annotation-to-Direct owner crosswalk](../notes/progress/2026-10-10-as-boundary-direct-crosswalk.md)
+confirms approved expression `as Type` supplies an authentic source check
+occurrence `q`, correcting the broader caller wording in the prior note. The
+actual HIR path still rejects that expression before solver constraints; its
+source target/current endpoint are not mapped to Direct's complete ordinary
+roots and proof. The compiler-referee and spec-auditor reviews closed with no
+remaining findings after one minor HIR owner-locator correction. This remains
+non-authoritative research: no semantic or implementation gate changed. Next
+action is an owner-produced annotation package for exact roots, scope and
+proof-only versus executed conversion, then its actual attempt schedule.
+Preserve the Hreg no-repeat stop. No tests, builds, benchmarks or mutation
+probes ran.

@@ -10,20 +10,24 @@ none
 
 ## Result
 
-The selected native Direct direction does not yet have a concrete source
-checking occurrence or compilation-scoped attempt schedule to which a Rust
-caller can be connected. This is now a narrower gap than “caller and resource
-limits are unknown”:
+For the selected published unannotated `id` plus monomorphic Alias path, the
+compiler caller and compilation-scoped attempt schedule remain absent. The
+path itself supplies no `view` occurrence. A separate approved expression
+`as Type` boundary does supply an authentic source checking occurrence `q`, as
+the later [annotation-to-Direct crosswalk](2026-10-10-as-boundary-direct-crosswalk.md)
+records. The remaining typed producer gap is narrower than “caller and
+resource limits are unknown”:
 
-1. SRC §3.4's `view(h,q,V)` is notation annotating an actual source checking
-   rule, not an additional executable operation. The selected `id` plus alias
-   path supplies an incoming polymorphic Name `Instance` and one monomorphic
-   rebind, but does not itself supply a `view` occurrence.
-2. The inspected ordinary HIR/solver path has no established native
-   checking-occurrence producer, ordinary-root store, or Direct consumer.
-   Existing scalar Q/R instantiation is not a whole-frame PE decode. The
-   feature-gated shadow application path does not establish a native Direct
-   caller.
+1. SRC §3.4's `view(h,q,V)` annotates an actual source checking rule; it is
+   not an additional executable operation. The selected `id` plus alias path
+   supplies an incoming polymorphic Name `Instance` and one monomorphic
+   rebind, but does not itself supply a `view` occurrence. The separately
+   approved `as Type` form supplies `q`, but not the exact roots, proof,
+   original typed correspondence or caller schedule.
+2. The inspected ordinary HIR/solver path has no established semantic
+   annotation elaborator, ordinary-root store, or Direct consumer. Existing
+   scalar Q/R instantiation is not a whole-frame PE decode. The feature-gated
+   shadow application path does not establish a native Direct caller.
 3. Therefore the candidate construction/retry schedule, retained environment
    lifetime, session failure behavior, and concurrency admission are not
    determined. Numeric work/byte limits cannot be derived from the current
@@ -100,19 +104,21 @@ old/new reservations. A flat arena alone does not settle these quantities.
 
 ## Next evidence and stop condition
 
-Obtain one authentic source checking-rule application and establish who
-constructs its target/proof, when it invokes Direct, what retries after a
-failure, which decoded roots/proofs remain live, and whether exhaustion ends
-the compilation or permits fallback. Then define metering units against the
-actual finite representation and attempt schedule before selecting numeric
-limits. Do not infer these from F5 Q/R rows or from the Python fragment.
+Connect the authentic `as Type` occurrence to a producer for its current
+ordinary root, completed target root, original scope/evidence and proof-only
+versus executed-conversion result; then establish when the caller invokes
+Direct, what retries after failure, which roots/proofs remain live, and
+whether exhaustion ends compilation or permits fallback. Define metering
+units against that finite representation and attempt schedule before
+selecting numeric limits. Do not infer these from F5 Q/R rows or from the
+Python fragment.
 
-If no such occurrence exists in the selected language envelope, stop this
-Direct-caller lane at the source-rule boundary and resolve the missing
-source-constructor/placement decision before proposing an internal synthetic
-check. Preserve the full type-inference/F5-replacement objective and all
-existing open proof, source correspondence, principality, approval, and
-cutover gates.
+If no operand in the selected language envelope has an authentic native
+ordinary root before its approved `as Type` boundary, stop this Direct-caller
+lane at the root producer seam and resolve that source-owner gap before
+proposing any internal synthetic check. Preserve the full type-inference and
+F5-replacement objective and all existing open proof, source correspondence,
+principality, approval, and cutover gates.
 
 ## Evidence and checks
 
