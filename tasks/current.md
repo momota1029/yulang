@@ -4615,3 +4615,17 @@ No code, tests/builds, APIs, or F5 routing changed. Next: inspect one authentic
 descriptor/ground-evidence owner and its restriction law, and keep the root
 action, full `gamma`, `IFACE_EQUIV`, `FRESH_LIFE`, source correspondence, and
 implementation gates open.
+
+The next owner census traced the selected literal `my z=0` through its actual
+fixed contract `J_z=(0,p_z,Int,ground hereditary certificate,original
+world/slot dependencies)` in projection construction §8. Its ground witness
+and persistence over compatible events are source-selected; Name projection
+restricts the same installed binding/provider at the later event. The sources
+do not expose the complete ground witness telescope or a changed-descriptor
+action commuting with that restriction. The default HIR/solver path only emits
+scalar Int bounds and reads `SolvedValue::Int`; its bounded search found no
+VCert, ground hereditary program, or RestrictIntro producer. This is scoped
+absence, not a repository-wide claim. Next: recover the actual ground witness
+and restriction fields from their source owners, then decide whether their
+selected laws supply the full retained-record square. Keep `Int` and the
+literal import rigid unless a separate typed descriptor action is established.
