@@ -5027,8 +5027,12 @@ generic-inlet envelope. The discriminator shows conditionally that arbitrary
 native Int carrier, the Int and Any schema tags return differently indexed
 gamma records. It does not falsify a correctly indexed original-kernel bridge,
 nor provide an actual `WholeArgCompatible` counterexample or declaration.
-These are unreviewed research checkpoints; neither changes a theorem status or
-authority.
+These remain conditional research checkpoints; neither changes a theorem
+status or authority. The index discriminator has received independent
+compiler-referee and spec-auditor reviews with no actionable findings; the
+constructive crosswalk remains unreviewed. The discriminator strengthens only
+the prechosen-schema-tag requirement and leaves the actual original-kernel
+declaration and paired application unresolved.
 
 A systematic bounded census across the committed design/theory/progress,
 handoff and task corpus (1,139 files; questions excluded) found no actual

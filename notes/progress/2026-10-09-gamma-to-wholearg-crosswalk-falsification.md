@@ -1,8 +1,8 @@
 # Native gamma to original whole-argument checking: index discriminator
 
 Date: 2026-10-09
-Primary-pinned baseline: `8ed635e33` (supplied short SHA; no Git commands)
-Status: conditional discriminator and bounded premise audit; unreviewed research
+Primary-pinned baseline: `8ed635e33e1889ca827b77c01172365619d5c29b`
+Status: conditional discriminator and bounded premise audit; independently reviewed research
 Exclusive lease: this file only; frozen on submission
 Original-kernel equivalence, source rejection, gate promotion and implementation authority: none
 
@@ -176,8 +176,9 @@ dependent e_out and all original arm laws remain separate.
 Claim class: the native sum projection and differing-schema type obstruction
 are consequences of the selected constructors under the stated native input
 hypotheses; the application to an original e_a is conditional; the original
-supplier gap is bounded characterization. This artifact has no independent
-review or theorem/gate closure status.
+supplier gap is bounded characterization. Independent compiler-referee and
+spec-auditor reviews found no actionable findings. No theorem or gate is
+closed.
 
 Oracle independence: no checker or oracle was used. Native ground inclusion,
 Car, world and whole-image local laws are shared premises, not proved anew by
@@ -244,9 +245,9 @@ aed6ef63b01f555a5f2804f87a599167c1a30fa999afc0b9d9f11b8ae974a919  notes/design/2
 ## Commit packet
 
 - Exact leased changed path: `notes/progress/2026-10-09-gamma-to-wholearg-crosswalk-falsification.md`.
-- Baseline SHA: `8ed635e33`, supplied short pin; full SHA/tree validation remains primary-owned.
+- Baseline SHA: `8ed635e33e1889ca827b77c01172365619d5c29b`; primary resolved the supplied short pin.
 - Changed dependency hashes: none observed on final local recheck; exact manifest above.
-- Review status: frozen unreviewed conditional research; producer reread is not independent review.
+- Review status: frozen, independently reviewed conditional research; compiler-referee and spec-auditor found no actionable findings. Reviewed artifact SHA-256: `ed9dc397adf1c254af6a05a68266682d2757fd576418e23842b9d7da57c62039`.
 - Checks already run: selected-clause/type audit, two-tag analytical discriminator, dependency hashes, exact-path integrity and whitespace inspection; no tests/builds/probes/Git.
 - Proposed one-line research-checkpoint commit message: `research: distinguish generic inlet tags from original whole-arg evidence`.
 - Shared-record deltas intentionally left for primary/curator: optionally record the exact gamma/Acc/e_a type separation and prechosen-tag discriminator at the existing original-kernel crosswalk seam; retain every gate status, selected meaning and implementation boundary. No authority/index or question-board change is proposed.
