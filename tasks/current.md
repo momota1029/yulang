@@ -4524,3 +4524,20 @@ schemes and internal evidence-rich views as distinct layers. Thus an existing
 selected bridge. This reinforces the caller decision: source-level routing
 needs a source/compiler contract; an internal proof checker needs a separate
 producer and routing path before it can replace F5.
+
+The CTX_FINITE sealed-packet trace now has two frozen, research-only
+checkpoints: [source result-incidence construction](../notes/progress/2026-10-10-ctx-sealed-packet-construction.md)
+and [bounded falsification](../notes/progress/2026-10-10-ctx-sealed-packet-falsification.md),
+pushed as `0929781e8` and `d90ae4cb8`. The bounded constructor follows one
+actual Result/Name source path and encodes its complete finite incidence graph
+under the original request opening. The falsification pass found no
+source-admitted counterexample among five mutation families; each depends on
+the missing result/store boundary if promoted to a lifecycle claim. Together
+they identify the first absent source supplier as outward result-interface/
+bound-capture formation and actual observer/opening correspondence. They do
+not prove Pack/Decode, semantic hiding, alpha transport, CTX_FINITE, or
+JOINT_DEC. Both artifacts remain unreviewed evidence, not closed proof gates.
+No code, tests/builds, API or F5 routing changed. Next: trace the actual owner
+of the outward Result boundary and determine whether it supplies target
+formation, bound capture and accessor/opening laws; preserve GUARD_COVER and
+RAW_SOURCE as open CTX_FINITE prerequisites.
