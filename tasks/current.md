@@ -3761,3 +3761,45 @@ source constructors and local laws. The production owner, complete operands,
 H-bridge and resource bounds remain open, so this repair provides no
 implementation approval. The owner draft and pending flat-Application
 question remain uncommitted. No tests, builds or measurements ran.
+
+### SourceBuild schema and publication-resource blocker audit (2026-10-08)
+
+An independent resource attack on the identity owner draft confirms that its
+fixed `IdRuleSchema` cardinalities are not yet derived. The selected source
+proof permits finite rule catalogues when their owning alternatives and
+telescopes are finitely presented, while the identity instance leaves actual
+`Delta`/`IF0` arities and `Shared`/`ViewLogic`/`EventProof` introductions with
+their authentic owners. Empty captures and one eligible template do not set
+the complete schema count. A finite schema remains a viable route: challenge
+contracts and checking proofs can remain registered parameters, so their
+runtime developments need not be expanded into stored history.
+
+The same attack finds that a borrowed schema view avoids copying a per-module
+graph but does not bound slot-resolution work, validation scratch, transitive
+owner retention, or staging/finish peak. No exact retained/peak total follows
+until the schema, complete owner fields and allocation/lifetime graph are
+concrete. The next artifact is a node/edge/binder/scope/port manifest tied to
+source constructors and dependent telescopes, with the exact reference
+boundary and an allocation/worklist/phase-capacity table. If that requires
+choosing a different catalogue boundary or omitting the full relation, return
+to architecture review rather than silently changing the contract.
+
+A separate read-only production lifecycle map identifies an ownership-level
+whole-package seam: freeze before `InferenceSession::try_new`, retain owned
+data in the consuming session, and move it only into the terminal successful
+`SolvedModule` construction. Existing flow cannot retain borrowed references
+to batch definitions/recipes/SCC topology, and `ConstraintBatch::clone` would
+need explicit duplicate-allocation accounting if it owned a package. Current
+`SolveAvailabilityError` does not model all metadata failures; existing
+catchable reservations do not make `Arc::new`, nested owner allocations or
+other infallible constructors recoverable. Passing a metadata failure through
+`solve` changes acceptance, while adding a local error changes diagnostics.
+The optional shadow-capture precedent is narrower and does not cover terminal
+capture construction. Source preflight must also avoid counted SCC/root query
+helpers if public F5 counters are to remain unchanged.
+
+These are production-structure and resource findings, not a selected failure
+policy or an implementation approval. The current draft SHA remains
+`f08e015e34b8034bb603e23107486a82553261b698ff1eddffbfa29e27ad20f1`; its
+schema/owner payload, H-bridge and failure-policy questions remain open. No
+code, tests, builds or measurements ran, and no question-board state changed.
