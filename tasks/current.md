@@ -3816,3 +3816,29 @@ Next evidence is the source owner's frozen Parameter/Lambda/invocation
 operand-and-binder table, starting with `Delta_a`, followed by a concrete
 storage encoding and complete owner-allocation/lifetime table. No compiler
 code, tests, builds or measurements ran.
+
+### Parametric SourceBuild schema review (2026-10-08)
+
+The owner draft now carries a separate parametric finite-schema candidate:
+authentic owner records expose actual telescope lengths and incidences, while
+the seven origin roles remain fixed joins. An independent architecture review
+confirmed that variable finite arity is compatible with the selected source
+semantics, but does not provide missing owners, local laws, H-bridge, or a
+storage decision. Compiler-referee and specification reviews found no
+semantic/conformance defect in the frozen candidate; neither certifies
+production correspondence.
+
+The performance review keeps production approval open. The symbolic linear
+validation bound needs counted incidence/work units, bounded target lookup and
+scope checking, and explicit scratch/reconstruction accounting. The draft also
+needs a constructor-by-constructor allocation/failure table and teardown-depth
+bound. Its phase accounting should define extended-lifetime allocations as
+disjoint from still-live baseline allocations and include transient
+reallocation peaks. These are requirements for the next reviewed design
+revision, not measurements of an implementation. Draft SHA-256 is
+`1495de93b9d0b5b04f3f3c814327e044eca73b8dcc74e60cc6eea2d4e1f866ac` and
+remains uncommitted pending explicit approval; the unrelated pending
+Flat-Application question also remains uncommitted. No tests, builds or
+measurements ran. Next: repair the resource contract, obtain focused delta
+review, then present the bounded architecture and unresolved owner/failure
+choices for user decision. No implementation or F5 cutover is authorized.
