@@ -4060,9 +4060,16 @@ callee-to-negative-Function-demand constraint and explicitly leaves source
 Call premises unresolved. Function ports and exported schemes preserve
 structural endpoints but not a source `VIncl` certificate or whole-clause
 action. This is a scoped production correspondence gap, not a cutover verdict.
-Next: crosswalk one exact candidate Apply occurrence against source
-`A_f/F_c/E_c/A_c` and identify each missing producer before selecting any
-retained representation. No code or executable checks ran.
+The follow-up [one-occurrence field crosswalk](../notes/progress/2026-10-08-f5-apply-source-field-crosswalk.md)
+maps the exact `my apply f = { my step x = f x; step }` candidate through HIR
+occurrences, row allocation and polarized demand to `A_f/F_c/E_c/A_c`. It
+finds the interpreted environment/shared `xi` absent before the callee row can
+be interpreted as `A_f`; conditional on those inputs, complete dependent
+`F_c` at original `R_f` is the first missing Call-produced object. Next:
+search for a pre-admission owner that produces and transfers that complete
+`F_c` with its original-scope and Gen-Call-0 incidence, independently of
+structural solving. This remains a scoped static characterization; no code or
+executable checks ran.
 
 The bounded source-owner audit for `P.CallInitial` is pushed at `62337b13a`
 ([audit](../notes/progress/2026-10-08-callinitial-owner-correspondence.md)).
