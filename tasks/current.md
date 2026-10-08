@@ -4898,8 +4898,19 @@ gives a conditional finite inversion-plus-equality schema, but its uniform
 availability and L registration remain unproved. C1 separately still lacks
 an original Fixed capture registration mapped to id's unchanged IF. These are
 bounded owner gaps, not a licensed counterexample or impossibility result.
-Keep COMMON_TOTAL, ALL_VIEW and PRINCIPAL unchanged. Next: inspect the actual
-operation registry for the raw subexecution certificate and its finite L
-constructor, while requiring any Fixed target candidate to provide its
-authentic original capture registration and lawful map to IF_id. No compiler
-changes, tests, builds or production authority follow.
+The bounded operation-owner and L-registry audits locate raw Force
+decomposition for source Value-entry closures and declaration-backed Value
+operations, but not a uniform eliminator for every retained U: the selected
+Function domain also admits independently supplied/opaque operation witnesses
+whose laws remain their own inputs. The missing owner action is an actual
+operation-declaration eliminator projecting its dependent raw Force
+subexecution at the same operation, demand, world, incidence and proof tuple;
+finite L registration follows that source law and has no adopted E_U entry in
+the inspected registry. The production-only false-result alternative remains
+unlicensed as an actual invocation, so this is not a counterexample or an
+absence theorem for all original kernels. Next: determine the exact retained-U
+class required by the Value implication and whether authentic original
+operation anchors cover it; keep opaque-operation laws as explicit inputs.
+Separately, any Fixed target still needs its original capture registration and
+lawful map to id's unchanged IF. Keep COMMON_TOTAL, ALL_VIEW and PRINCIPAL
+unchanged. No compiler changes, tests, builds or production authority follow.
