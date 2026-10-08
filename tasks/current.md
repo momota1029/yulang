@@ -4829,3 +4829,18 @@ or implement the common-allowance construction without a separate reviewed
 design and explicit approval. Next: resolve the intended common-root producer
 and its relation to decoded `u_i`, then supply its actual `Q_common` checks;
 ALL_VIEW and PRINCIPAL remain open.
+
+An authority adjudication confirms q1 plus PE-ID does not identify aggregate
+`B_common`/`Q_common` with `u_i` or its local formation checks. `u_i` is the
+actual selected root for the bounded native export theorem; `COMMON_TOTAL` and
+`ALL_VIEW` retain their existing common-allowance premises and universal view
+scope. Three distinct routes remain: prove an authentic instance of the
+existing common contract equal to `u_i`; develop a reviewed native-export
+replacement route under the approved transformed-export direction; or retain
+the bounded PE-ID result without claiming aggregate closure. No route is
+selected by a name assignment, and no aggregate gate status or dependency is
+changed here. Continue with the native-export replacement proof as independent
+research, including its actual-root and consumer obligations. A user decision
+is premature until that route and its proof consequences are concrete. The
+existing common-instance route still requires its real formation records and
+`Q_common`; neither `Q_common=true` nor successful `Direct` supplies them.
