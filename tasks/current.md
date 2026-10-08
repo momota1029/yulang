@@ -4083,3 +4083,17 @@ RT.2 proof. No proof gate or production readiness changed. No tests, builds,
 experiments or performance measurements ran. Next: establish the actual full
 outer-domain carrier interpretation and source-owned relative comparison
 before any gate-status update.
+
+Two follow-up constructions are now checkpointed. The [outer carrier
+provenance audit](../notes/theory/2026-10-08-outer-domain-carrier-provenance.md)
+(`c254d443c`) finds no uniform independent `M.Car` supplier over the unchanged
+outer challenge family. It derives that such a supplier plus ordinary
+`VIncl_M` would suffice for the non-hole RT.2 route, while keeping relative
+`B_a.Car` evidence distinct. It constructs no out-of-M admitted carrier.
+The [source comparison action attempt](../notes/theory/2026-10-08-rt2-source-comparison-action-attempt.md)
+(`a3327ee03`) gives a conditional `N_Z` criterion: all hereditary lookup
+indices must be exactly retained, alternatives complete, and immediate target
+predicates independently preserved. The selected source Call owner does not
+supply those conditions for `A_f,F_c`; it retains final-model `VIncl` and
+supplied decoration. Both results remain conditional, with independent review
+pending. No gate status changed.
