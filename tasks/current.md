@@ -5064,3 +5064,17 @@ preserving the prechosen schema tag, and extend the matching witnesses through
 dependent `e_out`. Keep the pending
 literal-owner decision and all aggregate gate statuses unchanged. No compiler
 changes, tests, builds or production authority follow.
+
+An independent implementation-authority audit now confirms that no production
+slice is authorized independently of the open `WholeArgCompatible`/Hreg gates.
+The id-only SourceBuild producer still lacks its authentic caller/registration
+application, reviewed concrete representation and retention placement,
+resource accounting, failure policy and explicit implementation approval. PE
+frame-to-root slots still lack an approved typed supplier/slot contract and
+lifetime/stale-reference policy. Native Direct still lacks a concrete caller
+and admission envelope, genuine local-law suppliers, attempt schedule, numeric
+limits and error/fallback policy. These are additional gates; resolving
+WholeArg/Hreg alone would not authorize coding them. Preserve the existing
+producer/consumer manifest and resolve the authentic id caller/source-formation
+application before reopening SourceBuild implementation. No production code,
+tests or authority changed; the current user decision remains pending.
