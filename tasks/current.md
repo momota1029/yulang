@@ -3043,11 +3043,14 @@ hash recorded in that file. The first proposed spelling `my use y = ...` was
 rejected by parser dispatch as a `UseDeclaration`; the corrected `wrap` form
 was not executed or established as a successful typed source case. This
 candidate remains non-authoritative: q1/d1 covers formal Name/Int, not
-module-root Name/local-parameter Name. Its exact remaining Name/Name owner,
-whole-inlet admission and decorated consumer pairing (H3/H4) remain absent,
-as do `M_E`/ReadInvoke/IF/CallMem/C0. Next evidence should construct the
-same-origin Name argument and complete typed Call consumer under independently
-fixed native `id` admission. No implementation, gate closure or cutover
+module-root Name/local-parameter Name. A conditional derivation in
+[`wrap Name carrier derivation and complete Call cut`](../notes/progress/2026-10-09-wrap-name-call-typed-consumer-cut.md)
+shows how selected clauses could construct the same-origin Name argument and
+native inlet, given a completed post-entry `y` certificate and independently
+authentic `id` frame; this is not source acceptance. The first unresolved
+complete Call premise is Theorem IF's typed `IF_c` (complete primitive/root
+interfaces and lawful whole-map actions), followed by typed `M_E` and the same-
+incidence decorated certificate. No implementation, gate closure or cutover
 authority follows.
 
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
