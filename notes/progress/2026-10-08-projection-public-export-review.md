@@ -264,3 +264,96 @@ not a mechanical proof of immutable/VP semantics or all source-lawful inference.
 No Cargo build, production test suite, broad formatting or production file
 was changed. The certificate-constructor checkpoint was published separately
 as `2b59de9d6a412be5f9c772af48201e48a94fd624`.
+
+## 8. Final integrated native export review and selection
+
+The [integrated construction](../theory/2026-10-08-projection-public-export-construction.md)
+is selected through the [native definition record](../design/2026-10-08-native-projection-public-export-definition.md).
+Initial integrated theory freeze:
+`eccd938acc661cef610ad9070e71d714c051271c837ee51c24f7b3503d7d4800`.
+Final independently reviewed theory freeze:
+`37478d76823d47070aa27f5f8ba29b941dae0a9b1a1c8e046eacb2b80345cdb9`.
+The final reference checker freeze is the §7 digest. Both final reviews passed
+without a remaining blocking or major finding. The primary accepted their
+precise native scope; subsequent theory edits are review-status/navigation
+metadata only, and the definition record selects exactly those same clauses.
+
+### Accepted integration finding and repair
+
+Both isolated reviewers independently found a missing case in the first
+consumer: `new(id,i); view(i,q,Any)` is a lawful source value check, but Any
+has no Function D/P equations. Listing Top in L did not make the exclusively
+Function query constructor accept it. The primary added ordinary Value and
+Computation query wrappers, preserving the specialized complete Function case,
+and supplied concrete whole-callable Any and union derivations. The §7 client
+induction now dispatches every original checking constructor to its real case;
+executed conversions retain their separate boundary. No source use class was
+restricted to obtain the theorem.
+
+The primary also made the result-widening full-domain map explicit. Initial
+same-inlet records are unchanged; typed result/future demands use independent
+declared-hole proof composition with the genuine result inclusion. It requires
+neither actual Return, tested callable realization nor historical authority.
+Both delta reviews checked this current-scope argument and its pick analogue.
+The code's smaller residual-scope correction and executions are recorded in §7.
+
+### Completely closed in this native scope
+
+1. **PE-ID finite export.** Actual native source Generalize is reduced by
+   concrete owning-rule/CE expansion to a displayable scheme, ordinary protocol,
+   finite slot/telescope schema and fixed operands. The public object contains
+   no source body, Build graph or source-root accessor.
+2. **Actual public admission/membership.** Decode installs active ordinary
+   equations at a newly allocated public root. The same raw U receives every
+   lawful prechosen frame by the explicit generic injection; all phases,
+   current-world raw resumptions and hereditary futures have their direct
+   constructor proof. Independent native Option 2 members remain complete.
+3. **Exact source-lawful fibers.** The finite allocation/proof grammar is
+   chosen before assignments/challenges/histories. Only forced raw aliases
+   are changed. All Shared/ViewLogic/EventField/EventProof choices, world/port
+   fields, intermediate witnesses and arbitrary well-scoped W retain one
+   original strategy and have the explicit inverse map.
+4. **Actual-root ordinary recognition and soundness.** The defined native
+   proof-directed Value/Computation/Function cases check actual root records
+   and genuine local proof syntax. No successful source-root query or
+   assumed missing H7 supplies the result. Whole-value Any/union checks,
+   Function result weakening and genuine domain restrictions have explicit
+   certificates.
+5. **PE-PICK.** The same result holds for actual finite public imports in the
+   stated ground/previously constructed acyclic cases. The literal z=0
+   contract is constructed, monomorphic dependencies stay fixed, and ignored
+   arguments retain their whole Force/pending behavior.
+
+These are semantic/certificate-recognition results for the explicitly selected
+native constructors. Authentic primitive, immutable-world, carrier/context and
+local checking contracts are the same genuine subsystem inputs as SRC's local
+laws. The desired export conclusion is not one of those premises. Unknown
+foreign kernels, arbitrary semantic-view principality, all capture summaries,
+general State/recursion, solver discovery/exactness, legacy production H7/F5,
+publication lifecycle enforcement and cutover are not claimed.
+
+### Current remote and final integrity scope
+
+The concurrent `501ed04`, `b01a5b9` and `08ce788` additions were inspected and
+incorporated. They contain non-authoritative boundary/candidate/evidence-attack
+notes and change no selected semantic dependency. Their files and commits are
+preserved. The reference consumer was independently published as
+`375c9e6003baff874902d28e63c7d62f12acdfd4` before this integration.
+
+The later `459d950` and `a1a063a` additions were also inspected and preserved
+by fast-forward integration. They pin the earlier `b01a5b9` candidate state,
+select no new semantics, and identify certificate attachment/allocation and
+ordinary Top/future-domain recognition as missing there. The integrated
+construction supplies the concrete slot schema and allocation in §§3–4,7,
+and the native ordinary consumer and declared-result-hole proof in §6.
+Their statement about the older pinned query calculus remains valid; it is
+not a claim that the newly defined native consumer already existed there.
+An independent mathematical review restricted to these two remote additions
+found no new blocking, major or minor issue; the final native PASS stands.
+
+Final verification checks the exact touched files, local Markdown targets,
+fences/newlines/whitespace, unchanged original requested/source semantic
+dependencies, staged scope and remote lease. No production source is edited.
+All checkpoint publications use expected-parent GitHub ref updates without
+force, verify the complete local/API tree equality, and preserve local Git
+checkpoints when synchronizing API-authored commit identities.
