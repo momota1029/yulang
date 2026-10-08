@@ -4510,3 +4510,10 @@ regression review passed after correcting one exact branch locator. No code,
 tests/builds, API or source semantics changed. The caller/admission choice is
 now the explicit next design decision; all independent owner/local-law and
 resource work remains open.
+
+The syntax authority audit also found no already approved annotation meaning
+to activate: the direct-Rowan amendment selects CST topology and explicitly
+does not change HIR/runtime meaning; the superseded AST product Draft left
+expression `as Type` field selection pending. Therefore the requested `view`
+mapping needs an explicit source/compiler contract if chosen; parser support
+alone cannot authorize it.
