@@ -632,10 +632,20 @@ shape or Q. Independent spec review found no conformance issue. This is not
 whole-source upper-rule coverage: annotation boundaries, recursive seed
 applicability, computed callees and later seeds retain their owning source
 premises. The retired E/R framing stays superseded by the directional rule.
-The next annotation work is constructor-specific: derive or isolate its
-annotation-upper occurrence and the `ProtectedVarAt` applicability premises
-under approved annotation-scoped `[io]` permission, without deriving seeds
-from syntax alone.
+The annotation owner must derive its upper occurrence and `ProtectedVarAt`
+applicability under approved annotation-scoped `[io]` permission, without
+deriving seeds from syntax alone.
+
+The [annotation-boundary constructor audit](../notes/theory/2026-10-08-annotation-upper-exposure-constructor.md)
+now proves a conditional finite inventory for original inferred-variable to
+Function annotation checks under explicit boundary/normalization inputs. Its
+independent spec review found no conformance issue. It keeps original
+`SourceUpperUse` classification, `ProtectedVarAt` applicability, annotation
+to contribution correspondence and realized `[io]` removal as separate owner
+outputs. The minimal missing case is the approved annotated `f` plus one `f x`
+use; annotation syntax and permission do not supply those outputs. The next
+constructor question is the actual annotation/parameter judgment's endpoint,
+exposure classification, seed stage and contribution link.
 
 ### Post-PE higher-order and constructed-result frontier (2026-10-08)
 
