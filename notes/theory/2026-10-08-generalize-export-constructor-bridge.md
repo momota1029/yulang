@@ -1,5 +1,13 @@
 # Transformed Generalize/export: a conditional boundary construction
 
+Current revalidation: `6d57f1b6920707114eabf470f1a4bb727f8706e9`.
+Sections 1–10 preserve the earlier `c436dd58` research packet. Their statements
+that native eligibility/source Generalize is unsupplied are historical:
+the selected native definition and SRC/SRC-J/GS/GC now supply that seam.
+Section 11 is the current constructor-to-public-export derivation and packet;
+it supersedes the earlier next-action and missing-source-premise inventory,
+without changing the historical mathematics or claiming a public cut is proved.
+
 Date: 2026-10-08
 Status: non-authoritative conditional research; frozen on producer submission
 Baseline: `c436dd58cfb7adca7b78f479e3d554cf7e6f6e2f`
@@ -491,4 +499,316 @@ Working-tree mismatches observed at final dependency check (excluded as inputs):
 
 ```text
 fcc7f832e9e5dc1a5fdfb20e09becdaf7aae12cbe0c8e8c964b24481780e387f  notes/design/2026-10-07-successor-production-proof-architecture.md
+```
+
+## 11. Current bridge at the selected native Generalize baseline
+
+Date: 2026-10-08
+Baseline: `6d57f1b6920707114eabf470f1a4bb727f8706e9`
+Claim class: conditional constructive composition theorem; research only
+Review: unreviewed addition; neither author inspection nor cited suppliers'
+reviews constitute independent review of this addition
+Method: eliminate actual constructor records, compose scoped strategy maps,
+then translate the independent source proof grammar at the designated root
+
+### 11.1 Dependencies and what is already supplied
+
+The [native definition](../design/2026-10-08-source-generalize-definition.md)
+§§2–4 selects [construction §§3–5 and SRC/SRC-J/GS/GC §§6–7](2026-10-08-source-generalize-definition-and-proof.md).
+These are reviewed source-rule results relative to genuine local laws L1–L5.
+They already construct eligibility, the complete simultaneous source closure,
+original binder allocation and joint source-lawful reflection. Requiring
+another generic source-Generalize axiom would repeat completed work.
+
+The [production architecture](../design/2026-10-07-successor-production-proof-architecture.md)
+§6/F1–F4 and §6.2 govern the composition target; Function-view Authority
+§§1–5 and charter §§2–3, Gates D–E and §5 govern preserved behavior.
+The integrated root-policy q1/a1 decisions 1–5 still require a transformed
+scheme plus sufficient use information, without use-time source traversal.
+Native `ScopedClosure` is a producer-side input; publishing it verbatim under
+a new name does not satisfy that decision. The pending ReadInvoke question
+is not consumed. No dependent captured-step presentation is selected here.
+
+### 11.2 Exact inputs and allocation for two independently resolved modules
+
+Let C be one finite registered SCC and p its publication event. Native
+Generalize produces
+
+```text
+G = ScopedClosure(p,C,T,A,Omega,N,R).
+R = (R_r) for the actual published roots r.
+```
+
+A contains the fixed original anchors and their complete dependency closure;
+Omega contains precisely the eligible ordinary Desc declarations at their
+original type scopes. T retains the original joint `nu,K,D` and all evidence
+binders. N includes every background/member conjunct, not just selected roots.
+A finite graph need not have finitely many worlds or finite future histories.
+
+Assume independently adequate module resolution gives two real source `new`
+events i=1,2 for p, with designated member selections r1,r2. Qualification
+changes neither declaration identity nor semantics. An import already bound
+to `Mono(h,Contract_h)` instead uses that handle; it does not acquire `new`
+merely because its spelling is module-qualified. These are the source rules
+in native construction §§3.3–3.4 and §5.2, not an implemented module theorem.
+
+For finite independent client proof grammar E and well-scoped client W,
+let J(E,W) be the selected native allocation over this client. Its regions are
+
+```text
+base: A and every original Shared binder, once;
+frame i: Desc(i,q), ViewLogic(i,q), entire Internal(C,...) relation;
+actual event e: EventField(e,q), once for that event;
+frame/event proof: EventProof(i,e,q), at its original telescope.
+```
+
+Alias routes to an existing frame. Internal recursive references route to
+that frame's same simultaneous relation, never another instantiation.
+The two eligible template images are disjoint; descriptions within one
+frame share their image. Fixed actual closures, worlds, installed Mono
+contracts, executed choices and Shared witnesses are shared across modules.
+An independently typed imported Family retains its own closed binders and
+actual free anchors; its actual source instantiation can freshen its bound
+parameters. Such parameters are not free rigid imports of C. Every residual
+link to a fixed anchor remains active.
+
+Write Sol_T(J) for public assignments together with **one scoped strategy**
+satisfying every active clause on the entire original tree. An existential
+is a function only of its legal preceding dependencies. This is not a product
+of independently satisfiable per-module relations.
+
+### 11.3 A finite certificate interface, with open leaves exposed
+
+A candidate export constructor takes G and returns P plus producer-side
+certificate c. P contains displayable roots g_r, interpreted use schemas K,
+necessary dependencies/evidence and legal allocation data. It has no operation
+which reopens S or N at use time. This is a logical interface proposal, not a
+selected Rust layout or proof that such P exists for every C.
+
+A sufficient certificate has the following finite cases:
+
+1. **Local cut.** An acyclic sequence of total derived-coordinate elimination,
+   locally proved rewrite, legal uniform graft and certified original-scope
+   joint hiding. Each case names the actual original rule, full free telescope,
+   before/after operands and every affected relation/evidence consumer. A
+   preserved field uses the identity case. Registered recursive equations map
+   as whole graphs with the supplied original introduction/guard law.
+2. **Scoped action.** Each case supplies executable mathematical extension
+   and restriction operations on strategies at that telescope, fixing all
+   retained public and base coordinates. They may reconstruct producer-side
+   proof fields; they may not choose an old Shared witness separately in each
+   module or depend on a later challenge. They commute with the native
+   constructor allocation, including alias, Internal and actual-event keys.
+3. **Actual root.** Every changed root has an independently interpreted full
+   descriptor and finite local introduction/checking proof cases for its own
+   admission, membership, provider/future, role/entry and all licensed arms.
+   The certificate relates R_r to g_r at their actual indexed operands. It
+   does not conclude a query at g_r from a successful query at R_r.
+4. **Proof translation.** Translate each supported independent checking-rule
+   constructor E at R_r to a finite direct proof grammar c(E) at g_r, retaining
+   its target V, guards, evidence, telescopes and client observations. For
+   reflection, every public proof alternative within the claimed envelope has
+   an accounted-for inverse rule case. The grammar translation is fixed before
+   assignments/challenges/histories. True extensional containment is not a leaf.
+5. **Effective recognition.** The actual ordinary query consumer validates the
+   translated proof cases at the submitted pair `(g_r^i,V)` using P and client
+   inputs. Its accepted proof alternatives have the inverse cases of item 4.
+   This is a separate implementation/completeness supplier; writing c(E) does
+   not prove the consumer recognizes it.
+
+Items 1–4 give finite proof obligations rather than a `GeneralizeAdequate`
+Boolean. A leaf's premise may remain open. A checker of tags, scopes and
+references proves only that the rule instance is well formed; the independently
+justified local semantic law is still required. The complete exported
+production grammar may have observations with no source execution witness.
+Their original Option 2 clauses and independent safety laws belong in item 3;
+no reflection operation here gives each such observation a source execution.
+
+### 11.4 Construct the joint maps and derive the two directions
+
+For a supplied cut c, let K(c(E),W) be the public allocation, with all direct
+proof clauses and unchanged client W. Construct
+
+```text
+F_c : Sol_T(J(E,W)) -> Sol_T'(K(c(E),W))
+B_c : Sol_T'(K(c(E),W)) -> Sol_T(J(E,W)).
+```
+
+These functions are outputs of the finite cut induction, not assumptions of
+an arbitrary equivalence oracle. At a total definition d=t(x), F forgets d
+and substitutes t in every consumer; B evaluates t from that same original
+strategy. At a local rewrite use its finite local derivation in both directions.
+At graft apply the uniform sort/scope map. At hiding use the supplied joint
+original-scope extension/restriction, under its actual admission premises;
+existential marginalization alone supplies no such case. At a changed root
+apply its independent full constructor/checking cases, including the same
+provider and the original whole Option 2 law. Compose these operations in
+cut order and reverse cut order. Each step preserves the retained coordinates
+and the required evidence conclusions; proof objects need not be identical.
+
+Allocate the base transformation **once**, then each frame transformation
+below that same base restriction. The scoped-action clause ensures a hidden
+shared coordinate has one reconstructed base strategy for both uses. Per-frame
+maps may extend ViewLogic at its original location; actual-event operands
+and EventProof use their distinct native allocation cases. Thus both maps
+preserve W even when W correlates the modules. Independent per-use extension
+maps without this base case would not compose. Registered recursive edges
+use the same frame map on all peers; induction applies to finite developments,
+and hereditary introduction uses its genuine local recursive law.
+
+Let pi_J and pi_K read the same designated client solution/evidence fields,
+with changed-root observations related by the explicit item-3/4 proof. Fields
+needed by an actual client remain in K; mathematical forgetting does not give
+permission to discard them from P. Then the induction gives
+
+```text
+pi_K(F_c(s)) = pi_J(s); pi_J(B_c(t)) = pi_K(t).
+therefore pi_J(Sol_T(J(E,W))) = pi_K(Sol_T'(K(c(E),W))).       (Bridge)
+```
+
+For each inclusion, take its strategy, apply the displayed map and the
+commuting projection equation. No independent port witness is combined and
+no binder is prenexed. Equality is for these certified source/client fibers;
+it is not equality of all production observations with source executions.
+An export that changes the observation abstraction must instead state its
+approved observation relation and prove the corresponding preservation law;
+this packet selects no such change.
+
+**Conditional inference soundness.** If a public use in the accounted-for
+query envelope accepts with a complete global K strategy, its item-4/5 inverse
+cases give E and B_c supplies a complete J strategy. GS/SRC-J construct one
+independent joint source derivation under L1–L5, preserving actual root and
+client evidence by Bridge. This inference result does not itself prove runtime
+or production containment. F2 still supplies those laws independently; item 3
+must validate them at the actual g_r and every checked-admitted context,
+including all Option 2 members. Dropping that premise defeats safety even if
+all source proof grammars translate.
+
+**Conditional lawful-use adequacy.** For every finite independent joint source
+proof grammar d_U and W, GC constructs its finite allocation m_d before
+assignments/histories, with exactly its source public fiber. Translate its
+finite local proof grammar and apply F_c. Bridge preserves that fiber at the
+actual g_r. Item 5 makes these translated certificates accepted by the ordinary
+query consumer. The quantifier order is
+
+```text
+forall finite independent d_U,W.
+  exists m_d,c(E_d), before public assignments/challenges/histories.
+    Fiber_source(d_U,W) = Fiber_public(K(c(E_d),W)).
+```
+
+This includes the selected source grammar's nonidentity checks, narrower
+lawful domains, structural checks and independently admitted conversions.
+It asserts neither satisfiability of inconsistent W nor that every semantic
+inclusion has a finite source derivation. It supplies the use-preservation part
+of F4 conditionally; completed-profile principality and actual solver exactness
+remain separate suppliers. Calling this maximal principality would be false.
+
+### 11.5 Visibility is a separate lifecycle condition
+
+The mathematical construction produces one completed P for the component.
+I5 must maintain: incoming reads are enabled only after every member export,
+dependency and final root is valid; internal uses before that barrier use the
+live joint relation; failure before completion exposes no partial component.
+Member slots may be written sequentially while private. No indivisible
+all-slot machine operation is required. A certificate stored beside the wrong
+scheme epoch/root does not establish this invariant. Budget rejection must be
+deterministic at its selected structural point, with no truncation or partial
+publication; this note selects no metric or numerical limit.
+
+### 11.6 Exact missing suppliers and code attachment
+
+There is no remaining missing **native source-Generalize rule** in the selected
+scope. The minimal unsupplied local source premises are L1–L5 laws for any
+actual included primitive/annotation/role/world/recursive/client constructor
+not supplied by the reviewed selected cases. The pending ReadInvoke answer
+blocks only a dependent presentation-specific cut, not the abstract composition.
+The public bridge still needs one concrete finite item-1/3/4 constructor cut
+which leaves use-time P sufficient without source traversal, and item-5 query
+recognition. None is discharged by GS/GC, D0, Direct packaging or this note.
+F3 must additionally connect the actual solver/residual steps to the complete
+scoped relation; finite syntax alone does not supply an effective exact solver.
+
+At the current baseline, `crates/yu-solver/src/lib.rs` provides the following
+owning seam (line numbers differ from the 2026-10-02 inventory):
+
+| Current attachment | Required successor responsibility |
+| --- | --- |
+| `execute_scc_plan_inner`, line 13135; member draft call line 13350 | Whole component constructor and private staging of all root/export evidence |
+| `component_generalization_draft`, line 15475; current F5c builder | Replace as part of the whole lifecycle; no isolated builder equivalence claim |
+| Member scheme installs, lines 14154 onward; incoming loop follows all installs | Bind root/dependency epochs to the visibility barrier |
+| `route_internal_inner`, line 14258; `instantiate_and_route_closed_inner`, line 14795; `route_incoming_inner`, line 15162 | Live recursive sharing versus whole per-use native allocation |
+| `SolvedModule::projection_for`, line 16085; `root_value_for`, line 16100 | Durable public/root observation from the actual successor export |
+
+These are inspected attachment owners, not evidence that F5 implements this
+certificate. The current incoming routine restores quantified/recursive closed
+scheme rows and root observation reads `closed_types.scheme_view`. All three
+seams must move together. No source-to-successor simulation was run.
+
+### 11.7 Evidence limits and stop condition
+
+Oracle independence: native source legality is defined without J, P or query
+success; its reviewed SRC/SRC-J construction/inversion connects it to generated
+local clauses. This bridge reuses those local meanings and F3-style cut laws;
+it is not an independent oracle validating them. Independent module adequacy,
+production membership/admission and actual query recognition remain genuine
+leaves. A checker hard-coding c's desired transition cannot prove those leaves.
+
+Coverage: one finite C, exactly two independent real module uses (with aliases,
+recursive references and joint W handled by their source grammar), finite
+source/check proof grammars and every admitted finite development at original
+scopes. There is no numerical search, random seed, range, mutation run, compiler
+test, build, Oracle execution or exhaustive repository absence claim. Larger
+finite use lists follow the same finite allocation induction, but no broader
+all-language result is asserted here. Mutable-State, open catalogue decision,
+arbitrary public view, profile uniqueness and concrete resource limits remain
+unverified. No minimal representation-size claim is made.
+
+Failure: any unaccounted alternative/dependency, wrong root/epoch, fixed or
+Shared coordinate freshened per use, Internal edge instantiated separately,
+illegal telescope change, omitted symbolic family/effect/license evidence,
+incomplete query inverse or missing query proof alternative, production arm
+without its local law, or published source traversal under renamed extra data.
+The previous lossless-copy and boundary-elimination attempts did not supply
+this concrete public cut. This packet stops at that exact blocker; another
+toy probe over an assumed cut would leave it untouched.
+
+Resource use: sequential lightweight reads and integrity checks only; zero
+Cargo/build/test processes, zero semantic experiment processes, one leased
+output path. No explicit CPU/RAM/wall limit was supplied in this assignment;
+peak CPU/RAM and elapsed producer wall time were not instrumented. The earlier
+§8 budget describes its historical run, not this addition. No resource
+performance claim follows.
+
+Recommended next action: produce one concrete transformed-root constructor
+cut and its finite direct proof-translation cases after any presentation-specific
+ReadInvoke decision is validated; review those exact cases against the ordinary
+query consumer. Keep the aggregate public/production gates open.
+
+### 11.8 Current frozen commit packet and direct fingerprints
+
+- Exact lease: `notes/theory/2026-10-08-generalize-export-constructor-bridge.md`.
+- Baseline: `6d57f1b6920707114eabf470f1a4bb727f8706e9`.
+- Changed dependency hashes: none in consumed pinned inputs. Native definition,
+  native proof, source-to-code seam and cutover inventory below are newly consumed
+  inputs relative to the historical packet. Current dirty architecture bytes
+  were excluded; the baseline-only discipline remains explicit.
+- Claim/review: conditional Bridge derivation; unreviewed addition, research-only;
+  cites selected reviewed native suppliers without independently reviewing them.
+- Checks: pinned section/attachment reads, dependency SHA-256/byte comparisons,
+  committed root-policy receipt and bundle equality; final link, whitespace,
+  fence and artifact scope/hash checks are reported on submission. No tests/builds.
+- Proposed commit: `research: bridge native Generalize to conditional public export uses`.
+- Deferred shared deltas for primary/curator: native GS/GC supplies source allocation;
+  public constructor cut/query recognition remain open; link §11 as conditional
+  composition, preserve all gate statuses and do not reschedule native Generalize.
+- Writes stop before submission; primary owns checkpoint/review/integration.
+
+SHA-256 of committed `6d57f1b69` bytes (historical unchanged inputs remain in §10):
+
+```text
+46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38  notes/design/2026-10-08-source-generalize-definition.md
+e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240  notes/theory/2026-10-08-source-generalize-definition-and-proof.md
+ed9392d448003b2beb8a1c175624529719b64fbe14987d5a03a0d25a2dc20c96  notes/progress/2026-10-02-y3-f5-cutover-map.md
+236f4f433ef775df0d88294f046e11dd34c1816da2fa99d7f0d403b39c2ed4a2  crates/yu-solver/src/lib.rs
 ```
