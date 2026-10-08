@@ -137,10 +137,11 @@ proof and cannot be relabeled as a new complete Call arm.
 ### Missing continuation, admission or future action
 
 These obligations are not discharged merely by positivity of H_G. Source
-contracts §3.7 condition 4 and Theorem IF §3.1 require each changing arm's
-actual output-provider/current-world domain certificate and its original
-future/response schema. Theorem IF preserves that evidence when supplied;
-it does not create it. A provider with the same descriptor is not a substitute.
+contracts §3.7 condition 4 and Theorem IF §3.1 require the actual
+output-provider/current-world domain certificate when a changed coordinate is
+live in admission, together with its original future/response schema. Theorem
+IF preserves that evidence when supplied; it does not create it. A provider
+with the same descriptor is not a substitute.
 
 Consequently this route requires a concrete licensed original arm and an
 independently admitted development at its actual interface before one can
