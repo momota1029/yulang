@@ -5125,3 +5125,18 @@ identities but leaves their typed relationship pending. Current support is not
 a source rejection rule. Any implementation packet must cover both
 header/annotation ownership and Call-body lowering, along with the selected
 seed and contribution evidence.
+
+The bounded annotation-owner search localizes the first unsupplied semantic
+operand after that surface cut: the admitted annotation derivation at formal
+registration, which must produce the actual current endpoint `E_a`, complete
+normalized target `T_a`, and their original dependent scope/occurrence path.
+Typed-core §6 assigns the formal's outer Value role and body Name lookup, but
+delegates nested annotation typing to that missing derivation. Source
+Generalize retains an actual boundary and its local evidence after it exists;
+it does not construct this annotated boundary. The `io` contribution map and
+lawful realization, A5 original upper-use classification, and A6 seed/no-seed
+evidence are downstream obligations. The native unannotated Parameter/Lambda
+and `DataArg` constructors do not cover this annotated higher-order formal.
+No selected constructor supplies this package; this bounded owner result does
+not establish that no seed/protection applies. Keep SEED_SOURCE OPEN-PROOF and
+the prior implementation-authority gate unchanged.
