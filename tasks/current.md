@@ -3465,28 +3465,33 @@ uncommitted, non-authoritative and unapproved; no compiler code, tests, builds,
 measurements or cutover occurred. The pending flat-Application owner question
 remains independent.
 
-The next concrete representation proposal was reviewed at draft SHA-256
+The next concrete representation proposal was reviewed at SHA-256
 `1d5b3d16bb83d489ca1538405c9b916a81dcd4a6d1699dda2443ce6a1c7481ed` by an
-independent compiler referee and specification auditor. The spec auditor found
-no contradiction; the referee found a major representation gap: the proposed
-`IdAnchorFormationKind` tag does not retain the actual `Executed`/`OneShot`
-identity and same-world returned-provider/evidence tuple required by
-`ReturnedInstallation`. Two such tuples can share identical recorded origins,
-so the static schema cannot recover their distinct fixed anchors. The draft
-now records that the candidate is adequate only if the authentic constructor
-establishes inert registration with operands resolvable from origins, or if
-typed references to the actual anchor-owner output and dependent fields are
-added. The 80-byte estimate covers only the origin tuple; it is not a complete
-element or peak-storage bound for the returned-installation arm.
+independent compiler referee and specification auditor. The referee found a
+major gap: `IdAnchorFormationKind` did not retain the authentic
+`Executed`/`OneShot` identity and same-world returned-provider/evidence tuple
+required by `ReturnedInstallation`. The static schema could not recover those
+distinct fixed anchors from identical origins.
 
-This is a frozen review result for the recorded SHA; the draft has since been
-updated to incorporate the finding and is unreviewed at its new content hash.
-The pending flat-Application owner question remains independent. No policy,
-anchor arm, implementation authority or gate closure is selected. Next: choose
-neither branch by inference; map the authentic inert-registration supplier or
-specify the typed actual-anchor reference and recalculate resource bounds,
-then obtain focused delta review. Keep the design draft and pending question
-uncommitted; record-only checkpointing is safe meanwhile.
+A focused repair adds a typed `IdAnchorOwnerRef` to the proposed origin tuple.
+At draft SHA-256
+`323aaa4068dc62433ad65b2dbfc210ffeebbc03027341c677a363368a4ecd9ab`, both the
+compiler referee and specification auditor close that specific finding
+conditionally: dereferencing must preserve the actual immutable anchor-owner
+record, formation identity and all dependent operands for the package's full
+lifetime. They verify the proposed 96-byte tuple arithmetic under its stated
+64-bit assumptions; it excludes the referenced owner payload. This does not
+identify a production owner type or supplier.
+
+Still open: actual source owner output and supplier, lifetime/retention proof,
+schema cardinalities and slot-resolution completeness, and total retained/peak
+storage including owner payload and F5 coexistence. No performance review of
+those unresolved totals occurred. The pending flat-Application owner question
+remains independent. No anchor arm, policy, implementation authority or gate
+closure is selected. Next: identify the authentic anchor-owner output from
+source construction, map its production supplier and complete payload cost,
+then obtain the targeted resource review. Keep the design draft and pending
+question uncommitted; no tests/builds/probes were run.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
