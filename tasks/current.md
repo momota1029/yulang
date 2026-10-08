@@ -3446,3 +3446,45 @@ source-constructor boundary and its typed outputs, separate from F5 scheme
 installation and Rust result publication. Only then can exact cardinalities,
 allocation/coexistence bounds, and the failure-policy decision be made
 concrete. The owner-design draft remains uncommitted and unapproved.
+
+## CALL_TYPE / DemandFormation cut (2026-10-08)
+
+The frozen [conditional construction](../notes/theory/2026-10-08-call-demand-formation-construction.md)
+factors selected checked-challenge assembly through independent admission of
+the actual whole carrier at the declared inlet. Given that admission, the
+same-value callee relation and contextual Function membership derive
+acceptance and receiver observations for the retained actual provider at the
+same tuple. An independent compiler-referee review found no issue in that
+conditional derivation. It does not derive the admission, build Strict for an
+arbitrary Apply, or close CALL_TYPE.
+
+The separate [argument-only falsification](../notes/theory/2026-10-08-call-demand-formation-falsification.md)
+uses Charter §21's ordinary-Value-entry versus annotated-retained-entry
+distinction: both may expose the same `Comp(empty,Int)` argument result while
+their source receiver incidence requires different entry. Its no-single-input
+conclusion is conditional on jointly realized checked contracts and contexts;
+it is not a complete admitted-source counterexample. An independent
+specification audit found no issue in that boundary. Neither note invents a
+semantic rule or changes the approved behavior. The construction and
+falsification notes are pushed at `3161ea584` and `b4eec1c88`, respectively.
+
+A bounded HIR/Core/F5 source audit of `crates/yu-hir/src/shadow.rs`,
+`crates/yu-core/src/shadow_derivation.rs`, `crates/yu-solver/src/lib.rs` and
+`crates/yu-solver/src/shadow_apply.rs` confirms that the inspected paths
+retain Call/operand identity and candidate value endpoints, but expose no
+complete argument `Result`, declared whole inlet, actual role/entry and
+comparison-independent `DemandFormation` joined for one receiver. In
+particular, the experimental Apply candidate constructs its negative Function
+term during candidate solving; that is not a pre-comparison source
+certificate. This is a bounded path finding, not a production-wide absence
+theorem. `CALL_TYPE` remains CONDITIONAL-CLOSED and `INLET_CARRIER` remains
+OPEN-PROOF; no DAG status changed and no tests/builds ran for this research
+slice. The latest unlocated returned-Function sublemma in this task record is
+not promoted as independent proof authority.
+
+Next: after the pending flat-Application owner decision is validated, inspect
+the selected Application source-construction owner for an independently typed
+whole-argument-to-declared-inlet transport and retained receiver entry/role at
+the original Call incidence. If those outputs are absent, return the exact
+missing formation judgment for design; do not infer it from the candidate
+endpoints or successful solving.
