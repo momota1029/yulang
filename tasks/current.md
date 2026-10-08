@@ -4097,3 +4097,12 @@ predicates independently preserved. The selected source Call owner does not
 supply those conditions for `A_f,F_c`; it retains final-model `VIncl` and
 supplied decoration. Both results remain conditional, with independent review
 pending. No gate status changed.
+
+The [joint apply-source front attempt](../notes/theory/2026-10-08-rt2-joint-apply-source-front-attempt.md)
+(`38d1afbd3`) records a conditional construction order: first construct
+`Phi(S)`'s apply front, then use it to construct the distinguished step that
+captures apply. It does not establish the fronts for other returned providers
+or prove S postfixed. `N_S`, complete RT.1/RT.3 and checked/native interface
+identification remain open. Independent compiler-referee and spec-auditor
+review of the three follow-up artifacts is pending; no RT.2 or production gate
+has closed.
