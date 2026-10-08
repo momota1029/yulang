@@ -5335,3 +5335,19 @@ source-record premise. Continue by connecting authentic Instance/rebind/root
 outputs to an actual source inference caller; do not count checker approval
 as F5 replacement. Commit `51ba6b85b` preserves this checkpoint. No
 production code, tests or builds changed.
+
+The bounded [native caller/resource-schedule cut](../notes/progress/2026-10-10-native-caller-resource-schedule-cut.md)
+narrows that caller task: SRC §3.4 `view(h,q,V)` annotates an actual source
+checking rule and is not itself an executable operation; published `id` plus
+monomorphic alias does not supply that checking occurrence. The inspected
+default path still has no established native occurrence producer, ordinary
+PE-root store or Direct consumer. Consequently the caller's retry/retention
+schedule is also missing, so numeric work/byte caps cannot be selected from
+the conditional Python checker or F5 counters. Static counterexamples show
+dependency tuple length, payload bytes and repeated calls are separate budget
+dimensions. Compiler-referee and spec-auditor review found no actionable
+findings within their assigned scopes. This remains non-authoritative
+research: no semantic or implementation gate changed. Next action is an
+authentic source checking-rule application with its target/proof supplier and
+attempt schedule; preserve the
+Hreg no-repeat stop. No tests, builds, benchmarks or mutation probes ran.
