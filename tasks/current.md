@@ -4050,3 +4050,34 @@ context API/factory work and dependent SourceBuild freezing wait. Selected
 source-theory work that treats L4 as a premise and other independent inference
 gates remain active. The question directory stays untracked and excluded from
 checkpoints; its publication is not approval or implementation authority.
+
+### Independent proof and source-owner research checkpoints (2026-10-08)
+
+The bounded source-owner audit for `P.CallInitial` is pushed at `62337b13a`
+([audit](../notes/progress/2026-10-08-callinitial-owner-correspondence.md)).
+No complete initial observation/evidence/action supplier was found in the
+inspected selected contracts or HIR/core/solver owners. This is scoped absence,
+not a repository-wide result. Source-rule construction remains distinct from
+production F5 correspondence; I0/O0, joint-action laws and actual F5
+preservation remain open.
+
+The RT.2 countermodel attack is pushed at `2a0ecd24e`
+([finite separation](../notes/theory/2026-10-08-rt2-relative-transfer-countermodel.md)).
+It separates ordinary final-model VIncl from relative Function readout in a
+positive finite system, and identifies a conditional source-shaped discriminator.
+It does not certify a legal full Yulang countermodel: authentic full-domain
+carrier/world interpretation and global inclusion over the original value
+universe are unsupplied. Independently ordinary `M.Car` certificates would
+supply the sufficient RT.2 route.
+
+The constructive RT.2 attempt is pushed at `2b7413cc6`
+([partial derivation](../notes/theory/2026-10-08-rt2-relative-transfer-proof-attempt.md)).
+The non-hole gap is the evidence-producing relative action on the complete
+observation family, `P_A_f[B_as] -> P_F_c[B_as]`; final-model VIncl and
+positivity do not provide it. An enlarged source coalgebra is a candidate for
+the apply-hole case, but complete fronts and postfixedness remain unproved.
+These are unreviewed conditional research checkpoints: no proof gate or
+production readiness changed. No tests, builds, experiments or performance
+measurements ran. Next: establish the actual full outer-domain carrier
+interpretation and source-owned relative comparison, then review the frozen
+RT.2 artifacts before any gate-status update.
