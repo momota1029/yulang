@@ -2735,6 +2735,20 @@ Thus the required cutover sequence includes ordinary source/HIR Call
 construction and typed argument/result origins before the replacement solver
 can consume them. This audit used source locators only; it ran no checks.
 
+The focused code-path locator sharpens that boundary: [`yu-hir` lowering](../crates/yu-hir/src/module.rs)
+turns ordinary Apply into an HIR `ResolvedExpr::Error`; the [`yu-solver`
+collector](../crates/yu-solver/src/lib.rs) emits no Call/operand components,
+and `emit_lambda`'s fallback returns without a recipe. The existing regression
+for `my invoke f = f 1` requires that refusal. Shadow HIR retains structural
+Apply identity only; its value candidate remains default-off and explicitly
+unresolved. Selected theoretical source-interface/complete-contribution
+constructors require the authentic full original witness and ownership
+accounting, while granting no production cutover authority. This check ran no
+tests/builds and did not inspect legacy F5 implementation history. Hence the
+immediate missing implementation seam is ordinary source/HIR Call formation
+with typed argument/result origins; solver replacement alone cannot satisfy
+the objective.
+
 The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
 and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
 (with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
