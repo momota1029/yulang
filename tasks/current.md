@@ -2523,6 +2523,23 @@ publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
 plumbing does not supply production authority.
 
+The current F5 replacement map makes the implementation boundary explicit:
+F5c generalization is called inside `InferenceSession`'s SCC component
+lifecycle (`crates/yu-solver/src/lib.rs`, `execute_scc_plan_inner`),
+`ClosedValueScheme` finalization/publication, incoming Q/R instantiation,
+and frozen `SolvedModule` root/projection queries consume that representation.
+Replacing only `F5cGeneralizer` would leave current closed-scheme and Q/R
+behavior active. Collection/SCC infrastructure may be reusable, but no
+successor correspondence is established. The Authoritative
+[`F5` foundation](../notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md)
+keeps F0–F4 authority and narrowly supersedes named F4 limits. The reviewed
+[Gate E charter](../notes/design/2026-09-29-scc-intrusion-redesign-charter.md)
+requires a successor design naming superseded lifecycle, Oracle behavior,
+compatibility deltas, rollback and structural input limits with deterministic
+rejection/failure semantics; independent M3 semantic/specification and
+material-performance review; then explicit user approval before implementation.
+This map is source ownership only and closes none of those gates.
+
 ## Current reattack: demand-event realization (2026-10-07)
 
 At freshly fetched remote/local baseline `f4d4558895e4e8dd72e3e9dc38df061b63ea207e`,
