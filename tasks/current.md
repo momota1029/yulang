@@ -3085,3 +3085,17 @@ lawful whole action. It must explicitly state whether a primitive relation is
 an opaque complete contract or expose its own finite occurrence tree; it may
 not get exhaustiveness by unioning downstream reference lists. Keep admission,
 CallInitial/I0, transformed export, principality and production cutover open.
+
+The conditional [owner declaration gap](../notes/theory/2026-10-08-flat-apply-original-owner-schema-candidate.md)
+is now checkpointed and pushed as `2f86ea24e`. Its SHA-256 is
+`e0cca3ba30798a04c14a3d7e3ea003d3309063e05fa6b75eab2ed5300da33eb3`. Independent
+compiler-referee and spec-auditor reviews pass within the note's bounded
+research claims. They confirm the exact stop at a complete Application owner
+declaration plus authentic installation/inversion; they do not certify an
+exhaustive source inventory or authorize adoption. The note also records that
+an opaque primitive is a valid route only when its whole contract, licensing,
+evidence and action are retained. Finite internal expansion is not a
+prerequisite by itself. The next artifact is still to complete and review that
+owner package; flat seed, CallInitial/I0 and later gates remain independent.
+No tests, builds, implementation or DAG status changes occurred. The latest
+checkpoint is synchronized with `origin/research/simple-sub-intrusion`.
