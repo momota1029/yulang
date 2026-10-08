@@ -5292,3 +5292,30 @@ registration is available, or when new evidence establishes a real authority
 conflict. Continue an independent inference lane meanwhile. Hreg, all
 aggregate gates, implementation authorization and F5 cutover remain open; no
 tests or builds ran. Commit `39ee3b64e` preserves the attempt.
+
+The reviewed [PE-ID changed-root owner crosswalk](../notes/progress/2026-10-09-pe-id-changed-operand-owner-crosswalk.md)
+uses the selected fresh ordinary root `u_i` and its Top/Direct Value client as
+the consumer discriminator. Independent compiler-referee and spec-auditor
+reviews found no actionable findings. The selected PE decoder supplies the
+semantic root equations, while current F5 fresh rows and scheme handles do
+not supply their complete interpreted root, whole-frame action, original
+scopes or local-law evidence. This is a bounded source-to-Rust correspondence
+gap, not a claim of semantic rejection. The next PE-ID step is an exact
+constructor-owned manifest from authentic `ProjectionExport` and whole-frame
+inputs to each active `u_i` field and its owner; do not start by adapting a Q/R
+row. No implementation authority or gate promotion follows. Commit
+`9d4d74b06` preserves the crosswalk.
+
+The reviewed [Fixed-target owner audit](../notes/progress/2026-10-09-native-export-fixed-target-owner-audit.md)
+finds that PE-PICK's authentic `z=0` capture and ReadCert supply Fixed(J_0) at
+pick's original telescope, and Call Input Realization supplies the same-
+binding Name Delay Return law for an authentic argument. The cross-id
+application still lacks formation/grafting of that fixed capture telescope
+onto id's empty-capture interface; only after that earlier judgment is
+supplied could a specialized L.Value inclusion proof be built for Direct.
+Independent compiler-referee and spec-auditor reviews found no actionable
+findings. This neither rejects the candidate nor closes PE-ID, PE-PICK,
+ALL_VIEW, PRINCIPAL, production correspondence or F5 cutover. The next action
+is to obtain the owner judgment for that target-formation graft, then only if
+it exists attempt the scoped finite inclusion. Commits `9d4d74b06` and
+`e4f8e6881` preserve these checkpoints; no tests or builds ran.
