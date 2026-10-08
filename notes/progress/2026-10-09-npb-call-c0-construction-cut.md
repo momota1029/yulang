@@ -1,7 +1,7 @@
 # Native id Call: constructive C0 attempt and first consumer cut
 
 Date: 2026-10-09
-Status: frozen unreviewed research checkpoint; conditional derivation and constructor cut
+Status: frozen research repair; conditional derivation and constructor cut; delta review pending
 Baseline: `639f8d12459ac01308ed57a3acb0a4397e3dffd4`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -59,7 +59,7 @@ independent J membership remains broader than that actual execution. No
 restriction to source-returning, receipt-reached or finitely sampled h is
 made. The enclosing Call retains the full original domain D_e.
 
-## 3. Forward construction reaches a receiver, then an unmatched field
+## 3. Forward structural receiver branch and its consumer cut
 
 1. Literal and immutable Return rules produce the Int fact and same-world
    certificate for the actual `0`. Result/inert registration supplies the
@@ -79,16 +79,24 @@ made. The enclosing Call retains the full original domain D_e.
    invocation-return port, with the same outward provider/current world.
    SD-NPB supplies this step also for every independent generic challenge,
    pending development and native production alternative.
-4. Form the authentic complete operation reference Q_e and Theorem IF frame
-   by retaining their original operands. The next dependent operand in
-   CallSpec after receiver dispatch is **ReturnFutureRef_e**, not C-Call.
-   To type this operand at the source Call result consumer one needs its
-   original local result/consumer relation and a proof at that distinct port.
+4. Retain the known original source operands in an **untyped operation/frame
+   skeleton**. Retention alone does not supply an independently typed complete
+   Q_e or a typed Theorem IF frame. In the forward structural receiver branch,
+   under the local laws used in steps 1–3, the next unmatched dependent operand
+   in CallSpec after receiver dispatch is **ReturnFutureRef_e**, not C-Call.
+   To type it at the source Call result consumer one needs its original local
+   result/consumer relation and a proof at that distinct port.
 
-The first unmatched proof field, after the above construction, is therefore
-the actual original **receiver-to-source-Call-result consumer derivation**,
-including its dependent current-world/result-provider/future fields. In
-notation that abbreviates existing interfaces, its required shape is
+The consumer is the first unmatched proof field **only in that forward
+structural receiver branch under those local laws**: the actual original
+**receiver-to-source-Call-result consumer derivation**, including its dependent
+current-world/result-provider/future fields. This is not an ordering of all
+complete-C0 prerequisites. Authentic complete declaration typing, every
+original primitive/root's independently typed complete interface and its
+lawful whole-map action remain parallel unresolved prerequisites. Theorem IF
+§6 can construct its typed complete frame only conditionally on those inputs
+and its actual source-formation records; steps 1–3 do not supply them. In
+notation that abbreviates existing interfaces, the consumer field requires
 
 ```text
 original consumer/rebind witness b at this source Call occurrence
@@ -111,17 +119,23 @@ fix every original source result descriptor, guarantee or consumer proof.
 Choosing an identity map here without an actual original result-port rule
 would choose the missing premise. Even granting such a structural map would
 leave the independently declared complete whole-Call ArmDecl_e obligations
-below. Thus the strongest result produced here is the receiver construction
-plus this exact source-consumer cut, not complete structural or full C0.
+below. Thus the strongest result produced here, under the stated local laws,
+is the forward receiver construction plus this exact source-consumer cut.
+It supplies neither the complete typed IF frame nor complete structural or
+full C0.
 
 ## 4. Conditional continuation derivation, retaining all suffixes
 
 If the original source consumer relation and its local typed proof are
-supplied at the actual result port, ordinary dependent Bind gives a
-structural Call typing derivation. Its hypotheses are the callee and
+supplied at the actual result port, and every used local law below is supplied,
+ordinary dependent Bind gives a structural Call typing derivation. Its
+hypotheses are the callee and
 whole-argument local laws, same-provider admission, receiver typing already
 constructed above, the original source consumer proof, and each actually
-used independent context/history action. It does not assume complete C0.
+used independent context/history action. It does not assume complete C0 or
+establish independently typed complete declarations. Applying Theorem IF to
+obtain its full typed frame additionally requires the parallel complete
+primitive/root-interface typing and lawful whole-map inputs listed in §3.
 
 The finite-prefix proof preserves these equations verbatim:
 
@@ -152,7 +166,8 @@ that the constructive attempt has not supplied.
 
 ## 5. Complete alternative relation and independent guard cuts
 
-Complete C0 additionally quantifies over every witness of the authentic
+In parallel with the forward structural branch, complete C0 quantifies over
+every witness of the authentic
 original Q_e relation, before observation projection. Use `G_e(h,y)` solely
 as an abbreviation for that original whole hard envelope: descriptor and
 typed-state facts, genuine guarantee bounds, K/D, authority and scope,
@@ -216,17 +231,23 @@ disjoint-tag result at the independently omitted source port, not agreement
 between two implementations assuming transition rules.
 
 Unverified scope: unconditional source result/consumer typing; concrete full
-ArmDecl_e and output-dependent admission/future laws; full C0 and its effective
+ArmDecl_e, authentic complete declaration and primitive/root-interface typing,
+lawful whole-map actions and output-dependent admission/future laws; full C0
+and its effective
 residual elimination; parser/HIR/current F5 correspondence; foreign kernels;
-all-language inference/principality and cutover. This note has no independent
-review and makes no gate-status promotion. It is frozen upon submission.
+all-language inference/principality and cutover. Independent review identified
+the premature typed-frame claim in §3 step 4; this repair replaces it with an
+untyped retained skeleton and explicit conditional IF application. The repair
+has not passed independent delta review and makes no gate-status promotion.
+It is frozen upon submission.
 
 Recommended next action: at the authentic Call result owner, retain and
-instantiate its original designated-consumer proof and actual complete arm
-contracts for this one id Call. Supply the explicit ReturnFutureRef_e local
-rule first; then derive each declared arm's original hard-envelope and
-changed-provider domain/future fields. Another receiver-only model leaves
-these same fields untouched.
+instantiate its original designated-consumer proof for this one id Call,
+alongside independently typed authentic complete declarations and primitive
+interfaces with lawful whole-map actions. The explicit ReturnFutureRef_e rule
+addresses the forward branch cut; each declared arm still needs its original
+hard-envelope and changed-provider domain/future fields. Another receiver-only
+model leaves these same fields untouched.
 
 ## 8. Frozen dependency and commit packet
 
@@ -251,7 +272,7 @@ fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a  notes/theory/2
 - Exact leased/changed path: `notes/progress/2026-10-09-npb-call-c0-construction-cut.md`.
 - Baseline SHA: `639f8d12459ac01308ed57a3acb0a4397e3dffd4`.
 - Changed dependency hashes: none.
-- Claim/review status: unreviewed conditional derivation and minimal omitted-port falsifier; full C0 open.
+- Claim/review status: conditional derivation and minimal omitted-port falsifier; accepted typed-frame finding repaired, independent delta review pending; full C0 open.
 - Checks already run: exact dependency equality; note whitespace/newline/fence integrity; no tests/builds/measurements.
-- Proposed commit message: `research: locate native id Call C0 cut at original result consumer`.
-- Shared deltas left for primary/curator: link this consumer cut as research evidence from the active C0/JOINT_DEC entry and `tasks/current.md`; retain original full arm, same-provider admission, pending/raw-resume/future and cutover obligations without status change.
+- Proposed commit message: `research: make native id Call IF frame construction conditional`.
+- Shared deltas left for primary/curator: scope this consumer cut to the forward structural receiver branch in the active C0/JOINT_DEC entry and `tasks/current.md`; record complete declaration/primitive-interface typing and lawful whole-map action as parallel unresolved prerequisites; retain original full arm, same-provider admission, pending/raw-resume/future and cutover obligations without status change.
