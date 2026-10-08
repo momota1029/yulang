@@ -1021,7 +1021,7 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [SOUND](#sound), [PRINCIPAL](#principal), [PROD_CONFORMANCE](#prod-conformance), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource), [HIR_WIRING](#hir-wiring), [ORACLE_COMPAT](#oracle-compat).
 - Premises retained: Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.
 - Already closed lemmas reused directly: [SOUND](#sound), [PRINCIPAL](#principal).
-- Minimal remaining lemma / exact closed scope: Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.
+- Minimal remaining lemma / exact closed scope: Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. The active objective authorizes pursuit of replacement; the successor design, independent review, explicit approval and rollout evidence remain required.
 - Unblocks: None.
 - Sources: [charter](../../notes/design/2026-09-29-scc-intrusion-redesign-charter.md); [rebuild](../../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md); [review](../../notes/progress/2026-10-07-successor-full-attack-review.md).
 

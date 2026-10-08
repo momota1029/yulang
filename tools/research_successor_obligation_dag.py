@@ -463,7 +463,7 @@ n("PRINCIPAL", "CONDITIONAL-CLOSED", "All-view principal successor inference", "
   "The reviewed conditional synthesis computes one finite legal P_S before choosing V, constructs one whole ordinary-use copy/query graph for each V before assignments/challenges/histories, transports ALL_VIEW's one coherent original-scope joined strategy with actual B_common Direct evidence through full PROJECTION, and derives exact public factorization by certified-use Theorem 3. This proves universal ordinary-use factorization across all valid finite public schemes IF the three unchanged upstream contracts hold; none is actually closed. It supplies no production containment, SOUND or cutover claim.", "charter use newglobal principal3 round3review")
 n("CUTOVER", "OPEN-PROOF", "Final reviewed implementation and production inference cutover", "SOUND PRINCIPAL PROD_CONFORMANCE FRESH_LIFE RESOURCE HIR_WIRING ORACLE_COMPAT",
   "Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.",
-  "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.", "charter rebuild review")
+  "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. The active objective authorizes pursuit of replacement; the successor design, independent review, explicit approval and rollout evidence remain required.", "charter rebuild review")
 
 FAMILIES = {
     "directional source generation/provenance": "DIR_LOCAL RS_LX SEED_SOURCE",

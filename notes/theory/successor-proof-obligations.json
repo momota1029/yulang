@@ -2301,7 +2301,7 @@
         "ORACLE_COMPAT"
       ],
       "premises": "Frozen complete successor design, implementation correspondence, required independent reviews and concrete explicitly approved routing/rollout.",
-      "minimal_lemma_or_closed_scope": "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. Current user explicitly forbids cutover; this procedural gate is not a semantic user-decision blocker.",
+      "minimal_lemma_or_closed_scope": "Validate whole pipeline and capability envelope, then obtain/consume concrete production implementation and rollout authority. The active objective authorizes pursuit of replacement; the successor design, independent review, explicit approval and rollout evidence remain required.",
       "references": [
         "charter",
         "rebuild",
