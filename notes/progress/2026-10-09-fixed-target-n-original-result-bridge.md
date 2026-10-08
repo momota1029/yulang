@@ -76,13 +76,35 @@ and its owner proposal at the baseline. Constructor shape was cross-checked
 against the N-carrier map, literal-Return construction, Call-input §§3.1/3.4,
 and the current Fixed/id ledger. An independent architect review confirmed
 the authority boundary and first cut. No independent theorem review or
-original-producer inventory was performed; absence beyond this bounded cut is
-not claimed.
+comprehensive original-producer inventory was performed; the bounded owner
+crosswalk below is not an absence claim.
+
+### Bounded original-owner crosswalk
+
+A subsequent bounded owner scan confirms this target license is the
+`ResultLiteral` subcase of the already recorded **R-flat typed original
+registration/realization** gate, not a separate new gate. The non-authoritative
+owner-completion candidate assigns it the actual primitive and `Value(Int)`
+normalization at `a_1`, the original parent/scope `T_c`, and
+`Comp(empty,Int)`, while explicitly stopping short of `PortReg_orig`
+(`notes/theory/2026-10-08-flat-apply-original-owner-completion-candidate.md`
+§3). The broader H-original-install/E-flat supplier remains separately
+necessary for actual emitted membership and inventory preservation.
+
+The selected `Application_N` proposal constructs only its N-owned Result
+port. Its §4 reserves original PortReg for adoption or typed realization.
+The original Call-input rule consumes an original Result port, while its
+displayed Data grammar has no literal introduction. Current Rust retains the
+literal spelling/occurrence in HIR and the structural shadow derivation has
+only a Name/Name Result arm; neither constructs this semantic port license.
+Thus the exact next task is to refine R-flat at ResultLiteral: identify the
+actual target owner/domain and its certificate-producing operation. This is
+not evidence that no such owner can be added or selected elsewhere.
 
 Next action: inspect the actual original literal/Result owner for this source
-occurrence and construct the supplied target license, or record the exact
-producer seam if none is available in the selected source path. Preserve all
-downstream gates until then.
+occurrence and construct the target license through that R-flat seam, or
+record precisely which authorized owner must supply it. Preserve the separate
+H-original-install/E-flat and all downstream gates.
 
 Checkpoint: exact leased artifact `notes/progress/2026-10-09-fixed-target-n-original-result-bridge.md`;
 proposed commit `research: isolate original Result license for Application N bridge`.

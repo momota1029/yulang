@@ -4899,10 +4899,14 @@ operand at the authentic original literal Result-node/port license, before
 Delay, checking, or Call attachment; its conditional map and endpoint-tag
 falsifier are recorded in
 [the Result bridge attempt](../notes/progress/2026-10-09-fixed-target-n-original-result-bridge.md).
-This does not establish that no original producer exists. Next, locate and
-construct that licensed owner output; only then extend through original
-Reify/check/result incidences and separately prove the `IF_pick`/`IF_id`
-carrier/event pairing. Keep `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
+This is the `ResultLiteral` subcase of the already identified R-flat typed
+original-registration/realization gate, not a separate gate; the owner scan
+found no selected constructor or current Rust operation that emits the
+certificate. This bounded scan does not establish repository-wide absence.
+Next, refine R-flat at that literal owner and construct its licensed output;
+only then extend through original Reify/check/result incidences and separately
+prove the `IF_pick`/`IF_id` carrier/event pairing. Keep H-original-install/
+E-flat, `mu_adm`, `Valid_V`, Direct and ALL_VIEW open.
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
