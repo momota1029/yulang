@@ -634,6 +634,14 @@ was checkpointed in `7eab2767f`.
    review passed. This still does not construct H-R/H-E or prove the original
    argument-coordinate sort accepts a literal. No original emission, O0/O1,
    or source acceptance is claimed by the proposal.
+   The follow-up [literal argument-origin extension](../notes/theory/2026-10-08-literal-call-argument-origin-extension.md)
+   has passed independent compiler-referee and spec review. Its disjoint
+   `Keep(old) + Add(literal candidate)` representation preserves and retracts
+   the old Name image while retaining literal identity. It is still a proposed
+   representation: it does not construct or install actual original literal
+   emission under H-R/H-E, identify the extended family with the emitted
+   family, or close the source-acceptance/cutover gate. This narrows the next
+   constructor task but leaves the actual emission attachment open.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
