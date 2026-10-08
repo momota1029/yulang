@@ -3106,8 +3106,9 @@ It supplies candidate constructors for the Name/Int literal, opaque complete
 contracts, registration, installation/lookup/inversion, old-family
 inclusion/retraction and consumer seams. This is a new proposed definition,
 not a claim about the independently fixed historical family. The frozen note
-is non-authoritative and pending independent compiler-referee and spec-auditor
-review. Adoption, exact correspondence if required, flat seed, CallInitial/I0,
+is non-authoritative and passed independent compiler-referee and spec-auditor
+review within its stated scope. Adoption, exact correspondence if required,
+flat seed, CallInitial/I0,
 admission, solving/export/principality and Gate E remain open. No tests, builds,
 implementation or DAG status changes occurred. The proposal checkpoint is
 synchronized with `origin/research/simple-sub-intrusion`.
@@ -3121,3 +3122,40 @@ original consumer realization. This is not a defect in the proposed grammar,
 and the note leaves natural applicability/open realization work unresolved;
 do not silently treat the bridge as identity. The reviews do not establish
 historical-original correspondence, adoption, or downstream gate closure.
+
+## Current F5 implementation locator audit (2026-10-08)
+
+Read-only mapping at `15e83939a` confirms production still enters through
+`yu-hir::lower_module` → `ConstraintBatch::collect` → `SolvedModule::solve` →
+private `InferenceSession`; Apply typing is not present in this production
+route. F5 runs inside the SCC lifecycle: member drafts call
+`component_generalization_draft` and `F5cGeneralizer`, then component
+normalization/finalization publishes `ClosedValueScheme`s before fresh
+incoming Q/R instantiation. `SolvedModule` stores and projects those closed
+schemes. Replacing only `F5cGeneralizer` would leave the surrounding
+representation lifecycle in place.
+
+Current F5 path locators: `crates/yu-solver/src/lib.rs` (`collect` 855,
+`InferenceSession` 7419, `solve` 16027, `execute_scc_plan_inner` 13135,
+generalization draft 15475, finalization 15505, incoming route 15162, `finish`
+15740); `crates/yu-solver/src/f5c_generalization.rs`; and
+`crates/yu-solver/src/f5c_normalization.rs`. The flat candidate branch and
+`intrusion_transport` remain `#[cfg(test)]`. `shadow_apply` calls the existing
+F5 solver and returns a private experimental result, so it is not a production
+successor. These code locators agree with the existing Gate E blocker; no
+production implementation or cutover authority follows. Read-only inspection
+only; no tests, builds, or probes. The smallest coherent replacement seam is
+component interface construction, durable member/root publication,
+incoming-use transport, and frozen-result consumers together.
+
+## Flat literal argument realization residual
+
+The scoped bridge audit found that `R_a = Comp(empty,Int)` is the literal's
+computation interface, not equality with its exact source Return image `J_a`.
+Source generation and original Call-input consumers retain the image and
+require an actual `WholeArgCompatible-origin(J_a,...)`. This is an open typed
+consumer realization for the proposal, not a malformed grammar or established
+semantic conflict. Retain both indices and discharge the kernel-signature and
+typed transport bridge before claiming original-consumer applicability. No
+divergence counterexample or acceptance change was established. No tests,
+builds, probes, or Git mutations occurred during this audit.
