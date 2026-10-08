@@ -3035,3 +3035,28 @@ TODO lists. Check newly advancing remote commits for semantic dependencies,
 keep exact file leases and one Git/build owner, run the focused checkers/tests,
 repair independent major findings, synchronize these records, commit and push
 `origin research/simple-sub-intrusion` without force.
+
+## Ordinary Application source-presentation candidate (2026-10-08)
+
+The bounded candidate at
+[`ordinary-application-source-presentation-candidate`](../notes/theory/2026-10-08-ordinary-application-source-presentation-candidate.md)
+was checkpointed and pushed as `cadbd5b26` before shared-record synchronization.
+Its SHA-256 is
+`cbcfc770820cde081c80e3c678b21e23ce941581edf7c17505e411f2157fc766`. Independent
+compiler-referee and spec-auditor reviews both pass within its explicitly
+conditional, non-authoritative scope; neither approves adoption or
+implementation. They confirm that the five-head initial-context reference,
+the separate source-call certificate, and the direct-Int decision are reported
+without claiming exhaustive original ownership, primitive/certificate
+inventory, installation, or production correspondence. No implementation,
+tests, builds, or DAG status changes follow.
+
+Next, continue from the source owner to supply the authentic Application
+occurrence/owner production and complete primitive/certificate inventory,
+including installation/membership, attachment inversion, old-family
+preservation, whole actions, and exact consumer applicability. Keep Gate E and
+production implementation open until the concrete successor presentation is
+complete, independently reviewed, and explicitly approved. The latest
+checkpoint is synchronized with `origin/research/simple-sub-intrusion`; keep
+substantial coherent slices committed and pushed promptly so external work
+continues from a current branch tip.
