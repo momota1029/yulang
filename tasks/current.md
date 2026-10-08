@@ -3353,3 +3353,23 @@ constructors. Keep Gate E, FRESH_LIFE and production correspondence open; the
 pending Application-owner question is independent of this bounded `id` work.
 No tests, builds or probes ran for this review; the candidate's focused
 document checks and dependency revalidation are recorded in the artifact.
+
+## ReadInvoke source-rule schema review (2026-10-08)
+
+The bounded [original local-rule schema proposal](../notes/theory/2026-10-08-readinvoke-original-rule-schema-proposal.md)
+for the captured Name/Name Call has now received an independent
+compiler-referee review with no finding. The review verified that the 15
+families in §4 are obligations rather than a claimed complete kernel
+signature; §5 derives only the supplied ordered Bind equations; and §6 leaves
+the decorated prefix `P`, actual-receiver signature `V`, admission/development
+signature `A`, and operator/action laws `G` unresolved. The smallest exposed
+gap remains `P.CallInitial`; neither descriptor formation nor interface
+incidence manufactures its missing source rule.
+
+This review closes no source-rule theorem, fixed-`E` attachment, production
+conformance or implementation gate. Next evidence must come from the owning
+kernel's full `P.CallInitial` signature and witness action, or from an
+explicitly approved new constructor presentation. Keep `V/A/G`, emission
+installation and fixed-`E` attachment as separate obligations. No tests,
+builds or probes ran; the review revalidated all 13 dependency hashes and the
+primary confirmed the reviewed file hash matches committed `ecf18d9d8`.
