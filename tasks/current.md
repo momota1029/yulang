@@ -5362,6 +5362,10 @@ HIR/shadow/F5 scheme path has no such source elaborator; see the
 The `id as Any` discriminator sharpens this: the existing negative `Top`
 constructors are not ordinary `Any` target-root records, and PE's conditional
 Top proof assumes that exact root already exists. Establish the source target
-and ordinary-root owners first; only then apply the proof-only Direct case or
-separate executed-conversion case and measure its attempt schedule. Preserve
-the Hreg no-repeat stop. No tests, builds, benchmarks or mutation probes ran.
+and ordinary-root owners first. The architecture choice is now recorded in
+[question q1](../questions/2026-10-10-source-annotation-typed-root-bridge/question.md),
+independently reviewed by compiler-referee and spec-auditor; its answer is
+pending and the directory remains uncommitted. No production implementation
+is authorized by the existing annotation/Direct answers. Continue independent
+inference lanes while that choice is pending, and preserve the Hreg no-repeat
+stop. No tests, builds, benchmarks or mutation probes ran.
