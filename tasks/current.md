@@ -106,6 +106,34 @@ all original prerequisites. No production implementation or cutover occurs.
 
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
+The transformed-export continuation has additionally constructed and
+independently reviewed [ordinary id invocation phases](../notes/theory/2026-10-08-id-public-phase-constructor.md).
+The concrete native VP rules and direct actual id introduction cover zero-step
+pre-receipt, complete/pending/divergent entry, raw resumption at the current
+world, same-value Return and hereditary futures. A finite Echo refinement and
+its semantic inclusion are proved; PICK-J needs its actual public capture
+contract. The [review record](../notes/progress/2026-10-08-projection-public-export-review.md)
+records both independent clean reviews and the minor phase/future clarification.
+This closes the initial ordinary phase-guard supplier in that native scope.
+That first theorem fixes the complete inlet I. The separately
+[reviewed uniform inlet constructor](../notes/theory/2026-10-08-uniform-value-entry-constructor.md)
+now forms one fixed generic raw inlet before Generalize, injects each exact
+prechosen frame witness into it, and proves Uniform-ID/Joint-ID for that same
+actual provider. Full observation-index Delta proofs preserve every carrier
+alternative; no scalar complete-contract covariance is inferred. The exact
+source/public evidence cut and actual-root Direct are still being constructed.
+No foreign W/Z identification, aggregate status or production cutover follows
+from these local results.
+
+The subsequent independent pre-review produced two
+[reviewed finite countermodels](../notes/theory/2026-10-08-projection-export-proof-countermodels.md):
+actual target-payload typing cannot discard broader complete carrier
+observations, and one canonical evidence constructor cannot erase an
+independent proof-choice fiber observed by W. Same-whole-I admission
+restriction and result weakening have direct valid proofs. These results
+falsify concrete attempted inference steps; they do not reject source id or
+claim that finite public export is impossible.
+
 Three further constructor bottlenecks now have complete scoped proofs and
 independent mathematical/specification review; the
 [integration record](../notes/progress/2026-10-08-native-constructor-theorems-review.md)
