@@ -3884,3 +3884,15 @@ policy, and production consumer remain open. No compiler code, tests, builds
 or measurements ran. Next: obtain the authentic Parameter owner schema, then
 re-freeze and review a decision-ready producer contract before asking for any
 architecture approval. No F5 replacement is authorized.
+
+The focused emptiness attack is now pushed at `2c340b256`. It confirms that
+the selected rules determine the Parameter owner and pre-challenge scope but
+do not establish `Delta_a=[]` or an authentic nonempty case. One earlier static
+dependency edge is enough to show that eligibility does not imply an empty
+telescope, while remaining only a record-level discriminator until an
+authentic Parameter owner supplies it. The precise next evidence is still the
+ordered free-operand manifest and its local formation clauses. This note is
+unreviewed and non-authoritative; no source counterexample or new semantic
+rule is claimed. The owner design draft remains at reviewed-delta hash
+`440e1ef94981ff00ad1515777d3afe5c933f67798619c9369cc0aba67083b9e0` and
+uncommitted pending architecture approval.
