@@ -4629,3 +4629,25 @@ absence, not a repository-wide claim. Next: recover the actual ground witness
 and restriction fields from their source owners, then decide whether their
 selected laws supply the full retained-record square. Keep `Int` and the
 literal import rigid unless a separate typed descriptor action is established.
+
+The follow-up source trace for `id 0` separates the local argument proof from
+the missing whole-call bridge. In the selected PE boundary theory, the literal
+keeps its rigid `Int` descriptor and original provider; the id frame chooses
+`A_i = Int` before challenges, while the decoded fresh `u_i` is the callee's
+Function root. The local `Int -> Int` result check can use the genuine ground
+Identity constructor. None of this transports the literal's certificate to a
+different root. The accepted `Application_N` branch instead requires a callee
+Name resolving to an immutable ordinary Value formal. A published top-level id
+Name is a `Published/Instance` owner, not that formal; no selected incidence
+connects its publication/instance root to the branch's `d_f/R_f/r_bind`.
+Application_N's `Result-N`/`ArgDelay-N` also has not been identified with
+SD-NPB's `DataArg(Int)`, and SD-NPB supplies only argument/receiver boundary
+judgments, not the enclosing CallMem/C0, source Call result consumer, and
+suffix. Default HIR rejects Apply as unsupported and solver collection marks
+it incomplete; shadow application remains unresolved. This is scoped to the
+inspected native branch and default path, not a claim that all source-call
+semantics are absent. Next: establish an authentic published-id Name → source
+instance → decoded Function-root caller incidence, keeping the original
+`J_0=DataArg(Int)` fields fixed. Complete-Call realization and any genuinely
+changed argument-root action remain separate gates; no code, test, or F5 route
+changed.
