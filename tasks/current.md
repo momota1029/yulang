@@ -3465,10 +3465,28 @@ uncommitted, non-authoritative and unapproved; no compiler code, tests, builds,
 measurements or cutover occurred. The pending flat-Application owner question
 remains independent.
 
-Next: fix a concrete Rust-shaped record representation and static resource
-accounting while preserving the exact selected source graph. Then obtain the
-remaining targeted review and present only the still-required decision once
-the packet is decision-ready.
+The next concrete representation proposal was reviewed at draft SHA-256
+`1d5b3d16bb83d489ca1538405c9b916a81dcd4a6d1699dda2443ce6a1c7481ed` by an
+independent compiler referee and specification auditor. The spec auditor found
+no contradiction; the referee found a major representation gap: the proposed
+`IdAnchorFormationKind` tag does not retain the actual `Executed`/`OneShot`
+identity and same-world returned-provider/evidence tuple required by
+`ReturnedInstallation`. Two such tuples can share identical recorded origins,
+so the static schema cannot recover their distinct fixed anchors. The draft
+now records that the candidate is adequate only if the authentic constructor
+establishes inert registration with operands resolvable from origins, or if
+typed references to the actual anchor-owner output and dependent fields are
+added. The 80-byte estimate covers only the origin tuple; it is not a complete
+element or peak-storage bound for the returned-installation arm.
+
+This is a frozen review result for the recorded SHA; the draft has since been
+updated to incorporate the finding and is unreviewed at its new content hash.
+The pending flat-Application owner question remains independent. No policy,
+anchor arm, implementation authority or gate closure is selected. Next: choose
+neither branch by inference; map the authentic inert-registration supplier or
+specify the typed actual-anchor reference and recalculate resource bounds,
+then obtain focused delta review. Keep the design draft and pending question
+uncommitted; record-only checkpointing is safe meanwhile.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
