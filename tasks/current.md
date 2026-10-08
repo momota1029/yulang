@@ -3614,6 +3614,31 @@ arithmetic; it does not prove the publication bijection, current H-bridge,
 full owner types or a total resource bound. No production code or tests were
 added; the design remains a non-authoritative uncommitted draft.
 
+A read-only decision audit at the same draft SHA confirms the packet is not
+ready for implementation approval. The selected Source Generalize rules own
+the semantic partition; they do not grant this production architecture. The
+proposed HIR-directed producer is a possible new owner, but authentic anchor
+formation, full publication incidence, the singleton publication bijection,
+concrete payload/lifetime and total static resource bounds remain unproved.
+Missing suppliers obstruct extraction from existing artifacts, not a future
+selected constructor. Existing user priorities support recommending optional
+discard-only metadata so F5 results remain authoritative; they do not approve
+the new architecture by themselves. Required metadata would change the failure
+boundary and needs explicit approval. Process-aborting OOM remains outside any
+recovery promise.
+
+An exact-path source audit further distinguishes absent anchors from
+near-matches: lexical `ScopeStack`, `FetchValue`, `LambdaRecipe`, SCC topology,
+`AdmissionReceipt`, scheme installation and terminal transfer carry no
+selected world/registration/lifetime anchor or source publication `p_id`.
+Shadow `Form::Lambda` and `SymbolicRegistration` are non-production and do not
+supply original semantic witnesses. The next evidence must provide the
+authentic formation/local-law owner, then a separate source publication and
+FinalRoot bridge selecting complete `(C_id,R_id)`, before type storage or
+terminal retention can be treated as implementation work. The pending
+Application-owner question remains independent. No production code or tests
+were added; the source-owner draft stays non-authoritative and uncommitted.
+
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
 The frozen [conditional construction](../notes/theory/2026-10-08-call-demand-formation-construction.md)
