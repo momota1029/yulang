@@ -1651,7 +1651,11 @@ solutions. SRC/SRC-J/GS/GC prove the corresponding joint finite source-use
 fibers. Uniform inlet plus PE-ID instantiate the import-free `id` case; PE-PICK
 constructs the finite public-import `pick` case while fixing `J_0` and its free
 dependency closure. These facts are produced by source constructor records,
-not inferred from F5 Q/R ordinals.
+not inferred from F5 Q/R ordinals. An independent counterexample attack found
+the structural partition determined modulo fresh-name choice for these bounded
+cases; logical proof terms and endpoint specializations remain legitimately
+nonunique. The attempted alias-splitting mutation is rejected because the
+selected Alias/Name rule routes both occurrences through the same frame.
 
 This supplies the bounded **source partition** leaf for those native cases. It
 does not close `FRESH_LIFE`: ordinary F5 and the default-off candidate do not
