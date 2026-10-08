@@ -5319,3 +5319,19 @@ ALL_VIEW, PRINCIPAL, production correspondence or F5 cutover. The next action
 is to obtain the owner judgment for that target-formation graft, then only if
 it exists attempt the scoped finite inclusion. Commits `9d4d74b06` and
 `e4f8e6881` preserve these checkpoints; no tests or builds ran.
+
+The reviewed [integrated id-to-Direct bridge](../notes/progress/2026-10-09-integrated-id-source-to-direct-bridge.md)
+joins one conditional unannotated `my id x=x; my alias=id` source path across
+Source Generalize, polymorphic Name `Instance`, monomorphic rebind, PE export
+and decode, and the approved Direct consumer direction. Independent
+compiler-referee and spec-auditor reviews found no actionable findings. It
+derives only a conditional checker consequence for a supplied scoped
+hereditary Top proof; it does not establish inference acceptance. Current HIR
+and F5 produce structural names, a Lambda recipe, scalar Q/R freshening and
+constraint comparisons, while source owner records, whole-root decoding,
+alias-publication correspondence, finite proof production and inference
+caller wiring remain absent from the inspected route. Hreg is still the first
+source-record premise. Continue by connecting authentic Instance/rebind/root
+outputs to an actual source inference caller; do not count checker approval
+as F5 replacement. Commit `51ba6b85b` preserves this checkpoint. No
+production code, tests or builds changed.
