@@ -1,7 +1,9 @@
 # Annotation permission: eager and deferred realization
 
 Date: 2026-10-08
-Status: bounded non-authoritative research; conditional derivation; review repair awaiting delta review
+Status: independently reviewed non-authoritative research; conditional
+derivation only
+Reviewed-by: compiler_referee (delta review closed the release-state premise finding)
 Baseline: `aff71453cefff3b8a8f435b931d204c4ef2249da`
 Branch: `research/simple-sub-intrusion`; unrelated dirty files are excluded
 Lease: this new note only
@@ -224,7 +226,8 @@ source-language semantics or an inference/profile construction judgment.
 
 ## 4. Conditional handler-observation equivalence
 
-**Theorem (rule-relative, unreviewed).** For any finite trace in the above
+**Theorem (rule-relative, independently reviewed within this bounded
+fragment).** For any finite trace in the above
 decorated fragment, A and B have equal ordered candidate/arm observations,
 selected handlers, event consumption/forwarding, responses, live-store effects,
 and external request residuals, under all of these hypotheses:
@@ -379,8 +382,8 @@ a6cfbb30ce7ceaaafc0aac70eb326b3b6efaf410e89f5cd3cfe398cd6d0b2d44  notes/theory/2
   `notes/theory/2026-10-08-annotation-permission-realization-analysis.md`.
 - Baseline SHA: `aff71453cefff3b8a8f435b931d204c4ef2249da`.
 - Changed dependency hashes: none. Unrelated worktree movement is excluded.
-- Review status: two adjudicated findings repaired; producer-frozen, awaiting
-  independent delta review; conditional research only.
+- Review status: independent compiler-referee delta review passed after the
+  release-state premise repair; bounded conditional research only.
 - Checks already run: assigned dependency SHA-256 equality, current HEAD/branch,
   leased-path new/untracked status, narrow whitespace/diff and link checks.
 - Resources: no tests/builds/computational searches; serial lightweight text
@@ -395,4 +398,6 @@ a6cfbb30ce7ceaaafc0aac70eb326b3b6efaf410e89f5cd3cfe398cd6d0b2d44  notes/theory/2
   Keep C6 realization/source-incidence and static export observability open.
   No design-index status promotion or question-board bundle is proposed.
 
-The producer stops writing before submitting this artifact for frozen review.
+The producer stopped writing before review; the reviewed artifact remains
+non-authoritative and does not establish source incidence or static export
+observability.
