@@ -130,3 +130,56 @@ The next construction must keep full independent carrier observations and
 every non-definitional source-owned logical witness. Uniform actual inlet
 acceptance and exact witness-level normalization are distinct from the false
 arguments just ruled out. No production or canonical aggregate is changed.
+
+## 5. Uniform source-owned inlet checkpoint
+
+Artifact: [one fixed generic Value inlet](../theory/2026-10-08-uniform-value-entry-constructor.md).
+Producer freeze SHA-256:
+`cfa2e10719081f0dbc5ef37f47cc1b46130f8c6b4c7d4b8556901d282459dbaa`.
+Repaired independent-review freeze:
+`d75fa129cd6ba2f756140162f8c202a7e55a7643ea1bab516e1f800d365b8342`.
+
+The producer and both reviewers worked in isolated contexts. Each reviewer
+received the frozen note and governing dependencies; no counterpart verdict
+or producer defense was a review premise. The initial mathematical review
+found one major ambiguity: an initial Delta fact was not explicitly a proof
+of the observation-dependent guarantee at every later J member. Its concrete
+discriminator is a J contract permitting a q Request against a no-q bound.
+The specification review read the intended full package and passed, while
+requiring downstream preservation of its complete meaning. The primary
+accepted the mathematical finding and made that meaning explicit.
+
+The repair adds separate original-scope static and whole-observation proof
+fields. The latter is a finite independently checked argument-contract/image
+derivation, covering every complete J alternative and original continuation/
+future telescope. Its syntax has no tested-id safety or implication oracle
+leaf. Lemma S eliminates it on the same observation being typed; the bare
+id/pick constructor has the displayed invariant proof schema. The no-q
+discriminator now has no valid input certificate rather than having a J arm
+silently deleted. Both fresh independent delta reviews passed, with no
+remaining blocking or major finding. Only status metadata changed afterward.
+
+### Newly closed local results
+
+- Authentic unannotated Parameter formation creates a finite I_q[a;Delta]
+  schema from the original Desc and full original incidence constraints.
+- Authentic Lambda formation creates one fixed raw U_g with a closed generic
+  inlet before Generalize, keeping the inferred schema on Internal edges.
+- Each prechosen checked frame is admitted by injecting its exact complete
+  witness into that fixed inlet; no frame-specific inlet equality is assumed.
+- Complete Force/result typing follows from that frame's same J carrier
+  certificate and its finite whole-image check, including all extra members.
+- Uniform-ID and Joint-ID cover the same actual U_g across arbitrary finite
+  prechosen frames under one valid joint strategy, with the original phases,
+  pending suffix, current worlds and hereditary returned-provider demands.
+- Bare id's a is eligible by the existing Generalize dependency walk.
+  A bounded pick specialization varies only its ignored input; its actual
+  complete public capture remains fixed.
+
+This is a concrete source-owning semantic construction with direct proofs,
+not an assumed uniform-inlet law. Its native scope does not reinterpret an
+old fixed/foreign inlet or prove that arbitrary carrier contracts are covariant.
+Exact public evidence normalization, actual public-root Direct and the final
+source-lawful export theorem are not claimed by this checkpoint. No compiler
+test or production route was changed. Reviewed documentary checks remain the
+verification method; no new executable semantic model was used here.
