@@ -642,6 +642,24 @@ was checkpointed in `7eab2767f`.
    emission under H-R/H-E, identify the extended family with the emitted
    family, or close the source-acceptance/cutover gate. This narrows the next
    constructor task but leaves the actual emission attachment open.
+   Three frozen follow-ups now narrow that owner seam. The independently
+   reviewed [forward construction audit](../notes/theory/2026-10-08-flat-apply-original-emission-construction.md)
+   constructs the reference child/Call spine and stops at `R-flat`: authentic
+   original typed Result/Call port registration. Even with that supplied,
+   `E-flat` must separately install the literal-fiber rule in the actual
+   emitted family, retain the complete original inventory, and provide the
+   lawful whole action. The independently reviewed
+   [bounded falsification](../notes/theory/2026-10-08-flat-apply-original-emission-falsification.md)
+   shows that representability, candidate atoms, registration and action do
+   not entail original emitted membership. The independently reviewed
+   [source-generation bridge audit](../notes/theory/2026-10-08-flat-apply-source-generation-bridge-audit.md)
+   confirms generic expression-root registration and a literal child do not
+   enter the old Name/Name Gen-Call-0 family. These are bounded conditional
+   results; no actual literal emission or source acceptance is established.
+   Next, derive and review the original-owner registration and installation
+   constructors at the literal fiber, preserving old Name records and all
+   original indices/atoms. Keep flat SeedExposure, CallInitial/I0/action,
+   semantic typing/admission and production cutover as separate gates.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
