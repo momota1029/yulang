@@ -206,6 +206,29 @@ The reviewed [ObservedPayload obstruction](../notes/theory/2026-10-08-joint-deci
 separately rules out testing only successful observed calls. No production
 compiler change or cutover follows.
 
+### Completed native Call operational consumer exactness (2026-10-09)
+
+The independently reviewed [SCX / SCX-P theorem](../notes/theory/2026-10-09-native-call-result-consumer-construction.md)
+is pushed at `370bb913f5516915716a6ceb63eea1b84b25e825`. Reusing SD-NPB,
+it constructs the actual native `id 0` source consumer, proves its operational
+decomposition and finite literal execution, and constructs/inverts the
+original relational Call/Bind image of every complete native VP+Echo
+production derivation. The decorated input retains prelude/operator choices,
+original proof fields, independent whole carriers and native nonexecuting
+alternatives. Pending/raw developments preserve current C', the original
+handle reference and unfinished consumer without receipt replay.
+
+This is a complete theorem at the operational and native relational-image
+layer. It does not prove typed M_E, selected ReadInvoke formation, full IF,
+Application_N membership or CallMem/C0. Both independent reviews rejected
+the initial attempt to instantiate ReadInvoke from a typed structural
+subdiagram plus opaque arm slots; the replacement removes those positive
+claims. The actual complete interface still requires its original typed
+declaration/use contracts and changed-interface admission/future actions.
+The [review record](../notes/progress/2026-10-09-native-call-consumer-exactness-review.md)
+records the exact successful proofs and repairs. General JOINT_DEC and the
+canonical DAG are unchanged; no production code, tests or F5 route changed.
+
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
 Three further constructor bottlenecks now have complete scoped proofs and

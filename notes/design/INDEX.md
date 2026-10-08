@@ -73,6 +73,17 @@ This index is a navigation aid. The listed source document remains authoritative
   finite endpoint/frame arithmetic. Exact scope, eliminated premises and
   independent reviews are in the [integration record](../progress/2026-10-08-source-directed-joint-decision-review.md).
 
+- **Reviewed native Call operational consumer exactness (2026-10-09):**
+  [SCX / SCX-P](../theory/2026-10-09-native-call-result-consumer-construction.md)
+  construct the actual `id 0` source consumer, prove its operational
+  decomposition and literal termination, and construct/invert the complete
+  native VP+Echo relational Call/Bind image with all original proof fields.
+  This includes nonexecuting J alternatives and current-world raw resumptions.
+  It is not typed M_E, selected ReadInvoke formation, complete IF, CallMem/C0,
+  or Application_N membership. The [review record](../progress/2026-10-09-native-call-consumer-exactness-review.md)
+  records both independent passes and the removal of the initially invalid
+  selected-descriptor claim. Canonical DAG and production authority are unchanged.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)
