@@ -112,6 +112,42 @@ bridge is required only for an actually used independently fixed meaning,
 not an imagined arbitrary model. The stronger canonical all-license-to-receiving-
 `E_C` target is not closed by general formation-anchor inversion.
 
+### Completed source Generalize case for F1/F4
+
+The primary adjudicated fresh independent `compiler_referee` and `spec_auditor`
+delta reviews as PASS and selected the repaired
+[source Generalize definition](../design/2026-10-08-source-generalize-definition.md).
+The [direct construction and proof](2026-10-08-source-generalize-definition-and-proof.md)
+§§3–7 supplies the missing native source judgment, eligible placement and
+lawful-use reflection relative to its explicit local laws L1–L5 (§2).
+Reuse it as an F1 source-rule construction/inversion case and an F4 lift for
+its independent finite joint source/checking proof grammars. Do not schedule
+source-native Generalize definition or ordinary flexible parameter
+introduction again as an unknown. The
+[review and adoption record](../progress/2026-10-08-source-generalize-review.md#4-frozen-theorem-reviews-and-integration)
+records the accepted frozen mathematical/definition snapshots; their reviewed
+SHA-256 hashes are respectively
+`cf105b27c22c8756077305e90f74efe191a0068221ce42b44480771083442335` and
+`eab5017fcd5eef1662d22a3f68a3bf142bd0793e3b63c57e3ec6863b2170ab32`.
+Later status-header promotion does not expand those reviewed claims.
+
+| Completed source case | Exact scope to reuse | Genuine residual |
+| --- | --- | --- |
+| Independent source/checking/client rules and rule-owned provenance, proof §§3–4 | `new`, `alias`, `view`, `run`, `join` and sequential `bind` describe independent joint source derivations. Ordinary Parameter introduces `Desc` at its original type scope before challenges. Source generation emits local clauses from the same owning rules; neither legality nor formation depends on exporter success or Q. | Genuine primitive, world, checking, annotation/profile, recursive-introduction, future and lifetime laws remain the local L1–L5 inputs. This is not global SOURCE_ADEQUACY, complete INTRO or all-language source-rule coverage. |
+| `Generalize_source(S,b) = ScopedClosure(p,C,T,anchors_b,templates_b,N_b,R_b)`, proof §5 | The exact fix/retain walk preserves the entire component relation and residual. Same-component `Internal` descriptions remain eligible unless an actual fixed dependency reaches them; actual provider/world, `OneShot` and external `Mono`/`Established` full contracts remain fixed. `Shared` stays once in the base; `ViewLogic` once per independent frame; `EventField` once per actual event; `EventProof` per frame under that actual event. Aliases share their frame. | Public projection, actual publisher/instantiator and production lifecycle correspondence remain. Internal source closure is not a new public `B_common` construction or a scope-hiding certificate. |
+| SRC / SRC-J / GS / GC, proof §§6–7 | SRC and SRC-J directly construct and invert independent source and joint-client rules. GS uses one global satisfying strategy. GC ranges over every finite independent joint proof grammar with arbitrary well-scoped W and constructs a finite allocation before assignments/challenges/histories with exactly the same public solution-and-observation fiber and original scoped strategies. Nonidentity checking, lawful narrower domains, structural checks and actual admitted conversions are included; it is not only identical-kernel reuse. | Effective production `Direct`, public `B_common`/PROJECTION and all semantic views remain separate. No normalization of all accepted adapters, all-language State/recursive introduction or complete MEMBER_DISCHARGE follows. |
+
+Proof §5.3 supplies the exact publication cases: in the bare
+`my f x=g; my g y=f` pair, both parameter descriptions are eligible at either
+member or tuple publication while actual closures/world and monomorphic
+internal recursive sharing remain. Genuine external Mono captures fix every
+free dependent contract field. The selected source-final annotation target
+or actual common-formation root remains the root at every use; GC never lifts
+through a hidden interior root. Proof §7.2 keeps the actual resolver's
+recognition of that source evidence as an independent implementation/query
+obligation. No canonical node status, dependency, aggregate or production
+contract changes follow from this local completion.
+
 The canonical inventory remains **90 nodes / 196 edges**, with **7 CLOSED /
 21 CONDITIONAL-CLOSED / 43 OPEN-PROOF / 18 OPEN-SEMANTIC /
 1 IMPLEMENTATION-ONLY**. None of these constructor results changes those aggregate
@@ -293,9 +329,12 @@ O1-static cases above must be reused; actual complete C0 inputs remain.
 construct the actual immutable mutual provider graph; KP additionally
 requires paired argument/context subrelations and KV independently interpreted
 member predicates to emit its same-provider obligation schema. [PG1](../progress/2026-10-06-source-generalization-eligibility-attack.md)
-constructs source projection endpoints and fixed captures. These remove
-structural prerequisites, not the semantic member/environment solution or
-eligible binder/anchor/view policy.
+constructs source projection endpoints and fixed captures. At that historical
+checkpoint these removed structural prerequisites, leaving the semantic
+member/environment solution and eligible binder/anchor/view policy open.
+The selected source Generalize case above now supplies the native eligibility,
+anchor closure and lawful-use construction; genuine member/environment laws
+remain its local inputs.
 
 [Section 22 reduction](../progress/2026-10-06-section22-guard-authority-closure.md)
 retains direct selected rejection and reduces the exact recursive alias route
@@ -306,9 +345,12 @@ levels or permission certificates; blanket O is only one sufficient route.
 The [new recursive synthesis](../progress/2026-10-07-successor-recursive-synthesis.md)
 proves pointwise finite-history invariant transport with compatible scoped
 witness extensions, and finite complete-presentation alpha-isomorphism with
-conditional arbitrary finite joint-use preservation. It leaves independent
-ordinary descriptor finite-elimination, actual local discharge, semantic
-Generalize, complete interface production and primitive covariance real.
+conditional arbitrary finite joint-use preservation. That transport result
+itself leaves ordinary descriptor finite-elimination, actual local discharge,
+semantic Generalize, complete interface production and primitive covariance
+unproved. The later selected source Generalize §§3–7 closes its native
+source-definition/placement/reflection seam directly; production generalization,
+public projection, actual local discharge and the other residuals remain.
 
 The historical reviewed [round-3 world/recursive cut](../progress/2026-10-07-world-recursive-rule-round3.md)
 §§3–6 retains INIT_WORLD/INIT_VALID/REC_DESC/MEMBER_DISCHARGE statuses.

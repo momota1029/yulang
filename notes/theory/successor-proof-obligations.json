@@ -264,9 +264,12 @@
       "gate": "Source projection endpoints and fixed captures",
       "requires": [],
       "premises": "Independently checked projection views at original scopes; only id source is unconditional surface coverage, Make/Relay braces remain conditional.",
-      "minimal_lemma_or_closed_scope": "Source-selected repeated endpoints and fixed pick capture reconstruct the whole kernel; actual Generalize and designated-export Direct remain.",
+      "minimal_lemma_or_closed_scope": "Source-selected repeated endpoints and fixed pick capture reconstruct the whole kernel. The selected native Generalize source constructor now builds its complete scoped closure and proves joint source-lawful soundness/completeness under genuine local laws, including nonidentity checking. Actual public projection and the production designated-export Direct consumer remain; this does not extend PG1's surface coverage by itself.",
       "references": [
-        "pg"
+        "pg",
+        "sourceGen",
+        "sourceGenDef",
+        "sourceGenReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -599,12 +602,15 @@
         "S22_DIRECT"
       ],
       "premises": "Actual source derivation; original binder tree, lexical identities and declared request assumptions.",
-      "minimal_lemma_or_closed_scope": "Map each actual generated/instantiated coordinate to ordinary flexible, inference existential or rigid opened binder with its introduction scope and same-origin dependencies; Name copying alone never reclassifies it. For the bounded ordinary source lambda(x,x), parameter and Result(body) share one fresh A but no rule classifies A or supplies its semantic introduction scope/dependencies. Charter §20 separately opens rigid kappa by one complete packet map; selected sink::put arm my checked:int=x rejects treating every fresh coordinate as ordinary solvable. This is the next missing INTRO rule for this identity derivation, not the uniquely sufficient next gate for inference.",
+      "minimal_lemma_or_closed_scope": "The selected native source Generalize definition supplies Desc(C,q,sort,sigma,Delta) at genuine ordinary inference introductions, including unannotated Parameter at its type scope before invocation challenges and the identity's repeated Result endpoint. Source-owning rules also distinguish shared, description-owned and actual-event evidence, and current-component Internal descriptions from established contracts. Do not reschedule that native ordinary-parameter rule as absent. Remaining: realize every actual generated/instantiated coordinate, including inference existentials, rigid openings and production correspondence, at its original scope with all same-origin dependencies. Name copying never reclassifies a coordinate. Charter §20 retains one whole packet opening; the selected sink::put arm still forbids treating every fresh coordinate as ordinarily solvable.",
       "references": [
         "s22",
         "rs",
         "charter",
-        "frontier14"
+        "frontier14",
+        "sourceGen",
+        "sourceGenDef",
+        "sourceGenReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -618,7 +624,8 @@
       ],
       "closed_lemmas": [
         "RS_LX",
-        "S22_DIRECT"
+        "S22_DIRECT",
+        "Native ordinary Desc introductions, including unannotated identity Parameter/Result sharing, have explicit source type scopes and dependency telescopes before invocation challenges; publication-indexed provenance preserves the separate rigid, shared and actual-event categories. Full existential/guard/all-source production coverage remains separate."
       ]
     },
     {
@@ -1532,11 +1539,14 @@
         "MEMBER_DISCHARGE"
       ],
       "premises": "Complete simultaneous source relation, fixed captured/import/non-generic/world coordinates, source-selected endpoints and original quantifier tree.",
-      "minimal_lemma_or_closed_scope": "Construct the generalized view and eligible binder placement satisfying complete admission/reflection and all authorized future instances; prove scope hiding/anchors and distinguish semantic eligibility from lexical locality.",
+      "minimal_lemma_or_closed_scope": "Selected Generalize_source constructs the actual source-final scoped rule closure, publication-indexed anchor fix/retain walk and eligible original Desc binders. Direct SRC/SRC-J constructor construction and inversion prove GS joint soundness and GC exact lawful-use completeness for finite independent joint source proof grammars under local L1-L5 and arbitrary well-scoped W: one finite allocation before assignments/histories preserves exactly the public fiber and original shared/frame/event strategies. Same-component recursion retains its whole relation; external Mono and one-shot dependencies remain fixed. Native source selection/placement/reflection is no longer a missing constructor on this route. Remaining are unprovided genuine local laws and broader source coverage, actual production generation/evidence consumption, effective designated-export Direct completeness, public projection/principality and any separately required semantic scope-hiding certificate. No all-semantic-view, all-language State/recursion or aggregate production theorem follows.",
       "references": [
         "pg",
         "rs",
-        "fview"
+        "fview",
+        "sourceGen",
+        "sourceGenDef",
+        "sourceGenReview"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1548,7 +1558,8 @@
       ],
       "closed_lemmas": [
         "PG1",
-        "RS_LX"
+        "RS_LX",
+        "Selected native Generalize_source and independent finite joint source legality are fully defined. Under the explicit genuine local constructor laws, direct source-rule construction/inversion proves joint GS and GC with a uniform finite allocation before assignments/histories, exact public solution-and-observation fibers, final source targets and original binder/provider/world correlations. This includes nonidentity local checking and actual admitted conversions; it does not assume supplied g_b, exporter success or successful Q."
       ]
     },
     {
@@ -2685,6 +2696,9 @@
     }
   ],
   "references": {
+    "sourceGen": "notes/theory/2026-10-08-source-generalize-definition-and-proof.md",
+    "sourceGenDef": "notes/design/2026-10-08-source-generalize-definition.md",
+    "sourceGenReview": "notes/progress/2026-10-08-source-generalize-review.md",
     "nativeSig": "notes/theory/2026-10-08-source-signature-incidence-construction.md",
     "nativeSigDef": "notes/design/2026-10-08-native-signature-formation-definition.md",
     "nativeCtorReview": "notes/progress/2026-10-08-native-constructor-theorems-review.md",

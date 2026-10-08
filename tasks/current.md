@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: selected captured-closure, native recursive-interface and exhaustive native signature-incidence constructor theorems; remaining original semantic/inference/production gates stay open
+Status: native source Generalize definition and direct joint soundness/lawful-use completeness reviewed and selected; remaining local-semantic, public inference and production gates stay open
 
 ## Objective and canonical obligation ledger
 
@@ -59,6 +59,50 @@ generated-domain characterization remain intact as existing research targets;
 the alternate cutover route is not available until every retained consumer
 obligation in the architecture is established. Required completed-contract
 principality, all compatible contexts and exhaustive production extras remain.
+
+### Completed native source Generalize (2026-10-08)
+
+The current user explicitly requests the source-side GENERALIZE definition
+and direct soundness/completeness for lawful uses, with natural missing
+definitions permitted. The [selected source definition](../notes/design/2026-10-08-source-generalize-definition.md)
+and [direct proof](../notes/theory/2026-10-08-source-generalize-definition-and-proof.md)
+now construct `Generalize_source(S,b)` from original source rules. No supplied
+`g_b`, exporter success, Q-success, or earlier transport/packaging theorem is
+used as the source correctness premise.
+
+Source owning rules classify ordinary Desc declarations and complete fixed
+dependencies. The publication-indexed walk retains current-component recursive
+descriptions while fixing actual providers/worlds, external Mono contracts and
+one-shot evidence. Initializer Shared binders remain once; ViewLogic remains
+once per independent incoming frame; aliases share that frame; actual event
+fields and per-description event proofs retain their original telescopes.
+Both parameter descriptions of the bare `my f x=g; my g y=f` pair are eligible
+at either member or joint-tuple publication, with the whole simultaneous
+relation retained. Genuine external dependencies can still fix their fields.
+
+SRC and SRC-J construct and invert independent source rules and one jointly
+scoped client derivation. GS proves joint soundness from one global strategy.
+GC constructs a finite allocation **before assignments and histories** for
+every finite independent joint source proof grammar and well-scoped client W,
+preserving exactly its public solution-and-observation fiber and original
+witness dependencies. Nonidentity result checks, lawful narrower domains,
+structural checks and actual admitted conversions are included. Actual final
+annotation/common roots, Option 2 extras and independently admitted future
+contexts remain unchanged.
+
+Fresh independent mathematical and specification reviews both passed after
+one batched repair of the initial joint-witness and recursive-anchor findings;
+the [review record](../notes/progress/2026-10-08-source-generalize-review.md)
+records the exact frozen scopes. Reuse these source-native constructor cases
+under F1/F4. Do not reschedule the native Generalize definition, ordinary
+parameter introduction or joint source-lawful reflection as absent.
+
+This complete relative source-rule theorem retains the genuine local laws
+L1–L5. Unprovided primitive/State/general-recursion laws, normalization of
+arbitrary source adapters, all semantically valid views, public B_common /
+PROJECTION / principality and the actual production Direct consumer are
+separate targets. GENERALIZE and INTRO keep their canonical statuses and
+all original prerequisites. No production implementation or cutover occurs.
 
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
@@ -123,8 +167,10 @@ than another premise-localization note.
 The later native original interface theorem above supplies the missing
 presentation construction and same-operator background correspondence on its
 selected native route. Correspondence with already fixed or foreign meanings,
-the actual exhaustive CompleteMem/KV inventory and remaining fields, Generalize,
-broader recursion and State remain separate. REC_DESC/INIT_VALID remain
+the actual exhaustive CompleteMem/KV inventory and remaining fields,
+broader recursion and State remain separate. The later native source
+Generalize result above supplies its declared source-rule scope, with actual
+production/public consumption still separate. REC_DESC/INIT_VALID remain
 OPEN-PROOF with all aggregate counts, premises and edges unchanged. The pushed
 parameter Apply lane continues independently with its explicit unresolved
 generalization/effect/admission premises; production cutover remains forbidden.
