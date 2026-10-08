@@ -5078,3 +5078,19 @@ WholeArg/Hreg alone would not authorize coding them. Preserve the existing
 producer/consumer manifest and resolve the authentic id caller/source-formation
 application before reopening SourceBuild implementation. No production code,
 tests or authority changed; the current user decision remains pending.
+
+A separate read-only SEED_SOURCE compiler crosswalk now pins the annotated
+`apply(f: _ -> [io] _, x) = f x` cut in actual code. Ordinary HIR's
+`plain_binding_header` admits only a bare binding or one bare ML parameter;
+the annotated/two-parameter form becomes `UnsupportedTarget` before it gets a
+definition root, so ordinary F5 never constructs its seed, annotation check or
+Call upper-use demand. The default-off shadow path retains binder/annotation/
+Call incidence, and emits a negative Function demand for Apply candidates, but
+the seed, complete symbolic output effect, source upper-use and protection
+judgment remain assumptions or pending. Closed `yu-types` Function/effect
+views do not retain named `io` or source provenance. The next owning seam is
+the source declaration/annotation elaborator before normalization: retain the
+actual annotation, binder and Call occurrences, then derive the seed judgment
+or establish that no seed applies. This is bounded code correspondence, not a
+source rejection or a semantic rule. SEED_SOURCE remains OPEN-PROOF; no code,
+tests, builds or authority changed.
