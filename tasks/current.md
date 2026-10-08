@@ -5094,3 +5094,18 @@ actual annotation, binder and Call occurrences, then derive the seed judgment
 or establish that no seed applies. This is bounded code correspondence, not a
 source rejection or a semantic rule. SEED_SOURCE remains OPEN-PROOF; no code,
 tests, builds or authority changed.
+
+A focused architect audit confirms that this source-owner location does not
+itself authorize a production slice. The Authoritative inferred-call-view
+direction explicitly withholds inference implementation authority, and the
+directional-protection addendum remains a formalization without a complete
+annotation seed rule. The implementation still needs an approved contract for
+whether this exposure derives `ProtectedVarAt` or has no seed, how the
+annotation's permitted `io` removal maps to an original contribution and is
+realized, and how the complete declaration/check package is published or
+failed atomically. Keep annotation checking, Call upper demand and provider
+lower evidence as distinct incidences even when endpoints solve equal. The
+smallest next packet is a reviewable annotation-owner successor contract for
+the exact annotated Apply shape, followed by compiler-referee and spec-auditor
+review and explicit user approval before implementation. This does not promote
+the broader SEED_SOURCE or F5-cutover gates.
