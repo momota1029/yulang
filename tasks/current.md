@@ -3506,3 +3506,14 @@ the note does not cover arbitrary opaque imports. D0's native descriptor
 selection remains as recorded, while Direct, principality, and production
 correspondence retain their existing open gates. The artifact is pushed at
 `8a53da821`; no tests or builds ran for this research slice.
+
+The conditional [actual-root Direct fragment](../notes/theory/2026-10-08-id-pick-transformed-root-direct-fragment.md)
+has also passed an independent specification audit. The review confirms that
+its finite `Eq`/`Le` proof is tied to the submitted transformed roots, one
+scope-preserving assignment, the complete active interface, and an explicit
+resolver-conformance premise. The coverage derivation pairs the source base,
+unanchored `Z`, every recursive `W` step, and the final guard. The result
+remains conditional: D0 formation, licenses, capture summaries, actual-root
+resolver acceptance, and any strict-view witness are unsupplied. This review
+establishes no implementation, principality, or gate closure; it proposes no
+test/build work. The artifact's checkpoint is `6d57f1b69`.
