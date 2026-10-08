@@ -4692,3 +4692,35 @@ nor an old-family absence theorem was found. So the source-language status of
 actual published-instance callee Application emission at its owner, starting
 with a concrete Old supplier or a separately established absence proof, while
 keeping Call/result/Return realization and production correspondence separate.
+
+The follow-up [published-id instance construction](../notes/progress/2026-10-09-published-id-source-instance-construction.md)
+and [Old-family audit](../notes/progress/2026-10-09-published-id-old-family-falsification.md)
+are checkpointed at `c0b0b0341` and `f394a3a1f`. Under authentic source and
+local-law premises, the first constructs the actual `Published` → `Instance`
+→ decoded Function-root → same-frame Name prefix, keeping `A_i=Int` and the
+complete literal `J_0=DataArg(Int)` fixed. At the complete source index `j_c`,
+New/LiteralApply is unavailable, so `Application_N` coverage reduces exactly
+to `Old.E(j_c)` inhabitation. The bounded Old audit found neither that member
+nor a source-supported absence theorem; `Initial`, `Direct`, and boundary
+certificates conclude different judgments. A whole-repository token search
+found only the abstract imported Old interface and research references, not an
+actual tracked Old producer declaration. This does not establish global
+absence or rejection. The architect review found no immediate user choice:
+recover the existing Old declaration/producer interface or a typed SRC-Call
+realization first; adding a direct Published/Instance New rule would be a
+separate semantic expansion requiring review and approval.
+
+The [authentic id Parameter manifest](../notes/progress/2026-10-09-id-parameter-authentic-schema-manifest.md)
+is checkpointed at `2d08a5b54`. It maps all eight gamma fields and the
+Parameter/telescope owners conditionally, without empty-telescope assumptions.
+The first missing authentic input is a concrete source registration/component/
+anchor application (`Hreg`); the complete predecessor image remains unsupplied.
+A bounded default-code map confirms ordinary HIR currently rejects Apply,
+collection marks it incomplete, and the opt-in shadow path emits no selected
+Application certificate. F5 still handles supported Name uses by fresh Q/R
+rows and structural Function constraints; that does not supply the selected
+Instance/frame or public-root lifecycle. No code, tests/builds, API or F5 route
+changed. Next: locate the Old module producer/eliminator declaration or a
+typed realization to its existing emission fiber, while separately recovering
+the authentic `Hreg` application. The overall inference/F5 replacement,
+Call/C0, H-bridge, principality, implementation and cutover gates remain open.
