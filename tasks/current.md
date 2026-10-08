@@ -3211,3 +3211,18 @@ and publication/retry witnesses are
 `f5c_shared_closed_child_is_instantiated_once_per_use_with_disjoint_rows`,
 `f5c_internal_route_failure_restores_and_retries_cleanly`, and
 `f5c_incoming_union_representative_failure_has_no_public_route`.
+
+## Record-result source-owner inventory (read-only, 2026-10-08)
+
+The checkout has named-record type syntax, but no semantic Record expression or
+value constructor in production HIR, `yu-types`' polarized values, solver terms,
+or shadow HIR. `{ value: x }` is parsed through the braced-statement/colon
+application route; because it has no direct atom, production lowering marks it
+`UnsupportedExpression`, retains a Lambda wrapper for `my box x`, and emits no
+`LambdaRecipe` for its Error body. This is not a Record inference owner; the
+legacy record-field VM fixture is not current F5 or successor acceptance
+evidence. The existing conditional Record-result proposal still needs both
+H-R (actual Record formation/inversion with provider/world/field evidence) and
+H-K (the complete ordinary Lambda root with licensed extras and actions).
+No test or exact CLI-output probe was run, and no Record semantics or gate
+status was selected.
