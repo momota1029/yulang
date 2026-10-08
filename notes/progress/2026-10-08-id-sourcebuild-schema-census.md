@@ -144,8 +144,12 @@ origin-slot substitutions, dependent telescope arity, and registered-reference
 versus inline-payload boundary; plus complete immutable publication/anchor
 record field types and transitive ownership/capacity manifest. It must state
 which full original contracts are references and which storage is newly
-allocated or retained longer. This is a representation proposal requiring its
-own H-bridge/resource review; the census cannot select or implement it.
+allocated or retained longer. For resource closure, also include peak live
+snapshots across construction, validation, F5 coexistence and terminal
+transfer; temporary worklists/maps and clone/allocation counts; and bounded
+teardown depth/work under transitive ownership. This is a representation
+proposal requiring its own H-bridge/resource review; the census cannot select
+or implement it.
 Do not obtain an exact number by counting Markdown bullets or treating Delta,
 IF0, J, world or local proof grammar as a one-word constant-size object.
 

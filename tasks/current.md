@@ -3639,6 +3639,32 @@ terminal retention can be treated as implementation work. The pending
 Application-owner question remains independent. No production code or tests
 were added; the source-owner draft stays non-authoritative and uncommitted.
 
+The frozen [schema census](../notes/progress/2026-10-08-id-sourcebuild-schema-census.md)
+derives one eligible Desc under H-source and enumerates separate source units:
+four origin roles, four checked-inlet obligation families, eight gamma fields,
+seven outer phases and ten VP constructor families. It explicitly does not sum
+these into node/edge/binder/allocation totals. Independent specification and
+performance reviews found no blocking or major issue at census SHA-256
+`0e8cd67ef46d492d501636f5208c12e0336bff5a1832e4a154b2f13e66f3a18a`; the
+performance review identified one low-severity omission, now repaired in the
+census: the future storage manifest must also account for temporary worklists,
+peak live snapshots, Arc clone/allocation activity and bounded teardown.
+Exact totals still require a concrete schema/owner manifest with authentic
+telescopes and transitive payloads. After that M0 clarification the census SHA-256
+is `a4e3363cfeb1e5e22685fd8a3c907eab85fe602282cd79b08adfeb9cd0b7425e`; its
+checkpoint is `cd77aa456`.
+
+The separate [publication-bijection audit](../notes/progress/2026-10-08-id-sourcebuild-publication-bijection.md)
+shows why the draft's Arc identity claim requires two distinct premises:
+H-pub, an authentic source-owner derivation with exactly one publication
+selecting full `(C_id,R_id)` and anchors, and H-linear, one canonical allocation
+route with only clone/move retention afterward. Identical duplicate Arc records
+are the minimal counterexample to payload validation as a proxy for event
+identity. Selected source rules retain publication meaning but do not provide
+either production correspondence or allocation canonicality. This research
+note is pushed at `14830271a` and remains unreviewed; no status or authority
+changed. No production code, tests or builds were added or run.
+
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
 The frozen [conditional construction](../notes/theory/2026-10-08-call-demand-formation-construction.md)
