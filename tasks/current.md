@@ -3325,3 +3325,31 @@ H-R (actual Record formation/inversion with provider/world/field evidence) and
 H-K (the complete ordinary Lambda root with licensed extras and actions).
 No test or exact CLI-output probe was run, and no Record semantics or gate
 status was selected.
+
+## ScopedClosure production evidence bridge candidate (2026-10-08)
+
+The frozen [production/source correspondence candidate](../notes/theory/2026-10-08-scoped-closure-production-evidence-bridge-candidate.md)
+maps the selected native `ScopedClosure` fields to their current HIR,
+collection, SCC, use-routing and result-publication owners. It identifies the
+missing production suppliers as the complete source rule graph `N`, original
+binder tree `T`, and actual invocation/initializer provider, world, event and
+scope evidence. The smallest inspected construction-gap witness is
+`my id x=x`: HIR and collection retain parameter/Name identity and use
+linkage, but not the selected original scope tree, complete invocation record
+or local-law evidence. The conditional walk does not infer source eligibility
+from Q/R membership, IDs, row levels or successful solving.
+
+An independent compiler-referee review found no issue within the bounded
+candidate scope. It confirmed the identity witness and the distinction between
+existing production linkage and the selected source evidence records. The
+review did not establish repository-wide absence, L1–L5 validity, runtime or
+public-projection correspondence, resource bounds, or production transaction
+correctness. The candidate remains a non-authoritative research audit; no
+implementation, source-family selection, test change or cutover follows.
+
+Next evidence: specify the actual SourceBuild outputs for complete invocation,
+scope and event evidence on `my id x=x`, tied to their owning source
+constructors. Keep Gate E, FRESH_LIFE and production correspondence open; the
+pending Application-owner question is independent of this bounded `id` work.
+No tests, builds or probes ran for this review; the candidate's focused
+document checks and dependency revalidation are recorded in the artifact.
