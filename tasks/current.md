@@ -3905,3 +3905,19 @@ operand manifest remains absent. Review did not establish `Delta_a=[]`, a
 nonempty source counterexample, production H-bridge, or implementation
 authority. The checkpoint is pushed at `2c340b256`; no tests, builds or
 measurements ran.
+
+The terminal source-package timing has a second candidate seam. A read-only
+architecture inspection found that immediately before `SolvedModule` transfer,
+the baseline F5 solve, finalization, accounting and counter snapshot have
+already completed, while the batch still owns structural HIR/component inputs.
+Late materialization could avoid competing with earlier F5 allocations only
+if it uses authentic immutable source inputs at that seam, performs no counted
+batch queries, introduces no later baseline allocation dependency, and drops
+the candidate on failure without changing solve errors. It does not establish
+equal end-to-end memory availability or remove retained-storage cost. Required
+source suppliers and H-bridge remain absent. This is a new unapproved
+architecture alternative to the draft's pre-session package construction, not
+a selected design or implementation authority. Next: revise the uncommitted
+draft to expose both timing alternatives and their resource boundaries, then
+obtain focused review before presenting any decision. No tests, builds or
+measurements ran.
