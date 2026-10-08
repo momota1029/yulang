@@ -5017,6 +5017,19 @@ placements; they do not invent the declaration identity or the paired
 substitutions. Keep the native evidence and independent descriptor input
 distinct until that crosswalk is supplied.
 
+The paired [constructive crosswalk attempt](../notes/progress/2026-10-09-gamma-to-wholearg-crosswalk-construct.md)
+and [index discriminator](../notes/progress/2026-10-09-gamma-to-wholearg-crosswalk-falsification.md)
+now sharpen this seam. The construction maps all eight native gamma fields to
+the still-unsupplied target attribution and identifies an earlier prerequisite:
+the selected `F_c` tuple has not been shown inside or outside the native
+generic-inlet envelope. The discriminator shows conditionally that arbitrary
+`PackGeneric` admission cannot stand in for a prechosen frame's gamma: with one
+native Int carrier, the Int and Any schema tags return differently indexed
+gamma records. It does not falsify a correctly indexed original-kernel bridge,
+nor provide an actual `WholeArgCompatible` counterexample or declaration.
+These are unreviewed research checkpoints; neither changes a theorem status or
+authority.
+
 The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
 confirms that no exhaustive selected `Valid_V` constructor was found and Draft
 `V_alloc` is not adopted. It distinguishes the hypothetical actual-0 H/t
@@ -5027,12 +5040,13 @@ containment-valid route, not from every possible `Valid_V` criterion. The
 `IF_pick`/`IF_id` whole scope/event/admission pairing, arbitrary-U Force law,
 and semantic-to-L completeness remain open. Two requested independent review
 roles were unavailable because their selected models were at capacity; these
-new artifacts remain unreviewed conditional research. Next: obtain the explicit
-crosswalk from the selected native checked-inlet `gamma` to one authentic
-`WholeArgCompatible` declaration, or establish that the selected `F_c` lies
-outside that native envelope and retain the independent descriptor-kernel
-input. Then have the typed reference/emission owner instantiate that same
-declaration at N and the original use with complete scoped operand maps, and
-extend the matching witnesses through dependent `e_out`. Keep the pending
+new artifacts remain unreviewed conditional research. Next: obtain one actual
+independent `WholeArgCompatible` declaration package at the selected
+callee/argument tuple, including ordered `P_arg/T_arg`, full domain/license/
+action and whether this tuple lies in the native generic-inlet envelope. Then
+have the typed reference/emission owner instantiate that same declaration at
+N and the original use with complete scoped operand maps, preserving the
+prechosen schema tag, and extend the matching witnesses through dependent
+`e_out`. Keep the pending
 literal-owner decision and all aggregate gate statuses unchanged. No compiler
 changes, tests, builds or production authority follow.
