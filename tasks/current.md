@@ -5208,3 +5208,16 @@ an authentic annotation constructor certificate for the original `ret_eff`
 occurrence/provider/scope and direct boundary, plus separate frame evidence
 for an unrelated same-family contribution. No runtime/test behavior was
 executed, and no compatibility or implementation approval follows.
+
+The [annotated-formal owner-to-consumer draft](../notes/theory/2026-10-09-annotated-formal-constructor-draft.md)
+now records the conditional constructor contract for one annotated higher-order
+formal and one direct body Call. Independent compiler-referee and spec-auditor
+reviews found no actionable findings. It keeps normalization, authentic
+contribution incidence, lawful realization/frame, A5/A6 exposure, transport,
+principality, and production correspondence as explicit missing producer or
+aggregate gates; it grants no implementation authority. The draft is pushed
+at `0ba3e85ba`. Next evidence must supply an authentic owner judgment for the
+annotation boundary and typed contribution correspondence, or a direct
+source/artifact bridge for those judgments. Do not infer them from the draft's
+candidate logical vocabulary or the frozen-main Oracle. C5/C6, production
+membership/admission, and F5 cutover remain open; no tests or builds ran.
