@@ -3373,3 +3373,28 @@ explicitly approved new constructor presentation. Keep `V/A/G`, emission
 installation and fixed-`E` attachment as separate obligations. No tests,
 builds or probes ran; the review revalidated all 13 dependency hashes and the
 primary confirmed the reviewed file hash matches committed `ecf18d9d8`.
+
+## Concrete `id` SourceBuild instance (2026-10-08)
+
+The frozen [identity SourceBuild instance](../notes/theory/2026-10-08-id-sourcebuild-instance-candidate.md)
+instantiates the selected source package for `my id x=x` under explicit
+H-source. It yields one eligible Parameter `Desc` at its original scope, a
+fixed generic raw inlet, the complete latent invocation/event schema, one
+joint `N_id`, and the final synthesis root. Its row-by-row ordinary HIR,
+collection and F5 crosswalk finds parameter/Name identity, SCC topology,
+recipe positions and shared argument/result endpoints, while leaving the
+semantic source records and their scopes/evidence unsupplied by current
+ordinary artifacts.
+
+An independent compiler-referee review found no issue in the conditional
+instance or bounded crosswalk. It confirmed that the one-template result
+depends on H-source's no-fixed-free-dependency premise, and that current row
+sharing is not a complete source certificate. This is reconstruction-gap
+evidence, not a compiler failure, L1–L5 validation, or production repair.
+The next design seam is the exact Parameter/Lambda SourceBuild producer for
+`sigma/Delta`, generic inlet/IF0, and invocation/event outputs joined to the
+retained `r/q/n/ell` identities. A read-only architecture assessment recommends
+drafting this as an id-only production record-construction gate. Its adoption
+requires explicit approval; it would not make F5 consume the closure or close
+Gate E. No compiler code, cfg(test) hook, API, expectation or Gate E approval
+follows. No tests/builds/probes ran.
