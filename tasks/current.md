@@ -4324,3 +4324,36 @@ identification remain open. Independent compiler-referee and spec-auditor
 reviews found no issue within the three artifacts' conditional claims; the
 [review record](../notes/progress/2026-10-08-rt2-followup-review.md) states
 the exact scope and omissions. No RT.2 or production gate has closed.
+
+### Complete-Call C0 cut after native boundary decision (2026-10-09)
+
+Three complementary bounded attacks now separate the exact remaining layers.
+The [constructive id/literal Call attempt](../notes/progress/2026-10-09-npb-call-c0-construction-cut.md)
+builds the selected native receiver branch and identifies its distinct
+source-Call result consumer as the first missing operand **within that forward
+branch under its stated local laws**. Independent review caught and repair
+removed a premature claim that this already formed a typed complete Theorem IF
+frame. The note now retains only an untyped operand/frame skeleton; typed IF
+requires authentic complete declaration/primitive-interface typing and lawful
+whole-map actions as parallel unresolved premises. Delta review passed.
+
+The [bounded falsification attempt](../notes/progress/2026-10-09-c0-receiver-lift-falsification.md)
+found no legal source falsifier in the inspected selected rules because the
+actual exhaustive `ArmDecl_e`/W/Z declaration is opaque and supplies no
+concrete production rule. Its conditional final-guard argument does not claim
+boundary membership proves C0. Review passed after qualifying the changed
+coordinate admission certificate by its being live in admission. The
+[current producer cut](../notes/progress/2026-10-09-current-c0-producer-cut.md)
+also passed bounded regression review: ordinary/default-off HIR, collection,
+candidate solving and export do not produce complete C0 inputs. The exact
+selected design inventory confirms that the missing arm declaration cannot be
+filled by the generic Call/IF constructors or the reviewed conditional W/Z
+grammar; those preserve or eliminate supplied clauses but select none.
+
+These results sharpen rather than close `JOINT_DEC`: the source result
+consumer rule and authentic exhaustive complete-Call arm contracts remain
+separate inputs, and production correspondence remains open. No compiler code,
+tests/builds, semantic promotion or F5 cutover occurred. Next: locate an
+already selected actual Call result-consumer rule and complete arm declaration
+if one exists; if none is selected, continue on an independent open inference
+gate without inventing their semantics.

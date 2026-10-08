@@ -274,3 +274,35 @@ and correspondence are proved, either on the existing sufficient route or
 on a separately reviewed replacement meeting the retained obligations.
 No arbitrary-strategy encoding requirement or production cutover follows
 from the bounded theorem.
+
+### Complete-Call C0 follow-up (2026-10-09)
+
+The [constructive native id/literal Call cut](2026-10-09-npb-call-c0-construction-cut.md)
+now limits its result-consumer field to the forward structural receiver
+branch under the displayed local laws. An independent compiler-referee review
+found that the earlier draft claimed a typed Theorem IF frame without its
+complete declaration/interface inputs. The repair retains only an untyped
+operand/frame skeleton and makes typed IF conditional on authentic complete
+declaration/primitive-interface typing and lawful whole-map actions. A fresh
+specification delta review passed the repair. The exact artifact SHA-256 is
+`d190bdc59778cca59678b6929e35210b6147543e43cb70351c0c6e2ce57ab5d2`.
+
+The separate [bounded receiver-lift falsification](2026-10-09-c0-receiver-lift-falsification.md)
+found no legal counterexample in the inspected selected rules: the exhaustive
+complete-Call arm declaration is opaque and provides no concrete W/Z rule.
+The conditional guard argument remains conditional on its stated complete
+membership grammar. A spec review found one minor overstatement about domain
+certificates; commit `8b697132f` qualifies this by changed coordinates being
+live in admission. The [current producer correspondence cut](2026-10-09-current-c0-producer-cut.md)
+passed bounded regression review: no ordinary/default-off HIR, collection,
+candidate-solver or export path produces complete C0 input.
+
+The bounded source inventory confirms the Authoritative complete-Call and
+source-interface constructors preserve supplied opaque arms but select no
+exhaustive primitive W/Z declaration. The reviewed §3.7 grammar is only a
+conditional candidate and does not select those semantics. Thus the distinct
+source Call result consumer rule and authentic exhaustive arm contracts are
+still missing inputs; no `JOINT_DEC` status, compiler code, test contract or
+cutover decision changed. All current research repairs are pushed on
+`research/simple-sub-intrusion` through `8b697132f`; no F5 implementation
+replacement is claimed.
