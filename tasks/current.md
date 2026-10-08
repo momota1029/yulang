@@ -5431,3 +5431,18 @@ candidate as a reviewed research method and supplier boundary only. Do not ask
 for adoption or claim INIT_WORLD closure until that concrete package exists.
 Continue an independent inference lane; no tests, builds, probes, or
 measurements ran.
+
+A fresh bounded semantic-to-Rust cross-check confirms PE already supplies the
+semantic `ProjectionExport` to fresh ordinary `u_i` constructor, its seven
+active root equations, one whole-frame action, and alias reuse. The nearest
+current Rust path instead ends in `ClosedValueScheme` plus Q/R fresh-row
+substitution and a scalar `root_value_for` query; it does not own the selected
+export package or interpreted root fields. This is not a missing abstract
+export-equivalence theorem and does not authorize implementing the adapter.
+The next production-correspondence artifact must be a concrete `my id x=x`
+owner manifest from authentic publication/export and whole-frame inputs to
+every active `u_i` field, naming each producer, scope, transfer/drop seam and
+consumer; mark unsupplied caller registration, local laws and legal-action
+evidence directly instead of reconstructing them from Q/R rows. The Rust
+mapping is bounded to the inspected HIR/solver/types path; no code, tests,
+builds, authority or DAG status changed.
