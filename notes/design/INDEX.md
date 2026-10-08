@@ -60,6 +60,19 @@ This index is a navigation aid. The listed source document remains authoritative
   general recursion, solver discovery, production F5 correspondence or cutover.
   See the [integrated review](../progress/2026-10-08-projection-public-export-review.md).
 
+- **Reviewed source-directed native boundary decision (2026-10-08):**
+  [SD-NPB](../theory/2026-10-08-source-directed-joint-decision.md) constructs
+  source-owned complete argument evidence and proves total sound/complete
+  decision with original-scoped strategies for its finite positive native
+  projection boundary envelope. It includes real new/alias frames and
+  same-whole-inlet Function result views with all independent native
+  admission/production/future fields. The enclosing Build/CallMem/C0,
+  arbitrary active W, broader inference and production correspondence remain
+  outside; general JOINT_DEC stays OPEN-PROOF. The separately reviewed
+  [reference](../../tools/research_source_joint_boundary.py) implements only
+  finite endpoint/frame arithmetic. Exact scope, eliminated premises and
+  independent reviews are in the [integration record](../progress/2026-10-08-source-directed-joint-decision-review.md).
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

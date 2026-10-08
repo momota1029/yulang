@@ -162,6 +162,50 @@ restriction and result weakening have direct valid proofs. These results
 falsify concrete attempted inference steps; they do not reject source id or
 claim that finite public export is impossible.
 
+### Completed source-directed native boundary decision (2026-10-08)
+
+The independently reviewed [SD-NPB theorem](../notes/theory/2026-10-08-source-directed-joint-decision.md)
+now proves termination, original-clause soundness and satisfiable-strategy
+completeness for its actual native projection **boundary judgments**. It
+constructs source-owned complete DataArg/Car/gamma evidence, joins all lower
+endpoints at each real new/alias frame, and emits the complete generic
+receiver strategy and actual ordinary checking proofs. No satisfying input
+strategy, unknown J/Car supplier, submitted inclusion proof, EPR or ER is a
+decision premise in this envelope.
+
+Written endpoints are finite positive ground/Any/record/union descriptions;
+the data graph is acyclic and tight before one optional initial widening.
+Pick captures are tight ground/record values with their actual provider fixed.
+For every initially unsolved frame, let L be the union of all its declared
+checked-inlet endpoints. Native id requires L to be included in every
+same-whole-inlet Function result target; pick requires the tight capture type
+to be included instead. The algorithm selects a=L once before challenges.
+Necessity covers arbitrary original descriptions and proof choices, not just
+the finite chosen syntax. Original world/port/provider/binder dependencies,
+independent admission, production-only alternatives and all native
+pending/resume/future branches remain present.
+
+This is a decision of the complete included local judgments, **not the
+enclosing source Call/Build package**. The callee prelude, independent
+CallMem/C0 arms, source Call result consumer and unfinished suffix are outside.
+Frozen-prefix solving, active extra W/proof observers, changed-input Function
+views, post-Return/chained refinements and general effect/State/recursive
+inference are also outside; none becomes a source rejection policy.
+General JOINT_DEC remains OPEN-PROOF, with its aggregate premises and
+production relevance unchanged.
+
+The [review and integration record](../notes/progress/2026-10-08-source-directed-joint-decision-review.md)
+records the independent mathematical/specification passes and the repaired
+same-world characteristic-witness clarification. The separately reviewed
+[reference arithmetic](../tools/research_source_joint_boundary.py) implements
+only finite endpoint/frame decisions, not the semantic constructor or full
+source solver. Its final bounded check passed 30 scenarios and 400 inclusion
+pairs, with all 301 returned countervalues checked independently. These are
+implementation checks; completeness is established by the mathematical proof.
+The reviewed [ObservedPayload obstruction](../notes/theory/2026-10-08-joint-decision-source-fragment-obstruction.md)
+separately rules out testing only successful observed calls. No production
+compiler change or cutover follows.
+
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
 Three further constructor bottlenecks now have complete scoped proofs and
@@ -2189,11 +2233,12 @@ example rejects pairwise witness amalgamation, not a quotient with full
 pointwise reflection and coherent lifts. `JOINT_DEC` remains OPEN-PROOF. The
 reviewed [native-id input-image owner cut](../notes/progress/2026-10-08-id-inlet-whole-output-image-owner-cut.md)
 shows a conditional whole-image law and prefix-local lift for authentic
-J/Car/context evidence plus one supplied joint strategy. The absent step is an
-effective representation and reflection law for those joint J/strategy
-witnesses; finite proof recognition does not provide it. Next, target that
-exact witness family while preserving arbitrary residuals and original
-quantifier order. The [relative native-id witness transport](../notes/progress/2026-10-08-joint-witness-representation-constructive.md)
+J/Car/context evidence plus one supplied joint strategy. That conditional
+route still needs effective representation and reflection for the joint
+J/strategy witnesses; finite proof recognition does not provide it. The
+later SD-NPB result below constructs a strategy directly for its bounded
+source-owned judgments, without claiming arbitrary-residual representation.
+The [relative native-id witness transport](../notes/progress/2026-10-08-joint-witness-representation-constructive.md)
 now proves a finite typed code transport only when the complete input strategy
 already has an effective faithful code; independent review found no issue in
 that conditional theorem. The [prefix-erasure counterexample](../notes/progress/2026-10-08-joint-witness-representation-counterexample.md)
@@ -2230,12 +2275,9 @@ semantic strategy as C; it does not reclassify any gate or prove an alternate
 algorithm. Same-prefix lifting remains required when using a quotient. A
 replacement route still needs source completeness, production correspondence,
 principality/required observables, resource/failure ownership, Oracle evidence,
-independent review and user approval before implementation. `JOINT_DEC` remains
-OPEN-PROOF; no production code or compiler checks ran. Next: select one exact
-source-owned complete Function checking occurrence, map its original domain
-proof `tau` and whole-observation proof `psi` with every admitted challenge,
-future and binder dependency, then derive an effective direct rule without
-filtering to observed calls. The new [mu_result source map](../notes/progress/2026-10-08-direct-mu-result-source-map.md)
+independent review and user approval before implementation. Those conditional
+notes changed no production code and ran no compiler checks. The
+[mu_result source map](../notes/progress/2026-10-08-direct-mu-result-source-map.md)
 confirms that the premise is mandatory only for selected checked Value-entry
 gamma and that current Rust retains no complete gamma or proof package. The
 [mu_result kernel construction](../notes/progress/2026-10-08-direct-mu-result-kernel-construction.md)
@@ -2245,7 +2287,7 @@ whole admitted input strategy. The inspected HIR/solver path retains no
 complete gamma or proof package. The [falsification](../notes/progress/2026-10-08-direct-mu-result-kernel-falsification.md)
 shows why rejecting one Identity proof is not a negative inclusion decision.
 The source map locator was corrected to the actual `ResolvedExpr` declaration
-before its checkpoint. `JOINT_DEC` remains OPEN-PROOF.
+before its checkpoint.
 
 The independently reviewed [source-directed joint-decision theorem](../notes/theory/2026-10-08-source-directed-joint-decision.md)
 and its [reference arithmetic/review record](../notes/progress/2026-10-08-source-directed-joint-decision-review.md)
@@ -2268,6 +2310,16 @@ authentic source producer/H-bridge, storage/failure policy or production
 adoption. The next source gate is a parser-to-typed-check occurrence with its
 authentic caller context and complete producer outputs. `JOINT_DEC` remains
 OPEN-PROOF; no compiler production code changed.
+
+Within SD-NPB, the supplied J/Car/gamma, winning-strategy and finite
+inclusion-search premises are now eliminated by the source constructors and
+joint elimination proof. The next complete-Call law must construct each
+actual anchored/unanchored production arm's output-dependent
+typed-state/descriptor/guarantee evidence at the source consumer, with
+same-provider admission and the original continuation/future action. Receiver
+membership alone does not prove a separately owned C0 arm. The field and
+decision maps above are research correspondence, not additional independent
+semantic or production proofs.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only
