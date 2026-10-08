@@ -675,6 +675,15 @@ was checkpointed in `7eab2767f`.
    registration and upper-use exposure derive protection independently of
    literal installation, while paired O1's exact SeedExposure still needs
    actual e_c and an owner-retained formation attachment.
+   The independently reviewed [complete-inventory candidate](../notes/theory/2026-10-08-flat-apply-complete-inventory-candidate.md)
+   corrects the source locators: source Call construction §4.4 is uniqueness,
+   scope and capture, while §5 carries G_call and its supplied
+   TypedCallCert_Dec; initial-context §4.4 separately carries ReceiveSchema.
+   It lists the five local reference Call heads and their owners/attachments,
+   but proves completeness only for an explicitly chosen reference
+   presentation with supplied finite leaves. It does not identify those
+   heads with an exhaustive original Application inventory. Semantic and
+   spec reviews passed within that bounded, non-authoritative claim.
    A bounded repository locator pass found no selected source giving all
    occurrence enumeration, atom meanings, typed inversion/attachments, and
    full alternatives/action for literal Apply. The reviewed
@@ -682,9 +691,11 @@ was checkpointed in `7eab2767f`.
    §§4.1,4.4 is the strongest local reference envelope, not an original-owner
    inventory; [Call-input construction](../notes/theory/2026-10-07-call-input-construction-proof.md)
    explicitly assumes an existing Application inventory. Next define a
-   reviewable complete inventory and
-   installation at this owner, or isolate the exact remaining user decision;
-   do not promote H-inventory or H-original-install by notation alone.
+   concrete primitive and original Application presentations with
+   exhaustive origin/attachment inversion and old-family retention, then
+   adjudicate whether an existing rule supplies them or a complete candidate
+   requires user approval. Do not promote H-inventory or H-original-install
+   by notation alone.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
