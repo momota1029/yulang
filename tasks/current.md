@@ -4053,6 +4053,17 @@ checkpoints; its publication is not approval or implementation authority.
 
 ### Independent proof and source-owner research checkpoints (2026-10-08)
 
+The bounded [current F5 application-to-source cut](../notes/progress/2026-10-08-current-f5-apply-source-cut.md)
+at baseline `4c114d684` finds that default HIR/collection does not admit
+expression Apply, while the feature-gated candidate emits only a structural
+callee-to-negative-Function-demand constraint and explicitly leaves source
+Call premises unresolved. Function ports and exported schemes preserve
+structural endpoints but not a source `VIncl` certificate or whole-clause
+action. This is a scoped production correspondence gap, not a cutover verdict.
+Next: crosswalk one exact candidate Apply occurrence against source
+`A_f/F_c/E_c/A_c` and identify each missing producer before selecting any
+retained representation. No code or executable checks ran.
+
 The bounded source-owner audit for `P.CallInitial` is pushed at `62337b13a`
 ([audit](../notes/progress/2026-10-08-callinitial-owner-correspondence.md)).
 No complete initial observation/evidence/action supplier was found in the
