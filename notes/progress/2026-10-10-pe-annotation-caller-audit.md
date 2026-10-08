@@ -62,6 +62,11 @@ root and local-law suppliers. An internal checker boundary avoids changing
 source syntax, but by itself supplies no source caller and does not replace
 F5. No API or semantics are selected here.
 
+This separation is also explicit in authoritative FVIEW §1.1: a written source
+annotation, inferred public scheme, and internal evidence-rich view are
+different layers. The current `as Type` parse tree therefore cannot be treated
+as an internal Direct view without an additional selected bridge.
+
 Review: read-only bounded audit by an `explorer`; an independent
 `regression_auditor` found no substantive issue and noted one non-blocking
 function-level citation that was refined to the exact rejection branch.

@@ -4517,3 +4517,10 @@ does not change HIR/runtime meaning; the superseded AST product Draft left
 expression `as Type` field selection pending. Therefore the requested `view`
 mapping needs an explicit source/compiler contract if chosen; parser support
 alone cannot authorize it.
+
+Authoritative FVIEW §1.1 further keeps written annotations, inferred public
+schemes and internal evidence-rich views as distinct layers. Thus an existing
+`as Type` parse node cannot stand in for Direct's internal view without a
+selected bridge. This reinforces the caller decision: source-level routing
+needs a source/compiler contract; an internal proof checker needs a separate
+producer and routing path before it can replace F5.
