@@ -2308,8 +2308,21 @@ decision map](../notes/progress/2026-10-09-sourcebridge-decision-dependency-map.
 records that the four approved decisions still do not select the caller API,
 authentic source producer/H-bridge, storage/failure policy or production
 adoption. The next source gate is a parser-to-typed-check occurrence with its
-authentic caller context and complete producer outputs. `JOINT_DEC` remains
-OPEN-PROOF; no compiler production code changed.
+authentic caller context and complete producer outputs. The bounded
+[JointWF-to-Parameter manifest](../notes/progress/2026-10-09-jointwf-parameter-owner-manifest.md)
+maps named caller dependencies into sigma_a/Delta_a and the later gamma/J/Car
+scopes, but the selected sources give neither a closed JointWF field schema
+nor an exhaustive Delta_a enumeration. Its initial unconditional-success
+overclaim was repaired in `8a26b1a9a`; independent compiler-referee and
+spec-auditor delta reviews pass. It now preserves NO for failed checks and
+emits a joint strategy only on SD-NPB YES. A bounded [current compiler cut](../notes/progress/2026-10-09-npb-current-compiler-correspondence-cut.md)
+finds that no inspected ordinary or default-off candidate path produces the
+full NPB input: annotation target evidence is first lost at CST-to-typed-HIR,
+and authentic Parameter/Lambda/Call packages are also absent. This is scoped
+static evidence, not repository-wide absence or semantic rejection. The exact
+parser-to-check owner, caller-context dependency instance and emitted Call
+consumer remain the next bridge. `JOINT_DEC` remains OPEN-PROOF; no compiler
+production code changed.
 
 Within SD-NPB, the supplied J/Car/gamma, winning-strategy and finite
 inclusion-search premises are now eliminated by the source constructors and

@@ -228,7 +228,23 @@ within their stated scopes:
   maps the declarative `Annotation(Name(id), target=R_bad)` and subsequent
   Call to tau/psi, original gamma/J/Car/context and binder scopes. Its
   post-freeze adjudication records the exact overlap with the new theorem and
-  preserves the missing parser-to-typed-check correspondence. The
+  preserves the missing parser-to-typed-check correspondence. A specification
+  auditor passed its exact-conformance review at the pinned `6ce074f1c` bytes.
+  The [current compiler cut](2026-10-09-npb-current-compiler-correspondence-cut.md)
+  separately traces ordinary/default-off HIR, collection and candidate paths:
+  none produces the complete NPB input; it remains an unreviewed, scoped static
+  crosswalk.
+- The [JointWF-to-Parameter owner manifest](2026-10-09-jointwf-parameter-owner-manifest.md)
+  maps named caller dependencies to Parameter `sigma_a/Delta_a` and later
+  gamma/J/Car scopes, while preserving that the selected sources define no
+  closed JointWF record schema or exhaustive `Delta_a` instance. Independent
+  compiler-referee and spec-auditor review found and repaired one major
+  quantifier issue: input-envelope premises do not imply successful data
+  checks, Car/gamma evidence or a strategy; successful outputs are now
+  conditioned on their local positive premises, and the joint strategy only
+  on SD-NPB YES. Both delta reviews pass at `8a26b1a9a`. The manifest remains
+  unreviewed for any broader source/compiler claim.
+  The
   [source-bridge decision map](2026-10-09-sourcebridge-decision-dependency-map.md)
   inventories the four approved q1/d1 scopes and keeps caller API, authentic
   source producers/H-bridge, resource/failure policy and adoption separate.
