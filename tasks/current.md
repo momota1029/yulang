@@ -4790,3 +4790,14 @@ the authentic UV telescope or `IF0`/anchor. Its PCInit rule also targets a
 punctured Call graph, unlike standalone id. F0/SCC registration remains a
 structural topology output. This route does not close Hreg; no third equivalent
 premise probe or DAG status change follows.
+
+The separate INIT_WORLD source/legacy lane located the exact importer seam at
+the module loader to `yu-hir::lower_module`: syntax keeps alias spelling and
+operator provenance, while HIR's import input is empty and ignored. Collection
+keeps structural definition/use edges only; no external base, importer
+incidence, provider/world map or zero-step root extension enters the solver.
+Its bounded falsification distinguishes a closed, hole-independent import
+certificate (whose action is identity under the retained substitution) from a
+genuinely hole-dependent external certificate, which needs its authentic
+import-owner action. No valid counterexample or new rule was supplied. INIT_WORLD
+remains open at that owner and the joint root-extension/restriction proof.
