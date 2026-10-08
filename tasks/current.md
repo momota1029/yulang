@@ -3488,3 +3488,21 @@ whole-argument-to-declared-inlet transport and retained receiver entry/role at
 the original Call incidence. If those outputs are absent, return the exact
 missing formation judgment for design; do not infer it from the candidate
 endpoints or successful solving.
+
+## D0 native `id` / `pick` descriptor guard construction (2026-10-08)
+
+The bounded [descriptor-guard construction](../notes/theory/2026-10-08-id-pick-descriptor-guard-construction.md)
+instantiates the already selected native VP/Echo/Fixed phase and whole-image
+constructors for local `id` and rigid-import `pick` leaves. It derives their
+local descriptor typing, same-carrier admission, Force, current-world rebind,
+same-provider Return, and hereditary future requirements without assuming
+tested callable membership, source `M_E`, or Direct. An independent
+compiler-referee review found no issue in this local derivation or its scope.
+
+This is a construction result within the selected native equations, not a new
+semantic decision or gate closure. Foreign independently fixed descriptor
+embedding and arbitrary complete import-certificate construction remain open;
+the note does not cover arbitrary opaque imports. D0's native descriptor
+selection remains as recorded, while Direct, principality, and production
+correspondence retain their existing open gates. The artifact is pushed at
+`8a53da821`; no tests or builds ran for this research slice.
