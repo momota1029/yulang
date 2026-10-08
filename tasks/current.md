@@ -5221,3 +5221,23 @@ annotation boundary and typed contribution correspondence, or a direct
 source/artifact bridge for those judgments. Do not infer them from the draft's
 candidate logical vocabulary or the frozen-main Oracle. C5/C6, production
 membership/admission, and F5 cutover remain open; no tests or builds ran.
+
+An independent architecture cut of the `my id x=x` Hreg seam confirms that
+the existing selected chain does not provide a noncircular original
+registration constructor/application from caller-owned `JointWF` and resolved
+source. This is a missing definition, not yet evidence that user selection is
+required: the approved source-Generalize/native-projection contracts allow a
+legitimate constructor completion that preserves their meanings. The
+unselected ownership candidates are source-owned registration from the
+authentic caller context, or a caller-supplied complete registration package;
+the second only moves the gap unless an actual caller producer is identified.
+Neither changes Parameter/Lambda meaning or authorizes production routing.
+Registration must precede Parameter `Desc` and Lambda `U_g`; requiring the
+completed `U_g` as its own input would be circular. Stop equivalent absence
+searches. The next useful Hreg evidence is one noncircular owner rule and a
+real caller-context application retaining all original guards, binder
+incidences and anchor provenance. Do not ask the user to choose between these
+ownership descriptions until a concrete derivation or an observably distinct
+contract is available. The pending literal-Result owner decision and other
+independent proof/conformance lanes are unaffected; all aggregate gates and
+F5 cutover remain open.
