@@ -660,6 +660,31 @@ was checkpointed in `7eab2767f`.
    constructors at the literal fiber, preserving old Name records and all
    original indices/atoms. Keep flat SeedExposure, CallInitial/I0/action,
    semantic typing/admission and production cutover as separate gates.
+   The reviewed [owner-completion candidate](../notes/theory/2026-10-08-flat-apply-original-owner-completion-candidate.md)
+   now gives conditional PortReg+ and owner-indexed installation schemas,
+   with the whole old family injected/retracted over the general Name/literal
+   frame domain. Its minor frame-index ambiguity was repaired; compiler and
+   spec reviews otherwise passed. It remains non-authoritative and explicitly
+   stops at H-inventory and H-original-install. The separate
+   [owner-completion falsification](../notes/theory/2026-10-08-flat-apply-owner-completion-falsification.md)
+   is unreviewed; its bounded analytic mutations show why exact original
+   atom multiplicity, independent meanings and occurrence provenance matter,
+   without refuting a faithful completion.
+   The [flat directional-seed derivation](../notes/theory/2026-10-08-flat-apply-directional-seed-boundary.md)
+   is independently reviewed after its sequencing correction: source
+   registration and upper-use exposure derive protection independently of
+   literal installation, while paired O1's exact SeedExposure still needs
+   actual e_c and an owner-retained formation attachment.
+   A bounded repository locator pass found no selected source giving all
+   occurrence enumeration, atom meanings, typed inversion/attachments, and
+   full alternatives/action for literal Apply. The reviewed
+   [initial-context local-generation result](../notes/progress/2026-10-06-initial-context-source-construction.md)
+   §§4.1,4.4 is the strongest local reference envelope, not an original-owner
+   inventory; [Call-input construction](../notes/theory/2026-10-07-call-input-construction-proof.md)
+   explicitly assumes an existing Application inventory. Next define a
+   reviewable complete inventory and
+   installation at this owner, or isolate the exact remaining user decision;
+   do not promote H-inventory or H-original-install by notation alone.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
