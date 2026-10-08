@@ -4448,3 +4448,19 @@ retained whole-frame/Omega/alias action. It therefore does not fill the root
 supplier gap. Next: identify an authentic ordinary-root allocation, install,
 and readout owner with its complete identity observers and action laws; keep
 the F5-to-PE producer/consumer correspondence as a separate cutover obligation.
+
+The [PE root-handle owner map](../notes/progress/2026-10-10-pe-root-handle-owner-map.md)
+is now checkpointed as `1e59eb288`. It distinguishes parse-branded
+`SourceNodeKey`, artifact-local `HirOccurrenceId`, definition `DefinitionRootId`,
+collection-branded `DefinitionUseId`, and per-scheme Q/R ordinals. None is
+already the semantic `Instance`/`Alias` frame or ordinary public root. The
+selected owning source rule distinguishes independent `new` frames from
+antecedent aliases; the PE decoder requires a fresh ordinary root per frame.
+The approved Direct architecture direction permits a compiler-owned dense slot
+inside an immutable environment, but no existing/approved producer maps these
+frame identities into such slots. This keeps the actual source-owner map,
+public-root publication and Direct consumption as separate boundaries; numeric
+limits stay open until a successor caller and attempt schedule exist. No code,
+tests/builds, API or F5 routing changed. Next: define and independently review
+the typed `Instance`/`Alias` producer output and its validated frame-to-root
+slot correspondence before implementation approval.
