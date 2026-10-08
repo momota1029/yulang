@@ -1,20 +1,34 @@
-# Current task: complete SCC-intrusion successor inference
+# Current task: complete type inference and replace F5
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: native source Generalize, bounded transformed id/pick public export, captured-closure, recursive-interface and native signature-incidence constructor theorems reviewed and selected; general semantic, inference/principality and production gates remain open
+Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
+
+## User objective and branch boundary
+
+The active user objective is to complete type inference and replace the F5
+implementation on `yulang3`. The current working/push branch is
+`research/simple-sub-intrusion`; fetched `origin/yulang3` is its ancestor at
+`32f0a06314434c5dec12383f6b20f2cbcf472752`, with zero commits unique to that
+target and 1,915 commits unique to the research branch at the current
+checkpoint. The bounded `yu-core`/HIR/solver/types diff from that target is
+34,115 insertions and 102 deletions, largely shadow research paths, with
+additional F5 source edits. Current checkpoints have been pushed only to the
+research branch. No F5 replacement or target-branch integration has occurred;
+the large branch range and all Gate E / semantic / production approval
+requirements must be treated as explicit integration work, not as completed
+cutover.
 
 ## Objective and canonical obligation ledger
 
-The current user requests completing provable bottleneck results and pushing
-reviewed work, rather than recording further partial localizations. This
-continues the global natural-compiler/proof-economy objective. Reevaluate why obligations
-exist, retain facts at their owning constructor, separate stronger research
+This continues the global natural-compiler/proof-economy objective while
+preserving the full implementation/cutover end state. Do not treat documentary
+localization alone as completion. Reevaluate why obligations exist, retain
+facts at their owning constructor, separate stronger research
 characterizations where actual dependencies permit, and minimize the genuine
-theorem families needed for safe natural compiler operation. This supersedes
-the earlier instruction to attack individual OPEN nodes sequentially. It does
-not weaken soundness, required principality, any approved source behavior,
-Option 2 extras or independent open-world admission.
+theorem families needed for safe, natural compiler operation. This does not
+weaken soundness, required principality, any approved source behavior, Option 2
+extras or independent open-world admission.
 
 The single active normalized inventory is the
 [successor proof-obligation DAG](../notes/theory/successor-proof-obligations.md),
