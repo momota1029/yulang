@@ -1,7 +1,7 @@
 # Exact id publication: canonical owner identity audit
 
 Date: 2026-10-08
-Status: research-only conditional construction and minimized representation counterexample; independent review pending
+Status: research-only conditional construction and minimized representation counterexample; compiler-referee reviewed; source-owner premises remain open
 Baseline: `b84fa53e3e5a75d561a874219d25525d1e72d4a0`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: `notes/progress/2026-10-08-id-sourcebuild-publication-bijection.md`
@@ -305,8 +305,9 @@ Commit packet:
 - Dependency changes: none observed on tracked inputs; the hashed untracked
   draft is a non-authoritative read dependency, not part of this lease.
 - Claim/review status: conditional construction and minimized representation
-  witnesses; unreviewed research checkpoint; no production correspondence
-  certification or gate closure.
+  witnesses; compiler-referee passed the conditional claim at frozen SHA-256
+  `b5cf16b216cd0e9105fa73d34c63968e0ebc635aaddec86768e93566c0fefa35`; no
+  production correspondence certification or gate closure.
 - Checks: narrow note/link/whitespace/hash/baseline check and read-only Git
   branch/HEAD/path-scope checks; no compiler checks.
 - Proposed commit message: `research: audit exact id publication owner bijection`.

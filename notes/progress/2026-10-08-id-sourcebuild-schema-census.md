@@ -1,7 +1,7 @@
 # Exact identity SourceBuild: structural schema census
 
 Date: 2026-10-08
-Status: non-authoritative research characterization; independent review pending
+Status: non-authoritative research characterization; specification and resource reviews completed; no exact storage bound claimed
 Baseline: `b84fa53e3e5a75d561a874219d25525d1e72d4a0`
 Exclusive lease: `notes/progress/2026-10-08-id-sourcebuild-schema-census.md`
 Implementation / test / architecture approval / Gate E closure authority: none
@@ -202,8 +202,10 @@ Dependency SHA-256 values captured for this census:
 - Dependency changes: owner draft is a primary-owned untracked dependency at
   capture, pinned by the hash above; other direct dependencies matched the
   baseline. Final recheck results and frozen artifact hash accompany submission.
-- Review status: producer characterization; independent review pending. Frozen
-  at submission; no source authority, gate closure or implementation adoption.
+- Review status: specification and performance reviews passed on the frozen
+  pre-clarification SHA-256 `0e8cd67ef46d492d501636f5208c12e0336bff5a1832e4a154b2f13e66f3a18a`;
+  the low-severity peak/teardown omission was repaired as a primary-inspected
+  M0 delta. No source authority, gate closure or implementation adoption.
 - Checks already run: scoped document reads; local Markdown links, named
   section/count locators, balanced fences, whitespace and dependency hash
   capture/revalidation. No code execution or test/build.

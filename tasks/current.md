@@ -3652,7 +3652,9 @@ peak live snapshots, Arc clone/allocation activity and bounded teardown.
 Exact totals still require a concrete schema/owner manifest with authentic
 telescopes and transitive payloads. After that M0 clarification the census SHA-256
 is `a4e3363cfeb1e5e22685fd8a3c907eab85fe602282cd79b08adfeb9cd0b7425e`; its
-checkpoint is `cd77aa456`.
+checkpoint is `cd77aa456`. The census metadata now records that spec/performance
+review and the primary-inspected M0 repair; the final SHA-256 is
+`4c22cd490005955899b75a04c3606957751556911dbf3b8d0dde0944a0eae7e6`.
 
 The separate [publication-bijection audit](../notes/progress/2026-10-08-id-sourcebuild-publication-bijection.md)
 shows why the draft's Arc identity claim requires two distinct premises:
@@ -3662,8 +3664,12 @@ route with only clone/move retention afterward. Identical duplicate Arc records
 are the minimal counterexample to payload validation as a proxy for event
 identity. Selected source rules retain publication meaning but do not provide
 either production correspondence or allocation canonicality. This research
-note is pushed at `14830271a` and remains unreviewed; no status or authority
-changed. No production code, tests or builds were added or run.
+note is pushed at `14830271a`; compiler-referee review passed the conditional
+claim at its frozen SHA-256 `b5cf16b216cd0e9105fa73d34c63968e0ebc635aaddec86768e93566c0fefa35`,
+with H-pub/local-law suppliers and production mapping explicitly unclosed. The
+final metadata-updated note SHA-256 is
+`863ea38c9e2f41580d05722b88b743fc8d30eaed8a9fea76456fdc21346d9ec3`. No status
+or authority changed. No production code, tests or builds were added or run.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
