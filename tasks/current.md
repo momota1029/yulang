@@ -3990,3 +3990,14 @@ an architect-owned producer/layout packet for the canonical source record
 package, with every absent supplier assigned or retained as an explicit open
 owner. No representation, placement/failure policy, pick producer scope,
 Direct consumer integration, or implementation authority is selected here.
+
+The follow-up architecture cut classifies most absent fields as selected
+semantic outputs still needing source correspondence; the storage, placement,
+failure, and expanded consumer integration policies remain unselected. No new
+semantic user choice is shown necessary yet. The earliest substantive missing
+supplier is the authentic L4 initial-world/registration owner for U_g and its
+publication anchor, including formation arm, dependent operands, and incidence
+to `(r,ell,C,R,p)`. An exact cardinality/layout packet cannot be filled by
+assuming inert formation or empty telescopes. Next: inspect current production
+HIR/lowering/solver ownership for that L4 supplier and report the first absent
+field. No implementation or inference gate is authorized by this cut.
