@@ -3169,6 +3169,37 @@ only; no tests, builds, or probes. The smallest coherent replacement seam is
 component interface construction, durable member/root publication,
 incoming-use transport, and frozen-result consumers together.
 
+## F5 frozen-consumer and publication boundary (read-only, 2026-10-08)
+
+A second bounded audit confirms there is no ordinary workspace result consumer
+outside `yu-solver`, but expands the frozen-consumer inventory beyond root and
+occurrence projections. The public `SolvedModule` also exposes structured
+`ConstraintStore` evidence, diagnostics, counters, and feature-gated observation
+APIs. Shadow initialization and SCC APIs join results by the exact collection
+brand; shadow Apply consumes F5 schemes, fresh captures, store and provenance.
+These are frozen integration surfaces, not additional production inference
+owners.
+
+The replacement lifecycle must account for six interfaces: component
+input/freeze and member-interface output; durable member/root identity and
+storage; internal and incoming-use transport with transactional fact,
+provenance and diagnostic ownership; consuming solve completion and atomic
+result publication; both occurrence and root projection paths; and retained
+evidence plus an explicit disposition for feature-gated F5 endpoint/Q/R
+observations. `yu-types` `ClosedTypeFinalizationSession` owns per-scheme
+validation/rollback, while `InferenceSession` owns SCC/module installation and
+publication. These are separate transaction boundaries. Public projections
+remain lossy (`SolvedValue`/`SolvedEffect` expose only bounded enums), whereas
+retained store data is not.
+
+The audit inspected failure/rollback witnesses and API/call sites but did not
+execute them. Existing assertions cover all-member publication failure and a
+clean fresh-attempt retry; public solve is a consuming attempt rather than a
+resumable live session. No implementation, API change, test expectation,
+approval or Gate E closure follows. The narrow successor design should include
+this interface/consumer ledger and classify preserved behavior, deliberately
+revised APIs and retired F5 observations before implementation approval.
+
 ## Flat literal argument realization residual
 
 The scoped bridge audit found that `R_a = Comp(empty,Int)` is the literal's
