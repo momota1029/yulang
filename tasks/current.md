@@ -5359,7 +5359,9 @@ elaboration into an ordinary typed target in its original scope, alongside an
 already available endpoint/root and prior-plus-local evidence. The current
 HIR/shadow/F5 scheme path has no such source elaborator; see the
 [annotation target elaboration owner gap](../notes/progress/2026-10-10-annotation-target-elaboration-owner-gap.md).
-Only after those typed records exist can the proof-only Direct case or
-separate executed-conversion case be applied and its actual attempt schedule
-measured. Preserve the Hreg no-repeat stop. No tests, builds, benchmarks or
-mutation probes ran.
+The `id as Any` discriminator sharpens this: the existing negative `Top`
+constructors are not ordinary `Any` target-root records, and PE's conditional
+Top proof assumes that exact root already exists. Establish the source target
+and ordinary-root owners first; only then apply the proof-only Direct case or
+separate executed-conversion case and measure its attempt schedule. Preserve
+the Hreg no-repeat stop. No tests, builds, benchmarks or mutation probes ran.

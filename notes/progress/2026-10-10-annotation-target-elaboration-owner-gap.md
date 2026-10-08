@@ -32,6 +32,17 @@ drafts built from inferred F5 component rows; no source `TypeExpression` input
 or annotation-target elaboration was found. Existing constructors therefore
 do not close this source boundary by themselves.
 
+The concrete `as Any` target is an especially useful discriminator. Production
+`yu-types` and solver code can construct negative algebraic `Top`, including
+inside a Function argument or a recursive upper bound. That node is not a
+standalone ordinary `Any` target root: `ClosedValueScheme` requires a positive
+predicate, and the positive node grammar has no `Top` case. Existing root
+publication records belong to admitted definition roots and finalized inferred
+schemes; they do not bind a source annotation occurrence to an ordinary target
+root with its original scope and interpretation. This is a representation
+distinction, not a claim that negative `Top` and native `Any` are semantically
+unequal.
+
 ## Owning boundary
 
 Under SRC §3.2(6), the source annotation owner must elaborate the written type
@@ -59,6 +70,13 @@ endpoint/root; an independently completed ordinary target-root record; and
 the preserved prior-plus-local evidence and outward target. Keep proof-only
 and executed-conversion examples separate. If no current source occurrence
 has an authentic endpoint/public root, trace that earlier owner first.
+
+For `id as Any`, the PE proof is conditional on the actual ordinary `Any`
+target root at the annotation. The current production `negative_top` is not
+that root. First establish the source type owner's completed target and the
+ordinary-root owner's exact `Any` interpretation/scope record; then connect
+the incoming endpoint and hereditary Top evidence without replacing the
+annotated final root with bare-id extraction.
 
 This is owner localization only. It authorizes no implementation, does not
 close Hreg or any aggregate inference/principality gate, and does not promote
