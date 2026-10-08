@@ -5162,3 +5162,24 @@ authority or aggregate gate status changed. Next evidence must come from the
 owning annotation/source constructors or an authentic production bridge, not
 from relabeling supplied evidence. Keep the source/solver production gate and
 all aggregate statuses unchanged.
+
+The bounded C6 [activation falsification](../notes/progress/2026-10-09-c6-activation-falsification.md)
+is checkpointed and pushed at `f564114b6`. It finds only one conditional
+separator: a realized annotated contribution with a nonempty independently
+lawful release but no eligible live handling opportunity. No accepted-source
+derivation for that state, nor a typed observation that distinguishes the
+release, was found. The proposed guards therefore remain unselected, but this
+does not yet justify asking the user to choose between complete observable
+semantics.
+
+A further read-only code map narrows the actual source/solver seam: parser
+syntax nodes retain grouped annotations (`crates/yu-syntax/src/pattern/mod.rs`),
+but ordinary `HirParameter` in `crates/yu-hir/src/module.rs` stores only
+id/name/range, and `parameter_recipes` in `crates/yu-solver/src/lib.rs` retains
+only the parameter id. The live Value row and Function fact are built on the
+unannotated Parameter→Lambda route. The first missing admitted operand is the
+annotated formal derivation carrying actual current endpoint `E_a`, complete
+normalized target `T_a`, and original scope/occurrence correspondence. Typed
+contribution incidence, lawful local realization, and C5 seed/exposure remain
+later obligations. No compiler slice is authorized by this mapping or the C5/C6
+checkpoints; keep the production and cutover gates open.
