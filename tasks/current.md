@@ -3803,3 +3803,16 @@ policy or an implementation approval. The current draft SHA remains
 `f08e015e34b8034bb603e23107486a82553261b698ff1eddffbfa29e27ad20f1`; its
 schema/owner payload, H-bridge and failure-policy questions remain open. No
 code, tests, builds or measurements ran, and no question-board state changed.
+
+The [typed manifest skeleton](../notes/progress/2026-10-08-id-sourcebuild-schema-manifest.md)
+is now pushed at `afeb0ba87` and passed an independent specification delta
+review with no material conformance finding. It fixes seven candidate indexing
+roles and the conditional one-template result, but explicitly does not count
+them as graph nodes. The minimal exact-count blocker is the unenumerated
+`Delta_a` telescope; a three-premise conjunction also shows that preserved
+source clauses do not choose a storage node/edge normalization. The reviewer
+kept the authentic suppliers, H-bridge, publication and resource gates open.
+Next evidence is the source owner's frozen Parameter/Lambda/invocation
+operand-and-binder table, starting with `Delta_a`, followed by a concrete
+storage encoding and complete owner-allocation/lifetime table. No compiler
+code, tests, builds or measurements ran.
