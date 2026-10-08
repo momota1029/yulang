@@ -5241,3 +5241,20 @@ ownership descriptions until a concrete derivation or an observably distinct
 contract is available. The pending literal-Result owner decision and other
 independent proof/conformance lanes are unaffected; all aggregate gates and
 F5 cutover remain open.
+
+The reviewed [Hreg constructor attempt](../notes/progress/2026-10-09-hreg-source-owned-constructor-attempt.md)
+now tries that constructive step directly. It gives a noncircular proposed
+order—source reservation and pre-Parameter registration/IF0, then Parameter
+Desc/inlet, Lambda U_g, and the authentic anchor—but does not claim any arrow
+whose local law is missing. Independent compiler-referee and spec-auditor
+reviews found no actionable findings. The actual application still stops at
+the original definition/source-port introduction schema: its ordered
+dependency telescope and independently derived formation/license/scope/
+registry/incidence guards have no supplied owner constructor. A one-atom
+extension discriminator confirms only that caller JointWF plus fresh IDs
+cannot prove an unspecified new guard; it is not a Yulang counterexample.
+Next evidence must construct and apply that local schema from an authentic
+caller context, or establish the precise authority conflict that needs a user
+decision. No further general absence search is useful. The proof and
+production correspondence gates, and F5 cutover, remain open; no code, tests
+or builds changed.
