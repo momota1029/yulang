@@ -5189,11 +5189,12 @@ branch, `plain_binding_header` in `crates/yu-hir/src/lib.rs` rejects grouped
 annotations and ordinary `ResolvedExpr` lowering does not admit body Apply,
 so there is no current F5 annotated-formal removal path. Frozen `main` at
 `a58eefc31e22141574b6f20c6a5748151c6d79f1` contains the older Oracle route:
-`crates/infer/src/lowering/annotation/constraints.rs` connects an
-`AnnType::Function` with `[io]` at `ret_eff`; `lambda.rs` builds family/depth
-stack predicates, `tail.rs::make_app_with_origins` applies formal call
-predicates, and `poly/src/expr.rs::ArgEffectContract` records family
-path/depth markers. Those markers do
+`crates/infer/src/annotation/constraints.rs` connects an
+`AnnType::Function` with `[io]` at `ret_eff`;
+`crates/infer/src/lowering/expr/lambda.rs` builds family/depth stack predicates,
+`crates/infer/src/lowering/expr/tail.rs::make_app_with_origins`
+applies formal call predicates, and `crates/poly/src/expr.rs::ArgEffectContract`
+records family path/depth markers. Those markers do
 not retain the selected C6 annotation-to-contribution incidence or lawful
 local removal witness, and historical stack behavior is not semantic authority.
 The next useful bridge is one authenticated annotation occurrence with its
