@@ -4844,3 +4844,25 @@ research, including its actual-root and consumer obligations. A user decision
 is premature until that route and its proof consequences are concrete. The
 existing common-instance route still requires its real formation records and
 `Q_common`; neither `Q_common=true` nor successful `Direct` supplies them.
+
+The first research slice for the authorized native-export replacement route
+is checkpointed in [the conditional factorization derivation](../notes/progress/2026-10-09-native-export-principality-replacement-construct.md).
+For native `id`, PE-ID composes with VPRES: every required independent view
+would need one same-origin source-lawful whole-use presentation, a coherent
+scope-respecting lift of its complete fiber, and genuine finite L proofs for
+all decorated checks including independent Option 2 members. Under that
+unproved bridge, the actual `u_i` export gives exact ordinary-use fiber
+factorization without `B_common`/`Q_common`. Neither arbitrary-view
+completeness nor the canonical PRINCIPAL gate follows.
+
+The complementary [falsification slice](../notes/progress/2026-10-09-native-export-principality-replacement-falsification.md)
+found no licensed counterexample to PE-ID's finite replay. Its fixed-result
+candidate isolates a possible gap between actual-callable membership and the
+complete Function-production implication, but its target import incidence,
+independent validity and full actual operation law remain unlicensed; a
+separate Value proof could still succeed. Treat it as a conditional
+discriminator, not a source counterexample. Next: independently resolve
+VPRES's same-origin source realization and semantic-to-L completeness, first
+at the Fixed target's original incidence and the exact Value-inclusion
+consumer. Keep COMMON_TOTAL, ALL_VIEW and PRINCIPAL statuses unchanged; no
+compiler changes, tests, builds or production authority follow.
