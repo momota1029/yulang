@@ -174,14 +174,31 @@ No gate is reclassified or closed by this audit.
 
 ## Next evidence
 
-Find an effective representation and reflection law for the exact native
-`id` J/strategy witnesses identified by the owner cut. Preserve arbitrary
-original joint residuals, binder order and simultaneous witness identity.
-The relative transport only needs an already-coded strategy; the source audit
-locates no such effective owner, while the conditional mutation shows why
-prefix keys must preserve actual J-observers when a quotient is used. Next,
-inventory the actual source-generated observers and compare a direct effective
-residual solver with the EPR/ER route, preserving the full selected input and
-call domain. Neither route is established. Keep `JOINT_DEC` OPEN-PROOF unless
-its complete prerequisites are discharged or a separately reviewed and
+The three follow-on artifacts below were frozen and pushed separately before
+this shared-record update. Their baseline was `50d889a2d`; the artifact commits
+are `34f77212a`, `db4a89149` and `690384213` respectively.
+
+- The [native-id observer inventory](2026-10-08-joint-observer-source-inventory.md)
+  distinguishes bare-id Delta from checked admission: it finds no fixed-ground
+  `Eq(J.payload, Unit)` in the selected bare-id Delta, but `mu_result` makes
+  admission depend on A. Different concrete fibers alone do not refute a
+  quotient. Exact H3 emission from a concrete constrained source entry remains
+  open.
+- The [direct effective residual route](2026-10-08-direct-effective-residual-route.md)
+  gives a conditional proof-producing alternative without EPR/ER challenge
+  classification. Actual atom coverage, faithful input interpretation,
+  same-prefix joint reflection and terminating completeness remain unproved.
+- The [source-route falsification](2026-10-08-direct-residual-route-falsification.md)
+  separates native-id's parametric action on supplied witnesses from input
+  construction and total negative decision. Its Identity/Compose family has
+  unbounded retained proof size, not an unbounded minimum witness or actual F5
+  emission.
+
+Independent compiler-referee and spec-auditor reviews found no BLOCKING, major
+or minor issue in the three notes' conditional claims and exact scope. Neither
+review establishes source completeness, production correspondence or gate
+closure. No code, tests or builds ran. The next evidence is one exact
+source-owned admission/future predicate with a sound, complete direct rule at
+its original operands and binder dependencies. Keep `JOINT_DEC` OPEN-PROOF
+unless its full prerequisites are discharged or a separately reviewed and
 user-approved sufficient replacement route is proved.

@@ -2204,17 +2204,31 @@ maps 21 witness coordinates to selected source owners and current Rust seams.
 Its review confirmed that missing inhabited-cell reflection, whole-prefix
 classification and replay are semantic A obligations, not facts currently
 known by Rust and discarded; the sole minor precision finding was repaired.
-These results narrow the next step to inventorying actual source-generated
-observers and comparing a direct effective residual solver with the EPR/ER
-route. The architecture audit classifies accepted-result reflection as A,
-complete inference for every satisfiable actual generated residual as B, and
-encoding every arbitrary semantic strategy as C; it does not reclassify any
-gate or prove an alternate algorithm. Same-prefix lifting remains required
-when using a quotient. A replacement route still needs source completeness,
-production correspondence, principality/required observables, resource/failure
-ownership, Oracle evidence, independent review and user approval before
-implementation. `JOINT_DEC` remains OPEN-PROOF; no production code or compiler
-checks ran.
+The [source observer inventory](../notes/progress/2026-10-08-joint-observer-source-inventory.md)
+finds no fixed-ground `Eq(J.payload, Unit)` in selected bare-id Delta, while
+the actual `mu_result: J.payload -> A` admission condition depends on the
+chosen result endpoint. Different concrete admission fibers alone do not
+refute a quotient. Exact H3 emission from a concrete constrained source entry
+remains unproved. The [direct effective residual route](../notes/progress/2026-10-08-direct-effective-residual-route.md)
+shows a conditional symbolic proof-producing alternative to EPR/ER, but it
+still requires actual-atom coverage, faithful inputs, same-prefix joint
+reflection and terminating complete search. Its [independent source-route
+falsification](../notes/progress/2026-10-08-direct-residual-route-falsification.md)
+separates native-id's parametric action on supplied certificates from
+constructing those inputs; the source-lawful Identity/Compose family shows
+unbounded retained derivation size, not an unbounded minimum witness or an
+actual F5 trace. Both independent reviews found no BLOCKING, major or minor
+issue in the notes' conditional claims and scope. The architecture audit still
+classifies accepted-result reflection as A, complete inference for every
+satisfiable actual generated residual as B, and encoding every arbitrary
+semantic strategy as C; it does not reclassify any gate or prove an alternate
+algorithm. Same-prefix lifting remains required when using a quotient. A
+replacement route still needs source completeness, production correspondence,
+principality/required observables, resource/failure ownership, Oracle evidence,
+independent review and user approval before implementation. `JOINT_DEC` remains
+OPEN-PROOF; no production code or compiler checks ran. Next: select one exact
+source-owned admission/future predicate and derive its sound, complete direct
+proof rule, including every operand and original binder dependency.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only
