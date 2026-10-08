@@ -4980,11 +4980,17 @@ The [downstream action discriminator](../notes/progress/2026-10-09-n-to-original
 grants singleton lossless Return transport and static origins, then shows that
 a hypothetical legal action swapping two N checking alternatives while fixing
 the two original alternatives prevents any lossless equivariant map, despite
-equal fiber sizes. That action's source license is unproved, so this is a
-conditional obligation diagnostic, not a source counterexample or a new
-semantic gate. The current HIR/core map retains structural Apply/literal IDs
-and incomplete endpoints but no typed Result, Delay, emitted check, carrier or
-consumer certificate.
+equal fiber sizes. The follow-up [whole-check action audit](../notes/progress/2026-10-09-whole-arg-check-action-falsification.md)
+shows that this asymmetry is unlicensed when both uses faithfully retain the
+same complete kernel witnesses and induced action. Shared kernel identity alone
+does not prove that: dependent result constraints may select different witness
+subfamilies. The [conditional reference construction](../notes/progress/2026-10-09-whole-arg-check-action-construct.md)
+gives `wrap_original ∘ extract_N` and derives losslessness/naturality if both
+actual references are faithful pullbacks at a fully matched operand/incidence
+index. None of the notes identifies that typed reference certificate for the
+actual source Call. HIR/core retain structural Apply/literal IDs and incomplete
+endpoints, but no typed Result, Delay, emitted check, carrier or consumer
+certificate.
 
 The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
 confirms that no exhaustive selected `Valid_V` constructor was found and Draft
@@ -4997,7 +5003,9 @@ containment-valid route, not from every possible `Valid_V` criterion. The
 and semantic-to-L completeness remain open. Two requested independent review
 roles were unavailable because their selected models were at capacity; these
 new artifacts remain unreviewed conditional research. Next: inspect the
-authentic whole-argument-check owner action for the N/original incidences and
-construct its same-tuple lawful transport, while keeping the pending literal
-owner decision and all aggregate gate statuses unchanged. No compiler changes,
-tests, builds or production authority follow.
+typed primitive-reference/constraint-emission owner assigned the complete
+`WholeArgCompatible` meaning in initial-context §4.4, then compare its exact
+declaration, scoped operand substitution, witness action and dependent
+result-extension against N §5 and original Code-Call §3.4. Keep the pending
+literal-owner decision and all aggregate gate statuses unchanged. No compiler
+changes, tests, builds or production authority follow.
