@@ -6,7 +6,8 @@ Claim class: candidate rule plus conditional regional assembly theorem
 Baseline: `1b54274fbba6e3753a9b7aa55f0ba9133bd680e0`
 Branch assigned: `research/simple-sub-intrusion`
 Exclusive write lease: this file only
-Review: pending independent review; producer checks are not certification
+Review: conditional assembly reviewed by compiler-referee and spec-auditor;
+  semantic adoption remains blocked by missing concrete importer clauses
 Semantic selection, production implementation and gate closure: none
 
 ## Objective and governing sources
@@ -167,13 +168,23 @@ clauses. A raw export witness without a justified importer embedding is not
 P_kappa(i,...); exporter-to-importer correspondence remains its supplier's
 separate proof duty.
 
-The remaining identification obligations are written explicitly:
+The remaining identification obligations are written explicitly. For the
+rule below, the required world direction is the introduction direction:
+
+```text
+old_S(A,U_A,w_A) and P_kappa^H(i,e,xi;U_N,w_N)
+and Eq_L(r_A U_A,r_N U_N) and cross(i,e,xi;U_P,w_P)
+  -> EnvStore_S^H(P,U_P,w_P) and JointWF_S^H(P,U_P,w_P)
+```
+
+The converse direction in the equivalence below is optional stronger
+characterization. It cannot substitute for this introduction direction.
 
 ```text
 ID-world(S,kappa,i):
   (EnvStore_S^H(P,U_P,w_P) and JointWF_S^H(P,U_P,w_P))
-  iff [old_S(A,U_A,w_A) and P_kappa^H(i,U_N,w_N)
-       and Eq_L(r_A U_A,r_N U_N) and cross(i,U_P,w_P)]
+  iff [old_S(A,U_A,w_A) and P_kappa^H(i,e,xi;U_N,w_N)
+       and Eq_L(r_A U_A,r_N U_N) and cross(i,e,xi;U_P,w_P)]
 
 ID-import(S,kappa,i):
   P_kappa^H(i,U_N,w_N) and Eq_L(...) and cross(i,U_P,w_P)
@@ -181,8 +192,10 @@ ID-import(S,kappa,i):
 ```
 
 Event/xi arguments suppressed on these two lines remain the same throughout.
-`old_S` is only EnvStore/JointWF on A, before installation, and does not
-contain the new imported root or require membership of either actual hole.
+`ID-world-forward` denotes exactly the implication displayed immediately
+above, with event and xi fixed. `old_S` is only EnvStore/JointWF on A, before
+installation, and does not contain the new imported root or require membership
+of either actual hole.
 ID-world also supplies the conclusion's new open root/descriptor obligations;
 it cannot discard them into an unchecked descriptor conjunct. These IDs are
 unproved correspondence obligations for fixed S, not definitions of existing

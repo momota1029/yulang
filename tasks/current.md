@@ -5418,3 +5418,16 @@ yielding `V*`. Compiler-referee review passed after both wording repairs, with
 no remaining findings in the conditional scope. `INIT_WORLD` remains
 OPEN-SEMANTIC; no implementation or source rule is selected. No tests,
 builds, probes, or measurements ran.
+
+The [OpenImportExt-0 regional extension candidate](../notes/theory/2026-10-08-open-import-root-extension-candidate.md)
+has now received compiler-referee and spec-auditor review. The conditional
+amalgamation argument has no blocking or major finding; the compiler-referee's
+minor direction ambiguity is repaired by spelling out the required
+old-world/import/frontier-to-EnvStore-and-JointWF introduction implication.
+The spec audit still blocks semantic adoption: the actual importer has no
+concrete independent `P_kappa`, exhaustive clause package, fixed-semantic IDs,
+or adjudicated status as a derived theorem versus a new definition. Treat the
+candidate as a reviewed research method and supplier boundary only. Do not ask
+for adoption or claim INIT_WORLD closure until that concrete package exists.
+Continue an independent inference lane; no tests, builds, probes, or
+measurements ran.
