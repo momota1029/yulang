@@ -114,18 +114,24 @@ record retraction must not be promoted to that missing semantic law.
 
 | Selected case | Exact input/output at this scalar instance |
 |---|---|
-| PhiV ground leaf | Consumes `g_i` at the importer tuple. World-independent scalar payload facts from `g_s` are reusable; original registration/import incidence facts still require importer evidence. |
+| PhiV ground or fixed external leaf | Consumes complete independent ground or fixed-external leaf evidence at the exact importer tuple and yields scalar `V*` membership. World-independent scalar payload facts from `g_s` are reusable; original registration/import incidence facts still require importer evidence. |
 | PhiW | Consumes `j+`, all old binding certificates, the new same-root certificate and `a+`. It proves the world after those inputs; it cannot generate its immediate guards. |
 | Inert registration | Consumes original source formation/license and joint registry/scope/cross-root incidence guards. Even if `i` has a license, that license supplies no demonstrated configuration-agreement proof at `C0`. |
 | Lemma W Import | Follows a resolved reference to the same existing binding certificate and restricts it. The new importer incidence is not an existing base projection. ResultBind needs an actual typed Return and rebind; neither is a zero-step scalar import premise. |
 | Knu / Step | Retain their exact source/capture cases and independently supplied registration/context guards. Their constructor inputs cannot be replaced by `g_s` at a different configuration. |
 
-The narrowed owner obligation is therefore an importer introduction of
-`g_i,j+,a+` with a clause-preserving `pi_B` at the original tuple. Even the
-common-fiber, inert, one-binding instance lacks that selected premise action.
-The scalar payload and fixed-point membership machinery are not the remaining
-construction problem. This is a signature mismatch, not a rejected Yulang
-program or a source counterexample.
+The existing `Imp_Delta(rho,C_ext;xi,w_imp)` is the selected independent
+semantic import input and could supply the scalar `V*` premise plus imported
+guard fields if an interpretation provides a matching readout. The displayed
+signature does not identify its configuration, event, and binding incidence
+with `(C0,e0,i)`. Even granting that index action, a joint amalgamation must
+combine the imported fields with the old base's certificates and guards at
+the same tuple. Separately, semantic restriction of those guards under
+`pi_B` remains unproved. No generic action for any of these steps is selected
+here. The scalar payload and fixed-point membership machinery are not the
+remaining construction problem. This is a signature mismatch, not a rejected
+Yulang program or a source counterexample; see the
+[Imp_Delta index/amalgamation audit](2026-10-10-initworld-impdelta-amalgam-attempt.md).
 
 ## Evidence, coverage and stop condition
 

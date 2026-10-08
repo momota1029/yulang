@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 Baseline: `7bd3341b0607b175f23e22f2e8a7183eacbdf4c9`
-Status: unreviewed research signature audit; frozen producer artifact
+Status: compiler-referee-reviewed research signature audit; conditional only
 Authority: research only; INIT_WORLD remains OPEN-SEMANTIC
 Exclusive lease: this file
 
@@ -26,7 +26,7 @@ The target scalar instance retains
 ```text
 b : W*(C0,w_B,e0), with original xi=(nu,K,D)
 w+ = w_B plus {i -> (A_s,0,rho_s)}
-g_i : Ground(A_s,0,rho_s,e0; importer incidence i).
+v_i : V*(A_s,0,rho_s,e0; importer incidence i).
 ```
 
 The actual import signature in source construction §4.1 is
@@ -54,7 +54,7 @@ Thus the first failed substitution is
 
 ```text
 imported descriptor/root evidence at (rho,C_ext;xi,w_imp)
-     ? -> complete Ground(A_s,0,rho_s,e0;i).
+     ? -> complete V* scalar membership at (A_s,0,rho_s,e0;i).
 ```
 
 There is no exhibited indexing/evidence action for this arrow in the
@@ -73,10 +73,11 @@ related to an actual hole filling as an independently closed import.
 
 As an extra conditional premise, suppose a map `m` realizes this particular
 scalar import at the *same* `(C0,xi,e0,i)` and supplies the full selected
-ground relation `g_i`, including its registration/incidence and hereditary
-restriction fields. Preserve every original binder position, root and
-overlapping witness. An equality `C_ext=C0` alone is weaker than this
-evidence action. Neither equality nor `m` is selected behavior here.
+`V*` scalar premise `v_i`. This may use the fixed external leaf, or the ground
+case with its complete registration/incidence and hereditary-restriction
+fields. Preserve every original binder position, root and overlapping
+witness. An equality `C_ext=C0` alone is weaker than this evidence action.
+Neither equality nor `m` is selected behavior here.
 
 Even granting `m`, importer extension requires the two remaining PhiW
 premises from the reviewed scalar note:
@@ -96,11 +97,12 @@ interpretation already covers that complete union and has a clause-preserving
 readout yielding `j+,a+`, those premises are supplied; this audit does not
 rule that out or assume it.
 
-Given `b,g_i,j+,a+`, the existing conditional result applies unchanged:
-unfold `b`, introduce the scalar through PhiV's nonrecursive ground clause,
-combine every same-event binding certificate and the joint guards in PhiW,
-then use fixed-point equality to obtain `W*(C0,w+,e0)`. The imported scalar
-creates no additional recursive obstacle. This note proves no broader
+Given `b,v_i,j+,a+`, the existing conditional result applies unchanged:
+unfold `b`, introduce the scalar through its applicable nonrecursive PhiV
+case (fixed external leaf or ground), combine every same-event binding
+certificate and the joint guards in PhiW, then use fixed-point equality to
+obtain `W*(C0,w+,e0)`. The imported scalar creates no additional recursive
+obstacle. This note proves no broader
 extension theorem and supplies none of those missing independent atoms.
 
 The structural equation `pi_B(w+)=w_B` preserves the input certificate `b`.
@@ -120,20 +122,24 @@ membership family supplies neither action on the independent guard domain.
 
 Claim class: documentary signature audit and reduction of the missing
 premise, with a conditional application of an already reviewed theorem.
-This is neither bounded executable characterization nor an independently
-reviewed result. The clause presentation is the documentary reference; it
-is not an independent Oracle for source import semantics. This calculation
-shares the selected Phi definition and the import/guard parameter meanings
-with its dependencies and does not validate those source rules independently.
+This is not bounded executable characterization. The clause presentation is
+the documentary reference; it is not an independent Oracle for source import
+semantics. This calculation shares the selected Phi definition and the
+import/guard parameter meanings with its dependencies and does not validate
+those source rules independently. Independent compiler-referee review passed
+after two minor scope/role-wording repairs: scalar membership may use either
+the fixed external leaf or the ground route at the exact importer tuple, and
+PhiV consumes that leaf evidence before yielding `V*`. The review did not
+inspect a concrete import interpretation or Rust correspondence.
 
 Coverage is one inert, non-overwriting scalar import in one original fiber.
 No source literal typing, different-fiber map, hole-dependent import,
 general Function/carrier import, State, arbitrary world restriction or
 foreign EnvStore embedding is established. No enumeration, seeds/ranges,
 mutations, builds, tests or probes apply. Failure occurs at the first
-unavailable indexing action, missing full ground field, conflicting overlap,
-missing union guard, overwritten old coordinate, or deletion that loses an
-independent atom or scope.
+unavailable indexing action, missing full scalar-membership field, conflicting
+overlap, missing union guard, overwritten old coordinate, or deletion that
+loses an independent atom or scope.
 
 Checks: pinned `git show` reads and narrow occurrence search; current HEAD
 inspection; pinned/live SHA-256 equality for the four direct dependencies;
@@ -152,8 +158,12 @@ one component; another fixed-point variant would not test this seam.
 
 - Exact leased path: `notes/progress/2026-10-10-initworld-impdelta-amalgam-attempt.md`.
 - Baseline: `7bd3341b0607b175f23e22f2e8a7183eacbdf4c9`.
-- Dependency changes: none; all four live direct dependencies match pinned bytes.
-- Review status: unreviewed research signature audit; producer writes stopped.
+- At freeze, all four direct dependencies matched the pinned baseline bytes.
+  The scalar PhiW note was later refined to record this audit's fixed-external
+  leaf and staged owner seam; its conditional derivation is unchanged. Hashes
+  below preserve the original baseline inputs.
+- Review status: compiler-referee PASS after two minor scalar-premise wording
+  repairs; no theorem or authority promotion.
 - Checks already run: exact section reads, occurrence search, dependency hashes,
   leased-path status and whitespace inspection; no builds/tests/probes.
 - Proposed commit message: `research: separate Imp_Delta indexing from scalar world amalgamation`.

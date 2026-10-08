@@ -5401,12 +5401,20 @@ OPEN-SEMANTIC. No tests, builds, probes, or measurements ran.
 
 The bounded [scalar PhiW importer derivation](../notes/progress/2026-10-10-initworld-phiw-import-construct.md)
 now instantiates the selected fixed-point constructor at one original fiber
-and event. Given importer-indexed ground evidence plus all immediate joint
-guards and witness agreement, it derives the extended world while preserving
-the supplied base certificate and a structural old-record projection. An
-independent compiler-referee review passed without findings. This does not
-derive the importer premises from exporter validity or provide semantic
-restriction for arbitrary extended evidence. The remaining owner seam is an
-importer introduction of `g_i`, `j+`, and `a+`, together with clause-preserving
-old-tuple restriction. `INIT_WORLD` remains OPEN-SEMANTIC; no implementation
-or source rule is selected. No tests, builds, probes, or measurements ran.
+and event. Given complete importer-indexed scalar `V*` evidence plus all
+immediate joint guards and witness agreement, it derives the extended world
+while preserving the supplied base certificate and a structural old-record
+projection. An independent compiler-referee review passed without findings.
+The follow-up [Imp_Delta index/amalgamation audit](../notes/progress/2026-10-10-initworld-impdelta-amalgam-attempt.md)
+finds that `Imp_Delta(rho,C_ext;xi,w_imp)` may provide imported evidence, but
+the selected sections do not map its configuration/event/incidence to
+`C0,e0,i`. Even granting that map, the union with the old base needs joint
+amalgamation guards and a separate clause-preserving `pi_B` deletion action.
+The import interpretation could supply these actions; none is selected or
+shown by its displayed signature. The audit's first draft over-narrowed the
+scalar membership path to `Ground`; its repair now records the fixed-external
+leaf alternative and states that PhiV consumes complete leaf evidence before
+yielding `V*`. Compiler-referee review passed after both wording repairs, with
+no remaining findings in the conditional scope. `INIT_WORLD` remains
+OPEN-SEMANTIC; no implementation or source rule is selected. No tests,
+builds, probes, or measurements ran.
