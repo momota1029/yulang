@@ -605,6 +605,18 @@ was checkpointed in `7eab2767f`.
 
 ### Immediate work order
 
+1. Obtain and independently review the actual source-owned Application package
+   for the flat inner `f 1`: emitted Gen-Call-0 membership at its dependent
+   indices, registration/route/seed where applicable, and authentic literal
+   Result/Delay/Reify, VIncl, WholeArgCompatible and complete-result origins.
+   Do not infer this package from the shadow candidate's `Int` fact.
+2. Only after that owner output exists, continue the distinct original
+   CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
+   results at their actual emitted-record scope.
+3. Keep the conditional Record-result lane behind its actual H-R/H-K owner
+   laws; current production HIR, solver terms and closed types do not provide
+   Record construction or complete `K_box` laws.
+
 ### Post-PE higher-order and constructed-result frontier (2026-10-08)
 
 Two independently reviewed research notes now test the next source shapes beyond
@@ -625,13 +637,30 @@ the selected `id`/finite-import `pick` envelope:
   H-K. Both independent reviews passed; neither owner law is supplied or
   selected by the current PE design.
 
+- [Flat Apply original-owner derivation](../notes/theory/2026-10-08-apply-original-application-owner-derivation.md)
+  derives the exact parser/HIR structure and source-generator boundary for
+  `my apply f = f 1; my id x=x; pub out=apply id`. The inner Call currently
+  yields only a pending source stub (`argument_use=None`); the selected nested
+  Name/Name Gen-Call-0 route cannot apply because this flat body has no local
+  Bind. Its conditional H_emit/H_reg/H_seed/H_app package preserves the
+  selected O0/O1 and Code-Call inputs but does not supply them. Independent
+  compiler-referee and spec reviews found no issue within this scope.
+- [Apply owner boundary falsification](../notes/theory/2026-10-08-apply-owner-boundary-falsification.md)
+  shows the grouped-callee fixture retains one Apply but yields zero direct-Use
+  source-call stubs. The successful captured-source identities and candidate
+  fact still lack complete Application checking and initial-rule evidence.
+  Independent regression review found no blocking issue in this bounded
+  fixture/API characterization. These are not compiler semantics or
+  source-acceptance changes.
+
 The approved ReadInvoke q1 decision selects the source-construction owner for
 the finite presentation and requires retaining each actual rule insertion and
 lookup record. Its [receipt](../questions/2026-10-08-readinvoke-source-presentation/receipt.md)
 was integrated at `89b799fbc`; it does not supply `CallInitial`, I0/O0,
-application origins or action laws. The next source-owner work is to obtain the
-actual complete Application/CallInitial package at its original constructor;
-the Record extension independently needs H-R/H-K. None of these checkpoints
+application origins or action laws. The next source-owner work is now narrowed
+to the flat inner Application formation/checking package first, then the
+separate CallInitial/I0 owner output. The Record extension independently needs
+H-R/H-K. None of these checkpoints
 replaces production F5 or changes GENERALIZE, PROJECTION, PRINCIPAL or CUTOVER.
 
 ### Reviewed original CallInitial I0 boundary (2026-10-08)
