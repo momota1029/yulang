@@ -3426,3 +3426,23 @@ finish the bounded production-owner crosswalk and structural accounting, then
 repair the packet and obtain delta review. Gate E and F5 consumption remain
 open. No implementation, tests, builds, measurements, or Git changes occurred
 in the reviews.
+
+A bounded read-only owner map now confirms the construction seam in the draft
+is not present in current production outputs. HIR and collection retain branded
+`r/q/n/ell` identities, SCC topology, lambda recipe positions, and a root join
+key. They do not retain the source `Desc` telescope, generic inlet/IF0,
+complete invocation/event binders, fixed world/closure anchors, source
+FinalRoot contract, or immutable source publication event. The current
+two-stage proposal cannot consume a later authentic FinalRoot/publication
+event: scheme installation and terminal `SolvedModule` publication are
+different seams, and no source event is currently exposed between them.
+`AdmissionReceipt` is store-admission provenance, not the semantic receiver
+receipt. A new HIR-directed source constructor may use the existing branded
+joins without reparsing, but its schema and H-source-to-HIR/local-law bridge
+must be designed and justified; existing owners do not supply H-bridge.
+
+Next: replace the assumed existing-owner table with an explicit proposed
+source-constructor boundary and its typed outputs, separate from F5 scheme
+installation and Rust result publication. Only then can exact cardinalities,
+allocation/coexistence bounds, and the failure-policy decision be made
+concrete. The owner-design draft remains uncommitted and unapproved.
