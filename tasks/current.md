@@ -2209,7 +2209,12 @@ finds no fixed-ground `Eq(J.payload, Unit)` in selected bare-id Delta, while
 the actual `mu_result: J.payload -> A` admission condition depends on the
 chosen result endpoint. Different concrete admission fibers alone do not
 refute a quotient. Exact H3 emission from a concrete constrained source entry
-remains unproved. The [direct effective residual route](../notes/progress/2026-10-08-direct-effective-residual-route.md)
+remains unproved. Separately, the independently reviewed [complete Function
+boundary obstruction](../notes/theory/2026-10-08-joint-decision-source-fragment-obstruction.md)
+shows that checking only observed call payloads is unsound: a genuine Bool
+challenge refutes an `Any`-input, `Int`-result boundary for the same native
+identity callable. This rejects that mutation only; complete source decision
+remains open. The [direct effective residual route](../notes/progress/2026-10-08-direct-effective-residual-route.md)
 shows a conditional symbolic proof-producing alternative to EPR/ER, but it
 still requires actual-atom coverage, faithful inputs, same-prefix joint
 reflection and terminating complete search. Its [independent source-route
@@ -2227,8 +2232,20 @@ replacement route still needs source completeness, production correspondence,
 principality/required observables, resource/failure ownership, Oracle evidence,
 independent review and user approval before implementation. `JOINT_DEC` remains
 OPEN-PROOF; no production code or compiler checks ran. Next: select one exact
-source-owned admission/future predicate and derive its sound, complete direct
-proof rule, including every operand and original binder dependency.
+source-owned complete Function checking occurrence, map its original domain
+proof `tau` and whole-observation proof `psi` with every admitted challenge,
+future and binder dependency, then derive an effective direct rule without
+filtering to observed calls. The new [mu_result source map](../notes/progress/2026-10-08-direct-mu-result-source-map.md)
+confirms that the premise is mandatory only for selected checked Value-entry
+gamma and that current Rust retains no complete gamma or proof package. The
+[mu_result kernel construction](../notes/progress/2026-10-08-direct-mu-result-kernel-construction.md)
+is independently reviewed as a conditional validator/application for supplied
+finite proofs under H1–H5; it does not decide proof existence or construct the
+whole admitted input strategy. The inspected HIR/solver path retains no
+complete gamma or proof package. The [falsification](../notes/progress/2026-10-08-direct-mu-result-kernel-falsification.md)
+shows why rejecting one Identity proof is not a negative inclusion decision.
+The source map locator was corrected to the actual `ResolvedExpr` declaration
+before its checkpoint. `JOINT_DEC` remains OPEN-PROOF.
 
 Option A/2 require independent exhaustive production membership/admission,
 `D_C subset D_A` and `P_A subset P_C`, including licensed production-only

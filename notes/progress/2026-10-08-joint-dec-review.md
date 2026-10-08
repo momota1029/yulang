@@ -174,31 +174,46 @@ No gate is reclassified or closed by this audit.
 
 ## Next evidence
 
-The three follow-on artifacts below were frozen and pushed separately before
-this shared-record update. Their baseline was `50d889a2d`; the artifact commits
-are `34f77212a`, `db4a89149` and `690384213` respectively.
+The following research slices are frozen, separately checkpointed and reviewed
+within their stated scopes:
 
 - The [native-id observer inventory](2026-10-08-joint-observer-source-inventory.md)
-  distinguishes bare-id Delta from checked admission: it finds no fixed-ground
-  `Eq(J.payload, Unit)` in the selected bare-id Delta, but `mu_result` makes
-  admission depend on A. Different concrete fibers alone do not refute a
-  quotient. Exact H3 emission from a concrete constrained source entry remains
-  open.
+  distinguishes bare-id Delta from checked admission: no fixed-ground
+  `Eq(J.payload, Unit)` occurs in the selected bare-id Delta, while
+  `mu_result` makes admission depend on A. Different concrete fibers alone do
+  not refute a quotient. Exact H3 emission from constrained source syntax is
+  still unproved.
 - The [direct effective residual route](2026-10-08-direct-effective-residual-route.md)
   gives a conditional proof-producing alternative without EPR/ER challenge
-  classification. Actual atom coverage, faithful input interpretation,
+  classification. Actual-atom coverage, faithful input interpretation,
   same-prefix joint reflection and terminating completeness remain unproved.
 - The [source-route falsification](2026-10-08-direct-residual-route-falsification.md)
   separates native-id's parametric action on supplied witnesses from input
   construction and total negative decision. Its Identity/Compose family has
   unbounded retained proof size, not an unbounded minimum witness or actual F5
-  emission.
+  emission. Independent compiler-referee and spec-auditor reviews found no
+  BLOCKING, major or minor issue in these three conditional notes.
+- The independently reviewed [complete Function boundary obstruction](../theory/2026-10-08-joint-decision-source-fragment-obstruction.md),
+  commit `a3f90c020`, refutes the concrete ObservedPayload mutation: one
+  genuine Bool challenge disproves an `Any`-input, `Int`-result boundary for
+  the same actual identity callable, despite a successful observed Int call.
+  It is not a complete JOINT_DEC theorem or a refutation of algorithms that
+  preserve the full independent challenge domain.
+- The [direct mu_result source map](2026-10-08-direct-mu-result-source-map.md),
+  [kernel construction](2026-10-08-direct-mu-result-kernel-construction.md)
+  and [falsification](2026-10-08-direct-mu-result-kernel-falsification.md)
+  distinguish the selected Value-entry proof slot, Rust's missing complete
+  gamma package, and conditional validation/application of a supplied finite
+  proof. Their compiler-referee and spec-auditor reviews found no BLOCKING,
+  major or minor finding. H1–H5 remain assumptions; rejecting one proof term
+  does not decide proof existence or joint admission.
 
-Independent compiler-referee and spec-auditor reviews found no BLOCKING, major
-or minor issue in the three notes' conditional claims and exact scope. Neither
-review establishes source completeness, production correspondence or gate
-closure. No code, tests or builds ran. The next evidence is one exact
-source-owned admission/future predicate with a sound, complete direct rule at
-its original operands and binder dependencies. Keep `JOINT_DEC` OPEN-PROOF
-unless its full prerequisites are discharged or a separately reviewed and
-user-approved sufficient replacement route is proved.
+No production code, tests, builds or measurements ran. The next evidence is an
+exact selected source Function-checking occurrence with its original complete
+domain proof `tau`, whole-observation proof `psi`, all independently admitted
+challenges/futures and their binder dependencies, followed by a direct
+effective rule that preserves those domains. The source-boundary obstruction
+rejects filtering to observed calls; the mu_result validator remains only a
+conditional local consumer. Keep `JOINT_DEC` OPEN-PROOF until the complete
+prerequisites are discharged or a separately reviewed and user-approved
+sufficient replacement route is proved.
