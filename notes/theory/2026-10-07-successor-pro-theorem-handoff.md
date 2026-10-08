@@ -111,6 +111,64 @@ reconstruction task now. Investigate foreign/scalar/active-consumer bridges only
 for an actually used independently fixed interpretation. General anchor
 inversion does not close the stronger canonical receiving-`E_C` target.
 
+### Reuse source Generalize directly in F1/F4
+
+Fresh independent `compiler_referee` and `spec_auditor` delta reviews passed
+for the repaired [source Generalize construction](2026-10-08-source-generalize-definition-and-proof.md)
+and its [selected native definition](../design/2026-10-08-source-generalize-definition.md).
+The [review and adoption record](../progress/2026-10-08-source-generalize-review.md#4-frozen-theorem-reviews-and-integration)
+records the accepted reviewed snapshot SHA-256 hashes:
+`cf105b27c22c8756077305e90f74efe191a0068221ce42b44480771083442335`
+for the mathematical note and
+`eab5017fcd5eef1662d22a3f68a3bf142bd0793e3b63c57e3ec6863b2170ab32`
+for the paired definition. Metadata promotion preserves the mathematical scope.
+This closes the missing native source-side definition, eligible placement and
+lawful-use reflection relative to explicit local L1–L5 (§2), without a global
+source-adequacy or successful-query premise. Reuse the completed source cases;
+do not commission another source Generalize definition, ordinary Parameter
+introduction classification, Pack/Decode or whole freshening proof.
+
+The independent source/checking/client rules (§3) include real `new`,
+monomorphic `alias`, `view`, actual-event `run`, joint `join` and sequential
+`bind`. Their owning rules construct typed provenance. Generalize (§5) is
+`ScopedClosure(p,C,T,anchors_b,templates_b,N_b,R_b)` on the entire retained
+source component, at its actual final formed root. The fix/retain walk keeps
+same-component `Internal` inferred descriptions distinct from fixed actual
+provider/world/`OneShot` and genuine external `Mono`/`Established` full
+contracts. In the bare `my f x=g; my g y=f` pair, both ordinary parameter
+Desc declarations are eligible at member and tuple publications, with the
+same actual closures/world and monomorphic recursive tuple inside each
+incoming frame. External monomorphic captures fix all their free dependent
+contract fields. Ordinary parameter type scopes precede invocation challenges;
+this completed native case does not close full INTRO's existential, extrusion
+or guard coverage.
+
+SRC (§6) and SRC-J (§7.0) construct and invert the independent rules directly.
+GS proves joint source safety from **one global** satisfying strategy of the
+allocated clauses. GC ranges over every finite independent joint source/proof
+grammar with arbitrary well-scoped W. Before assignments, challenges or
+histories, it constructs a finite allocation of the one preconstructed closure
+whose public solution-and-observation fiber is exactly the independent
+proof grammar's, preserving the original scoped strategies. Its cases include
+nonidentity result checks, narrower lawful domains, structural checks and
+actual admitted conversions; legality is not limited to identical kernels.
+Shared witnesses stay once across all frames, ViewLogic once per independent
+frame, actual EventField once per actual event, and EventProof per frame under
+that same event. Aliases cannot create a new frame, witness or history.
+
+Use SRC/SRC-J as local F1 constructor/agreement cases and GC as the local F4
+independent-lawful-use lift. Every use retains the actual source-final
+annotation target or selected common-formation root and its evidence. The
+actual query boundary (§7.2) remains: these source checking proofs do not
+prove effective production `Direct` completeness or recognition by the
+existing resolver. Public `B_common`, PROJECTION, all semantic-view lifting,
+normalization of all accepted adapters, all-language State and recursive
+introduction, complete INTRO and MEMBER_DISCHARGE remain at their original
+scope. L1–L5 are genuine local laws, not opaque global adequacy atoms.
+An actual implementation/root query or a newly required local law therefore
+remains a task at its owning seam. No completed F1/F4 family, canonical gate
+promotion, dependency removal or production cutover follows.
+
 This delta changes no F1–F4 theorem body or dependency. The canonical DAG
 remains **90 nodes / 196 edges: 7 CLOSED / 21 CONDITIONAL-CLOSED /
 43 OPEN-PROOF / 18 OPEN-SEMANTIC / 1 IMPLEMENTATION-ONLY**; these local cases

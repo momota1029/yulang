@@ -30,6 +30,22 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Authoritative native source Generalize (2026-10-08):**
+  [source definition](2026-10-08-source-generalize-definition.md) and
+  [SRC/SRC-J/GS/GC](../theory/2026-10-08-source-generalize-definition-and-proof.md)
+  define source-owned ordinary descriptions, exact publication-indexed anchors,
+  final source roots and independent finite joint use. Direct rule construction
+  and inversion prove joint soundness and exact lawful-use completeness under
+  genuine local constructor laws, with one allocation before assignments and
+  histories. Shared initializer evidence, per-instance descriptions, aliases
+  and actual runtime events retain their distinct original scopes. Recursive
+  peer descriptions remain in one complete component relation; actual external
+  monomorphic contracts stay fixed. Nonidentity checking and admitted conversions
+  are included. Public projection/principality, production Direct acceptance,
+  unprovided primitive/State/recursive laws and aggregate cutover remain separate.
+  Both fresh independent reviews passed after the joint-use/recursive-anchor
+  repair; see the [review record](../progress/2026-10-08-source-generalize-review.md).
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)
