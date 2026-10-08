@@ -4886,7 +4886,8 @@ follow-ups are recorded here and checkpointed in
 [its bounded falsification](../notes/progress/2026-10-09-native-export-force-law-falsification.md),
 the [independent Fixed-pick target construction](../notes/progress/2026-10-09-native-export-fixed-target-independent-view-construction.md),
 [the pick/id Value-comparison attempt](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-value-comparison.md),
-and [the scope-map falsification](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-scope-falsification.md).
+the [scope-map falsification](../notes/progress/2026-10-09-native-export-fixed-target-pick-id-scope-falsification.md),
+and the [literal-1 contract construction](../notes/progress/2026-10-09-native-export-fixed-target-literal1-contract-construction.md).
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
 predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
@@ -4908,13 +4909,16 @@ certificate; the production-only false-result alternative is not licensed as
 an actual invocation. These are bounded owner gaps, not a counterexample or
 an absence theorem for all original kernels.
 
-The Return(1) separation is still conditional: no actual literal-1 `J_1`
-publication and Call-owned `ReifyOrigin` were constructed, nor the same-event
-pairing of that carrier at both original inlet telescopes. If those producers
-are supplied, id returns `(1,p_1)` while Fixed requires `(0,p_0)`; this would
-still require an approved `Valid_V` witness before it could refute ALL_VIEW.
-Next: locate or construct those original source records and the cross-root
-scope pairing, then audit `Valid_V` eligibility separately. Keep the arbitrary
+The Return(1) separation is still conditional, but its literal producer is now
+located: given the actual whole local relation, the authentic ground-literal
+rule plus PE-PICK constructs the monomorphic `J_1` for `my one=1`, retaining
+provider `p_1` and its whole hereditary contract. The Call-owned `ReifyOrigin`,
+complete carrier record, and same-carrier/event pairing at both original inlet
+telescopes remain unconstructed. If those producers are supplied, id returns
+`(1,p_1)` while Fixed requires `(0,p_0)`; this would still require an approved
+`Valid_V` witness before it could refute ALL_VIEW. Next: locate or construct those
+original Call/reify records and the cross-root scope pairing, then audit
+`Valid_V` eligibility separately. Keep the arbitrary
 U/`E_U` gap and opaque operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW and
 PRINCIPAL unchanged. No compiler changes, tests, builds or production authority
 follow.
