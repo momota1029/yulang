@@ -24,12 +24,19 @@ Status: reviewed conditional research; no semantic adoption or production gate c
   The review did not inspect implementation code, public representation
   selection, exhaustive primitive catalogue validity, all-view principality,
   or the broader production gate.
+- An independent spec-auditor review found no blocking, major, or minor
+  q1/a1-conformance findings. It verified that the note remains research-only,
+  does not select `T_step/T_c` as the public representation, and does not expose
+  an opaque whole-definition payload or authorize use-time body traversal.
+  Public sufficiency, actual primitive validity and compiler behavior remain
+  unreviewed.
 
 The checkpoint commits are `063f682ac` (phase-sensitive cut audit) and
 `ebe3d1f9d` (conditional constructor cut). Both were pushed individually after
-inspection of the full outbound range. No tests, builds, or executable probes
-were run. No compiler code, shared semantic record, question bundle, or DAG
-status changed.
+inspection of the full outbound range. This review record is checkpointed in
+`ace4c8825`; this revision adds the independent spec-auditor result. No tests,
+builds, or executable probes were run. No compiler code, shared semantic
+record, question bundle, or DAG status changed.
 
 ## Remaining supplier and next action
 
