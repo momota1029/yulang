@@ -5099,13 +5099,29 @@ A focused architect audit confirms that this source-owner location does not
 itself authorize a production slice. The Authoritative inferred-call-view
 direction explicitly withholds inference implementation authority, and the
 directional-protection addendum remains a formalization without a complete
-annotation seed rule. The implementation still needs an approved contract for
-whether this exposure derives `ProtectedVarAt` or has no seed, how the
-annotation's permitted `io` removal maps to an original contribution and is
-realized, and how the complete declaration/check package is published or
-failed atomically. Keep annotation checking, Call upper demand and provider
-lower evidence as distinct incidences even when endpoints solve equal. The
-smallest next packet is a reviewable annotation-owner successor contract for
-the exact annotated Apply shape, followed by compiler-referee and spec-auditor
-review and explicit user approval before implementation. This does not promote
+annotation seed derivation. The approved function-call-view answer already
+settles that annotation absence is the source of full protection; this
+annotated formal cannot use that absence constructor. The bounded
+[annotation-seed inversion](../notes/progress/2026-10-09-annotated-formal-seed-inversion.md)
+was independently reviewed by compiler-referee and spec-auditor with no
+findings. It excludes that one origin and its conditional transports, but does
+not prove no protection from every possible origin. A5/A6, actual endpoint and
+Name export, and contribution/removal realization remain open. The answer also
+withholds compiler implementation. Keep annotation checking, Call upper demand
+and provider lower evidence as distinct incidences even when endpoints solve
+equal. Next, resolve the owning source judgment's remaining origin cases and
+form a reviewable implementation contract; no user decision is needed to
+reselect the already approved annotation-absence branch. This does not promote
 the broader SEED_SOURCE or F5-cutover gates.
+
+The syntax/HIR audit clarifies that the displayed `apply(f: ..., x)` is
+semantic shorthand, not current declaration grammar. The nearest supported
+surface shape is `my apply (f: _ -> [io] _) x = f x`; recovery-free behavior
+for this exact wildcard/effect variant remains unexecuted. Static grammar and
+fixtures show grouped annotated formals as Pattern ML application. Production
+HIR rejects that header before creating its binding/root, and its body Call
+lowering is separately unsupported. Shadow HIR retains annotation and Call
+identities but leaves their typed relationship pending. Current support is not
+a source rejection rule. Any implementation packet must cover both
+header/annotation ownership and Call-body lowering, along with the selected
+seed and contribution evidence.
