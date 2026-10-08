@@ -35,16 +35,30 @@ This index is a navigation aid. The listed source document remains authoritative
   [SRC/SRC-J/GS/GC](../theory/2026-10-08-source-generalize-definition-and-proof.md)
   define source-owned ordinary descriptions, exact publication-indexed anchors,
   final source roots and independent finite joint use. Direct rule construction
-  and inversion prove joint soundness and exact lawful-use completeness under
-  genuine local constructor laws, with one allocation before assignments and
-  histories. Shared initializer evidence, per-instance descriptions, aliases
-  and actual runtime events retain their distinct original scopes. Recursive
-  peer descriptions remain in one complete component relation; actual external
-  monomorphic contracts stay fixed. Nonidentity checking and admitted conversions
-  are included. Public projection/principality, production Direct acceptance,
-  unprovided primitive/State/recursive laws and aggregate cutover remain separate.
-  Both fresh independent reviews passed after the joint-use/recursive-anchor
-  repair; see the [review record](../progress/2026-10-08-source-generalize-review.md).
+  and inversion prove joint soundness and lawful-use completeness under genuine
+  local constructor laws, with one allocation before assignments and histories.
+  Shared initializer evidence, per-instance descriptions, aliases and actual
+  runtime events retain their distinct original scopes. Recursive peer
+  descriptions remain in one complete component relation; actual external
+  monomorphic contracts stay fixed. Nonidentity checking and admitted
+  conversions are included. This source-side rule is distinct from the
+  transformed, displayable public export selected by the approved root-policy
+  answer. Public projection/principality, production Direct acceptance,
+  unprovided primitive/State/recursive laws and aggregate cutover remain
+  separate. Both fresh independent reviews passed after the joint-use/recursive-
+  anchor repair; see the
+  [review record](../progress/2026-10-08-source-generalize-review.md).
+
+- **Selected native transformed projection export (2026-10-08):**
+  [native projection definition](2026-10-08-native-projection-public-export-definition.md)
+  and [PE-ID/PE-PICK construction](../theory/2026-10-08-projection-public-export-construction.md)
+  select a finite displayable public export for authentic immutable unannotated
+  `id` and the stated finite public-import `pick` cases. The actual ordinary
+  public roots retain the whole inlet/interface, original scopes and finite
+  certificate schema; use-time checks do not inspect source bodies. This does
+  not establish all-language principality, arbitrary import summaries, State,
+  general recursion, solver discovery, production F5 correspondence or cutover.
+  See the [integrated review](../progress/2026-10-08-projection-public-export-review.md).
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
@@ -100,7 +114,7 @@ This index is a navigation aid. The listed source document remains authoritative
   Its selected [positive immutable recursive case](../theory/2026-10-08-simultaneous-immutable-root-introduction.md)
   introduces the exact two-closure Value-entry pair and installed root world
   together, using a proved declared-hole background lift. The native interface
-  selection above now supplies its original presentation; exhaustive fixed
+  selection above supplies its original presentation; exhaustive fixed
   foreign-domain embedding remains separate, and no aggregate closes.
   Independent descriptor/history/primitive contracts and hereditary binding
   inputs remain; no exhaustive model, full C0 or production cutover is claimed.

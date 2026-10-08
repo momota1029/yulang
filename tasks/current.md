@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
-Status: native source Generalize and bounded transformed id/pick public-export theorems reviewed and selected; general public inference/principality and production gates remain separate
+Status: native source Generalize, bounded transformed id/pick public export, captured-closure, recursive-interface and native signature-incidence constructor theorems reviewed and selected; general semantic, inference/principality and production gates remain open
 
 ## Objective and canonical obligation ledger
 
@@ -62,47 +62,22 @@ principality, all compatible contexts and exhaustive production extras remain.
 
 ### Completed native source Generalize (2026-10-08)
 
-The current user explicitly requests the source-side GENERALIZE definition
-and direct soundness/completeness for lawful uses, with natural missing
-definitions permitted. The [selected source definition](../notes/design/2026-10-08-source-generalize-definition.md)
-and [direct proof](../notes/theory/2026-10-08-source-generalize-definition-and-proof.md)
-now construct `Generalize_source(S,b)` from original source rules. No supplied
-`g_b`, exporter success, Q-success, or earlier transport/packaging theorem is
-used as the source correctness premise.
+The selected native source rule subsystem defines `Generalize_source(S,b)` at
+the actual source result and proves direct construction/inversion plus joint
+soundness and lawful-use completeness for its finite source-rule class. The
+reviewed [definition](../notes/design/2026-10-08-source-generalize-definition.md)
+and [SRC/SRC-J/GS/GC proof](../notes/theory/2026-10-08-source-generalize-definition-and-proof.md)
+retain the original relation, exact eligible declarations, fixed dependencies,
+scope nesting, whole admitted uses and source-owned rule witnesses. They do
+not use the public export or an F5 query as a premise.
 
-Source owning rules classify ordinary Desc declarations and complete fixed
-dependencies. The publication-indexed walk retains current-component recursive
-descriptions while fixing actual providers/worlds, external Mono contracts and
-one-shot evidence. Initializer Shared binders remain once; ViewLogic remains
-once per independent incoming frame; aliases share that frame; actual event
-fields and per-description event proofs retain their original telescopes.
-Both parameter descriptions of the bare `my f x=g; my g y=f` pair are eligible
-at either member or joint-tuple publication, with the whole simultaneous
-relation retained. Genuine external dependencies can still fix their fields.
-
-SRC and SRC-J construct and invert independent source rules and one jointly
-scoped client derivation. GS proves joint soundness from one global strategy.
-GC constructs a finite allocation **before assignments and histories** for
-every finite independent joint source proof grammar and well-scoped client W,
-preserving exactly its public solution-and-observation fiber and original
-witness dependencies. Nonidentity result checks, lawful narrower domains,
-structural checks and actual admitted conversions are included. Actual final
-annotation/common roots, Option 2 extras and independently admitted future
-contexts remain unchanged.
-
-Fresh independent mathematical and specification reviews both passed after
-one batched repair of the initial joint-witness and recursive-anchor findings;
-the [review record](../notes/progress/2026-10-08-source-generalize-review.md)
-records the exact frozen scopes. Reuse these source-native constructor cases
-under F1/F4. Do not reschedule the native Generalize definition, ordinary
-parameter introduction or joint source-lawful reflection as absent.
-
-This complete relative source-rule theorem retains the genuine local laws
-L1–L5. Unprovided primitive/State/general-recursion laws, normalization of
-arbitrary source adapters, all semantically valid views, public B_common /
-PROJECTION / principality and the actual production Direct consumer are
-separate targets. GENERALIZE and INTRO keep their canonical statuses and
-all original prerequisites. No production implementation or cutover occurs.
+This closes the native source-rule construction in its stated local-law
+envelope. It remains separate from the actual transformed, displayable public
+scheme selected by the approved root-policy answer: that answer requires the
+public use to be justified from the transformed export and rejects hiding the
+whole source relation in its extra data. Actual public-root formation,
+membership/admission, use preservation, required principality and production
+correspondence remain open. No implementation or cutover authority follows.
 
 ### Completed native transformed projection export (2026-10-08)
 
@@ -236,10 +211,8 @@ than another premise-localization note.
 The later native original interface theorem above supplies the missing
 presentation construction and same-operator background correspondence on its
 selected native route. Correspondence with already fixed or foreign meanings,
-the actual exhaustive CompleteMem/KV inventory and remaining fields,
-broader recursion and State remain separate. The later native source
-Generalize result above supplies its declared source-rule scope, with actual
-production/public consumption still separate. REC_DESC/INIT_VALID remain
+the actual exhaustive CompleteMem/KV inventory and remaining fields, Generalize,
+broader recursion and State remain separate. REC_DESC/INIT_VALID remain
 OPEN-PROOF with all aggregate counts, premises and edges unchanged. The pushed
 parameter Apply lane continues independently with its explicit unresolved
 generalization/effect/admission premises; production cutover remains forbidden.
@@ -332,7 +305,8 @@ actual outer `f` row and distinct local `x` row, and returns the local
 initializer endpoint without a terminal Call or local freshening. The
 candidate keeps every semantic premise unresolved and uses the current F5
 solver/generalizer machinery; it is not successor generalization or production
-inference. The focused feature target passes 17/17. Its differential now
+inference. The focused feature target passed 17/17 at its earlier checkpoint;
+the current target passes 19/19. Its differential now
 records that the candidate's returned-Function scheme differs from the current
 collector's result for this retained local Bind; it asserts only the observed
 delta and leaves which result is semantically correct unresolved. The old
@@ -364,9 +338,47 @@ semantic status changed. Broader local Bind forms, typing/admission, capture
 and evidence transport, successor correspondence and publisher behavior remain
 open.
 
+A new feature-gated integration target now joins this same captured-local
+source Apply across the symbolic `yu-core` call-formation generator, the HIR
+source crosswalk, and the same-solve candidate Call/export. It checks borrowed
+identity for the application, callee/argument and returned uses, declaration
+and local scopes, plus pointer-retained pending premises. A borrowed accessor
+now exposes the exact retained startup row for a HIR parameter, and the test
+joins the local source formal through that row to exactly one same-export
+current-generalizer origin and scheme-qualified Q/R binder. The accessor
+preserves solve-branded row identity and adds no source meaning. Original
+`BX/xi`, types/scopes, emitted Gen-Call-0 membership, invocation interpretation
+and whole-tuple substitution remain unresolved in both carriers. The target
+passed 1/1; an independent regression review, rustfmt and whitespace check
+passed. This is executable structural `HIR_WIRING` progress only; all canonical
+DAG statuses remain unchanged.
+
 The canonical successor DAG now has 90 nodes / 196 edges with 7 CLOSED, 21
 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC and 1
 IMPLEMENTATION-ONLY. No status changed in this shadow slice.
+
+The next shadow slice adds a direct inventory over existing opt-in resolved
+HIR `Apply` nodes, retaining the exact application/callee/argument IDs, source
+form and attached `UnsupportedExpression` IDs for one selected definition.
+Captured local initializers remain scoped to their owning root; foreign roots
+and unsupported projections fail closed. The solver crosswalk test now joins
+these same HIR identities to candidate Calls for direct and captured examples
+while keeping every candidate/source premise unresolved. Focused HIR and solver
+targets pass 3/3 and 5/5, and an independent regression review found no
+actionable issue after exact nested counts and sibling-root isolation were
+added. Ordinary `lower_module` behavior is unchanged. This remains
+`HIR_WIRING` implementation progress only; no canonical proof status changes.
+
+That HIR inventory now feeds a default-off `yu-core` carrier directly. The
+carrier preserves the supplied root and borrowed call/callee/argument/error
+identities, plus the four existing unresolved source-base premises; it does
+not synthesize a Gen-Call-0 or `SourceCallUseInput`. The solver integration
+test follows the same call through HIR, the Core premise carrier, the candidate
+Call and its exported scheme while retaining unresolved inventories. Focused
+Core and solver targets pass 6/6 and 5/5. Independent compiler-referee review
+found no findings in the carrier or its semantic boundary. This extends the
+executable identity crosswalk only; `CALL_TYPE`, source-base conformance and
+all other proof statuses remain unchanged.
 
 ### Current shared static owner construction
 
@@ -556,7 +568,154 @@ unrelated `R_c`, provide W/Z typing, or close every Call form. The canonical
 `closed_lemmas`, and the remaining exact branches stay open. No broader gate
 or production prerequisite changed.
 
+### Default-off source annotation/call identity crosswalk (2026-10-08)
+
+A new `yu-core` shadow-only crosswalk joins one retained HIR definition to its
+exact CST binding boundary, retained Apply/callee/argument identities and source
+positions, and all annotation occurrences under that boundary. It checks source
+ancestry for each operand, retains the original HIR diagnostic IDs, separates
+unsupported HIR projection from an empty retained-call inventory, and keeps
+annotations as definition-scoped syntax data without linking them to calls or
+profiles. Nine source/type/admission/evidence premises remain unresolved. The
+focused target passes 5/5; the no-default-features check and formatting pass.
+Pre-write spec review and post-write spec/regression review passed; the one
+minor repeated-call coverage finding was fixed with a left-associated fixture
+and distinct-identity assertions. This advances executable HIR_WIRING only;
+all canonical DAG statuses remain unchanged. Production lowering and solving do
+not consume this structure.
+
+A separate selected `f x` CALL_TYPE derivation confirms the existing
+conditional closure but adds no theorem or status. Its next concrete leaf is
+construction of the original complete inlet declaration and dependent carrier
+introduction evidence for the candidate Apply demand; current source recipes
+retain value/effect rows but do not provide that complete independent
+predicate. Keep it open and do not substitute F5 success or Q for the inlet
+contract.
+
+The research-only [annotation permission realization analysis](../notes/theory/2026-10-08-annotation-permission-realization-analysis.md)
+now has an independently reviewed conditional equivalence between eager
+release at a qualifying crossing and deferred realization at an actual
+opportunity. The review repaired the release-state guard so eager subtraction
+applies only after release, with qualification, a live receiver, and certified
+transport; failed crossings preserve state. This characterizes the two
+decorated transition candidates only. Source construction of the qualifying
+incidence/crossing, static export observability, and production conformance
+remain open; no annotation policy or inference gate is adopted. Review metadata
+was checkpointed in `7eab2767f`.
+
 ### Immediate work order
+
+### Post-PE higher-order and constructed-result frontier (2026-10-08)
+
+Two independently reviewed research notes now test the next source shapes beyond
+the selected `id`/finite-import `pick` envelope:
+
+- [Apply with a native public id](../notes/theory/2026-10-08-apply-native-public-export-bridge.md)
+  gives a conditional public-import replacement for the `id` operand in
+  `my apply f = f 1; my id x=x; pub out=apply id`. PE-ID supplies the actual
+  decoded id root and ordinary identity check. Original Application origins,
+  `CallInitial`/I0/action/insertion laws, complete Apply production laws and
+  transformed `apply`/`out` roots remain missing. The independent math/spec
+  reviews passed at the explicitly conditional scope; no source meaning or
+  gate status was selected.
+- [Record-result public extraction](../notes/theory/2026-10-08-record-result-public-export-construction.md)
+  derives a conditional one-field Record export while retaining distinct
+  Record and field providers, worlds and proof scopes. It requires the actual
+  Record introduction/inversion law H-R and complete Lambda synthesis law
+  H-K. Both independent reviews passed; neither owner law is supplied or
+  selected by the current PE design.
+
+The approved ReadInvoke q1 decision selects the source-construction owner for
+the finite presentation and requires retaining each actual rule insertion and
+lookup record. Its [receipt](../questions/2026-10-08-readinvoke-source-presentation/receipt.md)
+was integrated at `89b799fbc`; it does not supply `CallInitial`, I0/O0,
+application origins or action laws. The next source-owner work is to obtain the
+actual complete Application/CallInitial package at its original constructor;
+the Record extension independently needs H-R/H-K. None of these checkpoints
+replaces production F5 or changes GENERALIZE, PROJECTION, PRINCIPAL or CUTOVER.
+
+### Reviewed original CallInitial I0 boundary (2026-10-08)
+
+The reviewed [CallInitial I0 derivation](../notes/theory/2026-10-08-callinitial-i0-telescope-derivation.md)
+confirms that selected Lemma W projects environments from a supplied joint
+world; it does not introduce the independent initial world, admission or
+hole-dependent imported roots. The approved inlet domain remains all
+independently typed compatible punctured contexts, including Option 2
+observations without a source-constructor witness. The five-node
+Name/Result–Name/Result Call still lacks original K0/P0 and the whole-action
+supplier. No new semantic definition or gate closure follows from this note.
+
+The next I0 seam was the independently interpreted open-import/root extension
+at its actual incidence. The frozen [regional candidate](../notes/theory/2026-10-08-open-import-root-extension-candidate.md)
+now gives `OpenImportExt-0`, dependent overlap/gluing, the exhaustive clause
+frontier and lawful action obligations. Independent semantic and specification
+reviews passed for its conditional scope. A separate [falsification note](../notes/theory/2026-10-08-open-import-root-extension-falsification.md)
+shows that anchored overlap plus separately valid root actions do not imply
+transported overlap with the exact retained old certificate; the candidate's
+joint-action premise excludes that structural countermodel. Both research
+artifacts were pushed in `2f85ec179`. The fixed-meaning identifications,
+actual importer root-introduction rule, and any inhabited original supplier
+instance remain unproved. This does not close INIT_WORLD/SEM_JOINT/INIT_VALID
+or authorize semantic adoption. The next useful evidence is one actual
+fixed-semantic import-owner instance satisfying the full clause frontier,
+dependent overlap and action, then its zero-step importer extension. Any
+changed foreign-provider behavior still requires the normal approval gate.
+
+### Historical checkpoint: conditional Generalize/export bridge (2026-10-08)
+
+This section records the pre-PE-ID/PE-PICK checkpoint from `4976b0756` and
+`c77577636`. Its proposed first `id`/`pick` transformed-export rule and its
+claim that native Generalize is missing are superseded by the selected source
+Generalize and PE-ID/PE-PICK results above. The conditional certificates and
+their falsifiers remain historical evidence; their broader public-export,
+principality and production residuals remain open.
+
+The reviewed [Generalize/export candidate](../notes/theory/2026-10-08-generalize-export-constructor-candidate.md)
+constructs lossless component packaging, scoped accessors, use-indexed fresh
+transport and conditional all-member publication from a supplied actual source
+Generalize judgment. Its PG-1 projection references anchor the constructor at
+the source's parameter/Name/Result owner chain. Independent semantic and
+specification reviews passed after correcting stale cutover wording. The
+[falsification note](../notes/theory/2026-10-08-generalize-export-constructor-falsification.md)
+shows that output shapes/eligibility sets alone cannot recover the original
+quantifier tree, dependent evidence, fixed imports/captures, anchors or joint
+root covariance; these are structural countermodels, not source-admitted
+Yulang examples. Both artifacts are in `4976b0756`.
+
+The follow-up [PG-1 evidence derivation](../notes/theory/2026-10-08-pg1-generalize-direct-evidence.md)
+constructs a finite conditional Eq/Eq-C/Function certificate for the first
+whole-root query when the checked view and actual retained export have
+identical complete clauses. The separate
+[falsification note](../notes/theory/2026-10-08-pg1-generalize-direct-falsification.md)
+refutes deriving that result from endpoint syntax alone. A spec-auditor and a
+compiler-referee independently reviewed the respective artifacts; both pass
+within their bounded scopes. They identify the same actual missing suppliers:
+exhaustive active descriptor/admission formation, local resolver conformance,
+and the source Generalize rule proving the designated export behavior. These
+notes were checkpointed in `c77577636`; no DAG status or production authority
+changes. The approved root-policy answer selects a transformed, displayable
+scheme as the actual public target, with only separately justified use-time
+information; retaining the complete source relation under another name would
+not satisfy it. The source Lambda root may supply construction evidence, but
+the public use must be justified at the transformed export. The next step is a
+reviewed, non-authoritative candidate rule for ordinary nonrecursive
+projection bindings (`id` and resolved `pick`) that derives this transformed
+export and identifies its exact admission, membership, eligibility and
+use-preservation suppliers. This is the first design slice, not a reduction of
+the full replacement objective; transformed/common exports, recursive SCCs and
+all compatible views remain subsequent required work.
+
+The source-derived eligible-view/anchor judgment, complete admission and
+designated-export coverage remain missing, so GENERALIZE, IFACE_FORM,
+PRINCIPAL and CUTOVER statuses stay open/conditional. The default solver and
+application candidate still route through F5; this packet authorizes no code
+change. Next, derive the bounded transformed-export rule and actual use
+consumer for `id` and resolved `pick`, without making the hidden source root the
+public result or placing the whole source relation in its extras. If exact
+eligibility, admission or abstraction clauses require a new semantic decision,
+record the concrete alternatives before adoption. The full replacement
+objective remains active; implementation still requires the charter's
+reviewed successor design and specific Gate E approval.
 
 1. Use the selected native SIG construction directly for support, attachment,
    licensing, all-anchor inversion and profile incidence. Do not reconstruct
@@ -571,11 +730,14 @@ or production prerequisite changed.
    operator/phase/dispatch and contextual world actions; every independent
    whole-Call primitive/abstract arm with its provider/future/admission laws.
    Full C0, exhaustive descriptor/model realization and applicable
-   active-consumer preservation remain. IF and contextual membership do not
-   prove unspecified primitive laws or inhabited arbitrary worlds. For the
-   recursive route, establish the actual exhaustive CompleteMem inventory and
-   remaining independent fields, plus any used fixed-original correspondence.
-3. Supply remaining natural source/annotation/role semantic cases and prove the retained
+   active-consumer preservation remain. For the selected identity Name/Name
+   pure-read branch, Theorem R/E and `ReadInvoke-Desc` provide the actual-U
+   phase and descriptor result when the unchanged source-base `M_E` witness
+   exists. Derive its source-owned finite constructor next, without assuming
+   `M_E`; IF and contextual membership alone supply neither primitive laws nor
+   arbitrary-world inhabitance. On the recursive route, establish the actual
+   exhaustive CompleteMem inventory and remaining independent fields, plus any
+   fixed-original correspondence actually used.
    F1–F4 families by shared constructor, transition, source-derivation and phase
    cases. Complete joint ROWS, generalization/instantiation/hygiene, recursion,
    methods, actual export and publication remain required at their real owners.
@@ -2418,34 +2580,242 @@ unchanged. Latest compiler-referee and performance-auditor reviews found no
 blocking issue in this bounded executable experiment. The regression test is
 same-binary noninterference evidence, not a cross-feature equivalence claim.
 This executable implementation
-advances HIR_WIRING only; it closes no proof or semantic gate. DAG remains 90
-nodes / 196 edges: 7 CLOSED, 20 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 19
-OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. No performance measurements were
+advances HIR_WIRING only; it closes no proof or semantic gate. The canonical
+DAG remains 90 nodes / 196 edges: 7 CLOSED, 21 CONDITIONAL-CLOSED, 43
+OPEN-PROOF, 18 OPEN-SEMANTIC, and 1 IMPLEMENTATION-ONLY. No performance measurements were
 run. `cargo check -p yu-solver --all-targets --features shadow-apply-candidate
 -j 2 --offline` passed at this phase boundary. Production cutover remains blocked by the existing semantic and
 conformance obligations.
 
-### Default-off source-call identity crosswalk (2026-10-08)
+The [guarded-cycle assignment attack](../notes/theory/2026-10-08-candidate-own-row-guarded-cycle-attack.md)
+and the finite [acyclic forwarding experiment](../notes/theory/2026-10-08-candidate-own-row-acyclic-model.md)
+(with [checker](../tools/research_candidate_own_row_acyclic.py)) exercise
+own-row retention, owner identity, repeated ports, and direct-bound preservation
+under explicit small powerset interpretations. The acyclic probe checked 2,880
+models and found a concrete counterexample when forwarding bounds are dropped
+despite retaining own rows; independent review verified its stated finite
+claims. A source/code bridge now proves a bounded forward assignment transport
+through actual bipolar Q selection, shared substitution, normalization,
+finalization and closed representation for the successful acyclic
+`PureFun(a,c)` / `a≤b≤c` fragment. This is conditional on the stated lattice
+model and quantifiable rows; arbitrary exported Q assignments do not retain
+those direct edges. The exact semantic leaf is actual closed-Q adequacy plus
+incoming-use restoration and converse coverage, so no broad generalization or
+production repair follows. The guarded-cycle probe checked 1,188 graphs and
+satisfying assignments including Function-port reentry; review confirmed its
+conditional boundary and an output label was clarified. These results do not
+select recursive R semantics or soundness/principality, and no canonical DAG
+status changed. The acyclic proof/checker and guarded-cycle experiment passed
+independent compiler-referee reviews; the acyclic note's polarity locator was
+corrected to the walker dispatch.
 
-The shadow-only source lane now retains exact HIR Apply identities per selected
-definition, joins them to the paired CST boundary and annotation inventory, and
-crosswalks ordinary Calls through same-solve candidate observations and their
-receiving exports. Partial direct-Use projections preserve branded IDs and
-fail closed on unsupported or annotated selected declarations; sibling
-annotations remain scoped to their own declaration. This adds identity and
-ancestry evidence only. The Call clause, initial source/descriptor relation,
-finite emission-conformance certificate, invocation interpretation, typing,
-admission and joint semantic witness remain unresolved. Independent identity,
-regression and specification reviews accepted their assigned structural scopes;
-the separate source-base supplier audit identifies the missing semantic
-producer and is recorded in the pushed research note. Focused shadow targets
-were previously run for Core call formation (6/6), annotation boundaries
-(3/3), source annotation crosswalk (5/5), HIR call inventory (3/3), and solver
-call crosswalk (5/5); no broad suite was run for this integration. No canonical
-DAG status or production behavior changed. The exact next supplier remains
-source-derived Call emission with its original joint witness.
+The symbolic captured-Call generator now also accepts an exact retained
+declaration position and projects through that declaration's existing
+`declaration_skeleton`, while the original singleton entrypoint keeps its
+singleton guard and behavior. One multi-binding fixture joins the selected
+captured Call record to the same source/HIR/candidate identities, a sibling
+module-name use, its actual current Q/R freshening inventory and receiving
+export. These are same-solve identity/value projections only; every original
+typing, source-base membership, invocation, scope, tuple-substitution and
+successor-correspondence premise remains unresolved. The feature-gated
+call-formation crosswalk target passes 3/3 and the existing shadow-Apply
+feature target passes 19/19. Independent regression review accepted the
+selector and same-solve call/use/export joins. Since current projection rejects
+an annotation on the captured block itself, a sibling-annotation fixture
+asserts the selected declaration still has a captured Call input before
+checking the artifact-global annotation guard's fail-closed result. Delta
+review accepted this isolated guard check without semantic claim. No DAG status
+or production route changed.
+
+The latest CALL_TYPE constructor attack also corrects an earlier blanket
+description of the source-base route: source-contracts §3.5 does translate a
+genuine finite source-core derivation to `M_E`, but only under its finite
+source-base emission-conformance certificate. The selected structural
+Name/Name result theorem still consumes an already supplied `M_E` witness.
+The current shadow `CandidateRelation::Apply` and symbolic identity record do
+not provide the complete emitted Call clause, its original joint witness, or
+the initial source/descriptor evidence needed to instantiate that certificate.
+CALL_TYPE remains CONDITIONAL-CLOSED, its DAG prerequisites/status are
+unchanged, and no source counterexample or semantic contradiction was found.
+The default-off shadow record now carries a borrowed `PendingSourceBaseStub`
+with the exact Call, callee-use and argument-use identities, plus explicit
+unresolved entries for the complete emitted Call clause/joint witness, initial
+source/descriptor relation, finite emission-conformance certificate and full
+invocation interpretation. This is evidence plumbing only: it creates no
+semantic witness and cannot authorize solver comparison. The focused core and
+crosswalk targets pass 3/3 each, and the independent regression delta review
+accepted the repaired ten-premise core assertion. The next attack remains to
+derive the actual emitted Call clause and its witness-preserving source-base
+correspondence from source generation. The default-off candidate differential
+now also records `my id x = x; my n = id 1; pub exported = n`: candidate
+emission observes `Int` while ordinary current inference projects the call
+root as `Never`, with different exported schemes. Candidate typing/admission
+premises remain unresolved, so this is a measured inference delta rather than
+a claim that the candidate result is semantically correct.
+
+The default-off source-call projection now also retains owned clones of the
+branded Call, direct callee-use, argument-expression and optional direct
+argument-use IDs for each `source_call_use_inputs` occurrence in an exact
+declaration. Cloning preserves artifact identity; the generator remains
+partial for grouped/computed callees and rejects any artifact with retained
+annotations. Tests assert both successful identity joins and the grouped /
+computed / annotation boundaries; the focused `yu-core` target passes 5/5 and
+the candidate crosswalk target passes 5/5. `CandidateSourceCall` now has a
+test-wired structural matcher for this carrier; tests join each exact source
+call to its same-solve candidate observation and reject another Call and
+identical source parsed into a foreign artifact. The ordinary-Apply case also
+compares the candidate's exported endpoints while retaining all
+candidate/export and source-base unresolved premises.
+This remains source identity
+bookkeeping only; the four source-base semantic premises stay unresolved and
+the canonical DAG statuses remain unchanged. Independent regression review
+accepted the implementation and crosswalk; the minor grouped/computed/annotation
+coverage finding, positive ordinary-Apply join, and negative crosswalk cases
+passed delta review.
+
+The nested-call crosswalk fixture now also checks the full HIR inventory → Core
+pending source-call carriers → same-solve candidate path for both retained
+Apply occurrences. Exact HIR occurrence, callee and argument identities,
+retained HIR errors, root ownership, and all four unresolved source-base
+premises are checked for each call. Its source crosswalk also carries the
+exact root's same-solve exported scheme and preserves the unresolved candidate
+premises. The focused solver crosswalk target passes 5/5. This extends
+executable identity plumbing through the nested Apply export projection; it
+does not establish source typing, emission conformance, invocation
+interpretation, or semantic acceptance, and no canonical DAG status changes.
+Independent regression review and its delta review passed for this nested
+crosswalk addition.
+
+The opt-in Core shadow lane now also exposes a borrowed annotation-boundary
+inventory for an exact retained `BindingStatement`. It follows source parent
+identity, preserves both `PatternTypeAnnotation` and `TypeAnnotationTail`,
+separates sibling declarations, and lets nested binding boundaries be queried
+directly. It retains the existing pending typed-port/profile marker and adds no
+typing, applicability, permission, or call-view meaning. Its three focused
+tests pass; independent regression review found no blocking or major issue.
+
+The partial source-call generators now apply that same retained ancestry rule
+to the exact selected declaration: a sibling annotation no longer suppresses
+an unrelated declaration's structural inventory, while annotations inside
+the selected declaration still fail closed. Boundary lookup errors remain
+fail-closed, all semantic premises remain unresolved, and grouped/computed
+callee behavior is unchanged. The focused `shadow_call_formation` target
+passes 6/6, the focused candidate crosswalk passes 5/5, the annotation-boundary
+target passes 3/3, and `yu-core` checks with default features disabled.
+Independent pre-write spec review and post-write regression delta review both
+passed. This is a default-off identity-plumbing correction only and changes
+no DAG status.
+
+Against the latest remote constructor proof, a separate compiler-referee
+review closes the exact captured-Name `g` readout for the selected native
+registered root: the source Name targets that root, O-pair constructs its
+value and installed-world certificates simultaneously, and the actual entry
+extension/capture projection derives the same-scope `ValueMem` without a
+completed member/world premise. This does not identify the historical proposed
+`R_g` endpoint with the registered root or prove a fixed-original/foreign
+meaning, so aggregate `REC_DESC` remains OPEN-PROOF and no DAG status changes.
+The synchronized canonical REC_DESC leaf now records the selected native
+two-closure constructor while retaining fixed/foreign original meanings,
+exhaustive CompleteMem/KV, and broader recursive cases as independent premises.
+
+The latest native signature theorem already supplies exhaustive native
+ATTACH/LIC_FORWARD formation and inversion; no additional canonical node
+closes. The residual is the fixed-consumer bridge, first at DeclaredPort:
+constructing `PortProv` and `DeclContribution` does not yield an original
+`e∈E_C(beta)` or factorization through an authentic upper Call. This is not a
+source counterexample. LIC_FORWARD for a fixed consumer additionally needs
+`Attach_M → A_N` and `L_N → Lic_M` over that consumer's real indices and scope;
+those maps do not follow for arbitrary fixed interpretations.
+
+The selected captured-closure constructors also yield a reviewed conditional
+receiver-admission result for a checked Apply demand that explicitly retains
+the argument's complete `Result(I_argument)` interface and matching `Strict`
+view. At one fixed original tuple/event, independent carrier membership,
+context/receipt guards, and same-tuple callee membership then introduce the
+complete challenge and derive actual-provider acceptance plus all receiver
+observations in that same scope. This removes a redundant post-admission
+reconstruction premise, but does not form `Strict` from arbitrary `f x`,
+identify the candidate four-port recipe with that view, or close `CALL_TYPE`.
+The exact source producer still needs a pre-comparison `DemandFormation` link
+from the typed argument interface to the declared inlet and entry/role.
+
+The default-off Call-use crosswalk now also observes the exact retained
+candidate Apply fact from the same private solver result. It retains Apply
+recipe occurrence identities before batch consumption, then joins the exact
+`CandidateCall` to its unique slot-zero provenance edge and stored fact;
+missing or ambiguous links fail closed. The source Call/Core/HIR identity,
+callee Name use, receiving export and actual freshening route remain joined,
+and every semantic premise remains unresolved. The focused crosswalk target
+passes 6/6, and two focused solver unit tests cover copied/foreign calls plus
+six isolated missing/ambiguous recipe, provenance and fact cases. Independent
+regression review passed after that repair. A grouped-source collision fixture
+remains inspection-only because the supported HIR fixture does not retain a
+Group node and candidate solving rejects it; the constructor still filters
+the exact Apply recipe occurrence before consulting slot zero. No semantic DAG
+status changes; the 90-node / 196-edge canonical ledger remains 7 CLOSED,
+21 CONDITIONAL-CLOSED, 43 OPEN-PROOF, 18 OPEN-SEMANTIC, and 1
+IMPLEMENTATION-ONLY, and its validator passes.
 
 ## Preserved history and next integration steps
+
+### Superseded checkpoint: transformed `id` export research (2026-10-08)
+
+This block records the earlier pre-construction checkpoint at `c436dd58c`.
+Its “neither result law is selected” and next-discriminator wording is
+superseded by the independently reviewed native PE-ID/PE-PICK construction
+selected at current HEAD; see “Completed native transformed projection export”
+above and the linked design/theorem there. The older conditional analyses
+remain historical evidence only.
+
+The q1/a1 approval selects a displayable transformed scheme plus only the
+use-time information shown necessary; it does not approve a concrete decoder
+or implementation. Reviewed research checkpoints now cover the finite
+`Sigma = forall q. q -> q` export candidate and its source/actual-root query
+suppliers: [projection construction](../notes/theory/2026-10-08-projection-lambda-export-construction.md),
+[descriptor source bridge](../notes/theory/2026-10-08-id-descriptor-source-bridge.md),
+[ordinary-arrow candidate](../notes/theory/2026-10-08-id-arrow-decoder-candidate.md),
+[conditional result discriminator](../notes/theory/2026-10-08-id-result-clause-discriminator.md),
+and their paired falsification notes. The independent reviews found the
+conditional claims sound after requiring bidirectional guard/grammar pairing
+for equality and distinguishing a base-clause difference from a complete
+Option 2 observation difference.
+
+No source-admitted unequal-provider license or observation has been shown.
+The logical saturation countermodel proves only that `W/Z/G` can erase a
+base-predicate difference. Next, construct or exclude one independently
+licensed off-diagonal provider package under a fixed complete interface and
+caller, prove its complete admission and survival outside the diagonal
+`W/Z/G` closure, then show a separating actual-root query after projection.
+Until those suppliers exist, neither result law is selected and no user choice
+is needed. Keep `GENERALIZE`, `PROJECTION`, `PRINCIPAL`, production
+conformance and `CUTOVER` open; no compiler code, test contract, or DAG status
+changes follow from these checkpoints.
+
+At local checkpoint `c436dd58c`, `research/simple-sub-intrusion` is eight
+commits ahead and one behind its upstream. The upstream-only source-Generalize
+commit `2ea53e3dd` remains unintegrated; nine shared coordination paths have
+uncommitted edits; several overlap its integration seam. No push was made. The
+research artifacts were committed in three scoped commits: `3d081345f`,
+`f416d14cb`, and `c436dd58c`. No tests or builds were run.
+
+## Preserved history and next integration steps
+
+Historical reset record: at an earlier 2026-10-08 check, HEAD was
+`9e36c9537edfbde3048af2963abbf10f32477d5e` after a reset to the remote branch;
+the incoming files were restored individually and no blanket reset/clean was
+used. The then-current claim that `.git` was read-only is superseded by the
+successful scoped commits below.
+
+Current Git state at `1b54274fb`: branch `research/simple-sub-intrusion` is
+synced with `origin/research/simple-sub-intrusion` (0 ahead / 0 behind). Recent
+pushed checkpoints are `ab5bc6e31` (CallInitial prefix analysis), `97d8e1ba6`
+(conditional Bind initial bridge), `91a75709f` (exact shadow Apply fact), and
+`1b54274fb` (reviewed I0 telescope boundary). Nine shared paths remain modified
+in the worktree: the successor architecture/index/progress/theory handoff,
+theory map and obligation ledger/generator, plus this task file. The live ledger
+delta changes INIT_VALID's selected-result references, so use committed `1b54274fb`
+as the authority until that shared-record delta is reconciled. No question-board
+bundle is part of this work.
 
 - [Original pre-correction ledger](2026-10-06-current-before-directional-protection.md), unchanged.
 - [Task snapshot before this normalization](2026-10-07-current-before-full-dag-normalization.md).
