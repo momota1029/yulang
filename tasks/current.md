@@ -4541,3 +4541,22 @@ No code, tests/builds, API or F5 routing changed. Next: trace the actual owner
 of the outward Result boundary and determine whether it supplies target
 formation, bound capture and accessor/opening laws; preserve GUARD_COVER and
 RAW_SOURCE as open CTX_FINITE prerequisites.
+
+The IFACE_EQUIV lane now has two frozen research checkpoints:
+[bounded constructor transport](../notes/progress/2026-10-10-native-pe-interface-equivariance-construction.md)
+(`fcf7f26fc`) and [identity-observer falsification](../notes/progress/2026-10-10-native-pe-interface-equivariance-falsification.md)
+(`523a9d661`). The construction derives structural commutation for finite
+Extract/Decode/CE and Direct dispatch, conditional on a typed nominal action
+and two-way covariance of every active semantic leaf. The first missing
+premise is that action and exhaustive identity-read inventory; with it, the
+complete `I_q[A;Delta]` input/image law is the first semantic seam. The
+falsification found no counterexample to coherent transport fixing rigid
+identities, and gives an admitted wrong-root operand discriminator. A bounded
+default-path code map found no production PE Extract/Decode/certificate/
+Direct counterpart: current inference still uses F5 Q/R routing, with the
+closed-scheme decoder test-only. These notes are unreviewed and do not close
+IFACE_EQUIV, FRESH_LIFE, or CUTOVER. Independent mathematical and exact-scope
+reviews are pending. No code, tests/builds, API, or F5 routing changed. Next:
+adjudicate both reviews, then trace the actual source owner of the complete
+input/image predicate and its identity action; keep production correspondence
+and all aggregate statuses open.
