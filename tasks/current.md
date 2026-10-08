@@ -4001,3 +4001,16 @@ to `(r,ell,C,R,p)`. An exact cardinality/layout packet cannot be filled by
 assuming inert formation or empty telescopes. Next: inspect current production
 HIR/lowering/solver ownership for that L4 supplier and report the first absent
 field. No implementation or inference gate is authorized by this cut.
+
+The bounded production-path inspection found no such owner in the inspected
+HIR → collection → inference → solved-result path. The earliest missing input
+is the initial world/installed environment at `yu-hir` lowering; `HirParameter`,
+`Lambda`, `FetchValue`, `LambdaRecipe`, SCC membership, Function rows,
+`AdmissionReceipt`, scheme installation, and `SolvedModule` transfer contain
+only structural/type/provenance information and cannot certify L4's provider,
+IF0, lifetime, formation arm, or publication anchor. Core/backends are also
+boundary-only in the inspected default path. This is bounded evidence, not a
+repository-wide absence claim. No code or executable checks ran. Next: compare
+the selected L4 source contract with compile/session entrypoints to identify
+the smallest authentic world/registration input owner before drafting further
+production layout or placement choices.
