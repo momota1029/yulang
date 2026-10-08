@@ -4801,3 +4801,14 @@ certificate (whose action is identity under the retained substitution) from a
 genuinely hole-dependent external certificate, which needs its authentic
 import-owner action. No valid counterexample or new rule was supplied. INIT_WORLD
 remains open at that owner and the joint root-extension/restriction proof.
+
+The native-id ALL_VIEW lane isolates a conditional actual-export case. For a
+finite native source-checked view grammar, SG inversion and PE-ID's whole
+strategy/proof translation yield `Direct(u_i,R_V(v))` at the actual decoded
+public root `u_i`, including Function checks and their production clauses.
+This is a bounded consequence of the reviewed PE-ID theorem, not arbitrary
+valid-view completeness. The aggregate ALL_VIEW formula still needs its
+owner-provided `B_common`/`Q_common` formation and a proof that the active
+common root is this same `u_i`; PE-ID explicitly forbids substituting an
+interior identity synthesis root for a distinct common or annotation root.
+ALL_VIEW, PRINCIPAL and production correspondence remain unchanged.
