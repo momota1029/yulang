@@ -4478,3 +4478,22 @@ failure policy and numeric limits remain open. No implementation, tests,
 builds, or F5 routing changed. Next: map the actual source caller and local-law
 owners, then connect those outputs to an ordinary-root producer/store/readout;
 implementation still requires explicit approval.
+
+The [bounded Direct caller/root-owner map](../notes/progress/2026-10-10-pe-direct-caller-owner-map.md)
+now completes the required caller/law-owner survey at the recorded paths.
+The intended semantic caller is `view(h,q,V)` after actual source frame
+routing and PE decoding, but no authentic compiler caller or ordinary-root
+producer/store/readout exists in the bounded default-path inspection. Current
+F5 use routing freshens scalar Q/R rows into already collected components;
+`SolvedModule` publishes closed schemes and public `SolvedValue` collapses
+Function/Union/Q/R to `Unknown`. The native Python checker remains a
+conditional manually supplied research fragment. The selected Value,
+Computation, Function, world/action, scope/substitution, recursive-equation and
+primitive law families have no complete production Rust supplier identified.
+The independent `regression_auditor` found one minor readout-surface wording
+issue, closed in delta review. Numeric limits remain unset because caller,
+admitted law catalogue and per-attempt construction/retry schedule are not
+selected. No implementation, tests/builds or F5 route changed. Next: decide
+the caller/admission envelope and its authentic law producers, then define the
+resource schedule and source/root publication bridge before any implementation
+approval.
