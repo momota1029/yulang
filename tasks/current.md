@@ -3576,10 +3576,19 @@ conditional acyclic `Arc<IdPublicationOwnerRecord>` candidate linked to a
 separately formed anchor. Its structural origin-tuple estimate is 88 bytes
 under the stated 64-bit `repr(C)` assumptions, versus 96 for the alternative
 Arc-plus-index handle; both exclude owner payload and control blocks, and
-neither is a measured `size_of` or complete memory bound. This draft change is
-not independently re-reviewed (draft SHA-256
-`a4c1c3d9dd9bdfef2dc4ee1c2df4de8800421eabab17a480f468a897aa260173`) and
-remains uncommitted. No implementation,
+neither is a measured `size_of` or complete memory bound. The field-level
+audit, direct-Arc candidate and conditional arithmetic were independently
+reviewed by compiler and specification auditors at draft SHA-256
+`a4c1c3d9dd9bdfef2dc4ee1c2df4de8800421eabab17a480f468a897aa260173`; neither
+found a finding in that scope. A performance review accepted the arithmetic
+but identified two repairs: constrain the cycle claim to the displayed direct
+edge and require transitive acyclicity; include pre-existing transitive
+dependencies in `A_keep`. Those repairs were reviewed with no residual finding
+by all three roles at final draft SHA-256
+`cd7a5de4580e6072887528457fe06aecb6cef2df50628bb64a85b1560f4b63eb`. These
+reviews do not establish transitive acyclicity, complete payload or cost,
+authentic supplier/H-bridge, failure policy, or implementation authority. The
+design draft remains non-authoritative and uncommitted. No implementation,
 tests, builds, probes or measurements ran; the pending flat-Application owner
 question remains independent.
 
