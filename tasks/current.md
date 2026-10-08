@@ -5030,6 +5030,19 @@ nor provide an actual `WholeArgCompatible` counterexample or declaration.
 These are unreviewed research checkpoints; neither changes a theorem status or
 authority.
 
+A systematic bounded census across the committed design/theory/progress,
+handoff and task corpus (1,139 files; questions excluded) found no actual
+independent `WholeArgCompatible` declaration instance. The closest source is
+the genuine native eight-field gamma/`PackGeneric` constructor; the original
+Call/IF sources provide consumers and generic typed-declaration placement,
+not a concrete `alpha_arg/t_arg`, ordered `P_arg/T_arg`, or paired
+substitutions. A separate Rust owner census found real ordinary structural
+Function compatibility decomposition in `constrain_live`, and a default-off
+Apply negative-Function demand at `admit_candidate_fact`; neither retains the
+selected complete descriptor declaration/reference or its carrier/action
+evidence. This is bounded to the searched document corpus and inspected Rust
+paths, not a repository-wide semantic absence or source rejection claim.
+
 The [Valid_V eligibility audit](../notes/progress/2026-10-09-valid-v-fixed-target-eligibility-audit.md)
 confirms that no exhaustive selected `Valid_V` constructor was found and Draft
 `V_alloc` is not adopted. It distinguishes the hypothetical actual-0 H/t
@@ -5043,10 +5056,11 @@ roles were unavailable because their selected models were at capacity; these
 new artifacts remain unreviewed conditional research. Next: obtain one actual
 independent `WholeArgCompatible` declaration package at the selected
 callee/argument tuple, including ordered `P_arg/T_arg`, full domain/license/
-action and whether this tuple lies in the native generic-inlet envelope. Then
-have the typed reference/emission owner instantiate that same declaration at
-N and the original use with complete scoped operand maps, preserving the
-prechosen schema tag, and extend the matching witnesses through dependent
-`e_out`. Keep the pending
+action and whether this tuple lies in the native generic-inlet envelope. No
+selected document currently supplies that package. Once its source is
+identified, have the typed reference/emission owner instantiate the same
+declaration at N and the original use with complete scoped operand maps,
+preserving the prechosen schema tag, and extend the matching witnesses through
+dependent `e_out`. Keep the pending
 literal-owner decision and all aggregate gate statuses unchanged. No compiler
 changes, tests, builds or production authority follow.
