@@ -5197,8 +5197,14 @@ applies formal call predicates, and `crates/poly/src/expr.rs::ArgEffectContract`
 records family path/depth markers. Those markers do
 not retain the selected C6 annotation-to-contribution incidence or lawful
 local removal witness, and historical stack behavior is not semantic authority.
-The next useful bridge is one authenticated annotation occurrence with its
-typed return-effect position and direct boundary evidence, then a same-family
-two-position check for contribution attribution. No runtime or test behavior
-was executed, and this crosswalk grants no compatibility or implementation
-approval.
+The [same-family position analysis](../notes/progress/2026-10-09-same-family-annotation-position-counterexample.md)
+is checkpointed and pushed at `7264d77cc`: the old DefId-keyed sidecar maps
+`F(A,io,0,B)` and `F(A,0,io,B)` to the same family/depth marker, losing
+position and multiplicity (and never recording provider or scope). This is
+non-injectivity of that projection only; the richer historical constraint
+lowering keeps `arg_eff` and `ret_eff` separate, and no accepted source
+behavior or complete Oracle impossibility follows. The next useful bridge is
+an authentic annotation constructor certificate for the original `ret_eff`
+occurrence/provider/scope and direct boundary, plus separate frame evidence
+for an unrelated same-family contribution. No runtime/test behavior was
+executed, and no compatibility or implementation approval follows.
