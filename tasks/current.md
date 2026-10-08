@@ -3497,10 +3497,25 @@ source ownership facts.
 The targeted performance review confirms the 96-byte calculation only under
 the proposed handle/layout assumptions. Total retained/peak bytes remain open:
 the representation has no concrete owner type, transitive payload bound,
-unique-allocation/capacity manifest, staging-plus-`ScopedClosure` cost or
+unique-allocation/capacity manifest, validation-scratch bound or
 finish-output coexistence accounting. One source binding bounds record count,
 not necessarily the referenced dependency closure's size. No benchmark is
 justified while that representation is unspecified.
+
+A later representation delta makes the `ScopedClosure` graph a borrowed view
+over static `IdRuleSchema` plus the package origins, so the compact candidate
+does not allocate a second per-module graph. A symbolic phase model now
+accounts for the unchanged live F5 batch/session/finish set, new anchor-owner
+allocations, pre-existing data whose lifetime is extended, vector header and
+capacity, and pre-session validation scratch. At draft SHA-256
+`7c12e7086ff507c62a0a1eb6748c1c811c9b1d29b4af410b4e8362e2728fe9ae`, spec and
+performance auditors confirmed the disjoint-set accounting and absence of the
+prior double-counting/batch-omission issue. The draft then received an M0
+wording repair at SHA-256
+`b9a23d7095546772b15e18705c85d305ac27fe3f437dd9a8eb0e404468aa6742` to define
+unique storage regions, count the `Vec` field in-object, and define peak as
+the maximum of phase snapshots; that clarification was primary-inspected but
+not separately re-reviewed.
 
 Next: specify one immutable concrete anchor-owner representation and map its
 authentic source formation/publication supplier; enumerate unique retained
