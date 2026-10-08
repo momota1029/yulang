@@ -3741,3 +3741,23 @@ remains conditional: D0 formation, licenses, capture summaries, actual-root
 resolver acceptance, and any strict-view witness are unsupplied. This review
 establishes no implementation, principality, or gate closure; it proposes no
 test/build work. The artifact's checkpoint is `6d57f1b69`.
+
+### SourceBuild anchor publication delta (2026-10-08)
+
+The non-authoritative [id-only SourceBuild owner draft](../notes/design/2026-10-08-id-sourcebuild-owner-design.md)
+now retains both anchor formations permitted by the selected identity instance:
+inert registration and actual returned installation of the same raw `U_g`.
+Uniform Value-entry §5.1 supplies the common semantic/source-side `U_g`
+formation; it does not select which binding-publication event occurred.
+Returned installation retains the actual `Executed`/`OneShot`, world and
+evidence operands, with the separate `Internal` description edge. Authentic
+publication evidence must select the arm.
+
+An independent specification delta review closed the prior unsupported
+inert-only selection at draft SHA-256
+`f08e015e34b8034bb603e23107486a82553261b698ff1eddffbfa29e27ad20f1`; no new
+material mismatch was found in that scope. This remains conditional on genuine
+source constructors and local laws. The production owner, complete operands,
+H-bridge and resource bounds remain open, so this repair provides no
+implementation approval. The owner draft and pending flat-Application
+question remain uncommitted. No tests, builds or measurements ran.
