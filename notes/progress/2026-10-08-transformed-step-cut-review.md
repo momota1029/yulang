@@ -48,6 +48,15 @@ The ordinary resolver must then establish complete `Eq(D_g,D_V)`,
 conditional constructor theorem does not furnish these suppliers. Production
 correspondence and the requested F5 replacement remain open.
 
+The follow-up [active-schema supplier audit](../theory/2026-10-08-gstep-active-schema-supplier-audit.md)
+found the earliest missing join: the selected raw registration and Step proof
+name `r_step`, source-Generalize returns an internal `ScopedClosure`, and
+IF-Insert consumes an existing registration. No selected constructor creates
+`Registration(p_step,g_step,T_g)` or its Initial registered-hole incidence.
+A separate compiler-referee review found no blocking, major or minor findings
+within that bounded supplier audit. Its checkpoint is `ec5bbd7cd`; the audit
+does not claim a repository-wide absence, production root, or gate closure.
+
 The shared task and DAG synchronization is deferred: `tasks/current.md`,
 `notes/theory/successor-proof-obligations.md`, and
 `notes/theory/successor-proof-obligations.json` already contain unrelated
