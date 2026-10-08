@@ -799,6 +799,15 @@ fixed-semantic import-owner instance satisfying the full clause frontier,
 dependent overlap and action, then its zero-step importer extension. Any
 changed foreign-provider behavior still requires the normal approval gate.
 
+The existing [CallInitial candidate signature](../notes/theory/2026-10-08-callinitial-rule-candidate.md)
+has now passed compiler-referee and spec-auditor review within its expressly
+incomplete, conditional scope. It preserves the zero-step suspended suffix and
+keeps original I0/O0, the independent event/world/admission suppliers, lawful
+whole action, source insertion and fixed-E attachment open. It is neither an
+original rule existence proof nor an inhabited importer instance. The reviews
+do not supply the concrete fixed-semantic `kappa`/`ID-world-forward`/
+`ID-import` evidence identified below.
+
 A bounded follow-up at `570fb742f` found no such supplier in the inspected
 owners. The exact missing instance is one importer root `r` with a concrete
 semantic `kappa` at its actual incidence, exhaustive frontier, and proofs of
