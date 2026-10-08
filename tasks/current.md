@@ -626,6 +626,14 @@ was checkpointed in `7eab2767f`.
    scope origins. The current Name/Name generator cannot be instantiated by
    inventing a literal Name binder. Keep SeedExposure and the separate
    CallInitial/I0/action/insertion lane downstream.
+   A conditional [literal-Call introduction proposal](../notes/theory/2026-10-08-flat-apply-literal-original-constructor.md)
+   now factors those candidate origins as `P_c^cand` and requires a separate
+   H-E enrichment for authentic original emission `P_c^orig`. Compiler-referee
+   and spec-auditor review found only a package/H-E claim mismatch; the
+   candidate/original package split repaired it, and compiler-referee delta
+   review passed. This still does not construct H-R/H-E or prove the original
+   argument-coordinate sort accepts a literal. No original emission, O0/O1,
+   or source acceptance is claimed by the proposal.
 2. Only after that owner output exists, continue the distinct original
    CallInitial/I0/K0/P0/action/insertion derivation. Preserve selected O0/O1
    results at their actual emitted-record scope.
