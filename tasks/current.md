@@ -3441,11 +3441,34 @@ receipt. A new HIR-directed source constructor may use the existing branded
 joins without reparsing, but its schema and H-source-to-HIR/local-law bridge
 must be designed and justified; existing owners do not supply H-bridge.
 
-Next: replace the assumed existing-owner table with an explicit proposed
-source-constructor boundary and its typed outputs, separate from F5 scheme
-installation and Rust result publication. Only then can exact cardinalities,
-allocation/coexistence bounds, and the failure-policy decision be made
-concrete. The owner-design draft remains uncommitted and unapproved.
+The uncommitted draft now states that proposed boundary and exact conditional
+constructor contract in
+[`id-only SourceBuild owner draft`](../notes/design/2026-10-08-id-sourcebuild-owner-design.md)
+§§3–4. It instantiates the identity input/output graph, original scope and
+event order, named local-rule obligations, anchor alternatives, FinalRoot and
+source-publication incidence. Fresh compiler-referee and specification delta
+reviews closed both prior major findings at draft SHA-256
+`fb4332cb7eb616c2c95466519c2443d7a466860b1a365a03dac52117deb9b976`:
+failure outcomes are distinguished, and the proposed source constructor is
+now a concrete conditional contract rather than a claim that current HIR
+already supplies the missing records. This does not prove H-bridge or current
+production conformance.
+
+Still open before approval/implementation: the exact Rust representation and
+its node/edge/scope/incidence counts, construction frequency and peak/retained
+bytes; the actual authentic binding-anchor formation selected at `p_id`; and
+the user decision between an optional sidecar whose every metadata-only
+failure discards the package, a required-metadata failure boundary that
+changes observable acceptance, or deferring production integration. No policy
+is selected. Process-level OOM has no recovery promise. The draft remains
+uncommitted, non-authoritative and unapproved; no compiler code, tests, builds,
+measurements or cutover occurred. The pending flat-Application owner question
+remains independent.
+
+Next: fix a concrete Rust-shaped record representation and static resource
+accounting while preserving the exact selected source graph. Then obtain the
+remaining targeted review and present only the still-required decision once
+the packet is decision-ready.
 
 ## CALL_TYPE / DemandFormation cut (2026-10-08)
 
