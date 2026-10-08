@@ -4666,3 +4666,29 @@ correspondence, F5 routing, API, tests or builds changed. Next: trace the
 selected closed local-law inventory for one id inlet/Delta and Value
 certificate, retaining the published-id caller and complete-Call incidences
 as separate open source-to-production seams.
+
+The fixed PE-ID `view(i,q_check,Any)` / hereditary-Top Value case is now
+recorded in the [actual local-law audit](../notes/progress/2026-10-09-pe-id-actual-local-laws.md)
+(`3b2e53798`). Independent `compiler_referee` and `spec_auditor` reviews
+passed without findings. This establishes finite schema support and a
+conditional derivation for that submitted Top term with its authentic decoder,
+target, and full hereditary evidence supplied. It creates no actual argument,
+invocation, gamma challenge, or completed CE execution in this check; the
+public Function root still retains its full inlet/source-introduction slots.
+The broader operand-indexed Local/Ref/evidence catalogue, opaque identity
+observers, whole-Delta completeness, changed-operand action, and production
+supplier remain open. This result answers the minimal fixed query but does not
+close `IFACE_EQUIV`, `FRESH_LIFE`, or cutover.
+
+The [published-id/Application coverage audit](../notes/progress/2026-10-09-published-id-application-coverage.md)
+(`0c5d80019`) also passed independent `spec_auditor` review without findings.
+For a direct published `id` Name with actual `Published/Instance` provenance,
+the accepted fresh `LiteralApply` branch cannot provide its required immutable
+ordinary Value-formal/`ValueBind` provenance. This is only a New-branch
+exclusion under the explicit resolve graph. Full `Application_N` still imports
+Old emissions through `KeepEmission`, and neither an authentic old emission
+nor an old-family absence theorem was found. So the source-language status of
+`id 0` remains unresolved; this is not evidence of rejection. Next: locate the
+actual published-instance callee Application emission at its owner, starting
+with a concrete Old supplier or a separately established absence proof, while
+keeping Call/result/Return realization and production correspondence separate.
