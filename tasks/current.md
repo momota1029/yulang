@@ -4879,38 +4879,34 @@ required view. Do not treat the Function-branch discriminator as a source
 counterexample or expand it into a semantic rule without a licensed instance.
 
 The bounded `Valid_V` authority audit and the Fixed-target owner/consumer
-follow-ups are recorded in this audit and checkpointed in
+follow-ups are recorded here and checkpointed in
 [the C1 capture-owner audit](../notes/progress/2026-10-09-native-export-fixed-target-c1-owner.md),
 [the conditional Value bridge](../notes/progress/2026-10-09-native-export-fixed-target-value-bridge.md),
 [the Force-provenance construction attempt](../notes/progress/2026-10-09-native-export-force-law-construct.md),
-and [its bounded falsification](../notes/progress/2026-10-09-native-export-force-law-falsification.md).
+[its bounded falsification](../notes/progress/2026-10-09-native-export-force-law-falsification.md),
+and [the independent Fixed-pick target construction](../notes/progress/2026-10-09-native-export-fixed-target-independent-view-construction.md).
 The approved answers specify the inlet challenge domain and independent
 membership/production laws, but do not select an exhaustive `IndependentValid`
-predicate or adopt the proposed `V_alloc` abstraction. C1's target still lacks
-an original Fixed capture incidence mapped to id's unchanged IF. The Value
-route's first unlocated premise is a raw actual subexecution certificate for
-the designated Force component of every arbitrary retained callable U, at the
-same operation witness, demand, world, incidence and dependent proof tuple.
-Production membership alone cannot provide that link. The falsification found
-no licensed actual-invocation counterexample; the construction identifies the
-registered callable entry/ExecuteCallable interpretation as the owner and
-gives a conditional finite inversion-plus-equality schema, but its uniform
-availability and L registration remain unproved. C1 separately still lacks
-an original Fixed capture registration mapped to id's unchanged IF. These are
-bounded owner gaps, not a licensed counterexample or impossibility result.
-The bounded operation-owner and L-registry audits locate raw Force
-decomposition for source Value-entry closures and declaration-backed Value
-operations, but not a uniform eliminator for every retained U: the selected
-Function domain also admits independently supplied/opaque operation witnesses
-whose laws remain their own inputs. The missing owner action is an actual
-operation-declaration eliminator projecting its dependent raw Force
-subexecution at the same operation, demand, world, incidence and proof tuple;
-finite L registration follows that source law and has no adopted E_U entry in
-the inspected registry. The production-only false-result alternative remains
-unlicensed as an actual invocation, so this is not a counterexample or an
-absence theorem for all original kernels. Next: determine the exact retained-U
-class required by the Value implication and whether authentic original
-operation anchors cover it; keep opaque-operation laws as explicit inputs.
-Separately, any Fixed target still needs its original capture registration and
-lawful map to id's unchanged IF. Keep COMMON_TOTAL, ALL_VIEW and PRINCIPAL
-unchanged. No compiler changes, tests, builds or production authority follow.
+predicate or adopt proposed `V_alloc`. The source `my z=0; my pick ignored=z`
+constructs a complete Fixed target at its own `IF_pick`; its root-relative map
+to id's unchanged `IF_id` and same-source validity remain unproved.
+
+The Value route's first unlocated premise is a raw actual subexecution
+certificate for the designated Force component of every arbitrary retained U,
+at the same operation witness, demand, world, incidence and dependent proof
+tuple. Source Value-entry closures and declaration-backed Value operations
+have raw Force decompositions, but the selected Function domain also permits
+independently supplied/opaque operations whose own laws remain inputs. The
+inspected L registry has no adopted arbitrary-U E_U constructor. A conditional
+inversion-plus-equality schema exists if the source operation supplies that
+certificate; the production-only false-result alternative is not licensed as
+an actual invocation. These are bounded owner gaps, not a counterexample or
+an absence theorem for all original kernels.
+
+Next: construct the complete ordinary comparison at the actual id and Fixed
+pick roots, including the same-provider carrier producer and original scope
+pairing; assess same-source validity separately. Also determine which retained
+U class the Value implication requires and whether authentic operation anchors
+cover it, keeping opaque-operation laws explicit. Keep COMMON_TOTAL, ALL_VIEW
+and PRINCIPAL unchanged. No compiler changes, tests, builds or production
+authority follow.
