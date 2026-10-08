@@ -4877,3 +4877,21 @@ prove the required Int/J inhabitance, or establish the universal
 telescope and whether the same-tuple Value proof can be constructed for every
 required view. Do not treat the Function-branch discriminator as a source
 counterexample or expand it into a semantic rule without a licensed instance.
+
+The bounded `Valid_V` authority audit and the two Fixed-target owner/consumer
+follow-ups are recorded in this audit and checkpointed in
+[the C1 capture-owner audit](../notes/progress/2026-10-09-native-export-fixed-target-c1-owner.md),
+and [the conditional Value bridge](../notes/progress/2026-10-09-native-export-fixed-target-value-bridge.md).
+The approved answers specify the inlet challenge domain and independent
+membership/production laws, but do not select an exhaustive `IndependentValid`
+predicate or adopt the proposed `V_alloc` abstraction. C1's target still lacks
+an original Fixed capture incidence mapped to id's unchanged IF. The Value
+route's first unlocated premise is the law connecting an actual invocation's
+Force component to t's designated execution at the same operation witness,
+event and incidence; production membership alone cannot provide that link.
+These are bounded owner gaps, not a licensed counterexample or impossibility
+result. Keep COMMON_TOTAL, ALL_VIEW and PRINCIPAL unchanged. Next: inspect the
+owning invocation/Force construction and its finite L law, while requiring any
+Fixed target candidate to provide its authentic original capture registration
+and lawful map to IF_id. No compiler changes, tests, builds or production
+authority follow.
