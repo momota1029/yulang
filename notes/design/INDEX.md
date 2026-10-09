@@ -102,6 +102,33 @@ This index is a navigation aid. The listed source document remains authoritative
   JOINT_DEC and production cutover remain open; see the
   [review and integration record](../progress/2026-10-09-source-semantic-attacks-review.md).
 
+- **Selected Original-ResultLiteral formation (2026-10-09):**
+  the approved [question answer](../questions/2026-10-09-original-literal-result-owner/approved-answer.md)
+  selects literal Result formation and its Data_orig/Result-port registration
+  at the bounded `Application_N` Name/Int seam. It does not construct the
+  actual original Gen-Call-0 emission, O0/O1 protection inputs, kernel meaning,
+  solving or publication. The bounded [record-map attempt](../progress/2026-10-09-literal-call-original-record-map-attempt.md)
+  identifies the still-missing literal-coordinate original emission
+  introduction; its first draft's “pending” wording is corrected by the
+  post-integration addendum in that note.
+
+- **Selected source-owned annotation formation (2026-10-10):**
+  the approved [question answer](../questions/2026-10-10-source-annotation-typed-root-bridge/approved-answer.md)
+  selects source-owned expression annotation formation with conditional
+  Direct consumption, including the ordinary Any target-root case. This
+  authorizes a detailed design only. Typed Any-root formation and its Top law,
+  type-name resolution, production routing, failure/resource behavior and
+  implementation remain open; keep this lane separate from Application_N.
+
+- **Reviewed practical complete-Application candidate (2026-10-09):**
+  [candidate](../progress/2026-10-09-practical-complete-application-inference-candidate.md)
+  maps conditional collection, full contract ownership, solving, generalizing
+  and publication for `f 1`. It rejects using the four-port shadow projection
+  as the success criterion but remains conditional research, with no production
+  implementation or cutover authority. The current source-owned blocker is
+  authentic original literal Call emission formation plus the executable
+  complete-kernel consumer; see the current status in `tasks/current.md`.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

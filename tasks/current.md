@@ -5552,3 +5552,36 @@ source Call collector that ties the formal's pre-comparison demand to its
 actual complete inlet, role/protection and complete result. Literal-1
 refinement, full solve and invoke export/principality also remain open. No code,
 tests or builds ran for this record/candidate review.
+
+## Application and annotation status after question-board integration (2026-10-10)
+
+The user selected **complete contract** for `f 1`; this rules out promoting the
+four-port approximation as the success criterion. Preserve the actual role,
+entry, protection, admission, complete operation/result and source evidence
+through solving and publication. This direction is a product constraint, not
+implementation approval or proof-system completeness work.
+
+The approved [Original-ResultLiteral answer](../questions/2026-10-09-original-literal-result-owner/approved-answer.md)
+selects the original literal Result formation case for the `Application_N`
+Name/Int seam, including Data_orig and Result-port registration. It does not
+provide the emitted original Gen-Call-0 record, O0/O1 protection application,
+complete kernel interpretation, solver or publication. The prior native
+WholeArg instance attempt therefore needs a status correction: literal Result
+formation is selected now, while pairing it with N's actual literal-1 Call and
+an original registered declaration/reference remains open. Do not alias native
+Gamma to the independently interpreted original WholeArg contract.
+
+The approved [source annotation answer](../questions/2026-10-10-source-annotation-typed-root-bridge/approved-answer.md)
+selects source-owned expression annotation formation with conditional Direct
+consumption, including the ordinary Any target-root case. It authorizes a
+detailed design only. Type-name resolution, a fully typed ordinary Any root and
+its Top membership law, production routing, failure/resource behavior and
+implementation remain open. Keep this lane separate from complete Call work.
+
+Current `f 1` blocker: construct the source-owned complete Call record and
+identify the executable original-kernel consumer, preserving the literal
+coordinate, formal's actual inlet/role/protection, complete result contract and
+all origins. Then close the scoped complete solve and public-root path. The
+reviewed Application candidate remains conditional research; no production
+code, tests, builds or F5 cutover were authorized or changed by these answers.
+No tests or builds ran during this record synchronization.
