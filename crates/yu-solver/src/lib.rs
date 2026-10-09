@@ -1118,11 +1118,13 @@ impl ConstraintBatch {
                     batch.emit_candidate_source(source, definition.as_ref()
                         .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?, &mut pending_uses)?;
                 } else {
-                    let local = definition_root
-                        .map(|root| hir.shadow_local_binding(root))
-                        .transpose()
-                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                        .flatten();
+                    let local = if !candidate_graph_effects {
+                        definition_root
+                            .map(|root| hir.shadow_local_binding(root))
+                            .transpose()
+                            .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                            .flatten()
+                    } else { None };
                     if let Some(local) = local {
                         batch.retain_pending_applications(&local.initializer, definition_root);
                         batch.emit_candidate_local_value(

@@ -30,6 +30,14 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Current legacy withdrawal policy (2026-10-10):**
+  [active removal of Simple-sub bypasses](2026-10-10-simple-sub-legacy-withdrawal.md)
+  requires actual dependency removal and regression tests, including removal of
+  obsolete proof prerequisites rather than false proof closure. Complete Call,
+  effect hygiene, soundness and principality remain genuine requirements.
+  Historical construction routes do not retain authority over a withdrawn
+  mechanism. See the scoped delivery and remaining migration in that record.
+
 - **Current user-selected intrusion operation (2026-10-10):**
   [parent-copy SCC equality](2026-10-10-parent-copy-scc-intrusion.md) retains
   parents at extrusion and equates parent/copy variables when they enter the

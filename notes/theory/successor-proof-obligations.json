@@ -3,6 +3,7 @@
   "date": "2026-10-07",
   "baseline": "6fb5d7f697d5d592e0a39532ddb4967b54e18090",
   "revalidated_remote_head": "269fdca64dbd4c1b971d5d59eaa3f558f221aefa",
+  "retirement_source_baseline": "058f6f749106e3ceb523724e8c5c1634020ddd67",
   "status": "Research navigation; exact scopes and cited independent reviews govern; no production authority",
   "edge_meaning": "Direct prerequisite for the named sufficient route; conditional nodes retain their explicit premises",
   "universal_scope": "All-world/admission/future quantifiers remain inside original predicates; existential notation never prenexes the original binder tree",
@@ -72,20 +73,19 @@
     "ALL_WORLD",
     "EVENT_OUTPUT",
     "ROWS",
+    "JOINT_DEC",
     "COMMON_DESC",
     "DOMAIN_INCLUSION",
     "CAPTURE_LIVE",
     "SUBTRACTION",
+    "PROJECTION",
+    "RESOLVE_FP",
     "COMMON_TOTAL",
     "OBS_INCLUSION",
     "DISPATCH",
     "RELEASE",
     "ALL_VIEW",
     "RAW_SOURCE",
-    "CTX_FINITE",
-    "JOINT_DEC",
-    "PROJECTION",
-    "RESOLVE_FP",
     "IFACE_FORM",
     "ORACLE_COMPAT",
     "SOURCE_ADEQUACY",
@@ -995,8 +995,7 @@
       "unblocks": [
         "REC_LOCAL",
         "DISPATCH",
-        "RAW_SOURCE",
-        "CTX_FINITE"
+        "RAW_SOURCE"
       ],
       "closed_lemmas": []
     },
@@ -1539,14 +1538,17 @@
         "MEMBER_DISCHARGE"
       ],
       "premises": "Complete simultaneous source relation, fixed captured/import/non-generic/world coordinates, source-selected endpoints and original quantifier tree.",
-      "minimal_lemma_or_closed_scope": "Selected Generalize_source constructs the actual source-final scoped rule closure, publication-indexed anchor fix/retain walk and eligible original Desc binders. Direct SRC/SRC-J constructor construction and inversion prove GS joint soundness and GC exact lawful-use completeness for finite independent joint source proof grammars under local L1-L5 and arbitrary well-scoped W: one finite allocation before assignments/histories preserves exactly the public fiber and original shared/frame/event strategies. Same-component recursion retains its whole relation; external Mono and one-shot dependencies remain fixed. Native source selection/placement/reflection is no longer a missing constructor on this route. Remaining are unprovided genuine local laws and broader source coverage, actual production generation/evidence consumption, effective designated-export Direct completeness, public projection/principality and any separately required semantic scope-hiding certificate. No all-semantic-view, all-language State/recursion or aggregate production theorem follows.",
+      "minimal_lemma_or_closed_scope": "The current private adapter retains each local live root and level boundary, raises initializer levels, freshens eligible coordinates at every use and shares older extrusion anchors; later constraints may refine those anchors. A mandatory initializer solve/freeze/install barrier is withdrawn. Prove eligible-coordinate copying, fixed captures, retained bounds, independent uses and source correspondence for this actual live route; current implementation does not close semantic Generalize or public principality. The selected semantic Generalize_source result below keeps its exact conditional scope and does not impose frozen initializer snapshots. Selected Generalize_source constructs the actual source-final scoped rule closure, publication-indexed anchor fix/retain walk and eligible original Desc binders. Direct SRC/SRC-J constructor construction and inversion prove GS joint soundness and GC exact lawful-use completeness for finite independent joint source proof grammars under local L1-L5 and arbitrary well-scoped W: one finite allocation before assignments/histories preserves exactly the public fiber and original shared/frame/event strategies. Same-component recursion retains its whole relation; external Mono and one-shot dependencies remain fixed. Native source selection/placement/reflection is no longer a missing constructor on this route. Remaining are unprovided genuine local laws and broader source coverage, actual production generation/evidence consumption, effective designated-export Direct completeness, public projection/principality and any separately required semantic scope-hiding certificate. No all-semantic-view, all-language State/recursion or aggregate production theorem follows.",
       "references": [
         "pg",
         "rs",
         "fview",
         "sourceGen",
         "sourceGenDef",
-        "sourceGenReview"
+        "sourceGenReview",
+        "liveLetCorrection",
+        "liveLocalSchemes",
+        "parentCopyIntrusion"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -1672,6 +1674,43 @@
       ]
     },
     {
+      "id": "JOINT_DEC",
+      "status": "OPEN-PROOF",
+      "gate": "Effective complete joint solver/residual decision",
+      "requires": [
+        "PURE_DEC",
+        "PRIMITIVES",
+        "ALL_WORLD"
+      ],
+      "premises": "Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.",
+      "minimal_lemma_or_closed_scope": "Use the actual Simple-sub owning route: compositional source constraint generation, lower/upper propagation, level- and polarity-aware extrusion, retained parent/copy same-SCC intrusion, live local roots/boundaries and per-use freshening. Prove semantic preservation/reflection, completeness for the admitted envelope and termination/resource bounds for those actual operations, then the complete joint solving or exact effective residual contract. No finite source-context/static-port enumeration or sealed-packet presentation is a prerequisite to that route. PURE_DEC remains its exact structural-fragment result; it alone establishes no broader joint decision. The historical SD-NPB native projection boundary theorem is preserved in its source, but is not a directly reused lemma for this route. The historical observed-payload-only obstruction still forbids treating one successful observed call as complete Function checking. Remaining full-Call coverage requires each original anchored or unanchored C0 production arm's actual full relation and output-dependent whole typed-state/descriptor/guarantee proof at the source Call consumer, same-provider admission and complete continuation/future actions, including pending/raw-resumed branches with the original unfinished suffix, at the original callee/argument/world/port/xi telescope; receiver VP membership supplies no separately owned arm law or effective residual elimination. Complete enclosing Build/CallMem/C0, callee prelude/result consumer/suffix, arbitrary frozen-prefix solving, foreign W/proof observers, wider captures/Function inputs/post-Return refinement, recursive endpoint or Call feedback, effects/methods/State/recursion and all actually required broader source constraints still need their genuine effective decision and source-correspondence laws. Public projection/principality and production conformance remain separate; the boundary envelope selects no language rejection policy or cutover authority.",
+      "references": [
+        "puredec",
+        "residual",
+        "newglobal",
+        "projection2",
+        "round2review",
+        "jointBoundary",
+        "jointObstruction",
+        "jointBoundaryReview",
+        "simpleSubReassessment",
+        "liveLetCorrection",
+        "liveLocalSchemes",
+        "parentCopyIntrusion",
+        "legacyWithdrawal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "PROJECTION",
+        "RESOLVE_FP",
+        "RESOURCE",
+        "SOUND"
+      ],
+      "closed_lemmas": [
+        "PURE_DEC"
+      ]
+    },
+    {
       "id": "COMMON_DESC",
       "status": "OPEN-PROOF",
       "gate": "Legal common descriptor and all-path realization",
@@ -1761,6 +1800,57 @@
       "production_authority": "required-before-cutover",
       "unblocks": [
         "RELEASE",
+        "SOURCE_ADEQUACY"
+      ],
+      "closed_lemmas": []
+    },
+    {
+      "id": "PROJECTION",
+      "status": "OPEN-PROOF",
+      "gate": "Effective principal public projection",
+      "requires": [
+        "JOINT_DEC",
+        "GENERALIZE",
+        "EQ_RES"
+      ],
+      "premises": "Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.",
+      "minimal_lemma_or_closed_scope": "Compute a legal exported constrained scheme with exact original-fiber projection and ordinary-use factorization. Equality-only eligible atom coordinates now have a reviewed exact orbit-elimination and witness-strategy theorem at the original binders; the bounded shadow evaluator implements only pointwise truth. Remaining: prove every actual eliminated-name observer's exact expansion, preserve non-name/recursive predicates and their original quantifiers, construct the residual/exported scheme and actual ordinary-use evidence. Neither equivariance nor separate root marginals supplies these laws.",
+      "references": [
+        "residual",
+        "scoped",
+        "pg",
+        "projection2",
+        "orbitimpl",
+        "round2review"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "IFACE_FORM",
+        "HIR_WIRING",
+        "PRINCIPAL"
+      ],
+      "closed_lemmas": [
+        "EQ_RES"
+      ]
+    },
+    {
+      "id": "RESOLVE_FP",
+      "status": "OPEN-PROOF",
+      "gate": "Joint method/role/associated-type/visibility fixed point",
+      "requires": [
+        "ROLE_ASSOC",
+        "PRIMITIVES",
+        "JOINT_DEC"
+      ],
+      "premises": "Complete independent candidate/role/associated judgments, retained alternatives and original shared nu.",
+      "minimal_lemma_or_closed_scope": "Construct sound complete principal resolution and prove termination/canonical finite carrier or admitted effective residual; positivity, uniqueness and finiteness must be proved, not assumed from syntax.",
+      "references": [
+        "charter",
+        "newglobal"
+      ],
+      "production_authority": "required-before-cutover",
+      "unblocks": [
+        "ORACLE_COMPAT",
         "SOURCE_ADEQUACY"
       ],
       "closed_lemmas": []
@@ -1905,118 +1995,8 @@
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
-        "CTX_FINITE",
         "IFACE_FORM",
         "HIR_WIRING",
-        "ORACLE_COMPAT",
-        "SOURCE_ADEQUACY"
-      ],
-      "closed_lemmas": []
-    },
-    {
-      "id": "CTX_FINITE",
-      "status": "OPEN-PROOF",
-      "gate": "Finite source guard-context canonicalization",
-      "requires": [
-        "GUARD_COVER",
-        "RAW_SOURCE"
-      ],
-      "premises": "Actual source child-comparison law j_child=Ctx_r(j,u,v,witnesses), original origins/opening identities and invalidation dependencies.",
-      "minimal_lemma_or_closed_scope": "The reviewed finite static-port relational algebra constructs J_inc=product_i Powerset(I^k_i), its exact context encoding and finite state/hyperedge carrier. A reviewed restricted trace represents unsealed outward permission restriction; it does not cover a sealed result/store packet. That trace needs a source-justified scoped target interface and bound-capture/pack/open correspondence preserving every original witness, provider, scope, K,D dependency and suffix. This is only the next uncovered operation in that trace, not a global ordering or the sole leaf. Remaining: enumerate every actual source child-context operation and identity observer in the syntax (or prove its separate finite representation), and establish semantic rule/guard preservation plus monotone fact/permission/alias updates. Finite carrier alone cannot exclude a toggling invalidation loop or bound worlds.",
-      "references": [
-        "contexts",
-        "newglobal",
-        "projection2",
-        "ctxpacket",
-        "round2review"
-      ],
-      "production_authority": "required-before-cutover",
-      "unblocks": [
-        "JOINT_DEC"
-      ],
-      "closed_lemmas": []
-    },
-    {
-      "id": "JOINT_DEC",
-      "status": "OPEN-PROOF",
-      "gate": "Effective complete joint solver/residual decision",
-      "requires": [
-        "PURE_DEC",
-        "CTX_FINITE",
-        "PRIMITIVES",
-        "ALL_WORLD"
-      ],
-      "premises": "Every original structural/effect/guard/profile/admission predicate jointly interpreted; exact admitted source envelope.",
-      "minimal_lemma_or_closed_scope": "Construct finite effective candidates/quotient with preservation AND reflection for every actual active primitive and simultaneous original-witness completeness, or an exact effective residual decision route. The reviewed Record-chain halting extension proves that finite syntax, finite nominal support and decidable individual candidate checks do not supply a computable joint bound from pure FMP. This is not Yulang undecidability; the missing actual primitive reflection/decision law is still required. The independently reviewed SD-NPB theorem now supplies a total sound/complete finite decision and original-scoped witness construction for the exact native projection BoundaryBuild_NPB judgments in jointBoundary §§2–3,7,9,11; its source-owned DataArg/Car, complete gamma, structural checking search and joint new/alias choices are constructed, without a supplied winning strategy, unknown J/Car supplier, assumed inclusion-proof search completeness or EPR/ER. The independently reviewed Theorem OB proves that observed-payload-only Function checking fails at an actual complete source boundary: a successful observed Int call cannot discharge identity's Any-input/Int-result Function target, which an independently admitted actual Bool challenge refutes. This falsifies that method, not every direct solver or EPR/ER. Remaining full-Call coverage requires each original anchored or unanchored C0 production arm's actual full relation and output-dependent whole typed-state/descriptor/guarantee proof at the source Call consumer, same-provider admission and complete continuation/future actions, including pending/raw-resumed branches with the original unfinished suffix, at the original callee/argument/world/port/xi telescope; receiver VP membership supplies no separately owned arm law or effective residual elimination. Complete enclosing Build/CallMem/C0, callee prelude/result consumer/suffix, arbitrary frozen-prefix solving, foreign W/proof observers, wider captures/Function inputs/post-Return refinement, recursive endpoint or Call feedback, effects/methods/State/recursion and all actually required broader source constraints still need their genuine effective decision and source-correspondence laws. Public projection/principality and production conformance remain separate; the boundary envelope selects no language rejection policy or cutover authority.",
-      "references": [
-        "puredec",
-        "contexts",
-        "residual",
-        "newglobal",
-        "projection2",
-        "round2review",
-        "jointBoundary",
-        "jointObstruction",
-        "jointBoundaryReview"
-      ],
-      "production_authority": "required-before-cutover",
-      "unblocks": [
-        "PROJECTION",
-        "RESOLVE_FP",
-        "RESOURCE",
-        "SOUND"
-      ],
-      "closed_lemmas": [
-        "PURE_DEC",
-        "SD-NPB: total terminating, original-clause sound and satisfiable-strategy complete finite decision for the exact native projection BoundaryBuild_NPB judgment, uniformly in authentic initial caller JointWF and the selected independent native local constructor meanings. Finite positive Unit/Bool/Int/Any/mandatory-record/union endpoints; acyclic tight data, immutable Names/direct projections and one initial widening; tight pick captures; native id/pick new and monomorphic alias frames with checked-inlet lower bounds; actual checked-inlet and receiver invocation; same-whole-inlet Function result views. Constructs source-owned complete DataArg and actual Car, all gamma/whole-image Delta fields, one original-scoped shared assignment/strategy and ordinary checking proofs. Every included independent native admission, production, pending and future field is retained; no active extra W is admitted or erased. No winning strategy, input J/Car supplier, assumed inclusion-proof search completeness or EPR/ER is a premise. Complete enclosing Build/CallMem/C0, frozen prefixes, arbitrary foreign W/proof observations, wider source effects/State/recursion, public principality and production correspondence are not closed."
-      ]
-    },
-    {
-      "id": "PROJECTION",
-      "status": "OPEN-PROOF",
-      "gate": "Effective principal public projection",
-      "requires": [
-        "JOINT_DEC",
-        "GENERALIZE",
-        "EQ_RES"
-      ],
-      "premises": "Original quantifier alternation, fixed imports, structural/effect correlation and all evidence alternatives.",
-      "minimal_lemma_or_closed_scope": "Compute a legal exported constrained scheme with exact original-fiber projection and ordinary-use factorization. Equality-only eligible atom coordinates now have a reviewed exact orbit-elimination and witness-strategy theorem at the original binders; the bounded shadow evaluator implements only pointwise truth. Remaining: prove every actual eliminated-name observer's exact expansion, preserve non-name/recursive predicates and their original quantifiers, construct the residual/exported scheme and actual ordinary-use evidence. Neither equivariance nor separate root marginals supplies these laws.",
-      "references": [
-        "residual",
-        "scoped",
-        "pg",
-        "projection2",
-        "orbitimpl",
-        "round2review"
-      ],
-      "production_authority": "required-before-cutover",
-      "unblocks": [
-        "IFACE_FORM",
-        "HIR_WIRING",
-        "PRINCIPAL"
-      ],
-      "closed_lemmas": [
-        "EQ_RES"
-      ]
-    },
-    {
-      "id": "RESOLVE_FP",
-      "status": "OPEN-PROOF",
-      "gate": "Joint method/role/associated-type/visibility fixed point",
-      "requires": [
-        "ROLE_ASSOC",
-        "PRIMITIVES",
-        "JOINT_DEC"
-      ],
-      "premises": "Complete independent candidate/role/associated judgments, retained alternatives and original shared nu.",
-      "minimal_lemma_or_closed_scope": "Construct sound complete principal resolution and prove termination/canonical finite carrier or admitted effective residual; positivity, uniqueness and finiteness must be proved, not assumed from syntax.",
-      "references": [
-        "charter",
-        "newglobal"
-      ],
-      "production_authority": "required-before-cutover",
-      "unblocks": [
         "ORACLE_COMPAT",
         "SOURCE_ADEQUACY"
       ],
@@ -2240,7 +2220,7 @@
         "RESOURCE"
       ],
       "premises": "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
-      "minimal_lemma_or_closed_scope": "Implement the complete source coverage and lower/emitter/solver/generalizer/instantiator/publisher correspondence. Reviewed shadow plumbing retains solved Apply operands, nested/grouped topology, annotation/header joins, SCC endpoints/outgoing uses and pending instantiation. The exact local-Bind sidecar now retains captured apply/step identities and one unresolved inner Call through solve and the existing Core projection; ordinary refusal and outer bookkeeping remain. The captured Apply now joins its enclosing root to the exact current finalized scheme/component under the existing SCC observer, while successor generalization remains unresolved and neither operand has an SCC-use route in that fixture. The opt-in HIR pending inventory names the conditional CALL_TYPE CI-ArgFrame joint argument-typing/actual-returned-provider-carrier-compatibility obligation at each Apply; it carries no provider/world/evidence, emits no constraint and leaves solver typing unresolved. A borrowed candidate-detail accessor now identifies the unadopted C5/C6 whole-argument demand-time captured-binding/Delay route on that existing premise only; it adds no row/storage, semantic evidence, satisfaction, or inference behavior. Alpha comparison and equality-orbit evaluation have separate supplied-input implementations. The later opt-in current Q/R capture retains successful original use/target/binder/opaque-row identity, with missing/incomplete/internal/zero-binder states distinguished and successor correspondence still pending. A focused structural observer now joins two resolved source occurrence positions to distinct incoming uses and complete current Q/R captures for their shared current scheme; it keeps current-to-successor correspondence and shared-contract transport unresolved. A further default-off observer joins each pending SCC use to the same solve's retained routed-use kind, public fact and provenance where present; no retained route and a factless Bottom-trivial route remain distinct, and successor generalization/Q-R/shared-contract premises remain unresolved. The Frozen Oracle captured-Call crosswalk joins historical source spans to the same HIR/Core/collected/solved pending row; it proves no inferred-type parity or source acceptance. The exact approved q1 recursive self-init source envelope now yields cold default-off Reject evidence retaining original binder/RHS identities; other shapes remain Unresolved, and production pre-execution enforcement remains pending. The current default-off Apply inventory also names unresolved signature-local immediate Call-effect position formation and original typed Call-effect occurrence introduction; these are premise markers only, preserving scope, xi, incidence, typing and every semantic judgment as unresolved. A new borrowed projection joins each rooted pending Apply row to its exact enclosing root and that root’s current finalized ClosedScheme in the same solve; rootless rows are omitted, cross-solve identities remain distinct, and ApplicationTypingRuleUnresolved is unchanged. This records enclosing-definition ownership only: it does not show that the scheme types the Apply or corresponds to a successor/generalized scheme. The opt-in current-generalization capture now retains each exact Q/R binder’s historical live row from the generalizer’s selected maps, staged through successful member finalization and published only with a successful solve; its row brand is shared with fresh-use capture, while source-to-successor eligibility and transport remain unresolved. The round-16 experimental `my apply f = f input; my input = 1; pub alias = apply` joins the exact HIR formal to the pending solver callee and captured startup row, but its multi-item core registration is unavailable and that row has no exact current target-scheme origin binder. Thus no incoming-use freshening path follows from this formal yet; ApplicationTypingRuleUnresolved, successor generalization, Q/R correspondence and shared-contract transport remain pending. A default-off candidate value lane now sends a restricted nonrecursive Apply fragment through the existing constraint worklist, SCC/generalizer, ordinary incoming-use freshening and current closed-scheme export. Its API retains explicit unresolved application, effect, source-admission, provider-compatibility, role/protection and successor-correspondence premises; candidate conflicts do not reject source and unsupported shapes publish no partial result. Focused same-binary differential tests preserve ordinary diagnostics, stable traversal/definition/fact counters, facts, provenance and scheme results around the candidate call. This advances executable HIR_WIRING only and proves no source semantics or production Apply behavior. Current production HIR refuses the Apply. The captured-row identity fixture compares diagnostics and occurrence projections only; full cross-run ProductionCounters equality is unclaimed, while reads leave the captured solve's counters unchanged. A test-wired default-off crosswalk first joined one-root Lambda declaration/formal/application/callee/argument positions to retained SourceCallUseInput/PendingPremise identities, candidate observations and borrowed export, exposing the absent ordinary incoming fresh route. Its reviewed multi-root extension now gives independent top-level Lambda declarations distinct skeleton identities over shared parse positions, derives every candidate call owner from retained HIR trees, checks exact source positions and selected-root export, and rejects foreign/cross-root access before publication. Candidate premises stay unresolved; focused multi-root tests passed 3/3, existing single-root tests 2/2, and regression review passed after exact owner/position coverage repair. The separate default-off module-reference candidate slice now joins each resolved module Name occurrence to its collection-branded definition use, exact target and receiving schemes, complete current Q/R-to-fresh-row capture with binder origin, stored provenance causes, and the exact same-solve receiving-root CandidateExport and scheme. This records the candidate value projection while semantic source-to-export correspondence stays unresolved. Its source crosswalk retains raw source positions and never fabricates SourceCallUseInput; empty fresh routes differ from absent uses. It validates candidate/HIR identity and source ownership for binding and top-level expression inputs, rejecting a truly empty HIR with no source identity witness. Focused candidate/single-root/multi-root tests passed 15/2/3, including four-root ordinary-solver differential values/endpoints, and the regression audit passed after two ownership repairs. Source typing/admission and receiving-export/successor correspondence remain unresolved. The exact captured-local candidate `my apply f = { my step x = f x; step }` now consumes the validated sidecar, uses two existing Lambda recipes with actual outer f and distinct x, and returns the local Function endpoint without a terminal Call or freshening. The 16-test focused target passes; regression review accepted the implementation after primary repair added exact local-sidecar rejection coverage. This advances only executable HIR_WIRING: the candidate still uses current F5 machinery, while source-to-candidate position crosswalk, local generalization, semantic typing/admission, provider/capture correspondence, successor export and publication remain unresolved. Multi-definition incoming-use freshening and broader captured local Bind/Lambda forms remain open. None supplies complete semantic dependencies, Generalize, profiles, contribution formation or ordinary Call inference.",
+      "minimal_lemma_or_closed_scope": "Implement complete source coverage and source/lower/emitter/solver/generalizer/instantiator/publisher correspondence. Current opt-in generic LocalSource retains sequential local declarations, lexical binder/parameter ownership, nested Lambda/Apply/Group and source occurrences. Candidate source traversal raises local initializer levels, retains one-shot initializer effects, installs live roots with boundaries and routes each local use through current-graph capture, eligible-coordinate freshening and shared older anchors. Existing live propagation and selected parent/copy SCC intrusion remain actual solving owners. Complete source Call formation retains authentic formal/operand inputs connected to native demands; pending markers do not supply solved providers/worlds or semantic certificates. The former exact captured-local fixture and frozen Q/R snapshots are historical implementation evidence, not prerequisites or the current generic-local coverage limit. Current code and owning build evidence do not establish runtime generic-local behavior, complete Call/effect/protection/hygiene correspondence, semantic generalization, public projection/principality, soundness or production cutover. Preserve atomic availability/publication, scoped incidence and independent incoming uses. Historical F5 observer clients still have actual callers and remain a migration task; this ledger change does not retire those implementations. Historical observer and fixture checkpoints remain in cited records with their original narrow claims; no new proof closure is inferred from replacing their outdated active description.",
       "references": [
         "hir",
         "solver",
@@ -2271,7 +2251,13 @@
         "currentuseroute",
         "originalcallpremises",
         "applyformal16",
-        "calltypec6"
+        "calltypec6",
+        "genericLocalSource",
+        "liveLetCorrection",
+        "liveLocalSchemes",
+        "parentCopyIntrusion",
+        "simpleSubReassessment",
+        "legacyWithdrawal"
       ],
       "production_authority": "required-before-cutover",
       "unblocks": [
@@ -2458,7 +2444,6 @@
     ],
     "residual/guarded joint solving/projection": [
       "EQ_RES",
-      "CTX_FINITE",
       "PRIMITIVES",
       "JOINT_DEC",
       "PROJECTION"
@@ -2484,7 +2469,6 @@
     "finite presentation/termination/resources": [
       "FMP",
       "PURE_DEC",
-      "CTX_FINITE",
       "JOINT_DEC",
       "IFACE_FORM",
       "RESOURCE"
@@ -2509,6 +2493,21 @@
     ]
   },
   "retired": [
+    {
+      "old": "CTX_FINITE: finite source guard-context/static-port presentation prerequisite",
+      "replaced_by": [
+        "JOINT_DEC",
+        "RAW_SOURCE"
+      ],
+      "reason": "Removed from the active ledger and JOINT_DEC dependency by the current explicit user correction. Actual Simple-sub source generation, propagation, extrusion, parent/copy intrusion and live generalization consume no finite context/sealed static-port enumeration premise. Historical finite relational context results remain scoped research; retirement is not proof closure. Complete joint semantic preservation/reflection, effective residual meaning and actual termination bridges remain open."
+    },
+    {
+      "old": "SD-NPB as a directly reused CLOSED lemma for general JOINT_DEC",
+      "replaced_by": [
+        "JOINT_DEC"
+      ],
+      "reason": "The historical exact native projection BoundaryBuild_NPB theorem and its review remain intact. The selected actual Simple-sub route does not consume that supplied boundary decision as its general solver prerequisite; no full Call, source correspondence, soundness or principality obligation is discharged by this removal."
+    },
     {
       "old": "Generic SOUND wrapper still lacks an actual publication leg",
       "replaced_by": [
@@ -2667,7 +2666,6 @@
     {
       "old": "Finite-context theorem selects finite semantic worlds",
       "replaced_by": [
-        "CTX_FINITE",
         "JOINT_DEC"
       ],
       "reason": "Draft conditional finite state-key theorem supplies no all-world quotient."
@@ -2682,7 +2680,6 @@
     {
       "old": "No constructive context/name-projection procedure in any fragment",
       "replaced_by": [
-        "CTX_FINITE",
         "PROJECTION"
       ],
       "reason": "Reviewed finite relational context syntax and equality-only original-binder orbits are constructive; actual source observers and full projection remain open."
@@ -2703,6 +2700,12 @@
     }
   ],
   "references": {
+    "legacyWithdrawal": "notes/design/2026-10-10-simple-sub-legacy-withdrawal.md",
+    "simpleSubReassessment": "notes/progress/2026-10-10-simple-sub-question-reassessment.md",
+    "liveLetCorrection": "notes/progress/2026-10-10-live-let-level-extrusion-correction.md",
+    "liveLocalSchemes": "notes/progress/2026-10-10-successor-live-local-schemes.md",
+    "genericLocalSource": "notes/progress/2026-10-10-generic-local-source-hir.md",
+    "parentCopyIntrusion": "notes/design/2026-10-10-parent-copy-scc-intrusion.md",
     "jointBoundary": "notes/theory/2026-10-08-source-directed-joint-decision.md",
     "jointObstruction": "notes/theory/2026-10-08-joint-decision-source-fragment-obstruction.md",
     "jointBoundaryReview": "notes/progress/2026-10-08-source-directed-joint-decision-review.md",

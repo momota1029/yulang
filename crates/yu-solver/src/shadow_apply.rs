@@ -87,19 +87,6 @@ impl CandidateInference {
                     crate::candidate_source::retain_placeholder_errors(binding.value(), &mut permitted_errors)?;
                     continue;
                 }
-                if let Some(local) = hir
-                    .shadow_local_binding(binding.definition_root())
-                    .map_err(|_| CandidateError::Unsupported)?
-                {
-                    preflight_local_binding(
-                        &hir,
-                        binding.value(),
-                        local,
-                        &mut calls,
-                        &mut permitted_errors,
-                    )?;
-                    continue;
-                }
             }
             let expr = match item {
                 HirItem::Binding(binding) => binding.value(),

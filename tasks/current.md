@@ -6543,3 +6543,28 @@ comparison/filter propagation, capture/freshening/extrusion and equality/rollbac
 preservation. Do not replace it with an unused grant bit, erase variable flow,
 or create a full Call registry/arbitrary-view proof prerequisite. The broader
 inference/F5 replacement objective remains active.
+
+### Active withdrawal of Simple-sub bypasses (2026-10-10)
+
+The user's [explicit withdrawal policy](../notes/design/2026-10-10-simple-sub-legacy-withdrawal.md)
+requires actual removal of obsolete mechanisms and proof dependencies. The first
+bounded implementation removes the exact captured-local fixture prerequisite
+from successor preflight and graph collection; generic lexical LocalSource is
+the actual owner. Historical F5 observer clients remain migration work.
+
+The active proof DAG removes CTX_FINITE and its three edges and stops reusing
+SD-NPB as a closed general solver lemma. Retirement is explicitly recorded,
+not theorem closure. JOINT_DEC retains complete solving/residual, semantic
+preservation/reflection and termination requirements. Complete Call, effect
+hygiene, soundness and principality remain required. The
+[delivery record](../notes/progress/2026-10-10-simple-sub-legacy-withdrawal.md)
+records focused runtime checks, independent review and exact residual routes.
+
+Next migrate actual effect annotation formation/propagation and complete Call
+construction, then ordinary public inference/scheme use to the successor so
+the historical pure observer, F5 closed-effect restriction, old extrusion and
+generalizer can be deleted coherently. No active local SAT/freeze requirement
+or complete registry runtime gate before basic constraint generation was found.
+Anonymous lambda expressions remain outside the current generic LocalSource
+formation envelope. The full inference goal stays active; this checkpoint is
+not complete legacy withdrawal or production cutover.

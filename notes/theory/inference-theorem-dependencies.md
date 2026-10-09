@@ -383,8 +383,28 @@ unchanged predicates; it does not prove that the last Direct is inhabited.
 
 The existing ALLOC_COMMON results close guarantee-only/source-allocation or
 matched grammars. They do not supply all valid public views. Pure structural
-FMP closes the exact structural carrier theorem, while CTX_FINITE, PRIMITIVES,
-JOINT_DEC and PROJECTION remain the complete residual/effective source gates.
+FMP closes the exact structural carrier theorem. PRIMITIVES, JOINT_DEC and
+PROJECTION retain their complete residual/effective source contracts. The
+current [authoritative withdrawal](../design/2026-10-10-simple-sub-legacy-withdrawal.md) retires CTX_FINITE and its JOINT_DEC
+edge: actual source generation, bound propagation, level/polarity extrusion,
+parent/copy SCC intrusion and live local generalization do not consume finite
+source-context or sealed static-port enumeration. This removes an obsolete
+prerequisite; it closes no proof. JOINT_DEC stays OPEN-PROOF for semantic
+preservation/reflection, complete effective joint solving or exact residual
+meaning, and termination of the actual owning route. Historical SD-NPB remains
+an exact native-boundary theorem in its source, rather than a directly reused
+CLOSED lemma for this route.
+
+The current generic LocalSource carrier and live local schemes supersede the
+old exact-fixture coverage limit and mandatory initializer solve/freeze
+ordering. Initializers run at raised levels; binding handles retain live roots
+and boundaries; each use freshens eligible coordinates while sharing older
+extrusion anchors that later constraints may refine. This implementation
+checkpoint does not establish complete Call, hygiene, soundness, principality
+or production cutover. Historical F5 observer clients with actual callers remain
+a migration task; this correction does not retire those implementations.
+Earlier count/status snapshots in this map are preserved
+history; the generated current ledger records the retirement separately.
 
 ## Production and final dependencies
 
