@@ -168,8 +168,8 @@ This index is a navigation aid. The listed source document remains authoritative
   M2 runtime and fresh repair deltas close; 93 distinct focused tests and owning,
   workspace and default checks pass. Explicit attachments, wildcard, owned-public
   migration and full semantic gates remain open. The user's concrete
-  `cb: (int -> [io] 'c)` / `run_io` result example is recorded with its local
-  subtraction reading. The [cycle-source audit](../progress/2026-10-10-explicit-effect-termination-source-map.md)
+  `cb: (int -> [io] 'c)` / `run_io` example is recorded as a historical result
+  candidate pending clarification of its exact scheme. The [cycle-source audit](../progress/2026-10-10-explicit-effect-termination-source-map.md)
   locates Oracle's self-edge and variable-bound guards; successor correspondence
   and negative-formal implementation remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)

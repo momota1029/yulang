@@ -278,8 +278,19 @@ trace alone.
 | `source_restricted_replay_model` | Independently derive the actual cycle grammar and check alias admission | Oracle `a58eefc31`, primary-supplied source edges; `/tmp/yulang-source-restricted-replay-additive/` only | complete, unreviewed symbolic result; additive debt and route-specific suppression; no successor entailment |
 | `successor_effect_gate_architecture` | Map successor owners and required preservation | current candidate solver source; read-only | complete; successor contextual admission simulation required |
 | `successor_alias_suppression_proof` | Derive or falsify a successor covered-bound simulation for count aliases | frozen candidate owners and source-cycle map; `/tmp/yulang-successor-alias-proof/` only | complete, unreviewed; POP-presence congruence only for PUSH-free continuations; no source restriction or successor coverage proof |
-| `source_cycle_push_falsifier` | Test whether the fixed h/E witness has a matching-PUSH discriminator | Oracle `a58eefc31`; accepted source-cycle equations; read-only | complete, unreviewed; fixed chain's PUSH belongs to outer `t` and cancels at `f 1`; paired-view reconnection and other continuations remain open; see [owner audit](../notes/progress/2026-10-10-fixed-cycle-push-owner-audit.md) |
+| `source_cycle_push_falsifier` | Test whether the fixed h/E witness has a matching-PUSH discriminator | Oracle `a58eefc31`; accepted source-cycle equations; read-only | complete, unreviewed; fixed chain's PUSH belongs to outer `t` and cancels at `f 1`; see [owner audit](../notes/progress/2026-10-10-fixed-cycle-push-owner-audit.md) |
+| `paired_view_effect_owner_invariant` | Trace same-ID PUSH through paired symbolic-row annotations | Oracle `a58eefc31`; read-only | complete, independently source-reviewed; `t → e → h` carries PUSH and `h → e` is left POP; candidate is unparsed/unexecuted; see [bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md) |
+| `paired_view_push_cycle_referee` | Referee side labels and mixed replay arithmetic | same pinned source; read-only | complete; corrected left-POP wrapper and POP²→POP³ route; admitted candidate order remains open |
+| `paired_annotation_queue_trace` | Trace admission and first-survivor suppression | same pinned source; read-only | partial symbolic audit; exact queue order absent; check `e/E` first because a derived POP candidate may be suppressed there before reaching `h/E` |
 
-The annotation policy and corrected callback scheme need no new decision.
-Complete Call, effect hygiene, soundness/principality, public/default scheme
-publication and `yulang3` cutover remain open.
+The next source gate is an ordered trace through `(loop x) x`, including
+canonical post-extrusion endpoints, arrival order, retained weights, bound
+dispositions and replay parents at `e/E` and `h/E`. Do not infer a live
+distinguishing path from graph arithmetic alone. The user has also corrected
+the assistant's interpretation of “ソレはミス”; the exact callback scheme is
+unclear and must not be used as a regression target until clarified.
+
+The annotation policy remains selected. The user's exact callback scheme is
+unresolved following a correction to the prior interpretation; keep its
+regression target open. Complete Call, effect hygiene, soundness/principality,
+public/default scheme publication and `yulang3` cutover remain open.

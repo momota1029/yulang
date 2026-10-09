@@ -6892,15 +6892,14 @@ The user supplied this concrete example:
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. The
-later “ソレはミス” refers to that extra `int ->` in the result: it was a typo
-in the user's earlier message. The corrected target is
-`(int -> ['b, io] 'c) -> ['b] 'c`, as already recorded in the Authoritative
-hygiene note. Do not treat the two schemes as an unresolved design mismatch.
-The locality requirement is to subtract the attached `io` while retaining
-independent `'b` flow. This is the same contract as effect hygiene, not a
-separate permission. The current candidate still rejects explicit formal
-effect rows; this is a target, not verified compiler behavior.
+and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. A
+later assistant interpretation treated “ソレはミス” as retracting the extra
+`int ->`; the user has now said that interpretation itself is a mistake. The
+intended exact scheme remains unresolved. Do not encode the earlier corrected
+target as a user decision or regression expectation until clarified. The
+example still concerns the existing effect-hygiene contract, not a separate
+permission. The current candidate rejects explicit formal effect rows; source
+behavior and the intended exact scheme remain unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6964,17 +6963,19 @@ bound-admission simulation through level-selected orientation, current/future
 opposite replay, Function children, residual/output projection, provenance,
 extrusion, freshening, intrusion and rollback. A fixed-witness source audit
 shows its existing `PUSH_i` belongs to outer owner `t` and is consumed at the
-outer callback call; it does not provide the `PUSH_i²` continuation that
-distinguishes `POP_i²` from `POP_i³` at the mapped `h <: E` suffix. This does
-not prove that paired formal transport or another authentic continuation
-cannot reconnect those owners. First trace the paired negative-view route for
-an eligible same-`i` PUSH predecessor into `h`; the owner mapping is recorded
-in [the fixed-cycle audit](../notes/progress/2026-10-10-fixed-cycle-push-owner-audit.md).
-Preserve the
-`PUSH_i² ; POP_i²` versus `PUSH_i² ; POP_i³` distinction as a falsifier.
-Do not add a presence-only quotient before that simulation is proved. Then
-implement the source-owned subtraction consumer and corrected callback scheme
-regression. Positive covariant annotations already have a private
+outer callback call; the fixed witness alone does not provide the
+`PUSH_i²` continuation that distinguishes `POP_i²` from `POP_i³` at the mapped
+`h <: E` suffix. A paired symbolic row-tail annotation now supplies same-ID
+PUSH transport from `t` through `e` to `h`; see the
+[paired annotation bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md).
+The exact `(loop x) x` candidate order remains unknown: first suppression may
+occur at `e/E` before a mixed candidate reaches `h/E`. Trace canonical
+post-extrusion endpoints, arrival order, retained weights, bound dispositions
+and replay parents at both slots. Preserve the `PUSH_i² ; POP_i²` versus
+`PUSH_i² ; POP_i³` distinction as a falsifier. Do not add a presence-only
+quotient before that simulation is proved. Keep the exact callback scheme
+regression blocked on clarifying the user's correction. Positive covariant
+annotations already have a private
 source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
 

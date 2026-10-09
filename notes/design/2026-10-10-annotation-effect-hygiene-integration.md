@@ -143,6 +143,12 @@ Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-an
 
 ## 6. User-supplied callback scenario
 
+Status note (2026-10-10): the user later said “ソレはミス” after an assistant
+interpreted the earlier exchange as retracting the result's extra `int ->`.
+The exact referent of this correction is unclear. Keep the pair below as a
+historical candidate, not a confirmed exact scheme or regression expectation,
+until the user clarifies which claim was mistaken.
+
 The user supplied this source/result pair to clarify the selected boundary:
 
 ```yulang
@@ -153,14 +159,13 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 (int -> ['b, io] 'c) -> ['b] 'c
 ```
 
-The intended locality is clear: the attached `io` can be subtracted from the
-callback's effect in this body while independent effect flow `'b` remains
-connected. Treating a variable as “not a concrete annotation atom” must not
-sever future concrete effects from its checks. The earlier version of the
-result supplied in conversation had an extra `int ->`; the user corrected that
-as a mistake. This corrected pair is the target, not a claim that the current
-successor accepts the source or that the whole type is already verified by a
-runtime test.
+The intended locality is to subtract the attached `io` from the callback's
+effect in this body while preserving independent effect flow, but the exact
+scheme remains unconfirmed after the later correction above. Treating a
+variable as “not a concrete annotation atom” must not sever future concrete
+effects from its checks. This historical candidate is not a claim that the
+current successor accepts the source or that the whole type is already
+verified by a runtime test.
 
 This is the same locality requirement as effect hygiene, not a separate semantic
 permission: subtraction at this annotation must not mutate a shared canonical
