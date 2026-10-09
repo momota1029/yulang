@@ -5930,3 +5930,6 @@ constructor envelope. This is a bounded obstruction, not a claim of global
 absence or source rejection; it adds no Any semantics and authorizes no
 implementation. The exact builtin meaning and hereditary Int-to-Any law
 remain open.
+
+The accepted `zero : any -> int` criterion is separately recorded in
+[`principal-scheme-acceptance-criteria.md`](../progress/2026-10-04-principal-scheme-acceptance-criteria.md): it selects the negative Function argument presentation for `zero` and explicitly does not define general Any or polarized Top semantics. It does not substitute for the ordinary Value Any target needed by the expression annotation.

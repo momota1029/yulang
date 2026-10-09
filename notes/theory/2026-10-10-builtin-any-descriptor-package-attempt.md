@@ -5,7 +5,7 @@ Status: frozen, independently reviewed exploratory research; no semantic or impl
 Baseline: `c3cb59dfabf2410dba3b76946540027f663e6677`
 Branch: `research/simple-sub-intrusion`
 Exclusive write lease: this file only
-Review: `compiler_referee` and `spec_auditor`; no findings within the selected scope
+Review: `compiler_referee` and `spec_auditor`; no findings within the selected scope; prior-decision delta review by `compiler_referee`, no findings
 Objective: construct the builtin descriptor package needed by `my widened = 0 as any`
 Method: invert the selected descriptor/registry constructors after approved builtin lookup
 Claim class: bounded constructor characterization and minimized missing premise; no new theorem closure
@@ -29,6 +29,16 @@ no uppercase builtin alias, and name introduction/lookup only. In this note
 source spelling is `any`. No question-board file was read. The primary supplied
 the accepted decisions, including that semantic root/guards/Top/implementation
 remain open and that the complete Call contract stays fixed.
+
+One related user-accepted criterion is bounded to a different position:
+[`zero`'s principal-scheme criterion](../progress/2026-10-04-principal-scheme-acceptance-criteria.md),
+§§1–2 and “Clarification,” accepts `Top -> int` with surface spelling
+`any -> int` for `my zero x = 0`. The same record expressly limits this to
+that negative Function argument and says it establishes no general
+interpretation of `Any` or polarized `Top`. It therefore records a required
+practical inference presentation, but supplies neither the ordinary
+`Value(Any)` root nor its complete membership and hereditary evidence for the
+separate written-target case analyzed here.
 
 The [one-case owner design](2026-10-10-source-owned-annotation-any-design.md),
 §§1–4, lines 27–32, 36–60, 69–87 and 91–107, selects source-owned,
@@ -219,6 +229,7 @@ Direct semantic dependency SHA-256 snapshot:
 | `notes/design/2026-10-10-source-annotation-any-name-design.md` | `3cb57799e423f7c5036aa02e77e232b1924ecf3d8487c2649bb669d70da0e238` |
 | `notes/theory/2026-10-10-source-owned-annotation-any-design.md` | `bfff9fdfa6e5aa9258949992d0711fa674b91fdde501e0a658e02b3712999a3e` |
 | `notes/theory/2026-10-10-source-annotation-any-root-construction-attempt.md` | `f336a0d8081607debe27ffd0c9d46716b39e55ce8ec14fb05c25ab28bf77e9b5` |
+| `notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md` | `13c6feb02727d8cc735dcb19843b337dee9126cd7afc519f3d18c6e1cdf95337` |
 | `notes/design/2026-10-08-source-generalize-definition.md` | `46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38` |
 | `notes/theory/2026-10-08-source-generalize-definition-and-proof.md` | `e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240` |
 | `notes/design/2026-10-08-contextual-function-membership-definition.md` | `0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0` |
@@ -245,6 +256,7 @@ semantic premise. The primary must revalidate dependencies before integration.
 - Baseline SHA: `c3cb59dfabf2410dba3b76946540027f663e6677`.
 - Changed dependency hashes: none observed against the pinned baseline.
 - Review status: frozen, independently reviewed exploratory bounded obstruction;
+  the added `zero` criterion clarification also received focused delta review;
   no semantic approval, theorem closure or implementation authority.
 - Checks already run: bounded source/constructor inversion, exact supplier
   lines, read-only identity/status, dependency hashes and baseline-path diff;
