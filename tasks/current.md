@@ -6962,7 +6962,15 @@ source-cycle existence, not guard soundness or a successor admission rule.
 The exact next gate is an independently reviewed successor contextual
 bound-admission simulation through level-selected orientation, current/future
 opposite replay, Function children, residual/output projection, provenance,
-extrusion, freshening, intrusion and rollback. Preserve the
+extrusion, freshening, intrusion and rollback. A fixed-witness source audit
+shows its existing `PUSH_i` belongs to outer owner `t` and is consumed at the
+outer callback call; it does not provide the `PUSH_i²` continuation that
+distinguishes `POP_i²` from `POP_i³` at the mapped `h <: E` suffix. This does
+not prove that paired formal transport or another authentic continuation
+cannot reconnect those owners. First trace the paired negative-view route for
+an eligible same-`i` PUSH predecessor into `h`; the owner mapping is recorded
+in [the fixed-cycle audit](../notes/progress/2026-10-10-fixed-cycle-push-owner-audit.md).
+Preserve the
 `PUSH_i² ; POP_i²` versus `PUSH_i² ; POP_i³` distinction as a falsifier.
 Do not add a presence-only quotient before that simulation is proved. Then
 implement the source-owned subtraction consumer and corrected callback scheme
