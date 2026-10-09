@@ -208,6 +208,8 @@ use yu_types::{
 
 mod scc;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_scheme;
+#[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
 #[cfg(feature = "shadow-f5")]
 pub mod shadow_f5;
@@ -7346,6 +7348,8 @@ impl OrderingObserver {
 /// prevent later independent components from solving.
 #[derive(Debug)]
 pub struct SolvedModule {
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_graph: Option<candidate_scheme::GraphState>,
     #[cfg(feature = "shadow-f5")]
     #[cfg_attr(
         not(feature = "shadow-scc-observer"),
@@ -7432,6 +7436,8 @@ struct ShadowFreshCapture {
 }
 
 struct InferenceSession {
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_graph: Option<candidate_scheme::GraphState>,
     /// Fixed at startup for the entire candidate session and its expansion memo.
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_own_row_references: bool,
@@ -7939,6 +7945,8 @@ struct EffectRowUndo {
 }
 
 struct RouteMutationJournal {
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_routes_len: usize,
     store: RouteStoreJournal,
     value_rows_len: usize,
     effect_rows_len: usize,
@@ -8799,6 +8807,8 @@ impl InferenceSession {
             .route_journal_spare
             .take()
             .unwrap_or_else(|| RouteMutationJournal {
+                #[cfg(feature = "shadow-apply-candidate")]
+                candidate_routes_len: 0,
                 store: RouteStoreJournal {
                     facts_len: 0,
                     provenance_len: 0,
@@ -8914,6 +8924,13 @@ impl InferenceSession {
             .take()
             .expect("route journal setup");
         journal.store = store;
+        #[cfg(feature = "shadow-apply-candidate")]
+        {
+            journal.candidate_routes_len = self.candidate_graph
+                .as_ref()
+                .map(|state| state.routes.len())
+                .unwrap_or(0);
+        }
         journal.value_rows_len = self.bounds.len();
         journal.effect_rows_len = self.effect_bounds.len();
         journal.value_rows.clear();
@@ -9109,6 +9126,20 @@ impl InferenceSession {
             },
         );
         self.store.rollback_route(store_journal);
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &mut self.candidate_graph {
+            for route in &state.routes[journal.candidate_routes_len..] {
+                let bytes = route.rows.capacity()
+                    .checked_mul(std::mem::size_of::<candidate_scheme::RowKey>())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                state.retained_bytes = state.retained_bytes
+                    .checked_sub(bytes)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+            state.routes.truncate(journal.candidate_routes_len);
+            state.scratch_bytes = 0;
+        }
+
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         if let Some(observer) = self.f5c_matrix_observer.as_mut() {
             for bounds in &self.bounds[journal.value_rows_len..] {
@@ -9449,6 +9480,8 @@ impl InferenceSession {
         let mut session = Self {
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_own_row_references: batch.candidate_own_row_references,
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_graph: None,
             f5c_draft_work: F5cDraftWorkMeter::default(),
             // The solve branch receives the collected lineage directly.  The
             // retained batch is only F2 plan/recipe state; it never owns a
@@ -10227,7 +10260,25 @@ impl InferenceSession {
             #[cfg(test)]
             self.sample_fixed_capacity_probe,
             self.current_closed_retained_bytes,
-            0,
+            {
+                #[cfg(feature = "shadow-apply-candidate")]
+                {
+                    self.candidate_graph
+                        .as_ref()
+                        .map(|state| {
+                            state.retained_bytes
+                                .checked_add(state.scratch_bytes)
+                                .and_then(|bytes| bytes.checked_add(state.orchestration_bytes))
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)
+                        })
+                        .transpose()?
+                        .unwrap_or(0)
+                }
+                #[cfg(not(feature = "shadow-apply-candidate"))]
+                {
+                    0
+                }
+            },
             self.batch.counters.f2_batch_retained_bytes,
             self.batch.component_term_positions.capacity(),
             route_journal_retained_bytes,
@@ -13147,6 +13198,16 @@ impl InferenceSession {
     }
 
     fn execute_scc_plan(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            let result = self.execute_candidate_graph_plan();
+            if result.is_err() {
+                let state = self.candidate_graph.as_mut().expect("graph mode remains active");
+                state.scratch_bytes = 0;
+                state.orchestration_bytes = 0;
+            }
+            return result;
+        }
         let result = self.execute_scc_plan_inner();
         #[cfg(test)]
         if result.is_err() {
@@ -15188,6 +15249,10 @@ impl InferenceSession {
         id: &DefinitionUseId,
         use_record: DefinitionUse,
     ) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            return self.route_candidate_graph(id, use_record);
+        }
         let position = use_record.target.ordinal() as usize;
         let scheme = self.schemes[position]
             .as_ref()
@@ -16002,6 +16067,8 @@ impl InferenceSession {
                 .collect();
         }
         Ok(SolvedModule {
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_graph: self.candidate_graph,
             #[cfg(feature = "shadow-f5")]
             shadow_fresh_capture: self.shadow_fresh_capture,
             #[cfg(feature = "shadow-f5")]

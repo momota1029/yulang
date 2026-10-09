@@ -43,6 +43,11 @@ This index is a navigation aid. The listed source document remains authoritative
   nonshipping solver and connects the opt-in multi-parameter HIR carrier.
   Reviewed early depth enforcement closes its recursive ownership hazard;
   runtime verification remains omitted. No full Call or cutover gate is closed.
+  The [mixed graph scheme checkpoint](../progress/2026-10-10-successor-mixed-graph-schemes.md)
+  now connects kind-qualified value/effect bound capture and per-use freshening
+  to private SCC/incoming-use execution. M2 review and owning builds cover that
+  implementation slice; source Call effect generation and runtime verification
+  remain the next work, with complete Call/publication/cutover still open.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and

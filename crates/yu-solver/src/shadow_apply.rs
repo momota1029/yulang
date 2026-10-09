@@ -69,6 +69,287 @@ pub struct CandidateValueObservation {
     definition_uses: Vec<CandidateDefinitionUse>,
     apply_recipe_occurrences: Vec<HirOccurrenceId>,
 }
+/// Private successor inference using retained value and effect variable graphs.
+/// Complete Call, source admission and public scheme correspondence remain open.
+pub struct CandidateInference {
+    solved: SolvedModule,
+}
+impl CandidateInference {
+    pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
+        let mut calls = Vec::new();
+        let mut permitted_errors = HashSet::new();
+        for item in hir.items() {
+            if let HirItem::Binding(binding) = item {
+                if let Some(local) = hir
+                    .shadow_local_binding(binding.definition_root())
+                    .map_err(|_| CandidateError::Unsupported)?
+                {
+                    preflight_local_binding(
+                        &hir,
+                        binding.value(),
+                        local,
+                        &mut calls,
+                        &mut permitted_errors,
+                    )?;
+                    continue;
+                }
+            }
+            let expr = match item {
+                HirItem::Binding(binding) => binding.value(),
+                HirItem::Expression(expr) if matches!(expr, ResolvedExpr::Integer { .. }) => expr,
+                _ => return Err(CandidateError::Unsupported),
+            };
+            preflight_expression(expr, &mut calls, &mut permitted_errors)?;
+        }
+        if hir.errors().iter().any(|error| {
+            !permitted_errors.contains(&error.id())
+                || error.kind() != HirErrorKind::UnsupportedExpression
+        }) {
+            return Err(CandidateError::Unsupported);
+        }
+        let batch = ConstraintBatch::collect_mode(hir, true).map_err(CandidateError::Collection)?;
+        if batch
+            .scc_plan()
+            .components_in_dependency_first_order()
+            .any(|component| {
+                !batch
+                    .scc_plan()
+                    .internal_uses(component)
+                    .expect("owned SCC")
+                    .is_empty()
+            })
+        {
+            return Err(CandidateError::Unsupported);
+        }
+        let mut session = InferenceSession::try_new(batch).map_err(CandidateError::Solve)?;
+        session
+            .start_candidate_graph()
+            .map_err(CandidateError::Solve)?;
+        Ok(Self {
+            solved: session.run().map_err(CandidateError::Solve)?,
+        })
+    }
+    pub fn observes_hir(&self, hir: &HirModule) -> bool {
+        std::ptr::eq(self.solved.hir.as_ref(), hir)
+    }
+    /// Candidate conflicts never establish source rejection.
+    pub fn candidate_conflicts(&self) -> &[SolverError] {
+        self.solved.errors()
+    }
+    pub fn export(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<CandidateGraphExport<'_>, ArtifactMismatch> {
+        if !self.solved.hir.owns_definition_root(root) {
+            return Err(ArtifactMismatch);
+        }
+        let position = self
+            .solved
+            .root_scheme_positions
+            .get(root)
+            .ok_or(ArtifactMismatch)?;
+        let graph = self
+            .solved
+            .candidate_graph
+            .as_ref()
+            .and_then(|state| state.graphs[*position].as_ref())
+            .ok_or(ArtifactMismatch)?;
+        Ok(CandidateGraphExport { graph })
+    }
+    pub fn fresh_use(&self, occurrence: &HirOccurrenceId) -> Option<CandidateGraphFreshUse<'_>> {
+        if !self.solved.hir.owns_occurrence(occurrence) {
+            return None;
+        }
+        let state = self.solved.candidate_graph.as_ref()?;
+        let route = state
+            .routes
+            .iter()
+            .find(|route| route.use_id.occurrence() == occurrence)?;
+        let graph = state.graphs[route.target].as_ref()?;
+        Some(CandidateGraphFreshUse {
+            state,
+            route,
+            graph,
+        })
+    }
+    pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
+        UNRESOLVED
+    }
+}
+/// Exact immutable leaf of the private retained graph.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateGraphLeaf {
+    Bottom,
+    Top,
+    NegativeBottom,
+    IntPositive,
+    IntNegative,
+    EffectBottom,
+    EmptyEffect,
+}
+pub struct CandidateGraphExport<'a> {
+    graph: &'a crate::candidate_scheme::Graph,
+}
+impl<'a> CandidateGraphExport<'a> {
+    pub fn root(&self) -> CandidateGraphNode<'a> {
+        CandidateGraphNode {
+            graph: self.graph,
+            index: self.graph.root,
+        }
+    }
+    pub fn node_count(&self) -> usize {
+        self.graph.nodes.len()
+    }
+    pub fn rows(&self) -> impl Iterator<Item = CandidateGraphRow<'a>> + 'a {
+        let graph = self.graph;
+        (0..graph.rows.len()).map(move |index| CandidateGraphRow { graph, index })
+    }
+    pub fn bounds(&self) -> impl Iterator<Item = CandidateGraphBound<'a>> + 'a {
+        let graph = self.graph;
+        graph
+            .bounds
+            .iter()
+            .map(move |bound| CandidateGraphBound { graph, bound })
+    }
+    pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
+        UNRESOLVED
+    }
+}
+#[derive(Clone, Copy)]
+pub struct CandidateGraphNode<'a> {
+    graph: &'a crate::candidate_scheme::Graph,
+    index: usize,
+}
+impl<'a> CandidateGraphNode<'a> {
+    pub fn same_identity(self, other: Self) -> bool {
+        std::ptr::eq(self.graph, other.graph) && self.index == other.index
+    }
+    pub fn leaf(self) -> Option<CandidateGraphLeaf> {
+        use crate::candidate_scheme::{Atom, Node};
+        Some(match self.graph.nodes[self.index] {
+            Node::Leaf(atom) => match atom {
+                Atom::Bottom => CandidateGraphLeaf::Bottom,
+                Atom::Top => CandidateGraphLeaf::Top,
+                Atom::NegativeBottom => CandidateGraphLeaf::NegativeBottom,
+                Atom::IntPositive => CandidateGraphLeaf::IntPositive,
+                Atom::IntNegative => CandidateGraphLeaf::IntNegative,
+                Atom::EffectBottom => CandidateGraphLeaf::EffectBottom,
+                Atom::EmptyEffect => CandidateGraphLeaf::EmptyEffect,
+            },
+            _ => return None,
+        })
+    }
+    pub fn polarity(self) -> Polarity {
+        use crate::candidate_scheme::{Atom, Node};
+        match self.graph.nodes[self.index] {
+            Node::Row { polarity, .. } | Node::Function { polarity, .. } => polarity,
+            Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::EffectBottom) => Polarity::Positive,
+            Node::Leaf(_) => Polarity::Negative,
+        }
+    }
+    pub fn children(self) -> Option<[Self; 4]> {
+        match self.graph.nodes[self.index] {
+            crate::candidate_scheme::Node::Function { children, .. } => {
+                Some(children.map(|index| Self {
+                    graph: self.graph,
+                    index,
+                }))
+            }
+            _ => None,
+        }
+    }
+    pub fn row(self) -> Option<CandidateGraphRow<'a>> {
+        match self.graph.nodes[self.index] {
+            crate::candidate_scheme::Node::Row { row, .. } => Some(CandidateGraphRow {
+                graph: self.graph,
+                index: row,
+            }),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy)]
+pub struct CandidateGraphRow<'a> {
+    graph: &'a crate::candidate_scheme::Graph,
+    index: usize,
+}
+impl CandidateGraphRow<'_> {
+    pub fn kind(self) -> ComponentKind {
+        self.graph.rows[self.index].key.kind()
+    }
+    pub fn is_local(self) -> bool {
+        self.graph.rows[self.index].local
+    }
+    pub fn same_identity(self, other: Self) -> bool {
+        std::ptr::eq(self.graph, other.graph) && self.index == other.index
+    }
+}
+pub struct CandidateGraphBound<'a> {
+    graph: &'a crate::candidate_scheme::Graph,
+    bound: &'a crate::candidate_scheme::Bound,
+}
+impl<'a> CandidateGraphBound<'a> {
+    pub fn kind(&self) -> ComponentKind {
+        self.bound.kind
+    }
+    pub fn lower(&self) -> CandidateGraphNode<'a> {
+        CandidateGraphNode {
+            graph: self.graph,
+            index: self.bound.lower,
+        }
+    }
+    pub fn upper(&self) -> CandidateGraphNode<'a> {
+        CandidateGraphNode {
+            graph: self.graph,
+            index: self.bound.upper,
+        }
+    }
+}
+pub struct CandidateGraphFreshUse<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
+    route: &'a crate::candidate_scheme::FreshRoute,
+    graph: &'a crate::candidate_scheme::Graph,
+}
+impl<'a> CandidateGraphFreshUse<'a> {
+    pub fn occurrence(&self) -> &'a HirOccurrenceId {
+        self.route.use_id.occurrence()
+    }
+    pub fn rows(&self) -> impl Iterator<Item = CandidateGraphFreshRow<'a>> + 'a {
+        let state = self.state;
+        let route = self.route;
+        let graph = self.graph;
+        (0..route.rows.len()).map(move |index| CandidateGraphFreshRow {
+            state,
+            route,
+            graph,
+            index,
+        })
+    }
+    pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
+        UNRESOLVED
+    }
+}
+pub struct CandidateGraphFreshRow<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
+    route: &'a crate::candidate_scheme::FreshRoute,
+    graph: &'a crate::candidate_scheme::Graph,
+    index: usize,
+}
+impl<'a> CandidateGraphFreshRow<'a> {
+    pub fn source_row(&self) -> CandidateGraphRow<'a> {
+        CandidateGraphRow {
+            graph: self.graph,
+            index: self.index,
+        }
+    }
+    pub fn kind(&self) -> ComponentKind {
+        self.route.rows[self.index].kind()
+    }
+    pub fn same_identity(&self, other: &Self) -> bool {
+        std::ptr::eq(self.state, other.state)
+            && self.route.rows[self.index] == other.route.rows[other.index]
+    }
+}
 /// Borrowed retained candidate solver relation only. All semantic premises
 /// remain unresolved; this does not establish source typing or admission.
 #[derive(Clone, Copy)]

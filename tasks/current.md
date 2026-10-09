@@ -6134,7 +6134,8 @@ registry adoption remains outside the basic inference critical path.
 
 ### Opt-in multi-parameter HIR checkpoint (2026-10-10)
 
-The disjoint source slice above is now reviewed and ready for integration:
+The disjoint source slice above was committed at `fc0848450` and pushed through
+the inspected remote merge `90629b216`:
 canonical ordered identifier parameters reach nested Lambda HIR through the
 existing application opt-in route. Each parameter retains its actual source
 key and checked owning ordinal; lexical scope and source-order occurrence
@@ -6153,3 +6154,30 @@ retention in successor generalization/fresh use and remove fixed-empty Call
 effects at their owning generation step; preserve full correlated Call data
 and revalidate polarity-copy extrusion rather than claiming the in-place
 F5 routine matches Simple-sub.
+
+### Operational successor mixed graph schemes (2026-10-10)
+
+The [mixed-graph implementation record](../notes/progress/2026-10-10-successor-mixed-graph-schemes.md)
+connects private top-level SCC capture and actual incoming-use freshening to
+`shadow_apply::CandidateInference`. Kind-qualified value/effect rows, all four
+Function ports and direct/exact bounds survive capture and reconstruction.
+It bypasses the pure F5 exporter without fabricating a closed pure scheme;
+ordinary F5 and the legacy candidate remain on their existing paths.
+
+M2 semantic/resource review finished. The accepted diagnostic-visibility defect
+was repaired with a borrowed conflict accessor; fresh semantic delta review
+closed it. Successful capture/structural reconstruction costs are linear per
+graph before existing solver closure work. Failure-path high-water accounting,
+general environment closure and runtime behavior are explicitly unverified;
+no stronger resource certificate is claimed. Candidate/default owning Cargo
+checks passed without warnings; candidate check also passed after the repair.
+No tests, execution probes or measurements ran.
+
+The independently prepared next packet selects graph collection before batch
+construction, retains Apply/Group child effect components, adds one invocation
+effect row per Apply and routes callee evaluation/invocation output into the
+application effect. Argument evaluation stays in the Function demand. Lambda
+construction and formal fetch remain distinct from invocation. Full Call,
+polarity-copy extrusion, public publication and target-branch F5 replacement
+remain open; no registry adoption or new semantic question is needed for these
+existing scalar effect-flow relations.
