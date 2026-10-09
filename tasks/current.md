@@ -5539,3 +5539,16 @@ effects and uses an empty call effect; it cannot be promoted. Continue from the
 selected native literal case toward the missing complete source Call owner and
 its executable inference path. No code, tests, or cutover authority follows
 from the user's direction alone.
+
+The bounded [practical complete-Application candidate](../notes/progress/2026-10-09-practical-complete-application-inference-candidate.md)
+now maps the conditional source collection, complete contract ownership,
+solving, generalization and publication path for the selected ordinary `f 1`
+case. Independent semantic and exact-conformance reviews found no blocking or
+major issue; the semantic review's minor ordering ambiguity was repaired by
+making source-produced protection/refinement evidence an input to solving.
+This remains a research candidate with explicit H1–H6 suppliers, not a solved
+implementation gate. The immediate code-facing gap remains the executable
+source Call collector that ties the formal's pre-comparison demand to its
+actual complete inlet, role/protection and complete result. Literal-1
+refinement, full solve and invoke export/principality also remain open. No code,
+tests or builds ran for this record/candidate review.
