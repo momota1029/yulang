@@ -129,6 +129,15 @@ This index is a navigation aid. The listed source document remains authoritative
   authentic original literal Call emission formation plus the executable
   complete-kernel consumer; see the current status in `tasks/current.md`.
 
+- **Reviewed literal Call emission decision candidate (2026-10-10):**
+  [candidate](../theory/2026-10-10-original-literal-call-emission-extension-candidate.md)
+  proposes a bounded tagged literal-origin emission direction beside the
+  unchanged original Name/Name family, plus the exact future O0/O1 obligations.
+  Compiler-referee and spec-auditor reviews closed after one batched repair.
+  This is still Draft: no literal emitted membership, O0 extension, user
+  adoption, implementation or F5 cutover is selected. The scoped direction
+  remains a user decision; details and residuals are in `tasks/current.md`.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

@@ -5585,3 +5585,17 @@ all origins. Then close the scoped complete solve and public-root path. The
 reviewed Application candidate remains conditional research; no production
 code, tests, builds or F5 cutover were authorized or changed by these answers.
 No tests or builds ran during this record synchronization.
+
+The bounded [literal Call emission candidate](../notes/theory/2026-10-10-original-literal-call-emission-extension-candidate.md)
+has passed independent compiler-referee and spec-auditor review after repair.
+It identifies the exact existing Name/Name Gen-Call-0 boundary and proposes a
+tagged literal-origin emission definition direction with a future O0 extension.
+The artifact does not yet define or prove the actual typed constructor/O0
+object, and it claims no new emitted membership or implementation authority.
+The prior q1/d1 answers do not adopt this additional emission case. The only
+remaining choice is whether to direct the next construction gate toward that
+bounded extension or require a separately fixed original literal-emission
+family and full typed correspondence. Keep the dependent source-emission
+adoption gate waiting for that scoped decision; annotation design can continue
+independently. Review convergence used one compiler-referee and one
+spec-auditor, with one batched textual repair. No tests or builds ran.
