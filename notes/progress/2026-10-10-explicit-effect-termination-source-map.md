@@ -7,7 +7,7 @@ Authority: selected annotation policy and user-supplied callback example in
 `notes/design/2026-10-10-annotation-effect-hygiene-integration.md`
 Claim class: pinned-source audit plus conditional model counterexample
 Mode: M2 design/source conformance; no compiler writes or execution probes
-Status: Oracle-specific cycle guards identified; successor correspondence open
+Status: successor admission quotient and recursive source-cycle correspondence open
 
 ## The concrete target
 
@@ -22,6 +22,13 @@ with expected scheme:
 ```text
 (int -> ['b, io] 'c) -> ['b] 'c
 ```
+
+This is the scheme recorded in the Authoritative hygiene integration note.
+The earlier direct user message in the continuing thread wrote an additional
+`int ->` before the result effect. A later “ソレはミス” did not identify which
+statement it corrected. Until clarified, this record preserves the original
+source example and the unresolved disagreement; neither displayed scheme is
+silently substituted for the other as the final owning regression target.
 
 The annotation-scoped interpretation and limit are recorded in the governing
 authority §6. This is a concrete hygiene target: `io` is available to the caller
@@ -114,6 +121,61 @@ resource cap is implied. This remains an algorithm/source-correspondence gap;
 implement only after an exact successor owner derivation, not by suppressing
 self-edges or count growth to make the model terminate.
 
+## Successor admission quotient and recursive source route
+
+A follow-up owner audit compared a finite support-shaped admission candidate
+against exact replay. The candidate key records bound kind/owner/side/endpoint,
+the attachment IDs and whether each has a positive or negative count, plus
+source dependencies. It is finite for fixed endpoints and attachment
+instances, but it is **not** a replay congruence by itself:
+
+```text
+PUSH_i ; POP_i   = identity
+PUSH_i ; POP_i²  = residual POP_i
+```
+
+`POP_i` and `POP_i²` have the same presence signature, while an opposite
+`PUSH_i` bound distinguishes their exact replay. This is an algebraic
+obstruction to using that signature alone, not an executable source
+counterexample. Any covered-bound admission must retain an explicit entailment
+dependency proving that the retained representative preserves insertion
+checks, future lowers, opposite replay, Function variance/entry transfer,
+residual projection, origins, remapping, SCC invalidation and rollback. No such
+certificate exists in the current successor owners.
+
+The present successor cannot yet produce a source-owned POP cycle because the
+source constructor is absent: explicit formal effect rows remain rejected at
+`candidate_source::preflight_formal` and `candidate_effect::candidate_formal_pair`,
+and contextual operations are absent from `TypedPairKey` and retained bounds.
+This refusal is not a proof that the future constructor will avoid cycles.
+The ordinary recursive back route already exists; the paired-formal regression
+at `lib.rs:32267` uses:
+
+```yulang
+my recur (f:() -> int) = { my unused = recur f; f () }
+```
+
+Its source-owned flow is published result effect `W` to recursive invocation
+`I`, recursive application `A`, block effect `B`, then enclosing returned
+effect `R`. If an attachment constructor publishes `R <: W` under `POP_i`,
+the existing route closes a contextual cycle. Owners include live recursive
+component roots (`candidate_scheme.rs:615–620,683–690`, `lib.rs:14861–14880`),
+Function return-effect comparison (`lib.rs:11926–11930`), invocation/application
+(`shadow_apply.rs:1423–1435`), initializer/block flow
+(`candidate_source.rs:238–244`), and body/returned-effect flow
+(`lib.rs:11135–11172`).
+
+This remains conditional: the POP-bearing publication premise is not currently
+constructed, and the source fixture cannot execute that path today. Levels
+select retained-bound ownership but do not prohibit these inequalities; a
+level argument alone does not establish acyclicity. For an acyclic placement
+graph, path composition bounds each POP count by finite path length. That
+conditional fact does not extend to recursive exposure or equality introduced
+by intrusion. The next derivation must establish whether authentic output
+construction places the POP-bearing result on recursive exposures, or prove a
+different ownership relation that prevents that edge while retaining latent
+output and future-lower behavior.
+
 ## Verification and next action
 
 Primary rechecked the conditional finite model with its exact embedded command:
@@ -126,7 +188,17 @@ the HIR/candidate refusal points. No source-to-successor cycle derivation,
 weighted production implementation, whole Call verification, soundness or
 principality proof ran.
 
-Next: construct the successor-side self-edge/subsumption entailment derivation
-against its existing level-oriented bounds and intrusion invalidation. Then use
-those actual owner operations to implement the annotation boundary/filter
-consumer and add the user's callback result as an end-to-end source regression.
+A read-only successor audit additionally established the ordinary recursive
+back route and its conditional POP-cycle falsifier; a separate architect audit
+showed that per-attachment count-presence admission loses exact replay
+distinctions. These are source-owner/algebraic findings only. No source POP
+producer exists yet, no finite quotient is proved, and no code, compiler tests,
+or measurements ran.
+
+Next: decide whether authentic annotation construction puts the POP-bearing
+result edge on recursive exposures; if so, derive a finite ownership/admission
+relation preserving all live effects before enabling contextual production.
+Then implement the annotation boundary/filter consumer and add the callback
+target as an end-to-end source regression. The exact accepted callback result
+spelling is pending clarification of the user's later “ソレはミス” correction;
+do not infer that it removes the displayed `int ->` result segment.

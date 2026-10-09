@@ -6886,15 +6886,19 @@ builds/tests or performance samples/processes for this record-only cleanup.
 
 ### Explicit effect attachment: callback target and cycle-source audit (2026-10-10)
 
-The user clarified the concrete behavior with:
+The user supplied this concrete example:
 
 ```yulang
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-and expected scheme `(int -> ['b, io] 'c) -> ['b] 'c`. The user corrected the
-earlier extra `int ->` in the result as a mistake. The locality requirement is
-to subtract the attached `io` while retaining independent `'b` flow. This is
+and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. The
+Authoritative hygiene note records the same source with scheme
+`(int -> ['b, io] 'c) -> ['b] 'c`. A later “ソレはミス” challenges the
+assistant's interpretation of a correction, but its referent remains
+unresolved. Preserve this mismatch and do not silently choose either scheme as
+the final regression target. The locality requirement is to subtract the
+attached `io` while retaining independent `'b` flow. This is
 the same contract as effect hygiene, not a separate permission. The current
 candidate still rejects explicit formal effect rows; this is a target, not
 verified compiler behavior.
@@ -6923,15 +6927,24 @@ as one inline argument, retaining the nested `cb 1` application and source
 identity. Focused HIR regressions cover this spelling, ordinary ML/Call tails,
 recovery/layout rejection, and outer sequence ownership. This is syntax/HIR
 transport only: it does not establish `run_io` semantics, typed effect-port
-flow, subtraction, or the corrected result scheme. See the
+flow, subtraction, or the user's target scheme. See the
 [source bridge checkpoint](../notes/progress/2026-10-10-colon-application-source-bridge.md).
 
-Next: implement the source-owned contravariant attachment and executable
-subtraction consumer as one coupled gate, reusing the selected hygiene policy
-and its existing conditional proofs. Include the corrected callback result as
-the owning source regression. Then derive termination/subsumption behavior on
-the actual contextual representation before considering self-edge pruning.
-Positive covariant annotations already have a private source/propagation
-implementation. No code or compiler tests changed in this audit; the finite
-Python model was rechecked once. Full hygiene, complete Call,
+Follow-up audits found that count-presence admission cannot stand alone: `POP_i`
+and `POP_i²` have the same presence signature but differ when replayed against
+`PUSH_i`. A separate source audit found an existing recursive back route from
+published result effect through recursive invocation, application and body
+back to the returned effect. Thus a future POP-bearing `R <: W` edge would
+close a contextual cycle. The POP producer is not implemented, so this remains
+a conditional source falsifier, not an executable program or a termination
+counterexample. Levels do not prove it unreachable. See the updated
+[cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md).
+
+Next: settle the exact callback result text after the unresolved “ソレはミス”
+correction, then derive the attachment constructor's actual output ownership and
+whether recursive uses expose its POP-bearing result. Establish a finite
+admission/ownership relation preserving exact replay before enabling contextual
+production; then implement the source-owned subtraction consumer and add the
+owning source regression. Positive covariant annotations already have a private
+source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
