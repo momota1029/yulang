@@ -6934,18 +6934,23 @@ and `POP_i²` have the same presence signature but differ when replayed against
 `PUSH_i`. A separate source audit found an existing recursive back route from
 published result effect through recursive invocation, application and body
 back to the returned effect. Thus a future POP-bearing `R <: W` edge would
-close a contextual cycle. The POP producer is not implemented, so this remains
-a conditional source falsifier, not an executable program or a termination
-counterexample. Levels do not prove it unreachable. See the updated
-[cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md).
+close a contextual cycle. A later exact Oracle trace of `loop f` alongside
+`f 1` found that the callback's POP reaches the containing lambda's public
+output wrapper, but does not enter the already-formed recursive Function's
+internal `O <: C_rec` edge. This rejects that concrete candidate path as a
+right-POP cycle witness; it does not prove all such paths unreachable. See the
+updated [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
+and [source trace](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md).
 
-Next: derive the attachment constructor's actual output ownership and whether
-recursive uses expose its POP-bearing result. Establish a finite
-admission/ownership relation preserving exact replay before enabling contextual
-production; then implement the source-owned subtraction consumer and add the
-owning source regression. Positive covariant annotations already have a private
-source/propagation implementation. Full hygiene, complete Call,
-soundness/principality and public/default F5 cutover remain open.
+Next: trace other actual consumers to determine whether annotation-owned POP
+can enter recursive Function ports before their internal skeleton boundary;
+the tested `loop f`/`f 1` shape does not. In parallel, derive a finite
+admission/observation relation preserving exact replay before enabling
+contextual production. Then implement the source-owned subtraction consumer
+and add the corrected callback scheme as an owning source regression. Positive
+covariant annotations already have a private source/propagation implementation.
+Full hygiene, complete Call, soundness/principality and public/default F5
+cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)
 

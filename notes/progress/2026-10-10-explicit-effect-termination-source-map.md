@@ -195,10 +195,32 @@ distinctions. These are source-owner/algebraic findings only. No source POP
 producer exists yet, no finite quotient is proved, and no code, compiler tests,
 or measurements ran.
 
-Next: decide whether authentic annotation construction puts the POP-bearing
-result edge on recursive exposures; if so, derive a finite ownership/admission
-relation preserving all live effects before enabling contextual production.
-Then implement the annotation boundary/filter consumer and add the callback
-target as an end-to-end source regression. The exact accepted callback result
-spelling is pending clarification of the user's later “ソレはミス” correction;
-do not infer that it removes the displayed `int ->` result segment.
+## Callback invocation does not POP the recursive skeleton
+
+A follow-up Oracle source trace used the concrete recursive shape
+`my loop (f: int -> [io] 'c) = { my unused = loop f; f 1 }`. It confirms that
+calling `f 1` activates the annotation's grant `i` and puts its `POP_i` on the
+public output wrapper of the containing lambda. The annotation's positive
+return effect sends `PUSH_i` into the callback result path. However, the
+already-formed recursive `loop f` skeleton still has identity context on its
+`O <: C_rec` return-effect child: the `f 1` predicate is not applied to that
+child while the body is assembled. The public wrapper is attached after the
+recursive skeleton boundary.
+
+This rules out that particular source path as a witness for a right-POP edge
+on the recursive parent. It does not prove that every source shape lacks such
+an edge, nor does it establish an unreachable-cycle invariant. Source locators
+and the exact endpoint trace are recorded in
+[`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
+
+The callback result target is settled as
+`(int -> ['b, io] 'c) -> ['b] 'c`; the extra `int ->` in the earlier
+conversational version was a mistake. It remains unverified in the successor.
+
+Next: inspect the other actual consumers that activate an annotation-owned
+predicate and determine whether any place it on a recursive Function port
+before the internal skeleton boundary. In parallel, derive the contextual
+admission/observation relation needed by the exact surviving operations; do
+not add a POP producer until its port ownership and termination behavior are
+established. Then implement the source-owned filter consumer and the exact
+callback scheme regression.
