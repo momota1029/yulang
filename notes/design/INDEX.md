@@ -120,6 +120,16 @@ This index is a navigation aid. The listed source document remains authoritative
   type-name resolution, production routing, failure/resource behavior and
   implementation remain open; keep this lane separate from Application_N.
 
+- **Reviewed one-case source annotation design (2026-10-10):**
+  [design](../theory/2026-10-10-source-owned-annotation-any-design.md) assigns
+  the proof-only `0 as Any` path to source association, literal formation,
+  written-Type elaboration, ordinary Any-root production, Top/Direct checking
+  and target-root publication. The Any root, written-type resolver and exact
+  scoped law supplier remain conditional inputs. Compiler-referee/spec-auditor
+  review closed after one minor wording repair and delta review. No compiler
+  implementation, production routing, failure/resource behavior or cutover is
+  authorized by this design gate.
+
 - **Reviewed practical complete-Application candidate (2026-10-09):**
   [candidate](../progress/2026-10-09-practical-complete-application-inference-candidate.md)
   maps conditional collection, full contract ownership, solving, generalizing

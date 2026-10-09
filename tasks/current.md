@@ -5599,3 +5599,16 @@ family and full typed correspondence. Keep the dependent source-emission
 adoption gate waiting for that scoped decision; annotation design can continue
 independently. Review convergence used one compiler-referee and one
 spec-auditor, with one batched textual repair. No tests or builds ran.
+
+The approved annotation q1/d1's next design slice is recorded in the
+[one-case Any annotation design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md).
+It assigns ownership from the literal's current Int root and prior evidence,
+through written-Type and ordinary Any-root formation, to proof-only Top/Direct
+checking and publication of Any with accumulated evidence. Both independent
+M2 reviews closed without blocking/major findings; one minor attribution was
+repaired and both delta reviews closed. Source parse acceptance, typed Any
+root production, name resolution and exact Top-law supplier remain explicitly
+conditional inputs. This is detailed design only: no code, tests, builds,
+production routing, failure/resource policy, API or F5 cutover is authorized.
+The exact literal-emission decision is separately pending in the visible local
+question board and is excluded from ordinary commits.
