@@ -15,6 +15,7 @@ pub(super) struct Plan {
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
+    FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
     Candidate(usize),
@@ -32,7 +33,7 @@ impl Plan {
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
-                if let Action::Annotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+                if let Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -56,6 +57,11 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
         return Err(shadow_apply::CandidateError::Unsupported);
     }
     for expr in source.expressions() {
+        if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
+            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !matches!(a.ty.value, yu_hir::shadow::SourceAnnotationValue::Int | yu_hir::shadow::SourceAnnotationValue::Unit)) {
+                return Err(shadow_apply::CandidateError::Unsupported);
+            }
+        }
         if let LocalSourceForm::Operation { resolution } = &expr.form {
             match resolution {
                 yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && preflight_annotation(&declaration.signature, true) => {},
@@ -193,6 +199,16 @@ impl ConstraintBatch {
                             self.candidate_source.parameter_levels.insert(position, level);
                             lambdas.try_reserve(1).map_err(|_| unavailable())?;
                             lambdas.insert(index, position);
+                            if let Some(annotation) = &parameter.annotation {
+                                for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                                if annotation_contains_unit(&annotation.ty) {
+                                    self.term_for_leaf(Leaf::UnitPositive)?;
+                                    self.term_for_leaf(Leaf::UnitNegative)?;
+                                }
+                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::new(annotation.clone()), parameter: position, occurrence: expr.occurrence.clone() })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                            }
                             push(&mut work, Work::Visit(body.ordinal() as usize, level))?;
                         }
                         LocalSourceForm::Block { bindings, final_expression } => {
@@ -415,6 +431,7 @@ impl InferenceSession {
     fn execute_candidate_actions(&mut self, actions: &[Action]) -> Result<(), SolveAvailabilityError> {
         for action in actions {
             match action {
+                Action::FormalAnnotation { annotation, parameter, occurrence } => self.candidate_formal_annotation(annotation, *parameter, occurrence)?,
                 Action::Fact(index) => self.admit_collected_fact(*index)?,
                 Action::Link { occurrence, endpoint, target } => {
                     let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;

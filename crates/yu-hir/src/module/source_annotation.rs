@@ -222,6 +222,13 @@ pub(super) fn form(
     let [annotation] = annotations.as_slice() else {
         return Err(unavailable());
     };
+    parse_annotation(annotation, owner, counters).map(Some)
+}
+pub(super) fn parse_annotation(
+    annotation: &SyntaxNode,
+    owner: &DefinitionRootId,
+    counters: &LoweringCounters,
+) -> Result<SourceAnnotation, HirAvailabilityError> {
     if has_recovery(annotation) {
         return Err(unavailable());
     }
@@ -234,7 +241,7 @@ pub(super) fn form(
     }
     let ty = ty.as_node().ok_or_else(unavailable)?;
     annotation_depth_preflight(ty)?;
-    Ok(Some(SourceAnnotation {
+    Ok(SourceAnnotation {
         owner: owner.clone(),
         position: counters
             .source_nodes
@@ -242,7 +249,7 @@ pub(super) fn form(
             .ok_or_else(unavailable)?
             .clone(),
         ty: parse_type(ty, counters)?,
-    }))
+    })
 }
 // Root TypeExpression has depth one. Each parenthesized-inner or arrow-result
 // parse_type transition adds one; wrappers and row atoms add no extra depth.

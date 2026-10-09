@@ -1213,6 +1213,8 @@ struct AdmittedParameter {
     name: HirName,
     #[cfg(any(feature = "shadow", test))]
     source: Option<yu_syntax::SourceNodeKey>,
+    #[cfg(any(feature = "shadow", test))]
+    annotation: Option<SyntaxNode>,
 }
 
 impl RootPlan {
@@ -2183,10 +2185,23 @@ fn plain_binding_header(
         let [argument] = argument_children.as_slice() else {
             return None;
         };
+        #[cfg(any(feature = "shadow", test))]
+        let (argument, annotation) = if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern {
+            if argument.children_with_tokens().filter_map(|element| element.into_token()).any(|token| !matches!(token.kind(), SyntaxKind::LParen | SyntaxKind::RParen | SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment)) { return None; }
+            let children = argument.children().collect::<Vec<_>>();
+            let [pattern] = children.as_slice() else { return None; };
+            if pattern.kind() != SyntaxKind::Pattern { return None; }
+            let children = pattern.children().collect::<Vec<_>>();
+            let [identifier, annotation] = children.as_slice() else { return None; };
+            if annotation.kind() != SyntaxKind::PatternTypeAnnotation { return None; }
+            (identifier.clone(), Some(annotation.clone()))
+        } else { ((*argument).clone(), None) };
         parameters.push(AdmittedParameter {
-            name: identifier_pattern_name(argument)?,
+            name: identifier_pattern_name(&argument)?,
             #[cfg(any(feature = "shadow", test))]
-            source: _counters.source_nodes.get(argument).cloned(),
+            source: _counters.source_nodes.get(&argument).cloned(),
+            #[cfg(any(feature = "shadow", test))]
+            annotation,
         });
     }
     Some((visibility, head, parameters))

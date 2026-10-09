@@ -144,6 +144,10 @@ This index is a navigation aid. The listed source document remains authoritative
   replaces candidate source lambda's early purity admission with ordinary
   entry-to-invocation constraint flow. Source-role transport through annotations,
   native consumers and full semantic certification remain open.
+  The [primitive formal annotation delivery](../progress/2026-10-10-annotated-primitive-formal-integration.md)
+  now connects grouped Int/Unit formals to executable body inference and argument
+  checks. M2 review and nine new owning regressions close; the coherent phase's
+  83 focused tests/checks pass. Function/effect formal interfaces remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

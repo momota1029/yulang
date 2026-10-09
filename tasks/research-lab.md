@@ -92,3 +92,23 @@ active read-only architect assignment, and `formal_filter_identity_lifetime_map`
 is an active read-only source mapping; neither has production write authority.
 Their outputs target authentic constructor/lifetime/projection integration,
 not another proof of the finite checker.
+
+### Executable primitive formal and inventory phase complete
+
+- Primitive Int/Unit formal implementation and test repair: frozen, verified,
+  semantic/conformance and fresh delta reviews close. Primary integrates the
+  nine-path artifact and synchronized records. Nine new owning regressions;
+  83 distinct focused phase tests and owning/workspace/default checks pass.
+- Discarded historical Call inventory retirement: committed as `59d744256`;
+  M1 regression/pre-write fixture adjudication/fresh delta close, 24 owning
+  controls pass. Actual historical and LocalSource inventories remain real.
+- Formal identity/lifetime and terminal owner source maps complete. Surviving
+  quantified stack IDs freshen per instance; unquantified/external IDs do not
+  blindly freshen. Oracle may discharge IDs before schemes; its old pruning
+  machinery is not thereby mandated in the successor.
+- Next ready gate: independent design conformance of paired always-source-owned
+  annotated Function interface and shared body constraint closure, followed by
+  coupled actual effect consumer/transport implementation. Closed-head matching
+  and independent contribution preservation have source anchors, but body-row
+  bypass, omitted ports, contextual transport and full semantic claims need
+  executable verification. No pending question is consumed or staged.

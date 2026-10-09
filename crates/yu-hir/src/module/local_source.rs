@@ -52,7 +52,7 @@ impl LocalSource {
                 .map(|expr| match &expr.form {
                     LocalSourceForm::Integer(text) => text.len(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
-                    LocalSourceForm::Lambda { parameter, .. } => parameter.spelling.len(),
+                    LocalSourceForm::Lambda { parameter, .. } => parameter.spelling.len() + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes()),
                     LocalSourceForm::Block { bindings, .. } => {
                         bindings.capacity() * std::mem::size_of::<u32>()
                     }
@@ -69,7 +69,7 @@ impl LocalSource {
                         + binding
                             .parameters
                             .iter()
-                            .map(|parameter| parameter.spelling.len())
+                            .map(|parameter| parameter.spelling.len() + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes()))
                             .sum::<usize>()
                 })
                 .sum::<usize>()
@@ -131,6 +131,7 @@ pub struct LocalSourceParameter {
     pub range: Range<usize>,
     pub spelling: Box<str>,
     pub scope: LocalSourceScope,
+    pub annotation: Option<source_annotation::SourceAnnotation>,
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceBinding {
@@ -258,6 +259,7 @@ pub(super) fn form(
             range: parameter.range.clone(),
             spelling: parameter.name.spelling.clone().into_boxed_str(),
             scope: scope.clone(),
+            annotation: admitted.annotation.as_ref().map(|node| source_annotation::parse_annotation(node, owner, builder.counters)).transpose()?,
         };
         builder.push_binding(
             parameter.spelling.clone(),
@@ -615,7 +617,7 @@ impl Builder<'_> {
             if statement.kind() != SyntaxKind::BindingStatement || has_recovery(&statement) {
                 return Err(invalid());
             }
-            if statement.descendants().any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation) { return Err(invalid()); }
+            if source_annotation::form(&statement, &self.owner, self.counters)?.is_some() { return Err(invalid()); }
             let (visibility, name, parameters) =
                 plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
             if visibility != HirVisibility::Private || depth + parameters.len() + 1 > 128 {
@@ -661,6 +663,7 @@ impl Builder<'_> {
                         source,
                         range: parameter.name.range,
                         spelling: parameter.name.spelling.into_boxed_str(),
+                        annotation: parameter.annotation.as_ref().map(|node| source_annotation::parse_annotation(node, &self.owner, self.counters)).transpose()?,
                         scope: parameter_scope,
                     },
                 )?;

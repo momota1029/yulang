@@ -748,6 +748,26 @@ impl InferenceSession {
             _ => Err(exhausted()),
         }
     }
+    pub(super) fn candidate_formal_annotation(
+        &mut self,
+        annotation: &SourceAnnotation,
+        parameter: usize,
+        occurrence: &HirOccurrenceId,
+    ) -> Result<(), SolveAvailabilityError> {
+        if annotation.ty.effects.is_some() { return Err(exhausted()); }
+        let (positive, negative) = match annotation.ty.value {
+            SourceAnnotationValue::Int => (Leaf::IntPositive, Leaf::IntNegative),
+            SourceAnnotationValue::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
+            _ => return Err(exhausted()),
+        };
+        let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
+        self.admit_candidate_value_link(occurrence, 43, self.batch.collected_leaf_term(positive), upper)?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) { return Err(exhausted()); }
+        let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
+        self.admit_candidate_value_link(occurrence, 44, lower, self.batch.collected_leaf_term(negative))
+    }
+
     pub(super) fn candidate_annotation(
         &mut self,
         annotation: &SourceAnnotation,

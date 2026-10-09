@@ -6802,3 +6802,25 @@ checks/reviews pass; primary record synchronization/integration is next. The
 full negative Function formal remains a coupled source-owned interface,
 contextual propagation and terminal incidence consumer gate. Independent public
 schemes, complete semantic requirements and target `yulang3` cutover remain open.
+
+### Primitive formal source annotations integrated (2026-10-10)
+
+The [primitive delivery](../notes/progress/2026-10-10-annotated-primitive-formal-integration.md)
+connects actual grouped Int/Unit formal annotations to ordinary positive body
+information and negative argument checks before body synthesis. Top/local,
+ignored/multiple formals, annotation-only inferred results without actuals,
+fresh aliases, effectful arguments and transaction rollback are verified.
+M2 semantic/source conformance review and fresh repaired test delta close.
+Nine distinct new owning regressions and 83 distinct focused phase tests pass;
+owning all-target/all-feature, workspace and default checks pass without warnings.
+
+Next critical cut: paired source-owned Function formal interface and executable
+head/residual/filter transport. Always exposing the annotation-negative domain
+is a private construction candidate replacing the old calledness/observed-
+wildcard decisions; retain body shared-row closure and prevent direct actual
+provider flow into the raw body formal. Omitted effect ports, attachment lifetime/
+freshening, latent returned values, equality/replay/rollback and surviving
+independent same-family incidences remain real requirements. Source evidence
+is available, but neither this candidate nor finite model consistency certifies
+full hygiene/principality. Independently owned public schemes, default migration,
+complete Call and target `yulang3` cutover remain active.

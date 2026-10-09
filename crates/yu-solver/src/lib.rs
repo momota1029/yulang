@@ -32033,6 +32033,7 @@ mod tests {
 
 #[cfg(test)]
 thread_local! {
+    static FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
@@ -32196,6 +32197,25 @@ mod value_entry_effect_tests {
         session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
         assert_eq!(session.effect_bounds.len(), before.effect_bounds.len() + 2);
         assert_eq!(session.store.facts().len(), before.store.facts.len() + 3);
+    }
+
+    #[test]
+    fn primitive_formal_first_edge_failure_restores_complete_checkpoint() {
+        let mut inference = session("my ignore (x:int) = ()");
+        let actions = inference.batch.candidate_source.schedules.values().next().unwrap();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence } = actions.iter().find(|a| matches!(a, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone() else { unreachable!() };
+        let before = RouteCheckpoint::capture(&inference);
+        FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.set(true));
+        assert_eq!(inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence)), Err(SolveAvailabilityError::IdentityExhausted));
+        before.assert_restored(&inference);
+        inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence)).unwrap();
+        assert_eq!(inference.store.facts().len(), before.store.facts.len() + 2);
+        for slot in [43, 44] {
+            assert!(inference.store.provenance().iter().any(|edge| edge.cause().occurrence().occurrence() == &occurrence && edge.cause().occurrence().local_slot() == slot));
+        }
+        let initial = session("my ignore (x:int) = ()");
+        FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.set(true));
+        assert!(matches!(initial.run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
     }
 
     #[test]
