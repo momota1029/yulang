@@ -153,13 +153,19 @@ This index is a navigation aid. The listed source document remains authoritative
   a bounded design/construction gate for the generic Call-owned argument-Reify
   registration and exact ReturnImage/Delay attachment; its receipt is at
   `questions/2026-10-10-original-call-argument-reify-owner/receipt.md`.
-  The proposed constructor, emitted membership and O0 extension remain
-  unproved/unadopted; implementation, acceptance, other semantic gates and F5
-  cutover remain open. A later bounded source inversion found that native
-  MIN-ORIG-WHOLEARG §4.1 constructs its fixed id/literal-0 Call registration;
-  this does not yet supply the formal/literal-1 exact ReturnImage-to-Delay
-  attachment. The extraction and portability discriminator remain unreviewed
-  research; see their links and exact residuals in `tasks/current.md`.
+  The reviewed [bounded source-rule candidate](../theory/2026-10-10-original-call-argument-reify-source-rule-candidate.md)
+  specifies the ordered registration procedure and complete ReturnImage
+  attachment interface. Its first independent review found a missing old
+  active-license extension premise; the focused repair review closed that
+  finding at `fc564e68f`. The candidate remains non-authoritative and
+  conditional: actual `H_oldext` registry preservation/action, independent
+  Delay input/license/latent attachment, and original source-introduction
+  realization are unsupplied. It does not establish emitted membership or O0,
+  formal/literal-1 acceptance, implementation, solving, publication, or F5
+  cutover. The earlier native MIN-ORIG-WHOLEARG §4.1 construction is still
+  limited to its fixed id/literal-0 case, and the extraction/portability
+  discriminator retain their separate limits; see exact residuals in
+  `tasks/current.md`.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)

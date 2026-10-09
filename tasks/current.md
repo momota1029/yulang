@@ -5634,8 +5634,19 @@ scope/environment/registry indices, attach the same complete ReturnImage to
 the independent Delay domain, and preserve existing registry entries, licenses
 and whole actions. This answer does not adopt emitted membership or O0/O1,
 accept `f 1`, authorize compiler implementation, solving, publication or F5
-cutover. The design gate is active; its exact producer laws require independent
-review, and downstream gates remain open.
+cutover. The bounded [Call argument-Reify source-rule candidate](../notes/theory/2026-10-10-original-call-argument-reify-source-rule-candidate.md)
+now has one compiler-referee review and a focused delta review; the initial
+major finding on old active-license preservation was repaired in
+`fc564e68f`. The candidate preserves the full Call contract and remains a
+non-authoritative conditional design. Its explicit `H_oldext` premise is not
+discharged by the conditional countermodel: the authentic registry supplier
+must establish old guard/domain/license preservation through extension and its
+whole action. The independent Delay input/license/complete ReturnImage
+attachment and original source-introduction interpretation also remain
+unsupplied. Next, locate those actual owners and determine whether they apply
+to this literal Call before requesting adoption or implementation authority.
+Emitted membership/O0/O1, acceptance of `f 1`, solving, publication and F5
+cutover remain open; no code, tests or builds changed.
 The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
