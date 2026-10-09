@@ -6607,3 +6607,18 @@ formation/resolution through compositional Apply, after the moving concrete/co
 annotation lease freezes and is integrated. Public enum extensions require a
 pre-write conformance gate. This source lookup does not supply complete Call
 request execution, attachment hygiene or production cutover evidence.
+
+### Concrete/co annotation initial review and active repair (2026-10-10)
+
+The [frozen review record](../notes/progress/2026-10-10-concrete-effect-initial-review.md)
+records three passing owning kernel tests and an owning build failure caused by
+three syntax-only-dev-dependency references. The complete M3 review barrier found
+one semantic and three resource majors: unrelated old conflict replay, quadratic
+annotation recovery scans/unbounded type depth, repeated view copies and missing
+extrusion scratch coexistence on nested/failing paths. Exact-conformance review
+otherwise passed. A fresh implementer exclusively repairs the same twelve source
+paths; code is uncommitted and has no final verification claim. The architect
+confirmed HIR provenance reexport, depth measurement, shared view reconstruction
+and scratch ownership. Next freeze that repair, run owning build/integration and
+kernel checks, and close the findings through independent delta review. This
+stage supplies no actual source operation/subtraction or public cutover evidence.
