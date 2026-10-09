@@ -7202,6 +7202,21 @@ full-left-pair observers do not cover arbitrary mixed recursion. Negative
 attachment construction, filters, use, generalization/freshening/rollback,
 public inference and F5 cutover remain open.
 
+**Implementation precondition from the 2026-10-10 residual-owner audit:** the
+candidate has no canonical contextual residual owner; its task, memo, bound,
+scheme and SCC records carry endpoints without attachment weights. Therefore
+the next action is a reviewed constructor/consumer/admission design before
+enabling explicit concrete formal rows. It must cover exact residual identity,
+filter registration, contextual self-edges, mixed replay bracketing, all four
+Function ports, parent-copy equality, freshening and rollback. A raw finite
+context-entry cap is not acceptable as the whole solution: the separate
+paired-`as` source class has an unbounded exact PUSH sequence with a proposed
+one-ID left-only observer, while the formal-lambda callback's mixed residual
+consumer remains open. No resource threshold or source rejection is selected.
+See the [residual-owner checkpoint](../notes/progress/2026-10-10-contextual-residual-owner-gate.md).
+After this design gate, resume the source-grounded one/two-annotation
+admission trace, then implement the complete coupled contextual slice.
+
 ### Returning recursive PUSH: direct source instance solved (2026-10-10)
 
 The user's follow-up explicitly required solving recursive PUSH or deriving a
