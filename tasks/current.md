@@ -5961,3 +5961,79 @@ remain open.
 
 The accepted `zero : any -> int` criterion is separately recorded in
 [`principal-scheme-acceptance-criteria.md`](../progress/2026-10-04-principal-scheme-acceptance-criteria.md): it selects the negative Function argument presentation for `zero` and explicitly does not define general Any or polarized Top semantics. It does not substitute for the ordinary Value Any target needed by the expression annotation.
+
+### Reviewed source-owned registry construction for invoke (2026-10-10)
+
+The [registry construction and complete proofs](../notes/theory/2026-10-10-source-owned-original-registry-construction.md)
+and [independent review record](../notes/progress/2026-10-10-original-registry-construction-review.md)
+were checkpointed and pushed at
+`fdda52fd8ec9eb1b3a691825a7b895b3a40fc753`. This is a completed mathematical
+construction in an explicitly NEW, unadopted source-owner interpretation. It
+addresses the actual formal/Name/literal pre-Call spine of `my invoke f = f 1`;
+it does not declare the complete source Call or program accepted.
+
+The constructor generates seven source rows (Formal, Name Data/Result, literal
+Data/Result, and both source-generated Images), plus the computed closure of
+actual local declaration tokens. It seals finite source/context/recipe syntax
+before any registry-indexed source formation. The subsequent decoder constructs
+contextual formal/port/entry/registration, Name, literal and Result/Image
+families by the explicit ranks Law, Formal, Data, Result, Image. No completed
+P_old, Reg_f, source Code, lookup correspondence or exhaustive registry manifest
+is a constructor premise. The same nominal Formal key decodes to the same whole
+registration family, and all Name/Image references reuse its original scoped
+proof choices.
+
+The formation lemma and B prove noncircular construction and termination.
+E proves exhaustive entry coverage and inversion for this exact pre-Call
+domain. SR/T prove direct/staged formation and complete ordered evidence-fiber
+preservation. DC/CR retain the complete dependency object and same final P for
+well-typed post-decoding consumers, including full-registry observers. A proves
+lawful whole action, scoped substitution and nominal nonmerging at its stated
+domain boundaries. J_a/J_f are built from the actual primitive/Name and whole
+Return/prefix clauses; they are distinct from printed Comp interfaces, J_lit
+and independently fixed foreign image roots.
+
+The initial mathematical review found that an unevaluated guard can still need
+a later typed decoder argument. One fresh repair supplied explicit NEW owner
+interfaces, proved every complete type-level argument available at its original
+scope, and postponed the full typed decoder API until B. It also corrected
+Name Image traversal and made immutable shared proof-choice specialization
+explicit. Fresh independent mathematical and specification delta reviews both
+passed. The reviewed freeze and integrated proof hashes are in the review
+record; this is documentary mathematics, not a machine-checked proof.
+
+The new `OwnerPortLicense_src` is the source-owner declaration permission
+defined by the candidate rule, not original contribution licensing, C0 or live
+admission. Complete local declarations and their genuine primitive/operator
+laws remain independent local inputs. The source notes do not prove that every
+separately fixed opaque original signature realizes the new raw-P API; an
+incompatible whole application is left unproved rather than dropping its
+fields, W/Z arms or independent guards. The q3 adoption object now has a
+concrete reviewed registry/API construction. The unavailable pending q3 body
+or answer has not been guessed, committed or treated as approval.
+
+The actual one-formal representation premise is eliminated **within this
+candidate**. Complete original checking/emitted membership, O0/O1, actual
+WholeArgCompatible/kernel correspondence, result/effect/profile/guarantee
+consumers, independent CallMem/C0, actual-provider admission and all live
+pending/raw/future cases are not obtained from that static construction. The
+existing L collection theorem remains separately unadopted and is not an
+original-consumer bridge. No effective solver, Generalize eligibility,
+principal publication or transformed public export is added by this result.
+
+Two parallel claimed advances were rejected during review: a proposed Name
+counterexample lacked actual entry/receipt/rebind evidence, and the proposed
+generic receiver elimination was already contained in input-realization
+Theorem E. Their novelty/soundness claims were withdrawn; no additional failed
+proof or obligation note was committed. Their disposition is retained in the
+review record, without claiming a source rejection or impossibility theorem.
+
+This addresses D reconstruction debt and the candidate's A typed-formation
+requirements. Actual complete Call correctness and natural inference remain
+A/B work. Equality with every foreign registry model is C research, not an
+extra mandatory production prerequisite; the actual chosen consumer still
+needs its exact correspondence. The canonical DAG is byte-for-byte unchanged:
+CallMem/C0 remains unclosed, CALL_REL keeps its prior conditional scope, and
+JOINT_DEC remains OPEN-PROOF. No implementation, test, build, runtime probe or
+F5 cutover occurred. This task/index update follows the already pushed proof
+checkpoint; no reviewed independent result waited for a final combined commit.
