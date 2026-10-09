@@ -114,3 +114,45 @@ hashes and the initial baseline; Markdown, local links and staged whitespace
 checks pass. The semantic dependency files are unchanged at the integration
 head. Only status/review metadata changed after the repaired freeze. No
 production code, semantic selection or canonical DAG status changed.
+
+## B — native separation and conditional original rule inversion
+
+Artifact: [native operation separation](../theory/2026-10-09-native-complete-call-typing.md).
+
+Initial reviewed SHA-256:
+`098b95b2f6bc8df0dcd9d335342e1e25ff5bd62438dec6aa3dda9ca1baf35437`.
+Repaired, independently delta-reviewed SHA-256:
+`d872c283a9ad09c233166e17f2561233f9463f2142d14162e259dff489086e5f`.
+
+Independent `attack_b_math_review` accepted the native Return(1) derivation
+and the conditional actual-rule inversion, but raised a major scope finding:
+the original source formation q is unconstructed. Independent
+`attack_bc_spec_review` passed the exactly qualified structural-obstruction
+scope and likewise excluded original source inhabitation. The primary
+accepted the missing-inhabitant finding and assigned one fresh scope repair.
+
+The repaired theorem distinguishes the concrete native-operation result
+from original source formation. At the actual literal-0 carrier, the selected
+complete native J has an independent Return(1) production with its own
+hereditary/provider/incidence evidence; its VP+Echo contextual image returns
+1. Actual execution of that fixed native operation returns 0. This uses
+SD-NPB and SCX/SCX-P without re-proving or promoting them to original typing.
+
+The original ME-Call-Structural argument is explicitly conditional on an
+authentic original Call formation q. If supplied, that rule's raw actual-
+operation premise cannot produce the same contextual Return(1) tuple. Neither
+the direct literal case nor the Name/Name specialization constructs q. The
+whole original M_E may still admit that output through independently licensed
+W/Z or other arms; there is no counterexample to full CallMem/C0.
+
+Fresh independent `attack_b_delta_math` returned PASS for the scope repair,
+affected proof seams and direct source cone. The primary accepts that PASS
+as mathematical validity of the narrowed result, not full-task completion.
+The earlier clean native proof and limited specification scope were carried
+forward. No original complete-Call premise is eliminated.
+
+Primary verification: all 10 recorded semantic dependency hashes match the
+frozen bytes and initial baseline; Markdown, local links and staged whitespace
+checks pass. Only status/review metadata changed after the repaired freeze.
+Original Call formation, complete IF, typed M_E, DescMem, CallMem/C0 and general
+JOINT_DEC remain open. No alternative, authority or DAG status is changed.
