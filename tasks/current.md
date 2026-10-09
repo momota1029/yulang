@@ -6382,3 +6382,25 @@ Reference-style source traversal installs intrinsic RHS relations using the
 existing immediate constraint operation, while later constraints through older
 extrusion coordinates remain legitimate. No new semantic choice or test ran.
 The incomplete patch is not yet frozen/reviewed/built or integrated.
+
+### Successor source levels and live local schemes (2026-10-10)
+
+The [implementation record](../notes/progress/2026-10-10-successor-live-local-schemes.md)
+connects the generic HIR carrier to actual lexical levels, live local root/boundary
+handles and use-time graph freshening. Formal references alias actual rows;
+older anchors stay live/shared; initializer effects contribute once to block
+computation. Dependency-first source actions route actual module/local uses and
+reuse the existing transactional bound/diagnostic/observer rollback. No immutable
+local snapshot or completed-initializer barrier is introduced.
+
+Independent M2 semantic/resource reviews found no blocking/major finding. The
+minor O(U²) all-use observation lookup cost is documented. Frozen candidate/default
+owning Cargo checks passed without warnings; no tests, runtime probes or
+measurements ran. No generic-local execution claim is made.
+
+Next retain complete Call source-spine inputs at actual source construction,
+using existing plain-header provenance from LocalSource rather than inventing
+an annotation-absence field. Specific unsolved obligations keep their original
+inputs; scalar success cannot stand in for a complete consumer. Complete Call,
+structured effects, general source/public correspondence, principality and
+replacement on yulang3 remain open. Pending questions remain excluded from Git.

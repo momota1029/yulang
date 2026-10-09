@@ -210,6 +210,8 @@ mod scc;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_scheme;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_source;
+#[cfg(feature = "shadow-apply-candidate")]
 mod candidate_extrusion;
 #[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
@@ -841,6 +843,8 @@ pub struct ConstraintBatch {
     candidate_own_row_references: bool,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_graph_effects: bool,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_source: candidate_source::Plan,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
     /// semantic key remains the artifact-branded definition root.
     root_definition_positions: HashMap<DefinitionRootId, usize>,
@@ -914,6 +918,8 @@ impl ConstraintBatch {
             candidate_own_row_references: candidate_values,
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_graph_effects,
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_source: candidate_source::Plan::default(),
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
@@ -1093,28 +1099,52 @@ impl ConstraintBatch {
             batch.counters.occurrence_allocations += 1;
             #[cfg(feature = "shadow-apply-candidate")]
             if candidate_values {
-                let local = definition_root
-                    .map(|root| hir.shadow_local_binding(root))
-                    .transpose()
-                    .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                    .flatten();
-                if let Some(local) = local {
-                    batch.retain_pending_applications(&local.initializer, definition_root);
-                    batch.emit_candidate_local_value(
-                        expression,
-                        local,
-                        definition_root
-                            .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?,
-                        definition.as_ref(),
-                        &mut pending_uses,
-                    )?;
+                let source = if candidate_graph_effects {
+                    definition_root.map(|root| hir.local_source(root)).transpose()
+                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?.flatten()
+                } else { None };
+                let fact_start = batch.occurrences.len();
+                let candidate_start = batch.candidate_recipes.len();
+                let lambda_start = batch.lambda_recipes.len();
+                if let Some(source) = source {
+                    batch.emit_candidate_source(source, definition.as_ref()
+                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?, &mut pending_uses)?;
                 } else {
-                    batch.emit_candidate_value(
-                        expression,
-                        definition_root,
-                        definition.as_ref(),
-                        &mut pending_uses,
-                    )?;
+                    let local = definition_root
+                        .map(|root| hir.shadow_local_binding(root))
+                        .transpose()
+                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                        .flatten();
+                    if let Some(local) = local {
+                        batch.retain_pending_applications(&local.initializer, definition_root);
+                        batch.emit_candidate_local_value(
+                            expression,
+                            local,
+                            definition_root
+                                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?,
+                            definition.as_ref(),
+                            &mut pending_uses,
+                        )?;
+                    } else {
+                        batch.emit_candidate_value(
+                            expression,
+                            definition_root,
+                            definition.as_ref(),
+                            &mut pending_uses,
+                        )?;
+                    }
+                    if candidate_graph_effects {
+                        let actions = batch.candidate_legacy_actions(fact_start, batch.occurrences.len(), candidate_start, lambda_start)?;
+                        if let Some(root) = definition_root {
+                            batch.candidate_source.schedules.try_reserve(1)
+                                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+                            batch.candidate_source.schedules.insert(root.clone(), actions);
+                        } else {
+                            batch.candidate_source.loose.try_reserve(actions.len())
+                                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+                            batch.candidate_source.loose.extend(actions);
+                        }
+                    }
                 }
             }
             if !candidate_values {
@@ -1258,7 +1288,12 @@ impl ConstraintBatch {
                 parent,
                 target,
                 occurrence: pending.occurrence.clone(),
-                use_level: 1,
+                use_level: {
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    { batch.candidate_source.component_levels.get(&use_value_component).copied().unwrap_or(1) }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { 1 }
+                },
                 use_value_component,
                 target_root_component,
             });
@@ -2082,6 +2117,8 @@ impl ConstraintBatch {
                     self.candidate_recipes.capacity(),
                     "candidate constraint recipes",
                 ),
+                #[cfg(feature = "shadow-apply-candidate")]
+                self.candidate_source.bytes(),
                 self.counters.occurrence_retained_bytes,
                 self.counters.root_retained_bytes,
                 self.counters.definition_record_retained_bytes,
@@ -7964,6 +8001,8 @@ struct EffectRowUndo {
 struct RouteMutationJournal {
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_routes_len: usize,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_local_routes_len: usize,
     store: RouteStoreJournal,
     value_rows_len: usize,
     effect_rows_len: usize,
@@ -8826,6 +8865,8 @@ impl InferenceSession {
             .unwrap_or_else(|| RouteMutationJournal {
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_routes_len: 0,
+                #[cfg(feature = "shadow-apply-candidate")]
+                candidate_local_routes_len: 0,
                 store: RouteStoreJournal {
                     facts_len: 0,
                     provenance_len: 0,
@@ -8943,6 +8984,7 @@ impl InferenceSession {
         journal.store = store;
         #[cfg(feature = "shadow-apply-candidate")]
         {
+            journal.candidate_local_routes_len = self.candidate_graph.as_ref().map(|state| state.local_routes.len()).unwrap_or(0);
             journal.candidate_routes_len = self.candidate_graph
                 .as_ref()
                 .map(|state| state.routes.len())
@@ -9145,15 +9187,9 @@ impl InferenceSession {
         self.store.rollback_route(store_journal);
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &mut self.candidate_graph {
-            for route in &state.routes[journal.candidate_routes_len..] {
-                let bytes = route.rows.capacity()
-                    .checked_mul(std::mem::size_of::<candidate_scheme::RowKey>())
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                state.retained_bytes = state.retained_bytes
-                    .checked_sub(bytes)
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            }
+            state.local_routes.truncate(journal.candidate_local_routes_len);
             state.routes.truncate(journal.candidate_routes_len);
+            state.refresh_bytes()?;
             state.scratch_bytes = 0;
         }
 
@@ -9830,6 +9866,8 @@ impl InferenceSession {
             });
             let _ = ordinal;
         }
+        #[cfg(feature = "shadow-apply-candidate")]
+        session.initialize_candidate_source_levels()?;
         session.extrusion_value_marks.resize(value_capacity, 0);
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
@@ -10032,7 +10070,16 @@ impl InferenceSession {
     }
 
     fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
-        self.admit_all_collected_facts()?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let source_mode = self.candidate_graph.is_some() && self.batch.candidate_source.active;
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        let source_mode = false;
+        if source_mode {
+            #[cfg(feature = "shadow-apply-candidate")]
+            self.execute_candidate_loose()?;
+        } else {
+            self.admit_all_collected_facts()?;
+        }
         self.execute_scc_plan()?;
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.store.finish_accounting();
@@ -10794,78 +10841,83 @@ impl InferenceSession {
             if occurrence_index == self.batch.occurrences().len() {
                 break;
             }
-            let occurrence = self.batch.occurrences()[occurrence_index].clone();
-            let result = {
-                let mut transaction = self.store.transaction();
-                transaction.admit(&occurrence)
-            };
-            match result {
-                Ok(receipt) => {
-                    self.store
-                        .record_provenance(receipt)
-                        .map_err(SolveAvailabilityError::from)?;
-                    match self
-                        .store
-                        .term_kind(occurrence.lower)
-                        .expect("admitted term remains valid")
-                    {
-                        ComponentKind::Value => {
-                            #[cfg(test)]
-                            {
-                                self.initial_value_pair_probes += 1;
-                            }
-                            let key = CanonicalValuePairKey {
-                                lower: self.value_endpoint(occurrence.lower, Polarity::Positive),
-                                upper: self.value_endpoint(occurrence.upper, Polarity::Negative),
-                            };
-                            let transitions =
-                                self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
-                            #[cfg(test)]
-                            {
-                                self.summary_false_to_true_transitions += transitions;
-                            }
-                            #[cfg(not(test))]
-                            let _ = transitions;
-                            self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
+            self.admit_collected_fact(occurrence_index)?;
+        }
+        Ok(())
+    }
+
+    fn admit_collected_fact(&mut self, occurrence_index: usize) -> Result<(), SolveAvailabilityError> {
+        let occurrence = self.batch.occurrences()[occurrence_index].clone();
+        let result = {
+            let mut transaction = self.store.transaction();
+            transaction.admit(&occurrence)
+        };
+        match result {
+            Ok(receipt) => {
+                self.store
+                    .record_provenance(receipt)
+                    .map_err(SolveAvailabilityError::from)?;
+                match self
+                    .store
+                    .term_kind(occurrence.lower)
+                    .expect("admitted term remains valid")
+                {
+                    ComponentKind::Value => {
+                        #[cfg(test)]
+                        {
+                            self.initial_value_pair_probes += 1;
                         }
-                        ComponentKind::Effect => {
-                            let lower = self.effect_endpoint(occurrence.lower, Polarity::Positive);
-                            let upper = self.effect_endpoint(occurrence.upper, Polarity::Negative);
-                            self.constrain_live_effect(
-                                lower,
-                                upper,
-                                &occurrence.id,
-                                &occurrence.cause,
-                            )?;
-                            self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
+                        let key = CanonicalValuePairKey {
+                            lower: self.value_endpoint(occurrence.lower, Polarity::Positive),
+                            upper: self.value_endpoint(occurrence.upper, Polarity::Negative),
+                        };
+                        let transitions =
+                            self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+                        #[cfg(test)]
+                        {
+                            self.summary_false_to_true_transitions += transitions;
                         }
+                        #[cfg(not(test))]
+                        let _ = transitions;
+                        self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
+                    }
+                    ComponentKind::Effect => {
+                        let lower = self.effect_endpoint(occurrence.lower, Polarity::Positive);
+                        let upper = self.effect_endpoint(occurrence.upper, Polarity::Negative);
+                        self.constrain_live_effect(
+                            lower,
+                            upper,
+                            &occurrence.id,
+                            &occurrence.cause,
+                        )?;
+                        self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
                     }
                 }
-                Err(ConstraintError::CrossKind { lower, upper }) => {
-                    reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
-                    reserve_f5b(
-                        &mut self.cross_kind_components,
-                        2,
-                        F5bCapacityLane::CrossKindComponents,
-                    )?;
-                    self.errors.push(SolverError {
-                        occurrence: occurrence.id.clone(),
-                        cause: occurrence.cause.clone(),
-                        kind: SolverErrorKind::CrossKind { lower, upper },
-                    });
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    self.observe_f5c_structured_pair_top(
-                        19, self.errors.len(), self.errors.capacity(),
-                    );
-                    for term in [occurrence.lower, occurrence.upper] {
-                        if let Ok(TermView::Component(component)) = self.store.term_view(term) {
-                            self.cross_kind_components.insert(component.clone());
-                        }
-                    }
-                    self.sample_f4_resources(ResourceBoundary::CrossKind)?;
-                }
-                Err(error) => return Err(error.into()),
             }
+            Err(ConstraintError::CrossKind { lower, upper }) => {
+                reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
+                reserve_f5b(
+                    &mut self.cross_kind_components,
+                    2,
+                    F5bCapacityLane::CrossKindComponents,
+                )?;
+                self.errors.push(SolverError {
+                    occurrence: occurrence.id.clone(),
+                    cause: occurrence.cause.clone(),
+                    kind: SolverErrorKind::CrossKind { lower, upper },
+                });
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                self.observe_f5c_structured_pair_top(
+                    19, self.errors.len(), self.errors.capacity(),
+                );
+                for term in [occurrence.lower, occurrence.upper] {
+                    if let Ok(TermView::Component(component)) = self.store.term_view(term) {
+                        self.cross_kind_components.insert(component.clone());
+                    }
+                }
+                self.sample_f4_resources(ResourceBoundary::CrossKind)?;
+            }
+            Err(error) => return Err(error.into()),
         }
         Ok(())
     }

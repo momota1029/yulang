@@ -43,10 +43,14 @@ consumer does not justify an integer-only App rule, immediate provider choice,
 or a block on basic constraint generation. Preserve inherited provider/lower
 marks and do not synthesize seeds for arbitrary external names.
 
-The inspected `HirParameter` has identity, name and range, not annotation
-provenance. An authentic seed therefore needs provenance from lowering or a
-certified unannotated formation case; absence guessed from this struct is
-insufficient. Reify q2's payload and suspension construction are available
+The inspected `HirParameter` alone has identity, name and range, not annotation
+provenance. A follow-up owner audit confirmed that the actual `LocalSource`
+Lambda/binding parameters already come exclusively from successful canonical
+plain-header admission, retaining their ID/source/scope and owning carrier.
+Consume that formation provenance directly; no absence boolean or later CST
+reconstruction is needed. Absence guessed from an arbitrary `HirParameter` is
+insufficient. This provenance does not itself supply SeedExposure, protection
+erasure or a complete role certificate. Reify q2's payload and suspension construction are available
 within their approved scope. q3's registry design scope does not supply a
 constructor; actual `P_old` querying consumers need that bridge. No basic
 Application collection dependency on q4 was exhibited.

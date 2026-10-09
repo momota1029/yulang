@@ -6,6 +6,8 @@ use crate::*;
 pub(super) struct GraphState {
     pub graphs: Vec<Option<Graph>>,
     pub routes: Vec<FreshRoute>,
+    pub locals: Vec<Option<LocalScheme>>,
+    pub local_routes: Vec<LocalFreshRoute>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
     pub orchestration_bytes: usize,
@@ -78,6 +80,20 @@ pub(super) struct FreshRoute {
     pub target: usize,
     pub rows: Vec<RowKey>,
 }
+#[derive(Debug)]
+pub(super) struct LocalScheme {
+    pub id: yu_hir::HirLocalId,
+    pub root: u32,
+    pub boundary: u32,
+}
+#[derive(Debug)]
+pub(super) struct LocalFreshRoute {
+    pub slot: usize,
+    pub local: yu_hir::HirLocalId,
+    pub occurrence: HirOccurrenceId,
+    pub graph: Graph,
+    pub rows: Vec<RowKey>,
+}
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 enum Endpoint {
     Value(ValueEndpointKey, Polarity),
@@ -118,6 +134,8 @@ impl GraphState {
         let mut total = sum(&[
             bytes::<Option<Graph>>(self.graphs.capacity())?,
             bytes::<FreshRoute>(self.routes.capacity())?,
+            bytes::<Option<LocalScheme>>(self.locals.capacity())?,
+            bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
         ])?;
         for graph in self.graphs.iter().flatten() {
             total = total.checked_add(graph.bytes()?).ok_or_else(exhausted)?;
@@ -126,6 +144,9 @@ impl GraphState {
             total = total
                 .checked_add(bytes::<RowKey>(route.rows.capacity())?)
                 .ok_or_else(exhausted)?;
+        }
+        for route in &self.local_routes {
+            total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?])?;
         }
         self.retained_bytes = total;
         Ok(())
@@ -137,7 +158,7 @@ struct Capture<'a> {
     endpoints: HashMap<Endpoint, usize>,
     rows: HashMap<RowKey, usize>,
     pending: Vec<Endpoint>,
-    anchor_dependencies: Vec<usize>,
+    boundary: u32,
 }
 impl<'a> Capture<'a> {
     fn intern(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
@@ -170,9 +191,7 @@ impl<'a> Capture<'a> {
             level.ok_or_else(exhausted)?,
             metadata.ok_or_else(exhausted)?,
         );
-        // The only publication boundary admitted by this entrypoint is the
-        // existing module boundary zero. Origin and ordinal never determine it.
-        let local = level > 0 && !metadata.non_generic;
+        let local = level > self.boundary && !metadata.non_generic;
         self.rows.try_reserve(1).map_err(|_| exhausted())?;
         let index = self.graph.rows.len();
         push(&mut self.graph.rows, Row { key, local })?;
@@ -363,38 +382,9 @@ impl<'a> Capture<'a> {
     fn expand_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
         let Row { key, local } = self.graph.rows[index];
         let session = self.session;
-        // An anchor retains its actual session row. Its installed bounds are
-        // already active; cloning them would rerun an established contract.
-        if !local {
-            match key {
-                RowKey::Value(i) => {
-                    let bounds = session.bounds.get(i as usize).ok_or_else(exhausted)?;
-                    for &bound in &bounds.exact_non_variable_lowers {
-                        let node = self.intern(Endpoint::Value(bound, Polarity::Positive))?;
-                        push(&mut self.anchor_dependencies, node)?;
-                    }
-                    for &bound in &bounds.exact_non_variable_uppers {
-                        let node = self.intern(Endpoint::Value(bound, Polarity::Negative))?;
-                        push(&mut self.anchor_dependencies, node)?;
-                    }
-                }
-                RowKey::Effect(i) => {
-                    let bounds = session
-                        .effect_bounds
-                        .get(i as usize)
-                        .ok_or_else(exhausted)?;
-                    for &bound in &bounds.exact_non_variable_lowers {
-                        let node = self.intern(Endpoint::Effect(bound, Polarity::Positive))?;
-                        push(&mut self.anchor_dependencies, node)?;
-                    }
-                    for &bound in &bounds.exact_non_variable_uppers {
-                        let node = self.intern(Endpoint::Effect(bound, Polarity::Negative))?;
-                        push(&mut self.anchor_dependencies, node)?;
-                    }
-                }
-            }
-            return Ok(());
-        }
+        // freshenAbove stops at older identities. Their mutable bounds stay
+        // in the session, so later constraints reach every shared anchor use.
+        if !local { return Ok(()); }
         let p = Polarity::Positive;
         let n = Polarity::Negative;
         match key {
@@ -497,11 +487,13 @@ impl InferenceSession {
         state
             .graphs
             .resize_with(self.batch.definitions.len(), || None);
+        state.locals.try_reserve_exact(self.batch.candidate_source.locals.len()).map_err(|_| exhausted())?;
+        state.locals.resize_with(self.batch.candidate_source.locals.len(), || None);
         state.refresh_bytes()?;
         self.candidate_graph = Some(state);
         Ok(())
     }
-    fn capture_candidate_graph(&mut self, row: u32) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         let mut capture = Capture {
             session: self,
             graph: Graph {
@@ -513,7 +505,7 @@ impl InferenceSession {
             endpoints: HashMap::new(),
             rows: HashMap::new(),
             pending: Vec::new(),
-            anchor_dependencies: Vec::new(),
+            boundary,
         };
         capture.graph.root = capture.intern(Endpoint::Value(
             ValueEndpointKey::ValueRow(row),
@@ -529,30 +521,7 @@ impl InferenceSession {
                 row_cursor += 1;
             }
         }
-        let mut checked = Vec::new();
-        checked
-            .try_reserve_exact(capture.graph.nodes.len())
-            .map_err(|_| exhausted())?;
-        checked.resize(capture.graph.nodes.len(), false);
-        let mut dependencies = std::mem::take(&mut capture.anchor_dependencies);
-        while let Some(index) = dependencies.pop() {
-            if checked[index] {
-                continue;
-            }
-            checked[index] = true;
-            match capture.graph.nodes[index] {
-                Node::Row { row, .. } if capture.graph.rows[row].local => return Err(exhausted()),
-                Node::Function { children, .. } => {
-                    for child in children {
-                        push(&mut dependencies, child)?;
-                    }
-                }
-                _ => {}
-            }
-        }
         let scratch = sum(&[
-            bytes::<bool>(checked.capacity())?,
-            bytes::<usize>(dependencies.capacity())?,
             bytes::<(Endpoint, usize)>(capture.endpoints.capacity())?,
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
             bytes::<Endpoint>(capture.pending.capacity())?,
@@ -573,7 +542,7 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
         let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
-        drop((endpoints, rows, pending, checked, dependencies));
+        drop((endpoints, rows, pending));
         self.candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
@@ -617,11 +586,12 @@ impl InferenceSession {
                 sum(&[component_bytes, vec_bytes(&members)?, vec_bytes(&staged)?])?;
             for member in &members {
                 let position = member.ordinal() as usize;
-                let root = &self.batch.definitions[position].root;
-                let component = self.batch.root_component_positions[root].component;
+                let root = self.batch.definitions[position].root.clone();
+                if self.batch.candidate_source.active { self.execute_candidate_source_root(&root)?; }
+                let component = self.batch.root_component_positions[&root].component;
                 staged.push((
                     position,
-                    self.capture_candidate_graph(self.live_components[component].ordinal)?,
+                    self.capture_candidate_graph(self.live_components[component].ordinal, 0)?,
                 ));
             }
             // Every member graph is valid before any becomes visible to uses.
@@ -639,6 +609,7 @@ impl InferenceSession {
             state.retained_bytes = retained;
             state.scratch_bytes = 0;
             self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+            if self.batch.candidate_source.active { continue; }
             let count = self
                 .batch
                 .scc_component_incoming_uses(&component)
@@ -676,12 +647,10 @@ impl InferenceSession {
         state.scratch_bytes = 0;
         result
     }
-    fn instantiate_candidate_graph(
-        &mut self,
-        id: &DefinitionUseId,
-        record: &DefinitionUse,
-        graph: &Graph,
-    ) -> Result<usize, SolveAvailabilityError> {
+    fn freshen_candidate_graph(
+        &mut self, graph: &Graph, use_level: u32,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
         let mut rows = Vec::new();
         rows.try_reserve_exact(graph.rows.len())
             .map_err(|_| exhausted())?;
@@ -699,15 +668,15 @@ impl InferenceSession {
             bytes::<(usize, bool)>(work.capacity())?,
         ])?;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-        state.scratch_bytes = scratch;
-        state.use_peak_bytes = state.use_peak_bytes.max(scratch);
+        state.scratch_bytes = state.scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        state.use_peak_bytes = state.use_peak_bytes.max(state.scratch_bytes);
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         for row in &graph.rows {
             let key = if row.local {
                 match row.key {
-                    RowKey::Value(_) => RowKey::Value(self.fresh_value_at_level(record.use_level)?),
+                    RowKey::Value(_) => RowKey::Value(self.fresh_value_at_level(use_level)?),
                     RowKey::Effect(_) => {
-                        RowKey::Effect(self.fresh_effect_at_level(record.use_level)?)
+                        RowKey::Effect(self.fresh_effect_at_level(use_level)?)
                     }
                 }
             } else {
@@ -766,8 +735,6 @@ impl InferenceSession {
                 terms[index] = Some(term);
             }
         }
-        let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
-        let cause = CauseId::for_occurrence(occurrence.clone());
         // Replay preserves the captured owner side even when fresh rows
         // share a level. Induced comparisons run on the ordinary worklist.
         for bound in &graph.bounds {
@@ -788,9 +755,20 @@ impl InferenceSession {
             } else {
                 (lower, upper)
             };
-            self.candidate_restore_bound(owner, bound.side, item, &occurrence, &cause)?;
+            self.candidate_restore_bound(owner, bound.side, item, occurrence, cause)?;
         }
         let lower = terms[graph.root].ok_or_else(exhausted)?;
+        Ok((lower, rows))
+    }
+    fn instantiate_candidate_graph(
+        &mut self,
+        id: &DefinitionUseId,
+        record: &DefinitionUse,
+        graph: &Graph,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let (lower, rows) = self.freshen_candidate_graph(graph, record.use_level, &occurrence, &cause)?;
         let upper = self.batch.component_term_at(record.use_value_component);
         let key = CanonicalValuePairKey {
             lower: self.value_endpoint(lower, Polarity::Positive),
@@ -830,4 +808,64 @@ impl InferenceSession {
         state.retained_bytes = retained;
         Ok(transitions)
     }
+    pub(super) fn install_candidate_local(&mut self, slot: usize, endpoint: shadow_apply::CandidateEndpoint, boundary: u32) -> Result<(), SolveAvailabilityError> {
+        let term = self.candidate_endpoint(endpoint, Polarity::Positive)?;
+        let ValueEndpointKey::ValueRow(root) = self.value_endpoint(term, Polarity::Positive) else { return Err(exhausted()); };
+        let id = self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone();
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let destination = state.locals.get_mut(slot).ok_or_else(exhausted)?;
+        if destination.is_some() { return Err(exhausted()); }
+        *destination = Some(LocalScheme { id, root, boundary });
+        self.sample_f4_resources(ResourceBoundary::SourceDrafts)?;
+        Ok(())
+    }
+    pub(super) fn admit_candidate_value_link(&mut self, source: &HirOccurrenceId, slot: u8, lower: Term, upper: Term) -> Result<(), SolveAvailabilityError> {
+        let id = ConstraintOccurrenceId::new(source.clone(), slot);
+        let cause = CauseId::for_occurrence(id.clone());
+        self.store.admit_and_record_provenance(&ConstraintOccurrence { id: id.clone(), cause: cause.clone(), lower, upper })
+            .map_err(SolveAvailabilityError::from)?;
+        let key = CanonicalValuePairKey { lower: self.value_endpoint(lower, Polarity::Positive), upper: self.value_endpoint(upper, Polarity::Negative) };
+        self.constrain_live_value(key, &id, &cause)?;
+        Ok(())
+    }
+    pub(super) fn route_candidate_local(&mut self, slot: usize, occurrence: &HirOccurrenceId, value: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+        let (root, boundary, local) = {
+            let scheme = self.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
+            (scheme.root, scheme.boundary, scheme.id.clone())
+        };
+        self.incoming_route_accounting_active = true;
+        self.route_attempt_physical_change = false;
+        self.incoming_route_event_sample_failed = false;
+        let result = self.with_route_transaction(|session| {
+            // This graph is a use-time observation of a live scheme, never the
+            // binding's authority or a promise that anchors are fully solved.
+            let graph = session.capture_candidate_graph(root, boundary)?;
+            let id = ConstraintOccurrenceId::new(occurrence.clone(), 0);
+            let cause = CauseId::for_occurrence(id.clone());
+            let (lower, rows) = session.freshen_candidate_graph(&graph, level, &id, &cause)?;
+            let upper = session.batch.component_term_at(value);
+            session.admit_candidate_value_link(occurrence, 0, lower, upper)?;
+            let state = session.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            let old_capacity = state.local_routes.capacity();
+            state.local_routes.try_reserve(1).map_err(|_| exhausted())?;
+            let growth = bytes::<LocalFreshRoute>(state.local_routes.capacity() - old_capacity)?;
+            let retained = sum(&[state.retained_bytes, growth,
+                bytes::<RowKey>(rows.capacity())?, graph.bytes()?])?;
+            state.retained_bytes = state.retained_bytes.checked_add(growth).ok_or_else(exhausted)?;
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            let state = session.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            state.local_routes.push(LocalFreshRoute { slot, local: local.clone(), occurrence: occurrence.clone(), graph, rows });
+            state.retained_bytes = retained;
+            state.scratch_bytes = 0;
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            if session.incoming_route_event_sample_failed { return Err(exhausted()); }
+            Ok(())
+        });
+        self.incoming_route_accounting_active = false;
+        self.route_attempt_physical_change = false;
+        self.incoming_route_event_sample_failed = false;
+        if let Some(state) = &mut self.candidate_graph { state.scratch_bytes = 0; }
+        result
+    }
+
 }

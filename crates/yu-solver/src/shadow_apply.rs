@@ -80,6 +80,12 @@ impl CandidateInference {
         let mut permitted_errors = HashSet::new();
         for item in hir.items() {
             if let HirItem::Binding(binding) = item {
+                if let Some(source) = hir.local_source(binding.definition_root())
+                    .map_err(|_| CandidateError::Unsupported)? {
+                    crate::candidate_source::preflight(source)?;
+                    crate::candidate_source::retain_placeholder_errors(binding.value(), &mut permitted_errors)?;
+                    continue;
+                }
                 if let Some(local) = hir
                     .shadow_local_binding(binding.definition_root())
                     .map_err(|_| CandidateError::Unsupported)?
@@ -161,14 +167,19 @@ impl CandidateInference {
             return None;
         }
         let state = self.solved.candidate_graph.as_ref()?;
-        let route = state
-            .routes
-            .iter()
-            .find(|route| route.use_id.occurrence() == occurrence)?;
+        if let Some(route) = state.local_routes.iter().find(|route| &route.occurrence == occurrence) {
+            let scheme = state.locals.get(route.slot)?.as_ref()?;
+            if scheme.id != route.local { return None; }
+            return Some(CandidateGraphFreshUse {
+                state, occurrence: &route.occurrence, rows: &route.rows, graph: &route.graph,
+            });
+        }
+        let route = state.routes.iter().find(|route| route.use_id.occurrence() == occurrence)?;
         let graph = state.graphs[route.target].as_ref()?;
         Some(CandidateGraphFreshUse {
             state,
-            route,
+            occurrence: route.use_id.occurrence(),
+            rows: &route.rows,
             graph,
         })
     }
@@ -307,20 +318,21 @@ impl<'a> CandidateGraphBound<'a> {
 }
 pub struct CandidateGraphFreshUse<'a> {
     state: &'a crate::candidate_scheme::GraphState,
-    route: &'a crate::candidate_scheme::FreshRoute,
+    occurrence: &'a HirOccurrenceId,
+    rows: &'a [crate::candidate_scheme::RowKey],
     graph: &'a crate::candidate_scheme::Graph,
 }
 impl<'a> CandidateGraphFreshUse<'a> {
     pub fn occurrence(&self) -> &'a HirOccurrenceId {
-        self.route.use_id.occurrence()
+        self.occurrence
     }
     pub fn rows(&self) -> impl Iterator<Item = CandidateGraphFreshRow<'a>> + 'a {
         let state = self.state;
-        let route = self.route;
+        let rows = self.rows;
         let graph = self.graph;
-        (0..route.rows.len()).map(move |index| CandidateGraphFreshRow {
+        (0..rows.len()).map(move |index| CandidateGraphFreshRow {
             state,
-            route,
+            rows,
             graph,
             index,
         })
@@ -331,7 +343,7 @@ impl<'a> CandidateGraphFreshUse<'a> {
 }
 pub struct CandidateGraphFreshRow<'a> {
     state: &'a crate::candidate_scheme::GraphState,
-    route: &'a crate::candidate_scheme::FreshRoute,
+    rows: &'a [crate::candidate_scheme::RowKey],
     graph: &'a crate::candidate_scheme::Graph,
     index: usize,
 }
@@ -343,11 +355,11 @@ impl<'a> CandidateGraphFreshRow<'a> {
         }
     }
     pub fn kind(&self) -> ComponentKind {
-        self.route.rows[self.index].kind()
+        self.rows[self.index].kind()
     }
     pub fn same_identity(&self, other: &Self) -> bool {
         std::ptr::eq(self.state, other.state)
-            && self.route.rows[self.index] == other.route.rows[other.index]
+            && self.rows[self.index] == other.rows[other.index]
     }
 }
 /// Borrowed retained candidate solver relation only. All semantic premises
@@ -816,8 +828,8 @@ pub(super) enum CandidateRelation {
 }
 #[derive(Clone, Debug)]
 pub(super) struct CandidateConstraintRecipe {
-    occurrence: HirOccurrenceId,
-    relation: CandidateRelation,
+    pub(super) occurrence: HirOccurrenceId,
+    pub(super) relation: CandidateRelation,
     pub(super) after_collected_fact: usize,
 }
 impl ConstraintBatch {
@@ -918,7 +930,7 @@ impl ConstraintBatch {
             outer_effect,
         )
     }
-    fn candidate_local_lambda_effect(
+    pub(super) fn candidate_local_lambda_effect(
         &mut self,
         occurrence: &HirOccurrenceId,
         position: usize,
@@ -929,7 +941,7 @@ impl ConstraintBatch {
         self.emit(occurrence.clone(), 0, bottom, effect)?;
         self.emit(occurrence.clone(), 1, effect, empty)
     }
-    fn retain_candidate_local_lambda(
+    pub(super) fn retain_candidate_local_lambda(
         &mut self,
         occurrence: &HirOccurrenceId,
         parameter_position: usize,
@@ -962,7 +974,7 @@ impl ConstraintBatch {
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         Ok(())
     }
-    fn candidate_component(
+    pub(super) fn candidate_component(
         &mut self,
         occurrence: &HirOccurrenceId,
     ) -> Result<ComponentPositions, CollectionAvailabilityError> {
@@ -991,7 +1003,7 @@ impl ConstraintBatch {
         self.emit(occurrence.clone(), 1, bottom, effect)?;
         self.emit(occurrence.clone(), 2, effect, empty)
     }
-    fn retain_candidate_relation(
+    pub(super) fn retain_candidate_relation(
         &mut self,
         occurrence: &HirOccurrenceId,
         relation: CandidateRelation,
@@ -1226,7 +1238,7 @@ impl ConstraintBatch {
     }
 }
 impl InferenceSession {
-    fn candidate_endpoint(
+    pub(super) fn candidate_endpoint(
         &mut self,
         endpoint: CandidateEndpoint,
         polarity: Polarity,

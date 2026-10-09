@@ -70,6 +70,10 @@ This index is a navigation aid. The listed source document remains authoritative
   withdraws mandatory initializer saturation/freezing. The active adapter keeps
   local live roots and level boundaries, freshens at each use and preserves
   later constraints through shared older extrusion coordinates.
+  The [live local scheme checkpoint](../progress/2026-10-10-successor-live-local-schemes.md)
+  connects actual source levels, live binding handles and use-time freshening
+  to candidate execution. Both M2 reviews and candidate/default builds pass;
+  runtime generic-local evidence and complete Call/public cutover remain open.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)
