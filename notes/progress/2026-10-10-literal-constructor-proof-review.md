@@ -2,7 +2,7 @@
 
 Recorded: 2026-10-09 UTC; repository proof series: 2026-10-10
 Branch: `research/simple-sub-intrusion`
-Status: Reify/image artifact independently reviewed; exact proposed semantics unadopted
+Status: Reify/image and literal emission/collection artifacts independently reviewed; exact proposed semantics unadopted
 Claim class: mathematical constructor theorems in the explicitly defined extension; no fixed-original or production gate promotion
 
 ## 1. Reify and literal image artifact
@@ -145,3 +145,129 @@ commit's tree equals the local reviewed commit tree, retained the original
 local commit on a checkpoint branch, and aligned local HEAD with the remote
 commit without changing any other worker's untracked file. Current-task/index
 synchronization is a separate metadata-only commit.
+
+## 2. Literal emission and complete L constraint collection
+
+The [emission and collection proof](../theory/2026-10-10-literal-emission-pipeline-proof.md)
+constructs the actual source-indexed static spine for `my invoke f = f 1`
+in an explicitly defined extension L. Its construction uses the reviewed
+argument rule above, the actual formal/Name and literal Result constructors,
+and the retained original context/local declarations. It constructs the
+complete argument operand, predicate declarations, Application origin, Code,
+result Reify, source Computation role, designated consumer, sealed emission,
+contextual IF and local O0. Semantic membership is not an emission premise.
+
+### Frozen review rounds
+
+| Round | Independent role | Frozen target | Verdict |
+| --- | --- | --- | --- |
+| Initial | compiler referee, `emission_math_review` | `c59604d2974694dce30daf2a3e968738b36877ad7437a106a2385298cdeccccc` | PASS for the inspected static and specified-envelope claims, with a minor ordering clarification; upstream image adequacy was not certified |
+| Initial | specification auditor, `emission_spec_review` | same initial hash | MAJOR/BLOCKING: the original source-generation notation does not form a generic literal `TypedCallCert_Dec` declaration |
+| Delta | compiler referee, `literal_pipeline_math_delta` | `8ddc29d3536412a465e4c8ec17a851ee825f25080bf321077918c4539dd8c9bd` | PASS; no blocking, major or minor finding in the inspected mathematical constructor/collection scope |
+| Delta | specification auditor, `literal_pipeline_spec_delta` | same repaired hash | PASS; no blocking, major or minor finding in the inspected specification scope |
+
+The primary waited for both initial reports, accepted the specification
+finding despite the other scoped pass, and assigned one fresh researcher
+(`literal_envelope_repair`) one bounded repair pass in this file alone.
+The repair incorporated the repaired A dependency, the original WholeArg
+non-schema boundary, and the actual Application source-role distinction.
+Two fresh independent reviewers then inspected the frozen repaired file and
+its changed consumer cone. Neither repaired this artifact, consulted its
+producer or consulted the other same-artifact reviewer. Both matched the
+current target to its immutable snapshot. No complete initial B snapshot was
+available; the reviewers examined the current definitions and their consumers
+rather than assuming which bytes had remained unchanged.
+
+### Accepted declaration defect and its repair
+
+Keeping a symbolic `g` binder does not form its witness type. Original source
+Call generation supplies a decorated certificate family in a fixed conditional
+Name/Name envelope; it does not supply a freely instantiable literal family.
+The repair removes that claim and constructs `CertCall_L` as a NEW dependent
+family with a finite profile-choice grammar and nine explicit rows: profile,
+policy, flow, independent initial context, development, actual phases,
+complete operations, observation/lifetime, and exact correspondence. Actual
+owner sorts and earlier dependencies precede each dependent record/product.
+It uses no primitive C0, well-typed-Call or supplied completed certificate.
+
+For the same reason, §3.5 forms new `WholeArgCompatible_L`, `ImageCall_L` and
+`CIncl_L` declarations at the actual literal indices. Their clauses describe
+demand matching and genuine target views, same-carrier acceptance, the entire
+contextual argument image, original target result membership and all
+independently admitted developments, with exact licensed action maps. These
+are formed proof types; they can be empty. Their formation does not produce
+their inhabitants or identify them with independently interpreted original
+WholeArg/CIncl predicates.
+
+The new operation retains both the structural callee/Delay/actual-producer
+telescope and an explicit old-operator arm branch at unchanged original
+event, parameter, arm and witness indices. W/Z/Option 2 alternatives keep
+their own admission, guards and output-dependent provider/world/futures.
+They do not acquire a source execution or the literal branch's fields. The
+retained old branch is not an asserted original operator at the new literal
+indices. Old/new registry sorts likewise remain explicit: the original
+P_old argument is not enlarged or silently rebound.
+
+### Exact proved scope
+
+Both delta reviewers certify the stated total static construction, exact
+constructor inversion, whole-action/old-Keep conservation, complete contextual
+IF placement, new local O0 and finite ordered constraint collection for the
+DEFINED `RuleCall_L` envelope. The eight O0 projections are supplied by the
+new literal constructor using adopted source-free OSig-Demand at its actual
+scope. No old emitted-record or O0 cast is used.
+
+The construction order is acyclic: child Code, argument image/Reify, core
+Application, Call Code, result Reify, Application source role, designated
+consumer, final seal/Check/O0. Reified Data keeps its Value judgment. The
+Application's source Computation role comes from its actual source row, not
+from the shape of that Data. The full carrier hole and distinct callee-pending,
+receipt, force/body/consumer and future suffixes remain in the declared IF.
+
+Theorem 5 proves exact extraction/reconstruction at the ordered telescope
+`F_c, w_wf, e_f, e_a, e_out, Gamma, policy_law, flow_law, initial, develop,
+phase, operation, observation, correspondence`. Proofs, source roots, ports,
+worlds and providers remain in their original dependency positions. Finite
+collection constructs the declaration and constraint syntax while retaining
+unbounded admission/history/arm/future domains as complete dependent products
+and references. This is not a semantic decision procedure or even a claim
+that the displayed fiber is inhabited for an arbitrary formal f.
+
+No reviewer certifies equality with a fixed-original literal checking rule,
+sufficiency for an arbitrary original consumer, original Call admission or
+C0, eligible L-rule registration for Generalize, solver completeness,
+principality, export/publication, production correspondence or F5. The exact
+new profile/policy, predicate/operator/certificate, registry, source-rule and
+body-reference choices remain unadopted. Both q1/d1 bundles authorize this
+construction direction, not these equations. The new family is not presented
+as a discharge of the still-independent fixed-original consumer route.
+
+### Dependency and integration verification
+
+The B mathematical review consumed repaired A snapshot
+`eb08761557f0f2b9d60fad605b6b96613c451e5b0ebcaaf0b9368f64d43d6cf2`
+and independently inspected its entire diff to integrated A hash
+`6d382a248ad7f1c4bbcf7b14231f21448e957640d96b35e7efec333bc019e564`.
+That diff changes only the previously recorded metadata, summary notation
+and clarification about earlier child origins. The B specification review
+checked the frozen imported scope without claiming a new full A certification.
+
+After the B freeze at `86d45ef3d8407cf5ff853538e5016869c45959f9`,
+remote advanced to `111da7c6e882bf6048fb4013ab93781160983fb6`.
+The primary inspected the incoming task/index records and unrelated Any
+resolution audit, then fast-forwarded. All 35 recorded direct dependency
+hashes still match. The incoming pending registry q1/q2 status supplies no
+new adoption, original constructor law or production authorization; neither
+uncommitted question is consumed by this proof.
+
+After both PASS reports, the primary changed only B's status/review link and
+its historical freeze-status wording. No rule, premise, parameter map or proof
+step changed. The integrated B SHA-256 is
+`f053935790a327ce7fe6b3ed144a73384fd6e009222b740a4700b980c4dca520`.
+The primary checked the complete snapshot-to-integrated diff, all 35 direct
+dependencies, 20 B-local links, 90 paired fence markers and focused whitespace;
+the A and review-record link/whitespace checks also pass. This is documentary
+mathematical verification, not a
+machine-checked proof or executable model. No production code, test, build,
+benchmark or runtime probe is included. The canonical DAG and its aggregate
+CallMem/C0 and JOINT_DEC states remain unchanged.
