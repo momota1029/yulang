@@ -6351,12 +6351,15 @@ replacement remain open. Pending question directories stay excluded from Git.
 
 ### Source-level execution and complete Call next packet (2026-10-10)
 
-An implementer owns only the four solver paths for the confirmed source-directed
+An implementer owns only the four solver paths for the source-directed
 execution schedule: immutable recipes with actual lexical levels; sequential
-initializer solve, boundary capture and local scheme installation; action-time
+initializer processing, boundary handling and local scheme installation; action-time
 module/local fresh uses; and direct/structural anchor closure. This live slice
-is not yet frozen, reviewed or build-verified. Keep continuation facts out of
-initializer solving until its scheme is installed. Default/public/cutover
+is incomplete and build-unverified. Its writes stopped after the user's
+correction: requiring completed initializer solving/freezing before continuation
+solving was false. Levels and extrusion handle later cross-boundary constraints.
+The boundary/live-scheme adapter is under read-only reassessment; preserve the
+partial patch, and do not integrate it as a completed inference path. Default/public/cutover
 behavior remains outside this private implementation lease.
 
 A separate read-only owner audit produced the [complete Call source-spine
@@ -6367,3 +6370,15 @@ After the source-level lease freezes, retain these at their owning construction
 points. Authentic annotation/seed provenance and complete consuming suppliers
 remain material requirements; scalar success cannot stand in for them.
 No new choice question or complete Call closure follows from this packet.
+
+### User correction: live let schemes and extrusion (2026-10-10)
+
+The [correction record](../notes/progress/2026-10-10-live-let-level-extrusion-correction.md)
+withdraws mandatory initializer saturation and immutable local publication.
+The paused implementer resumed the same four-file lease with local schemes
+holding actual live roots and enclosing boundaries. Fresh use captures the
+current graph as temporary input, copies eligible rows and shares older anchors.
+Reference-style source traversal installs intrinsic RHS relations using the
+existing immediate constraint operation, while later constraints through older
+extrusion coordinates remain legitimate. No new semantic choice or test ran.
+The incomplete patch is not yet frozen/reviewed/built or integrated.

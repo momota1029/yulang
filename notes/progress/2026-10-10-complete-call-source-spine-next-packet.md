@@ -7,6 +7,12 @@ Authority: existing original Call formation/owner and source-interface sources;
 current Simple-sub correction and complete-contract requirement
 Evidence producer: `call_publication_seam_map`, independent of live source solver work
 
+Schedule correction: "source-level/generalization" below names an unfinished
+implementation, not a requirement to solve and freeze each initializer before
+later constraints. The user rejected that requirement: levels and extrusion
+must preserve legitimate later cross-boundary refinement. That adapter is under
+read-only reassessment; the complete Call collection correspondence is unchanged.
+
 ## Available collection order
 
 The [directional source judgment](2026-10-06-directional-joint-source-judgment.md)

@@ -80,12 +80,14 @@ Frozen SHA-256:
 
 ## Next compiler work
 
-Consume this source carrier with actual lexical levels: solve each initializer
-at its raised level, freeze at its enclosing boundary, install its scheme and
-freshen the graph once per local use. Preserve outer captures, top-definition
-dependency ordering and initializer evaluation effects. Do not solve all
-continuation constraints before initializer capture. Existing Simple-sub
-operations require no literal-only or registry-adoption question.
+Consume this source carrier with actual lexical levels and per-use freshening.
+Correction from the user: solving an initializer to completion and freezing it
+before continuation solving is not a general necessity; level and extrusion
+handle later cross-boundary constraints. The earlier freeze-first plan is
+withdrawn pending the concrete adapter audit. Distinguish the binding's level
+boundary/live description from an immutable snapshot. Preserve outer captures,
+top-definition dependencies and initializer evaluation effects. Existing
+Simple-sub operations require no literal-only or registry-adoption question.
 
 Current admitted solver source levels remain one. General anchor closure,
 complete Call, ordinary public extraction and replacement on `yulang3` remain

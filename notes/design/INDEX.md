@@ -66,6 +66,10 @@ This index is a navigation aid. The listed source document remains authoritative
   identifies existing symbolic formation constructors and their actual input
   dependencies. Unknown-provider collection can precede role refinement;
   no solved receipt, complete consumer or new registry is thereby supplied.
+  The [live let correction](../progress/2026-10-10-live-let-level-extrusion-correction.md)
+  withdraws mandatory initializer saturation/freezing. The active adapter keeps
+  local live roots and level boundaries, freshens at each use and preserves
+  later constraints through shared older extrusion coordinates.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)
