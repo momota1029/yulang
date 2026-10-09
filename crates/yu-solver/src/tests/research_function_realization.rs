@@ -851,7 +851,7 @@ fn source_hir_function_realization_and_checked_lift_match_on_bounded_histories()
             .iter()
             .map(|item| item.old.clone())
             .collect::<std::collections::HashSet<_>>();
-        assert_eq!(checked_old_tuples, domain.iter().cloned().collect());
+        assert_eq!(checked_old_tuples, domain.iter().cloned().collect::<std::collections::HashSet<_>>());
         assert!(checked.iter().all(|item| item.old.fiber == (0, 0, 0)));
         let checked_projection = checked
             .iter()
