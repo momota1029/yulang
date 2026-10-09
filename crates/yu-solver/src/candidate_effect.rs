@@ -1,6 +1,7 @@
 //! Private executable covariant annotation views at ordinary effect-row ports.
 use crate::*;
 use yu_hir::shadow::SourceNodeKey;
+use yu_hir::HirLocalId;
 use yu_hir::shadow::{
     SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectRow,
 };
@@ -36,8 +37,12 @@ struct Conflict {
     operand: EffectOperandHandle,
     annotation: Option<EffectAnnotationHandle>,
 }
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId) }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub formal_domains: HashMap<usize, Term>,
+    pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
     pub contributions: Vec<Contribution>,
     pub views: Vec<View>,
     brand: u64,
@@ -53,6 +58,8 @@ pub(super) struct State {
     fail_after_view: bool,
     #[cfg(test)]
     failed_view_sample: Option<(usize, usize)>,
+    #[cfg(test)]
+    failed_formal_sample: Option<(usize, usize, usize, usize, usize, usize)>,
 }
 #[derive(Debug)]
 pub(super) struct Contribution {
@@ -96,6 +103,9 @@ pub(super) struct Checkpoint {
     edges: Vec<(TypedPairKey, TypedPairKey, bool)>,
     origins: Vec<(BoundKey, TypedPairKey, bool)>,
     conflicts: Vec<TypedPairKey>,
+    formal_domains: Vec<usize>,
+    annotation_values: Vec<(AnnotationScope, Box<str>)>,
+    annotation_value_bytes: usize,
 }
 fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
@@ -112,6 +122,9 @@ impl Checkpoint {
                 self.origins.capacity(),
             )?)
             .and_then(|n| n.checked_add(bytes::<TypedPairKey>(self.conflicts.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<usize>(self.formal_domains.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_values.capacity()).ok()?))
+            .and_then(|n| n.checked_add(self.annotation_value_bytes))
             .ok_or_else(exhausted)
     }
 }
@@ -135,9 +148,14 @@ impl State {
             edges: Vec::new(),
             origins: Vec::new(),
             conflicts: Vec::new(),
+            formal_domains: Vec::new(),
+            annotation_values: Vec::new(),
+            annotation_value_bytes: 0,
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for key in checkpoint.formal_domains { self.formal_domains.remove(&key); }
+        for key in checkpoint.annotation_values { self.annotation_values.remove(&key); }
         for key in checkpoint.conflicts {
             self.conflicts.remove(&key);
         }
@@ -171,12 +189,37 @@ impl State {
             bytes::<(BoundKey, Vec<TypedPairKey>)>(self.origins.capacity())?,
             bytes::<(BoundKey, TypedPairKey)>(self.origin_keys.capacity())?,
             bytes::<(TypedPairKey, Conflict)>(self.conflicts.capacity())?,
+            bytes::<(usize, Term)>(self.formal_domains.capacity())?,
+            bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
             self.nested_bytes,
             self.evidence_bytes,
         ];
         parts
             .into_iter()
             .try_fold(0usize, |n, part| n.checked_add(part).ok_or_else(exhausted))
+    }
+    #[cfg(test)]
+    fn formal_owned_bytes(&self) -> usize {
+        let state = self;
+        // These formal-only witnesses have no operation or annotation views.
+        assert!(state.contributions.is_empty());
+        assert!(state.views.is_empty());
+        let evidence_bytes = state.edges.values().chain(state.origins.values())
+            .map(|entries| entries.capacity() * std::mem::size_of::<TypedPairKey>())
+            .sum::<usize>();
+        assert_eq!(state.evidence_bytes, evidence_bytes);
+        let retained_names = state.annotation_values.keys().map(|(_, name)| name.len()).sum::<usize>();
+        assert_eq!(state.nested_bytes, retained_names);
+        state.contributions.capacity() * std::mem::size_of::<Contribution>()
+            + state.views.capacity() * std::mem::size_of::<View>()
+            + state.edges.capacity() * std::mem::size_of::<(TypedPairKey, Vec<TypedPairKey>)>()
+            + state.edge_keys.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey)>()
+            + state.origins.capacity() * std::mem::size_of::<(BoundKey, Vec<TypedPairKey>)>()
+            + state.origin_keys.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey)>()
+            + state.conflicts.capacity() * std::mem::size_of::<(TypedPairKey, Conflict)>()
+            + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
+            + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
+            + retained_names + evidence_bytes
     }
     pub fn observe(
         &self,
@@ -748,24 +791,117 @@ impl InferenceSession {
             _ => Err(exhausted()),
         }
     }
+    fn candidate_annotation_variable(&mut self, scope: &AnnotationScope, name: &str, level: u32) -> Result<u32, SolveAvailabilityError> {
+        let key = (scope.clone(), Box::<str>::from(name));
+        if let Some(&row) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.get(&key) { return Ok(row); }
+        let graph = self.candidate_graph.as_mut().unwrap();
+        graph.intrusion.effect_algebra.annotation_values.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.annotation_values.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let row = self.fresh_value_at_level(level)?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+        state.nested_bytes = state.nested_bytes.checked_add(name.len()).ok_or_else(exhausted)?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.annotation_value_bytes = undo.effect_algebra.annotation_value_bytes.checked_add(name.len()).ok_or_else(exhausted)?; undo.effect_algebra.annotation_values.push(key.clone()); }
+        state.annotation_values.insert(key, row);
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        self.record_failed_formal_sample(3)?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 3 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        Ok(row)
+    }
+
+    #[cfg(test)]
+    fn record_failed_formal_sample(&mut self, stage: u8) -> Result<(), SolveAvailabilityError> {
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.get() == stage) {
+            let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let Some(undo) = self.route_journal.as_ref()
+                .and_then(|journal| journal.intrusion.as_ref())
+                .map(|undo| &undo.effect_algebra) else { return Ok(()); };
+            assert_eq!(undo.annotation_values.iter().map(|(_, name)| name.len()).sum::<usize>(), undo.annotation_value_bytes);
+            assert!(undo.annotation_values.iter().all(|key| state.annotation_values.contains_key(key)));
+            if stage == 2 {
+                assert!(!undo.formal_domains.is_empty());
+                assert!(undo.formal_domains.iter().all(|key| state.formal_domains.contains_key(key)));
+            }
+            let owned = state.formal_owned_bytes();
+            let undo_owned = undo.edges.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey, bool)>()
+                + undo.origins.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey, bool)>()
+                + undo.conflicts.capacity() * std::mem::size_of::<TypedPairKey>()
+                + undo.formal_domains.capacity() * std::mem::size_of::<usize>()
+                + undo.annotation_values.capacity() * std::mem::size_of::<(AnnotationScope, Box<str>)>()
+                + undo.annotation_values.iter().map(|(_, name)| name.len()).sum::<usize>();
+            assert_eq!(state.bytes()?, owned);
+            assert_eq!(undo.bytes()?, undo_owned);
+            assert_eq!(self.execution_counters.inference_session_retained_bytes, self.resource_ledger.inference_session_retained_bytes);
+            assert!(self.execution_counters.inference_session_peak_bytes >= self.resource_ledger.inference_session_retained_bytes);
+            let sample = (state.nested_bytes, undo.annotation_value_bytes, owned, undo_owned, self.resource_ledger.inference_session_retained_bytes, self.resource_boundary_samples);
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.failed_formal_sample = Some(sample);
+        }
+        Ok(())
+    }
+
+    fn candidate_formal_pair(&mut self, ty: &SourceAnnotationType, scope: &AnnotationScope, level: u32) -> Result<(Term, Term), SolveAvailabilityError> {
+        if ty.effects.is_some() { return Err(exhausted()); }
+        match &ty.value {
+            SourceAnnotationValue::Int => Ok((self.batch.collected_leaf_term(Leaf::IntPositive), self.batch.collected_leaf_term(Leaf::IntNegative))),
+            SourceAnnotationValue::Unit => Ok((self.batch.collected_leaf_term(Leaf::UnitPositive), self.batch.collected_leaf_term(Leaf::UnitNegative))),
+            SourceAnnotationValue::Variable(name) => {
+                let row = self.candidate_annotation_variable(scope, name, level)?;
+                Ok((self.live_value_term(Polarity::Positive, row)?, self.live_value_term(Polarity::Negative, row)?))
+            }
+            SourceAnnotationValue::Function { argument, result } => {
+                let (ap, an) = self.candidate_formal_pair(argument, scope, level)?;
+                let (rp, rn) = self.candidate_formal_pair(result, scope, level)?;
+                let qa = self.fresh_effect_at_level(level)?;
+                let qr = self.fresh_effect_at_level(level)?;
+                let qan = self.live_effect_term(Polarity::Negative, qa)?;
+                let qap = self.live_effect_term(Polarity::Positive, qa)?;
+                let qrn = self.live_effect_term(Polarity::Negative, qr)?;
+                let qrp = self.live_effect_term(Polarity::Positive, qr)?;
+                Ok((self.positive_function_term(an, qan, qrp, rp)?, self.negative_function_term(ap, qap, qrn, rn)?))
+            }
+        }
+    }
+
     pub(super) fn candidate_formal_annotation(
-        &mut self,
-        annotation: &SourceAnnotation,
-        parameter: usize,
-        occurrence: &HirOccurrenceId,
+        &mut self, annotation: &SourceAnnotation, parameter: usize, occurrence: &HirOccurrenceId, scope: &AnnotationScope,
     ) -> Result<(), SolveAvailabilityError> {
-        if annotation.ty.effects.is_some() { return Err(exhausted()); }
-        let (positive, negative) = match annotation.ty.value {
-            SourceAnnotationValue::Int => (Leaf::IntPositive, Leaf::IntNegative),
-            SourceAnnotationValue::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
-            _ => return Err(exhausted()),
-        };
+        let row = self.parameter_live_base.checked_add(u32::try_from(parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
+        let level = self.value_levels[row as usize];
+        if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
+        // Reserve a linear upper bound for the paired recursive constructor's
+        // temporary child ports; source admission already bounds its depth.
+        let scratch = bytes::<(Term, Term, Term, Term, u32, u32)>(annotation.ty.node_count())?;
+        let graph = self.candidate_graph.as_mut().unwrap();
+        graph.scratch_bytes = graph.scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        let pair = (|| {
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            self.candidate_formal_pair(&annotation.ty, scope, level)
+        })();
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
+        let (positive, negative) = pair?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 1 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        let graph = self.candidate_graph.as_mut().unwrap();
+        graph.intrusion.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?; }
         let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
-        self.admit_candidate_value_link(occurrence, 43, self.batch.collected_leaf_term(positive), upper)?;
+        self.admit_candidate_value_link(occurrence, 43, positive, upper)?;
         #[cfg(test)]
         if FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) { return Err(exhausted()); }
         let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
-        self.admit_candidate_value_link(occurrence, 44, lower, self.batch.collected_leaf_term(negative))
+        self.admit_candidate_value_link(occurrence, 44, lower, negative)?;
+        if self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.formal_domains.insert(parameter, negative).is_none() {
+            if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        self.record_failed_formal_sample(2)?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 2 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        Ok(())
     }
 
     pub(super) fn candidate_annotation(
@@ -876,7 +1012,9 @@ impl InferenceSession {
                     }))
             }
             SourceAnnotationValue::Variable(name) => {
-                let row = if let Some(&row) = values.get(name.as_ref()) {
+                let row = if let SignatureContext::Annotation(annotation) = context {
+                    self.candidate_annotation_variable(&AnnotationScope::Definition(annotation.owner.clone()), name, level)?
+                } else if let Some(&row) = values.get(name.as_ref()) {
                     row
                 } else {
                     values.try_reserve(1).map_err(|_| exhausted())?;
@@ -1099,6 +1237,48 @@ mod tests {
         assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.lower()), Ok(TermView::Leaf(Leaf::EffectBottomPositive)))));
         assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
         assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions.is_empty());
+    }
+    #[test]
+    fn paired_formal_failure_samples_live_named_and_domain_storage() {
+        let name = "a".repeat(4096);
+        for stage in [2, 3] {
+            let mut session = make_session(&format!("my f (x:'{name} -> '{name}) = x"));
+            let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+                .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+            let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+            let SourceAnnotationValue::Function { argument, .. } = &annotation.ty.value else { unreachable!() };
+            let SourceAnnotationValue::Variable(annotation_name) = &argument.value else { unreachable!() };
+            let expected_name_bytes = annotation_name.len();
+            let before_nested = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.nested_bytes;
+            let mut before = None;
+            FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(stage));
+            assert_eq!(session.with_route_transaction(|session| {
+                before = Some(RouteCheckpoint::capture(session));
+                session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+            }), Err(exhausted()));
+            before.unwrap().assert_restored(&session);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let (nested, undo_names, owned_bytes, undo_bytes, sampled_total, live_samples) = state.failed_formal_sample.unwrap();
+            assert_eq!(nested, before_nested + expected_name_bytes);
+            assert_eq!(undo_names, expected_name_bytes);
+            assert!(owned_bytes >= nested);
+            assert!(undo_bytes >= undo_names);
+            assert!(sampled_total >= owned_bytes + undo_bytes);
+            assert!(session.resource_ledger.inference_session_peak_bytes >= sampled_total);
+            assert_eq!(session.resource_boundary_samples, live_samples);
+            assert_eq!(session.resource_ledger.inference_session_retained_bytes, sampled_total);
+            let live_peak = session.resource_ledger.inference_session_peak_bytes;
+            assert_eq!(state.nested_bytes, before_nested);
+            assert!(state.annotation_values.is_empty());
+            assert!(state.formal_domains.is_empty());
+            let surviving_state_bytes = state.bytes().unwrap();
+            assert_eq!(surviving_state_bytes, state.formal_owned_bytes());
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+            assert_eq!(session.resource_boundary_samples, live_samples + 1);
+            assert_eq!(session.execution_counters.inference_session_retained_bytes, session.resource_ledger.inference_session_retained_bytes);
+            assert!(session.resource_ledger.inference_session_retained_bytes >= surviving_state_bytes);
+            assert_eq!(session.resource_ledger.inference_session_peak_bytes, live_peak);
+        }
     }
     #[test]
     fn operation_nested_omitted_effect_rows_keep_their_actual_polarity_defaults() {

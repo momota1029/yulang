@@ -117,14 +117,26 @@ not another proof of the finite checker.
 
 | Job | Gate/method | Lease | State | Next evidence |
 | --- | --- | --- | --- | --- |
-| `paired_function_formal_implementation` | Paired real source interfaces | `crates/yu-solver/src/{candidate_effect.rs,candidate_source.rs,lib.rs}`, new `tests/candidate_annotated_function_formals.rs`, scoped `tests/candidate_annotated_primitive_formals.rs` | running | frozen source/tests, primary checks, M2 implementation review |
+| `paired_function_formal_implementation` | Paired real source interfaces | `crates/yu-solver/src/{candidate_effect.rs,candidate_source.rs,lib.rs}`, new `tests/candidate_annotated_function_formals.rs`, scoped `tests/candidate_annotated_primitive_formals.rs` | complete, frozen | 93 distinct focused tests/checks; M2 runtime and fresh repair deltas clean |
 | `formal_interface_source_referee` | Independent constraint/counterexample trace | read-only | done | corrected shared port equations, no theorem closure |
 | `paired_function_formal_prewrite_conformance` | Source/authority/fixture review | read-only | done | only two temporary unsupported controls authorized to migrate |
-| `owned_public_scheme_consumers` | Actual export/default consumer dependency map | pinned source read-only | running | independently owned scheme executable migration cut |
-| `formal_attachment_production_layout` | Coupled weighted-context production design | pinned source read-only | running | fields/transitions/termination and authentic filter consumer packet |
+| `owned_public_scheme_consumers` | Actual export/default consumer dependency map | pinned source read-only | complete, read-only | real solver publication/query chain and destroy-producer/import fixture; no backend consumer |
+| `formal_attachment_production_layout` | Coupled weighted-context production design | pinned source read-only | complete, proposal only | contextual endpoints/bounds/filters, terminal residual, transport and weighted-cycle contract need production adjudication |
 
 Primary owns the [gate record](../notes/progress/2026-10-10-paired-function-formal-construction-gate.md),
 shared records and all Cargo/Git. One Cargo process at a time; measurements zero.
 Read-only next-gate assignments use pinned Git inputs while the implementation
 lease is live. Explicit effects/wildcards and genuine semantic/public cutover
 requirements remain open.
+
+### Paired Function formal verified checkpoint
+
+All producers are stopped; no live write lease remains. Final fresh
+`paired_formal_store_and_witness_closure` review closes the owning rollback and
+accounting/test deltas and then the default feature guard. Primary checks pass:
+93 distinct focused tests, owning all-target/all-feature and workspace checks,
+default owning check and store regression. Nine new tests; zero timing samples
+or benchmark processes. The final delivery is linked from the constructor gate
+and current task. Full explicit effect attachments and independent public/default
+migration remain open; completed maps are inputs, not implementation authority
+or hygiene/principality proofs. Pending questions remain unstaged.

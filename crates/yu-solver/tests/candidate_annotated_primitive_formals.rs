@@ -190,7 +190,7 @@ fn local_and_multiple_formals_keep_their_actual_lambda_layers() {
 
 #[test]
 fn unsupported_formals_and_whole_local_annotations_are_explicitly_refused() {
-    for text in ["act E\nmy f (x:[E] int) = x", "my f (x:int -> int) = x", "my f (x:'a) = x", "my f (x,y) = x", "my outer = { my local:int = 1; local }"] {
+    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:int = 1; local }"] {
         match module(text) {
             Err(_) => {},
             Ok(hir) => assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}"),

@@ -15,7 +15,7 @@ pub(super) struct Plan {
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
-    FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId },
+    FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
     Candidate(usize),
@@ -58,7 +58,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     }
     for expr in source.expressions() {
         if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
-            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !matches!(a.ty.value, yu_hir::shadow::SourceAnnotationValue::Int | yu_hir::shadow::SourceAnnotationValue::Unit)) {
+            if parameter.annotation.as_ref().is_some_and(|a| !preflight_formal(&a.ty)) {
                 return Err(shadow_apply::CandidateError::Unsupported);
             }
         }
@@ -73,6 +73,12 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
         }
     }
     Ok(())
+}
+fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    ty.effects.is_none() && match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument) && preflight_formal(result),
+        _ => true,
+    }
 }
 fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
     if let Some(row) = &ty.effects {
@@ -130,6 +136,13 @@ impl ConstraintBatch {
         let mut local_slots = HashMap::new();
         let mut lambdas = HashMap::new();
         let mut formal_registrations = HashMap::new();
+        let mut parameter_scopes = HashMap::new();
+        for binding in source.bindings() {
+            parameter_scopes.try_reserve(binding.parameters.len()).map_err(|_| unavailable())?;
+            for parameter in &binding.parameters {
+                parameter_scopes.insert(parameter.id.clone(), candidate_effect::AnnotationScope::Local(binding.id.clone()));
+            }
+        }
         for (index, expr) in source.expressions().iter().enumerate() {
             positions.push(self.candidate_component(&expr.occurrence)?);
             if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
@@ -205,7 +218,7 @@ impl ConstraintBatch {
                                     self.term_for_leaf(Leaf::UnitPositive)?;
                                     self.term_for_leaf(Leaf::UnitNegative)?;
                                 }
-                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::new(annotation.clone()), parameter: position, occurrence: expr.occurrence.clone() })?;
+                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::new(annotation.clone()), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())) })?;
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
@@ -431,7 +444,7 @@ impl InferenceSession {
     fn execute_candidate_actions(&mut self, actions: &[Action]) -> Result<(), SolveAvailabilityError> {
         for action in actions {
             match action {
-                Action::FormalAnnotation { annotation, parameter, occurrence } => self.candidate_formal_annotation(annotation, *parameter, occurrence)?,
+                Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
                 Action::Fact(index) => self.admit_collected_fact(*index)?,
                 Action::Link { occurrence, endpoint, target } => {
                     let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;

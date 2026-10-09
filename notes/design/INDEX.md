@@ -147,11 +147,15 @@ This index is a navigation aid. The listed source document remains authoritative
   The [primitive formal annotation delivery](../progress/2026-10-10-annotated-primitive-formal-integration.md)
   now connects grouped Int/Unit formals to executable body inference and argument
   checks. M2 review and nine new owning regressions close; the coherent phase's
-  83 focused tests/checks pass. Function/effect formal interfaces remain open.
+  83 focused tests/checks pass. Explicit effect formal interfaces remain open.
   The [paired Function formal constructor gate](../progress/2026-10-10-paired-function-formal-construction-gate.md)
   records independently reviewed shared omitted-port and binding-variable
-  correspondence before implementation. Runtime implementation/review remains
-  pending; explicit attachments, wildcard and full semantic gates remain open.
+  correspondence. The [paired formal delivery](../progress/2026-10-10-paired-function-formal-integration.md)
+  now connects effect-free Function/named-variable formals to actual body and
+  argument flow, preserving callback effects through shared ordinary port rows.
+  M2 runtime and fresh repair deltas close; 93 distinct focused tests and owning,
+  workspace and default checks pass. Explicit attachments, wildcard, owned-public
+  migration and full semantic gates remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

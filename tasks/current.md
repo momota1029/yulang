@@ -6831,7 +6831,7 @@ is available, but neither this candidate nor finite model consistency certifies
 full hygiene/principality. Independently owned public schemes, default migration,
 complete Call and target `yulang3` cutover remain active.
 
-### Paired Function formal implementation active (2026-10-10)
+### Paired Function formal implementation verified (2026-10-10)
 
 The [constructor gate](../notes/progress/2026-10-10-paired-function-formal-construction-gate.md)
 has independent pre-write semantic/source conformance review. Separating the
@@ -6842,8 +6842,23 @@ annotation. Ordinary row unions remain valid; no rigid annotation mode is added.
 Only Function/named-variable temporary unsupported fixtures may move to positive
 coverage under recorded pre-write adjudication.
 
-`paired_function_formal_implementation` has the exclusive three solver source
-file plus two integration-test lease recorded in the lab queue. Implementation,
-runtime verification and fresh implementation reviews remain pending. Primary
-alone owns Cargo and Git. Explicit effect attachments, wildcards, complete Call,
-hygiene, soundness/principality and owned-public/default cutover remain active.
+The source/test leases are frozen and complete. M2 independent runtime reviews
+and fresh store/resource/test deltas close, including the final default feature
+guard. Paired callback effects and scoped ordinary annotation variables now use
+actual constraint flow. The stronger failure witness exposed and repaired the
+store's single-admission rollback assumption: all new keys and consumed receipts
+are removed, with duplicates and serial reuse covered. No calledness, early SAT,
+registry or second semantic memo is added.
+
+The [delivery record](../notes/progress/2026-10-10-paired-function-formal-integration.md)
+records 93 distinct focused tests (nine new owning regressions), all-target/all-
+feature owning and workspace checks, final default owning check and store test,
+no warnings, zero timing samples/benchmark processes. Primary alone owns Cargo
+and Git. Broad runtime/parity/backend checks and full proofs were not run.
+
+Next: authentic explicit effect attachment/context/filter construction and
+consumer integration, then independently owned public export/import and actual
+ordinary solver publication/query migration. Both read-only production maps are
+complete; do not repeat mapping as progress. Wildcards, complete Call, hygiene,
+soundness/principality and target `yulang3` cutover remain active. The pending
+question bundles remain excluded from staging.

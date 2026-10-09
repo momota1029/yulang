@@ -3322,12 +3322,12 @@ impl ConstraintStore {
             self.counters.provenance_growths,
             self.counters.provenance_rebuilds,
         ];
-        if let Some(fact) = self.facts.get(journal.facts_len) {
+        for fact in &self.facts[journal.facts_len..] {
             let key = FactKey::new(fact.lower, fact.upper, self.comparisons.clone());
             assert_eq!(self.canonical.remove(&key), Some(fact.id));
         }
-        if self.provenance.len() > journal.provenance_len {
-            assert!(self.consumed_receipts.remove(&journal.next_receipt));
+        for serial in journal.next_receipt..self.next_receipt {
+            self.consumed_receipts.remove(&serial);
         }
         self.facts.truncate(journal.facts_len);
         self.provenance.truncate(journal.provenance_len);
@@ -11106,6 +11106,11 @@ impl InferenceSession {
                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
             )
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let argument = if let Some(domain) = self.candidate_graph.as_ref().and_then(|graph| graph.intrusion.effect_algebra.formal_domains.get(&recipe.parameter_position)).copied() {
+            domain
+        } else { self.live_value_term(Polarity::Negative, parameter)? };
+        #[cfg(not(feature = "shadow-apply-candidate"))]
         let argument = self.live_value_term(Polarity::Negative, parameter)?;
         let result = match recipe.body_value_endpoint {
             LambdaValueEndpoint::Component(position) => {
@@ -29657,6 +29662,54 @@ mod tests {
     }
 
     #[test]
+    fn store_route_rollback_removes_all_new_keys_and_receipts() {
+        let batch = collect(module("my first = 1; my second = ()", "store-route-multiple-rollback"));
+        let mut store = ConstraintStore::with_capacity(batch.hir.clone(), batch.term_lineage(), 0);
+        let old = batch.occurrences()[0].clone();
+        store.admit_and_record_provenance(&old).unwrap();
+        let before = store.checkpoint();
+        let fresh: Vec<_> = batch.occurrences().iter().filter(|occurrence| {
+            !store.canonical.keys().any(|key| key.lower == occurrence.lower && key.upper == occurrence.upper)
+        }).take(2).cloned().collect();
+        assert_eq!(fresh.len(), 2);
+        let mut serials = Vec::new();
+        for _ in 0..2 {
+            let journal = store.begin_route(false);
+            let mut attempt = Vec::new();
+            for occurrence in [&old, &fresh[0], &fresh[1], &fresh[0]] {
+                let receipt = store.transaction().admit(occurrence).unwrap();
+                attempt.push(receipt.serial);
+                store.record_provenance(receipt).unwrap();
+            }
+            let unconsumed = store.transaction().admit(&fresh[1]).unwrap();
+            attempt.push(unconsumed.serial);
+            assert!(!store.consumed_receipts.contains(&unconsumed.serial));
+            if serials.is_empty() { serials = attempt; } else { assert_eq!(attempt, serials); }
+            assert_eq!(store.facts.len(), before.facts.len() + 2);
+            store.rollback_route(journal);
+            let after = store.checkpoint();
+            assert_eq!(after.terms, before.terms);
+            assert_eq!(after.next_receipt, before.next_receipt);
+            assert_eq!(after.consumed_receipts, before.consumed_receipts);
+            assert_eq!(after.facts, before.facts);
+            let canonical_entries = |canonical: &HashMap<FactKey, FactId>| {
+                let mut entries: Vec<_> = canonical.iter()
+                    .map(|(key, fact)| (*fact, key.lower, key.upper)).collect();
+                entries.sort_unstable_by_key(|(fact, _, _)| fact.0);
+                entries
+            };
+            assert_eq!(canonical_entries(&after.canonical), canonical_entries(&before.canonical));
+            assert_eq!(after.provenance, before.provenance);
+            assert_eq!(after.comparisons, before.comparisons);
+            assert_eq!(after.counters, before.counters);
+            for occurrence in &fresh {
+                assert!(!store.canonical.keys().any(|key| key.lower == occurrence.lower && key.upper == occurrence.upper));
+            }
+            assert!(serials.iter().all(|serial| !store.consumed_receipts.contains(serial)));
+        }
+    }
+
+    #[test]
     fn f5c_store_route_handoff_records_four_physical_owners() {
         let batch = collect(module("my source = 1", "f5c-store-owner-handoff"));
         let occurrence = batch.occurrences()[0].clone();
@@ -32033,6 +32086,7 @@ mod tests {
 
 #[cfg(test)]
 thread_local! {
+    static FORMAL_ANNOTATION_FAIL_STAGE: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
     static FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
@@ -32200,15 +32254,89 @@ mod value_entry_effect_tests {
     }
 
     #[test]
+    fn paired_formals_retain_actual_invocation_effect_fibers() {
+        for body in [
+            "my apply (f:() -> int) = f (); my answer = apply tick::next",
+            "my apply (f:() -> int) = f (); my purefn x = 1; my pure = apply purefn; my answer = apply tick::next",
+            "my apply (f:() -> int) = f (); my answer = apply tick::next; my purefn x = 1; my pure = apply purefn",
+            "my ignore (f:() -> int) = (); my answer = ignore tick::next",
+            "my ret (f:() -> int) = f; my callback = ret tick::next; my answer = callback ()",
+            "my apply (f:int -> int) = f (tick::next()); my ident x = x; my answer = apply ident",
+            "my invoke (f:(() -> int) -> int) = f tick::next; my apply (g:() -> int) = g (); my answer = invoke apply",
+            "my apply (f:() -> int) = f (); my later = tick::next; my answer = apply later",
+            "my recur (f:() -> int) = { my unused = recur f; f () }; my answer = recur tick::next",
+        ] {
+            let mut session = session(&format!("act tick:\n    our next: () -> int\n\n{body}"));
+            session.execute().unwrap();
+            assert!(session.errors.is_empty(), "{body}");
+            assert_eq!(invocation_has_tick(&session, call_invocation(&session, "answer")), !body.contains("my ignore"), "actual answer effect fiber: {body}");
+            if body.contains("my pure =") { assert!(!invocation_has_tick(&session, call_invocation(&session, "pure")), "independent pure instance"); }
+            if body.contains("my callback =") { assert!(!invocation_has_tick(&session, call_invocation(&session, "callback")), "returning a callback keeps its effect latent"); }
+        }
+    }
+
+    #[test]
+    fn paired_formal_failure_stages_restore_domains_names_and_complete_checkpoint() {
+        for stage in [1, 2, 3] {
+            for reuse in [false, true] {
+                let source = if reuse && stage == 3 {
+                    "my choose (f:'a -> 'a) (g:'a -> 'b) = f"
+                } else {
+                    "my choose (f:'a -> 'a) (g:'a -> 'a) = f"
+                };
+                let mut inference = session(source);
+                let actions: Vec<_> = inference.batch.candidate_source.schedules.values().next().unwrap().iter()
+                    .filter(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).cloned().collect();
+                if reuse {
+                    let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = &actions[0] else { unreachable!() };
+                    inference.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
+                }
+                let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = &actions[usize::from(reuse)] else { unreachable!() };
+                let domains = inference.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.clone();
+                let names = inference.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.clone();
+                for _ in 0..2 {
+                    let mut before = None;
+                    let mut generation = None;
+                    FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(stage));
+                    assert_eq!(inference.with_route_transaction(|session| {
+                        before = Some(RouteCheckpoint::capture(session));
+                        generation = Some(session.route_journal.as_ref().unwrap().row_seen_generation);
+                        if reuse {
+                            let shared = *names.values().next().unwrap();
+                            let lower = session.batch.collected_leaf_term(Leaf::IntPositive);
+                            let upper = session.live_value_term(Polarity::Negative, shared)?;
+                            session.admit_candidate_value_link(occurrence, 90, lower, upper)?;
+                            assert!(session.bounds[shared as usize].has_int_positive_lower);
+                            assert!(session.route_journal.as_ref().unwrap().value_rows.iter().any(|entry| entry.index == shared as usize));
+                        }
+                        session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)
+                    }), Err(SolveAvailabilityError::IdentityExhausted));
+                    before.unwrap().assert_restored(&inference);
+                    assert_eq!(inference.route_journal_spare.as_ref().map(|journal| journal.row_seen_generation), generation);
+                    let algebra = &inference.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                    assert_eq!(algebra.formal_domains, domains);
+                    assert_eq!(algebra.annotation_values, names);
+                }
+                inference.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
+            }
+        }
+        for stage in [1, 2, 3] {
+            FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(stage));
+            assert!(matches!(session("my f (x:'a -> 'a) = x").run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
+            assert!(session("my f (x:'a -> 'a) = x").run_candidate().is_ok());
+        }
+    }
+
+    #[test]
     fn primitive_formal_first_edge_failure_restores_complete_checkpoint() {
         let mut inference = session("my ignore (x:int) = ()");
         let actions = inference.batch.candidate_source.schedules.values().next().unwrap();
-        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence } = actions.iter().find(|a| matches!(a, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone() else { unreachable!() };
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = actions.iter().find(|a| matches!(a, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone() else { unreachable!() };
         let before = RouteCheckpoint::capture(&inference);
         FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.set(true));
-        assert_eq!(inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence)), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)), Err(SolveAvailabilityError::IdentityExhausted));
         before.assert_restored(&inference);
-        inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence)).unwrap();
+        inference.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
         assert_eq!(inference.store.facts().len(), before.store.facts.len() + 2);
         for slot in [43, 44] {
             assert!(inference.store.provenance().iter().any(|edge| edge.cause().occurrence().occurrence() == &occurrence && edge.cause().occurrence().local_slot() == slot));
