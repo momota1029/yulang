@@ -21,6 +21,34 @@ pub fn lower_module_with_source_identity(
     crate::module::lower_module_with_source_identity(identity, parsed, imports)
 }
 
+pub use crate::module::local_source::{
+    LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
+    LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
+};
+
+/// Forms a nonshipping source carrier during HIR lowering. This does not make
+/// brace blocks available to ordinary semantic collection or inference.
+pub fn lower_module_with_local_source(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_local_source(identity, parsed, imports)
+}
+
+impl HirModule {
+    /// Returns only a carrier belonging to this exact immutable artifact.
+    pub fn local_source(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<Option<&LocalSource>, HirAvailabilityError> {
+        if !self.owns_definition_root(root) {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        Ok(self.local_sources.get(root))
+    }
+}
+
 /// Retains one leaf-only application with source identity and explicit pending errors.
 /// This opt-in route supplies no semantic call judgment or inference acceptance.
 pub fn lower_module_with_shadow_applications(

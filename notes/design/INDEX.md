@@ -55,6 +55,11 @@ This index is a navigation aid. The listed source document remains authoritative
   adds original-level-preserving copies, directional bound ownership and
   owner-preserving scheme replay to the private graph path. Actual nested source
   levels, runtime evidence and complete Call/public cutover remain open.
+  The [generic local source checkpoint](../progress/2026-10-10-generic-local-source-hir.md)
+  retains sequential local declarations and lexical ownership at HIR formation.
+  M2 review, one batched repair, fresh delta review and owning builds pass.
+  Solver consumption with raised initializer levels and per-use freshening is
+  the next compiler change; the sidecar alone does not establish local inference.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)

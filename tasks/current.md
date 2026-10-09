@@ -6275,3 +6275,23 @@ to adjudicate and repair. Then connect actual initializer levels and sequential
 solve/freeze/install/use scheduling; current admitted source levels remain one.
 General anchor closure, complete Call, public extraction and target-branch F5
 replacement remain open. The full objective stays active.
+
+### Generic local source formation checkpoint (2026-10-10)
+
+The [HIR carrier record](../notes/progress/2026-10-10-generic-local-source-hir.md)
+retains root-owned generic local declarations, actual local/formal source
+identities, flat block order and nearest lexical captures in an explicit
+nonshipping entrypoint. One batched repair closed three major findings and one
+minor finding: local parameter ownership, valid trailing separators, quadratic
+lexical lookup and late root-parameter rejection. Fresh semantic/resource delta
+reviews passed. Frozen HIR and candidate solver Cargo checks passed without
+warnings; no tests, execution probes or measurements ran.
+
+This completes source formation only. `CandidateInference` still consumes the
+legacy tree and admits level-one source rows. Next consume the sidecar with
+raised initializer levels and sequential solve/freeze/install/use scheduling,
+retaining outer captures and top-definition dependencies. Simple-sub's uniform
+App rule and ordinary let freshening do not need a new semantic choice; keep
+ordinary-value q1 withdrawn and registry q4 off the basic inference path.
+Complete Call, general anchor closure, public extraction and target-branch F5
+replacement remain open. Pending question directories stay excluded from Git.

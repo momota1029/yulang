@@ -14,6 +14,9 @@ use yu_syntax::{
 
 use crate::{AssociationError, HirExpr, associate_chain_owned, range_of};
 
+#[cfg(any(feature = "shadow", test))]
+pub(crate) mod local_source;
+
 /// A compiler-supplied, already-normalized file key.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct FileKey {
@@ -788,6 +791,8 @@ pub struct HirModule {
     pub(crate) source_identity: Option<crate::shadow::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -898,6 +903,19 @@ pub(crate) fn lower_module_with_shadow_applications(
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_local_source(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::shadow::source_keys(parsed);
+    counters.local_source = true;
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
 fn lower_module_with_counters(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -962,6 +980,8 @@ fn lower_module_with_counters(
         source_identity: counters.source_identity.take(),
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
+        #[cfg(any(feature = "shadow", test))]
+        local_sources: std::mem::take(&mut counters.local_sources),
         identity,
         source_revision: parsed.revision(),
         items,
@@ -985,6 +1005,10 @@ fn next_occurrence(
 
 #[derive(Default)]
 struct LoweringCounters {
+    #[cfg(any(feature = "shadow", test))]
+    local_source: bool,
+    #[cfg(any(feature = "shadow", test))]
+    local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     shadow_applications: bool,
     #[cfg(any(feature = "shadow", test))]
@@ -1287,7 +1311,7 @@ fn lower_plan(
     let id = admitted.id.clone();
     let definition_root = definition_root.expect("admitted binding has a definition root");
     #[cfg(any(feature = "shadow", test))]
-    if counters.shadow_applications && admitted.parameters.len() > 127 {
+    if (counters.shadow_applications || counters.local_source) && admitted.parameters.len() > 127 {
         return Err(HirAvailabilityError::StructuralProjection);
     }
     let mut parameters = Vec::with_capacity(admitted.parameters.len());
@@ -1306,6 +1330,23 @@ fn lower_plan(
         parameters.push(parameter);
     }
     let parameters = parameters.into_boxed_slice();
+    #[cfg(any(feature = "shadow", test))]
+    if counters.local_source {
+        let carrier = local_source::form(
+            plan,
+            &definition_root,
+            &parameters,
+            namespace,
+            counters,
+            artifact,
+            next_occurrence_ordinal,
+        )?;
+        counters
+            .local_sources
+            .try_reserve(1)
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        counters.local_sources.insert(definition_root.clone(), carrier);
+    }
     let mut lambda_occurrences = Vec::with_capacity(parameters.len());
     for ordinal in 0..parameters.len() {
         lambda_occurrences.push(if ordinal == 0 {
@@ -2075,7 +2116,7 @@ fn plain_binding_header(
     let (head, tails) = pattern_children.split_first()?;
     let head = identifier_pattern_name(head)?;
     #[cfg(any(feature = "shadow", test))]
-    let multiple_parameters = _counters.shadow_applications;
+    let multiple_parameters = _counters.shadow_applications || _counters.local_source;
     #[cfg(not(any(feature = "shadow", test)))]
     let multiple_parameters = false;
     if tails.len() > 1 && !multiple_parameters {
