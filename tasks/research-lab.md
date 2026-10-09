@@ -183,3 +183,30 @@ The exact finite automaton represents unbounded words; it is not a finite
 congruence of contexts. Keep freshening/intrusion/rollback implementation gates
 and the requested callback result open until the corresponding production
 constructor and consumer are implemented together and verified.
+
+### Mixed bracketing observer research wave (2026-10-10)
+
+The primary integrated the concurrent cyclic-algebra artifacts and updated the
+callback-result mismatch as unresolved pending the user's “ソレはミス”
+referent. Baseline is `bfa325ce5`. The source correspondence shows that the
+remaining consumer combines exact mixed replay bracketing, evolving residual
+families, and compact output checks that observe unmatched POP-ID presence.
+The architect recommends deriving a source-owned constructor-to-grammar
+correspondence before any contextual production write; the finite grammar is a
+sufficient representation only under finite endpoint/rule construction and
+does not make its observers terminate.
+
+| Job | Method | Frozen inputs / output lease | State / next evidence |
+| --- | --- | --- | --- |
+| `bracketed_replay_decision` | Constructive termination/decidability proof for mixed bracketed observers | Theorem §§5–8, source correspondence §§2–5, exact Oracle operation owners; scratch `/tmp/yulang-bracketed-replay-proof/` only | running; proof or exact consumer obstruction |
+| `bracketed_replay_search` | Independent bounded counterexample/model search retaining bracketing and source-vs-arbitrary distinction | Counterexamples §§4–7, theorem §§5–8; ≤128 MiB, ≤30 s/run, ≤90 s aggregate CPU; scratch `/tmp/yulang-bracketed-replay-search/` only | running; minimal discriminator or finite-observer candidate and bounded coverage |
+| `bracketed_replay_architecture` | Successor ownership and integration-seam synthesis | Read-only constructor/transport/solver owners; no output writes | complete; recommends source-owned negative constructor-to-bracketed grammar correspondence, no production write yet |
+
+The primary owns shared records and any implementation. No compiler files,
+expected outputs, public API or semantic rules are leased by this wave. It does
+not reopen the one-sided append theorem or its independent review. Stop before
+enabling contextual production until the bracketed observer has a terminating
+exact procedure (or a source-derived invariant reduces it to a proved
+subsystem); then separately review constructor correspondence and operational
+rollback/resource coverage. Full Call, `run_io` provider identity, callback
+result text, scheme publication and `yulang3` cutover remain open.
