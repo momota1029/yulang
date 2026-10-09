@@ -5699,3 +5699,39 @@ owner is a scoped written-Type resolution and complete Value(Any) root with
 its genuine source incidence and full membership/Top-law dependencies. This
 remains inside the approved detailed-design scope; no implementation,
 production Direct route or F5 cutover is authorized. No tests or builds ran.
+
+### Reviewed constructive literal argument rule (2026-10-10)
+
+The concentrated proof attack checkpointed the [source-owned Reify and
+literal image construction](../notes/theory/2026-10-10-original-call-reify-constructor-proof.md)
+and [independent review record](../notes/progress/2026-10-10-literal-constructor-proof-review.md)
+at `7b723269c4d9dcefbb9bd740113e5f26111cbb3f`, pushed to this branch.
+This is a completed mathematical construction in a precisely defined,
+unadopted extension.
+
+Actual ChildCode, source-edge and original reference/license derivations
+construct the Call-owned registration, explicit structural license and Reify
+origin before Delay/checking/emission. The complete old image is copied with
+its original dependent telescope and alternatives. Independently typed code
+events form a new literal image J_lit, with structural Return/prefix clauses
+and an indexed old-image branch. Original live Force/Return/primitive laws
+prove CarrierMem† at the original R view and full SourceImageCarrier_J_lit
+for the actual literal on every independent ambient demand, including future
+events. No comparison success, native gamma or C0 supplies the origin.
+
+The mathematical review rejected an earlier universal exact-old-image claim;
+the repaired theorem retains the two-event countermodel and does not rename
+that claim as a premise. J_lit is distinct from the fixed old J. Likewise the
+registry interpretation retains P_old as its original context parameter and
+adds separately typed new maps. It proves full old guard/domain/license
+identity in that new interpretation, not H_oldext for an enlarged original
+registry or generation of P_old from an empty lexical context. The selected
+native id/0/DataArg case remains unchanged at its own Keep indices.
+
+Both independent fresh mathematical and specification delta reviews passed.
+The four exact new choices (tagged registry, structural argument license,
+suspension attachment, literal domain/clause/root) remain unadopted. Fixed
+original registry/image/consumer correspondence, complete Call/C0/admission,
+effective inference/publication and F5 retain their exact existing scope.
+The canonical DAG is unchanged. Only proof/review/navigation Markdown changed;
+no production implementation, tests, builds or executable semantic checks ran.

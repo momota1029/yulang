@@ -175,6 +175,23 @@ This index is a navigation aid. The listed source document remains authoritative
   expand the bounded design gate upstream to that owner; the question bundle
   remains local and uncommitted pending an approved answer.
 
+- **Reviewed concrete Call argument constructors, unadopted (2026-10-10):**
+  [definition and proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
+  constructs the actual source-child registration/license and complete
+  suspension in an explicit tagged extension, with termination, inversion,
+  whole action and exact old/native reduct preservation. For literal `1`,
+  it constructs a distinct source-owned `J_lit` and proves ordinary R carrier
+  validity plus full image adequacy at every independent ambient demand.
+  The old ReturnImage, its full guards/alternatives and `Comp(empty,Int)`
+  remain distinct retained objects. A two-event countermodel refutes the
+  stronger inference to arbitrary fixed-old-J coverage. Both fresh math/spec
+  delta reviews passed; [review and scope](../progress/2026-10-10-literal-constructor-proof-review.md)
+  are checkpointed with the proof at `7b723269c`. The new registry
+  interpretation, structural license, suspension attachment and literal
+  image/domain rule still need adoption. This does not prove untagged
+  `H_oldext`, bootstrap the complete original P, identify new roots with
+  fixed old roots, close complete Call/inference gates or authorize F5.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

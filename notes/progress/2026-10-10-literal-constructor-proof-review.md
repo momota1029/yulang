@@ -138,3 +138,10 @@ The canonical DAG is unchanged: 90 nodes / 196 edges, with 7 CLOSED,
 1 IMPLEMENTATION-ONLY. No aggregate gate is promoted by this artifact.
 Shared current-task and design-index synchronization follows the independent
 research checkpoint rather than delaying preservation of this reviewed proof.
+
+Research checkpoint: `7b723269c4d9dcefbb9bd740113e5f26111cbb3f`, pushed
+non-forcibly with the expected-parent lease. The primary verified the API
+commit's tree equals the local reviewed commit tree, retained the original
+local commit on a checkpoint branch, and aligned local HEAD with the remote
+commit without changing any other worker's untracked file. Current-task/index
+synchronization is a separate metadata-only commit.
