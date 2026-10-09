@@ -1232,9 +1232,9 @@ impl BranchTermArena {
 
 fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) -> bool {
     match (kind, polarity, node) {
-        (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive))
+        (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive | Leaf::UnitPositive))
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveBottom)
-        | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative))
+        | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative | Leaf::UnitNegative))
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeTop)
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeBottom)
         | (ComponentKind::Effect, Polarity::Positive, TermNode::Leaf(Leaf::EffectBottomPositive))

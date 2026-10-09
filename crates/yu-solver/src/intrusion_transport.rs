@@ -22,6 +22,7 @@ pub(super) enum Atom {
     String,
     EffectRead,
     EffectWrite,
+    Unit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

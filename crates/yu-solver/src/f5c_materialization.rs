@@ -71,6 +71,9 @@ pub(super) fn materialize_summary_flat(
                         (Polarity::Positive, F5cSummaryNodeKind::PositiveInt) => {
                             Some(NodeRef::Positive(draft.positive(PositiveNode::Int)?))
                         }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveUnit) => {
+                            Some(NodeRef::Positive(draft.positive(PositiveNode::Unit)?))
+                        }
                         (Polarity::Positive, F5cSummaryNodeKind::PositiveRow(row)) => Some(
                             NodeRef::Positive(draft.positive(PositiveNode::Variable(row))?),
                         ),
@@ -82,6 +85,9 @@ pub(super) fn materialize_summary_flat(
                         }
                         (Polarity::Negative, F5cSummaryNodeKind::NegativeInt) => {
                             Some(NodeRef::Negative(draft.negative(NegativeNode::Int)?))
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeUnit) => {
+                            Some(NodeRef::Negative(draft.negative(NegativeNode::Unit)?))
                         }
                         (Polarity::Negative, F5cSummaryNodeKind::NegativeRow(row)) => Some(
                             NodeRef::Negative(draft.negative(NegativeNode::Variable(row))?),
@@ -439,6 +445,21 @@ pub(super) fn materialize_summary_flat_checked(
                             memo.work_meter.charge(1)?;
                             value!(NodeRef::Positive(draft.positive(PositiveNode::Int)?));
                         }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveUnit) => {
+                            draft.admit_positive_node(PositiveNode::Unit)?;
+                            reserve!(
+                                &mut draft.positive_nodes,
+                                F5cWalkerLaneKind::DraftPositiveNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Positive(draft.positive(PositiveNode::Unit)?));
+                        }
                         (Polarity::Positive, F5cSummaryNodeKind::PositiveRow(row)) => {
                             draft.admit_positive_node(PositiveNode::Variable(row))?;
                             reserve!(
@@ -500,6 +521,21 @@ pub(super) fn materialize_summary_flat_checked(
                             );
                             memo.work_meter.charge(1)?;
                             value!(NodeRef::Negative(draft.negative(NegativeNode::Int)?));
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeUnit) => {
+                            draft.admit_negative_node(NegativeNode::Unit)?;
+                            reserve!(
+                                &mut draft.negative_nodes,
+                                F5cWalkerLaneKind::DraftNegativeNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Negative(draft.negative(NegativeNode::Unit)?));
                         }
                         (Polarity::Negative, F5cSummaryNodeKind::NegativeRow(row)) => {
                             draft.admit_negative_node(NegativeNode::Variable(row))?;
@@ -1326,6 +1362,7 @@ mod flat_tests {
         match flat.positive_nodes[id.0 as usize] {
             Bottom => F5cPositive::Bottom,
             Int => F5cPositive::Int,
+            Unit => F5cPositive::Unit,
             Variable(row) => F5cPositive::Variable(row),
             Quantified(index) => F5cPositive::Quantified(index),
             Recursive(index) => F5cPositive::Recursive(index),
@@ -1355,6 +1392,7 @@ mod flat_tests {
             Top => F5cNegative::Top,
             Bottom => F5cNegative::Bottom,
             Int => F5cNegative::Int,
+            Unit => F5cNegative::Unit,
             Variable(row) => F5cNegative::Variable(row),
             Quantified(index) => F5cNegative::Quantified(index),
             Recursive(index) => F5cNegative::Recursive(index),

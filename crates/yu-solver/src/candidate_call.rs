@@ -244,10 +244,10 @@ fn native_port(
 ) -> bool {
     match store.term_view(term) {
         Ok(TermView::LiveVariable(row)) => row.kind() == kind && row.polarity() == polarity,
-        Ok(TermView::Leaf(Leaf::IntPositive)) => {
+        Ok(TermView::Leaf(Leaf::IntPositive | Leaf::UnitPositive)) => {
             kind == ComponentKind::Value && polarity == Polarity::Positive
         }
-        Ok(TermView::Leaf(Leaf::IntNegative)) => {
+        Ok(TermView::Leaf(Leaf::IntNegative | Leaf::UnitNegative)) => {
             kind == ComponentKind::Value && polarity == Polarity::Negative
         }
         Ok(TermView::PositiveFunction { .. } | TermView::PositiveBottom) => {

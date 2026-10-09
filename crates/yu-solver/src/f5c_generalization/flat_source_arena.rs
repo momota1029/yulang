@@ -58,6 +58,7 @@ fn checked_incidences(current: usize, added: usize) -> Result<usize, SolveAvaila
 pub(super) enum PositiveNode {
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
@@ -75,6 +76,7 @@ pub(super) enum NegativeNode {
     Top,
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),

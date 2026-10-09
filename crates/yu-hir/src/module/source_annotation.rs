@@ -53,6 +53,7 @@ pub struct SourceAnnotationType {
 }
 #[derive(Clone, Debug)]
 pub enum SourceAnnotationValue {
+    Unit,
     Int,
     Variable(Box<str>),
     Function {
@@ -232,11 +233,7 @@ fn parse_type(
         }
         [group] if group.kind() == SyntaxKind::ParenthesizedTypeGroup => {
             let group = group.as_node().ok_or_else(unavailable)?;
-            let inner = group.children().collect::<Vec<_>>();
-            let [inner] = inner.as_slice() else {
-                return Err(unavailable());
-            };
-            let nested = parse_type(inner, counters)?;
+            let nested = parse_group(group, counters)?;
             if effects.is_some() && nested.effects.is_some() {
                 return Err(unavailable());
             }
@@ -259,11 +256,7 @@ fn parse_type(
                 },
                 SyntaxKind::ParenthesizedTypeGroup => {
                     let node = head.as_node().ok_or_else(unavailable)?;
-                    let inner = node.children().collect::<Vec<_>>();
-                    let [inner] = inner.as_slice() else {
-                        return Err(unavailable());
-                    };
-                    let mut ty = parse_type(inner, counters)?;
+                    let mut ty = parse_group(node, counters)?;
                     if effects.is_some() && ty.effects.is_some() {
                         return Err(unavailable());
                     }
@@ -293,6 +286,30 @@ fn parse_type(
         _ => return Err(unavailable()),
     };
     Ok(SourceAnnotationType { effects, value })
+}
+fn parse_group(
+    node: &SyntaxNode,
+    counters: &LoweringCounters,
+) -> Result<SourceAnnotationType, HirAvailabilityError> {
+    let children = elements(node);
+    match children.as_slice() {
+        [open, close]
+            if open.kind() == SyntaxKind::LParen && close.kind() == SyntaxKind::RParen =>
+        {
+            Ok(SourceAnnotationType {
+                effects: None,
+                value: SourceAnnotationValue::Unit,
+            })
+        }
+        [open, inner, close]
+            if open.kind() == SyntaxKind::LParen
+                && inner.kind() == SyntaxKind::TypeExpression
+                && close.kind() == SyntaxKind::RParen =>
+        {
+            parse_type(inner.as_node().ok_or_else(unavailable)?, counters)
+        }
+        _ => Err(unavailable()),
+    }
 }
 fn parse_row(
     node: &SyntaxNode,
@@ -405,6 +422,32 @@ mod tests {
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)
             .unwrap()
+    }
+    #[test]
+    fn empty_type_groups_form_unit_in_standalone_and_function_annotations() {
+        let counters = LoweringCounters::default();
+        for text in ["my value: () = ()", "my value: (()) = ()"] {
+            let node = annotation_type(text);
+            annotation_depth_preflight(&node).unwrap();
+            let ty = parse_type(&node, &counters).unwrap();
+            assert!(matches!(ty.value, SourceAnnotationValue::Unit));
+            assert_eq!(ty.node_count(), 1);
+        }
+        let node = annotation_type("my value: () -> () = 1");
+        let ty = parse_type(&node, &counters).unwrap();
+        assert_eq!(ty.node_count(), 3);
+        let SourceAnnotationValue::Function { argument, result } = ty.value else {
+            panic!("expected function annotation");
+        };
+        assert!(matches!(argument.value, SourceAnnotationValue::Unit));
+        assert!(matches!(result.value, SourceAnnotationValue::Unit));
+        for text in ["my value: (int,) = 1", "my value: (int, int) = 1"] {
+            let node = annotation_type(text);
+            assert!(matches!(
+                parse_type(&node, &counters),
+                Err(HirAvailabilityError::StructuralProjection)
+            ));
+        }
     }
     #[test]
     fn annotation_preflight_visits_once_and_bounds_group_and_arrow_transitions() {

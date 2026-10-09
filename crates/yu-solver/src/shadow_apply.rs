@@ -205,6 +205,8 @@ pub enum CandidateGraphLeaf {
     NegativeBottom,
     IntPositive,
     IntNegative,
+    UnitPositive,
+    UnitNegative,
     EffectBottom,
     EmptyEffect,
 }
@@ -258,7 +260,9 @@ impl<'a> CandidateGraphNode<'a> {
                 Atom::Top => CandidateGraphLeaf::Top,
                 Atom::NegativeBottom => CandidateGraphLeaf::NegativeBottom,
                 Atom::IntPositive => CandidateGraphLeaf::IntPositive,
+                Atom::UnitPositive => CandidateGraphLeaf::UnitPositive,
                 Atom::IntNegative => CandidateGraphLeaf::IntNegative,
+                Atom::UnitNegative => CandidateGraphLeaf::UnitNegative,
                 Atom::EffectBottom => CandidateGraphLeaf::EffectBottom,
                 Atom::EmptyEffect => CandidateGraphLeaf::EmptyEffect,
             },
@@ -269,7 +273,7 @@ impl<'a> CandidateGraphNode<'a> {
         use crate::candidate_scheme::{Atom, Node};
         match self.graph.nodes[self.index] {
             Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
-            Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::EffectBottom) => Polarity::Positive,
+            Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::UnitPositive | Atom::EffectBottom) => Polarity::Positive,
             Node::Leaf(_) => Polarity::Negative,
         }
     }

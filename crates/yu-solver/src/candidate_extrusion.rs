@@ -416,6 +416,8 @@ impl InferenceSession {
                         );
                         self.bounds[i].has_int_positive_lower |=
                             item == ValueEndpointKey::IntPositive;
+                        self.bounds[i].has_unit_positive_lower |=
+                            item == ValueEndpointKey::UnitPositive;
                     }
                     (Polarity::Negative, item) => insert_bound!(
                         bounds,
@@ -650,6 +652,7 @@ impl InferenceSession {
             _ => return Ok(0),
         };
         let old_int = self.bounds[owner as usize].has_int_positive_lower;
+        let old_unit = self.bounds[owner as usize].has_unit_positive_lower;
         let owner = ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(owner));
         let bound = ExtrusionEndpoint::Value(bound);
         self.candidate_insert_bound(owner, p, bound)?;
@@ -659,7 +662,7 @@ impl InferenceSession {
         };
         Ok(usize::from(
             !old_int && self.bounds[i as usize].has_int_positive_lower,
-        ))
+        ) + usize::from(!old_unit && self.bounds[i as usize].has_unit_positive_lower))
     }
 
     pub(super) fn candidate_apply_effect(

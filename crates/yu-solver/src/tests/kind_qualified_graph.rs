@@ -284,12 +284,15 @@ fn value_graph_endpoint(
         }
         atom => {
             let actual = match atom {
-                ValueEndpointKey::BottomPositive | ValueEndpointKey::IntPositive => {
+                ValueEndpointKey::BottomPositive
+                | ValueEndpointKey::IntPositive
+                | ValueEndpointKey::UnitPositive => {
                     Polarity::Positive
                 }
                 ValueEndpointKey::BottomNegative
                 | ValueEndpointKey::TopNegative
-                | ValueEndpointKey::IntNegative => Polarity::Negative,
+                | ValueEndpointKey::IntNegative
+                | ValueEndpointKey::UnitNegative => Polarity::Negative,
                 _ => unreachable!(),
             };
             assert_eq!(actual, polarity);
@@ -513,6 +516,8 @@ impl GraphRecord {
         Some(match self.terms.get(&id).expect("referenced term record") {
             TermRecord::Leaf(Leaf::IntPositive) => (ComponentKind::Value, Polarity::Positive),
             TermRecord::Leaf(Leaf::IntNegative) => (ComponentKind::Value, Polarity::Negative),
+            TermRecord::Leaf(Leaf::UnitPositive) => (ComponentKind::Value, Polarity::Positive),
+            TermRecord::Leaf(Leaf::UnitNegative) => (ComponentKind::Value, Polarity::Negative),
             TermRecord::Leaf(Leaf::EffectBottomPositive) => {
                 (ComponentKind::Effect, Polarity::Positive)
             }

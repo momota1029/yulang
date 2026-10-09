@@ -781,6 +781,15 @@ impl InferenceSession {
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<Term, SolveAvailabilityError> {
         match &ty.value {
+            SourceAnnotationValue::Unit => {
+                Ok(self
+                    .batch
+                    .collected_leaf_term(if polarity == Polarity::Positive {
+                        Leaf::UnitPositive
+                    } else {
+                        Leaf::UnitNegative
+                    }))
+            }
             SourceAnnotationValue::Int => {
                 Ok(self
                     .batch

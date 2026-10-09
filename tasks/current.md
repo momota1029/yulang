@@ -6668,9 +6668,33 @@ all-target and default owning checks pass without warnings. Measurement budget
 consumed: zero. No new semantic theorem is claimed proved or retired by this
 runtime ownership removal.
 
-Next: integrate authentic Unit primitive adapters, then actual operation
+Unit primitive adapters are integrated and verified in the checkpoint below.
+Next implement actual operation
 declaration/carrier and justified result-consumer formation. The isolated
-`/tmp/yulang-unit-types-production-candidate/` delta is prepared but unintegrated
-and uncompiled; it is not shipping evidence. Complete Call, contravariant effect
+`/tmp/yulang-unit-types-production-candidate/` delta supplied the production
+types input; the integrated verification is recorded below. Complete Call, contravariant effect
 attachments, hygiene correspondence, public transformed schemes,
 soundness/principality and target `yulang3` cutover remain active.
+
+### Oracle Unit primitive integrated (2026-10-10)
+
+The [Unit delivery](../notes/progress/2026-10-10-unit-primitive-integration.md)
+integrates the actual production types delta with HIR explicit/implicit Unit,
+annotation Unit, solver comparisons, capture/freshening/extrusion/rollback,
+boxed/flat/normalized/replayed closed storage and primitive result projection.
+M2 semantic/regression reviews, batched repairs and fresh delta reviews close
+the accepted findings. Unit-free diagnostic domains retain their old budget;
+Unit-bearing domains now have consistent checked sizing and indexing. 129
+distinct focused tests and all-feature owning/workspace checks pass without
+warnings. No benchmark or broad semantic proof ran. Historical assertions and
+discriminators are preserved; pending questions remain excluded from Git.
+
+Next: retain authentic Act operation declarations, qualified operation identity,
+declared signatures and inert carrier formation without another registry
+admission prerequisite. The architect confirms current authority permits this
+producer slice. Actual declared-result elimination must have an executable
+owner and survive aliases/scheme use; source callee shape cannot justify Force.
+Complete Call, contravariant attachments, hygiene, independent transformed
+public schemes, soundness/principality and target `yulang3` replacement remain
+required. A separate Unit closed incoming-use replay and source diagnostic-span
+coverage remain unverified by this primitive slice.

@@ -7,6 +7,7 @@ pub struct LocalSourceIndex {
     owner: DefinitionRootId,
     ordinal: u32,
 }
+
 impl LocalSourceIndex {
     pub fn ordinal(&self) -> u32 {
         self.ordinal
@@ -84,6 +85,7 @@ pub struct LocalSourceExpr {
 }
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
+    Unit,
     Integer(Box<str>),
     Name {
         spelling: Box<str>,
@@ -458,7 +460,13 @@ impl Builder<'_> {
                     }) {
                         return Err(invalid());
                     }
-                    let argument_node = only_child(tail)?;
+                    let argument_node = if tail.kind() == SyntaxKind::CallTail
+                        && tail.children().next().is_none()
+                    {
+                        None
+                    } else {
+                        Some(only_child(tail)?)
+                    };
                     let callee = self.slot()?;
                     let argument = self.slot()?;
                     self.set(
@@ -471,15 +479,19 @@ impl Builder<'_> {
                             source_form: tail.kind(),
                         },
                     )?;
-                    push(
-                        &mut self.work,
-                        Work::Expression(
-                            argument_node,
-                            argument,
-                            depth + tails.len() - ordinal,
-                            scope.clone(),
-                        ),
-                    )?;
+                    if let Some(argument_node) = argument_node {
+                        push(
+                            &mut self.work,
+                            Work::Expression(
+                                argument_node,
+                                argument,
+                                depth + tails.len() - ordinal,
+                                scope.clone(),
+                            ),
+                        )?;
+                    } else {
+                        self.set(argument, tail, scope.clone(), LocalSourceForm::Unit)?;
+                    }
                     current = callee;
                 }
                 push(
@@ -524,6 +536,10 @@ impl Builder<'_> {
                     )
                 }) {
                     return Err(invalid());
+                }
+                if node.children().next().is_none() {
+                    self.set(index, &node, scope, LocalSourceForm::Unit)?;
+                    return Ok(());
                 }
                 let child = only_child(&node)?;
                 let inner = self.slot()?;
@@ -666,5 +682,57 @@ impl Builder<'_> {
             )?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lower(text: &str) -> Result<HirModule, HirAvailabilityError> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("test", "unit.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+    }
+
+    #[test]
+    fn empty_call_uses_distinct_unit_and_apply_occurrences_at_call_tail() {
+        let module = lower("my invoke f = f()").unwrap();
+        let source = module.local_sources.values().next().unwrap();
+        let apply = source.expressions().iter().find(|expr| {
+            matches!(expr.form, LocalSourceForm::Apply { .. })
+        }).unwrap();
+        let LocalSourceForm::Apply { argument, source_form, .. } = &apply.form else {
+            unreachable!();
+        };
+        assert_eq!(*source_form, SyntaxKind::CallTail);
+        let unit = source.expression(argument).unwrap();
+        assert!(matches!(unit.form, LocalSourceForm::Unit));
+        assert_eq!(unit.source, apply.source);
+        assert_eq!(unit.range, apply.range);
+        assert_eq!(unit.range, 15..17);
+        assert_ne!(unit.occurrence, apply.occurrence);
+        assert!(matches!(unit.scope, LocalSourceScope::Parameter(_)));
+    }
+
+    #[test]
+    fn empty_parentheses_form_unit_without_admitting_tuple_or_recovery() {
+        let module = lower("my value = ()").unwrap();
+        let source = module.local_sources.values().next().unwrap();
+        let unit = source.expression(source.body()).unwrap();
+        assert!(matches!(unit.form, LocalSourceForm::Unit));
+        assert_eq!(unit.range, 11..13);
+        assert!(matches!(unit.scope, LocalSourceScope::Definition(_)));
+        for text in ["my value = (1,)", "my value = (1, 2)", "my value = ("] {
+            assert!(matches!(lower(text), Err(HirAvailabilityError::StructuralProjection)));
+        }
     }
 }

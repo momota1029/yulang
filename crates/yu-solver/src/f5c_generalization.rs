@@ -453,6 +453,7 @@ impl F5cDraftWorkMeter {
 pub(super) enum F5cPositive<'meter> {
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
@@ -481,6 +482,7 @@ pub(super) enum F5cNegative<'meter> {
     Top,
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
@@ -633,6 +635,7 @@ pub(super) use flat_walk_sink::{F5cFlatWalkSink, FlatWalkValue};
 pub(super) enum F5cSummaryNodeKind {
     PositiveBottom,
     PositiveInt,
+    PositiveUnit,
     PositiveRow(u32),
     PositiveAlias {
         start: u32,
@@ -648,6 +651,7 @@ pub(super) enum F5cSummaryNodeKind {
     NegativeTop,
     NegativeBottom,
     NegativeInt,
+    NegativeUnit,
     NegativeRow(u32),
     NegativeAlias {
         start: u32,
@@ -3228,6 +3232,9 @@ impl F5cComponentExpansionMemo {
                         F5cPositive::Int => {
                             push_id!(self.push_node(F5cSummaryNodeKind::PositiveInt, incidence)?)
                         }
+                        F5cPositive::Unit => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::PositiveUnit, incidence)?)
+                        }
                         F5cPositive::Variable(row) => push_id!(
                             self.push_node(F5cSummaryNodeKind::PositiveRow(*row), incidence)?
                         ),
@@ -3271,6 +3278,9 @@ impl F5cComponentExpansionMemo {
                         }
                         F5cNegative::Int => {
                             push_id!(self.push_node(F5cSummaryNodeKind::NegativeInt, incidence)?)
+                        }
+                        F5cNegative::Unit => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::NegativeUnit, incidence)?)
                         }
                         F5cNegative::Variable(row) => push_id!(
                             self.push_node(F5cSummaryNodeKind::NegativeRow(*row), incidence)?
@@ -3511,6 +3521,9 @@ impl F5cComponentExpansionMemo {
                             (F5cMaterializeTask::Positive(_), F5cSummaryNodeKind::PositiveInt) => {
                                 push_value!(F5cWalkValue::Positive(F5cPositive::Int, true))
                             }
+                            (F5cMaterializeTask::Positive(_), F5cSummaryNodeKind::PositiveUnit) => {
+                                push_value!(F5cWalkValue::Positive(F5cPositive::Unit, true))
+                            }
                             (
                                 F5cMaterializeTask::Positive(_),
                                 F5cSummaryNodeKind::PositiveRow(row),
@@ -3527,6 +3540,9 @@ impl F5cComponentExpansionMemo {
                             ) => push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true)),
                             (F5cMaterializeTask::Negative(_), F5cSummaryNodeKind::NegativeInt) => {
                                 push_value!(F5cWalkValue::Negative(F5cNegative::Int, true))
+                            }
+                            (F5cMaterializeTask::Negative(_), F5cSummaryNodeKind::NegativeUnit) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Unit, true))
                             }
                             (
                                 F5cMaterializeTask::Negative(_),
@@ -5916,6 +5932,11 @@ trait F5cWalkSink<'meter> {
         generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError>;
+    fn unit(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
     fn bottom(
         &mut self,
         generalizer: &mut F5cGeneralizer<'_, 'meter>,
@@ -5988,6 +6009,16 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
         Ok(match polarity {
             Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Int, true),
             Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Int, true),
+        })
+    }
+    fn unit(
+        &mut self,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
+        Ok(match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Unit, true),
+            Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Unit, true),
         })
     }
     fn bottom(
@@ -7061,7 +7092,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             match pair {
                 F5cCompareTask::Positive(left, right) => match (left, right) {
                     (F5cPositive::Bottom, F5cPositive::Bottom)
-                    | (F5cPositive::Int, F5cPositive::Int) => {}
+                    | (F5cPositive::Int, F5cPositive::Int)
+                    | (F5cPositive::Unit, F5cPositive::Unit) => {}
                     (F5cPositive::Variable(a), F5cPositive::Variable(b))
                     | (F5cPositive::Quantified(a), F5cPositive::Quantified(b))
                     | (F5cPositive::Recursive(a), F5cPositive::Recursive(b))
@@ -7113,7 +7145,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 F5cCompareTask::Negative(left, right) => match (left, right) {
                     (F5cNegative::Top, F5cNegative::Top)
                     | (F5cNegative::Bottom, F5cNegative::Bottom)
-                    | (F5cNegative::Int, F5cNegative::Int) => {}
+                    | (F5cNegative::Int, F5cNegative::Int)
+                    | (F5cNegative::Unit, F5cNegative::Unit) => {}
                     (F5cNegative::Variable(a), F5cNegative::Variable(b))
                     | (F5cNegative::Quantified(a), F5cNegative::Quantified(b))
                     | (F5cNegative::Recursive(a), F5cNegative::Recursive(b))
@@ -7562,6 +7595,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             push_value!(sink.int(self, Polarity::Positive)?);
                             continue;
                         }
+                        ValueEndpointKey::UnitPositive => {
+                            push_value!(sink.unit(self, Polarity::Positive)?);
+                            continue;
+                        }
                         ValueEndpointKey::BottomPositive => {
                             push_value!(sink.bottom(self, Polarity::Positive)?);
                             continue;
@@ -7580,6 +7617,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     F5cWalkTask::NegativeEndpoint(endpoint) => push_task!(match endpoint {
                         ValueEndpointKey::IntNegative => {
                             push_value!(sink.int(self, Polarity::Negative)?);
+                            continue;
+                        }
+                        ValueEndpointKey::UnitNegative => {
+                            push_value!(sink.unit(self, Polarity::Negative)?);
                             continue;
                         }
                         ValueEndpointKey::TopNegative => {
@@ -7612,8 +7653,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             (Polarity::Positive, TermView::Leaf(Leaf::IntPositive)) => {
                                 push_value!(sink.int(self, Polarity::Positive)?)
                             }
+                            (Polarity::Positive, TermView::Leaf(Leaf::UnitPositive)) => {
+                                push_value!(sink.unit(self, Polarity::Positive)?)
+                            }
                             (Polarity::Negative, TermView::Leaf(Leaf::IntNegative)) => {
                                 push_value!(sink.int(self, Polarity::Negative)?)
+                            }
+                            (Polarity::Negative, TermView::Leaf(Leaf::UnitNegative)) => {
+                                push_value!(sink.unit(self, Polarity::Negative)?)
                             }
                             (Polarity::Positive, TermView::PositiveBottom) => {
                                 push_value!(sink.bottom(self, Polarity::Positive)?)

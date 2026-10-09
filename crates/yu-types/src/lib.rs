@@ -22,20 +22,28 @@ pub enum Polarity {
 pub enum Leaf {
     IntPositive,
     IntNegative,
+    UnitPositive,
+    UnitNegative,
     EffectBottomPositive,
     EmptyEffectNegative,
 }
 impl Leaf {
     pub const fn component_kind(self) -> ComponentKind {
         match self {
-            Self::IntPositive | Self::IntNegative => ComponentKind::Value,
+            Self::IntPositive | Self::IntNegative | Self::UnitPositive | Self::UnitNegative => {
+                ComponentKind::Value
+            }
             Self::EffectBottomPositive | Self::EmptyEffectNegative => ComponentKind::Effect,
         }
     }
     pub const fn polarity(self) -> Polarity {
         match self {
-            Self::IntPositive | Self::EffectBottomPositive => Polarity::Positive,
-            Self::IntNegative | Self::EmptyEffectNegative => Polarity::Negative,
+            Self::IntPositive | Self::UnitPositive | Self::EffectBottomPositive => {
+                Polarity::Positive
+            }
+            Self::IntNegative | Self::UnitNegative | Self::EmptyEffectNegative => {
+                Polarity::Negative
+            }
         }
     }
 }
@@ -105,6 +113,7 @@ pub struct IndexedChildSpan {
 pub enum IndexedPositiveNode {
     Bottom,
     Int,
+    Unit,
     Quantified(u32),
     Recursive(u32),
     Union(IndexedChildSpan),
@@ -119,6 +128,7 @@ pub enum IndexedNegativeNode {
     Top,
     Bottom,
     Int,
+    Unit,
     Quantified(u32),
     Recursive(u32),
     Intersection(IndexedChildSpan),
@@ -585,6 +595,7 @@ fn indexed_validate(
 pub enum PositiveValueView<'a> {
     Bottom,
     Int,
+    Unit,
     Quantified(QuantifierId),
     Recursive(RecursiveBinderId),
     Function {
@@ -600,6 +611,7 @@ pub enum NegativeValueView<'a> {
     Top,
     Bottom,
     Int,
+    Unit,
     Quantified(QuantifierId),
     Recursive(RecursiveBinderId),
     Function {
@@ -690,6 +702,7 @@ impl<'a> ClosedValueSchemeView<'a> {
 enum PNode {
     Bottom,
     Int,
+    Unit,
     Quantified(QuantifierId),
     Recursive(RecursiveBinderId),
     Function {
@@ -708,6 +721,7 @@ enum NNode {
     Top,
     Bottom,
     Int,
+    Unit,
     Quantified(QuantifierId),
     Recursive(RecursiveBinderId),
     Function {
@@ -793,6 +807,7 @@ impl ClosedTypeArena {
             {
                 PNode::Bottom => PositiveValueView::Bottom,
                 PNode::Int => PositiveValueView::Int,
+                PNode::Unit => PositiveValueView::Unit,
                 PNode::Quantified(x) => PositiveValueView::Quantified(*x),
                 PNode::Recursive(x) => PositiveValueView::Recursive(*x),
                 PNode::Function {
@@ -827,6 +842,7 @@ impl ClosedTypeArena {
                 NNode::Top => NegativeValueView::Top,
                 NNode::Bottom => NegativeValueView::Bottom,
                 NNode::Int => NegativeValueView::Int,
+                NNode::Unit => NegativeValueView::Unit,
                 NNode::Quantified(x) => NegativeValueView::Quantified(*x),
                 NNode::Recursive(x) => NegativeValueView::Recursive(*x),
                 NNode::Function {
@@ -1190,6 +1206,7 @@ struct DraftRange {
 enum DP {
     Bottom,
     Int,
+    Unit,
     Q(u32),
     R(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
@@ -1200,6 +1217,7 @@ enum DN {
     Top,
     Bottom,
     Int,
+    Unit,
     Q(u32),
     R(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
@@ -1220,6 +1238,7 @@ struct DScheme {
 enum PlannedPNode {
     Bottom,
     Int,
+    Unit,
     Quantified(u32),
     Recursive(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
@@ -1230,6 +1249,7 @@ enum PlannedNNode {
     Top,
     Bottom,
     Int,
+    Unit,
     Quantified(u32),
     Recursive(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
@@ -1807,6 +1827,9 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
     pub fn positive_int(&mut self) -> Result<DraftPositiveValueId<'tx>, ClosedTypeFinalizeError> {
         self.p(DP::Int)
     }
+    pub fn positive_unit(&mut self) -> Result<DraftPositiveValueId<'tx>, ClosedTypeFinalizeError> {
+        self.p(DP::Unit)
+    }
     pub fn positive_quantified(
         &mut self,
         b: DraftQuantifierId<'tx>,
@@ -1865,6 +1888,9 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
     }
     pub fn negative_int(&mut self) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
         self.n(DN::Int)
+    }
+    pub fn negative_unit(&mut self) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
+        self.n(DN::Unit)
     }
     pub fn negative_quantified(
         &mut self,
@@ -2297,6 +2323,7 @@ impl ClosedTypeFinalizationSession {
                             let value = match input.positive_nodes[i] {
                                 IndexedPositiveNode::Bottom => f.positive_bottom()?,
                                 IndexedPositiveNode::Int => f.positive_int()?,
+                                IndexedPositiveNode::Unit => f.positive_unit()?,
                                 IndexedPositiveNode::Quantified(q) => {
                                     let index = usize::try_from(q)
                                         .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
@@ -2343,6 +2370,7 @@ impl ClosedTypeFinalizationSession {
                                 IndexedNegativeNode::Top => f.negative_top()?,
                                 IndexedNegativeNode::Bottom => f.negative_bottom()?,
                                 IndexedNegativeNode::Int => f.negative_int()?,
+                                IndexedNegativeNode::Unit => f.negative_unit()?,
                                 IndexedNegativeNode::Quantified(q) => {
                                     let index = usize::try_from(q)
                                         .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
@@ -2838,6 +2866,7 @@ impl ClosedTypeFinalizationSession {
             self.scratch.mapped_p.push(match *node {
                 DP::Bottom => PlannedPNode::Bottom,
                 DP::Int => PlannedPNode::Int,
+                DP::Unit => PlannedPNode::Unit,
                 DP::Q(x) => PlannedPNode::Quantified(x),
                 DP::R(x) => PlannedPNode::Recursive(x),
                 DP::Function { a: x, ae, re, r } => PlannedPNode::Function {
@@ -2860,6 +2889,7 @@ impl ClosedTypeFinalizationSession {
                 DN::Top => PlannedNNode::Top,
                 DN::Bottom => PlannedNNode::Bottom,
                 DN::Int => PlannedNNode::Int,
+                DN::Unit => PlannedNNode::Unit,
                 DN::Q(x) => PlannedNNode::Quantified(x),
                 DN::R(x) => PlannedNNode::Recursive(x),
                 DN::Function { a: x, ae, re, r } => PlannedNNode::Function {
@@ -3018,6 +3048,7 @@ impl ClosedTypeFinalizationSession {
                     rollback.arena.positives.push(match node {
                         PlannedPNode::Bottom => PNode::Bottom,
                         PlannedPNode::Int => PNode::Int,
+                        PlannedPNode::Unit => PNode::Unit,
                         PlannedPNode::Quantified(binder) => PNode::Quantified(QuantifierId(binder)),
                         PlannedPNode::Recursive(binder) => {
                             PNode::Recursive(RecursiveBinderId(binder))
@@ -3071,6 +3102,7 @@ impl ClosedTypeFinalizationSession {
                         PlannedNNode::Top => NNode::Top,
                         PlannedNNode::Bottom => NNode::Bottom,
                         PlannedNNode::Int => NNode::Int,
+                        PlannedNNode::Unit => NNode::Unit,
                         PlannedNNode::Quantified(binder) => NNode::Quantified(QuantifierId(binder)),
                         PlannedNNode::Recursive(binder) => {
                             NNode::Recursive(RecursiveBinderId(binder))
@@ -3409,7 +3441,8 @@ fn alpha_p(
 ) -> bool {
     match (l.positive_value(a), r.positive_value(b)) {
         (Ok(PositiveValueView::Bottom), Ok(PositiveValueView::Bottom))
-        | (Ok(PositiveValueView::Int), Ok(PositiveValueView::Int)) => true,
+        | (Ok(PositiveValueView::Int), Ok(PositiveValueView::Int))
+        | (Ok(PositiveValueView::Unit), Ok(PositiveValueView::Unit)) => true,
         (Ok(PositiveValueView::Quantified(x)), Ok(PositiveValueView::Quantified(y))) => {
             bind(q, qr, x.ordinal(), y.ordinal())
         }
@@ -3458,7 +3491,8 @@ fn alpha_n(
     match (l.negative_value(a), r.negative_value(b)) {
         (Ok(NegativeValueView::Top), Ok(NegativeValueView::Top))
         | (Ok(NegativeValueView::Bottom), Ok(NegativeValueView::Bottom))
-        | (Ok(NegativeValueView::Int), Ok(NegativeValueView::Int)) => true,
+        | (Ok(NegativeValueView::Int), Ok(NegativeValueView::Int))
+        | (Ok(NegativeValueView::Unit), Ok(NegativeValueView::Unit)) => true,
         (Ok(NegativeValueView::Quantified(x)), Ok(NegativeValueView::Quantified(y))) => {
             bind(q, qr, x.ordinal(), y.ordinal())
         }
@@ -3547,6 +3581,125 @@ fn alpha_neutral(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_leaf_kind_and_polarity() {
+        assert_eq!(Leaf::UnitPositive.component_kind(), ComponentKind::Value);
+        assert_eq!(Leaf::UnitNegative.component_kind(), ComponentKind::Value);
+        assert_eq!(Leaf::UnitPositive.polarity(), Polarity::Positive);
+        assert_eq!(Leaf::UnitNegative.polarity(), Polarity::Negative);
+        assert_ne!(Leaf::UnitPositive, Leaf::IntPositive);
+        assert_ne!(Leaf::UnitNegative, Leaf::IntNegative);
+    }
+
+    #[test]
+    fn unit_closed_primitive_alpha_and_arena_branding() {
+        let mut left = ClosedTypeFinalizationSession::try_new().unwrap();
+        let unit = left
+            .finalize_scheme(|f| {
+                let unit = f.positive_unit()?;
+                f.set_scheme(0, &[], unit)
+            })
+            .unwrap();
+        let int = left
+            .finalize_scheme(|f| {
+                let int = f.positive_int()?;
+                f.set_scheme(0, &[], int)
+            })
+            .unwrap();
+        let mut right = ClosedTypeFinalizationSession::try_new().unwrap();
+        let other = right
+            .finalize_scheme(|f| {
+                let unit = f.positive_unit()?;
+                f.set_scheme(0, &[], unit)
+            })
+            .unwrap();
+        let l = left.scheme_view(unit.test_scheme()).unwrap();
+        let r = right.scheme_view(other.test_scheme()).unwrap();
+        assert_eq!(l.positive_value(l.predicate()), Ok(PositiveValueView::Unit));
+        assert!(l.alpha_eq(r));
+        assert!(!l.alpha_eq(left.scheme_view(int.test_scheme()).unwrap()));
+        assert_eq!(
+            r.positive_value(l.predicate()),
+            Err(ClosedTypeLookupError::ArenaMismatch)
+        );
+    }
+
+    #[test]
+    fn unit_indexed_function_closed_roundtrip() {
+        let positive = [
+            IndexedPositiveNode::Unit,
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(0),
+                result: IndexedPositiveNodeId(0),
+            },
+        ];
+        let negative = [IndexedNegativeNode::Unit];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(1),
+            positive_nodes: &positive,
+            negative_nodes: &negative,
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut indexed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let indexed = indexed_session.finalize_indexed_scheme(input).unwrap();
+        let mut callback_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let callback = callback_session
+            .finalize_scheme(|f| {
+                let argument = f.negative_unit()?;
+                let result = f.positive_unit()?;
+                let ae = f.negative_effect_empty()?;
+                let re = f.positive_effect_bottom()?;
+                let function = f.positive_function(argument, ae, re, result)?;
+                f.set_scheme(0, &[], function)
+            })
+            .unwrap();
+        let int_argument = callback_session
+            .finalize_scheme(|f| {
+                let argument = f.negative_int()?;
+                let result = f.positive_unit()?;
+                let ae = f.negative_effect_empty()?;
+                let re = f.positive_effect_bottom()?;
+                let function = f.positive_function(argument, ae, re, result)?;
+                f.set_scheme(0, &[], function)
+            })
+            .unwrap();
+        let indexed_view = indexed_session.scheme_view(indexed.test_scheme()).unwrap();
+        let callback_view = callback_session
+            .scheme_view(callback.test_scheme())
+            .unwrap();
+        assert!(indexed_view.alpha_eq(callback_view));
+        assert!(
+            !indexed_view.alpha_eq(
+                callback_session
+                    .scheme_view(int_argument.test_scheme())
+                    .unwrap()
+            )
+        );
+        let PositiveValueView::Function {
+            argument, result, ..
+        } = indexed_view
+            .positive_value(indexed_view.predicate())
+            .unwrap()
+        else {
+            panic!("Unit function remains structured");
+        };
+        assert_eq!(
+            indexed_view.negative_value(argument),
+            Ok(NegativeValueView::Unit)
+        );
+        assert_eq!(
+            indexed_view.positive_value(result),
+            Ok(PositiveValueView::Unit)
+        );
+        assert_eq!(
+            callback_view.negative_value(argument),
+            Err(ClosedTypeLookupError::ArenaMismatch)
+        );
+    }
 
     #[cfg(feature = "f5c_resource_probe")]
     #[test]

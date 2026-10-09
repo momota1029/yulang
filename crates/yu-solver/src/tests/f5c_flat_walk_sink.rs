@@ -2968,6 +2968,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
         match draft.positive_nodes[id.0 as usize] {
             PositiveNode::Bottom => F5cPositive::Bottom,
             PositiveNode::Int => F5cPositive::Int,
+            PositiveNode::Unit => F5cPositive::Unit,
             PositiveNode::Quantified(n) => F5cPositive::Quantified(n),
             PositiveNode::Recursive(n) => F5cPositive::Recursive(n),
             PositiveNode::Union(span) => F5cPositive::Union(test_tracked(
@@ -2995,6 +2996,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
             NegativeNode::Top => F5cNegative::Top,
             NegativeNode::Bottom => F5cNegative::Bottom,
             NegativeNode::Int => F5cNegative::Int,
+            NegativeNode::Unit => F5cNegative::Unit,
             NegativeNode::Quantified(n) => F5cNegative::Quantified(n),
             NegativeNode::Recursive(n) => F5cNegative::Recursive(n),
             NegativeNode::Intersection(span) => F5cNegative::Intersection(test_tracked(

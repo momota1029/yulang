@@ -663,6 +663,7 @@ fn export_scheme(
             {
                 P::Bottom => GraphTerm::Bottom,
                 P::Int => GraphTerm::Atom(Atom::Int),
+                P::Unit => GraphTerm::Atom(Atom::Unit),
                 P::Quantified(q) => {
                     GraphTerm::Variable(binder(&mut exported, SchemeBinder::Quantified(q)))
                 }
@@ -697,6 +698,7 @@ fn export_scheme(
                 N::Top => GraphTerm::Top,
                 N::Bottom => GraphTerm::Bottom,
                 N::Int => GraphTerm::Atom(Atom::Int),
+                N::Unit => GraphTerm::Atom(Atom::Unit),
                 N::Quantified(q) => {
                     GraphTerm::Variable(binder(&mut exported, SchemeBinder::Quantified(q)))
                 }

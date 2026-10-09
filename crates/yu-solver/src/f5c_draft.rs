@@ -105,6 +105,7 @@ mod owner_transfer_tests {
 pub(super) enum PositiveNode {
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
@@ -120,6 +121,7 @@ pub(super) enum NegativeNode {
     Top,
     Bottom,
     Int,
+    Unit,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
@@ -466,6 +468,7 @@ impl FlatDraft {
             Ok(match *node {
                 PositiveNode::Bottom => IndexedPositiveNode::Bottom,
                 PositiveNode::Int => IndexedPositiveNode::Int,
+                PositiveNode::Unit => IndexedPositiveNode::Unit,
                 PositiveNode::Variable(_) => return Err(exhausted),
                 PositiveNode::Quantified(n) => IndexedPositiveNode::Quantified(n),
                 PositiveNode::Recursive(n) => IndexedPositiveNode::Recursive(n),
@@ -481,6 +484,7 @@ impl FlatDraft {
                 NegativeNode::Top => IndexedNegativeNode::Top,
                 NegativeNode::Bottom => IndexedNegativeNode::Bottom,
                 NegativeNode::Int => IndexedNegativeNode::Int,
+                NegativeNode::Unit => IndexedNegativeNode::Unit,
                 NegativeNode::Variable(_) => return Err(exhausted),
                 NegativeNode::Quantified(n) => IndexedNegativeNode::Quantified(n),
                 NegativeNode::Recursive(n) => IndexedNegativeNode::Recursive(n),

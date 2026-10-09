@@ -735,6 +735,8 @@ enum ValueEndpointKey {
     TopNegative,
     IntPositive,
     IntNegative,
+    UnitPositive,
+    UnitNegative,
     /// This ordinal is allocated by `InferenceSession`, never by collection.
     ValueRow(u32),
     PositiveFunction(Term),
@@ -3879,6 +3881,7 @@ impl Hash for FactKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SolvedValue {
     Int,
+    Unit,
     Unknown,
     Never,
 }
@@ -3918,6 +3921,7 @@ pub enum SolverErrorKind {
 pub enum ValueShape {
     Bottom,
     Int,
+    Unit,
     Function,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -3968,6 +3972,7 @@ struct VariableBounds {
     exact_non_variable_lowers: Vec<ValueEndpointKey>,
     exact_non_variable_uppers: Vec<ValueEndpointKey>,
     has_int_positive_lower: bool,
+    has_unit_positive_lower: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -8067,6 +8072,7 @@ struct ValueRowUndo {
     exact_non_variable_uppers_len: usize,
     exact_non_variable_uppers_capacity: usize,
     has_int_positive_lower: bool,
+    has_unit_positive_lower: bool,
     non_generic: bool,
     level: u32,
     mark: u32,
@@ -9197,6 +9203,7 @@ impl InferenceSession {
             exact_non_variable_uppers_len: bounds.exact_non_variable_uppers.len(),
             exact_non_variable_uppers_capacity: bounds.exact_non_variable_uppers.capacity(),
             has_int_positive_lower: bounds.has_int_positive_lower,
+            has_unit_positive_lower: bounds.has_unit_positive_lower,
             non_generic: self.value_metadata[index].non_generic,
             level: self.value_levels[index],
             mark: self.extrusion_value_marks[index],
@@ -9346,6 +9353,7 @@ impl InferenceSession {
                 .exact_non_variable_uppers
                 .truncate(undo.exact_non_variable_uppers_len);
             bounds.has_int_positive_lower = undo.has_int_positive_lower;
+            bounds.has_unit_positive_lower = undo.has_unit_positive_lower;
             self.value_metadata[undo.index].non_generic = undo.non_generic;
             self.value_levels[undo.index] = undo.level;
             self.extrusion_value_marks[undo.index] = undo.mark;
@@ -11164,7 +11172,9 @@ impl InferenceSession {
             .expect("collected value term is visible in its solve branch")
         {
             TermView::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
+            TermView::Leaf(Leaf::UnitPositive) => ValueEndpointKey::UnitPositive,
             TermView::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
+            TermView::Leaf(Leaf::UnitNegative) => ValueEndpointKey::UnitNegative,
             TermView::Component(component) => {
                 debug_assert_eq!(component.kind(), ComponentKind::Value);
                 self.canonical_value(ValueEndpointKey::ValueRow(self.component_endpoint(term).ordinal))
@@ -12419,6 +12429,7 @@ impl InferenceSession {
             // external/replay seed cardinality is not a startup invariant.
             self.diagnostic_bucket_candidates.clear();
             let mut minimum_seed_distance = None;
+            let mut shape_count = 3usize;
             for member_position in start..end {
                 let node = self.diagnostic_scc_nodes[member_position];
                 #[cfg(test)]
@@ -12431,6 +12442,8 @@ impl InferenceSession {
                     _ => unreachable!("diagnostic SCC names value pairs"),
                 };
                 if let Some(witness) = direct_witness {
+                    let ranks = Self::error_rank(witness.kind);
+                    shape_count = shape_count.max(usize::from(ranks.0.max(ranks.1)) + 1);
                     self.push_diagnostic_seed(node, witness)?;
                     minimum_seed_distance = Some(
                         minimum_seed_distance.map_or(witness.distance, |current: u32| {
@@ -12467,6 +12480,8 @@ impl InferenceSession {
                         .map(|witness| Self::extend_witness(witness, edge))
                         .transpose()?
                     {
+                        let ranks = Self::error_rank(witness.kind);
+                        shape_count = shape_count.max(usize::from(ranks.0.max(ranks.1)) + 1);
                         self.push_diagnostic_seed(node, witness)?;
                         minimum_seed_distance = Some(
                             minimum_seed_distance.map_or(witness.distance, |current: u32| {
@@ -12487,13 +12502,17 @@ impl InferenceSession {
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     )
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let distance_stride = shape_count
+                    .checked_mul(shape_count)
+                    .and_then(|count| count.checked_mul(5))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 let bucket_count = member_count
-                    .checked_mul(45)
+                    .checked_mul(distance_stride)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 self.prepare_diagnostic_buckets(bucket_count)?;
                 let seed_count = self.diagnostic_bucket_candidates.len();
                 for seed in 0..seed_count {
-                    self.link_diagnostic_bucket_candidate(seed, d0, maximum_distance)?;
+                    self.link_diagnostic_bucket_candidate(seed, d0, maximum_distance, shape_count)?;
                 }
 
                 for bucket in 0..bucket_count {
@@ -12529,6 +12548,7 @@ impl InferenceSession {
                                 witness,
                                 d0,
                                 maximum_distance,
+                                shape_count,
                             )?;
                         }
                     }
@@ -12695,12 +12715,13 @@ impl InferenceSession {
         candidate: usize,
         d0: u32,
         maximum_distance: u32,
+        shape_count: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let witness = self.diagnostic_bucket_candidates[candidate].witness;
         if witness.distance > maximum_distance {
             return Ok(());
         }
-        let bucket = Self::diagnostic_bucket(witness, d0)?;
+        let bucket = Self::diagnostic_bucket(witness, d0, shape_count)?;
         self.diagnostic_bucket_candidates[candidate].next = None;
         if let Some(tail) = self.diagnostic_bucket_tails[bucket] {
             self.diagnostic_bucket_candidates[tail].next = Some(candidate);
@@ -12719,28 +12740,34 @@ impl InferenceSession {
         witness: DiagnosticWitness,
         d0: u32,
         maximum_distance: u32,
+        shape_count: usize,
     ) -> Result<(), SolveAvailabilityError> {
         if witness.distance > maximum_distance {
             return Ok(());
         }
         let candidate = self.diagnostic_bucket_candidates.len();
         self.push_diagnostic_seed(node, witness)?;
-        self.link_diagnostic_bucket_candidate(candidate, d0, maximum_distance)
+        self.link_diagnostic_bucket_candidate(candidate, d0, maximum_distance, shape_count)
     }
 
     fn diagnostic_bucket(
         witness: DiagnosticWitness,
         d0: u32,
+        shape_count: usize,
     ) -> Result<usize, SolveAvailabilityError> {
         let distance = usize::try_from(witness.distance - d0)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let kind = Self::error_rank(witness.kind);
         let kind = usize::from(kind.0)
-            .checked_mul(3)
+            .checked_mul(shape_count)
             .and_then(|rank| rank.checked_add(usize::from(kind.1)))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let distance_stride = shape_count
+            .checked_mul(shape_count)
+            .and_then(|count| count.checked_mul(5))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         distance
-            .checked_mul(45)
+            .checked_mul(distance_stride)
             .and_then(|offset| offset.checked_add(kind.checked_mul(5)?))
             .and_then(|offset| {
                 offset.checked_add(usize::from(Self::field_rank(witness.first_field)))
@@ -12785,6 +12812,7 @@ impl InferenceSession {
             ValueShape::Bottom => 0,
             ValueShape::Int => 1,
             ValueShape::Function => 2,
+            ValueShape::Unit => 3,
         }
     }
 
@@ -12956,6 +12984,11 @@ impl InferenceSession {
                 {
                     transitions += 1;
                 }
+                if atom == ValueEndpointKey::UnitPositive
+                    && !std::mem::replace(&mut self.bounds[index].has_unit_positive_lower, true)
+                {
+                    transitions += 1;
+                }
                 let upper_len = self.bounds[index].exact_non_variable_uppers.len();
                 for item_index in 0..upper_len {
                     let item = self.bounds[index].exact_non_variable_uppers[item_index];
@@ -13100,6 +13133,7 @@ impl InferenceSession {
     fn incompatible_value_shapes(key: CanonicalValuePairKey) -> Option<(ValueShape, ValueShape)> {
         let lower = match key.lower {
             ValueEndpointKey::IntPositive => ValueShape::Int,
+            ValueEndpointKey::UnitPositive => ValueShape::Unit,
             ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
             ValueEndpointKey::BottomPositive => ValueShape::Bottom,
             _ => return None,
@@ -13107,6 +13141,7 @@ impl InferenceSession {
         let upper = match key.upper {
             ValueEndpointKey::TopNegative => return None,
             ValueEndpointKey::IntNegative => ValueShape::Int,
+            ValueEndpointKey::UnitNegative => ValueShape::Unit,
             ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
             ValueEndpointKey::BottomNegative => ValueShape::Bottom,
             _ => return None,
@@ -13117,6 +13152,11 @@ impl InferenceSession {
                 | (ValueShape::Int, ValueShape::Function)
                 | (ValueShape::Function, ValueShape::Bottom)
                 | (ValueShape::Function, ValueShape::Int)
+                | (ValueShape::Unit, ValueShape::Bottom)
+                | (ValueShape::Unit, ValueShape::Int)
+                | (ValueShape::Unit, ValueShape::Function)
+                | (ValueShape::Int, ValueShape::Unit)
+                | (ValueShape::Function, ValueShape::Unit)
         )
         .then_some((lower, upper))
     }
@@ -14805,6 +14845,7 @@ impl InferenceSession {
         {
             PositiveValueView::Bottom => Ok(F5cPositive::Bottom),
             PositiveValueView::Int => Ok(F5cPositive::Int),
+            PositiveValueView::Unit => Ok(F5cPositive::Unit),
             PositiveValueView::Quantified(q) => Ok(F5cPositive::Quantified(q.ordinal())),
             PositiveValueView::Recursive(r) => Ok(F5cPositive::Recursive(r.ordinal())),
             PositiveValueView::Function {
@@ -14853,6 +14894,7 @@ impl InferenceSession {
             NegativeValueView::Top => Ok(F5cNegative::Top),
             NegativeValueView::Bottom => Ok(F5cNegative::Bottom),
             NegativeValueView::Int => Ok(F5cNegative::Int),
+            NegativeValueView::Unit => Ok(F5cNegative::Unit),
             NegativeValueView::Quantified(q) => Ok(F5cNegative::Quantified(q.ordinal())),
             NegativeValueView::Recursive(r) => Ok(F5cNegative::Recursive(r.ordinal())),
             NegativeValueView::Function {
@@ -15038,6 +15080,11 @@ impl InferenceSession {
                                 .push_part(self.batch.collected_leaf_term(Leaf::IntPositive))?;
                             self.sample_instantiation_growth(scratch, grew)?;
                         }
+                        PositiveValueView::Unit => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::UnitPositive))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
                         PositiveValueView::Quantified(q) => {
                             let row = *scratch
                                 .substitution
@@ -15163,6 +15210,11 @@ impl InferenceSession {
                         NegativeValueView::Int => {
                             let grew = scratch
                                 .push_part(self.batch.collected_leaf_term(Leaf::IntNegative))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Unit => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::UnitNegative))?;
                             self.sample_instantiation_growth(scratch, grew)?;
                         }
                         NegativeValueView::Quantified(q) => {
@@ -16066,6 +16118,7 @@ impl InferenceSession {
             match value {
                 F5cPositive::Bottom => finalizer.positive_bottom(),
                 F5cPositive::Int => finalizer.positive_int(),
+                F5cPositive::Unit => finalizer.positive_unit(),
                 F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
                     Err(ClosedTypeFinalizeError::InvalidDraft)
                 }
@@ -16117,6 +16170,7 @@ impl InferenceSession {
                 F5cNegative::Top => finalizer.negative_top(),
                 F5cNegative::Bottom => finalizer.negative_bottom(),
                 F5cNegative::Int => finalizer.negative_int(),
+                F5cNegative::Unit => finalizer.negative_unit(),
                 F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
                     Err(ClosedTypeFinalizeError::InvalidDraft)
                 }
@@ -16221,6 +16275,8 @@ impl InferenceSession {
                 }
                 let predicate = if bounds[row].has_int_positive_lower {
                     finalizer.positive_int()?
+                } else if bounds[row].has_unit_positive_lower {
+                    finalizer.positive_unit()?
                 } else {
                     finalizer.positive_bottom()?
                 };
@@ -16324,6 +16380,10 @@ impl InferenceSession {
                             .contains(&ValueEndpointKey::IntNegative)
                     {
                         SolvedValue::Int
+                    } else if value_row.has_unit_positive_lower
+                        && value_row.exact_non_variable_uppers.contains(&ValueEndpointKey::UnitNegative)
+                    {
+                        SolvedValue::Unit
                     } else {
                         SolvedValue::Unknown
                     },
@@ -16696,6 +16756,7 @@ impl SolvedModule {
             .expect("scheme predicate remains valid")
         {
             PositiveValueView::Int => Ok(SolvedValue::Int),
+            PositiveValueView::Unit => Ok(SolvedValue::Unit),
             PositiveValueView::Bottom => Ok(SolvedValue::Never),
             PositiveValueView::Quantified(_)
             | PositiveValueView::Recursive(_)
@@ -17320,6 +17381,8 @@ mod candidate_lifecycle_retirement {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+    #[path = "../candidate_unit_tests.rs"]
+    mod candidate_unit_tests;
     #[cfg(feature = "shadow-f5")]
     mod complete_bound_constraints;
     #[cfg(feature = "shadow-f5")]

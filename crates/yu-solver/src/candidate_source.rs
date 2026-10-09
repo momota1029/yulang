@@ -72,6 +72,15 @@ fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: boo
     }
 }
 
+fn annotation_contains_unit(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Unit => true,
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
+            annotation_contains_unit(argument) || annotation_contains_unit(result),
+        _ => false,
+    }
+}
+
 pub(super) fn retain_placeholder_errors(expr: &ResolvedExpr, permitted: &mut HashSet<yu_hir::HirErrorId>) -> Result<(), shadow_apply::CandidateError> {
     // The HIR carrier owns this unsupported legacy placeholder. Its successful
     // source formation is checked separately; unrelated diagnostics stay visible.
@@ -208,9 +217,14 @@ impl ConstraintBatch {
                     let occurrence = &expr.occurrence;
                     let start = self.occurrences.len();
                     match &expr.form {
-                        LocalSourceForm::Integer(_) => {
-                            let positive = self.term_for_leaf(Leaf::IntPositive)?;
-                            let negative = self.term_for_leaf(Leaf::IntNegative)?;
+                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit => {
+                            let (positive_leaf, negative_leaf) = if matches!(&expr.form, LocalSourceForm::Unit) {
+                                (Leaf::UnitPositive, Leaf::UnitNegative)
+                            } else {
+                                (Leaf::IntPositive, Leaf::IntNegative)
+                            };
+                            let positive = self.term_for_leaf(positive_leaf)?;
+                            let negative = self.term_for_leaf(negative_leaf)?;
                             self.emit(occurrence.clone(), 0, positive, self.component_term_at(pos.value))?;
                             self.emit(occurrence.clone(), 1, self.component_term_at(pos.value), negative)?;
                             let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
@@ -300,6 +314,10 @@ impl ConstraintBatch {
             // including bodies whose source expressions contain no literals.
             for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
                 self.term_for_leaf(leaf)?;
+            }
+            if annotation_contains_unit(&annotation.ty) {
+                self.term_for_leaf(Leaf::UnitPositive)?;
+                self.term_for_leaf(Leaf::UnitNegative)?;
             }
             push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
