@@ -6909,11 +6909,21 @@ does not prove all-machine termination or successor correspondence. The
 [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
 records exact anchors and remaining obligations.
 
-Next: derive the same-constraint and bound-subsumption invariants for the
-successor's level-selected bounds and parent/copy intrusion. Then implement the
-negative formal boundary and actual consumer without fixed semantic caps,
-including the user's callback result as a real source regression. Positive
-covariant annotations already have a private source/propagation implementation.
-No code or compiler tests changed in this audit; the finite Python model was
-rechecked once. Full hygiene, complete Call, soundness/principality and public /
-default F5 cutover remain open.
+The successor's existing same-endpoint shortcut applies only to context-free
+identity constraints. Independent source inspection found no contextual
+subtraction carried by its task, bound, extrusion, or intrusion representations;
+therefore the Oracle self-edge rule cannot be copied as a termination fix. This
+is a real source-construction gap, not evidence for an arbitrary work cap or a
+new semantic choice. The exact contextual skip premise is that every local
+check, residual/output consequence, latent Function consequence, and provenance
+obligation remains owned and live after equality, freshening, and rollback.
+
+Next: implement the source-owned contravariant attachment and executable
+subtraction consumer as one coupled gate, reusing the selected hygiene policy
+and its existing conditional proofs. Include the corrected callback result as
+the owning source regression. Then derive termination/subsumption behavior on
+the actual contextual representation before considering self-edge pruning.
+Positive covariant annotations already have a private source/propagation
+implementation. No code or compiler tests changed in this audit; the finite
+Python model was rechecked once. Full hygiene, complete Call,
+soundness/principality and public/default F5 cutover remain open.

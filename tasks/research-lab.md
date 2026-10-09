@@ -153,10 +153,11 @@ exact replay counts. The user supplied a concrete callback/`run_io` expected
 scheme; it is recorded in the authoritative hygiene policy as the source target.
 No semantic vote or arbitrary work cap is pending.
 
-Next useful producer: derive successor-local contextual self-edge and
-subsumption invariants against level-oriented bound storage, extrusion, and
-parent/copy intrusion. Keep semantic consequences, source reachability, and
-resource accounting as distinct questions; do not claim the Oracle test proves
-the successor. After owner adjudication, authorize a single implementation lease
-for the coupled formal constructor/consumer/transport and focused runtime matrix.
-No Cargo processes active; primary owns all implementation checks and Git.
+The successor owner audit found that only context-free equal-endpoint identity
+is currently omitted; its task/bound/extrusion/intrusion state has no contextual
+subtraction field. Do not add the Oracle guard to endpoint-only admission.
+Next: build the annotation-owned negative attachment and executable consumer
+through construction, propagation, transport and rollback, then analyze
+termination on that representation. Keep semantics, source reachability and
+resource behavior distinct. No Cargo processes active; primary owns code,
+verification and Git.
