@@ -5604,6 +5604,22 @@ those downstream gates open. The question bundle was integrated in commit
 The candidate's M2 review convergence used one compiler-referee and one
 spec-auditor, with one batched repair. No tests or builds ran.
 
+The first construction attempt and independent inversion attack are checkpointed
+in [the conditional constructor ledger](../notes/theory/2026-10-10-original-literal-call-emission-construction-attempt.md)
+and [the origin-cycle falsification](../notes/progress/2026-10-10-literal-call-emission-falsification.md),
+commits `bb5fdbe7d` and `126be49ca`. Under explicitly imported original
+Reg/Route, primitive and Return contracts, Original-ResultLiteral supplies the
+literal child's Data/Result prefix. The first new source producer still missing
+is a Call-owned original argument-Reify origin and its complete literal
+code-to-carrier domain/license/action attachment. Carrier-Delay consumes this
+origin; Code-Call cannot construct it because Code-Call already requires it.
+This is a bounded supplier cut, not a rejection of `f 1` or an impossibility
+claim. The tagged constructor, full old-family conservation and local O0 remain
+conditional; O1/SeedExposure, original kernel realization, C0/admission,
+complete solving, publication and F5 cutover remain open. Next, construct and
+review the Call-owner Reify supplier at its actual original indices before
+attempting the full tagged record. No implementation, tests or builds ran.
+
 The approved annotation q1/d1's next design slice is recorded in the
 [one-case Any annotation design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md).
 It assigns ownership from the literal's current Int root and prior evidence,
