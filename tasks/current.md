@@ -6074,3 +6074,40 @@ the exact selected interpretation. Complete Call formation, O0/O1, C0/admission,
 effective correlated solving, principality, ordinary export/fresh checking and
 F5 replacement remain open. No compiler code, tests, builds, runtime probes or
 measurements were changed/run for these design and source-map checkpoints.
+
+### Current user correction: restore Simple-sub inference ordering (2026-10-10)
+
+The user explicitly corrected the repeated questions as ignoring Simple-sub's
+solution. The [pinned algorithm/current-code reassessment](../notes/progress/2026-10-10-simple-sub-question-reassessment.md)
+shows that basic application inference already uses one uniform operation:
+allocate a fresh result beta and constrain the callee alpha below
+Function(argument,beta). The argument can be Int or an unknown monomorphic
+formal gamma. Installing upper/lower bounds, Function variance, per-use graph
+freshening and polarity-sensitive boundary handling determine that spine.
+
+The offered literal-versus-general ordinary-value q1 choice is withdrawn, with
+its unapproved drafts preserved. Registry q4 is suspended as an inference
+prerequisite: adopting a new observable Seal/decoder/kernel interpretation was
+not shown necessary for basic source bound collection. Its candidate equations
+remain unadopted; q2's Reify choices and q3's design/review permission remain
+binding. Both pending directories retain questioner-owned dispositions and
+remain unstaged/uncommitted. No answer preference/draft is consumed as approval.
+The newly dispatched original-formal rule construction was interrupted, with
+no resulting artifact present; no further new-rule question was created.
+
+The real code seams are ordinary recursive Apply/Group collection and lexical
+formal lookup, retained callee/argument/invocation effect endpoints, replacing
+fixed-empty candidate Call effects, and successor generalization/freshening
+which preserves effect variables/bounds. Current extrusion lowers rows in
+place and must not be described as the pinned algorithm's polarity-keyed
+copied approximants. Existing shadow generation already has the scalar Apply
+bound, but it remains incomplete and cannot be promoted as full Call inference.
+
+Next: advance compositional collection/live solving and the successor scheme
+path from these existing source constraints. Keep the complete effect, role,
+protection, provider/world, image, admission/licensing and future obligations
+at their source/solve/elaboration owners. Do not require full kernel certificate
+formation before creating fresh endpoints, and do not export a missing compiler
+constructor as a supposedly meaningful residual. No new decision is established
+for the basic Apply constraint spine. Full inference/F5 replacement stays open;
+no proof-DAG promotion or code/default-route change follows from this audit.

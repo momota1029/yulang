@@ -30,6 +30,15 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Current Simple-sub correction (2026-10-10):**
+  [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
+  restores uniform fresh-result/callable-bound generation for literal and
+  generic arguments. Ordinary-value q1's choice is withdrawn; registry q4 is
+  suspended as an inference prerequisite. No dependency from complete raw
+  registry adoption to basic bound collection was established. Existing
+  full Call, effect/protection, q2/q3 and proof scopes remain binding; proceed
+  with compositional collection, live bounds and successor generalization.
+
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and
   [SRC/SRC-J/GS/GC](../theory/2026-10-08-source-generalize-definition-and-proof.md)
@@ -274,6 +283,9 @@ This index is a navigation aid. The listed source document remains authoritative
   assert an incompatible declaration or source impossibility. The six choices
   are unadopted; [registry q4](../../questions/2026-10-10-call-reify-registry-construction/q4/question.md)
   requests exact adoption. No compiler implementation or full inference closure.
+  Following the current user correction, that request is suspended as an
+  inference prerequisite; the proposal remains unadopted research. See the
+  Simple-sub reassessment above.
 
 - **Reviewed source-owned invoke registry candidate, unadopted (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
