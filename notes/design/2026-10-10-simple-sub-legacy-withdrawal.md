@@ -65,6 +65,16 @@ complete. This is implementation dependency removal, not discharge of a
 semantic proof node; complete Call, public export, hygiene, soundness and
 principality remain required.
 
+## Implemented unused draft resource retirement
+
+The [unused draft delivery](../progress/2026-10-10-candidate-unused-draft-withdrawal.md)
+removes the candidate startup reservation of legacy `DraftScheme` scratch.
+Actual graph staging replaces that storage owner; every mutable draft consumer
+belongs to the legacy SCC branch. The legacy owner retains its real allocation
+and failure behavior. Candidate inference no longer depends on success of an
+unused F5 reservation. This is runtime dependency removal, not proof discharge;
+genuine semantic obligations and public migration remain open.
+
 ## Related authority
 
 - [Parent/copy SCC intrusion](2026-10-10-parent-copy-scc-intrusion.md).

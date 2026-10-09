@@ -126,6 +126,9 @@ This index is a navigation aid. The listed source document remains authoritative
   removes candidate construction/finish of the legacy closed finalizer and
   its result-shell dependency. M2 review and 52 focused tests pass; public
   closed result ownership remains genuine and public successor cutover open.
+  The [unused draft resource withdrawal](../progress/2026-10-10-candidate-unused-draft-withdrawal.md)
+  also removes the candidate's unused F5 startup reservation. M1 review and ten
+  focused controls pass; legacy reservation/failure behavior remains real.
   The [Oracle Unit integration](../progress/2026-10-10-unit-primitive-integration.md)
   supplies actual primitive, HIR, solver and closed/flat adapters. M2 review,
   129 distinct focused tests and owning/workspace checks pass; authentic

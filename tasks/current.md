@@ -6726,3 +6726,22 @@ failure control. Actual execution consumers/contravariant attachments,
 independent public schemes, soundness/principality and target `yulang3`
 replacement remain active. Operation-specific full capture/intrusion execution,
 backend execution and complete semantic proofs remain unverified here.
+
+### Candidate unused F5 draft dependency withdrawn (2026-10-10)
+
+The [resource withdrawal](../notes/progress/2026-10-10-candidate-unused-draft-withdrawal.md)
+guards legacy `DraftScheme` startup capacity/reservation by its existing legacy
+owner. Graph inference stages captured graphs and has no draft consumers;
+candidate startup no longer fails on this unused F5 lane. Two new regressions
+verify real exports/fresh uses/Calls under an armed Drafts failure, ordinary
+legacy consumption/atomic release/retry, and zero physically sampled candidate
+draft capacity/bytes. M1 independent regression review found no issue. Ten
+focused tests, default check and all-target/all-feature owning check pass
+without warnings. Measurement budget consumed: zero.
+
+This closes the exact safe withdrawal identified above. Next: construct the
+authentic execution/consumer supplier and contravariant effect attachment at
+their actual owners, then migrate independent public schemes/default entrypoint.
+Complete Call, hygiene, soundness/principality and target `yulang3` cutover
+remain required; no proof node is declared closed by this resource removal.
+Historical public observer/default F5 owners remain real migration targets.

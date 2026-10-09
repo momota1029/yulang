@@ -9644,7 +9644,6 @@ impl InferenceSession {
             })
             .and_then(|count| count.checked_add(batch.definition_uses.len()))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let draft_capacity = batch.counters.scc_maximum_component_size;
         let routed_capacity = batch.definition_uses.len();
         let mut session = Self {
             #[cfg(feature = "shadow-apply-candidate")]
@@ -9921,7 +9920,10 @@ impl InferenceSession {
         reserve_startup!(routed_uses, routed_capacity, RoutedUses);
         reserve_startup!(routed_use_positions, routed_capacity, RoutedUsePositions);
         if legacy_closed { reserve_startup!(schemes, definition_count, Schemes); }
-        reserve_startup!(drafts, draft_capacity, Drafts);
+        if legacy_closed {
+            let draft_capacity = session.batch.counters.scc_maximum_component_size;
+            reserve_startup!(drafts, draft_capacity, Drafts);
+        }
         session
             .extrusion_value_marks
             .resize(value_component_count, 0);
@@ -17257,6 +17259,19 @@ impl InferenceSession {
 mod candidate_lifecycle_retirement {
     use super::*;
 
+    struct DraftReserveReset;
+    impl DraftReserveReset {
+        fn new() -> Self {
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(None));
+            Self
+        }
+    }
+    impl Drop for DraftReserveReset {
+        fn drop(&mut self) {
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(None));
+        }
+    }
+
     struct ProbeReset;
     impl ProbeReset {
         fn new() -> Self {
@@ -17285,6 +17300,63 @@ mod candidate_lifecycle_retirement {
             let probe = probe.borrow();
             assert_eq!((probe.starts, probe.finishes), (starts, finishes));
         });
+    }
+
+    #[test]
+    fn candidate_skips_draft_reserve_failure_while_ordinary_solve_consumes_it() {
+        let _reset = DraftReserveReset::new();
+        inject_next_f5b_reserve_failure(F5bCapacityLane::Drafts);
+        let hir = hir("my id x = x; my first = id 1; my second = id 1");
+        let candidate = crate::shadow_apply::CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        let mut fresh_uses = 0;
+        for item in hir.items() {
+            let HirItem::Binding(binding) = item else { panic!("binding"); };
+            assert!(candidate.export(binding.definition_root()).unwrap().node_count() > 0);
+            let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+            for expression in source.expressions() {
+                if matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Name {
+                    resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(_), ..
+                }) {
+                    assert!(candidate.fresh_use(&expression.occurrence).is_some());
+                    fresh_uses += 1;
+                }
+            }
+        }
+        assert_eq!(fresh_uses, 2);
+        assert_eq!(candidate.source_call_count(), 2);
+        for i in 0..2 { assert!(candidate.source_call(i).is_ok()); }
+        F5B_INJECTED_RESERVE_FAILURE.with(|injected| {
+            assert_eq!(injected.get(), Some(F5bCapacityLane::Drafts));
+        });
+
+        let ordinary_hir = self::hir("my value = 1");
+        let weak = Arc::downgrade(&ordinary_hir);
+        assert!(matches!(
+            SolvedModule::solve(ConstraintBatch::collect(ordinary_hir).unwrap()),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(weak.upgrade().is_none());
+        F5B_INJECTED_RESERVE_FAILURE.with(|injected| assert_eq!(injected.get(), None));
+        let retry = SolvedModule::solve(
+            ConstraintBatch::collect(self::hir("my value = 1")).unwrap()
+        ).unwrap();
+        assert!(retry.errors().is_empty());
+    }
+
+    #[test]
+    fn candidate_draft_scratch_stays_unallocated_through_resource_sampling() {
+        let batch = batch(hir("my id x = x; my first = id 1; my second = id 1"));
+        assert!(batch.counters.scc_maximum_component_size > 0);
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        assert_eq!(session.drafts.capacity(), 0);
+        session.start_candidate_graph().unwrap();
+        let solved = session.run_candidate().unwrap();
+        assert!(solved.data.resource_boundary_samples > 0);
+        assert!(solved.data.errors.is_empty());
+        assert!(!solved.data.projections.is_empty());
+        assert_eq!(solved.data.counters.draft_scratch_capacity(), 0);
+        assert_eq!(solved.data.counters.draft_scratch_retained_bytes(), 0);
     }
 
     #[test]

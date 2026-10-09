@@ -67,6 +67,13 @@ and their F5 closed schemes require a separate coherent migration before deletin
 the shared historical helpers. Default `ConstraintBatch::collect` still uses F5;
 the private successor has not replaced production inference.
 
+The [candidate closed lifecycle retirement](2026-10-10-candidate-closed-lifecycle-retirement.md)
+subsequently removed candidate finalizer/closed-scheme ownership. The
+[unused draft resource withdrawal](2026-10-10-candidate-unused-draft-withdrawal.md)
+now removes its remaining startup draft reservation. These actual candidate
+dependencies are withdrawn; the legacy public clients described above still
+need their genuine closed owners.
+
 The historical pure observer's fixed-empty Apply/Group effect route remains in
 that observer, not in the successor graph route. Complete Call construction and
 source/effect annotation formation remain real outstanding work. Registry-before-
