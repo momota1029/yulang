@@ -2,6 +2,7 @@
 use crate::*;
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
+pub use crate::candidate_call::{CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
 
 /// Every entry remains unresolved, including after successful structural solving.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -182,6 +183,11 @@ impl CandidateInference {
             rows: &route.rows,
             graph,
         })
+    }
+    /// Indexed observations retain one pending construction request per source Call.
+    pub fn source_call_count(&self) -> usize { self.solved.candidate_calls.calls.len() }
+    pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
+        crate::candidate_call::observe(&self.solved, index)
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
@@ -831,6 +837,7 @@ pub(super) struct CandidateConstraintRecipe {
     pub(super) occurrence: HirOccurrenceId,
     pub(super) relation: CandidateRelation,
     pub(super) after_collected_fact: usize,
+    pub(super) source_input: Option<usize>,
 }
 impl ConstraintBatch {
     pub(super) fn emit_candidate_local_value<'a>(
@@ -1033,6 +1040,7 @@ impl ConstraintBatch {
             occurrence: occurrence.clone(),
             relation,
             after_collected_fact: self.occurrences.len(),
+            source_input: None,
         });
         Ok(())
     }
@@ -1259,6 +1267,23 @@ impl InferenceSession {
         &mut self,
         recipe: &CandidateConstraintRecipe,
     ) -> Result<(), SolveAvailabilityError> {
+        if let Some(source_input) = recipe.source_input {
+            let input = self.batch.candidate_calls.calls.get(source_input)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let registered_recipe = self.batch.candidate_recipes.get(input.recipe)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let CandidateRelation::Apply {
+                callee, callee_effect, argument, argument_effect, result, result_effect,
+            } = recipe.relation else { return Err(SolveAvailabilityError::IdentityExhausted); };
+            if registered_recipe.source_input != Some(source_input)
+                || registered_recipe.occurrence != recipe.occurrence
+                || input.checking.occurrence() != &recipe.occurrence
+                || !crate::candidate_call::same_endpoint(input.callee_value, callee)
+                || !crate::candidate_call::same_endpoint(input.argument_value, argument)
+                || input.callee_effect != callee_effect || input.argument_effect != argument_effect
+                || input.result != result || input.application_effect != result_effect
+            { return Err(SolveAvailabilityError::IdentityExhausted); }
+        }
         let mut invocation_effect = None;
         let (lower, upper) = match recipe.relation {
             CandidateRelation::Group { child, result, .. } => (
@@ -1297,6 +1322,26 @@ impl InferenceSession {
                 };
                 let demand =
                     self.negative_function_term(argument, argument_effect, return_effect, result)?;
+                if let Some(source_input) = recipe.source_input {
+                    let row = invocation_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let application_effect = self.live_effect_term(
+                        Polarity::Negative, self.live_components[result_effect].ordinal,
+                    )?;
+                    let CandidateRelation::Apply { callee_effect, .. } = recipe.relation
+                        else { return Err(SolveAvailabilityError::IdentityExhausted); };
+                    let callee_effect = self.live_effect_term(
+                        Polarity::Positive, self.live_components[callee_effect].ordinal,
+                    )?;
+                    let input = self.batch.candidate_calls.calls.get_mut(source_input)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    if input.checking.occurrence() != &recipe.occurrence || input.native.is_some() {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                    input.native = Some(crate::candidate_call::NativeInterface {
+                        callee, argument, callee_effect, argument_effect, result, demand,
+                        invocation_effect: return_effect, invocation_row: row, application_effect,
+                    });
+                }
                 (callee, demand)
             }
         };

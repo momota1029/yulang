@@ -212,6 +212,8 @@ mod candidate_scheme;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_source;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_call;
+#[cfg(feature = "shadow-apply-candidate")]
 mod candidate_extrusion;
 #[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
@@ -845,6 +847,8 @@ pub struct ConstraintBatch {
     candidate_graph_effects: bool,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_source: candidate_source::Plan,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_calls: candidate_call::State,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
     /// semantic key remains the artifact-branded definition root.
     root_definition_positions: HashMap<DefinitionRootId, usize>,
@@ -920,6 +924,8 @@ impl ConstraintBatch {
             candidate_graph_effects,
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_source: candidate_source::Plan::default(),
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_calls: candidate_call::State::default(),
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
@@ -2119,6 +2125,8 @@ impl ConstraintBatch {
                 ),
                 #[cfg(feature = "shadow-apply-candidate")]
                 self.candidate_source.bytes(),
+                #[cfg(feature = "shadow-apply-candidate")]
+                self.candidate_calls.bytes(),
                 self.counters.occurrence_retained_bytes,
                 self.counters.root_retained_bytes,
                 self.counters.definition_record_retained_bytes,
@@ -7402,6 +7410,8 @@ impl OrderingObserver {
 /// prevent later independent components from solving.
 #[derive(Debug)]
 pub struct SolvedModule {
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_calls: candidate_call::State,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_graph: Option<candidate_scheme::GraphState>,
     #[cfg(feature = "shadow-f5")]
@@ -16203,6 +16213,8 @@ impl InferenceSession {
                 .collect();
         }
         Ok(SolvedModule {
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_calls: self.batch.candidate_calls,
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_graph: self.candidate_graph,
             #[cfg(feature = "shadow-f5")]

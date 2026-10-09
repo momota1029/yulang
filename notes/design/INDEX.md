@@ -83,6 +83,10 @@ This index is a navigation aid. The listed source document remains authoritative
   connects actual source levels, live binding handles and use-time freshening
   to candidate execution. Both M2 reviews and candidate/default builds pass;
   runtime generic-local evidence and complete Call/public cutover remain open.
+  The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
+  retains authentic formal/operand inputs connected to generated native demands.
+  Validating pending construction remains distinct from original certificates
+  and semantic residuals. M2 review, Clone repair/delta and owning builds pass.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)

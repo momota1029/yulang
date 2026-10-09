@@ -6475,3 +6475,18 @@ sole accepted major was missing State::Clone. A fresh producer repaired that
 one derive; focused feature build and fresh semantic delta are running. Minor
 observer-depth and source-planning peak exclusions remain disclosed limitations.
 Keep this coherent checkpoint separate from the intrusion implementation.
+
+### Source Call input checkpoint complete (2026-10-10)
+
+The [source input record](../notes/progress/2026-10-10-call-source-inputs.md)
+retains actual formal registrations/Names/Apply operands and connects them to
+native demand/invocation rows. Borrowed observations validate actual ownership,
+route and native interface before exposing typed pending construction. Original
+semantic suppliers remain missing, not replaced by native fields or residuals.
+
+One accepted compilation major (State::Clone) was repaired by a fresh producer
+and closed by fresh semantic delta. Both initial M2 reviews otherwise passed;
+observer-depth and source-planning peak exclusions are documented. Repaired
+candidate and default owning builds passed without warnings. No tests, runtime
+probes or measurements ran. Next implement the user-selected parent-copy SCC
+intrusion; complete Call/public cutover remain open.

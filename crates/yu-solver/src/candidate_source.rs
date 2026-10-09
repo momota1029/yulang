@@ -89,13 +89,21 @@ impl ConstraintBatch {
         let mut parameters = HashMap::new();
         let mut local_slots = HashMap::new();
         let mut lambdas = HashMap::new();
-        for expr in source.expressions() {
+        let mut formal_registrations = HashMap::new();
+        for (index, expr) in source.expressions().iter().enumerate() {
             positions.push(self.candidate_component(&expr.occurrence)?);
             if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
                 let position = self.parameter_recipes.len();
                 push(&mut self.parameter_recipes, parameter.id.clone())?;
                 parameters.try_reserve(1).map_err(|_| unavailable())?;
                 parameters.insert(parameter.id.clone(), position);
+                let registration = self.candidate_calls.formals.len();
+                push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
+                    owner: source.definition_root().clone(), lambda: index,
+                    parameter: parameter.id.clone(), recipe_position: position,
+                })?;
+                formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
+                formal_registrations.insert(parameter.id.clone(), registration);
             }
         }
         for binding in source.bindings() {
@@ -113,6 +121,19 @@ impl ConstraintBatch {
                 _ => CandidateEndpoint::Component(positions[index].value),
             };
             endpoints.push(endpoint);
+        }
+        let mut formal_names = Vec::new();
+        formal_names.try_reserve_exact(positions.len()).map_err(|_| unavailable())?;
+        formal_names.resize(positions.len(), None);
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } = &expr.form {
+                let name = self.candidate_calls.names.len();
+                push(&mut self.candidate_calls.names, candidate_call::FormalNameInput {
+                    owner: source.definition_root().clone(), expression: index,
+                    registration: *formal_registrations.get(parameter).ok_or_else(invalid)?,
+                })?;
+                formal_names[index] = Some(name);
+            }
         }
         let mut actions = Vec::new();
         let mut work = Vec::new();
@@ -201,9 +222,22 @@ impl ConstraintBatch {
                             let a = positions[argument.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::Apply { callee: endpoints[callee.ordinal() as usize], callee_effect: c.effect, argument: endpoints[argument.ordinal() as usize], argument_effect: a.effect, result: pos.value, result_effect: pos.effect })?;
+                            let source_input = self.candidate_calls.calls.len();
+                            let checking = ConstraintOccurrenceId::new(occurrence.clone(), 0);
+                            push(&mut self.candidate_calls.calls, candidate_call::ApplySourceInput {
+                                owner: source.definition_root().clone(), expression: index,
+                                callee: callee.clone(), argument: argument.clone(), level, recipe,
+                                callee_value: endpoints[callee.ordinal() as usize], callee_effect: c.effect,
+                                argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
+                                result: pos.value, application_effect: pos.effect,
+                                cause: CauseId::for_occurrence(checking.clone()), checking,
+                                formal_name: formal_names[callee.ordinal() as usize], native: None,
+                            })?;
+                            self.candidate_recipes[recipe].source_input = Some(source_input);
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
                         LocalSourceForm::Group { inner } => {
+                            formal_names[index] = formal_names[inner.ordinal() as usize];
                             let child = positions[inner.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::Group { child: endpoints[inner.ordinal() as usize], child_effect: child.effect, result: pos.value, result_effect: pos.effect })?;
@@ -227,6 +261,7 @@ impl ConstraintBatch {
                             continue;
                         }
                         LocalSourceForm::Block { final_expression, .. } => {
+                            formal_names[index] = formal_names[final_expression.ordinal() as usize];
                             let child = positions[final_expression.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::Group {
