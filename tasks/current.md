@@ -6892,14 +6892,14 @@ The user supplied this concrete example:
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. A
-later assistant interpretation treated “ソレはミス” as retracting the extra
-`int ->`; the user has now said that interpretation itself is a mistake. The
-intended exact scheme remains unresolved. Do not encode the earlier corrected
-target as a user decision or regression expectation until clarified. The
-example still concerns the existing effect-hygiene contract, not a separate
+An earlier conversation and the paired-PUSH bridge checkpoint record an
+ambiguous “ソレはミス” exchange about an extra `int ->`. Its historical
+referent is not adjudicated here. The current direct-termination request
+explicitly gives `(int -> ['b, io] 'c) -> ['b] 'c` as the expected scheme.
+That written request supplies the target without a further semantic question.
+The example concerns the existing effect-hygiene contract, not a separate
 permission. The current candidate rejects explicit formal effect rows; source
-behavior and the intended exact scheme remain unverified.
+acceptance and the requested scheme remain unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6973,8 +6973,8 @@ occur at `e/E` before a mixed candidate reaches `h/E`. Trace canonical
 post-extrusion endpoints, arrival order, retained weights, bound dispositions
 and replay parents at both slots. Preserve the `PUSH_i² ; POP_i²` versus
 `PUSH_i² ; POP_i³` distinction as a falsifier. Do not add a presence-only
-quotient before that simulation is proved. Keep the exact callback scheme
-regression blocked on clarifying the user's correction. Positive covariant
+quotient before that simulation is proved. The current request's explicit
+callback scheme remains an implementation target. Positive covariant
 annotations already have a private
 source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
@@ -6986,9 +6986,9 @@ upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
 contravariant source attachment. Its result note preserves the scheme
-`(int -> ['b, io] 'c) -> ['b] 'c`. The user's later “ソレはミス” confirms
-that the extra `int ->` in the earlier conversational form was a mistake. The
-scheme target is settled, though it remains unverified in the successor.
+`(int -> ['b, io] 'c) -> ['b] 'c`. The current direct-termination request
+explicitly supplies that target, independently of the earlier correction's
+historical referent. It remains unverified in the successor.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
@@ -7052,3 +7052,57 @@ original premises. No canonical proof-DAG status or prerequisite was changed;
 whole termination, source soundness/completeness, principality, public owned
 schemes and `yulang3` cutover remain OPEN. No new question-board decision was
 created or consumed.
+
+### Mixed cyclic debt: exact finite observation completed (2026-10-10)
+
+The user's “OK．やってください” continued the direct termination/meaning task
+from latest remote `e2f29d0a`; concurrent source-owner audits through
+`3bb355b56` were inspected and preserved. Mathematical checkpoint
+`3b32ed3afa49c7d4105da46ba7783524c9fdb35b` is published. The
+[new theorem](../notes/progress/2026-10-10-mixed-replay-observer-construction.md)
+now decides arbitrary finite **debt-only cyclic grammars**, including binary
+directed replay, swap, both-from-right and shared choices, observed by any fixed
+finite PUSH-bearing mixed continuation. It preserves exact active count and
+pending/left/right presence at every node, with the specified fixed-family
+filter/terminal/compact corollaries. The actual query PUSH mass B yields a
+finite image with `(B+2)^2` states per nonterminal; the original exact grammar
+is retained for future queries. This is a proved query abstraction, not a
+semantic POP cap, permanently erased count, or finite-test completeness claim.
+
+The [source callback circuit](../notes/progress/2026-10-10-mixed-replay-source-cycle.md)
+uses shared argument/result `'c` and feeds `f f` back into the tuple callback.
+Its primitive `F --L1--> C --R2--> R --R1--> F` circuit returns a concrete
+Function lower under debts `1+4k` to the same callback comparison. Var-only
+support suppression does not apply to these concrete lower consequences.
+Independent source review corrected a genuine constructor error: absent
+argument-effect annotation is `NegRow([],Top)`, not `NegBot`. Both argument
+ports therefore swap; this source supplies no copying Effect child. Source
+constructor/replay correspondence is reviewed, while parsing, successful
+lowering/generalization, Oracle execution and acceptance remain unclaimed.
+
+The [integrated report](../notes/progress/2026-10-10-mixed-debt-observer-results.md)
+records the complete proof boundary, counterexamples, independent mathematical
+review, fresh source/code repair closure and the executable
+[`research_mixed_debt_observer.py`](../tools/research_mixed_debt_observer.py).
+The final bounded check passes 147 assertions, 440 literal observer evaluations
+and 11 exact finite-DAG values. The independent code reviewer also checked 216
+terminal combinations and 400 shared-hole continuations at all nodes on the
+reviewed snapshot. Count/entry erasure on empty family or filter failure was
+repaired; the last minor reference-only repair distinguishes same-name binding
+occurrences. These are research checks, not compiler regression counts.
+
+The next single mathematical bottleneck is a contextual recursive component
+into which PUSH-bearing input can return. Either decide that component exactly
+or derive its source-owned separation into debt recursion and finite consumers.
+The latter is not assumed for all source programs. Before final integration,
+remote advanced through `92f07a06`; its paired symbolic annotation bridge was
+inspected and preserved. It connects `t → e → h` with same-ID PUSH evidence,
+while actual first-survivor admission at `e/E` and `h/E` remains open. This
+constrains the next source witness without changing the debt theorem.
+Exact residual-key gamma,
+source filter registration, authority-preserving extrusion/SCC intrusion,
+freshening and journal rollback remain implementation/semantic obligations.
+No production source-owned attachment or second solver was enabled; the scheme
+`(int -> ['b, io] 'c) -> ['b] 'c` remains the unexecuted source target.
+No canonical DAG node was closed, no new semantic question was opened, and
+`yulang3` was not changed.

@@ -286,11 +286,58 @@ trace alone.
 The next source gate is an ordered trace through `(loop x) x`, including
 canonical post-extrusion endpoints, arrival order, retained weights, bound
 dispositions and replay parents at `e/E` and `h/E`. Do not infer a live
-distinguishing path from graph arithmetic alone. The user has also corrected
-the assistant's interpretation of “ソレはミス”; the exact callback scheme is
-unclear and must not be used as a regression target until clarified.
+distinguishing path from graph arithmetic alone. That checkpoint also recorded
+an ambiguous earlier “ソレはミス” exchange. The current direct-termination
+request explicitly supplies `(int -> ['b, io] 'c) -> ['b] 'c`; its use here is
+grounded in that written request, without deciding the historical referent.
 
-The annotation policy remains selected. The user's exact callback scheme is
-unresolved following a correction to the prior interpretation; keep its
-regression target open. Complete Call, effect hygiene, soundness/principality,
+The annotation policy remains selected. The stated callback scheme is an
+unexecuted target. Complete Call, effect hygiene, soundness/principality,
 public/default scheme publication and `yulang3` cutover remain open.
+
+### Mixed debt observation: direct theorem and repair closure (2026-10-10)
+
+The authorized continuation started at remote `e2f29d0a`, inspected concurrent
+upstream changes through `3bb355b56`, and published the reviewed mathematical
+checkpoint at `3b32ed3a`. It then inspected and fast-forwarded the paired-PUSH
+bridge checkpoint through `92f07a06` before integrating the final records. The
+[integration report](../notes/progress/2026-10-10-mixed-debt-observer-results.md)
+now supersedes the earlier method obstruction **for debt-only cyclic grammars
+with finite mixed PUSH-bearing observations**. It does not supersede the
+unrestricted cyclic-PUSH, exact residual-key or production owner gates.
+
+| Work lane | Method / owned result | Disposition |
+| --- | --- | --- |
+| `mixed_observer_construct` | Exact debt congruence, finite least-set saturation and all-node PUSH-budget simulation | Complete; independent mathematical review found no blocking/major defect. |
+| `mixed_algebra_attack` | Literal/count operations, strict marker counterexample, single-occurrence affine lemma | Complete; reviewed within stated algebraic scope; bounded checks remain supplementary. |
+| `mixed_source_cycle` / `mixed_source_repair` | Authentic callback-slot Value recurrence and four-port constructor mapping | Complete; accepted B1 repaired and fresh source closure passed. Actual annotated argument Effect swaps to `Row([],Top)`; no copying child. |
+| `debt_observer_implementation` / `debt_observer_repair` | Immutable debt grammar, query traces, correlation and fixed-family terminal helper | Complete; accepted code findings repaired and fresh closure has no blocking/major defect. |
+| Primary integration | Minor reference witness ownership, source-pointer corrections, records, verification and Git | Final code check: 147 assertions, 440 literal evaluations, 11 exact finite-DAG values. The six additional assertions cover the minor reference-only delta after the reviewed snapshot. |
+
+M3 first-round roles were independent math/source/code reviewers. The one
+batched repair round used a pre-write terminal-spec reviewer plus fresh source
+and code closure reviewers; no fourth reviewer or producer certification was
+used in either coherent round. The minor lexical witness issue was repaired
+and checked by the primary without reopening a review wave. The integration
+report records frozen hashes and distinguishes reviewed bytes from these final
+minor edits. All worker leases are complete; shared records and Git remain
+primary-owned. Workers used no Cargo, compiler execution, Git mutation or child
+delegation. Python checks were short, individually timeout/memory bounded, and
+not benchmarks; no performance sample is claimed.
+
+The current exact algorithm retains unbounded derivations as the original
+finite grammar and recomputes a query-specific finite image from its actual
+PUSH mass. It covers the source circuit's immediate count observers and
+synthetic copying cycles without a permanent presence key or count limit.
+It is a research executable, not a second production solver or a source
+restriction. No production attachment/filter/journal transition was changed.
+
+One next research cut: decide a recursive component with returning PUSH-bearing
+input, or derive its actual source-owned reduction to debt recursion followed
+by finite consumers. The incoming paired-PUSH bridge narrows the source test
+to ordered admission at `e/E` and `h/E`; its graph alone does not establish
+an admitted distinguishing parent. Do not assume that decomposition, discard
+exact residual keys, identify row equality with attachment authority, or infer permission from
+allowance. Existing conditional hygiene/owner/lifetime/transport premises and
+all full source soundness/completeness, principality, freshening/intrusion/
+rollback, target scheme and `yulang3` gates remain open.

@@ -143,11 +143,12 @@ Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-an
 
 ## 6. User-supplied callback scenario
 
-Status note (2026-10-10): the user later said “ソレはミス” after an assistant
-interpreted the earlier exchange as retracting the result's extra `int ->`.
-The exact referent of this correction is unclear. Keep the pair below as a
-historical candidate, not a confirmed exact scheme or regression expectation,
-until the user clarifies which claim was mistaken.
+Status note (2026-10-10): the paired-PUSH bridge checkpoint recorded an
+ambiguous earlier “ソレはミス” exchange. This integration does not resolve
+that historical referent. The current direct-termination request explicitly
+provides the source and expected scheme below. That written request is the
+authority for this task's target; no interpretation of the earlier correction
+is required. The target remains unverified by successor execution.
 
 The user supplied this source/result pair to clarify the selected boundary:
 
@@ -160,11 +161,10 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 The intended locality is to subtract the attached `io` from the callback's
-effect in this body while preserving independent effect flow, but the exact
-scheme remains unconfirmed after the later correction above. Treating a
+effect in this body while preserving independent effect flow. Treating a
 variable as “not a concrete annotation atom” must not sever future concrete
-effects from its checks. This historical candidate is not a claim that the
-current successor accepts the source or that the whole type is already
+effects from its checks. The explicitly requested scheme is not a claim that
+the current successor accepts the source or that the whole type is already
 verified by a runtime test.
 
 This is the same locality requirement as effect hygiene, not a separate semantic
