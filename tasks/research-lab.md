@@ -212,9 +212,39 @@ rollback/resource coverage. Full Call, `run_io` provider identity, callback
 result text, scheme publication and `yulang3` cutover remain open.
 
 The one-sided theorem is unchanged; the full mixed consumer remains open. The
-next source-conformance task is an exact reachability audit of the actual
-`both_from_right` Function argument-effect port and replay endpoint/owner cycle,
-plus whether a shared derivation is retained where one is copied into both
-branches. Do not encode either synthetic grammar into production. No theorem
-producer claims source reachability, global termination, full hygiene or
-compiler behavior.
+follow-up source-conformance task now tests a concrete tuple-annotation route
+that emits one right-POP Value child, then determines whether any real tuple
+consumer can expose nested Function effect ports and return that context to an
+eligible slot. Do not encode either synthetic grammar into production. No
+theorem producer claims global termination, full hygiene or compiler behavior.
+
+### Tuple-annotation contextual replay audit (2026-10-10)
+
+Frozen Oracle inspection found a pre-body `POP_i` producer for nested Function
+annotations inside a Tuple. The minimal unused `z` form produces `P <: Z` under
+right `POP_i`, but no negative Tuple upper. Replacing `z` with an actual tuple
+pattern and invoking its callback supplies that upper; the nested return-effect
+`PUSH_i` cancels against right `POP_i`, while the return-value wrapper yields
+right `POP_i²`. That callback result is discarded, and the separate recursive
+output aliases do not return to the nested callback Function comparison. A
+bounded one-process checker confirms that the synthetic powers-of-two copying
+witness still depends on an unproved source incidence/eligible-slot recurrence;
+Oracle's exact alias support admission suppresses the tested doubles. These
+results narrow the source hinge but do not close it. Full locators and limits are in
+[`explicit-effect-termination-source-map.md`](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
+and the scratch-only model is `/tmp/yulang-source-restricted-replay/result.md`.
+
+| Job | Method | Frozen input / output | State / next evidence |
+| --- | --- | --- | --- |
+| `oracle_other_pop_consumers` | Trace actual predicate consumers and Tuple/returned-Function port incidence | Oracle `a58eefc31`, current source correspondence; read-only | complete; actual tuple pattern reaches callback ports and yields one `POP_i²` result-value context; recurrence to the same comparison not found |
+| `source_restricted_replay_model` | Exact bounded model of port guards, alias admission and copying obstructions | baseline `74afe8314`; scratch `/tmp/yulang-source-restricted-replay/` | complete, unreviewed bounded evidence; 13 local certificates and 12 conditional doubles through 4096; source recurrence, role separation and full termination unproved |
+| `successor_effect_gate_architecture` | Candidate owner and production-gate map | current solver source; read-only | complete; no safe local production cut until contextual solving and owned public schemes are joined |
+
+Next: trace callback-result-as-Function use, projection-generated Tuple uppers,
+extrusion and generalization to see whether `POP_i²` returns to the same nested
+Function comparison or eligible slot. Keep this distinct from the demonstrated
+single comparison and from the synthetic powers-of-two grammar. Stop claims at
+the first unsupported source or ownership premise. The user has authorized
+implementation, but current evidence does not yet support a sound contextual
+consumer/admission slice. The annotation policy and corrected callback scheme
+themselves need no new decision.

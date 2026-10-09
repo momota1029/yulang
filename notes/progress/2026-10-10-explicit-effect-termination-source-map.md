@@ -147,7 +147,9 @@ The present successor cannot yet produce a source-owned POP cycle because the
 source constructor is absent: explicit formal effect rows remain rejected at
 `candidate_source::preflight_formal` and `candidate_effect::candidate_formal_pair`,
 and contextual operations are absent from `TypedPairKey` and retained bounds.
-This refusal is not a proof that the future constructor will avoid cycles.
+Frozen Oracle does have a source-owned producer, including the recursive
+returned-Function path recorded below. The successor's refusal is not a proof
+that its future constructor will avoid those paths.
 The ordinary recursive back route already exists; the paired-formal regression
 at `lib.rs:32267` uses:
 
@@ -195,7 +197,7 @@ distinctions. These are source-owner/algebraic findings only. No source POP
 producer exists yet, no finite quotient is proved, and no code, compiler tests,
 or measurements ran.
 
-## Callback invocation does not POP the recursive skeleton
+## Callback invocation versus tuple annotation predicates
 
 A follow-up Oracle source trace used the concrete recursive shape
 `my loop (f: int -> [io] 'c) = { my unused = loop f; f 1 }`. It confirms that
@@ -209,18 +211,80 @@ recursive skeleton boundary.
 
 This rules out that particular source path as a witness for a right-POP edge
 on the recursive parent. It does not prove that every source shape lacks such
-an edge, nor does it establish an unreachable-cycle invariant. Source locators
-and the exact endpoint trace are recorded in
+an edge. In particular, it does not cover tuple parameter annotations, whose
+child predicates are retained before the body is lowered.
+
+Pinned Oracle source establishes this pre-body producer for
+`type io; my loop(x: ((int -> [io] 'c), int)) = loop x`: the nested Function
+annotation's `POP_i/{io}` is returned through `AnnType::Tuple`, retained by
+the lambda parameter boundary, and inserted on both Value and Effect
+skeleton-output bridges before body lowering. Its exact owner path is
+`annotation/constraints.rs:335–349,363–389,424–470` and
+`lowering/expr/lambda.rs:756–767,1186–1237,1571–1578`. Top-level Function
+annotations clear this predicate; Tuple annotations do not.
+
+A returned-Function shape exposes the POP to a nontrivial contravariant child:
+
+```yulang
+type io
+my loop(x: ((int -> [io] 'c), int)) = \z -> (loop x) x
+```
+
+After the body lambda is formed, the recursive result is first used as a
+Function, and Function comparison under the retained left POP swaps it to a
+right POP on `P <: Z`, where `P` is the tuple-annotated `x` formal and `Z` is
+the distinct anonymous `z` formal. The POP does not arise on the immediate
+recursive effect child; it arises on this returned Function's contravariant
+Value child. The source trace and locators are detailed in
 [`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
+
+This proves a source-construction route to a right-POP contextual Value bound,
+not an accepted-program or global-termination result. It does not yet prove
+that tuple decomposition and Function replay return to the same eligible bound
+slot, generate unbounded POP counts, or realize the powers-of-two grammar
+witness. In the first inspected source shape, `z` is unused: its upper endpoint
+never gets a tuple demand, so `P <: Z` remains a Value alias and does not
+decompose into the nested callback Function's effect ports.
+
+A real tuple-pattern consumer does add that demand:
+
+```yulang
+type io
+my loop(x: ((int -> [io] 'c), int)) =
+  \(f, _) -> { f 1; (loop x) x }
+```
+
+The lambda pattern creates `Tuple(F+,M+) <: Z` and `Z <: Tuple(F-,M-)`;
+tuple descent preserves the right `POP_i` on `P <: Z`, so the annotated
+callback Function reaches `F` under that context. The `f 1` use supplies its
+negative Function demand. Its return-effect `PUSH_i[{io}]` cancels the incoming
+right `POP_i`, while its return-value `NonSubtract(...,POP_i/filter{io})`
+combines with that right POP to produce right `POP_i²` after filter checks.
+The callback result is discarded, however; this edge does not return to the
+same nested Function comparison. The recursive block also forms separate
+output-alias cycles, but its recursive call uses `x`, and the resulting
+same-variable child is omitted by Oracle admission. Exact locators and port
+equations are in
+[`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
+
+This establishes an actual source-construction route through tuple descent to
+an effect cancellation and an unmatched `POP_i²` result-value context. It
+still does not establish repeated growth at that callback Function slot,
+accepted/public output for the source, or global termination. Other consumers
+of the callback result, projection-generated Tuple uppers, extrusion and
+generalization remain to be traced. The successor currently rejects the
+explicit formal effect row and does not support this Tuple annotation route;
+that is not evidence that it is safe to omit from Oracle correspondence or
+future source support.
 
 The callback result target is settled as
 `(int -> ['b, io] 'c) -> ['b] 'c`; the extra `int ->` in the earlier
 conversational version was a mistake. It remains unverified in the successor.
 
-Next: inspect the other actual consumers that activate an annotation-owned
-predicate and determine whether any place it on a recursive Function port
-before the internal skeleton boundary. In parallel, derive the contextual
-admission/observation relation needed by the exact surviving operations; do
-not add a POP producer until its port ownership and termination behavior are
-established. Then implement the source-owned filter consumer and the exact
-callback scheme regression.
+Next: trace uses that consume the callback result as a Function (and tuple
+projection or extrusion paths) to determine whether its unmatched `POP_i²`
+context can return to the same callback Function slot. In parallel, derive
+the contextual admission/observation relation for the source-emitted
+operations; do not add a POP producer until port ownership and termination
+behavior are established. Then implement the source-owned filter consumer and
+the exact callback scheme regression.

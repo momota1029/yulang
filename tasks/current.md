@@ -6934,23 +6934,29 @@ and `POP_i²` have the same presence signature but differ when replayed against
 `PUSH_i`. A separate source audit found an existing recursive back route from
 published result effect through recursive invocation, application and body
 back to the returned effect. Thus a future POP-bearing `R <: W` edge would
-close a contextual cycle. A later exact Oracle trace of `loop f` alongside
-`f 1` found that the callback's POP reaches the containing lambda's public
-output wrapper, but does not enter the already-formed recursive Function's
-internal `O <: C_rec` edge. This rejects that concrete candidate path as a
-right-POP cycle witness; it does not prove all such paths unreachable. See the
-updated [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
+close a contextual cycle. The direct `loop f` / `f 1` shape keeps its POP on
+the public wrapper, but a tuple-annotated nested Function supplies a distinct
+pre-body route: its POP wraps skeleton outputs, then a returned-Function
+comparison yields `P <: Z` under right POP. Adding the real tuple pattern
+`\(f, _)` forces the anonymous input to a tuple and invokes the nested
+callback: its annotated `PUSH_i` cancels the incoming right `POP_i`, and its
+output-value wrapper leaves right `POP_i²`. The callback result is discarded,
+so no return to that same Function comparison is traced. This is an Oracle
+source-construction trace; it does not yet show replay returning to the same
+eligible bound slot or unbounded debt. The current successor rejects explicit
+formal effect rows and does not model this tuple route. See the updated
+[cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
 and [source trace](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md).
 
-Next: trace other actual consumers to determine whether annotation-owned POP
-can enter recursive Function ports before their internal skeleton boundary;
-the tested `loop f`/`f 1` shape does not. In parallel, derive a finite
-admission/observation relation preserving exact replay before enabling
-contextual production. Then implement the source-owned subtraction consumer
-and add the corrected callback scheme as an owning source regression. Positive
-covariant annotations already have a private source/propagation implementation.
-Full hygiene, complete Call, soundness/principality and public/default F5
-cutover remain open.
+Next: trace uses of the callback result as a Function, projection-generated
+tuple uppers, extrusion and generalization to determine whether unmatched
+`POP_i²` can return to the same callback Function slot. The witnessed block
+alias cycles do not do so by themselves. In parallel, derive the contextual
+admission/observation relation for the source-emitted operations. Then
+implement the source-owned subtraction consumer and add the corrected callback
+scheme as an owning source regression. Positive covariant annotations already
+have a private source/propagation implementation. Full hygiene, complete Call,
+soundness/principality and public/default F5 cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)
 

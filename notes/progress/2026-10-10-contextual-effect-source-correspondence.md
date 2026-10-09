@@ -13,6 +13,93 @@ scheme; the target is `(int -> ['b, io] 'c) -> ['b] 'c`.
 
 ## Constructor, not a row-global removal flag
 
+## Pre-body tuple predicate and returned-Function source route
+
+Frozen Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1` has a pre-body POP
+producer that is distinct from the direct top-level callback case. For
+`type io; my loop(x: ((int -> [io] 'c), int)) = loop x`,
+`annotation/constraints.rs:335–349` collects and returns the child Function's
+predicate through `AnnType::Tuple`; the Function constructor creates the
+attachment at `:363–389,424–470`. `lowering/expr/lambda.rs:1571–1578` clears
+parameter output predicates only for a top-level `AnnType::Function`, so the
+tuple predicate remains on both `call_predicate` and `predicate` at
+`:1282–1283`. Before lowering the body, `:756–767` connects the skeleton, and
+`:1186–1237` emits:
+
+```text
+NonSubtract(B_effect, POP_i / filter {io}) <: O_effect
+NonSubtract(B_value,  POP_i / filter {io}) <: O_value
+```
+
+For a returned Function, the source
+`type io; my loop(x: ((int -> [io] 'c), int)) = \z -> (loop x) x`
+then creates a nontrivial contravariant child. The anonymous Function is the
+body's lower at `lambda.rs:285–364`; the recursive result is first exposed as
+the callee of an application (`tail.rs:543–563,615–627`), then compared as a
+Function with argument demand `P`, the annotated tuple formal. Function
+propagation `constraints/machine/propagate.rs:207–271` swaps the retained left
+POP onto that contravariant child, yielding `P <: Z` under right `POP_i`, where
+`Z` is the separately allocated anonymous formal. The immediate recursive
+effect child remains identity-context; this right POP belongs to the returned
+Function's Value child.
+
+This is a source-construction route to a right-POP contextual Value bound, not
+evidence that the endpoint cycle from the conditional counterexample is
+reachable, that exact debt grows without bound, or that this source program is
+accepted by the current successor. In this exact shape, `z` is unused, so its
+endpoint receives no negative Tuple demand. The `P <: Z` alias therefore does
+not decompose through the nested callback Function or reach its effect ports;
+this shape is not yet a right-POP effect-edge cycle witness. Other source uses
+may provide the missing Tuple demand and remain untraced. The successor rejects
+explicit formal effect rows and does not model this Tuple annotation. The
+algebraic termination obligation must account for tuple decomposition and
+replay of the actual port paths instead of assuming all annotation predicates
+are attached only after the recursive skeleton boundary.
+
+### Tuple-pattern callback use: cancellation and residual `POP_i²`
+
+The smallest inspected extension that forces `Z` to a Tuple and invokes its
+callback is:
+
+```yulang
+type io
+my loop(x: ((int -> [io] 'c), int)) =
+  \(f, _) -> { f 1; (loop x) x }
+```
+
+`parser/src/expr/control.rs:198–264` parses the lambda pattern;
+`pat/parse.rs:91–98` accepts its parenthesized tuple form. Pattern lowering
+`lowering/pattern.rs:919–953` creates both `Tuple(F+,M+) <: Z` and
+`Z <: Tuple(F−,M−)`. The callback component is `F`; `f 1` supplies the
+negative Function demand at `expr/tail.rs:543–563`, with the annotation-owned
+row rather than a new unannotated-call ID (`:753–758`). Tuple descent retains
+the right `POP_i` from `P <: Z` on the nested Function comparison
+(`constraints/machine/propagate.rs:317–328`).
+
+For its ports, `PUSH_i[{io}]` on the callback's positive return effect
+combines with right `POP_i` and cancels, leaving the symbolic tail relation
+with empty word. The positive return-value wrapper already contains
+`POP_i/filter{io}`; combining it with the same right POP yields right
+`POP_i²` after the insertion filter is checked and removed from the retained
+replay context (`propagate.rs:11–35`, `directed_weight.rs:16–39`,
+`machine/bounds.rs:3174–3255`). The callback result is discarded, so no
+return to the nested Function comparison is traced.
+
+The block also emits distinct recursive output alias cycles. The returned
+Function result child applies left `POP_i` between the block result and
+recursive application result; its returned-effect child similarly links
+block and recursive call effects. These cycles do not reconnect to `P <: Z`.
+The recursive input is `x`, making its outer Function argument child same
+endpoint and therefore omitted by `machine/entry.rs:1101–1105`. Oracle's
+nonself support admission also prevents treating those output aliases alone
+as an unbounded-count witness (`machine/bounds.rs:4274–4317`).
+
+This gives an exact source route to one matching effect cancellation and an
+unmatched `POP_i²` result-value context, but not repeated nested Function
+comparison or global termination. The annotation policy is source-reachable;
+the current successor still rejects this formal effect row and does not
+support the Tuple type constructor.
+
 Frozen `annotation/constraints.rs:250–278` sets
 `parameter_function_boundary=true` while constructing the parameter annotation.
 The paired value connection at `:132–153` connects both annotation interfaces
