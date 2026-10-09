@@ -7112,6 +7112,21 @@ No canonical DAG node was closed, no new semantic question was opened, and
 
 ### Formal-effect admission reduction and Function-only debt circuit (2026-10-10)
 
+The merged [source recursion audit](../notes/progress/2026-10-10-recursive-push-source-invariant.md)
+finds two admitted paired-`as` source schemas that construct recursive
+left-only PUSH components, including one actual full `(POP^p PUSH^n)` lower.
+Its complete pre-generalization owner classification received independent
+source review. This falsifies a universal debt-only source invariant for those
+schemas. The [exact recursive full-pair observer](../notes/progress/2026-10-10-recursive-push-observer-construction.md)
+reduces one-ID left-only recursive grammars followed by fixed finite mixed
+continuations to PVASS reachability; its mathematics remains unreviewed. The
+[subcase checker and algebra attack](../notes/progress/2026-10-10-recursive-push-algebra-attack.md)
+cover exact linear and nonlinear families with bounded deterministic checks,
+also pending independent review. None of these is Oracle parser/compiler
+execution, a general recursively mixed observer, or production permission.
+The paired-`as` source route is distinct from the requested formal-lambda
+callback target and does not resolve same-row contextual self admission.
+
 Two research-only checkpoints were pushed after the callback target correction:
 [`4d5991b37`](../notes/progress/2026-10-10-formal-effect-admission-construct.md)
 isolates an exact identity-context bound for the currently admitted
@@ -7147,11 +7162,23 @@ fixture under the selected successor retention orientation and filter
 observation rule; contextual self-discharge, full Effect hygiene, complete
 Call, generalization, public cutover, and F5 replacement remain open.
 
-Immediate next gate: account for the reviewed Empty-filter discriminator under
-the successor's actual selected bound orientation, then derive the exact
-Effect dependency SCC including PUSH subexpressions on recursive productions,
-same-kind symbolic tails, and parent-copy intrusion. The debt observer can
-cover only a proved debt-recursive component followed by finite PUSH consumers.
-If PUSH-bearing contexts return recursively, a separate exact mixed-recursion
-algorithm is required. Negative attachment construction, filters, use,
-generalization/freshening/rollback, public inference and F5 cutover remain open.
+The follow-up [upper self-filter owner trace](../notes/progress/2026-10-10-upper-self-filter-observer.md)
+and its [independent review](../notes/progress/2026-10-10-upper-self-filter-observer-review.md)
+confirm that the prior Empty-filter discriminator does not observe upper-only
+retention in its local no-lower trace. Negative extrusion separately creates a
+positive parent-to-copy lower and copies selected uppers without replay;
+parent metadata alone is not an SCC edge. A later scheme may observe the
+context if it reaches original T plus an anchored copy, but this source
+interface and attachment-payload transport are unproved. No admitted source
+witness or safe-discharge theorem follows.
+
+Immediate next gate: use the reviewed upper-self/extrusion trace to establish
+whether an actual later scheme reaches original T and an anchored copy with
+the annotation payload intact, then specify the smallest exact contextual
+constructor/replay/filter observer. Keep the paired-`as` left-only result
+separate from the formal-lambda callback route; map the latter's complete
+Effect dependency SCC, including PUSH subexpressions, same-kind symbolic tails,
+and parent-copy intrusion. Existing recursive full-left-pair observers do not
+cover arbitrary mixed recursion. Negative attachment construction, filters,
+use, generalization/freshening/rollback, public inference and F5 cutover remain
+open.

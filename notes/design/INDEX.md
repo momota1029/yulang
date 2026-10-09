@@ -102,6 +102,24 @@ This index is a navigation aid. The listed source document remains authoritative
   PUSH-bearing/source-output/production gates. No new language authority or
   source-owned production attachment is enabled.
 
+- **Recursive PUSH with full left POP/PUSH pairs (2026-10-10, conditional research):**
+  The [source invariant audit](../progress/2026-10-10-recursive-push-source-invariant.md)
+  derives two paired-`as` source schemas whose admitted contextual components
+  carry actual concrete PUSH lowers and remain left-only before the enclosing
+  drain; the source construction/admission slice received independent review.
+  The [recursive observer construction](../progress/2026-10-10-recursive-push-observer-construction.md)
+  gives a conditional exact observer for arbitrary one-ID recursive left-only
+  full `(POP^p PUSH^n)` grammars under finite mixed continuations. The
+  [full-pair subcase attack](../progress/2026-10-10-recursive-push-algebra-attack.md)
+  adds exact linear and nonlinear families, with a bounded executable checker
+  at [research_recursive_push_observer.py](../../tools/research_recursive_push_observer.py).
+  The mathematical observer and checker remain unreviewed; no Oracle parsing,
+  compiler execution, public acceptance or production integration is claimed.
+  These results refute a universal debt-only invariant for the exhibited
+  source schemas, but do not cover recursively mixed replay, arbitrary source
+  programs, contextual self-obligation correspondence, or the formal-lambda
+  callback target.
+
 - **Function-only formal effect feedback (2026-10-10, reviewed conditional source scope):**
   The [one-formal source certificate](../progress/2026-10-10-formal-effect-admission-falsify.md)
   shows the prospective `f (f f)` debt circuit without Tuple or provider
@@ -130,6 +148,19 @@ This index is a navigation aid. The listed source document remains authoritative
   divergence. Equal-level successor selection is upper-oriented and does not
   satisfy the positive-lower premise. Contextual self-discharge and its
   successor observation rule remain open.
+
+- **Upper self retention through negative extrusion (2026-10-10, reviewed conditional source scope):**
+  The [owner trace](../progress/2026-10-10-upper-self-filter-observer.md)
+  shows that the positive-lower Empty discriminator does not observe an
+  upper-only self relation in its local trace. Negative extrusion adds a
+  positive parent-to-copy lower and copies selected uppers without replay;
+  parent metadata alone does not form an SCC edge. Later scheme replay can
+  select an upper when both rows are fresh, or a positive lower when the left
+  row is an outer anchor. The [independent review](../progress/2026-10-10-upper-self-filter-observer-review.md)
+  confirms these owner paths and keeps the source-reachability and contextual
+  payload premises open. No admitted counterexample or safe-discharge theorem
+  follows; the next gate is to establish the original-row/anchored-copy source
+  interface and exact payload transport.
 
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
