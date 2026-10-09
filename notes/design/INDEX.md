@@ -169,8 +169,11 @@ This index is a navigation aid. The listed source document remains authoritative
   owners but no exact formal/literal-1 constructor: old-license extension,
   independent Delay attachment, and original Reify introduction. Their
   conditional findings and source locators are linked from `tasks/current.md`;
-  the actual P consumer manifest and the three exact supplier outputs remain
-  the next construction seam.
+  the actual-registry audit further finds that the complete `P` remains an
+  input, so its lookup branch and old-consumer manifest cannot yet be
+  instantiated. Question `call-reify-registry-construction/q1` asks whether to
+  expand the bounded design gate upstream to that owner; the question bundle
+  remains local and uncommitted pending an approved answer.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)

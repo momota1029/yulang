@@ -5659,10 +5659,15 @@ event extension, not the static registry insertion; IF-Insert and Carrier-Delay
 consume registrations/origins already supplied. The Delay consumer interprets
 an already licensed origin but exposes no operation from literal Result
 license plus staged incidence to an independent Delay license and complete
-`J_a` attachment. The next evidence must instantiate the actual P's exposed
-old-consumer dependency manifest and obtain those three outputs at the same
-indices. If no source owner supplies them, stop at this exact construction seam
-and keep implementation blocked without changing Call semantics.
+`J_a` attachment. The subsequent [actual-registry audit](../notes/progress/2026-10-10-call-reify-actual-registry-manifest.md)
+locates an earlier cut: `P` itself remains a supplied input in the inspected
+selected sources, so no actual lookup branch or old-consumer manifest can yet be
+instantiated. A separate local board question,
+`questions/2026-10-10-call-reify-registry-construction/q1/question.md`, asks
+whether to expand the bounded design gate upstream to this registry constructor.
+That whole question directory is pending and must remain unstaged and
+uncommitted. Until an approved direction and actual owner evidence exist, keep
+implementation blocked without changing Call semantics.
 The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
