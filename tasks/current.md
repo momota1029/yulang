@@ -5609,16 +5609,28 @@ in [the conditional constructor ledger](../notes/theory/2026-10-10-original-lite
 and [the origin-cycle falsification](../notes/progress/2026-10-10-literal-call-emission-falsification.md),
 commits `bb5fdbe7d` and `126be49ca`. Under explicitly imported original
 Reg/Route, primitive and Return contracts, Original-ResultLiteral supplies the
-literal child's Data/Result prefix. The first new source producer still missing
-is a Call-owned original argument-Reify origin and its complete literal
-code-to-carrier domain/license/action attachment. Carrier-Delay consumes this
-origin; Code-Call cannot construct it because Code-Call already requires it.
-This is a bounded supplier cut, not a rejection of `f 1` or an impossibility
-claim. The tagged constructor, full old-family conservation and local O0 remain
+literal child's Data/Result prefix. Carrier-Delay still needs a Call-owned
+original argument-Reify origin and its complete literal code-to-carrier
+domain/license/action attachment; Code-Call cannot produce that input by
+inverting itself. This was a bounded supplier cut, not a rejection of `f 1` or
+an impossibility claim.
+
+The follow-up source inversion found a positive, narrower case: selected
+MIN-ORIG-WHOLEARG §4.1 constructs its native Call-owned argument registration
+before DataArg assembly and inlet checking. Its unreviewed extraction and
+independent portability attack are recorded in [the native registration
+extraction](../notes/theory/2026-10-10-native-argument-registration-extraction.md)
+and [the exact-view discriminator](../notes/progress/2026-10-10-native-reify-portability-falsification.md),
+commits `04beeef66` and `0946e42b8`. That native id/literal-0 construction does
+not yet establish a generic formal/literal-1 producer or attach the same
+literal ReturnImage to the independent Delay domain. Matching `Comp(empty,Int)`
+is insufficient to substitute its DataArg complete view for that image. Next,
+extract the original Call-owner registration independently of the fixed native
+inlet and supply the exact ReturnImage/Delay attachment with whole-action laws.
+The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
-complete solving, publication and F5 cutover remain open. Next, construct and
-review the Call-owner Reify supplier at its actual original indices before
-attempting the full tagged record. No implementation, tests or builds ran.
+complete solving, publication and F5 cutover remain open. No implementation,
+tests or builds ran.
 
 The approved annotation q1/d1's next design slice is recorded in the
 [one-case Any annotation design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md).

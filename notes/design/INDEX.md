@@ -148,7 +148,11 @@ This index is a navigation aid. The listed source document remains authoritative
   `original-literal-call-emission/q1/d1`; the answer is integrated at `885e35264`.
   The proposed constructor, emitted membership and O0 extension remain
   unproved/unadopted; implementation, acceptance, other semantic gates and F5
-  cutover remain open. See `tasks/current.md` for exact residuals.
+  cutover remain open. A later bounded source inversion found that native
+  MIN-ORIG-WHOLEARG §4.1 constructs its fixed id/literal-0 Call registration;
+  this does not yet supply the formal/literal-1 exact ReturnImage-to-Delay
+  attachment. The extraction and portability discriminator remain unreviewed
+  research; see their links and exact residuals in `tasks/current.md`.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
