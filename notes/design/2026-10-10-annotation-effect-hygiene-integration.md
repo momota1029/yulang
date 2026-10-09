@@ -140,3 +140,30 @@ and exact-conformance review; this record does not close its runtime gate or the
 full inference/F5 replacement objective.
 
 Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-annotation-effect-hygiene-integration.md).
+
+## 6. User-supplied callback scenario
+
+The user supplied this source/result pair to clarify the selected boundary:
+
+```yulang
+my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
+```
+
+```text
+(int -> ['b, io] 'c) -> ['b] 'c
+```
+
+The intended locality is clear: the attached `io` can be subtracted from the
+callback's effect in this body while independent effect flow `'b` remains
+connected. Treating a variable as “not a concrete annotation atom” must not
+sever future concrete effects from its checks. The earlier version of the
+result supplied in conversation had an extra `int ->`; the user corrected that
+as a mistake. This corrected pair is the target, not a claim that the current
+successor accepts the source or that the whole type is already verified by a
+runtime test.
+
+This is the same locality requirement as effect hygiene, not a separate semantic
+permission: subtraction at this annotation must not mutate a shared canonical
+row, erase an independent same-family contribution, or affect another callback
+use. The current paired formal constructor still rejects explicit effect rows;
+this scenario is an owning target for the open contravariant integration gate.

@@ -6882,3 +6882,38 @@ complete Call, effect hygiene, soundness/principality and inference/public/defau
 migration remain active. M1 independent read-only reference/disposition review
 has no blocking findings; narrow file/link/diff checks pass. Zero compiler
 builds/tests or performance samples/processes for this record-only cleanup.
+
+
+### Explicit effect attachment: callback target and cycle-source audit (2026-10-10)
+
+The user clarified the concrete behavior with:
+
+```yulang
+my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
+```
+
+and expected scheme `(int -> ['b, io] 'c) -> ['b] 'c`. The user corrected the
+earlier extra `int ->` in the result as a mistake. The locality requirement is
+to subtract the attached `io` while retaining independent `'b` flow. This is
+the same contract as effect hygiene, not a separate permission. The current
+candidate still rejects explicit formal effect rows; this is a target, not
+verified compiler behavior.
+
+The conditional finite attachment model checkpoint `b54e03d97` passes 72
+valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
+source supplies a relevant cycle pattern test and distinct owners: same-TypeVar
+contextual self-constraints are discarded; nonself variable bounds use
+support-based admission subsumption while exact replay weights are retained.
+This corrects the extrapolated finite model's unrestricted-cycle diagnosis; it
+does not prove all-machine termination or successor correspondence. The
+[cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
+records exact anchors and remaining obligations.
+
+Next: derive the same-constraint and bound-subsumption invariants for the
+successor's level-selected bounds and parent/copy intrusion. Then implement the
+negative formal boundary and actual consumer without fixed semantic caps,
+including the user's callback result as a real source regression. Positive
+covariant annotations already have a private source/propagation implementation.
+No code or compiler tests changed in this audit; the finite Python model was
+rechecked once. Full hygiene, complete Call, soundness/principality and public /
+default F5 cutover remain open.
