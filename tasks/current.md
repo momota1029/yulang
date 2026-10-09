@@ -5625,8 +5625,13 @@ commits `04beeef66` and `0946e42b8`. That native id/literal-0 construction does
 not yet establish a generic formal/literal-1 producer or attach the same
 literal ReturnImage to the independent Delay domain. Matching `Comp(empty,Int)`
 is insufficient to substitute its DataArg complete view for that image. Next,
-extract the original Call-owner registration independently of the fixed native
-inlet and supply the exact ReturnImage/Delay attachment with whole-action laws.
+resolve the new pending [Call argument-Reify owner question](../questions/2026-10-10-original-call-argument-reify-owner/question.md):
+whether to design a generic original Call-owner registration and exact
+ReturnImage/Delay attachment with whole-action laws, or keep the current source
+rules fixed and leave this route unsupported until an existing complete
+producer is found. Only the dependent source-owner design/implementation work
+waits; unrelated inference work may continue. The question directory remains
+unstaged and uncommitted pending explicit approval and validation.
 The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
