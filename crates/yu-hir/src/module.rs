@@ -933,7 +933,7 @@ fn lower_module_with_counters(
     let root = SyntaxNode::new_root(parsed.green().clone());
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
-        counters.effect_declarations = source_annotation::declarations(&root, identity.module(), &counters.source_nodes)?;
+        counters.effect_declarations = source_annotation::declarations(&root, identity.module(), counters)?;
     }
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
@@ -945,10 +945,27 @@ fn lower_module_with_counters(
     let mut sink = ErrorSink::default();
     let root_errors = emit_structural_errors(&recoveries, &partition, &plans, &mut sink, counters)?;
 
+    #[cfg(any(feature = "shadow", test))]
+    if counters.local_source {
+        for (declaration, plan) in counters.effect_declarations.iter().zip(plans.iter().filter(|plan| plan.node.kind() == SyntaxKind::ActDeclaration)) {
+            let ordinal = plan.ordinal;
+            if counters.effect_namespace.get(declaration.spelling.as_ref()).is_some_and(|ids| ids.len() > 1) {
+                sink.lowering(HirErrorKind::DuplicateDefinition, HirErrorAttachment::DirectRootItem(ordinal), declaration.range.clone())?;
+            }
+            for member in &declaration.operations {
+                if counters.operation_namespace.get(&(declaration.id.clone(), member.spelling.clone())).is_some_and(|members| members.len() > 1) {
+                    sink.lowering(HirErrorKind::DuplicateDefinition, HirErrorAttachment::DirectRootItem(ordinal), member.range.clone())?;
+                }
+            }
+        }
+    }
+
     let artifact = mint_artifact_token();
     let mut items = Vec::with_capacity(plans.len());
     let mut next_occurrence_ordinal = 0u32;
     let mut scope = ScopeStack::default();
+    #[cfg(any(feature = "shadow", test))]
+    let mut effect_ordinal = 0usize;
     for (plan, errors) in plans.iter().zip(root_errors) {
         let occurrence = next_occurrence(&artifact, &mut next_occurrence_ordinal)?;
         let definition_root = match &plan.kind {
@@ -983,9 +1000,10 @@ fn lower_module_with_counters(
         )?;
         #[cfg(any(feature = "shadow", test))]
         if counters.local_source && plan.node.kind() == SyntaxKind::ActDeclaration {
-            let declaration = counters.effect_declarations.iter_mut().find(|declaration| declaration.range == plan.range)
+            let declaration = counters.effect_declarations.get_mut(effect_ordinal)
                 .ok_or(HirAvailabilityError::StructuralProjection)?;
-            if let HirItem::Error { errors, .. } = &item { declaration.placeholder_errors.extend(errors.iter().copied()); }
+            effect_ordinal += 1;
+            if let HirItem::Error { errors, .. } = &item { declaration.placeholder_errors.extend(errors.iter().copied().filter(|id| sink.errors.iter().any(|error| error.id == *id && error.kind == HirErrorKind::UnsupportedItem))); }
         }
         items.push(item);
     }
@@ -1028,6 +1046,10 @@ struct LoweringCounters {
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
+    #[cfg(any(feature = "shadow", test))]
+    effect_namespace: HashMap<String, Vec<source_annotation::SourceEffectId>>,
+    #[cfg(any(feature = "shadow", test))]
+    operation_namespace: HashMap<(source_annotation::SourceEffectId, Box<str>), Vec<Arc<source_annotation::SourceOperationDeclaration>>>,
     #[cfg(any(feature = "shadow", test))]
     shadow_applications: bool,
     #[cfg(any(feature = "shadow", test))]

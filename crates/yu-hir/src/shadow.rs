@@ -22,7 +22,7 @@ pub fn lower_module_with_source_identity(
     crate::module::lower_module_with_source_identity(identity, parsed, imports)
 }
 
-pub use crate::module::source_annotation::{SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectDeclaration, SourceEffectRow};
+pub use crate::module::source_annotation::{SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectDeclaration, SourceEffectRow, SourceOperationId, SourceOperationDeclaration, SourceOperationResolution};
 
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,

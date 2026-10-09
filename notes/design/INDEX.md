@@ -129,7 +129,11 @@ This index is a navigation aid. The listed source document remains authoritative
   The [Oracle Unit integration](../progress/2026-10-10-unit-primitive-integration.md)
   supplies actual primitive, HIR, solver and closed/flat adapters. M2 review,
   129 distinct focused tests and owning/workspace checks pass; authentic
-  operation producers and complete execution consumers remain the next gates.
+  operation producer construction is now supplied by the
+  [authentic operation integration](../progress/2026-10-10-operation-producer-integration.md).
+  M2 review, 66 focused tests and owning/workspace checks pass. Typed operation
+  interface provenance survives ordinary transport; lookup remains pure.
+  Complete execution consumers and public cutover remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

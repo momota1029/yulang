@@ -86,6 +86,7 @@ pub struct LocalSourceExpr {
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
     Unit,
+    Operation { resolution: source_annotation::SourceOperationResolution },
     Integer(Box<str>),
     Name {
         spelling: Box<str>,
@@ -443,7 +444,9 @@ impl Builder<'_> {
                 for child in node.children() {
                     push(&mut children, child)?;
                 }
-                let (head, tails) = children.split_first().ok_or_else(invalid)?;
+                let (head, all_tails) = children.split_first().ok_or_else(invalid)?;
+                let operation_tail = all_tails.first().filter(|tail| tail.kind() == SyntaxKind::PathTail);
+                let tails = if operation_tail.is_some() { &all_tails[1..] } else { all_tails };
                 if depth + tails.len() > 128 {
                     return Err(invalid());
                 }
@@ -494,10 +497,28 @@ impl Builder<'_> {
                     }
                     current = callee;
                 }
-                push(
-                    &mut self.work,
-                    Work::Expression(head.clone(), current, depth + tails.len(), scope),
-                )?;
+                if let Some(tail) = operation_tail {
+                    if head.kind() != SyntaxKind::IdentifierExpression || has_recovery(tail) { return Err(invalid()); }
+                    let tokens: Vec<_> = tail.children_with_tokens().filter(|e| !matches!(e.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)).collect();
+                    let [separator, member] = tokens.as_slice() else { return Err(invalid()); };
+                    if separator.kind() != SyntaxKind::ColonColon || member.kind() != SyntaxKind::Identifier { return Err(invalid()); }
+                    let family = head.text().to_string();
+                    let member: Box<str> = member.to_string().into_boxed_str();
+                    use source_annotation::SourceOperationResolution;
+                    let resolution = match self.counters.effect_namespace.get(&family) {
+                        None => SourceOperationResolution::Unresolved,
+                        Some(families) if families.len() != 1 => SourceOperationResolution::Ambiguous,
+                        Some(families) => match self.counters.operation_namespace.get(&(families[0].clone(), member)) {
+                            None => SourceOperationResolution::Unresolved,
+                            Some(members) if members.len() != 1 => SourceOperationResolution::Ambiguous,
+                            Some(members) if members[0].visibility == HirVisibility::Private => SourceOperationResolution::Private,
+                            Some(members) => SourceOperationResolution::Resolved(members[0].clone()),
+                        },
+                    };
+                    self.set(current, tail, scope, LocalSourceForm::Operation { resolution })?;
+                } else {
+                    push(&mut self.work, Work::Expression(head.clone(), current, depth + tails.len(), scope))?;
+                }
             }
             SyntaxKind::IdentifierExpression => {
                 let spelling: Box<str> = node.text().to_string().into_boxed_str();

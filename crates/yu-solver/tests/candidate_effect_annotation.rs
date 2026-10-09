@@ -95,7 +95,6 @@ fn unresolved_ambiguous_and_unsupported_annotations_do_not_gain_permissions() {
         "act E\nmy id x: int -> [Missing] int = x",
         "act E\nact E\nmy id x: int -> [E] int = x",
         "act E(int)\nmy id x = x",
-        "act E {}\nmy id x = x",
         "act E\nmy id x: Other -> [E] int = x",
         "act E\nmy higher f: (int -> [E] int) -> int = f 1",
         "act E\nmy value = { my local x: int -> [E] int = x; local }",
@@ -118,6 +117,16 @@ fn unresolved_ambiguous_and_unsupported_annotations_do_not_gain_permissions() {
         b.source_effect_declarations()[0].id,
         "declaration identity retains the actual source owner, not the spelling"
     );
+}
+
+#[test]
+fn empty_act_body_retains_an_ordinary_annotation_family() {
+    let hir = module("act E {}\nmy id x: int -> [E] int = x").unwrap();
+    assert_eq!(hir.source_effect_declarations().len(), 1);
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.source_call_count(), 0);
+    assert!(candidate.export(binding(&hir, "id").definition_root()).is_ok());
 }
 
 #[test]

@@ -60,8 +60,29 @@ pub(super) struct Contribution {
     pub origin: SourceNodeKey,
     pub instance: u32,
 }
+#[derive(Clone, Debug)]
+pub(super) struct OperationOrigin {
+    pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    pub occurrence: HirOccurrenceId,
+    retained_bytes: usize,
+}
+#[derive(Clone, Debug)]
+pub(super) enum ViewOrigin {
+    Annotation,
+    Operation(OperationOrigin),
+}
+enum SignatureContext<'a> {
+    Annotation(&'a SourceAnnotation),
+    Operation { declaration: &'a Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &'a DefinitionRootId, occurrence: &'a HirOccurrenceId, retained_bytes: usize },
+}
+impl SignatureContext<'_> {
+    fn owner(&self) -> &DefinitionRootId { match self { Self::Annotation(a) => &a.owner, Self::Operation { owner, .. } => owner } }
+    fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position } }
+    fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_) => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
+}
 #[derive(Debug)]
 pub(super) struct View {
+    pub provenance: ViewOrigin,
     pub owner: DefinitionRootId,
     pub position: SourceNodeKey,
     pub allowed: Vec<SourceEffectId>,
@@ -402,11 +423,11 @@ impl InferenceSession {
             return Ok(());
         }
         let annotation = match upper {
-            EffectEndpointKey::Allowance(index) => Some(EffectAnnotationHandle {
+            EffectEndpointKey::Allowance(index) if matches!(state.views[index as usize].provenance, ViewOrigin::Annotation) => Some(EffectAnnotationHandle {
                 brand: state.brand,
                 index,
             }),
-            EffectEndpointKey::EmptyNegative => None,
+            EffectEndpointKey::Allowance(_) | EffectEndpointKey::EmptyNegative => None,
             _ => return Err(exhausted()),
         };
         let undo = self
@@ -506,6 +527,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
     }
+    #[cfg(test)]
     pub(super) fn candidate_effect_view(
         &mut self,
         owner: DefinitionRootId,
@@ -513,6 +535,17 @@ impl InferenceSession {
         allowed: Vec<SourceEffectId>,
         tail: Option<u32>,
     ) -> Result<u32, SolveAvailabilityError> {
+        self.candidate_signature_view(owner, position, allowed, tail, None)
+    }
+    fn candidate_signature_view(
+        &mut self,
+        owner: DefinitionRootId,
+        position: SourceNodeKey,
+        allowed: Vec<SourceEffectId>,
+        tail: Option<u32>,
+        operation: Option<OperationOrigin>,
+    ) -> Result<u32, SolveAvailabilityError> {
+        let payload = operation.as_ref().map_or(0, |origin| origin.retained_bytes);
         let state = &mut self
             .candidate_graph
             .as_mut()
@@ -523,10 +556,12 @@ impl InferenceSession {
         let nested_bytes = allowed
             .capacity()
             .checked_mul(std::mem::size_of::<SourceEffectId>())
+            .and_then(|n| n.checked_add(payload))
             .and_then(|n| n.checked_add(state.nested_bytes))
             .ok_or_else(exhausted)?;
         state.views.try_reserve(1).map_err(|_| exhausted())?;
         state.views.push(View {
+            provenance: operation.map_or(ViewOrigin::Annotation, ViewOrigin::Operation),
             owner,
             position,
             allowed,
@@ -546,6 +581,26 @@ impl InferenceSession {
         }
         Ok(id)
     }
+    pub(super) fn candidate_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &DefinitionRootId, occurrence: &HirOccurrenceId, target: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+        let mut values = HashMap::new();
+        let mut effects = HashMap::new();
+        let mut views = HashMap::new();
+        let count = declaration.signature.node_count();
+        let retained_bytes = std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>().checked_add(declaration.retained_arena_bytes()).ok_or_else(exhausted)?;
+        values.try_reserve(count).map_err(|_| exhausted())?;
+        effects.try_reserve(count).map_err(|_| exhausted())?;
+        views.try_reserve(count).map_err(|_| exhausted())?;
+        let scratch = bytes::<(&str, u32)>(values.capacity())?.checked_add(bytes::<(&str, u32)>(effects.capacity())?).and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?)).ok_or_else(exhausted)?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        let result = (|| {
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            let value = self.candidate_signature_value(&SignatureContext::Operation { declaration, owner, occurrence, retained_bytes }, &declaration.signature, Polarity::Positive, Polarity::Positive, level.checked_add(1).ok_or_else(exhausted)?, &mut values, &mut effects, &mut views)?;
+            self.admit_candidate_value_link(occurrence, 42, value, self.batch.component_term_at(target))
+        })();
+        drop((values, effects, views));
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
+        result
+    }
     pub(super) fn candidate_copy_effect_view(
         &mut self,
         id: u32,
@@ -559,12 +614,13 @@ impl InferenceSession {
             .effect_algebra
             .views[id as usize];
         let (owner, position) = (view.owner.clone(), view.position.clone());
+        let operation = match &view.provenance { ViewOrigin::Annotation => None, ViewOrigin::Operation(origin) => Some(origin.clone()) };
         let mut allowed = Vec::new();
         allowed
             .try_reserve_exact(view.allowed.len())
             .map_err(|_| exhausted())?;
         allowed.extend(view.allowed.iter().cloned());
-        self.candidate_effect_view(owner, position, allowed, tail)
+        self.candidate_signature_view(owner, position, allowed, tail, operation)
     }
     // The caller reserves and charges this operation-local map before copying.
     pub(super) fn candidate_remapped_effect_view(
@@ -735,8 +791,8 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            let upper = self.candidate_annotation_value(
-                annotation,
+            let upper = self.candidate_signature_value(
+                &SignatureContext::Annotation(annotation),
                 &annotation.ty,
                 Polarity::Negative,
                 Polarity::Positive,
@@ -745,8 +801,8 @@ impl InferenceSession {
                 &mut effect_variables,
                 &mut views,
             )?;
-            let exposed = self.candidate_annotation_value(
-                annotation,
+            let exposed = self.candidate_signature_value(
+                &SignatureContext::Annotation(annotation),
                 &annotation.ty,
                 Polarity::Positive,
                 Polarity::Positive,
@@ -769,9 +825,9 @@ impl InferenceSession {
         result
     }
 
-    fn candidate_annotation_value<'a>(
+    fn candidate_signature_value<'a>(
         &mut self,
-        annotation: &SourceAnnotation,
+        context: &SignatureContext<'_>,
         ty: &'a SourceAnnotationType,
         polarity: Polarity,
         variance: Polarity,
@@ -821,24 +877,30 @@ impl InferenceSession {
                 } else {
                     Polarity::Positive
                 };
-                let a = self.candidate_annotation_value(
-                    annotation, argument, opposite, reversed, level, values, effects, views,
+                let a = self.candidate_signature_value(
+                    context, argument, opposite, reversed, level, values, effects, views,
                 )?;
-                let r = self.candidate_annotation_value(
-                    annotation, result, polarity, variance, level, values, effects, views,
+                let r = self.candidate_signature_value(
+                    context, result, polarity, variance, level, values, effects, views,
                 )?;
-                let ae = self.candidate_annotation_effect(
-                    annotation,
+                let ae = self.candidate_signature_effect(
+                    context,
                     argument.effects.as_ref(),
+                    None,
                     opposite,
                     reversed,
                     level,
                     effects,
                     views,
                 )?;
-                let re = self.candidate_annotation_effect(
-                    annotation,
+                let family = match context {
+                    SignatureContext::Operation { declaration, .. } if std::ptr::eq(ty, &declaration.signature) => Some(&declaration.id.family),
+                    _ => None,
+                };
+                let re = self.candidate_signature_effect(
+                    context,
                     result.effects.as_ref(),
+                    family,
                     polarity,
                     variance,
                     level,
@@ -853,10 +915,11 @@ impl InferenceSession {
             }
         }
     }
-    fn candidate_annotation_effect<'a>(
+    fn candidate_signature_effect<'a>(
         &mut self,
-        annotation: &SourceAnnotation,
+        context: &SignatureContext<'_>,
         row: Option<&'a SourceEffectRow>,
+        family: Option<&SourceEffectId>,
         polarity: Polarity,
         variance: Polarity,
         level: u32,
@@ -864,6 +927,18 @@ impl InferenceSession {
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<Term, SolveAvailabilityError> {
         let Some(row) = row else {
+            if let Some(family) = family {
+                let mut allowed = Vec::new();
+                allowed.try_reserve_exact(1).map_err(|_| exhausted())?;
+                allowed.push(family.clone());
+                let view = self.candidate_signature_view(context.owner().clone(), context.position().clone(), allowed, None, context.operation())?;
+                let port = self.fresh_effect_at_level(level)?;
+                self.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(port)), polarity, ExtrusionEndpoint::Effect(EffectEndpointKey::Support(view)))?;
+                return self.live_effect_term(polarity, port);
+            }
+            if matches!(context, SignatureContext::Operation { .. }) {
+                return Ok(self.batch.collected_leaf_term(if polarity == Polarity::Positive { Leaf::EffectBottomPositive } else { Leaf::EmptyEffectNegative }));
+            }
             if variance == Polarity::Negative {
                 return Ok(self
                     .batch
@@ -873,17 +948,18 @@ impl InferenceSession {
                         Leaf::EmptyEffectNegative
                     }));
             }
-            let view = if let Some(&view) = views.get(&annotation.position) {
+            let view = if let Some(&view) = views.get(context.position()) {
                 view
             } else {
                 views.try_reserve(1).map_err(|_| exhausted())?;
-                let view = self.candidate_effect_view(
-                    annotation.owner.clone(),
-                    annotation.position.clone(),
+                let view = self.candidate_signature_view(
+                    context.owner().clone(),
+                    context.position().clone(),
                     Vec::new(),
                     None,
+                    context.operation(),
                 )?;
-                views.insert(annotation.position.clone(), view);
+                views.insert(context.position().clone(), view);
                 view
             };
             let port = self.fresh_effect_at_level(level)?;
@@ -934,14 +1010,16 @@ impl InferenceSession {
             views.try_reserve(1).map_err(|_| exhausted())?;
             let mut allowed = Vec::new();
             allowed
-                .try_reserve_exact(row.concrete.len())
+                .try_reserve_exact(row.concrete.len() + usize::from(family.is_some()))
                 .map_err(|_| exhausted())?;
+            if let Some(family) = family { allowed.push(family.clone()); }
             allowed.extend(row.concrete.iter().cloned());
-            let view = self.candidate_effect_view(
-                annotation.owner.clone(),
+            let view = self.candidate_signature_view(
+                context.owner().clone(),
                 row.position.clone(),
                 allowed,
                 tail,
+                context.operation(),
             )?;
             views.insert(row.position.clone(), view);
             view
@@ -989,6 +1067,76 @@ mod tests {
         .unwrap();
         session.start_candidate_graph().unwrap();
         session
+    }
+    #[test]
+    fn operation_lookup_evaluation_has_only_ordinary_exact_pure_facts() {
+        let session = make_session("act tick:\n    our next: () -> int\n\nmy lookup = tick::next");
+        let root = root(&session, "lookup");
+        let source = session.batch.hir.local_source(&root).unwrap().unwrap();
+        let operation = source.expressions().iter().find(|expr| matches!(expr.form, yu_hir::shadow::LocalSourceForm::Operation { .. })).unwrap();
+        let facts: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &operation.occurrence).collect();
+        assert_eq!(facts.len(), 2);
+        assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.lower()), Ok(TermView::Leaf(Leaf::EffectBottomPositive)))));
+        assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
+        assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions.is_empty());
+    }
+    #[test]
+    fn operation_nested_omitted_effect_rows_keep_their_actual_polarity_defaults() {
+        let mut session = make_session("act tick:\n    our next: (() -> int) -> (int -> int)\n\nmy lookup = tick::next");
+        let owner = root(&session, "lookup");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let outer = session.store.facts().iter().find_map(|fact| match session.store.term_view(fact.lower()) {
+            Ok(TermView::PositiveFunction { argument, argument_effect, result_effect, result }) => Some((argument, argument_effect, result_effect, result)),
+            _ => None,
+        }).unwrap();
+        assert!(matches!(session.store.term_view(outer.1), Ok(TermView::Leaf(Leaf::EmptyEffectNegative))));
+        let TermView::NegativeFunction { argument_effect, result_effect, .. } = session.store.term_view(outer.0).unwrap() else { panic!("nested negative Function"); };
+        assert!(matches!(session.store.term_view(argument_effect), Ok(TermView::Leaf(Leaf::EffectBottomPositive))));
+        assert!(matches!(session.store.term_view(result_effect), Ok(TermView::Leaf(Leaf::EmptyEffectNegative))));
+        let TermView::PositiveFunction { argument_effect, result_effect, .. } = session.store.term_view(outer.3).unwrap() else { panic!("nested positive Function"); };
+        assert!(matches!(session.store.term_view(argument_effect), Ok(TermView::Leaf(Leaf::EmptyEffectNegative))));
+        assert!(matches!(session.store.term_view(result_effect), Ok(TermView::Leaf(Leaf::EffectBottomPositive))));
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert!(state.views.iter().all(|view| view.allowed == vec![session.batch.hir.source_effect_declarations()[0].id.clone()]));
+    }
+    #[test]
+    fn operation_views_preserve_symbolic_tail_provenance_and_rollback_owned_payload() {
+        let mut session = make_session("act E\nact tick:\n    our next: 'a -> [E, 'e] 'a\n\nmy lookup = tick::next");
+        let owner = root(&session, "lookup");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let original = state.views.iter().position(|view| matches!(view.provenance, ViewOrigin::Operation(_))).unwrap() as u32;
+        let view = &state.views[original as usize];
+        assert_eq!(view.allowed, vec![session.batch.hir.source_effect_declarations()[1].id.clone(), session.batch.hir.source_effect_declarations()[0].id.clone()]);
+        let tail = view.tail.expect("original symbolic tail retained");
+        let ViewOrigin::Operation(origin) = &view.provenance else { unreachable!() };
+        let operation = origin.clone();
+        let retained_bytes = operation.retained_bytes;
+        let copy = session.candidate_copy_effect_view(original, Some(tail)).unwrap();
+        assert_ne!(copy, original);
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let ViewOrigin::Operation(copied) = &state.views[copy as usize].provenance else { panic!("typed provenance copied"); };
+        assert_eq!(copied.declaration.id, operation.declaration.id);
+        assert_eq!(copied.occurrence, operation.occurrence);
+        assert_eq!(state.views[copy as usize].tail, Some(tail));
+        let before_views = state.views.len();
+        let before_nested = state.nested_bytes;
+        let before_rows = session.effect_bounds.len();
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.fail_after_view = true;
+        let result: Result<(), SolveAvailabilityError> = session.with_route_transaction(|session| {
+            session.candidate_copy_effect_view(original, Some(tail))?;
+            panic!("injected view publication failure must abort the route")
+        });
+        assert_eq!(result, Err(exhausted()));
+        let graph = session.candidate_graph.as_ref().unwrap();
+        let state = &graph.intrusion.effect_algebra;
+        assert_eq!(state.views.len(), before_views);
+        assert_eq!(state.nested_bytes, before_nested);
+        assert_eq!(session.effect_bounds.len(), before_rows);
+        assert_eq!(graph.scratch_bytes, 0);
+        let (_, sampled_view_bytes) = state.failed_view_sample.unwrap();
+        assert!(sampled_view_bytes >= before_nested + retained_bytes, "failed publication sample charges the owned signature payload before rollback");
+        assert!(session.resource_ledger.inference_session_peak_bytes >= sampled_view_bytes);
     }
     fn root(session: &InferenceSession, name: &str) -> DefinitionRootId {
         session

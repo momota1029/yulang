@@ -6698,3 +6698,31 @@ Complete Call, contravariant attachments, hygiene, independent transformed
 public schemes, soundness/principality and target `yulang3` replacement remain
 required. A separate Unit closed incoming-use replay and source diagnostic-span
 coverage remain unverified by this primitive slice.
+
+### Authentic operation producer integrated (2026-10-10)
+
+The [producer delivery](../notes/progress/2026-10-10-operation-producer-integration.md)
+retains actual nullary Act members and qualified operation occurrences, resolves
+visibility/ambiguity, and builds fresh declared signatures through the shared
+structural constructor. Only the outer return-effect interface receives the
+owning family; original members and symbolic tail remain. Lookup is exact-pure,
+and typed operation provenance is preserved by existing view transport. No
+registry admission, early satisfiability condition or shape-derived Force was
+introduced. M2 semantic/conformance reviews and fresh repair deltas are closed;
+66 distinct focused tests plus all-target/all-feature owning and workspace
+checks pass without warnings. Zero measurement processes or samples ran.
+
+The old empty-Act unsupported fixture premise was replaced by positive family
+coverage after pre-write conformance adjudication: actual Oracle body lowering
+has no minimum-member requirement. Genuine unsupported/private/duplicate and
+recovery boundaries remain. This is producer compatibility expansion, not
+closure of complete Call or source effect hygiene.
+
+Next safe legacy withdrawal: candidate startup still reserves unused F5 draft
+scratch in `InferenceSession::try_new`; all real DraftScheme consumers belong
+to the legacy SCC branch. Guard that reservation by its existing legacy owner
+and verify candidate success under an injected Drafts failure with a legacy
+failure control. Actual execution consumers/contravariant attachments,
+independent public schemes, soundness/principality and target `yulang3`
+replacement remain active. Operation-specific full capture/intrusion execution,
+backend execution and complete semantic proofs remain unverified here.

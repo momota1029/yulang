@@ -22,6 +22,7 @@ pub(super) enum Action {
     Module(HirOccurrenceId),
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
+    Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
 impl Plan {
@@ -31,7 +32,7 @@ impl Plan {
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
-                if let Action::Annotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else { 0 }
+                if let Action::Annotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -55,6 +56,12 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
         return Err(shadow_apply::CandidateError::Unsupported);
     }
     for expr in source.expressions() {
+        if let LocalSourceForm::Operation { resolution } = &expr.form {
+            match resolution {
+                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && preflight_annotation(&declaration.signature, true) => {},
+                _ => return Err(shadow_apply::CandidateError::Unsupported),
+            }
+        }
         if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous, .. }) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -232,6 +239,24 @@ impl ConstraintBatch {
                             self.emit(occurrence.clone(), 2, bottom, self.component_term_at(pos.effect))?;
                             self.emit(occurrence.clone(), 3, self.component_term_at(pos.effect), empty)?;
                         }
+                        LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration) } => {
+                            self.term_for_leaf(Leaf::IntPositive)?;
+                            self.term_for_leaf(Leaf::IntNegative)?;
+                            if annotation_contains_unit(&declaration.signature) {
+                                self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.term_for_leaf(Leaf::UnitNegative)?;
+                            }
+                            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                            self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                            self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                            self.append_source_facts(start, &mut actions)?;
+                            push(&mut actions, Action::Operation { declaration: Arc::clone(declaration), owner: source.definition_root().clone(), occurrence: occurrence.clone(), target: pos.value, level })?;
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            continue;
+                        }
+                        LocalSourceForm::Operation { .. } => return Err(invalid()),
                         LocalSourceForm::Name { resolution, .. } => {
                             let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
                             let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
@@ -407,6 +432,7 @@ impl InferenceSession {
                 }
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
+                Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level)?,
             }
         }

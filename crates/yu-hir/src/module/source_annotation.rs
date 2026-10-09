@@ -38,7 +38,31 @@ pub struct SourceEffectDeclaration {
     pub id: SourceEffectId,
     pub spelling: Box<str>,
     pub range: Range<usize>,
+    pub visibility: HirVisibility,
+    pub operations: Vec<Arc<SourceOperationDeclaration>>,
     pub placeholder_errors: Vec<HirErrorId>,
+}
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct SourceOperationId {
+    pub family: SourceEffectId,
+    pub declaration: SourceNodeKey,
+}
+#[derive(Clone, Debug)]
+pub struct SourceOperationDeclaration {
+    pub id: SourceOperationId,
+    pub spelling: Box<str>,
+    pub visibility: HirVisibility,
+    pub name_position: SourceNodeKey,
+    pub signature_position: SourceNodeKey,
+    pub range: Range<usize>,
+    pub signature: SourceAnnotationType,
+}
+#[derive(Clone, Debug)]
+pub enum SourceOperationResolution {
+    Resolved(Arc<SourceOperationDeclaration>),
+    Unresolved,
+    Ambiguous,
+    Private,
 }
 #[derive(Clone, Debug)]
 pub struct SourceAnnotation {
@@ -101,40 +125,77 @@ fn singleton_identifier(node: &SyntaxNode) -> Option<String> {
 pub(super) fn declarations(
     root: &SyntaxNode,
     module: &ModuleId,
-    keys: &HashMap<SyntaxNode, SourceNodeKey>,
+    counters: &mut LoweringCounters,
 ) -> Result<Vec<SourceEffectDeclaration>, HirAvailabilityError> {
     let mut result = Vec::new();
-    for node in root
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::ActDeclaration)
-    {
-        if has_recovery(&node) {
-            return Err(unavailable());
-        }
-        let children: Vec<_> = elements(&node)
-            .into_iter()
-            .filter(|element| element.kind() != SyntaxKind::Semicolon)
-            .collect();
-        let [keyword, head] = children.as_slice() else {
-            return Err(unavailable());
+    let mut bodies = Vec::new();
+    for node in root.children().filter(|node| node.kind() == SyntaxKind::ActDeclaration) {
+        if has_recovery(&node) { return Err(unavailable()); }
+        let mut children = elements(&node);
+        children.retain(|element| element.kind() != SyntaxKind::Semicolon);
+        let visibility = match children.first().map(SyntaxElement::kind) {
+            Some(SyntaxKind::MyKw) => { children.remove(0); HirVisibility::Private }
+            Some(SyntaxKind::OurKw) => { children.remove(0); HirVisibility::Our }
+            Some(SyntaxKind::PubKw) => { children.remove(0); HirVisibility::Public }
+            _ => HirVisibility::Our,
         };
-        if keyword.kind() != SyntaxKind::ActKw || head.kind() != SyntaxKind::TypeExpression {
-            return Err(unavailable());
+        if children.len() < 2 || children[0].kind() != SyntaxKind::ActKw || children[1].kind() != SyntaxKind::TypeExpression { return Err(unavailable()); }
+        let spelling = singleton_identifier(children[1].as_node().ok_or_else(unavailable)?).ok_or_else(unavailable)?;
+        let body = match &children[2..] {
+            [] => None,
+            [colon, body] if colon.kind() == SyntaxKind::Colon && body.kind() == SyntaxKind::IndentedStatementBlock => Some(body.as_node().ok_or_else(unavailable)?.clone()),
+            [body] if body.kind() == SyntaxKind::BracedStatementBlockExpression => Some(body.as_node().ok_or_else(unavailable)?.clone()),
+            _ => return Err(unavailable()),
+        };
+        result.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        bodies.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        let id = SourceEffectId { module: Arc::new(module.clone()), declaration: counters.source_nodes.get(&node).ok_or_else(unavailable)?.clone() };
+        counters.effect_namespace.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        let families = counters.effect_namespace.entry(spelling.clone()).or_default();
+        families.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        families.push(id.clone());
+        result.push(SourceEffectDeclaration { id, spelling: spelling.into_boxed_str(), range: range_of(&node), visibility, operations: Vec::new(), placeholder_errors: Vec::new() });
+        bodies.push(body);
+    }
+    // All family headers exist before any signature row is resolved.
+    for (family, body) in result.iter_mut().zip(bodies) {
+        let Some(body) = body else { continue; };
+        for element in elements(&body) {
+            match element.kind() {
+                SyntaxKind::LBrace | SyntaxKind::RBrace | SyntaxKind::Semicolon => continue,
+                SyntaxKind::BlockStatementSeparator => continue,
+                SyntaxKind::Statement => {}
+                _ => return Err(unavailable()),
+            }
+            let statement = element.as_node().ok_or_else(unavailable)?;
+            let mut children = statement.children();
+            let member = children.next().ok_or_else(unavailable)?;
+            if children.next().is_some() || member.kind() != SyntaxKind::BindingStatement || member.children().any(|n| n.kind() == SyntaxKind::BindingBody) { return Err(unavailable()); }
+            let (visibility, name, parameters) = plain_binding_header(&member, counters).ok_or_else(unavailable)?;
+            if !parameters.is_empty() { return Err(unavailable()); }
+            let annotation = member.descendants().find(|n| n.kind() == SyntaxKind::PatternTypeAnnotation).ok_or_else(unavailable)?;
+            let parts = elements(&annotation);
+            let [colon, ty] = parts.as_slice() else { return Err(unavailable()); };
+            if colon.kind() != SyntaxKind::Colon || ty.kind() != SyntaxKind::TypeExpression { return Err(unavailable()); }
+            let ty = ty.as_node().ok_or_else(unavailable)?;
+            annotation_depth_preflight(ty)?;
+            let signature = parse_type(ty, counters)?;
+            if !matches!(signature.value, SourceAnnotationValue::Function { .. }) { return Err(unavailable()); }
+            let name_node = member.descendants().find(|n| n.kind() == SyntaxKind::IdentifierPattern).ok_or_else(unavailable)?;
+            let declaration = Arc::new(SourceOperationDeclaration {
+                id: SourceOperationId { family: family.id.clone(), declaration: counters.source_nodes.get(&member).ok_or_else(unavailable)?.clone() },
+                spelling: name.spelling.into_boxed_str(), visibility,
+                name_position: counters.source_nodes.get(&name_node).ok_or_else(unavailable)?.clone(),
+                signature_position: counters.source_nodes.get(ty).ok_or_else(unavailable)?.clone(),
+                range: range_of(&member), signature,
+            });
+            counters.operation_namespace.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            let members = counters.operation_namespace.entry((family.id.clone(), declaration.spelling.clone())).or_default();
+            members.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            members.push(declaration.clone());
+            family.operations.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            family.operations.push(declaration);
         }
-        let head = head.as_node().ok_or_else(unavailable)?;
-        let spelling = singleton_identifier(head).ok_or_else(unavailable)?;
-        result
-            .try_reserve(1)
-            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        result.push(SourceEffectDeclaration {
-            id: SourceEffectId {
-                module: Arc::new(module.clone()),
-                declaration: keys.get(&node).ok_or_else(unavailable)?.clone(),
-            },
-            spelling: spelling.into_boxed_str(),
-            range: range_of(&node),
-            placeholder_errors: Vec::new(),
-        });
     }
     Ok(result)
 }
@@ -346,19 +407,13 @@ fn parse_row(
                         .push(operand.to_string().trim().to_owned().into_boxed_str());
                 } else if operand.kind() == SyntaxKind::Identifier {
                     let spelling = operand.to_string();
-                    let mut matches = counters
-                        .effect_declarations
-                        .iter()
-                        .filter(|declaration| declaration.spelling.as_ref() == spelling);
-                    let declaration = matches.next().ok_or_else(unavailable)?;
-                    if matches.next().is_some() {
-                        return Err(unavailable());
-                    }
+                    let declarations = counters.effect_namespace.get(&spelling).ok_or_else(unavailable)?;
+                    let [declaration] = declarations.as_slice() else { return Err(unavailable()); };
                     result
                         .concrete
                         .try_reserve(1)
                         .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-                    result.concrete.push(declaration.id.clone());
+                    result.concrete.push(declaration.clone());
                 } else {
                     return Err(unavailable());
                 }
@@ -366,7 +421,16 @@ fn parse_row(
             _ => return Err(unavailable()),
         }
     }
+    if result.variables.len() > 1 { return Err(unavailable()); }
     Ok(result)
+}
+
+impl SourceOperationDeclaration {
+    /// Retained spelling and signature arena storage; the record itself,
+    /// shared module/source identity payloads and allocator overhead are excluded.
+    pub fn retained_arena_bytes(&self) -> usize {
+        self.spelling.len() + self.signature.retained_arena_bytes()
+    }
 }
 
 impl SourceAnnotation {

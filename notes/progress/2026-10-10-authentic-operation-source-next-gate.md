@@ -4,7 +4,7 @@ Date: 2026-10-10
 Branch: `research/simple-sub-intrusion`
 Current committed baseline: `477a5d15476a8187ea883ed9402e59bb6fd9d7ba`
 Frozen Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
-Status: Unit primitive integrated; authentic operation producer/consumer implementation pending
+Status: Unit and authentic operation producer integrated; execution consumer pending
 Mode: bounded read-only explorer/architect mapping, M0 primary synchronization
 
 ## Actual source witness
@@ -71,7 +71,10 @@ At the inspected baseline, opt-in HIR rejected Act bodies, qualified operation
 paths and empty calls; annotation/value carriers and `yu-types` lacked Unit.
 The [Unit integration](2026-10-10-unit-primitive-integration.md) now supplies
 actual Unit and empty-call formation. Act bodies and operation paths remain
-the next producer gate.
+the producer gate at this historical baseline. The
+[operation producer delivery](2026-10-10-operation-producer-integration.md)
+now supplies retained declarations, namespace resolution and independent
+signature instances; it does not supply native request execution.
 The concrete/co annotation implementation is a separate moving lease. Serialize
 the shared HIR/solver seam until that artifact freezes and is integrated; do not
 certify against unfinished dependencies or add a full registry prerequisite to

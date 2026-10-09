@@ -169,7 +169,10 @@ impl CandidateInference {
         let (operand, annotation) = state.observe(operand, annotation).ok_or(ArtifactMismatch)?;
         let operand = match operand {
             crate::candidate_effect::ObservedOperand::Contribution(value) => CandidateEffectOperand::Contribution { effect: &value.effect, origin: &value.origin, instance: value.instance },
-            crate::candidate_effect::ObservedOperand::AnnotationMember { view, member, effect } => CandidateEffectOperand::AnnotationMember { annotation: CandidateEffectAnnotation { owner: &view.owner, position: &view.position }, member, effect },
+            crate::candidate_effect::ObservedOperand::AnnotationMember { view, member, effect } => match &view.provenance {
+                crate::candidate_effect::ViewOrigin::Operation(origin) => CandidateEffectOperand::OperationInterfaceMember { declaration: &origin.declaration, owner: &view.owner, position: &view.position, occurrence: &origin.occurrence, member, effect },
+                crate::candidate_effect::ViewOrigin::Annotation => CandidateEffectOperand::AnnotationMember { annotation: CandidateEffectAnnotation { owner: &view.owner, position: &view.position }, member, effect },
+            },
         };
         Ok(CandidateEffectConflict {
             operand,
@@ -186,6 +189,7 @@ impl CandidateInference {
     }
 }
 pub enum CandidateEffectOperand<'a> {
+    OperationInterfaceMember { declaration: &'a yu_hir::shadow::SourceOperationDeclaration, owner: &'a DefinitionRootId, position: &'a yu_hir::shadow::SourceNodeKey, occurrence: &'a HirOccurrenceId, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
     Contribution { effect: &'a yu_hir::shadow::SourceEffectId, origin: &'a yu_hir::shadow::SourceNodeKey, instance: u32 },
     AnnotationMember { annotation: CandidateEffectAnnotation<'a>, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
 }
