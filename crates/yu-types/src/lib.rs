@@ -2415,6 +2415,10 @@ impl ClosedTypeFinalizationSession {
     }
     #[doc(hidden)]
     pub fn try_new() -> Result<Self, ClosedTypeFinalizeError> {
+        #[allow(
+            deprecated,
+            reason = "retain compatibility with compilers predating Atomic::try_update"
+        )]
         let brand = NEXT_ARENA_BRAND
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| x.checked_add(1))
             .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
