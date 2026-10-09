@@ -97,6 +97,25 @@ reviewed argument shows that a gate is discharged or is unnecessary for the
 selected production contract. Any actual semantic weakening or change to an
 Authoritative contract still follows the normal approval and supersession gate.
 
+## Active withdrawal of Simple-sub bypasses (2026-10-10)
+
+The user's explicit [withdrawal decision](../notes/design/2026-10-10-simple-sub-legacy-withdrawal.md)
+requires removal of legacy inference dependencies replaced by Simple-sub's
+constraint generation, propagation, levels, extrusion, intrusion and
+generalization. Adding a parallel successor path does not satisfy this decision.
+For each replaced local decision rule, early satisfiability requirement,
+source-shape special case or registry prerequisite, identify its actual owner
+and consumers, remove the implementation dependency, and verify the replacement
+with focused regressions where executable evidence is available.
+
+Remove obsolete proof prerequisites from the active dependency graph with a
+recorded replacement and reason. Do not leave them as unresolved current gates
+or mark them proved. Preserve historical proof material with explicit historical
+status; it cannot override the selected successor design. Complete Call meaning,
+effect hygiene, soundness and principality remain genuine requirements. Their
+missing proofs or compiler correspondence cannot be closed by retiring an old
+construction route.
+
 ## Design status
 
 New design documents use:

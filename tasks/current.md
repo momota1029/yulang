@@ -6579,3 +6579,18 @@ reachability and exact older-anchor sharing assertions. This closes the missing
 runtime evidence for those bounded operations, not general semantic correctness.
 Concrete effect/co-annotation construction is the next active implementation;
 full source subtraction still requires authentic contribution attachment.
+
+### Withdrawal authority routing synchronized (2026-10-10)
+
+`rules/design-authority.md` now routes the user's explicit legacy-withdrawal
+decision into ordinary authority resolution: adding a parallel Simple-sub path
+does not satisfy retirement, replaced implementation dependencies need actual
+removal and focused regression evidence, and obsolete proof prerequisites leave
+the active graph with a reason rather than a fictitious proof closure. Complete
+Call, hygiene, soundness and principality retain their genuine requirements.
+The design index and intrusion decision now link the bounded runtime evidence
+at `a4ba1729b`; older no-runtime statements are historical checkpoint records.
+This is M0 record/policy synchronization, with scoped reference/diff inspection
+only, zero reviewers and zero measurement processes/samples. No compiler test
+rerun is needed. The concrete annotation implementation remains in progress
+under its separate lease; the full inference goal remains active.

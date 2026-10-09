@@ -46,8 +46,11 @@ This index is a navigation aid. The listed source document remains authoritative
   rejection does not satisfy this operation. The
   [implementation checkpoint](../progress/2026-10-10-parent-copy-intrusion-implementation.md)
   connects canonical equality, live use-time recapture and actual open recursive
-  uses, with bounded M2 reviews and owning builds. Runtime verification and
-  complete Call/public cutover remain open.
+  uses, with bounded M2 reviews and owning builds. The
+  [owning runtime regressions](../progress/2026-10-10-intrusion-runtime-regressions.md)
+  now cover real extrusion parents, SCC equality and its control, rollback,
+  recursion and live captures. Broader semantic correctness and complete
+  Call/public cutover remain open.
 
 - **Current annotation effect hygiene policy (2026-10-10):**
   [selected polarity policy and existing-proof integration](2026-10-10-annotation-effect-hygiene-integration.md)
@@ -93,7 +96,8 @@ This index is a navigation aid. The listed source document remains authoritative
   retains sequential local declarations and lexical ownership at HIR formation.
   M2 review, one batched repair, fresh delta review and owning builds pass.
   Solver consumption with raised initializer levels and per-use freshening is
-  the next compiler change; the sidecar alone does not establish local inference.
+  implemented by the live local scheme checkpoint below; the sidecar alone
+  does not establish local inference.
   The [complete Call source-spine packet](../progress/2026-10-10-complete-call-source-spine-next-packet.md)
   identifies existing symbolic formation constructors and their actual input
   dependencies. Unknown-provider collection can precede role refinement;
@@ -105,7 +109,9 @@ This index is a navigation aid. The listed source document remains authoritative
   The [live local scheme checkpoint](../progress/2026-10-10-successor-live-local-schemes.md)
   connects actual source levels, live binding handles and use-time freshening
   to candidate execution. Both M2 reviews and candidate/default builds pass;
-  runtime generic-local evidence and complete Call/public cutover remain open.
+  the [legacy withdrawal regressions](../progress/2026-10-10-simple-sub-legacy-withdrawal.md)
+  and owning intrusion regressions now verify bounded generic-local cases.
+  Broader source correspondence and complete Call/public cutover remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

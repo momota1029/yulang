@@ -7,7 +7,7 @@ Approved-at: current conversation; exact message timestamp unavailable
 Baseline: `7334dcfdb6f9d57eff04f02fb575fbba1ef1b414`
 Supersedes: earlier unselected-operation assumptions only; no full cutover approval
 Mechanism review: bounded architecture packets and M2 implementation/delta reviews complete
-Implementation: private successor checkpoint; runtime/public cutover not certified
+Implementation: private successor with bounded owning runtime regressions; public cutover not certified
 
 ## Direct decision
 
@@ -56,5 +56,9 @@ records actual canonical equality, bound propagation, live-root recapture,
 recursive internal uses, transactional rollback and review repairs. Source-row
 identity is session-scoped canonical identity across retained snapshots;
 structural node content/identity remains historical. Owning candidate/default
-builds passed; runtime tests and target cutover remain unperformed. This status
-records implementation evidence and does not expand the approved operation.
+builds passed. The later [runtime regression record](../progress/2026-10-10-intrusion-runtime-regressions.md)
+adds five passing tests for actual extrusion provenance, same-SCC equality and
+its control, merged metadata/later bounds, rollback and natural recursion/live
+captures. It distinguishes direct operation evidence from source-only SCC
+claims. Broader semantic correctness and target cutover remain uncertified.
+This status does not expand the approved operation.
