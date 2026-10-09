@@ -165,7 +165,12 @@ This index is a navigation aid. The listed source document remains authoritative
   cutover. The earlier native MIN-ORIG-WHOLEARG §4.1 construction is still
   limited to its fixed id/literal-0 case, and the extraction/portability
   discriminator retain their separate limits; see exact residuals in
-  `tasks/current.md`.
+  `tasks/current.md`. Three bounded supplier audits identify nearby selected
+  owners but no exact formal/literal-1 constructor: old-license extension,
+  independent Delay attachment, and original Reify introduction. Their
+  conditional findings and source locators are linked from `tasks/current.md`;
+  the actual P consumer manifest and the three exact supplier outputs remain
+  the next construction seam.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)

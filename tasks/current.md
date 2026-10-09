@@ -5647,6 +5647,22 @@ unsupplied. Next, locate those actual owners and determine whether they apply
 to this literal Call before requesting adoption or implementation authority.
 Emitted membership/O0/O1, acceptance of `f 1`, solving, publication and F5
 cutover remain open; no code, tests or builds changed.
+
+The three supplier audits are now checkpointed separately:
+[old-license extension](../notes/progress/2026-10-10-call-reify-old-license-supplier-audit.md),
+[independent Delay attachment](../notes/progress/2026-10-10-call-reify-delay-supplier-audit.md),
+and [original source introduction](../notes/progress/2026-10-10-call-reify-original-intro-audit.md).
+They identify authentic nearby owners but no selected constructor for this
+exact formal/literal-1 tuple. Native SIG licenses replay conditionally from
+retained Whole/primitive evidence; immutable-world Lemma W applies to compatible
+event extension, not the static registry insertion; IF-Insert and Carrier-Delay
+consume registrations/origins already supplied. The Delay consumer interprets
+an already licensed origin but exposes no operation from literal Result
+license plus staged incidence to an independent Delay license and complete
+`J_a` attachment. The next evidence must instantiate the actual P's exposed
+old-consumer dependency manifest and obtain those three outputs at the same
+indices. If no source owner supplies them, stop at this exact construction seam
+and keep implementation blocked without changing Call semantics.
 The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
