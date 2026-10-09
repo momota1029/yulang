@@ -40,8 +40,9 @@ This index is a navigation aid. The listed source document remains authoritative
   with compositional collection, live bounds and successor generalization.
   The [collector checkpoint](../progress/2026-10-10-compositional-inference-collector.md)
   implements lexical nested recipes and direct formal result endpoints in the
-  nonshipping solver; the source multi-parameter carrier remains pending its
-  preconstruction resource repair. No full Call or cutover gate is closed.
+  nonshipping solver and connects the opt-in multi-parameter HIR carrier.
+  Reviewed early depth enforcement closes its recursive ownership hazard;
+  runtime verification remains omitted. No full Call or cutover gate is closed.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and

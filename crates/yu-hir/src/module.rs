@@ -1140,7 +1140,7 @@ struct Admitted {
     id: Arc<DefId>,
     visibility: HirVisibility,
     name: HirName,
-    parameter: Option<AdmittedParameter>,
+    parameters: Vec<AdmittedParameter>,
 }
 
 #[derive(Clone)]
@@ -1190,7 +1190,7 @@ fn plan_root(
             kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedItem),
         });
     }
-    let Some((visibility, name, parameter)) = plain_binding_header(&node, counters) else {
+    let Some((visibility, name, parameters)) = plain_binding_header(&node, counters) else {
         return Ok(RootPlan {
             ordinal,
             node,
@@ -1213,7 +1213,7 @@ fn plan_root(
             id,
             visibility,
             name,
-            parameter,
+            parameters,
         }),
     })
 }
@@ -1286,31 +1286,43 @@ fn lower_plan(
     };
     let id = admitted.id.clone();
     let definition_root = definition_root.expect("admitted binding has a definition root");
-    let parameters = admitted
-        .parameter
-        .as_ref()
-        .map(|admitted| {
-            let parameter = HirParameter {
-                id: HirParameterId::new(definition_root.clone(), 0),
-                name: admitted.name.clone(),
-                range: admitted.name.range.clone(),
-            };
-            #[cfg(any(feature = "shadow", test))]
-            if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
-                source.record_parameter(parameter.id.clone(), key.clone());
-            }
-            vec![parameter].into_boxed_slice()
-        })
-        .unwrap_or_default();
+    #[cfg(any(feature = "shadow", test))]
+    if counters.shadow_applications && admitted.parameters.len() > 127 {
+        return Err(HirAvailabilityError::StructuralProjection);
+    }
+    let mut parameters = Vec::with_capacity(admitted.parameters.len());
+    for (ordinal, admitted) in admitted.parameters.iter().enumerate() {
+        let ordinal =
+            u32::try_from(ordinal).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        let parameter = HirParameter {
+            id: HirParameterId::new(definition_root.clone(), ordinal),
+            name: admitted.name.clone(),
+            range: admitted.name.range.clone(),
+        };
+        #[cfg(any(feature = "shadow", test))]
+        if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
+            source.record_parameter(parameter.id.clone(), key.clone());
+        }
+        parameters.push(parameter);
+    }
+    let parameters = parameters.into_boxed_slice();
+    let mut lambda_occurrences = Vec::with_capacity(parameters.len());
+    for ordinal in 0..parameters.len() {
+        lambda_occurrences.push(if ordinal == 0 {
+            occurrence.clone()
+        } else {
+            next_occurrence(artifact, next_occurrence_ordinal)?
+        });
+    }
     let body_occurrence = if parameters.is_empty() {
-        occurrence.clone()
+        occurrence
     } else {
         next_occurrence(artifact, next_occurrence_ordinal)?
     };
-    let guard = parameters
-        .first()
-        .map(|parameter| scope.push_parameter(parameter.clone()))
-        .unwrap_or_else(|| scope.root_guard());
+    let guard = scope.root_guard();
+    for parameter in &parameters {
+        scope.push_parameter(parameter.clone());
+    }
     let lowered = lower_body(
         plan,
         parsed,
@@ -1322,6 +1334,7 @@ fn lower_plan(
         body_occurrence,
         scope,
         next_occurrence_ordinal,
+        128 - parameters.len(),
     );
     scope.restore(guard);
     let (value, body_semantic_error) = lowered?;
@@ -1335,16 +1348,15 @@ fn lower_plan(
     if let Some((kind, range)) = body_semantic_error {
         sink.lowering(kind, HirErrorAttachment::Value((*id).clone()), range)?;
     }
-    let value = if let Some(parameter) = parameters.first() {
-        ResolvedExpr::Lambda {
+    let mut value = value;
+    for (parameter, occurrence) in parameters.iter().zip(lambda_occurrences).rev() {
+        value = ResolvedExpr::Lambda {
             occurrence,
             parameter: parameter.id.clone(),
             range: plan.range.clone(),
             body: Box::new(value),
-        }
-    } else {
-        value
-    };
+        };
+    }
     let evaluation_class = evaluation_class(&value);
     Ok(HirItem::Binding(HirBinding {
         id,
@@ -1388,6 +1400,7 @@ fn lower_direct_root_expression(
             _next_occurrence_ordinal,
             sink,
             HirErrorAttachment::DirectRootItem(plan.ordinal),
+            128,
         )? {
             return Ok(HirItem::Expression(expression));
         }
@@ -1439,6 +1452,7 @@ fn lower_body(
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
     _next_occurrence_ordinal: &mut u32,
+    _body_depth_budget: usize,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -1528,6 +1542,7 @@ fn lower_body(
             _next_occurrence_ordinal,
             sink,
             HirErrorAttachment::Value(id.clone()),
+            _body_depth_budget,
         )? {
             return Ok((expression, None));
         }
@@ -1583,11 +1598,15 @@ fn lower_shadow_application(
     next_occurrence_ordinal: &mut u32,
     sink: &mut ErrorSink,
     attachment: HirErrorAttachment,
+    depth_budget: usize,
 ) -> Result<Option<ResolvedExpr>, HirAvailabilityError> {
     // Preflight the whole bounded tree before publishing occurrences or errors.
     let Some(plan) = shadow_application_plan(parsed, chain, true)? else {
         return Ok(None);
     };
+    if plan.height > depth_budget {
+        return Err(HirAvailabilityError::StructuralProjection);
+    }
     lower_shadow_application_plan(
         parsed,
         plan,
@@ -1604,6 +1623,7 @@ fn lower_shadow_application(
 
 #[cfg(any(feature = "shadow", test))]
 struct ShadowApplicationPlan {
+    height: usize,
     callee: SyntaxNode,
     tail: SyntaxNode,
     argument: SyntaxNode,
@@ -1678,6 +1698,7 @@ fn shadow_application_plan(
                         operand_node(second_tail, argument_shape),
                     ) {
                         return Ok(Some(ShadowApplicationPlan {
+                            height: 3,
                             callee: head.clone(),
                             tail: second_tail.clone(),
                             argument,
@@ -1685,6 +1706,7 @@ fn shadow_application_plan(
                             grouped: false,
                             range,
                             nested_callee: Some(Box::new(ShadowApplicationPlan {
+                                height: 2,
                                 callee: head.clone(),
                                 tail: first_tail.clone(),
                                 argument: first_argument,
@@ -1776,7 +1798,10 @@ fn shadow_application_plan(
     } else {
         None
     };
+    let argument_height = nested.as_ref().map_or(1, |plan| plan.height);
+    let height = 1 + argument_height + usize::from(grouped);
     Ok(Some(ShadowApplicationPlan {
+        height,
         callee: callee_node.clone(),
         tail: tail.clone(),
         argument: argument_node.clone(),
@@ -1800,6 +1825,7 @@ fn lower_shadow_application_plan(
     attachment: HirErrorAttachment,
 ) -> Result<ResolvedExpr, HirAvailabilityError> {
     let ShadowApplicationPlan {
+        height: _,
         callee: callee_node,
         tail,
         argument: argument_node,
@@ -2025,7 +2051,7 @@ fn lower_leaf(
 fn plain_binding_header(
     node: &SyntaxNode,
     _counters: &LoweringCounters,
-) -> Option<(HirVisibility, HirName, Option<AdmittedParameter>)> {
+) -> Option<(HirVisibility, HirName, Vec<AdmittedParameter>)> {
     let header = node
         .children()
         .find(|child| child.kind() == SyntaxKind::BindingHeader)?;
@@ -2046,35 +2072,38 @@ fn plain_binding_header(
         return None;
     }
     let pattern_children = target.children().collect::<Vec<_>>();
-    let (head, parameter) = match pattern_children.as_slice() {
-        [head] => (identifier_pattern_name(head)?, None),
-        [head, tail] if tail.kind() == SyntaxKind::PatternMlApplicationTail => {
-            if has_recovery(tail) {
-                return None;
-            }
-            let arguments = tail.children().collect::<Vec<_>>();
-            let [argument] = arguments.as_slice() else {
-                return None;
-            };
-            if argument.kind() != SyntaxKind::Pattern || has_recovery(argument) {
-                return None;
-            }
-            let argument_children = argument.children().collect::<Vec<_>>();
-            let [argument] = argument_children.as_slice() else {
-                return None;
-            };
-            (
-                identifier_pattern_name(head)?,
-                Some(AdmittedParameter {
-                    name: identifier_pattern_name(argument)?,
-                    #[cfg(any(feature = "shadow", test))]
-                    source: _counters.source_nodes.get(argument).cloned(),
-                }),
-            )
+    let (head, tails) = pattern_children.split_first()?;
+    let head = identifier_pattern_name(head)?;
+    #[cfg(any(feature = "shadow", test))]
+    let multiple_parameters = _counters.shadow_applications;
+    #[cfg(not(any(feature = "shadow", test)))]
+    let multiple_parameters = false;
+    if tails.len() > 1 && !multiple_parameters {
+        return None;
+    }
+    let mut parameters = Vec::with_capacity(tails.len());
+    for tail in tails {
+        if tail.kind() != SyntaxKind::PatternMlApplicationTail || has_recovery(tail) {
+            return None;
         }
-        _ => return None,
-    };
-    Some((visibility, head, parameter))
+        let arguments = tail.children().collect::<Vec<_>>();
+        let [argument] = arguments.as_slice() else {
+            return None;
+        };
+        if argument.kind() != SyntaxKind::Pattern || has_recovery(argument) {
+            return None;
+        }
+        let argument_children = argument.children().collect::<Vec<_>>();
+        let [argument] = argument_children.as_slice() else {
+            return None;
+        };
+        parameters.push(AdmittedParameter {
+            name: identifier_pattern_name(argument)?,
+            #[cfg(any(feature = "shadow", test))]
+            source: _counters.source_nodes.get(argument).cloned(),
+        });
+    }
+    Some((visibility, head, parameters))
 }
 
 fn identifier_pattern_name(pattern: &SyntaxNode) -> Option<HirName> {

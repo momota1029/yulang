@@ -6131,3 +6131,25 @@ freeze/review/check/integrate that source slice. Ordinary F5 diagnostics stay
 under the existing zero/one-parameter contract. Continue afterward with
 kind-qualified effect graph retention through generalization and fresh use;
 registry adoption remains outside the basic inference critical path.
+
+### Opt-in multi-parameter HIR checkpoint (2026-10-10)
+
+The disjoint source slice above is now reviewed and ready for integration:
+canonical ordered identifier parameters reach nested Lambda HIR through the
+existing application opt-in route. Each parameter retains its actual source
+key and checked owning ordinal; lexical scope and source-order occurrence
+allocation preserve outer references. A fresh compiler/resource delta round
+closed the source-sized recursive ownership risk by enforcing the existing
+retained-expression depth 128 before boxing (`p + body_height <= 128`), with
+atomic `StructuralProjection` failure outside that candidate envelope.
+Default and identity-only F5 retain their zero/one-parameter contract.
+
+Final candidate and ordinary owning Cargo checks passed without warnings.
+No tests or execution probes ran, so actual inferred apply/const/compose
+schemes, boundary clone/drop behavior and default runtime parity remain
+unverified. No proof-DAG node, complete Call gate, successor publication gate
+or target-branch cutover is closed. Next implement effect-variable graph
+retention in successor generalization/fresh use and remove fixed-empty Call
+effects at their owning generation step; preserve full correlated Call data
+and revalidate polarity-copy extrusion rather than claiming the in-place
+F5 routine matches Simple-sub.
