@@ -1,7 +1,8 @@
 # Paired annotation PUSH bridge into the nested callback effect
 
 Date: 2026-10-10
-Status: independently source-reviewed bridge; exact admission order open
+Status: source bridge and bounded Oracle trace reviewed; source-owner map and
+successor correspondence open
 Successor baseline: `3bb355b56`
 Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Authority: user-selected polarity-sensitive effect-hygiene policy
@@ -15,8 +16,12 @@ row tails can transport the original attachment ID `i` between these owners.
 
 The important syntax is a row tail after the semicolon, for example `[; 'e]`.
 `['e]` is parsed as an effect-type atom; it is not the row-tail bridge and can
-allocate a fresh Empty-family attachment. The corrected candidate shape below
-locates the source construction; it has not been parsed or executed:
+allocate a fresh Empty-family attachment. The candidate below locates the
+source construction, but its original wildcard form is not accepted. It parses
+and then fails lowering with `WildcardEffectRowInTypePosition`. Replacing `[_]`
+with `[; 'h]` produces a different source that parses and lowers successfully;
+it is useful for this trace, but does not establish equivalence to the wildcard
+source.
 
 ```yulang
 type io
@@ -73,13 +78,19 @@ right POP² and POP³ share Oracle's alias key `([], [i])` and one candidate is
 suppressed before replay. Which representative survives depends on actual
 admission order.
 
-There is an earlier suppression point to check before using a mixed path as a
-later parent: composing `e --left PUSH_i--> h` with an admitted
-`h --right POP_i²--> E` offers `e --right POP_i--> E`. If the same `e/E`
-right-POP² bound is already admitted, this right-POP candidate is alias-
-subsumed at `e/E` and cannot serve as an ordinary admitted parent for a later
-`h/E` candidate. A complete trace must identify the first suppression slot,
-including `e/E`, before extending the path to `h/E`.
+The ordered trace for the `[; 'h]` variant does not establish the proposed
+named `e/E` suppression. For Pos33/TV20 → Neg69/TV50, left POP1 is inserted
+before left POP2, and the POP1 bounds subsume the later POP2. For Pos4/TV5 →
+Neg69/TV50, right POP2 is inserted before right POP3 and POP4, which are
+subsumed. These are endpoint-specific observations. The instrumentation does
+not retain annotation occurrence-to-TypeVar or extrusion/freshening ownership,
+so TV50 cannot yet be identified as the named source `E` from this trace.
+
+The log contains no admitted bound, replay offer, or enqueue attempt with both
+a positive PUSH count and a positive POP count. Thus it does not establish a
+mixed PUSH-bearing replay parent. This is limited to normalized contexts
+visible to the instrumentation and does not exclude transient unlogged
+composition.
 
 Two annotations add a distinct symbolic coordinate and permit a graph-level
 walk carrying `left (POP_i PUSH_i²)`. This does not show that it is admitted:
@@ -93,18 +104,21 @@ The missing evidence is an ordered trace through `(loop x) x`: canonical
 endpoint IDs after extrusion, candidate weights, first surviving records,
 bound dispositions and replay parents, beginning at the `e/E` slot. It must
 show whether POP²/POP³ and any
-potentially distinguishing mixed PUSH context reach the actual `h/E` slot
-before alias suppression. The candidate syntax remains unparsed/unexecuted;
-accepted/public typing, runtime behavior, guard soundness, successor
-portability and whole termination are not established.
+potentially distinguishing mixed PUSH context reach source-identified `h/E`
+before alias suppression. The original wildcard source is rejected during
+lowering; the changed symbolic-row variant succeeds in the pinned Oracle
+harness but does not establish the intended callback scheme, runtime behavior,
+guard soundness, successor portability or whole termination.
 
 ## Verification and provenance
 
-An independent compiler-referee confirmed the source bridge, corrected the
-row-tail syntax, and found that a previous right-POP/cancellation derivation
-was wrong. A separate symbolic queue trace confirmed the left-POP side and
-POP²-to-POP³ composition but did not establish the recursive
-application/replay admission order. Pinned source inspection only; no Oracle
-execution, Cargo, tests, builds, production edits or Git mutations ran. This
-source-research checkpoint closes no effect-hygiene, complete-Call,
-termination, soundness/principality or cutover gate.
+An independent compiler-referee confirmed the source bridge and reviewed the
+ordered trace, correcting the predicted suppression direction: at the first
+logged endpoint, POP1 survives and suppresses POP2. A bounded instrumented
+Oracle harness build and two source runs established parse/lower status and
+the endpoint events above. The harness was built with one Cargo job, a 3 GiB
+process-group RSS cap and 180-second wall cap; peak sampled build RSS was about
+2.27 GB. The original source parsed but failed lowering; the symbolic-row
+variant lowered with zero errors. No successor build/tests or performance
+study ran. This source-research checkpoint closes no effect-hygiene,
+complete-Call, termination, soundness/principality or cutover gate.

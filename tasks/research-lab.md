@@ -149,9 +149,10 @@ frozen conditional model checkpoint at `b54e03d97`, not a source theorem. The
 Oracle weighted-cycle owner audit corrected the extrapolated model: its exact
 two-edge POP/identity pattern is suppressed by same-TypeVar trivial admission;
 nonself aliases use separate support-based bound subsumption while preserving
-exact replay counts. The user supplied a concrete callback/`run_io` expected
-scheme; it is recorded in the authoritative hygiene policy as the source target.
-No semantic vote or arbitrary work cap is pending.
+exact replay counts. The user supplied a callback/`run_io` example and a
+reported inferred scheme, then corrected the assistant: that reported scheme
+is a mistake. The correct scheme remains unknown. No semantic vote or arbitrary
+work cap is pending.
 
 The successor owner audit found that only context-free equal-endpoint identity
 is currently omitted; its task/bound/extrusion/intrusion state has no contextual
@@ -186,9 +187,9 @@ constructor and consumer are implemented together and verified.
 
 ### Mixed bracketing observer research wave (2026-10-10)
 
-The primary integrated the concurrent cyclic-algebra artifacts and updated the
-callback-result mismatch as unresolved pending the user's “ソレはミス”
-referent. Baseline is `bfa325ce5`. The source correspondence shows that the
+The primary integrated the concurrent cyclic-algebra artifacts and recorded
+the user's correction that the reported callback scheme is wrong. Baseline is
+`bfa325ce5`. The source correspondence shows that the
 remaining consumer combines exact mixed replay bracketing, evolving residual
 families, and compact output checks that observe unmatched POP-ID presence.
 The architect recommends deriving a source-owned constructor-to-grammar
@@ -279,18 +280,19 @@ trace alone.
 | `successor_effect_gate_architecture` | Map successor owners and required preservation | current candidate solver source; read-only | complete; successor contextual admission simulation required |
 | `successor_alias_suppression_proof` | Derive or falsify a successor covered-bound simulation for count aliases | frozen candidate owners and source-cycle map; `/tmp/yulang-successor-alias-proof/` only | complete, unreviewed; POP-presence congruence only for PUSH-free continuations; no source restriction or successor coverage proof |
 | `source_cycle_push_falsifier` | Test whether the fixed h/E witness has a matching-PUSH discriminator | Oracle `a58eefc31`; accepted source-cycle equations; read-only | complete, unreviewed; fixed chain's PUSH belongs to outer `t` and cancels at `f 1`; see [owner audit](../notes/progress/2026-10-10-fixed-cycle-push-owner-audit.md) |
-| `paired_view_effect_owner_invariant` | Trace same-ID PUSH through paired symbolic-row annotations | Oracle `a58eefc31`; read-only | complete, independently source-reviewed; `t → e → h` carries PUSH and `h → e` is left POP; candidate is unparsed/unexecuted; see [bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md) |
-| `paired_view_push_cycle_referee` | Referee side labels and mixed replay arithmetic | same pinned source; read-only | complete; corrected left-POP wrapper and POP²→POP³ route; admitted candidate order remains open |
-| `paired_annotation_queue_trace` | Trace admission and first-survivor suppression | same pinned source; read-only | partial symbolic audit; exact queue order absent; check `e/E` first because a derived POP candidate may be suppressed there before reaching `h/E` |
+| `paired_view_effect_owner_invariant` | Trace same-ID PUSH through paired symbolic-row annotations | Oracle `a58eefc31`; read-only | source bridge reviewed; original wildcard candidate parses but lowering rejects it; changed `[; 'h]` variant lowers; see [bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md) |
+| `paired_view_push_cycle_referee` | Referee side labels and mixed replay arithmetic | same pinned source; read-only | complete; corrected left-POP wrapper and POP²→POP³ route; mixed admitted context not shown |
+| `paired_annotation_queue_trace` | Trace admission and first-survivor suppression | same pinned source; bounded instrumented harness | complete trace review; left POP1 suppresses later POP2 at Pos33/TV20→Neg69/TV50; right POP2 suppresses later POP3/POP4 at Pos4/TV5→Neg69/TV50; named E ownership and extrusion mapping remain unproved |
 
-The next source gate is an ordered trace through `(loop x) x`, including
-canonical post-extrusion endpoints, arrival order, retained weights, bound
-dispositions and replay parents at `e/E` and `h/E`. Do not infer a live
-distinguishing path from graph arithmetic alone. The user has also corrected
-the assistant's interpretation of “ソレはミス”; the exact callback scheme is
-unclear and must not be used as a regression target until clarified.
+The next source gate is a labeled trace through `(loop x) x` that maps
+annotation occurrences and freshening/extrusion copies to solver variables.
+The current trace has numerical endpoints and dispositions but no justified
+`e/E` or `h/E` owner mapping, and observes no mixed PUSH/POP context. Do not
+infer a live distinguishing path from graph arithmetic alone. The user has
+clarified that the reported callback scheme is a mistake; the corrected scheme
+is not yet specified.
 
-The annotation policy remains selected. The user's exact callback scheme is
-unresolved following a correction to the prior interpretation; keep its
-regression target open. Complete Call, effect hygiene, soundness/principality,
+The annotation policy remains selected. The reported callback scheme is known
+wrong; the correct exact scheme and its regression target remain open.
+Complete Call, effect hygiene, soundness/principality,
 public/default scheme publication and `yulang3` cutover remain open.

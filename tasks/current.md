@@ -6892,14 +6892,13 @@ The user supplied this concrete example:
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. A
-later assistant interpretation treated “ソレはミス” as retracting the extra
-`int ->`; the user has now said that interpretation itself is a mistake. The
-intended exact scheme remains unresolved. Do not encode the earlier corrected
-target as a user decision or regression expectation until clarified. The
-example still concerns the existing effect-hygiene contract, not a separate
-permission. The current candidate rejects explicit formal effect rows; source
-behavior and the intended exact scheme remain unverified.
+and reported the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`.
+The user's “ソレはミス” says that reported result is a mistake; it does not
+retract only the extra `int ->`. The correct scheme has not been supplied, so
+do not promote any alternative into a user decision or regression expectation.
+The example still concerns the existing effect-hygiene contract, not a
+separate permission. The current candidate rejects explicit formal effect
+rows; the reported result is known wrong and the correct result remains open.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6968,13 +6967,19 @@ outer callback call; the fixed witness alone does not provide the
 `h <: E` suffix. A paired symbolic row-tail annotation now supplies same-ID
 PUSH transport from `t` through `e` to `h`; see the
 [paired annotation bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md).
-The exact `(loop x) x` candidate order remains unknown: first suppression may
-occur at `e/E` before a mixed candidate reaches `h/E`. Trace canonical
-post-extrusion endpoints, arrival order, retained weights, bound dispositions
-and replay parents at both slots. Preserve the `PUSH_i² ; POP_i²` versus
-`PUSH_i² ; POP_i³` distinction as a falsifier. Do not add a presence-only
-quotient before that simulation is proved. Keep the exact callback scheme
-regression blocked on clarifying the user's correction. Positive covariant
+The exact `(loop x) x` candidate has now been parsed and executed in a pinned
+Oracle harness after replacing its inner wildcard row with a symbolic `[; 'h]`
+tail. That changed source lowers without errors, but is not equivalent to the
+original: the original wildcard source parses and then fails lowering with
+`WildcardEffectRowInTypePosition`. The ordered trace finds left POP1 at
+Pos33/TV20 → Neg69/TV50 before left POP2, which the earlier POP1 bounds
+subsume; it does not show POP2 suppressing POP1. At Pos4/TV5 → Neg69/TV50,
+right POP2 is inserted and later right POP3/POP4 are subsumed. The trace lacks
+the source-origin/freshening map needed to call TV50 the named source `E`, and
+records no admitted mixed PUSH/POP context. Preserve the distinct premises and
+do not use this as an `e/E` versus `h/E` proof. The unresolved exact callback
+scheme is now known to have been reported incorrectly; its corrected scheme
+and regression expectation remain open. Positive covariant
 annotations already have a private
 source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
@@ -6986,9 +6991,14 @@ upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
 contravariant source attachment. Its result note preserves the scheme
-`(int -> ['b, io] 'c) -> ['b] 'c`. The user's later “ソレはミス” confirms
-that the extra `int ->` in the earlier conversational form was a mistake. The
-scheme target is settled, though it remains unverified in the successor.
+`(int -> ['b, io] 'c) -> ['b] 'c` as the candidate that was recorded then.
+The user's latest correction says the reported inferred scheme is a mistake;
+it does not mean only the extra `int ->` is wrong. This overturns the previous
+conclusion that the exact target is settled. Keep the prior scheme in research
+history as a known-wrong result. The user's correction does not supply its
+replacement, so the exact callback scheme and regression expectation remain
+unresolved. This does not block
+independent progress on the effect-hygiene implementation.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)

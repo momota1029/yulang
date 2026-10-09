@@ -143,11 +143,11 @@ Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-an
 
 ## 6. User-supplied callback scenario
 
-Status note (2026-10-10): the user later said “ソレはミス” after an assistant
-interpreted the earlier exchange as retracting the result's extra `int ->`.
-The exact referent of this correction is unclear. Keep the pair below as a
-historical candidate, not a confirmed exact scheme or regression expectation,
-until the user clarifies which claim was mistaken.
+Status note (2026-10-10): the user corrected the assistant's interpretation of
+“ソレはミス”. The reported inferred scheme below is the mistake; this does
+not mean only its extra `int ->` is wrong. The user has not supplied the
+correct scheme. Keep the reported pair as a known-wrong historical result, not
+as an expected scheme or regression oracle.
 
 The user supplied this source/result pair to clarify the selected boundary:
 
@@ -160,8 +160,8 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 The intended locality is to subtract the attached `io` from the callback's
-effect in this body while preserving independent effect flow, but the exact
-scheme remains unconfirmed after the later correction above. Treating a
+effect in this body while preserving independent effect flow. The reported
+scheme is wrong, but the correct exact scheme remains unknown. Treating a
 variable as “not a concrete annotation atom” must not sever future concrete
 effects from its checks. This historical candidate is not a claim that the
 current successor accepts the source or that the whole type is already
