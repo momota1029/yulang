@@ -5868,3 +5868,15 @@ representation certificate, starting with the one-formal lookup/decoder square;
 then establish exhaustive entry and consumer closure before moving to the
 remaining complete Call fields. The artifact is exploratory and unreviewed. No
 tests, builds, executable probes or compiler changes ran.
+
+### Registry representation decision pending (2026-10-10)
+
+The bounded source-construction audit reached the one-formal original
+registration-to-`P_old` lookup/decoder cut. The current selected definitions
+supply no constructor for it; creating a new original registry rule would be a
+durable design choice. Question [q3](../questions/2026-10-10-call-reify-registry-construction/q3/question.md)
+asks whether to keep searching for existing owner evidence, open a reviewed
+source-owned registry design gate, or keep `P_old` external and park this Call
+path. The complete Call contract is unchanged. The q3 directory is pending and
+must remain uncommitted; independent inference work continues where it does not
+depend on this registry.
