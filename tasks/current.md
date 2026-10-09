@@ -7130,11 +7130,28 @@ conditional scope; see the [review record](../notes/progress/2026-10-10-formal-e
 It is not parsed/accepted execution and does not establish a returning PUSH
 cycle. Current successor code still rejects explicit formal rows.
 
-Immediate next gate: derive the exact Effect dependency SCC for the prospective
-Function-only constructor, including
-PUSH subexpressions on recursive productions, same-kind symbolic tails,
-level-selected bounds, and parent-copy intrusion. The debt observer can cover
-only a proved debt-recursive component followed by finite PUSH consumers. If
-PUSH-bearing contexts return recursively, a separate exact mixed-recursion
+The next frozen artifact,
+[`2026-10-10-contextual-self-discharge-falsifier.md`](../notes/progress/2026-10-10-contextual-self-discharge-falsifier.md),
+constructs a three-formal source-shaped route where `accept g` registers an
+Empty filter on the same symbolic Effect tail whose annotation owner is an
+otherwise-unused `f`. If the dropped self candidate is counterfactually
+retained as a positive lower `(T+, PUSH_i[{io}])`, that filter rejects it;
+dropping the lower leaves this local check vacuous while preserving the
+original registration. Its [independent compiler-referee review](../notes/progress/2026-10-10-contextual-self-discharge-falsifier-review.md)
+confirms the source ownership, filter check, and exact premise. This remains a
+conditional discriminator, not an admitted or executed witness: Oracle drops
+the candidate, and the current equal-level successor route selects an upper
+row, not the positive lower required by the fixture. Current successor also
+rejects explicit formal effect rows. The immediate gate is to explain this
+fixture under the selected successor retention orientation and filter
+observation rule; contextual self-discharge, full Effect hygiene, complete
+Call, generalization, public cutover, and F5 replacement remain open.
+
+Immediate next gate: account for the reviewed Empty-filter discriminator under
+the successor's actual selected bound orientation, then derive the exact
+Effect dependency SCC including PUSH subexpressions on recursive productions,
+same-kind symbolic tails, and parent-copy intrusion. The debt observer can
+cover only a proved debt-recursive component followed by finite PUSH consumers.
+If PUSH-bearing contexts return recursively, a separate exact mixed-recursion
 algorithm is required. Negative attachment construction, filters, use,
 generalization/freshening/rollback, public inference and F5 cutover remain open.

@@ -116,6 +116,21 @@ This index is a navigation aid. The listed source document remains authoritative
   as open. Explicit formal rows remain rejected by the candidate; no production
   attachment or F5 cutover follows.
 
+- **Contextual self-filter discriminator (2026-10-10, reviewed conditional source scope):**
+  The [three-formal source-shaped discriminator](../progress/2026-10-10-contextual-self-discharge-falsifier.md)
+  derives a later Empty filter on the same symbolic Effect tail while leaving
+  the PUSH-owning formal unused. Under the explicit counterfactual premise that
+  `T <: T @ PUSH_i[{io}]` is stored as a positive lower, the later filter
+  rejects it; dropping that lower makes this local check vacuous while the
+  original filter registration remains. An independent compiler referee
+  verified the owner path and premise boundary
+  [here](../progress/2026-10-10-contextual-self-discharge-falsifier-review.md).
+  Oracle drops the same-row candidate and the successor currently rejects
+  formal effect rows, so this is not an admitted witness or production
+  divergence. Equal-level successor selection is upper-oriented and does not
+  satisfy the positive-lower premise. Contextual self-discharge and its
+  successor observation rule remain open.
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
