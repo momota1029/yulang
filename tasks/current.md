@@ -6594,3 +6594,16 @@ This is M0 record/policy synchronization, with scoped reference/diff inspection
 only, zero reviewers and zero measurement processes/samples. No compiler test
 rerun is needed. The concrete annotation implementation remains in progress
 under its separate lease; the full inference goal remains active.
+
+### Authentic effect operation source next gate (2026-10-10)
+
+The [constructor and parser packet](../notes/progress/2026-10-10-authentic-operation-source-next-gate.md)
+locates actual Act-owned operation signatures and qualified `tick::next()`.
+The exact reduced source parses with no diagnostics or recoveries. Frozen Oracle
+owners establish primitive Unit for empty expression/type groups and empty-call
+arguments; the earlier provisional zero-element tuple recommendation is withdrawn.
+Next extend ordinary Unit constructors/comparison and actual Act operation
+formation/resolution through compositional Apply, after the moving concrete/co
+annotation lease freezes and is integrated. Public enum extensions require a
+pre-write conformance gate. This source lookup does not supply complete Call
+request execution, attachment hygiene or production cutover evidence.
