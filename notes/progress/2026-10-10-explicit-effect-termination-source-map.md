@@ -277,14 +277,38 @@ explicit formal effect row and does not support this Tuple annotation route;
 that is not evidence that it is safe to omit from Oracle correspondence or
 future source support.
 
+Using `(f 1) 2` consumes the callback's symbolic result `'c` as a Function.
+That creates a right-`POP_i²` negative Function requirement on `'c`, but by
+itself provides no positive Function lower. Refining the callback annotation
+to return `(int -> [_] 'c)` supplies that positive Function constructor
+without another subtraction ID. The actual positive inner Function is then
+compared with the second call's negative Function under right `POP_i²`, and
+its inner return-effect variable reaches the second call effect with those two
+POPs still pending. This is a real descent to a distinct nested Function
+constructor and surviving effect bound, but no return to the original callback
+comparison is established. Tuple return/destructure also transports
+`POP_i²` to a nested Function component. Exact source equations are recorded in
+[`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
+
 The callback result target is settled as
 `(int -> ['b, io] 'c) -> ['b] 'c`; the extra `int ->` in the earlier
 conversational version was a mistake. It remains unverified in the successor.
 
-Next: trace uses that consume the callback result as a Function (and tuple
-projection or extrusion paths) to determine whether its unmatched `POP_i²`
-context can return to the same callback Function slot. In parallel, derive
-the contextual admission/observation relation for the source-emitted
-operations; do not add a POP producer until port ownership and termination
-behavior are established. Then implement the source-owned filter consumer and
-the exact callback scheme regression.
+The recursive effect trace now establishes a source-derived cycle at the same
+`h <: E` Effect bound slot: right `POP_i²` followed by left `POP_i` replays as
+right `POP_i³`, and further traversals increase the count. It still does not
+return to the original callback Function comparison. Frozen Oracle's alias
+guard suppresses these variants by endpoint plus attachment-ID presence, but
+that observation does not prove the guard's semantic equivalence or establish
+that the successor can use the quotient. Exact edges and owner locators are in
+[`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
+
+Next: derive and independently review a successor contextual bound-admission
+simulation for this cycle, including level-selected orientation, current and
+future opposite-bound replay, Function children, residual/output projection,
+origins, extrusion, freshening, intrusion and rollback. The algebraic
+distinction `PUSH_i² ; POP_i²` versus `PUSH_i² ; POP_i³` is a falsifier to
+preserve. Do not implement a presence-only quotient until the simulation is
+proved. Then implement the source-owned filter consumer and exact callback
+scheme regression. Full hygiene, complete Call, soundness/principality and
+public/default F5 cutover remain open.

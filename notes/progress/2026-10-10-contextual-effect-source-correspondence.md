@@ -100,6 +100,109 @@ comparison or global termination. The annotation policy is source-reachable;
 the current successor still rejects this formal effect row and does not
 support the Tuple type constructor.
 
+### Consuming the callback result as a Function
+
+Applying the callback result a second time is ordinary source syntax:
+
+```yulang
+(f 1) 2
+```
+
+The parser owns the nested application at `parser/src/expr/core.rs:102–104`;
+application lowering is `lowering/expr/tail.rs:89–126,543–563`. With symbolic
+result `'c`, it gives a contextual negative Function requirement
+`'c -> Rf` under right `POP_i²`, but that source shape alone has no positive
+Function lower for `'c`.
+
+An explicit nested result Function supplies that lower without minting another
+subtraction identity:
+
+```yulang
+type io
+my loop(x: ((int -> [io] (int -> [_] 'c)), int)) =
+  \(f, _) -> { (f 1) 2; (loop x) x }
+```
+
+`annotation/builder.rs:117–143,265–277` builds the inner Function. Its
+`[_]` return-effect boundary shares an effect variable and creates no new
+subtraction predicate (`annotation/constraints.rs:442–447`). Let `G+` be
+that positive inner Function and `G−` the demand from the second call. The
+outer annotation context first yields `NonSubtract(G+, POP_i/filter{io}) <: Rf`;
+combining it with the call's right `POP_i` yields `G+ <: G−` under right
+`POP_i²`. Function result ports retain that context, so the inner return-effect
+variable has a lower edge to the second call effect under right `POP_i²`;
+there is no inner PUSH to cancel it. Function argument ports use the swapped
+left `POP_i²`, while the pure argument-effect port uses `both_from_right`
+(`propagate.rs:226–270`).
+
+This is an actual comparison between a positive nested Function constructor
+and a negative Function demand carrying doubled context. It remains a descent
+to a syntactically distinct inner Function; the second call result is discarded,
+and no cycle back to the original callback comparison was found. The recursive
+body separately connects block and recursive call effects, but that alone does
+not show the inner return-effect bound re-enters itself with a changed context.
+Tuple return-value wrappers and local tuple destructuring preserve
+`POP_i²` to a nested Function component (`annotation/constraints.rs:335–349,
+369–378`; `expr/block_local.rs:596–618`; `lowering/pattern.rs:919–953`).
+
+These source constructors establish neither accepted/public typing nor
+termination. The separate effect-slot recurrence is established below; the
+absence of a return to the original callback Function comparison remains true.
+
+### Recursive effect-slot cycle and Oracle alias guard
+
+The following source form returns to one Effect bound slot with a larger right
+POP count, while the callback's second result remains discarded:
+
+```yulang
+type io
+my loop(x: ((int -> [io] (int -> [_] 'c)), int)) =
+  \(f, _) -> { (f 1) 2; (loop x) x }
+```
+
+Let `h` be the inner wildcard return-effect variable; `Cf2` and `Ef2` the call
+and complete computation effects of `(f 1) 2`; `Cr` and `Er` those of
+`(loop x) x`; and `E` the anonymous lambda block effect. Frozen Oracle source
+forms these edges:
+
+| Edge | Context | Owner |
+| --- | --- | --- |
+| `h <: Cf2` | right `POP_i²` | `annotation/constraints.rs:442–447`; `lowering/expr/tail.rs:543–563`; Function return-effect propagation in `constraints/machine/propagate.rs:257–263` |
+| `Cf2 <: Ef2` | identity | `expr/tail.rs:620–624` |
+| `Ef2 <: E` | identity | `expr/block_local.rs:130–140,1284–1295` |
+| `E <: Cr` | left `POP_i` | Pre-body skeleton wrapper and lambda port at `expr/lambda.rs:756–767,1232–1237,353–362`; propagation at `constraints/machine/propagate.rs:257–263` |
+| `Cr <: Er` | identity | `expr/tail.rs:620–624` |
+| `Er <: E` | identity | `expr/block_local.rs:1296–1300` |
+
+Writing `R₂=(ε,All,POP_i²)` and `L₁=(POP_i,All,ε)`, replay composes
+`R₂ ; L₁` and directed mixing yields right `POP_i³`
+(`constraints/mod.rs:3598–3610`; `directed_weight.rs:16–39`). Identity edges
+preserve it, so the same `h`/`E` slot is offered under right POP² and POP³,
+then higher counts. No PUSH cancels the extra POP. The cycle does not return
+to `G+ <: G−`; its callback Function comparison is still a distinct nested
+constructor, and sequencing discards that callback result value.
+
+Oracle suppresses these count variants before semantic bound insertion/replay.
+Lower and upper insertion call alias subsumption at
+`constraints/machine/bounds.rs:645–658,830–843`; a match requires the same
+endpoint pair and `Pos::Var`/`Neg::Var` endpoints at `:4274–4317`. Its weight
+key at `:7194–7233` records left attachment ID, leading-POP presence, active
+PUSH and family, and right attachment IDs with any positive POP count, but
+not the count. Thus these pure-right POP²/POP³ variants share `([], [i])`.
+Which representative survives depends on admission order; no execution was
+performed. Extrusion lowers existing variable levels in place
+(`:4701–4727`), retaining those endpoint identities.
+
+This closes source-cycle existence, not the semantic soundness of Oracle's
+guard or its portability. The successor stores endpoint-only bounds and
+chooses lower/upper orientation by levels; it has no contextual coverage
+certificate. A successor proof must preserve filters, future opposite-bound
+replay, Function children, residual/output projection, origins, extrusion,
+freshening, intrusion and rollback. In particular, equal POP presence does
+not imply equal continuation: `PUSH_i² ; POP_i²` and
+`PUSH_i² ; POP_i³` differ algebraically. The source-restricted replay scratch
+model and successor owner map remain non-authoritative evidence.
+
 Frozen `annotation/constraints.rs:250–278` sets
 `parameter_function_boundary=true` while constructing the parameter annotation.
 The paired value connection at `:132–153` connects both annotation interfaces

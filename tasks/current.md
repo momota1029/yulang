@@ -6948,14 +6948,26 @@ formal effect rows and does not model this tuple route. See the updated
 [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
 and [source trace](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md).
 
-Next: trace uses of the callback result as a Function, projection-generated
-tuple uppers, extrusion and generalization to determine whether unmatched
-`POP_i²` can return to the same callback Function slot. The witnessed block
-alias cycles do not do so by themselves. In parallel, derive the contextual
-admission/observation relation for the source-emitted operations. Then
-implement the source-owned subtraction consumer and add the corrected callback
-scheme as an owning source regression. Positive covariant annotations already
-have a private source/propagation implementation. Full hygiene, complete Call,
+Applying `(f 1) 2` with callback result `'c` creates a right-`POP_i²` Function
+demand on `'c`, but no positive Function lower. Refining the annotation result
+to `(int -> [_] 'c)` supplies a real nested positive Function: it is compared
+to that demand under right `POP_i²`, and its inner return-effect lower reaches
+the second call effect with both POPs intact. This is a distinct nested
+constructor; the cycle does not return to the original callback Function
+comparison. A separate recursive effect path does revisit the same `h <: E`
+Effect bound slot: right `POP_i²` followed by left `POP_i` produces right
+`POP_i³`, then higher counts. Oracle's alias guard suppresses these variants
+using endpoint identity and right attachment-ID presence. This establishes
+source-cycle existence, not guard soundness or a successor admission rule.
+The exact next gate is an independently reviewed successor contextual
+bound-admission simulation through level-selected orientation, current/future
+opposite replay, Function children, residual/output projection, provenance,
+extrusion, freshening, intrusion and rollback. Preserve the
+`PUSH_i² ; POP_i²` versus `PUSH_i² ; POP_i³` distinction as a falsifier.
+Do not add a presence-only quotient before that simulation is proved. Then
+implement the source-owned subtraction consumer and corrected callback scheme
+regression. Positive covariant annotations already have a private
+source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)

@@ -240,11 +240,45 @@ and the scratch-only model is `/tmp/yulang-source-restricted-replay/result.md`.
 | `source_restricted_replay_model` | Exact bounded model of port guards, alias admission and copying obstructions | baseline `74afe8314`; scratch `/tmp/yulang-source-restricted-replay/` | complete, unreviewed bounded evidence; 13 local certificates and 12 conditional doubles through 4096; source recurrence, role separation and full termination unproved |
 | `successor_effect_gate_architecture` | Candidate owner and production-gate map | current solver source; read-only | complete; no safe local production cut until contextual solving and owned public schemes are joined |
 
-Next: trace callback-result-as-Function use, projection-generated Tuple uppers,
-extrusion and generalization to see whether `POP_i²` returns to the same nested
-Function comparison or eligible slot. Keep this distinct from the demonstrated
-single comparison and from the synthetic powers-of-two grammar. Stop claims at
-the first unsupported source or ownership premise. The user has authorized
-implementation, but current evidence does not yet support a sound contextual
-consumer/admission slice. The annotation policy and corrected callback scheme
-themselves need no new decision.
+### Recursive effect-slot cycle and successor admission gate (2026-10-10)
+
+The callback result as Function and its recursive caller now establish an
+actual Oracle effect-slot cycle, separate from the nested Function comparison:
+`h <: E` is offered under right `POP_i²`; the recursive returned-Function
+route contributes left `POP_i`; directed mixing yields right `POP_i³`, and
+repetition increments the count. The callback Function comparison remains at
+a distinct inner constructor, and its result Value is discarded. Exact source
+edges and Oracle owner locators are in the
+[source correspondence](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md).
+
+The latest bounded symbolic follow-up identifies this cycle as additive
+(`2 → 3 → 4...`), not the earlier synthetic powers-of-two copying grammar.
+For this mapped route, Oracle's alias key merges same-endpoint right POP count
+variants by positive-ID presence before insertion/replay. This is an
+unreviewed model result dependent on the primary's source mapping; it does not
+prove guard soundness, general termination, or successor portability. The
+earlier conditional copying obstruction remains a valid arbitrary-grammar
+obstruction, but is not evidence that this actual route copies debt.
+
+The successor cannot use the presence key as-is. Its bound owner selects
+lower/upper orientation by levels, carries endpoint-only identity and no
+coverage certificate, replays opposite bounds, and merges SCC sides. The
+remaining gate is an independently reviewed contextual admission simulation
+covering filters, future opposite bounds, Function children, residual/output
+projection, provenance, extrusion, freshening, intrusion and rollback. The
+distinguishing continuation `PUSH_i² ; POP_i²` versus
+`PUSH_i² ; POP_i³` remains a falsifier. Do not add a presence-only quotient or
+enable the negative attachment producer until this simulation and the actual
+consumer are justified. No implementation write is licensed by this source
+trace alone.
+
+| Job | Method | Frozen input / output | State / next evidence |
+| --- | --- | --- | --- |
+| `oracle_other_pop_consumers` | Trace actual predicate consumers and Tuple/returned-Function port incidence | Oracle `a58eefc31`, current source correspondence; read-only | complete; same Effect slot revisited with higher POP count; no return to callback Function comparison |
+| `source_restricted_replay_model` | Independently derive the actual cycle grammar and check alias admission | Oracle `a58eefc31`, primary-supplied source edges; `/tmp/yulang-source-restricted-replay-additive/` only | complete, unreviewed symbolic result; additive debt and route-specific suppression; no successor entailment |
+| `successor_effect_gate_architecture` | Map successor owners and required preservation | current candidate solver source; read-only | complete; successor contextual admission simulation required |
+| `successor_alias_suppression_proof` | Derive or falsify a successor covered-bound simulation for count aliases | frozen candidate owners and source-cycle map; `/tmp/yulang-successor-alias-proof/` only | running at handoff; no production edits or Git |
+
+The annotation policy and corrected callback scheme need no new decision.
+Complete Call, effect hygiene, soundness/principality, public/default scheme
+publication and `yulang3` cutover remain open.
