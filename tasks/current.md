@@ -5816,3 +5816,30 @@ changed. Verification covers independent mathematical/specification review,
 direct source hashes, exact frozen-to-integrated metadata deltas, links,
 fences, whitespace and Git tree/ref identity; no code, test, build, runtime
 probe or F5 cutover occurred.
+
+
+### Integrated user decisions: complete Call direction and built-in `any` (2026-10-10)
+
+The validated Call Reify q2 bundle was integrated at `a4e789ee4`. Its four
+reviewed construction choices are now the bounded, user-approved direction in
+[the design record](../notes/design/2026-10-10-call-reify-construction-direction.md):
+retain the old registry binder in a typed tagged registry extension; add the
+structural Call-argument registration/license case; retain suspension
+attachment; and construct source-owned literal image domain/clause/root
+`J_lit`. The complete Call contract remains fixed, and `J_lit` is not identified
+with an arbitrary old `J`. See the [receipt](../questions/2026-10-10-call-reify-registry-construction/q2/receipt.md).
+The predecessor q1 remains preserved as pending history.
+
+The separate approved Any-name q1 bundle was integrated at `b0575d9b3`.
+Lowercase `any` is a built-in Type name with precedence and no shadowing; no
+uppercase `Any` alias is introduced. See its [design record](../notes/design/2026-10-10-source-annotation-any-name-design.md)
+and [receipt](../questions/2026-10-10-source-annotation-any-name-resolution/q1/receipt.md).
+The ordinary Any root, membership guards/evidence, hereditary Top law, Direct
+proof and implementation remain open.
+
+The external `c0d304113` `RuleCall_L`/`CertCall_L` proof remains separately
+unadopted. The immediate complete-Call gate is source-grounded construction and
+conformance for the actual `P_old`, its lookup/inversion and old-consumer
+dependency closure, followed by the remaining complete Call obligations. No
+compiler implementation, tests, builds, semantic checking, `f 1` acceptance or
+F5 cutover occurred in these integration/record updates.

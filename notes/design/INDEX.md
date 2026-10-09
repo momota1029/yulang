@@ -125,10 +125,13 @@ This index is a navigation aid. The listed source document remains authoritative
   The [resolution-owner audit](../progress/2026-10-10-source-annotation-any-resolution-owner-audit.md)
   confirms that current HIR rejects the associated annotation before solver
   collection and selected current sources provide no written-Type resolver or
-  Any builtin. Pending question
-  `source-annotation-any-name-resolution/q1` asks how this written name is
-  introduced (built-in Type name or ordinary scoped declaration/import); it
-  does not decide the Any relation or authorize implementation.
+  Any builtin. The approved `source-annotation-any-name-resolution/q1` decision
+  selects lowercase `any` as a built-in Type name with builtin precedence and
+  no shadowing or uppercase `Any` alias; see the
+  [decision record](2026-10-10-source-annotation-any-name-design.md) and its
+  [integration receipt](../questions/2026-10-10-source-annotation-any-name-resolution/q1/receipt.md).
+  This resolves name introduction only; the Any root, membership, Top law,
+  Direct proof and implementation remain open.
 
 - **Reviewed one-case source annotation design (2026-10-10):**
   [design](../theory/2026-10-10-source-owned-annotation-any-design.md) assigns
@@ -186,13 +189,17 @@ This index is a navigation aid. The listed source document remains authoritative
   extension plus a distinct source-owned `J_lit`. Its four semantic choices
   remain unadopted, and it assumes `P_old` rather than constructing the actual
   selected-source registry. The user's explicit 「完全契約で」 fixes the full
-  Call contract. Linked pending question `call-reify-registry-construction/q2`
-  asks whether to adopt that exact construction direction as a bounded design
-  gate or retain it as research while investigating the actual registry owner.
-  q1 and q2 remain local and uncommitted; neither authorizes implementation,
-  complete Call acceptance or F5 cutover.
+  Call contract. Approved `call-reify-registry-construction/q2` adopts that
+  exact construction direction as a bounded design gate while retaining actual
+  registry construction as open. q1 remains preserved as pending history; q2
+  was integrated at
+  `a4e789ee4`; its [receipt](../questions/2026-10-10-call-reify-registry-construction/q2/receipt.md)
+  and [bounded direction](2026-10-10-call-reify-construction-direction.md)
+  adopt exactly the four reviewed choices while retaining source construction
+  and complete Call conformance as open gates. This does not authorize
+  implementation, acceptance or F5 cutover.
 
-- **Reviewed concrete Call argument constructors, unadopted (2026-10-10):**
+- **Reviewed concrete Call argument constructors; bounded direction adopted (2026-10-10):**
   [definition and proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
   constructs the actual source-child registration/license and complete
   suspension in an explicit tagged extension, with termination, inversion,
@@ -205,7 +212,8 @@ This index is a navigation aid. The listed source document remains authoritative
   delta reviews passed; [review and scope](../progress/2026-10-10-literal-constructor-proof-review.md)
   are checkpointed with the proof at `7b723269c`. The new registry
   interpretation, structural license, suspension attachment and literal
-  image/domain rule still need adoption. This does not prove untagged
+  image/domain rule are adopted only as the bounded direction recorded in
+  `2026-10-10-call-reify-construction-direction.md`. This does not prove untagged
   `H_oldext`, bootstrap the complete original P, identify new roots with
   fixed old roots, close complete Call/inference gates or authorize F5.
 
