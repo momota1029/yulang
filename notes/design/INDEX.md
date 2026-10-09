@@ -73,6 +73,18 @@ This index is a navigation aid. The listed source document remains authoritative
   tests and warning-free owning checks. Default-parser deep-input stack safety
   remains a separate recorded gap; source subtraction/public cutover remain open.
 
+- **Contextual cyclic algebra results (2026-10-10, research scope):**
+  [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)
+  proves finite exact one-ID normal-form automata and terminating multi-ID
+  active/filter demand saturation without a count cap. Independent mathematical
+  and executable reviews passed within that one-sided append subsystem. The
+  [reviewed counterexamples](../progress/2026-10-10-contextual-effect-counterexamples.md)
+  refute unrestricted support congruence and associative directed replay;
+  [integration results](../progress/2026-10-10-contextual-effect-saturation-results.md)
+  distinguish those proved results from the open mixed-replay/source/output
+  consumer. This is not new language authority or a full hygiene/termination
+  closure. No second production solver or source restriction is adopted.
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
