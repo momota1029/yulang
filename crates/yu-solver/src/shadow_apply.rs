@@ -77,7 +77,6 @@ pub struct CandidateInference {
 }
 impl CandidateInference {
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
-        let mut calls = Vec::new();
         let mut permitted_errors = HashSet::new();
         let mut declaration_errors = HashSet::new();
         for declaration in hir.source_effect_declarations() {
@@ -100,7 +99,7 @@ impl CandidateInference {
                 HirItem::Expression(expr) if matches!(expr, ResolvedExpr::Integer { .. }) => expr,
                 _ => return Err(CandidateError::Unsupported),
             };
-            preflight_expression(expr, &mut calls, &mut permitted_errors)?;
+            preflight_expression(expr, None, &mut permitted_errors)?;
         }
         if hir.errors().iter().any(|error| {
             !(permitted_errors.contains(&error.id()) && error.kind() == HirErrorKind::UnsupportedExpression)
@@ -527,7 +526,7 @@ impl CandidateValueObservation {
                 HirItem::Expression(e) if matches!(e, ResolvedExpr::Integer { .. }) => e,
                 _ => return Err(CandidateError::Unsupported),
             };
-            preflight_expression(expr, &mut calls, &mut permitted_errors)?;
+            preflight_expression(expr, Some(&mut calls), &mut permitted_errors)?;
         }
         if hir.errors().iter().any(|e| {
             !permitted_errors.contains(&e.id()) || e.kind() != HirErrorKind::UnsupportedExpression
@@ -757,9 +756,7 @@ fn preflight_local_binding(
         .try_reserve(errors.len())
         .map_err(|_| CandidateError::Unsupported)?;
     permitted_errors.extend(errors.iter().copied());
-    calls
-        .try_reserve(1)
-        .map_err(|_| CandidateError::Unsupported)?;
+    reserve_call_inventory(calls)?;
     calls.push(CandidateCall {
         occurrence: occurrence.clone(),
         callee: callee.occurrence().clone(),
@@ -768,9 +765,20 @@ fn preflight_local_binding(
     });
     Ok(())
 }
+#[cfg(test)]
+thread_local! {
+    static FAIL_CALL_INVENTORY_RESERVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+fn reserve_call_inventory(calls: &mut Vec<CandidateCall>) -> Result<(), CandidateError> {
+    #[cfg(test)]
+    if FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.replace(false)) {
+        return Err(CandidateError::Unsupported);
+    }
+    calls.try_reserve(1).map_err(|_| CandidateError::Unsupported)
+}
 fn preflight_expression(
     expr: &ResolvedExpr,
-    calls: &mut Vec<CandidateCall>,
+    mut calls: Option<&mut Vec<CandidateCall>>,
     permitted_errors: &mut HashSet<yu_hir::HirErrorId>,
 ) -> Result<(), CandidateError> {
     let mut pending = Vec::new();
@@ -812,15 +820,15 @@ fn preflight_expression(
                     .try_reserve(errors.len())
                     .map_err(|_| CandidateError::Unsupported)?;
                 permitted_errors.extend(errors.iter().copied());
-                calls
-                    .try_reserve(1)
-                    .map_err(|_| CandidateError::Unsupported)?;
-                calls.push(CandidateCall {
-                    occurrence: occurrence.clone(),
-                    callee: callee.occurrence().clone(),
-                    argument: argument.occurrence().clone(),
-                    unresolved: UNRESOLVED,
-                });
+                if let Some(calls) = calls.as_deref_mut() {
+                    reserve_call_inventory(calls)?;
+                    calls.push(CandidateCall {
+                        occurrence: occurrence.clone(),
+                        callee: callee.occurrence().clone(),
+                        argument: argument.occurrence().clone(),
+                        unresolved: UNRESOLVED,
+                    });
+                }
                 pending.push((Some(argument), depth + 1));
                 pending.push((Some(callee), depth + 1));
             }
@@ -1481,6 +1489,74 @@ mod tests {
         )
     }
     #[test]
+    fn candidate_inference_does_not_reserve_historical_call_inventory() {
+        struct ResetFailure;
+        impl Drop for ResetFailure {
+            fn drop(&mut self) {
+                FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.set(false));
+            }
+        }
+        let _reset = ResetFailure;
+        let hir = module("my id x = x; my first = id 1");
+        FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.set(true));
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.get()));
+        let first = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "first" => {
+                Some(binding.definition_root())
+            }
+            _ => None,
+        }).unwrap();
+        let export = candidate.export(first).unwrap();
+        let mut pending = vec![export.root()];
+        let mut visited = Vec::<CandidateGraphRow<'_>>::new();
+        let mut integer = false;
+        while let Some(node) = pending.pop() {
+            assert_eq!(node.polarity(), Polarity::Positive);
+            if let Some(leaf) = node.leaf() {
+                match leaf {
+                    CandidateGraphLeaf::IntPositive => integer = true,
+                    CandidateGraphLeaf::Bottom => {}
+                    _ => panic!("first has a non-Integer value lower bound: {leaf:?}"),
+                }
+                continue;
+            }
+            let row = node.row().expect("first value fiber contains only rows and Integer");
+            assert_eq!(row.kind(), ComponentKind::Value);
+            if visited.iter().any(|seen| seen.same_identity(row)) {
+                continue;
+            }
+            visited.push(row);
+            for bound in export.bounds() {
+                if bound.kind() == ComponentKind::Value
+                    && bound.upper().row().is_some_and(|upper| upper.same_identity(row))
+                {
+                    pending.push(bound.lower());
+                }
+            }
+        }
+        assert!(integer, "first's reachable value fiber retains Integer");
+        assert!(FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.get()));
+
+        // LocalSource owns source Call inputs; the expression-only fixture above
+        // exercises graph inference without that separate retained input carrier.
+        let source_hir = crate::candidate_lifecycle_retirement::hir(
+            "my id x = x; my first = id 1",
+        );
+        let source_candidate = CandidateInference::solve(source_hir).unwrap();
+        assert_eq!(source_candidate.source_call_count(), 1);
+        assert!(source_candidate.source_call(0).is_ok());
+        assert!(FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.get()));
+        assert!(matches!(
+            CandidateValueObservation::solve(hir.clone()),
+            Err(CandidateError::Unsupported)
+        ));
+        assert!(!FAIL_CALL_INVENTORY_RESERVE.with(|failure| failure.get()));
+        let observer = CandidateValueObservation::solve(hir).unwrap();
+        assert_eq!(observer.calls().len(), 1);
+        assert!(observer.apply_fact(&observer.calls()[0]).is_some());
+    }
+    #[test]
     fn candidate_lifecycle_retirement_keeps_borrowed_effect_handles_and_rejects_foreign_call_hir() {
         let hir = crate::candidate_lifecycle_retirement::hir("act E\nmy left x = x; my result = left 1");
         let foreign = crate::candidate_lifecycle_retirement::hir("act E\nmy left x = x; my result = left 1");
@@ -1799,7 +1875,11 @@ mod tests {
                     };
                 }
                 assert_eq!(
-                    preflight_expression(&tree, &mut Vec::new(), &mut HashSet::new()).is_ok(),
+                    preflight_expression(&tree, Some(&mut Vec::new()), &mut HashSet::new()).is_ok(),
+                    accepted
+                );
+                assert_eq!(
+                    preflight_expression(&tree, None, &mut HashSet::new()).is_ok(),
                     accepted
                 );
             }
@@ -1835,8 +1915,12 @@ mod tests {
                 body: Box::new(inner),
                 range: range.clone(),
             };
-            let result = preflight_expression(&tree, &mut Vec::new(), &mut HashSet::new());
+            let result = preflight_expression(&tree, Some(&mut Vec::new()), &mut HashSet::new());
             assert_eq!(result.is_ok(), accepted);
+            assert_eq!(
+                preflight_expression(&tree, None, &mut HashSet::new()).is_ok(),
+                accepted
+            );
         }
     }
 }

@@ -86,6 +86,15 @@ proof obligation needed for complete Call, hygiene, soundness or principality.
 Authentic source-role transport through annotations and public schemes remains
 required before complete migration.
 
+## Implemented discarded observer inventory retirement
+
+The [preflight inventory delivery](../progress/2026-10-10-unused-observer-call-inventory-retirement.md)
+removes candidate construction of the historical `CandidateCall` vector that it
+never consumed. Validation-only preflight preserves source checks; actual
+candidate constraints and LocalSource Call inputs retain their existing owners.
+Historical observers keep their real inventory and failure behavior. This
+removes another unused allocation prerequisite, not Call semantics or a proof.
+
 ## Related authority
 
 - [Parent/copy SCC intrusion](2026-10-10-parent-copy-scc-intrusion.md).

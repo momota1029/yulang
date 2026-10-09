@@ -6786,3 +6786,19 @@ and actual SCC/rollback remain required. An architect is resolving the smallest
 coupled production cut; a read-only Oracle map follows actual generalized
 subtraction IDs and frame/output lifetime. No new source restriction or registry
 adoption prerequisite is inferred.
+
+### Unused observer Call inventory withdrawn (2026-10-10)
+
+The [preflight retirement](../notes/progress/2026-10-10-unused-observer-call-inventory-retirement.md)
+removes the candidate's discarded historical Call-vector construction and its
+allocation failure prerequisite. Validation-only preflight keeps depth/scope/
+error checks; historical observer inventory and real LocalSource inputs remain.
+M1 independent review, pre-write fixture adjudication and fresh narrow delta
+review close; 24 distinct owning regressions and coherent phase checks pass.
+No genuine Call or semantic proof requirement was retired.
+
+The separate primitive annotated-formal artifact is frozen and its focused
+checks/reviews pass; primary record synchronization/integration is next. The
+full negative Function formal remains a coupled source-owned interface,
+contextual propagation and terminal incidence consumer gate. Independent public
+schemes, complete semantic requirements and target `yulang3` cutover remain open.

@@ -129,6 +129,9 @@ This index is a navigation aid. The listed source document remains authoritative
   The [unused draft resource withdrawal](../progress/2026-10-10-candidate-unused-draft-withdrawal.md)
   also removes the candidate's unused F5 startup reservation. M1 review and ten
   focused controls pass; legacy reservation/failure behavior remains real.
+  The [discarded observer Call inventory retirement](../progress/2026-10-10-unused-observer-call-inventory-retirement.md)
+  removes unused candidate preflight descriptor construction while preserving
+  historical observers and real source Calls; M1 review and 24 owning controls pass.
   The [Oracle Unit integration](../progress/2026-10-10-unit-primitive-integration.md)
   supplies actual primitive, HIR, solver and closed/flat adapters. M2 review,
   129 distinct focused tests and owning/workspace checks pass; authentic
