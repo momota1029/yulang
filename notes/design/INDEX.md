@@ -122,6 +122,13 @@ This index is a navigation aid. The listed source document remains authoritative
   The bounded [Any-root owner attempt](../theory/2026-10-10-source-annotation-any-root-construction-attempt.md)
   finds no selected constructor for the written ordinary target root; it remains
   conditional research and makes no implementation claim.
+  The [resolution-owner audit](../progress/2026-10-10-source-annotation-any-resolution-owner-audit.md)
+  confirms that current HIR rejects the associated annotation before solver
+  collection and selected current sources provide no written-Type resolver or
+  Any builtin. Pending question
+  `source-annotation-any-name-resolution/q1` asks how this written name is
+  introduced (built-in Type name or ordinary scoped declaration/import); it
+  does not decide the Any relation or authorize implementation.
 
 - **Reviewed one-case source annotation design (2026-10-10):**
   [design](../theory/2026-10-10-source-owned-annotation-any-design.md) assigns

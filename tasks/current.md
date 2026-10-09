@@ -5717,6 +5717,21 @@ its genuine source incidence and full membership/Top-law dependencies. This
 remains inside the approved detailed-design scope; no implementation,
 production Direct route or F5 cutover is authorized. No tests or builds ran.
 
+The follow-up code-owner map confirms the operational cut: syntax/HIR retain
+the annotation occurrence, but `ResolvedExpr` has no annotation case and
+`lower_simple_chain` rejects it before solver collection; the closed positive
+scheme grammar has no ordinary Any root constructor. The selected source rules
+also do not supply a written-Type resolver or Any builtin. The bounded
+[resolution-owner audit](../notes/progress/2026-10-10-source-annotation-any-resolution-owner-audit.md)
+and the approved [one-case design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md)
+leave this as a genuine scoped name-introduction decision. Pending board
+question [source-annotation-any-name-resolution/q1](../questions/2026-10-10-source-annotation-any-name-resolution/q1/question.md)
+asks whether `Any` is a built-in Type name or
+must resolve through an ordinary scoped declaration/import. The question does
+not settle the Any membership relation or authorize implementation. The
+independent HIR/root mapping found no existing constructor to bypass that
+decision; no tests, builds or code changes ran.
+
 ### Reviewed constructive literal argument rule (2026-10-10)
 
 The concentrated proof attack checkpointed the [source-owned Reify and
