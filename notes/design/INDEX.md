@@ -244,6 +244,24 @@ This index is a navigation aid. The listed source document remains authoritative
   or Generalize eligibility bridge, a proof of law inhabitance, a semantic
   solver, complete Call acceptance or F5. The canonical DAG is unchanged.
 
+- **Authoritative source-owned registry design gate (2026-10-10):**
+  [scope](2026-10-10-source-owned-registry-design-gate.md), from q3/d1 integrated
+  at `534d8c945`, authorizes bounded constructor design and independent review.
+  It adopts no concrete registry API or RuleCall_L, and authorizes no compiler
+  implementation, complete Call acceptance, solving, publication or F5 cutover.
+
+- **Reviewed practical complete Call production proposal (2026-10-10):**
+  [proposal](2026-10-10-practical-complete-call-production-gate.md) maps a
+  finite dependent-interface graph that retains complete Call facts at their
+  source owners, correlated solving evidence and atomic ordinary publication
+  for the formal-Name/Int slice. Independent compiler-referee and spec-auditor
+  reviews found no issue within the conditional proposal. It keeps actual
+  `P_old`, the literal-to-formal ordinary-value/protection rule, effective
+  complete solving and invoke public extraction open; it authorizes no
+  implementation, default behavior, `f 1` acceptance or F5 cutover. See the
+  [review record](../progress/2026-10-10-practical-complete-call-production-gate-review.md)
+  and the separate [solver/publication seam map](../progress/2026-10-10-complete-call-solver-publication-seam-map.md).
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

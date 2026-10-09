@@ -5897,9 +5897,37 @@ The next Call-side gate is a reviewed production source-construction design
 for formal-Name/Int that supplies the complete typed inputs and preserves them
 through solving/publication. The approved selected-source Reify construction
 direction still has a separate open `P_old` registration lookup/decoder
-bridge, with q3 pending; no production implementation is authorized by the
+bridge, with the registry design gate now authorized by q3; no production implementation is authorized by the
 complete-contract clarification. See the [complete contract direction](../notes/design/2026-10-10-call-reify-construction-direction.md)
 and the [production Function-call contract](../notes/design/2026-10-05-inferred-function-call-views.md).
+
+The reviewed [practical complete-Call proposal](../notes/design/2026-10-10-practical-complete-call-production-gate.md)
+now maps source-owned complete interfaces, correlated solving evidence and
+atomic ordinary publication for that first source slice. Independent
+compiler-referee and spec-auditor reviews found no issue within the conditional
+proposal; the [review record](../notes/progress/2026-10-10-practical-complete-call-production-gate-review.md)
+records their scope and omissions. This remains a proposal, not implementation
+authority. The first new source-rule decision is how independently typed
+ordinary literal evidence reaches the shared inferred formal and how that
+contributes to provisional protection. Effective complete solving and invoke
+public extraction remain separate suppliers. The bounded
+[solver/publication map](../notes/progress/2026-10-10-complete-call-solver-publication-seam-map.md)
+finds current scalar constraint/effect worklists, scalar Generalize/closed
+scheme and fresh-use paths, but no direct complete residual, complete Call
+effect allowance, ordinary decoder or whole-frame checker. The next typed
+correspondence therefore runs from a certified complete residual through
+dependency-aware generalization and finite extraction to a fresh whole-frame
+decoder, then atomic publication. The q3 answer is integrated at `534d8c945` and consumed for the bounded
+source-owned registry design/review gate only. Its concrete constructor/API
+choice and actual `P_old` correspondence remain open; see the
+[scope record](../notes/design/2026-10-10-source-owned-registry-design-gate.md).
+
+The bounded decision on the first ordinary-value refinement is now on the
+question board at [call-formal-ordinary-value-refinement/q1](../questions/2026-10-10-call-formal-ordinary-value-refinement/q1/question.md).
+It asks whether to start with actual Int Data at the Call argument child, use a
+uniform ordinary-Value rule, or defer that rule. Only this dependent source-rule
+design waits; other solver/export and registry research may proceed under their
+own authority.
 
 ### Built-in `any` name versus semantic root (2026-10-10)
 
