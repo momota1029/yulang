@@ -5592,13 +5592,17 @@ It identifies the exact existing Name/Name Gen-Call-0 boundary and proposes a
 tagged literal-origin emission definition direction with a future O0 extension.
 The artifact does not yet define or prove the actual typed constructor/O0
 object, and it claims no new emitted membership or implementation authority.
-The prior q1/d1 answers do not adopt this additional emission case. The only
-remaining choice is whether to direct the next construction gate toward that
-bounded extension or require a separately fixed original literal-emission
-family and full typed correspondence. Keep the dependent source-emission
-adoption gate waiting for that scoped decision; annotation design can continue
-independently. Review convergence used one compiler-referee and one
-spec-auditor, with one batched textual repair. No tests or builds ran.
+The approved `original-literal-call-emission/q1/d1` answer selects Option 1:
+continue into a construction gate for the exact tagged literal-origin source
+emission judgment, its typed field producers, whole-action/old-family
+conservation and a local O0 extension. This is direction approval only. It does
+not adopt emitted membership or complete O0, authorize implementation or
+acceptance of `f 1`, or close O1, kernel correspondence, C0/admission, solving,
+publication or F5 cutover. The literal emission gate is active again; keep
+those downstream gates open. The question bundle was integrated in commit
+`885e35264`; validation and scope are in its [receipt](../questions/2026-10-10-original-literal-call-emission/receipt.md).
+The candidate's M2 review convergence used one compiler-referee and one
+spec-auditor, with one batched repair. No tests or builds ran.
 
 The approved annotation q1/d1's next design slice is recorded in the
 [one-case Any annotation design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md).
@@ -5610,5 +5614,6 @@ repaired and both delta reviews closed. Source parse acceptance, typed Any
 root production, name resolution and exact Top-law supplier remain explicitly
 conditional inputs. This is detailed design only: no code, tests, builds,
 production routing, failure/resource policy, API or F5 cutover is authorized.
-The exact literal-emission decision is separately pending in the visible local
-question board and is excluded from ordinary commits.
+The literal-emission direction decision is integrated; its receipt and current
+construction status remain tracked under the selected complete-Application
+gate. No pending question bundle remains from this decision.

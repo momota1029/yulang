@@ -144,9 +144,11 @@ This index is a navigation aid. The listed source document remains authoritative
   proposes a bounded tagged literal-origin emission direction beside the
   unchanged original Name/Name family, plus the exact future O0/O1 obligations.
   Compiler-referee and spec-auditor reviews closed after one batched repair.
-  This is still Draft: no literal emitted membership, O0 extension, user
-  adoption, implementation or F5 cutover is selected. The scoped direction
-  remains a user decision; details and residuals are in `tasks/current.md`.
+  The user selected this as the next construction direction in
+  `original-literal-call-emission/q1/d1`; the answer is integrated at `885e35264`.
+  The proposed constructor, emitted membership and O0 extension remain
+  unproved/unadopted; implementation, acceptance, other semantic gates and F5
+  cutover remain open. See `tasks/current.md` for exact residuals.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
