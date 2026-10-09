@@ -5432,17 +5432,26 @@ for adoption or claim INIT_WORLD closure until that concrete package exists.
 Continue an independent inference lane; no tests, builds, probes, or
 measurements ran.
 
-A fresh bounded semantic-to-Rust cross-check confirms PE already supplies the
-semantic `ProjectionExport` to fresh ordinary `u_i` constructor, its seven
-active root equations, one whole-frame action, and alias reuse. The nearest
-current Rust path instead ends in `ClosedValueScheme` plus Q/R fresh-row
-substitution and a scalar `root_value_for` query; it does not own the selected
-export package or interpreted root fields. This is not a missing abstract
-export-equivalence theorem and does not authorize implementing the adapter.
-The next production-correspondence artifact must be a concrete `my id x=x`
-owner manifest from authentic publication/export and whole-frame inputs to
-every active `u_i` field, naming each producer, scope, transfer/drop seam and
-consumer; mark unsupplied caller registration, local laws and legal-action
-evidence directly instead of reconstructing them from Q/R rows. The Rust
-mapping is bounded to the inspected HIR/solver/types path; no code, tests,
-builds, authority or DAG status changed.
+The bounded [ProjectionExport-to-Rust owner manifest](../notes/progress/2026-10-10-projection-export-rust-owner-manifest.md)
+confirms PE already supplies the semantic `ProjectionExport` to fresh ordinary
+`u_i` constructor, its seven active root equations, one whole-frame action and
+alias reuse. The nearest current Rust path instead ends in `ClosedValueScheme`
+plus Q/R fresh-row substitution and a scalar `root_value_for` query; it does
+not own the selected export package or interpreted root fields. Spec and
+regression reviews found no blocking finding; the sole minor correction now
+distinguishes the scheme's arena identity from the arena storage owned by
+`SolvedModule`. This is a bounded correspondence artifact, not a missing
+abstract export-equivalence theorem or implementation authority. Authentic
+caller registration, local-law instances and a legal whole-frame action remain
+unsupplied in the manifest; no code, tests, builds or DAG status changed.
+
+The Hreg architect audit confirms that the selected source rules provide
+Parameter/Lambda constructors and complete signature-incidence packaging, but
+no noncircular local-registration rule plus its application for `my id x=x`.
+It finds no demonstrated semantic difference between source-owner extension
+and a caller-supplied complete registration package, so this is not yet a user
+choice. The next evidence is one explicit local introduction rule applied in
+an authentic caller context, retaining the full predecessor telescope and
+guards, followed by the selected Parameter/Lambda constructors. Do not derive
+Hreg from completed `U_g`, HIR IDs, or empty captures. Hreg and all production
+and F5 cutover gates remain open.

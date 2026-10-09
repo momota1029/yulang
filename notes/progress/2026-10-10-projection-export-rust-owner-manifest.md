@@ -5,7 +5,8 @@ Baseline: `ad530c389`
 Branch: `research/simple-sub-intrusion`
 Status: bounded static source-to-Rust correspondence; research only
 Claim class: field/owner manifest for native `id`; no new theorem
-Review: unreviewed; producer used two read-only maps, not certification
+Review: spec-auditor and regression-auditor found no blocking findings;
+  minor arena-ownership wording corrected
 Implementation, semantic selection and F5 cutover: none
 
 ## Purpose and authority
@@ -31,7 +32,7 @@ owners without reconstructing missing fields from F5 rows.
 |---|---|---|---|
 | `display = ForallAt(sigma,a,Arrow(a,result))` and original constraints | Parameter owns the original `Desc`; Source Generalize selects the final root; extraction emits the display. | `HirParameterId` (`module.rs:271`) and `LambdaRecipe` (`lib.rs:697`) retain structural ownership/positions. | No retained source scope, typed Desc or complete original constraints at the finalized scheme. |
 | Fixed boundary `Omega` | Source publication retains the binding/provider anchor, intrinsic permissions, IF0 role/entry, `nu,K,D`, and full fixed dependency closure. | `DefinitionRootId` (`module.rs:185`) brands structural artifact identity; `SolvedModule` (`lib.rs:7333`) retains HIR and schemes. | No selected provider/world/permission boundary or source publication anchor. |
-| `ValueInletSchema(q,a;Delta)` | Parameter owns the complete whole-carrier/Force/result/response/raw/future interface and its original scopes/constraints. | `ClosedValueScheme` (`yu-types/src/lib.rs:630`) stores arena, quantifier count, recursive-bound range and predicate. | No inlet or complete original `Delta` telescope in the closed scheme. |
+| `ValueInletSchema(q,a;Delta)` | Parameter owns the complete whole-carrier/Force/result/response/raw/future interface and its original scopes/constraints. | `ClosedValueScheme` (`yu-types/src/lib.rs:630`) stores an arena identity, quantifier count, recursive-bound range and predicate; `SolvedModule` owns the arena storage (`lib.rs:7353`). | No inlet or complete original `Delta` telescope in the closed scheme. |
 | Ordinary Function head | Lambda owns the fixed raw closure and `GenericValueInlet(q,IF0)`; PE decodes the selected ordinary head. | `admit_lambda_fact` (`lib.rs:10790`) emits a signed Function constraint using the parameter row for id's argument and result. | Structural endpoints only; no fixed raw provider, generic inlet or original entry evidence. |
 | Result and dependency | Source formation supplies `result=a` and `EntryValue` for id; pick separately supplies its fixed public dependency. | `PositiveValueView` (`yu-types/src/lib.rs:585`) exposes signed Function endpoints. | No source-owned result dependency or EntryValue interpretation. |
 | Admission and production | The selected PE root has independent admission constructors and exhaustive production grammar with Echo. | `ClosedValueScheme` exposes the solved structural predicate. | No independent admission/history or production grammar. |
