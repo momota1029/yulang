@@ -5528,12 +5528,14 @@ as a complete call judgment. No production implementation or F5 cutover gate
 is closed by this priority correction.
 
 The user then selected the complete-contract route for `f 1`, rejecting the
-four-port approximation. This fixes the implementation target while retaining
-the open owner obligations: a concrete complete `WholeArgCompatible` instance,
-pre-comparison `DemandFormation`, and the source-owned unannotated-formal role
-refinement with directional protection. Current HIR/solver paths retain
-structural call identities but have no producer for that package; the shadow
-candidate drops operand effects and supplies an empty call effect. Next work
-must make the complete package executable from actual source owners before
-default collection can admit Apply. No code, tests, or cutover authority
-follows from the choice alone.
+four-port approximation. The reviewed native literal argument construction
+now supplies an original `WholeArgCompatible` occurrence and a successful
+complete-inlet check for literal `0` at `id`'s actual Int/empty-residual frame.
+This is useful argument-side evidence, not the full `f 1` Call: the authentic
+complete Call formation/result contract, pre-comparison demand tied to the
+formal's inlet and role, C5 refinement/protection, and production HIR/solver
+publication remain open. The current shadow candidate still drops operand
+effects and uses an empty call effect; it cannot be promoted. Continue from the
+selected native literal case toward the missing complete source Call owner and
+its executable inference path. No code, tests, or cutover authority follows
+from the user's direction alone.
