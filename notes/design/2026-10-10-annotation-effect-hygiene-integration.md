@@ -143,11 +143,11 @@ Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-an
 
 ## 6. User-supplied callback scenario
 
-Status note (2026-10-10): the user corrected the assistant's interpretation of
-“ソレはミス”. The reported inferred scheme below is the mistake; this does
-not mean only its extra `int ->` is wrong. The user has not supplied the
-correct scheme. Keep the reported pair as a known-wrong historical result, not
-as an expected scheme or regression oracle.
+Status note (2026-10-10): a prior direct-termination request records the source
+and scheme below as a target. The user's latest “ソレはミス” correction has
+not yet been tied to a unique claim in the assistant's earlier interpretation.
+Until that referent is confirmed, retain the recorded target as historical
+context, but do not treat it as a settled regression oracle.
 
 The user supplied this source/result pair to clarify the selected boundary:
 
@@ -160,11 +160,12 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 The intended locality is to subtract the attached `io` from the callback's
-effect in this body while preserving independent effect flow. The reported
-scheme is wrong, but the correct exact scheme remains unknown. Treating a
+effect in this body while preserving independent effect flow. The recorded
+scheme remains provisional pending clarification of the latest correction.
+Treating a
 variable as “not a concrete annotation atom” must not sever future concrete
-effects from its checks. This historical candidate is not a claim that the
-current successor accepts the source or that the whole type is already
+effects from its checks. This scheme is not a claim that
+the current successor accepts the source or that the whole type is already
 verified by a runtime test.
 
 This is the same locality requirement as effect hygiene, not a separate semantic

@@ -6892,13 +6892,14 @@ The user supplied this concrete example:
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-and reported the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`.
-The user's “ソレはミス” says that reported result is a mistake; it does not
-retract only the extra `int ->`. The correct scheme has not been supplied, so
-do not promote any alternative into a user decision or regression expectation.
-The example still concerns the existing effect-hygiene contract, not a
-separate permission. The current candidate rejects explicit formal effect
-rows; the reported result is known wrong and the correct result remains open.
+An earlier direct-termination request records
+`(int -> ['b, io] 'c) -> ['b] 'c` as the expected scheme. The user's latest
+“ソレはミス” correction has not yet been tied to a unique claim in the
+assistant's earlier interpretation, so retain that pair as historical context
+but not as a settled regression oracle. The example concerns the existing
+effect-hygiene contract, not a separate permission. The current candidate
+rejects explicit formal effect rows; source acceptance and the correct scheme
+remain unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6977,9 +6978,8 @@ subsume; it does not show POP2 suppressing POP1. At Pos4/TV5 → Neg69/TV50,
 right POP2 is inserted and later right POP3/POP4 are subsumed. The trace lacks
 the source-origin/freshening map needed to call TV50 the named source `E`, and
 records no admitted mixed PUSH/POP context. Preserve the distinct premises and
-do not use this as an `e/E` versus `h/E` proof. The unresolved exact callback
-scheme is now known to have been reported incorrectly; its corrected scheme
-and regression expectation remain open. Positive covariant
+do not use this as an `e/E` versus `h/E` proof. The recorded callback scheme is
+provisional pending clarification of the latest correction. Positive covariant
 annotations already have a private
 source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
@@ -6990,15 +6990,11 @@ The direct mathematical task started at remote `b69bb905` and incorporated
 upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
-contravariant source attachment. Its result note preserves the scheme
-`(int -> ['b, io] 'c) -> ['b] 'c` as the candidate that was recorded then.
-The user's latest correction says the reported inferred scheme is a mistake;
-it does not mean only the extra `int ->` is wrong. This overturns the previous
-conclusion that the exact target is settled. Keep the prior scheme in research
-history as a known-wrong result. The user's correction does not supply its
-replacement, so the exact callback scheme and regression expectation remain
-unresolved. This does not block
-independent progress on the effect-hygiene implementation.
+contravariant source attachment. Its result note preserves the historical
+scheme `(int -> ['b, io] 'c) -> ['b] 'c`. A prior direct-termination request
+records that as a target, but the user's latest “ソレはミス” correction has
+not yet been tied to a unique claim; treat the exact callback target as
+unsettled.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
@@ -7062,3 +7058,57 @@ original premises. No canonical proof-DAG status or prerequisite was changed;
 whole termination, source soundness/completeness, principality, public owned
 schemes and `yulang3` cutover remain OPEN. No new question-board decision was
 created or consumed.
+
+### Mixed cyclic debt: exact finite observation completed (2026-10-10)
+
+The user's “OK．やってください” continued the direct termination/meaning task
+from latest remote `e2f29d0a`; concurrent source-owner audits through
+`3bb355b56` were inspected and preserved. Mathematical checkpoint
+`3b32ed3afa49c7d4105da46ba7783524c9fdb35b` is published. The
+[new theorem](../notes/progress/2026-10-10-mixed-replay-observer-construction.md)
+now decides arbitrary finite **debt-only cyclic grammars**, including binary
+directed replay, swap, both-from-right and shared choices, observed by any fixed
+finite PUSH-bearing mixed continuation. It preserves exact active count and
+pending/left/right presence at every node, with the specified fixed-family
+filter/terminal/compact corollaries. The actual query PUSH mass B yields a
+finite image with `(B+2)^2` states per nonterminal; the original exact grammar
+is retained for future queries. This is a proved query abstraction, not a
+semantic POP cap, permanently erased count, or finite-test completeness claim.
+
+The [source callback circuit](../notes/progress/2026-10-10-mixed-replay-source-cycle.md)
+uses shared argument/result `'c` and feeds `f f` back into the tuple callback.
+Its primitive `F --L1--> C --R2--> R --R1--> F` circuit returns a concrete
+Function lower under debts `1+4k` to the same callback comparison. Var-only
+support suppression does not apply to these concrete lower consequences.
+Independent source review corrected a genuine constructor error: absent
+argument-effect annotation is `NegRow([],Top)`, not `NegBot`. Both argument
+ports therefore swap; this source supplies no copying Effect child. Source
+constructor/replay correspondence is reviewed, while parsing, successful
+lowering/generalization, Oracle execution and acceptance remain unclaimed.
+
+The [integrated report](../notes/progress/2026-10-10-mixed-debt-observer-results.md)
+records the complete proof boundary, counterexamples, independent mathematical
+review, fresh source/code repair closure and the executable
+[`research_mixed_debt_observer.py`](../tools/research_mixed_debt_observer.py).
+The final bounded check passes 147 assertions, 440 literal observer evaluations
+and 11 exact finite-DAG values. The independent code reviewer also checked 216
+terminal combinations and 400 shared-hole continuations at all nodes on the
+reviewed snapshot. Count/entry erasure on empty family or filter failure was
+repaired; the last minor reference-only repair distinguishes same-name binding
+occurrences. These are research checks, not compiler regression counts.
+
+The next single mathematical bottleneck is a contextual recursive component
+into which PUSH-bearing input can return. Either decide that component exactly
+or derive its source-owned separation into debt recursion and finite consumers.
+The latter is not assumed for all source programs. Before final integration,
+remote advanced through `92f07a06`; its paired symbolic annotation bridge was
+inspected and preserved. It connects `t → e → h` with same-ID PUSH evidence,
+while actual first-survivor admission at `e/E` and `h/E` remains open. This
+constrains the next source witness without changing the debt theorem.
+Exact residual-key gamma,
+source filter registration, authority-preserving extrusion/SCC intrusion,
+freshening and journal rollback remain implementation/semantic obligations.
+No production source-owned attachment or second solver was enabled; the scheme
+`(int -> ['b, io] 'c) -> ['b] 'c` remains the unexecuted source target.
+No canonical DAG node was closed, no new semantic question was opened, and
+`yulang3` was not changed.

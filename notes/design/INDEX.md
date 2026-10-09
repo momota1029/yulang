@@ -85,6 +85,23 @@ This index is a navigation aid. The listed source document remains authoritative
   consumer. This is not new language authority or a full hygiene/termination
   closure. No second production solver or source restriction is adopted.
 
+- **Mixed contextual debt observation (2026-10-10, reviewed research scope):**
+  The [finite observation theorem](../progress/2026-10-10-mixed-replay-observer-construction.md)
+  decides arbitrary cyclic debt grammars under directed replay, swap and
+  both-from-right, followed by any finite PUSH-bearing mixed continuation.
+  Exact active counts and pending/left/right presence are preserved at every
+  node. Query-specific finite saturation retains the original exact grammar;
+  it imposes no semantic count cap. The
+  [source callback circuit](../progress/2026-10-10-mixed-replay-source-cycle.md)
+  returns concrete Function lowers with right debts `1+4k` to the same callback
+  slot. Its corrected ordinary argument-Effect port swaps; this source does
+  not execute the copying branch. The
+  [integration and review record](../progress/2026-10-10-mixed-debt-observer-results.md)
+  links the proof and 147-assertion research implementation, separates accepted
+  review repairs and local consumer tests, and preserves the open cyclic
+  PUSH-bearing/source-output/production gates. No new language authority or
+  source-owned production attachment is enabled.
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
@@ -168,8 +185,9 @@ This index is a navigation aid. The listed source document remains authoritative
   M2 runtime and fresh repair deltas close; 93 distinct focused tests and owning,
   workspace and default checks pass. Explicit attachments, wildcard, owned-public
   migration and full semantic gates remain open. The user's concrete
-  `cb: (int -> [io] 'c)` / `run_io` example is recorded with its reported
-  inferred scheme marked known-wrong; the corrected scheme is unspecified. The [cycle-source audit](../progress/2026-10-10-explicit-effect-termination-source-map.md)
+  `cb: (int -> [io] 'c)` / `run_io` example and a recorded scheme remain
+  provisional pending clarification of the latest correction.
+  The [cycle-source audit](../progress/2026-10-10-explicit-effect-termination-source-map.md)
   locates Oracle's self-edge and variable-bound guards; successor correspondence
   and negative-formal implementation remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)

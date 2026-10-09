@@ -7,9 +7,17 @@ Status: read-only source audit; candidate invariants, not an independent proof r
 Scope: actual negative concrete attachment construction, contextual consumers,
 four Function ports, finite admission and remaining source support
 Authority: selected annotation policy and corrected callback target recorded in
-`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`. The user's
-later “ソレはミス” corrects the extra `int ->` in the earlier conversational
-scheme; the target is `(int -> ['b, io] 'c) -> ['b] 'c`.
+`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`. The current
+direct-termination request explicitly states the target
+`(int -> ['b, io] 'c) -> ['b] 'c`; this does not depend on interpreting the
+earlier “ソレはミス” exchange.
+
+The later [callback-return circuit](2026-10-10-mixed-replay-source-cycle.md)
+supplies a separately inspected Value-slot recurrence. Its independent repair
+review also corrected this audit's absent argument-effect constructor mapping:
+`Row([],Top)` selects ordinary swap, while `both_from_right` requires syntactic
+`Neg::Bot`. These corrections do not promote the remaining unreviewed audit to
+an all-source proof.
 
 ## Constructor, not a row-global removal flag
 
@@ -131,9 +139,12 @@ outer annotation context first yields `NonSubtract(G+, POP_i/filter{io}) <: Rf`;
 combining it with the call's right `POP_i` yields `G+ <: G−` under right
 `POP_i²`. Function result ports retain that context, so the inner return-effect
 variable has a lower edge to the second call effect under right `POP_i²`;
-there is no inner PUSH to cancel it. Function argument ports use the swapped
-left `POP_i²`, while the pure argument-effect port uses `both_from_right`
-(`propagate.rs:226–270`).
+there is no inner PUSH to cancel it. Both Function argument ports use the
+swapped left `POP_i²`. The absent argument-effect annotation supplies the
+negative `Row([],Top)` (`annotation/constraints.rs:395–401,492–500`), so this
+comparison takes the ordinary branch at `propagate.rs:246–255`; the syntactic
+`Neg::Bot` discriminator at `:234` does not match. It emits no
+`both_from_right` child.
 
 This is an actual comparison between a positive nested Function constructor
 and a negative Function demand carrying doubled context. It remains a descent
@@ -245,9 +256,12 @@ returned output_predicates = this Function's return-effect predicates
 not be interpreted as inert metadata or a ban on ordinary effect propagation.
 The negative concrete return-effect filter belongs to this source boundary;
 it does not license removing the same nominal effect through every use of t.
-The ordinary argument-effect construction (`:391–422`) instead supplies a fresh
-row connected to the positive written effect row and shares its +/- interfaces.
-Thus the nearest effect-port label alone does not select one constructor.
+For a present non-wildcard argument-effect annotation, `:415–420` supplies a
+fresh row connected to the positive written effect row and shares its +/-
+interfaces. An absent annotation instead selects positive Bot and negative
+`Row([],Top)` (`:395–401,492–500`); a present wildcard follows the distinct
+wrapper construction at `:402–413`. Thus the nearest effect-port label alone
+does not select one constructor.
 
 `lowering/signature_effect.rs:162–178,319–439` independently confirms the
 negative signature return-effect inner row, fresh ID, declared stack fact and
@@ -299,9 +313,12 @@ For `Fun(a,ae,re,r) <: Fun(A,AE,RE,R)` under W, `:207–271` generates:
 | Result effect | re <: RE | W |
 | Result value | r <: R | W |
 
-The pure argument-effect branch at `:234–248` instead sends AE to the upper
-return-effect target after stripping its `Neg::Stack` wrappers
-(`:401–410`), under `both_from_right(W)`. It is not the ordinary ae row relation.
+The special argument-effect branch at `:234–245` requires the positive
+Function's negative argument-effect interface `ae` to be syntactically
+`Neg::Bot`. It sends AE to the upper return-effect target after stripping its
+`Neg::Stack` wrappers (`:401–410`), under `both_from_right(W)`. The absent
+annotation's `Neg::Row([],Top)` does not satisfy that predicate and takes the
+ordinary row relation at `:246–255` instead.
 Current successor Value entry effects use explicit inferred entry rows and
 edges into the returned row (`yu-solver/src/lib.rs:11135–11170`), so this Oracle
 branch requires actual correspondence rather than literal copying of its Bot
