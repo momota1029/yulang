@@ -6893,13 +6893,16 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 The user's expected scheme is
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The “ソレはミス” correction
-rejected the assistant's restatement that omitted the returned `int ->`
-function layer. Intermediate notes with the no-extra-arrow scheme are mistaken
-transcriptions. The example concerns the existing effect-hygiene contract,
-not a separate permission. The current candidate supports singleton
-variable-only formal effect tails as ordinary rows, but still rejects concrete
-`[E]` attachments; this example remains unaccepted and unverified.
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The example composes two distinct
+responsibilities: `run_io` must handle `io` in the computation while retaining
+independent `'b` flow, and the callback annotation's `[io]` attachment has its
+own local subtraction and hygiene obligations. Hygiene does not define or
+prove `run_io` semantics. The earlier wording that collapsed the full example
+into one hygiene discussion was mistaken. Intermediate notes omitting the
+returned `int ->` layer are also mistaken transcriptions. The current candidate
+supports singleton variable-only formal effect tails as ordinary rows, but
+still rejects concrete `[E]` attachments; the complete example remains
+unaccepted and unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle

@@ -167,8 +167,12 @@ effects from its checks. This scheme is not a claim that
 the current successor accepts the source or that the whole type is already
 verified by a runtime test.
 
-This is the same locality requirement as effect hygiene, not a separate semantic
-permission: subtraction at this annotation must not mutate a shared canonical
-row, erase an independent same-family contribution, or affect another callback
-use. The current paired formal constructor still rejects explicit effect rows;
-this scenario is an owning target for the open contravariant integration gate.
+The example composes two distinct responsibilities. `run_io: cb 1` must have
+ordinary application and handler semantics that remove the handled `io` from
+the enclosing computation while preserving the callback's independent `'b`
+effect. The annotation policy separately governs the local `[io]` attachment
+at the callback boundary. For that subtraction, hygiene requires preserving
+the shared row, independent same-family contributions, and other callback
+uses. Hygiene does not define `run_io` or prove its handler behavior. The
+current paired formal constructor still rejects explicit effect rows; this
+scenario remains an end-to-end target for both open responsibilities.
