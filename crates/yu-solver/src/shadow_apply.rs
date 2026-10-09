@@ -452,8 +452,13 @@ fn preflight_expression(
     pending
         .try_reserve(1)
         .map_err(|_| CandidateError::Unsupported)?;
-    pending.push((expr, 1usize, None));
-    while let Some((expr, depth, formal)) = pending.pop() {
+    pending.push((Some(expr), 1usize));
+    let mut formals = Vec::new();
+    while let Some((expr, depth)) = pending.pop() {
+        let Some(expr) = expr else {
+            formals.pop();
+            continue;
+        };
         if depth > 128 {
             return Err(CandidateError::Unsupported);
         }
@@ -469,8 +474,8 @@ fn preflight_expression(
             ResolvedExpr::Name {
                 resolution: NameResolution::Parameter(p),
                 ..
-            } if formal == Some(p) => {}
-            ResolvedExpr::Group { inner, .. } => pending.push((inner, depth + 1, formal)),
+            } if formals.contains(&p) => {}
+            ResolvedExpr::Group { inner, .. } => pending.push((Some(inner), depth + 1)),
             ResolvedExpr::Apply {
                 occurrence,
                 callee,
@@ -491,13 +496,18 @@ fn preflight_expression(
                     argument: argument.occurrence().clone(),
                     unresolved: UNRESOLVED,
                 });
-                pending.push((argument, depth + 1, formal));
-                pending.push((callee, depth + 1, formal));
+                pending.push((Some(argument), depth + 1));
+                pending.push((Some(callee), depth + 1));
             }
             ResolvedExpr::Lambda {
                 parameter, body, ..
-            } if depth == 1 => {
-                pending.push((body, depth + 1, Some(parameter)));
+            } => {
+                formals
+                    .try_reserve(1)
+                    .map_err(|_| CandidateError::Unsupported)?;
+                formals.push(parameter);
+                pending.push((None, depth));
+                pending.push((Some(body.as_ref()), depth + 1));
             }
             _ => return Err(CandidateError::Unsupported),
         }
@@ -505,11 +515,7 @@ fn preflight_expression(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(super) enum CandidateEndpoint {
-    Component(usize),
-    Parameter(usize),
-}
+pub(super) type CandidateEndpoint = LambdaValueEndpoint;
 #[derive(Clone, Debug)]
 pub(super) enum CandidateRelation {
     Group {
@@ -572,10 +578,14 @@ impl ConstraintBatch {
         let inner_position = self.parameter_recipes.len();
         self.parameter_recipes.push(inner.clone());
         // The capture is the actual outer row, not a fresh local Name use.
-        let (callee, _) =
-            self.emit_candidate_expression(callee, Some(outer_position), parent, uses)?;
-        let (argument, _) =
-            self.emit_candidate_expression(argument, Some(inner_position), parent, uses)?;
+        let mut formals = Vec::new();
+        formals
+            .try_reserve(2)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        formals.push(outer_position);
+        formals.push(inner_position);
+        let (callee, _) = self.emit_candidate_expression(callee, &mut formals, parent, uses)?;
+        let (argument, _) = self.emit_candidate_expression(argument, &mut formals, parent, uses)?;
         let call = self.candidate_component(occurrence)?;
         self.retain_candidate_relation(
             occurrence,
@@ -644,7 +654,7 @@ impl ConstraintBatch {
             occurrence: occurrence.clone(),
             parameter_position,
             root_component,
-            body_value_component: Some(body_value_component),
+            body_value_endpoint: LambdaValueEndpoint::Component(body_value_component),
             body_effect_component,
             lambda_effect_component,
             after_collected_fact: self.occurrences.len(),
@@ -720,55 +730,18 @@ impl ConstraintBatch {
         parent: Option<&DefinitionOrderId>,
         uses: &mut Vec<PendingDefinitionUse<'a>>,
     ) -> Result<(), CollectionAvailabilityError> {
-        if let ResolvedExpr::Lambda {
-            occurrence,
-            parameter,
-            body,
-            ..
-        } = expr
-        {
+        let mut formals = Vec::new();
+        if matches!(expr, ResolvedExpr::Lambda { .. }) {
             let root = root.ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
-            self.parameter_recipes
-                .try_reserve(1)
-                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
-            let parameter_position = self.parameter_recipes.len();
-            self.parameter_recipes.push(parameter.clone());
-            let (value, effect) =
-                self.emit_candidate_expression(body, Some(parameter_position), parent, uses)?;
-            self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
-            let lambda_effect_component = self.components.len() - 1;
-            let lambda_effect = self.component_term_at(lambda_effect_component);
-            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
-            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
-            self.emit(occurrence.clone(), 0, bottom, lambda_effect)?;
-            self.emit(occurrence.clone(), 1, lambda_effect, empty)?;
-            self.lambda_recipes
-                .try_reserve(1)
-                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
-            self.lambda_recipes.push(LambdaRecipe {
-                occurrence: occurrence.clone(),
-                parameter_position,
-                root_component: self.root_component_positions[root].component,
-                body_value_component: match value {
-                    CandidateEndpoint::Component(p) => Some(p),
-                    CandidateEndpoint::Parameter(_) => None,
-                },
-                body_effect_component: effect,
-                lambda_effect_component,
-                after_collected_fact: self.occurrences.len(),
-            });
-            self.counters.emitted_facts = self
-                .counters
-                .emitted_facts
-                .checked_add(1)
-                .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
-            self.counters.generated_work_items = self
-                .counters
-                .generated_work_items
-                .checked_add(1)
-                .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+            self.emit_candidate_lambda(
+                expr,
+                self.root_component_positions[root].component,
+                &mut formals,
+                parent,
+                uses,
+            )?;
         } else {
-            let (value, _) = self.emit_candidate_expression(expr, None, parent, uses)?;
+            let (value, _) = self.emit_candidate_expression(expr, &mut formals, parent, uses)?;
             if let Some(root) = root {
                 let CandidateEndpoint::Component(position) = value else {
                     return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
@@ -784,10 +757,66 @@ impl ConstraintBatch {
         }
         Ok(())
     }
+    fn emit_candidate_lambda<'a>(
+        &mut self,
+        expr: &'a ResolvedExpr,
+        value_component: usize,
+        formals: &mut Vec<usize>,
+        parent: Option<&DefinitionOrderId>,
+        uses: &mut Vec<PendingDefinitionUse<'a>>,
+    ) -> Result<usize, CollectionAvailabilityError> {
+        let ResolvedExpr::Lambda {
+            occurrence,
+            parameter,
+            body,
+            ..
+        } = expr
+        else {
+            return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+        };
+        self.parameter_recipes
+            .try_reserve(1)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        formals
+            .try_reserve(1)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        let parameter_position = self.parameter_recipes.len();
+        self.parameter_recipes.push(parameter.clone());
+        formals.push(parameter_position);
+        let body_result = self.emit_candidate_expression(body, formals, parent, uses);
+        formals.pop();
+        let (value, effect) = body_result?;
+        self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
+        let lambda_effect_component = self.components.len() - 1;
+        self.candidate_local_lambda_effect(occurrence, lambda_effect_component)?;
+        self.lambda_recipes
+            .try_reserve(1)
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        self.lambda_recipes.push(LambdaRecipe {
+            occurrence: occurrence.clone(),
+            parameter_position,
+            root_component: value_component,
+            body_value_endpoint: value,
+            body_effect_component: effect,
+            lambda_effect_component,
+            after_collected_fact: self.occurrences.len(),
+        });
+        self.counters.emitted_facts = self
+            .counters
+            .emitted_facts
+            .checked_add(1)
+            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        self.counters.generated_work_items = self
+            .counters
+            .generated_work_items
+            .checked_add(1)
+            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        Ok(lambda_effect_component)
+    }
     fn emit_candidate_expression<'a>(
         &mut self,
         expr: &'a ResolvedExpr,
-        formal: Option<usize>,
+        formals: &mut Vec<usize>,
         parent: Option<&DefinitionOrderId>,
         uses: &mut Vec<PendingDefinitionUse<'a>>,
     ) -> Result<(CandidateEndpoint, usize), CollectionAvailabilityError> {
@@ -827,8 +856,11 @@ impl ConstraintBatch {
                 resolution: NameResolution::Parameter(parameter),
                 ..
             } => {
-                let position = formal
-                    .filter(|p| &self.parameter_recipes[*p] == parameter)
+                let position = formals
+                    .iter()
+                    .rev()
+                    .copied()
+                    .find(|p| &self.parameter_recipes[*p] == parameter)
                     .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
                 self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
                 let effect = self.components.len() - 1;
@@ -839,8 +871,17 @@ impl ConstraintBatch {
                 self.emit(occurrence.clone(), 1, term, empty)?;
                 return Ok((CandidateEndpoint::Parameter(position), effect));
             }
+            ResolvedExpr::Lambda { .. } => {
+                self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
+                let value = self.components.len() - 1;
+                let effect = self.emit_candidate_lambda(expr, value, formals, parent, uses)?;
+                let positions = ComponentPositions { value, effect };
+                self.occurrence_component_positions
+                    .insert(occurrence.clone(), positions);
+                positions
+            }
             ResolvedExpr::Group { inner, .. } => {
-                let (child, _) = self.emit_candidate_expression(inner, formal, parent, uses)?;
+                let (child, _) = self.emit_candidate_expression(inner, formals, parent, uses)?;
                 let positions = self.candidate_component(occurrence)?;
                 self.retain_candidate_relation(
                     occurrence,
@@ -854,9 +895,9 @@ impl ConstraintBatch {
             ResolvedExpr::Apply {
                 callee, argument, ..
             } => {
-                let (callee, _) = self.emit_candidate_expression(callee, formal, parent, uses)?;
+                let (callee, _) = self.emit_candidate_expression(callee, formals, parent, uses)?;
                 let (argument, _) =
-                    self.emit_candidate_expression(argument, formal, parent, uses)?;
+                    self.emit_candidate_expression(argument, formals, parent, uses)?;
                 let positions = self.candidate_component(occurrence)?;
                 self.retain_candidate_relation(
                     occurrence,

@@ -6111,3 +6111,23 @@ formation before creating fresh endpoints, and do not export a missing compiler
 constructor as a supposedly meaningful residual. No new decision is established
 for the basic Apply constraint spine. Full inference/F5 replacement stays open;
 no proof-DAG promotion or code/default-route change follows from this audit.
+
+### Compositional solver collector checkpoint (2026-10-10)
+
+The [implementation record](../notes/progress/2026-10-10-compositional-inference-collector.md)
+now replaces the one-formal candidate lookup with lexical scope and recursive
+Lambda/Apply/Group collection. Explicit Lambda result endpoints preserve an
+outer formal's actual startup row. Independent compiler review and a fresh
+delta review closed the nested-postorder projection-cursor defect; no accepted
+blocking/major solver finding remains. Candidate/default owning Cargo checks
+passed. No tests, runtime probes or measurements ran. Complete Call, effect,
+generalization/extrusion and production cutover claims remain open.
+
+The disjoint HIR multi-parameter source carrier extension is not part of this
+solver checkpoint: its correctness review passed, but resource review found
+unbounded boxed Lambda depth before candidate preflight. Repair its owning
+preconstruction boundary under the existing candidate depth envelope, then
+freeze/review/check/integrate that source slice. Ordinary F5 diagnostics stay
+under the existing zero/one-parameter contract. Continue afterward with
+kind-qualified effect graph retention through generalization and fresh use;
+registry adoption remains outside the basic inference critical path.

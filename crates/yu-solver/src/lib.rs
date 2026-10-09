@@ -691,14 +691,20 @@ struct RootComponentPositions {
     component: usize,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum LambdaValueEndpoint {
+    Component(usize),
+    Parameter(usize),
+}
+
 /// A source Lambda whose endpoints are completed by the owning inference
-/// session. The parameter is a recipe position, never a live variable ID.
+/// session. Parameter endpoints are recipe positions, never live variable IDs.
 #[derive(Clone, Debug)]
 struct LambdaRecipe {
     occurrence: HirOccurrenceId,
     parameter_position: usize,
     root_component: usize,
-    body_value_component: Option<usize>,
+    body_value_endpoint: LambdaValueEndpoint,
     body_effect_component: usize,
     lambda_effect_component: usize,
     after_collected_fact: usize,
@@ -1721,7 +1727,7 @@ impl ConstraintBatch {
         body: &ResolvedExpr,
         root: &DefinitionRootId,
     ) -> Result<(), CollectionAvailabilityError> {
-        let (body_value_component, body_effect_component) = match body {
+        let (body_value_endpoint, body_effect_component) = match body {
             ResolvedExpr::Name {
                 occurrence: body_occurrence,
                 resolution: NameResolution::Parameter(parameter),
@@ -1734,7 +1740,10 @@ impl ConstraintBatch {
                 let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
                 self.emit(body_occurrence.clone(), 0, bottom, effect_term)?;
                 self.emit(body_occurrence.clone(), 1, effect_term, empty)?;
-                (None, effect_position)
+                (
+                    LambdaValueEndpoint::Parameter(parameter_position),
+                    effect_position,
+                )
             }
             ResolvedExpr::Integer {
                 occurrence: body_occurrence,
@@ -1742,7 +1751,10 @@ impl ConstraintBatch {
             } => {
                 self.emit_integer(body_occurrence.clone(), None)?;
                 let positions = self.occurrence_component_positions[body_occurrence];
-                (Some(positions.value), positions.effect)
+                (
+                    LambdaValueEndpoint::Component(positions.value),
+                    positions.effect,
+                )
             }
             ResolvedExpr::Name {
                 occurrence: body_occurrence,
@@ -1751,7 +1763,10 @@ impl ConstraintBatch {
             } => {
                 self.emit_resolved_binding_name(body_occurrence.clone(), None)?;
                 let positions = self.occurrence_component_positions[body_occurrence];
-                (Some(positions.value), positions.effect)
+                (
+                    LambdaValueEndpoint::Component(positions.value),
+                    positions.effect,
+                )
             }
             _ => return Ok(()),
         };
@@ -1767,7 +1782,7 @@ impl ConstraintBatch {
             occurrence,
             parameter_position,
             root_component,
-            body_value_component,
+            body_value_endpoint,
             body_effect_component,
             lambda_effect_component,
             after_collected_fact: self.occurrences.len(),
@@ -10796,11 +10811,20 @@ impl InferenceSession {
             )
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let argument = self.live_value_term(Polarity::Negative, parameter)?;
-        let result = match recipe.body_value_component {
-            Some(position) => {
+        let result = match recipe.body_value_endpoint {
+            LambdaValueEndpoint::Component(position) => {
                 self.live_value_term(Polarity::Positive, self.live_components[position].ordinal)?
             }
-            None => self.live_value_term(Polarity::Positive, parameter)?,
+            LambdaValueEndpoint::Parameter(position) => {
+                let row = self
+                    .parameter_live_base
+                    .checked_add(
+                        u32::try_from(position)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.live_value_term(Polarity::Positive, row)?
+            }
         };
         let empty = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
         let body_effect = self.live_effect_term(
@@ -15740,7 +15764,17 @@ impl InferenceSession {
     fn finish(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
         let mut work = ProductionCounters::default();
-        let mut lambda_recipes = self.batch.lambda_recipes.iter().peekable();
+        let mut lambda_recipes = self
+            .batch
+            .lambda_recipes
+            .iter()
+            .filter(|recipe| {
+                matches!(
+                    self.batch.components[recipe.root_component],
+                    ComponentId::DefinitionValue { .. }
+                )
+            })
+            .peekable();
         for occurrence in &self.batch.projection_order {
             work.finish_projection_visits += 1;
             let (value, effect) = if let Some(positions) =

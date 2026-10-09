@@ -38,6 +38,10 @@ This index is a navigation aid. The listed source document remains authoritative
   registry adoption to basic bound collection was established. Existing
   full Call, effect/protection, q2/q3 and proof scopes remain binding; proceed
   with compositional collection, live bounds and successor generalization.
+  The [collector checkpoint](../progress/2026-10-10-compositional-inference-collector.md)
+  implements lexical nested recipes and direct formal result endpoints in the
+  nonshipping solver; the source multi-parameter carrier remains pending its
+  preconstruction resource repair. No full Call or cutover gate is closed.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and
