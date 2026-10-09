@@ -301,7 +301,7 @@ No production source-owned attachment was enabled and no second production
 solver was introduced. The requested result remains unexecuted:
 
 ```text
-(int -> ['b, io] 'c) -> ['b] 'c
+(int -> ['b, io] 'c) -> int -> ['b] 'c
 ```
 
 The minimum future production transition is now concrete for the proved region:

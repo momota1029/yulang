@@ -20,15 +20,12 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 with expected scheme:
 
 ```text
-(int -> ['b, io] 'c) -> ['b] 'c
+(int -> ['b, io] 'c) -> int -> ['b] 'c
 ```
 
-This is the scheme recorded in the Authoritative hygiene integration note.
-The earlier direct user message in the continuing thread wrote an additional
-`int ->` before the result effect. A later “ソレはミス” did not identify which
-statement it corrected. Until clarified, this record preserves the original
-source example and the unresolved disagreement; neither displayed scheme is
-silently substituted for the other as the final owning regression target.
+This is the corrected target recorded in the Authoritative hygiene
+integration note. The user's “ソレはミス” corrected the assistant's
+no-extra-arrow restatement; the returned `int ->` layer is part of the target.
 
 The annotation-scoped interpretation and limit are recorded in the governing
 authority §6. This is a concrete hygiene target: `io` is available to the caller
@@ -291,8 +288,9 @@ comparison is established. Tuple return/destructure also transports
 [`contextual-effect-source-correspondence.md`](2026-10-10-contextual-effect-source-correspondence.md).
 
 The callback result target is settled as
-`(int -> ['b, io] 'c) -> ['b] 'c`; the extra `int ->` in the earlier
-conversational version was a mistake. It remains unverified in the successor.
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`. A prior assistant transcription
+omitted the returned `int ->` layer; the user corrected that omission. It
+remains unverified in the successor.
 
 The recursive effect trace now establishes a source-derived cycle at the same
 `h <: E` Effect bound slot: right `POP_i²` followed by left `POP_i` replays as

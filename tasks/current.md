@@ -6892,14 +6892,13 @@ The user supplied this concrete example:
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-An earlier direct-termination request records
-`(int -> ['b, io] 'c) -> ['b] 'c` as the expected scheme. The user's latest
-“ソレはミス” correction has not yet been tied to a unique claim in the
-assistant's earlier interpretation, so retain that pair as historical context
-but not as a settled regression oracle. The example concerns the existing
-effect-hygiene contract, not a separate permission. The current candidate
-rejects explicit formal effect rows; source acceptance and the correct scheme
-remain unverified.
+The user's expected scheme is
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The “ソレはミス” correction
+rejected the assistant's restatement that omitted the returned `int ->`
+function layer. Intermediate notes with the no-extra-arrow scheme are mistaken
+transcriptions. The example concerns the existing effect-hygiene contract,
+not a separate permission. The current candidate rejects explicit formal
+effect rows; source acceptance remains unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6990,11 +6989,9 @@ The direct mathematical task started at remote `b69bb905` and incorporated
 upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
-contravariant source attachment. Its result note preserves the historical
-scheme `(int -> ['b, io] 'c) -> ['b] 'c`. A prior direct-termination request
-records that as a target, but the user's latest “ソレはミス” correction has
-not yet been tied to a unique claim; treat the exact callback target as
-unsettled.
+contravariant source attachment. Its result note preserves the mistaken
+no-extra-arrow transcription `(int -> ['b, io] 'c) -> ['b] 'c`; the corrected
+target is `(int -> ['b, io] 'c) -> int -> ['b] 'c`.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
@@ -7109,6 +7106,6 @@ Exact residual-key gamma,
 source filter registration, authority-preserving extrusion/SCC intrusion,
 freshening and journal rollback remain implementation/semantic obligations.
 No production source-owned attachment or second solver was enabled; the scheme
-`(int -> ['b, io] 'c) -> ['b] 'c` remains the unexecuted source target.
+`(int -> ['b, io] 'c) -> int -> ['b] 'c` remains the unexecuted source target.
 No canonical DAG node was closed, no new semantic question was opened, and
 `yulang3` was not changed.

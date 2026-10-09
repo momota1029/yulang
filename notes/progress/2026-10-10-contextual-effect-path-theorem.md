@@ -28,7 +28,7 @@ The target remains
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-with expected scheme `(int -> ['b, io] 'c) -> ['b] 'c`. Nothing here changes that requirement or introduces a source restriction. The theorem's syntactic subsystem is a scope of a proved algorithm, not a proposed accepted-input envelope.
+with expected scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. Nothing here changes that requirement or introduces a source restriction. The theorem's syntactic subsystem is a scope of a proved algorithm, not a proposed accepted-input envelope.
 
 ## 2. Source-exact algebra used in the proofs
 

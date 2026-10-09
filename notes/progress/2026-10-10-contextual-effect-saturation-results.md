@@ -35,10 +35,12 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 ```text
-(int -> ['b, io] 'c) -> ['b] 'c
+(int -> ['b, io] 'c) -> int -> ['b] 'c
 ```
 
-This result scheme is **not** an executed successor regression. Negative
+The earlier no-extra-arrow transcription was corrected by the user; the
+returned `int ->` layer above is part of the target. This result scheme is
+**not** an executed successor regression. Negative
 explicit formal effects are still rejected by the actual candidate constructor.
 No full source soundness/completeness, hygiene, principality or `yulang3` cutover
 claim follows from these artifacts.

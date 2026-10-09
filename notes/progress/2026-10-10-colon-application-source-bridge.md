@@ -39,6 +39,6 @@ This does not close the user's example. The effectful argument still needs its
 ordinary Apply argument-effect port to participate in the annotated
 contravariant attachment and output projection. The callback's independent
 `'b` flow must survive while only the matching attached `io` is subtracted.
-The expected scheme remains `(int -> ['b, io] 'c) -> ['b] 'c`; typed behavior,
+The expected scheme remains `(int -> ['b, io] 'c) -> int -> ['b] 'c`; typed behavior,
 complete Call, effect hygiene, soundness/principality, public/default migration,
 and F5 cutover remain open.

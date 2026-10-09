@@ -143,11 +143,11 @@ Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-an
 
 ## 6. User-supplied callback scenario
 
-Status note (2026-10-10): a prior direct-termination request records the source
-and scheme below as a target. The user's latest “ソレはミス” correction has
-not yet been tied to a unique claim in the assistant's earlier interpretation.
-Until that referent is confirmed, retain the recorded target as historical
-context, but do not treat it as a settled regression oracle.
+Status note (2026-10-10): the user corrected the assistant's restatement that
+omitted the returned `int ->` function layer. The target is the exact scheme
+shown below, including that layer. The no-extra-arrow scheme recorded by some
+intermediate notes is a mistaken transcription and must not be used as the
+regression oracle.
 
 The user supplied this source/result pair to clarify the selected boundary:
 
@@ -156,13 +156,12 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 ```text
-(int -> ['b, io] 'c) -> ['b] 'c
+(int -> ['b, io] 'c) -> int -> ['b] 'c
 ```
 
 The intended locality is to subtract the attached `io` from the callback's
-effect in this body while preserving independent effect flow. The recorded
-scheme remains provisional pending clarification of the latest correction.
-Treating a
+effect in this body while preserving independent effect flow. The returned
+function layer is part of the user's stated target. Treating a
 variable as “not a concrete annotation atom” must not sever future concrete
 effects from its checks. This scheme is not a claim that
 the current successor accepts the source or that the whole type is already

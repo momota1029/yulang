@@ -7,10 +7,9 @@ Status: read-only source audit; candidate invariants, not an independent proof r
 Scope: actual negative concrete attachment construction, contextual consumers,
 four Function ports, finite admission and remaining source support
 Authority: selected annotation policy and corrected callback target recorded in
-`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`. The current
-direct-termination request explicitly states the target
-`(int -> ['b, io] 'c) -> ['b] 'c`; this does not depend on interpreting the
-earlier “ソレはミス” exchange.
+`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`. The target
+is `(int -> ['b, io] 'c) -> int -> ['b] 'c`; a prior transcription omitted the
+returned `int ->` layer, which the user explicitly corrected.
 
 The later [callback-return circuit](2026-10-10-mixed-replay-source-cycle.md)
 supplies a separately inspected Value-slot recurrence. Its independent repair
