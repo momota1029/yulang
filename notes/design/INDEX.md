@@ -55,8 +55,10 @@ This index is a navigation aid. The listed source document remains authoritative
   now supplies bounded runtime evidence for `invoke` and repeated `invoke id`.
   The [polarity-copy checkpoint](../progress/2026-10-10-successor-polarity-copy-extrusion.md)
   adds original-level-preserving copies, directional bound ownership and
-  owner-preserving scheme replay to the private graph path. Actual nested source
-  levels, runtime evidence and complete Call/public cutover remain open.
+  owner-preserving scheme replay to the private graph path. The
+  [directional source proof/review](../progress/2026-10-10-candidate-directional-source-review.md)
+  now derives exact fresh logical membership construction and records 13 focused
+  passing tests. General nested levels and complete Call/public cutover remain open.
   The [generic local source checkpoint](../progress/2026-10-10-generic-local-source-hir.md)
   retains sequential local declarations and lexical ownership at HIR formation.
   M2 review, one batched repair, fresh delta review and owning builds pass.
@@ -104,6 +106,10 @@ This index is a navigation aid. The listed source document remains authoritative
   records two passing actual source fixtures and repaired assertion gaps.
   These are nonshipping scalar graph/route results; complete Call, source
   Generalize/public principality and ordinary fresh-use acceptance remain open.
+  The [current directional construction](../theory/2026-10-10-candidate-directional-source-correspondence.md)
+  proves source-derived closed membership capture and exact `M(C)` restoration
+  at `334fd35`, using recorded owner sides and one fresh typed map. It does not
+  reuse the old paired-edge replay law or require a stable idle opposite scan.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and
