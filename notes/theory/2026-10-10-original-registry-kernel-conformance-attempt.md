@@ -1,12 +1,14 @@
 # Actual pre-Call kernel to source-owned registry: formal API cut
 
 Date: 2026-10-10
-Status: frozen research attempt; independent review pending
+Status: independently reviewed bounded API characterization; no theorem or conformance closure
 Baseline: `070281ce0b51a4507243aaecff6ce8a4b21d9522`
 Exclusive write lease: this file only
 Method: bounded source-to-artifact typed correspondence, beginning at the actual formal
 Claim class: bounded characterization of an unelaborated API premise
 Adoption, implementation, source acceptance and aggregate gate closure: none
+
+Independent review: [adoption/conformance review](../progress/2026-10-10-original-registry-adoption-conformance-review.md).
 
 ## 1. Objective and authority
 
@@ -312,7 +314,7 @@ b8bdf720e50bcfab691f70c08fee8cb32fb2b34f3817099faba512378ebdcb24  notes/theory/2
 795afb2c2204731becc770e2e7d05c309881db2d9e8e6fc89fb5614533857716  notes/theory/2026-10-10-selected-source-p-old-construction-attempt.md
 ```
 
-## 9. Commit packet
+## 9. Initial checkpoint packet (before independent review)
 
 - Exact leased/changed path: `notes/theory/2026-10-10-original-registry-kernel-conformance-attempt.md`.
 - Baseline SHA: `070281ce0b51a4507243aaecff6ce8a4b21d9522`.

@@ -262,6 +262,19 @@ This index is a navigation aid. The listed source document remains authoritative
   [review record](../progress/2026-10-10-practical-complete-call-production-gate-review.md)
   and the separate [solver/publication seam map](../progress/2026-10-10-complete-call-solver-publication-seam-map.md).
 
+- **Reviewed concrete original registry adoption object (2026-10-10):**
+  [six-choice proposal](2026-10-10-original-registry-constructor-adoption-proposal.md)
+  isolates the candidate's nominal recipes, raw Seal/decoder, owner/port/Entry/
+  registration API, generated image roots, whole consumers and action boundaries.
+  Both independent reviews passed within that proposed scope; see the
+  [review record](../progress/2026-10-10-original-registry-adoption-conformance-review.md).
+  The [actual-kernel attempt](../theory/2026-10-10-original-registry-kernel-conformance-attempt.md),
+  checkpointed at `de26db327`, stops at the original formal introduction's
+  unprovided complete input telescope and typed raw-P substitution. It does not
+  assert an incompatible declaration or source impossibility. The six choices
+  are unadopted; [registry q4](../../questions/2026-10-10-call-reify-registry-construction/q4/question.md)
+  requests exact adoption. No compiler implementation or full inference closure.
+
 - **Reviewed source-owned invoke registry candidate, unadopted (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
   build the actual formal/Name/literal pre-Call registry from source recipes,

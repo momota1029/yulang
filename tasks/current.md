@@ -5869,17 +5869,16 @@ then establish exhaustive entry and consumer closure before moving to the
 remaining complete Call fields. The artifact is exploratory and unreviewed. No
 tests, builds, executable probes or compiler changes ran.
 
-### Registry representation decision pending (2026-10-10)
+### Integrated registry representation design gate (2026-10-10)
 
-The bounded source-construction audit reached the one-formal original
-registration-to-`P_old` lookup/decoder cut. The current selected definitions
-supply no constructor for it; creating a new original registry rule would be a
-durable design choice. Question [q3](../questions/2026-10-10-call-reify-registry-construction/q3/question.md)
-asks whether to keep searching for existing owner evidence, open a reviewed
-source-owned registry design gate, or keep `P_old` external and park this Call
-path. The complete Call contract is unchanged. The q3 directory is pending and
-must remain uncommitted; independent inference work continues where it does not
-depend on this registry.
+The bounded construction audit reached the one-formal registration-to-`P_old`
+lookup/decoder cut. The validated [q3/d1 bundle](../questions/2026-10-10-call-reify-registry-construction/q3/approved-answer.md)
+was integrated at `534d8c945`; its [receipt](../questions/2026-10-10-call-reify-registry-construction/q3/receipt.md)
+records exact content, source-premise validation and committed-file equality.
+Option 2 authorizes source-owned registry constructor design and independent
+review, as recorded in the [scope document](../notes/design/2026-10-10-source-owned-registry-design-gate.md).
+It adopts no particular constructor/API equations and authorizes no compiler
+implementation or full Call/inference closure. The q1 history stays pending.
 
 ### Complete-contract production Call path (2026-10-10)
 
@@ -6037,3 +6036,41 @@ CallMem/C0 remains unclosed, CALL_REL keeps its prior conditional scope, and
 JOINT_DEC remains OPEN-PROOF. No implementation, test, build, runtime probe or
 F5 cutover occurred. This task/index update follows the already pushed proof
 checkpoint; no reviewed independent result waited for a final combined commit.
+
+### Registry adoption object and actual formal API cut (2026-10-10)
+
+The former Git permission blocker is resolved. The validated q3/d1 bundle was
+integrated at `534d8c945`, its receipt/narrow authoritative design scope and
+the reviewed practical Call architecture were checkpointed at `582f32d8a`,
+and concurrent remote registry research was merged and pushed at `070281ce0`.
+q3 authorizes constructor design/review, not the candidate's exact equations.
+
+The bounded [actual-kernel attempt](../notes/theory/2026-10-10-original-registry-kernel-conformance-attempt.md)
+was independently reviewed and its honest initial checkpoint pushed at
+`de26db327`. It stops at the first formal: the original Entry-Value rule
+consumes ParameterOrigin and carrier/receipt/Force/rebind ports, while the
+inspected selected source cone does not elaborate their complete introduction
+against raw P. The remaining sequent is
+`Gamma_form^src(P) |- mu : Delta_in^orig`, then authentic `intro_orig[mu]`.
+The full original signature and concrete substitution remain unprovided.
+This is a bounded API cut, not an actual incompatible declaration, a late-
+decoder counterexample, global absence or impossibility of ordinary source.
+The candidate's own registration/lookup construction remains established.
+
+The [six-choice concrete adoption proposal](../notes/design/2026-10-10-original-registry-constructor-adoption-proposal.md)
+is now Reviewed. Compiler-referee and spec-auditor found no issue in the frozen
+proposal/conformance component; [coverage and hashes](../notes/progress/2026-10-10-original-registry-adoption-conformance-review.md).
+It identifies new nominal recipe/raw-registry, owner/port/Entry/registration,
+source-generated image, whole-consumer and action definitions for the selected
+pre-Call source interpretation. The exact definitions remain unadopted.
+[Registry q4](../questions/2026-10-10-call-reify-registry-construction/q4/question.md)
+asks whether to adopt that connected object or retain it as a candidate until
+the actual original introduction is elaborated. The ordinary-value refinement
+q1 remains separate and pending. Questions stay unstaged/uncommitted.
+
+Next: validate any finalized question answers before dependent adoption;
+elaborate the actual formal origin/port introduction at its source owner under
+the exact selected interpretation. Complete Call formation, O0/O1, C0/admission,
+effective correlated solving, principality, ordinary export/fresh checking and
+F5 replacement remain open. No compiler code, tests, builds, runtime probes or
+measurements were changed/run for these design and source-map checkpoints.
