@@ -5767,3 +5767,52 @@ original registry/image/consumer correspondence, complete Call/C0/admission,
 effective inference/publication and F5 retain their exact existing scope.
 The canonical DAG is unchanged. Only proof/review/navigation Markdown changed;
 no production implementation, tests, builds or executable semantic checks ran.
+
+### Reviewed literal emission and complete L collection (2026-10-10)
+
+The second independent proof checkpoint is
+`c0d304113322d149acd017db2455f263e265b3e5`, pushed after following remote to
+`111da7c6e882bf6048fb4013ab93781160983fb6`. The
+[emission and collection construction](../notes/theory/2026-10-10-literal-emission-pipeline-proof.md)
+and [review record](../notes/progress/2026-10-10-literal-constructor-proof-review.md)
+prove total static construction for the actual `my invoke f = f 1` spine in
+an explicitly defined L extension, relative to the retained original context
+and genuine local declarations. They construct the Call-owned argument,
+complete demand and distinct checking occurrence, predicate declarations,
+full operation interface, result/effect ports, role/protection origins,
+Application Code, result Reify and its genuine source Computation row, one-layer
+consumer, sealed tagged emission, complete IF placement and local O0.
+
+The initial specification review rejected a purported original generic
+`TypedCallCert_Dec` declaration. One fresh repair pass replaces that assertion
+with new concrete argument-compatibility, structural/old-operator, result-
+inclusion and nine-row `CertCall_L` declarations. The repaired artifact passed
+fresh independent mathematical and specification reviews with no findings.
+Semantic checking and certificate witnesses are outputs of solving the formed
+constraint family, not premises of static emission or its declaration formation.
+
+Theorem 5 proves finite ordered collection and exact evidence extraction/
+reconstruction for the DEFINED `RuleCall_L` fiber. Same-carrier checking,
+complete image alternatives, independent admission, actual-provider phases,
+pending/raw resumption and output-dependent futures retain their full dependent
+types and witness choices. Old operator arms retain their original event/frame
+indices rather than being cast to the literal structural frame. Old source
+families retain their exact P_old interpretation; total new-to-old equivalence
+is not asserted. No N evidence is cast into an original certificate.
+
+These completed local theorems remove supplied Reify/license/completed-emission
+and unavailable generic-certificate inputs from the NEW static construction.
+They do not identify its new image or checking/certificate family with a
+fixed-original literal consumer. Actual old-registry bootstrap, that consumer
+correspondence and eligible L-rule/local-law registration for Generalize are
+not proved. The exact new semantics remain unadopted; the pending registry
+questions are not treated as approvals. No stronger optional research property
+is added as a mandatory implementation premise by this checkpoint.
+
+Full CallMem/C0, JOINT_DEC, solving, principality, transformed public export,
+publication and production correspondence retain their existing scope. The
+canonical DAG is byte-for-byte unchanged. Only proof/review/navigation Markdown
+changed. Verification covers independent mathematical/specification review,
+direct source hashes, exact frozen-to-integrated metadata deltas, links,
+fences, whitespace and Git tree/ref identity; no code, test, build, runtime
+probe or F5 cutover occurred.
