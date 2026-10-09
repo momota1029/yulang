@@ -84,6 +84,24 @@ This index is a navigation aid. The listed source document remains authoritative
   records both independent passes and the removal of the initially invalid
   selected-descriptor claim. Canonical DAG and production authority are unchanged.
 
+- **Selected native literal argument checking (2026-10-09):**
+  [literal source definition](2026-10-09-native-literal-call-checking-definition.md)
+  and [MIN-ORIG-WHOLEARG/E/ER/S/LC](../theory/2026-10-09-native-id-original-wholearg-construction.md)
+  construct an original WholeArgCompatible occurrence and a finite successful
+  complete-inlet proof for native id's literal-0 Int/empty-residual case.
+  The generic original Result-view operand, complete J alternatives, actual
+  provider, Frame/Raw distinction, scopes and genuine finite proof choices
+  are preserved. Independent caller/local laws remain inputs; complete old
+  declaration/reference fibers, Code-Call formation, IF/M_E/DescMem and C0
+  are not supplied. Both independent reviews passed and the native case is
+  selected under current constructor authorization. The separately reviewed
+  [native declaration](../theory/2026-10-09-native-whole-argument-checking-declaration.md),
+  [native separation](../theory/2026-10-09-native-complete-call-typing.md), and
+  [receiver/request theorem](../theory/2026-10-09-annotated-formal-seed-and-removal-theorem.md)
+  retain their narrower scopes. Full original Call, annotated SEED_SOURCE/C5/C6,
+  JOINT_DEC and production cutover remain open; see the
+  [review and integration record](../progress/2026-10-09-source-semantic-attacks-review.md).
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

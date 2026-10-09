@@ -223,3 +223,33 @@ authorization/scope, with no extra semantic clause. After review only
 selection/review status and provenance were changed in the theorem.
 Canonical DAG JSON and Markdown remain byte-identical to the initial
 baseline; no aggregate status, prerequisite or production condition changed.
+
+## Primary integration and verification
+
+All checkpoints were pushed promptly with an expected-HEAD check and no force:
+
+| Checkpoint | Pushed commit |
+| --- | --- |
+| C bounded lifetime and request-prefix theorem, reviews | `a29579f1a73735023941d49d8ef3e3524696ec98` |
+| A native declaration, accepted repairs and reviews | `94b09851e8d393f5a3d38f5628bf8a634784ed6b` |
+| B narrowed separation and conditional inversion, reviews | `80ea838fe3419f2f2fa13f57d344106f4d5e2eb4` |
+| A2 original literal checking, reviewed native selection | `b0213ad2bed8223445d9db1d64ac30778c8ddafa` |
+
+After each push, the fetched remote commit and local tree were compared
+before synchronizing commit metadata. The original source dependencies stayed
+byte-identical to initial remote baseline c4cf02d; intervening remote progress
+and priority records were retained. Shared tasks/current.md and design/INDEX.md
+are synchronized in the following record-only integration checkpoint, which
+closes the earlier explicitly deferred navigation work.
+
+Canonical DAG JSON and generated Markdown remain byte-identical to baseline:
+90 nodes, 196 edges, with 7 CLOSED, 21 CONDITIONAL-CLOSED, 43 OPEN-PROOF,
+18 OPEN-SEMANTIC and 1 IMPLEMENTATION-ONLY. No DAG node or prerequisite was
+weakened. The local checking result is not full CALL_TYPE/C0, general
+JOINT_DEC or annotated SEED_SOURCE closure.
+
+Verification was mathematical proof review plus exact dependency/hash,
+Markdown/link, staged-diff and Git/remote-tree checks. No compiler build,
+regression test, semantic enumeration or proof-assistant check was run or
+claimed. No production file or test changed. The unresolved annotated target
+owner check was read-only and produced no additional inventory artifact.

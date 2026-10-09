@@ -229,6 +229,64 @@ The [review record](../notes/progress/2026-10-09-native-call-consumer-exactness-
 records the exact successful proofs and repairs. General JOINT_DEC and the
 canonical DAG are unchanged; no production code, tests or F5 route changed.
 
+### Direct source-semantic attacks (2026-10-09)
+
+The selected [native literal Call checking definition](../notes/design/2026-10-09-native-literal-call-checking-definition.md)
+and [MIN-ORIG-WHOLEARG/E/ER/S/LC proof](../notes/theory/2026-10-09-native-id-original-wholearg-construction.md)
+now construct the original argument-checking occurrence and a successful
+extensional whole-inlet check for literal `0` at the actual native id
+Int/empty-residual frame. The original generic Call operand is Result(I_a);
+DataArg assembles its registered complete view without changing any relation
+field. Literal/Result/Delay produce Car separately, and finite identity/image
+checking handles every original complete J alternative with its own evidence.
+Frame checking precedes the same frame's Raw injection. Independent caller,
+registration, world, authority and hereditary laws remain genuine inputs.
+
+This removes a supplied argument-conjunct occurrence/retention derivation and
+a supplied successful WholeArgCompatible proof **for this source case**. It
+does not identify an arbitrary old checking declaration or opaque proof fiber.
+The finite source-choice correspondence retains noncanonical proofs, their
+intermediates and active predicates on those fields; it does not decide
+arbitrary active W. Both fresh math/spec reviews passed. Under the current
+user's natural-constructor authorization, the primary selected the faithful
+new literal specialization; no fixed exact-image/foreign emitter was changed.
+The proof and selection are pushed at
+`b0213ad2bed8223445d9db1d64ac30778c8ddafa`.
+
+The separately reviewed [native declaration construction](../notes/theory/2026-10-09-native-whole-argument-checking-declaration.md)
+constructs a complete Parameter-owned NativeCheck, its fixed gamma and
+presentation-indexed raw fibers, ordered evidence telescopes and lawful
+actions. It removes a supplier of that native declaration. Review rejected
+the original attempt to identify it with the old independent leaf and to
+preserve every observer of an enlarged registry; those claims were withdrawn.
+The final theorem preserves the exact old reduct and selected native fibers.
+The general original declaration/reference contract remains open.
+
+The [Call separation result](../notes/theory/2026-10-09-native-complete-call-typing.md)
+exhibits an independent native Return(1) production at the actual literal-0
+carrier, whose actual operation returns 0. Original ME-Call-Structural cannot
+introduce that tuple **if an authentic original Call formation is supplied**.
+That q is not constructed here or by the local literal argument-occurrence
+rule; this is not an inhabited original-source counterexample, full M_E
+exclusion or a C0 impossibility theorem. Full Application/Gen-Call-0/Code-Call
+formation, complete IF, typed M_E/DescMem and all CallMem/C0 arms remain open.
+
+The reviewed [receiver expiry and request-prefix theorem](../notes/theory/2026-10-09-annotated-formal-seed-and-removal-theorem.md)
+proves expiry of the exact completed maker receiver on the selected
+unannotated nested apply/step source, plus actual consumption of one eligible
+shallow Request and preservation of its current raw suffix. It does not
+construct the annotated `_ -> [io] _` target, ProtectedVarAt or exhaustive
+annotated C5/C6. The request-provider example retains genuine primitive/body
+and local typing inputs. SEED_SOURCE and general JOINT_DEC stay OPEN-PROOF.
+
+The [independent review record](../notes/progress/2026-10-09-source-semantic-attacks-review.md)
+records the original findings, repairs, frozen hashes, exact passes and
+checkpoint pushes. Canonical DAG JSON/Markdown are unchanged: no status,
+prerequisite or production requirement is removed. No production code, tests,
+source rejection policy or F5 route changed. Use the new local checking
+constructor instead of reconstructing its occurrence from successful checking;
+continue full Call typing only with its genuine additional owner outputs.
+
 ### Completed closure, recursive interface and signature construction (2026-10-08)
 
 Three further constructor bottlenecks now have complete scoped proofs and
