@@ -294,6 +294,10 @@ pub(crate) struct TermBuilder {
 }
 impl TermBuilder {
     pub(crate) fn new() -> Result<Self, crate::CollectionAvailabilityError> {
+        #[allow(
+            deprecated,
+            reason = "retain compatibility with compilers predating Atomic::try_update"
+        )]
         let brand = NEXT_TERM_ARENA_BRAND
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |brand| {
                 brand.checked_add(1)

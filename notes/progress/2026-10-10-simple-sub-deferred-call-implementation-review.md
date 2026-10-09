@@ -150,6 +150,12 @@ Their owning compatibility decision is separate from this inference result;
 this checkpoint does not silently raise the required Rust version or change
 atomic allocation behavior.
 
+A separate M0 compatibility follow-up keeps the existing `fetch_update`
+operations and narrowly allows their deprecation at the two allocator
+statements, with an explicit older-compiler compatibility reason. No atomic
+operation, ordering, overflow branch or required compiler version changes.
+The same owning `cargo check -p yu-solver` passed afterward without warnings.
+
 ## Exact effect on the inference task
 
 The bound theorem's actual-core adapter and the scalar deferred-call spine now
