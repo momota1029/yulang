@@ -5881,6 +5881,26 @@ path. The complete Call contract is unchanged. The q3 directory is pending and
 must remain uncommitted; independent inference work continues where it does not
 depend on this registry.
 
+### Complete-contract production Call path (2026-10-10)
+
+The user reaffirmed the complete Call contract for `f 1`; the four-port shadow
+projection is not a success criterion. A bounded production-owner map at
+`c3cb59dfa` finds no current successful default path carrying that contract:
+ordinary HIR rejects Apply before constructing typed argument, Result/Delay,
+license, role/protection, provider/world, complete image, or pending/future
+evidence. The shadow candidate has unresolved premise markers and scalar
+endpoints; its empty-call-effect assumption cannot be promoted. Existing
+generalization/publication handles current endpoint schemes but receives no
+complete Call evidence. No code or tests changed.
+
+The next Call-side gate is a reviewed production source-construction design
+for formal-Name/Int that supplies the complete typed inputs and preserves them
+through solving/publication. The approved selected-source Reify construction
+direction still has a separate open `P_old` registration lookup/decoder
+bridge, with q3 pending; no production implementation is authorized by the
+complete-contract clarification. See the [complete contract direction](../notes/design/2026-10-10-call-reify-construction-direction.md)
+and the [production Function-call contract](../notes/design/2026-10-05-inferred-function-call-views.md).
+
 ### Built-in `any` name versus semantic root (2026-10-10)
 
 The approved lowercase name rule resolves source `any` only. A focused design-
@@ -5900,3 +5920,13 @@ selected meaning; if it needs a new semantic clause, stop and route that exact
 clause through a separate approval. Broad arbitrary-view characterization is
 not a prerequisite for this one-case design unless a concrete dependency is
 found.
+
+The frozen [builtin Any package attempt](../theory/2026-10-10-builtin-any-descriptor-package-attempt.md)
+at `3457cbb36` narrows the previous H2 root gap to its first missing semantic
+input: a genuine builtin Any descriptor declaration with its complete
+membership/guard/evidence signature and registration. Independent
+`compiler_referee` and `spec_auditor` reviews found no issue within the selected
+constructor envelope. This is a bounded obstruction, not a claim of global
+absence or source rejection; it adds no Any semantics and authorizes no
+implementation. The exact builtin meaning and hereditary Int-to-Any law
+remain open.

@@ -132,6 +132,11 @@ This index is a navigation aid. The listed source document remains authoritative
   [integration receipt](../questions/2026-10-10-source-annotation-any-name-resolution/q1/receipt.md).
   This resolves name introduction only; the Any root, membership, Top law,
   Direct proof and implementation remain open.
+  The independently reviewed [builtin descriptor-package attempt](../theory/2026-10-10-builtin-any-descriptor-package-attempt.md)
+  narrows the previous root premise to the missing genuine builtin semantic
+  declaration and complete membership/guard/evidence signature. It is a bounded
+  obstruction, not global absence or new Any semantics; the ordinary Value
+  meaning, hereditary Int-to-Any law and implementation remain open.
 
 - **Reviewed one-case source annotation design (2026-10-10):**
   [design](../theory/2026-10-10-source-owned-annotation-any-design.md) assigns
