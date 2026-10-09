@@ -148,6 +148,10 @@ This index is a navigation aid. The listed source document remains authoritative
   now connects grouped Int/Unit formals to executable body inference and argument
   checks. M2 review and nine new owning regressions close; the coherent phase's
   83 focused tests/checks pass. Function/effect formal interfaces remain open.
+  The [paired Function formal constructor gate](../progress/2026-10-10-paired-function-formal-construction-gate.md)
+  records independently reviewed shared omitted-port and binding-variable
+  correspondence before implementation. Runtime implementation/review remains
+  pending; explicit attachments, wildcard and full semantic gates remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

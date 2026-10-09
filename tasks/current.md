@@ -6798,7 +6798,7 @@ review close; 24 distinct owning regressions and coherent phase checks pass.
 No genuine Call or semantic proof requirement was retired.
 
 The separate primitive annotated-formal artifact is frozen and its focused
-checks/reviews pass; primary record synchronization/integration is next. The
+checks/reviews pass; integrated and pushed as `a49f0f1e9`. The
 full negative Function formal remains a coupled source-owned interface,
 contextual propagation and terminal incidence consumer gate. Independent public
 schemes, complete semantic requirements and target `yulang3` cutover remain open.
@@ -6830,3 +6830,20 @@ independent same-family incidences remain real requirements. Source evidence
 is available, but neither this candidate nor finite model consistency certifies
 full hygiene/principality. Independently owned public schemes, default migration,
 complete Call and target `yulang3` cutover remain active.
+
+### Paired Function formal implementation active (2026-10-10)
+
+The [constructor gate](../notes/progress/2026-10-10-paired-function-formal-construction-gate.md)
+has independent pre-write semantic/source conformance review. Separating the
+negative interface with positive-bottom omitted ports loses actual callback
+effects; shared per-Function argument/result rows replace that rejected route.
+Named variables retain binding scope across formals and the top whole-binding
+annotation. Ordinary row unions remain valid; no rigid annotation mode is added.
+Only Function/named-variable temporary unsupported fixtures may move to positive
+coverage under recorded pre-write adjudication.
+
+`paired_function_formal_implementation` has the exclusive three solver source
+file plus two integration-test lease recorded in the lab queue. Implementation,
+runtime verification and fresh implementation reviews remain pending. Primary
+alone owns Cargo and Git. Explicit effect attachments, wildcards, complete Call,
+hygiene, soundness/principality and owned-public/default cutover remain active.

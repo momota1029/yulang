@@ -76,7 +76,7 @@ settled language semantics. The existing current-task objective remains intact.
   independent source review found missing filter registration/erasure at row
   insertion. `formal_filter_insertion_repair` has an exclusive two-path lease:
   `notes/progress/2026-10-10-formal-filter-transition-contract.md` and
-  `tools/research_formal_filter_transition_contract.py`. Repair active, no
+  `tools/research_formal_filter_transition_contract.py`. Repair complete in `f3a5a7e50`, no
   production authority, hygiene closure or theorem status promotion.
 - Formal source constructor/lifetime/output projection and independently owned
   public schemes remain genuine next gates. Previous architecture mapping is
@@ -87,16 +87,16 @@ settled language semantics. The existing current-task objective remains intact.
 The `formal_filter_insertion_repair` two-file lease is frozen and complete.
 Primary bounded checker and independent delta review pass; accepted historical
 insertion mismatch closed only within the supplied finite model. Shared meaning
-is synchronized in current task above. `formal_filter_production_cut` is an
-active read-only architect assignment, and `formal_filter_identity_lifetime_map`
-is an active read-only source mapping; neither has production write authority.
+is synchronized in current task above. `formal_filter_production_cut` and
+`formal_filter_identity_lifetime_map` completed their read-only source mapping;
+neither has production write authority.
 Their outputs target authentic constructor/lifetime/projection integration,
 not another proof of the finite checker.
 
 ### Executable primitive formal and inventory phase complete
 
 - Primitive Int/Unit formal implementation and test repair: frozen, verified,
-  semantic/conformance and fresh delta reviews close. Primary integrates the
+  semantic/conformance and fresh delta reviews close. Primary integrated in `a49f0f1e9` the
   nine-path artifact and synchronized records. Nine new owning regressions;
   83 distinct focused phase tests and owning/workspace/default checks pass.
 - Discarded historical Call inventory retirement: committed as `59d744256`;
@@ -112,3 +112,19 @@ not another proof of the finite checker.
   and independent contribution preservation have source anchors, but body-row
   bypass, omitted ports, contextual transport and full semantic claims need
   executable verification. No pending question is consumed or staged.
+
+### Paired Function formal queue at baseline `2d6cf2570`
+
+| Job | Gate/method | Lease | State | Next evidence |
+| --- | --- | --- | --- | --- |
+| `paired_function_formal_implementation` | Paired real source interfaces | `crates/yu-solver/src/{candidate_effect.rs,candidate_source.rs,lib.rs}`, new `tests/candidate_annotated_function_formals.rs`, scoped `tests/candidate_annotated_primitive_formals.rs` | running | frozen source/tests, primary checks, M2 implementation review |
+| `formal_interface_source_referee` | Independent constraint/counterexample trace | read-only | done | corrected shared port equations, no theorem closure |
+| `paired_function_formal_prewrite_conformance` | Source/authority/fixture review | read-only | done | only two temporary unsupported controls authorized to migrate |
+| `owned_public_scheme_consumers` | Actual export/default consumer dependency map | pinned source read-only | running | independently owned scheme executable migration cut |
+| `formal_attachment_production_layout` | Coupled weighted-context production design | pinned source read-only | running | fields/transitions/termination and authentic filter consumer packet |
+
+Primary owns the [gate record](../notes/progress/2026-10-10-paired-function-formal-construction-gate.md),
+shared records and all Cargo/Git. One Cargo process at a time; measurements zero.
+Read-only next-gate assignments use pinned Git inputs while the implementation
+lease is live. Explicit effects/wildcards and genuine semantic/public cutover
+requirements remain open.
