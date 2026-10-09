@@ -6,7 +6,8 @@ Approved-by: user, directly in the working conversation
 Approved-at: current conversation; exact message timestamp unavailable
 Baseline: `7334dcfdb6f9d57eff04f02fb575fbba1ef1b414`
 Supersedes: earlier unselected-operation assumptions only; no full cutover approval
-Mechanism review: implementation packet under bounded architect review
+Mechanism review: bounded architecture packets and M2 implementation/delta reviews complete
+Implementation: private successor checkpoint; runtime/public cutover not certified
 
 ## Direct decision
 
@@ -47,3 +48,13 @@ effects/protection and source/public correspondence retain their contracts.
 This decision does not by itself prove soundness, principality, recursive
 acceptance or target-branch replacement. Frozen `main` remains untouched; the
 current implementation branch is `research/simple-sub-intrusion`.
+
+## Implementation checkpoint
+
+The [implementation record](../progress/2026-10-10-parent-copy-intrusion-implementation.md)
+records actual canonical equality, bound propagation, live-root recapture,
+recursive internal uses, transactional rollback and review repairs. Source-row
+identity is session-scoped canonical identity across retained snapshots;
+structural node content/identity remains historical. Owning candidate/default
+builds passed; runtime tests and target cutover remain unperformed. This status
+records implementation evidence and does not expand the approved operation.

@@ -353,7 +353,10 @@ impl InferenceSession {
                 Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
                 Action::Module(occurrence) => {
                     let id = DefinitionUseId::new(self.batch.collection_artifact.clone(), occurrence.clone());
-                    if self.batch.definition_use_positions.contains_key(&id) { self.route_incoming(&id)?; }
+                    if self.batch.definition_use_positions.contains_key(&id) {
+                        if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.active_uses.contains(&id)) { self.route_candidate_open_use(&id)?; }
+                        else { self.route_incoming(&id)?; }
+                    }
                 }
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,

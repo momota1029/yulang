@@ -47,7 +47,7 @@ impl InferenceSession {
         // Finish structural nodes before following selected row bounds. A
         // bound may name the Function currently being rebuilt through a row.
         let mut pending_bounds = Vec::new();
-        let root = Key(initial, polarity, level);
+        let root = Key(self.canonical_extrusion(initial), polarity, level);
         push(&mut work, Work::Visit(root))?;
         while let Some(task) = work.pop().or_else(|| pending_bounds.pop()) {
             match task {
@@ -95,6 +95,7 @@ impl InferenceSession {
                                 self.fresh_value_at_level(target)?,
                             ))
                         };
+                        self.retain_extrusion_parent(copy, endpoint, p, target)?;
                         insert(&mut rows, key, copy)?;
                         self.candidate_insert_bound(endpoint, opposite(p), copy)?;
                         for n in (0..direct + exact).rev() {
@@ -125,7 +126,7 @@ impl InferenceSession {
                                     b.exact_non_variable_uppers[n - direct]
                                 })
                             };
-                            let child = Key(bound, p, target);
+                            let child = Key(self.canonical_extrusion(bound), p, target);
                             push(&mut pending_bounds, Work::Bound(copy, p, child))?;
                             push(&mut pending_bounds, Work::Visit(child))?;
                         }
@@ -292,6 +293,8 @@ impl InferenceSession {
                 self.$rows[i].$field.push($item);
             }};
         }
+        let owner = self.canonical_extrusion(owner);
+        let bound = self.canonical_extrusion(bound);
         match (owner, bound) {
             (
                 ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)),
@@ -394,15 +397,16 @@ impl InferenceSession {
             }
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         }
+        self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.dirty = true;
         Ok(())
     }
 
-    fn candidate_opposite_count(
+    pub(super) fn candidate_opposite_count(
         &self,
         owner: ExtrusionEndpoint,
         p: Polarity,
     ) -> Result<usize, SolveAvailabilityError> {
-        Ok(match owner {
+        Ok(match self.canonical_extrusion(owner) {
             ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)) => {
                 let b = &self.bounds[i as usize];
                 if p == Polarity::Positive {
@@ -422,13 +426,13 @@ impl InferenceSession {
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         })
     }
-    fn candidate_opposite_bound(
+    pub(super) fn candidate_opposite_bound(
         &self,
         owner: ExtrusionEndpoint,
         p: Polarity,
         n: usize,
     ) -> ExtrusionEndpoint {
-        match owner {
+        self.canonical_extrusion(match self.canonical_extrusion(owner) {
             ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)) => {
                 let b = &self.bounds[i as usize];
                 let (direct, exact) = if p == Polarity::Positive {
@@ -456,7 +460,7 @@ impl InferenceSession {
                 })
             }
             _ => unreachable!(),
-        }
+        })
     }
 
     /// Scheme initialization is entered with an idle solver. Each induced
@@ -539,6 +543,7 @@ impl InferenceSession {
         &mut self,
         key: CanonicalValuePairKey,
     ) -> Result<usize, SolveAvailabilityError> {
+        let key = CanonicalValuePairKey { lower: self.canonical_value(key.lower), upper: self.canonical_value(key.upper) };
         if key.lower == key.upper {
             return Ok(0);
         }
@@ -570,6 +575,8 @@ impl InferenceSession {
         lower: EffectEndpointKey,
         upper: EffectEndpointKey,
     ) -> Result<(), SolveAvailabilityError> {
+        let lower = self.canonical_effect(lower);
+        let upper = self.canonical_effect(upper);
         if lower == upper {
             return Ok(());
         }

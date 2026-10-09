@@ -216,6 +216,8 @@ mod candidate_call;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_extrusion;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_intrusion;
+#[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
 #[cfg(feature = "shadow-f5")]
 pub mod shadow_f5;
@@ -3981,7 +3983,7 @@ struct DiagnosticWitness {
     first_field: Option<FunctionField>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct DiagnosticEdge {
     child: CanonicalValuePairKey,
     field: Option<FunctionField>,
@@ -7988,6 +7990,7 @@ struct ValueRowUndo {
     exact_non_variable_uppers_len: usize,
     exact_non_variable_uppers_capacity: usize,
     has_int_positive_lower: bool,
+    non_generic: bool,
     level: u32,
     mark: u32,
 }
@@ -8004,6 +8007,7 @@ struct EffectRowUndo {
     exact_non_variable_uppers_capacity: usize,
     has_bottom_lower: bool,
     has_empty_upper: bool,
+    non_generic: bool,
     level: u32,
     mark: u32,
 }
@@ -8013,6 +8017,8 @@ struct RouteMutationJournal {
     candidate_routes_len: usize,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_local_routes_len: usize,
+    #[cfg(feature = "shadow-apply-candidate")]
+    intrusion: Option<candidate_intrusion::Undo>,
     store: RouteStoreJournal,
     value_rows_len: usize,
     effect_rows_len: usize,
@@ -8877,6 +8883,8 @@ impl InferenceSession {
                 candidate_routes_len: 0,
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_local_routes_len: 0,
+                #[cfg(feature = "shadow-apply-candidate")]
+                intrusion: None,
                 store: RouteStoreJournal {
                     facts_len: 0,
                     provenance_len: 0,
@@ -8994,6 +9002,7 @@ impl InferenceSession {
         journal.store = store;
         #[cfg(feature = "shadow-apply-candidate")]
         {
+            journal.intrusion = self.candidate_graph.as_ref().map(|state| state.intrusion.begin());
             journal.candidate_local_routes_len = self.candidate_graph.as_ref().map(|state| state.local_routes.len()).unwrap_or(0);
             journal.candidate_routes_len = self.candidate_graph
                 .as_ref()
@@ -9052,10 +9061,13 @@ impl InferenceSession {
         self.begin_route_transaction()?;
         match operation(self) {
             Ok(value) => {
-                let journal = self
+                #[allow(unused_mut, reason = "candidate route undo is released only with its feature")]
+                let mut journal = self
                     .route_journal
                     .take()
                     .expect("route transaction is active");
+                #[cfg(feature = "shadow-apply-candidate")]
+                { journal.intrusion = None; }
                 self.store.commit_route();
                 self.route_journal_spare = Some(journal);
                 Ok(value)
@@ -9108,6 +9120,7 @@ impl InferenceSession {
             exact_non_variable_uppers_len: bounds.exact_non_variable_uppers.len(),
             exact_non_variable_uppers_capacity: bounds.exact_non_variable_uppers.capacity(),
             has_int_positive_lower: bounds.has_int_positive_lower,
+            non_generic: self.value_metadata[index].non_generic,
             level: self.value_levels[index],
             mark: self.extrusion_value_marks[index],
         });
@@ -9156,6 +9169,7 @@ impl InferenceSession {
             exact_non_variable_uppers_capacity: bounds.exact_non_variable_uppers.capacity(),
             has_bottom_lower: bounds.has_bottom_lower,
             has_empty_upper: bounds.has_empty_upper,
+            non_generic: self.effect_metadata[index].non_generic,
             level: self.effect_levels[index],
             mark: self.extrusion_effect_marks[index],
         });
@@ -9197,6 +9211,7 @@ impl InferenceSession {
         self.store.rollback_route(store_journal);
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &mut self.candidate_graph {
+            if let Some(undo) = journal.intrusion.take() { state.intrusion.rollback(undo, &mut self.typed_pairs); }
             state.local_routes.truncate(journal.candidate_local_routes_len);
             state.routes.truncate(journal.candidate_routes_len);
             state.refresh_bytes()?;
@@ -9254,6 +9269,7 @@ impl InferenceSession {
                 .exact_non_variable_uppers
                 .truncate(undo.exact_non_variable_uppers_len);
             bounds.has_int_positive_lower = undo.has_int_positive_lower;
+            self.value_metadata[undo.index].non_generic = undo.non_generic;
             self.value_levels[undo.index] = undo.level;
             self.extrusion_value_marks[undo.index] = undo.mark;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -9275,6 +9291,7 @@ impl InferenceSession {
                 .truncate(undo.exact_non_variable_uppers_len);
             bounds.has_bottom_lower = undo.has_bottom_lower;
             bounds.has_empty_upper = undo.has_empty_upper;
+            self.effect_metadata[undo.index].non_generic = undo.non_generic;
             self.effect_levels[undo.index] = undo.level;
             self.extrusion_effect_marks[undo.index] = undo.mark;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -10340,9 +10357,12 @@ impl InferenceSession {
                     self.candidate_graph
                         .as_ref()
                         .map(|state| {
+                            let intrusion_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.intrusion.as_ref()).map(|undo| undo.bytes()).transpose()?.unwrap_or(0);
                             state.retained_bytes
-                                .checked_add(state.scratch_bytes)
+                                .checked_add(state.intrusion.bytes()?)
+                                .and_then(|bytes| bytes.checked_add(state.scratch_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.orchestration_bytes))
+                                .and_then(|bytes| bytes.checked_add(intrusion_undo_bytes))
                                 .ok_or(SolveAvailabilityError::IdentityExhausted)
                         })
                         .transpose()?
@@ -11011,12 +11031,12 @@ impl InferenceSession {
             TermView::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
             TermView::Component(component) => {
                 debug_assert_eq!(component.kind(), ComponentKind::Value);
-                ValueEndpointKey::ValueRow(self.component_endpoint(term).ordinal)
+                self.canonical_value(ValueEndpointKey::ValueRow(self.component_endpoint(term).ordinal))
             }
             TermView::LiveVariable(view) => {
                 assert_eq!(view.kind(), ComponentKind::Value);
                 assert_eq!(view.polarity(), polarity);
-                ValueEndpointKey::ValueRow(view.ordinal())
+                self.canonical_value(ValueEndpointKey::ValueRow(view.ordinal()))
             }
             TermView::PositiveBottom => ValueEndpointKey::BottomPositive,
             TermView::NegativeTop => ValueEndpointKey::TopNegative,
@@ -11043,18 +11063,51 @@ impl InferenceSession {
             TermView::Leaf(Leaf::EmptyEffectNegative) => EffectEndpointKey::EmptyNegative,
             TermView::Component(component) => {
                 debug_assert_eq!(component.kind(), ComponentKind::Effect);
-                EffectEndpointKey::EffectRow(self.component_endpoint(term).ordinal)
+                self.canonical_effect(EffectEndpointKey::EffectRow(self.component_endpoint(term).ordinal))
             }
             TermView::LiveVariable(view) => {
                 assert_eq!(view.kind(), ComponentKind::Effect);
                 assert_eq!(view.polarity(), polarity);
-                EffectEndpointKey::EffectRow(view.ordinal())
+                self.canonical_effect(EffectEndpointKey::EffectRow(view.ordinal()))
             }
             TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {
                 panic!("value extreme cannot translate as an effect endpoint")
             }
             _ => panic!("value term cannot translate as an effect endpoint"),
         }
+    }
+
+    fn canonical_value(&self, endpoint: ValueEndpointKey) -> ValueEndpointKey {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &self.candidate_graph {
+            if let ValueEndpointKey::ValueRow(row) = endpoint { return ValueEndpointKey::ValueRow(state.intrusion.value_rep(row)); }
+        }
+        endpoint
+    }
+    fn canonical_effect(&self, endpoint: EffectEndpointKey) -> EffectEndpointKey {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &self.candidate_graph {
+            if let EffectEndpointKey::EffectRow(row) = endpoint { return EffectEndpointKey::EffectRow(state.intrusion.effect_rep(row)); }
+        }
+        endpoint
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_reopen_root(&mut self, root: CanonicalValuePairKey) -> Result<(), SolveAvailabilityError> {
+        self.journal_candidate_memo(TypedPairKey::Value(root))?;
+        reserve_typed_route_lane!(self, self.diagnostic_delta, 1, F5bCapacityLane::DiagnosticDelta);
+        reserve_typed_route_lane!(self, self.diagnostic_delta_indices, 1, F5bCapacityLane::DiagnosticDeltaIndices);
+        if !self.diagnostic_delta_indices.contains_key(&root) {
+            self.diagnostic_delta_indices.insert(root, self.diagnostic_delta.len());
+            self.diagnostic_delta.push(root);
+        }
+        if let Some(TypedPairMemo::Value { completion, .. }) = self.typed_pairs.get_mut(&TypedPairKey::Value(root)) { *completion = DiagnosticCompletion::Pending; }
+        Ok(())
+    }
+
+    fn pair_is_current(&self, key: TypedPairKey) -> bool {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &self.candidate_graph { return state.intrusion.completed.get(&key) == Some(&state.intrusion.generation); }
+        self.typed_pairs.contains_key(&key)
     }
 
     fn candidate_graph_enabled(&self) -> bool {
@@ -11489,7 +11542,16 @@ impl InferenceSession {
         self.clear_diagnostic_scratch();
         let mut transitions = 0;
         self.enqueue_task(initial)?;
-        while let Some(item) = self.typed_worklist.pop_front() {
+        loop {
+            #[cfg(feature = "shadow-apply-candidate")]
+            if self.typed_worklist.is_empty() && self.candidate_graph.is_some() {
+                self.settle_candidate_intrusion(match initial { LiveConstraintTask::Value(root) => Some(root), _ => None })?;
+            }
+            let Some(item) = self.typed_worklist.pop_front() else {
+                #[cfg(feature = "shadow-apply-candidate")]
+                if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.dirty) { continue; }
+                break;
+            };
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             self.observe_f5c_structured_pair_top(
                 2, self.typed_worklist.len(), self.typed_worklist.capacity(),
@@ -11501,7 +11563,7 @@ impl InferenceSession {
             match item.task {
                 LiveConstraintTask::Effect(lower, upper) => {
                     let key = TypedPairKey::Effect { lower, upper };
-                    if self.typed_pairs.contains_key(&key) {
+                    if self.pair_is_current(key) {
                         self.execution_counters.constraint_pair_duplicates += 1;
                     } else {
                         self.record_typed_pair_admission(key, TypedPairMemo::Effect)?;
@@ -11510,9 +11572,32 @@ impl InferenceSession {
                 }
                 LiveConstraintTask::Value(key) => {
                     let memo_key = TypedPairKey::Value(key);
-                    if self.typed_pairs.contains_key(&memo_key) {
+                    if self.pair_is_current(memo_key) {
                         self.execution_counters.constraint_pair_duplicates += 1;
                         continue;
+                    }
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if self.candidate_graph.is_some() {
+                        let canonical = CanonicalValuePairKey { lower: self.canonical_value(key.lower), upper: self.canonical_value(key.upper) };
+                        if canonical != key {
+                            self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
+                            self.record_diagnostic_edge(key, canonical, None)?;
+                            self.enqueue_task(LiveConstraintTask::Value(canonical))?;
+                            continue;
+                        }
+                        // A previously extruded structural bound retains its transformed
+                        // child. Replaying the original would allocate another copy graph.
+                        if !(Self::positive_function_children(&self.store, key.lower).is_some() && Self::negative_function_children(&self.store, key.upper).is_some()) {
+                            let child_count = match self.typed_pairs.get(&memo_key) { Some(TypedPairMemo::Value { children, .. }) => children.len(), _ => 0 };
+                            if child_count != 0 {
+                                self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
+                                for index in 0..child_count {
+                                    let edge = match &self.typed_pairs[&memo_key] { TypedPairMemo::Value { children, .. } => children[index], _ => unreachable!() };
+                                    self.enqueue_task(LiveConstraintTask::Value(edge.child))?;
+                                }
+                                continue;
+                            }
+                        }
                     }
                     if let Some((lower, upper)) = Self::incompatible_value_shapes(key) {
                         self.record_typed_pair_admission(
@@ -11687,6 +11772,14 @@ impl InferenceSession {
         if let LiveConstraintTask::Value(root) = initial {
             self.replay_witness(root, occurrence, cause)?;
         }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() && matches!(initial, LiveConstraintTask::Effect(..)) {
+            // An effect dependency can close a mixed SCC and induce value
+            // comparisons. Their diagnostics belong to this actual cause.
+            for index in 0..self.diagnostic_delta.len() {
+                self.replay_witness(self.diagnostic_delta[index], occurrence, cause)?;
+            }
+        }
         self.clear_diagnostic_scratch();
         debug_assert!(
             self.typed_worklist.is_empty(),
@@ -11801,7 +11894,10 @@ impl InferenceSession {
                 F5bCapacityLane::DiagnosticDeltaIndices
             );
         }
-        if self.route_journal.is_some() {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() { self.mark_candidate_pair(key)?; }
+        let replacing = self.typed_pairs.contains_key(&key);
+        if self.route_journal.is_some() && !replacing {
             reserve_typed_route_lane!(
                 self,
                 self.route_journal.as_mut().unwrap().typed_pair_keys,
@@ -11814,22 +11910,28 @@ impl InferenceSession {
                 .typed_pair_keys
                 .push(key);
         }
-        assert!(
-            self.typed_pairs.insert(key, entry).is_none(),
-            "pair admitted once"
-        );
+        #[cfg(feature = "shadow-apply-candidate")]
+        if replacing { self.journal_candidate_memo(key)?; }
+        if replacing {
+            // Intrusion invalidates completion, while every earlier diagnostic
+            // edge remains the provenance of a meaningful source constraint.
+            match (self.typed_pairs.get_mut(&key).unwrap(), entry) {
+                (TypedPairMemo::Value { direct_witness, completion, .. }, TypedPairMemo::Value { direct_witness: witness, completion: next, .. }) => { *direct_witness = witness; *completion = next; }
+                (TypedPairMemo::Effect, TypedPairMemo::Effect) => {}
+                _ => unreachable!("a typed pair keeps its kind"),
+            }
+        } else { self.typed_pairs.insert(key, entry); }
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_f5c_structured_pair_top(
             0, self.typed_pairs.len(), self.typed_pairs.capacity(),
         );
         self.execution_counters.constraint_pair_admissions += 1;
         if let TypedPairKey::Value(value) = key {
-            let index = self.diagnostic_delta.len();
-            self.diagnostic_delta.push(value);
-            assert!(
-                self.diagnostic_delta_indices.insert(value, index).is_none(),
-                "a newly admitted value pair enters one diagnostic delta"
-            );
+            if !self.diagnostic_delta_indices.contains_key(&value) {
+                let index = self.diagnostic_delta.len();
+                self.diagnostic_delta.push(value);
+                self.diagnostic_delta_indices.insert(value, index);
+            }
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             {
                 self.observe_f5c_structured_pair_top(
@@ -11850,6 +11952,22 @@ impl InferenceSession {
         field: Option<FunctionField>,
     ) -> Result<(), SolveAvailabilityError> {
         let parent_edge = DiagnosticEdge { child, field };
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &self.candidate_graph {
+            if state.intrusion.diagnostic_edges.contains(&(parent, parent_edge)) {
+                return Ok(());
+            }
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            self.journal_candidate_memo(TypedPairKey::Value(parent))?;
+            self.candidate_graph.as_mut().unwrap().intrusion.diagnostic_edges
+                .try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+                undo.reserve_diagnostic_edge()?;
+            }
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        }
         let (old_capacity, new_capacity, reservation) = {
             let Some(TypedPairMemo::Value { children, .. }) =
                 self.typed_pairs.get_mut(&TypedPairKey::Value(parent))
@@ -11924,12 +12042,21 @@ impl InferenceSession {
             self.observe_typed_route_capacity(true)?;
         }
         reservation?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
         let Some(TypedPairMemo::Value { children, .. }) =
             self.typed_pairs.get_mut(&TypedPairKey::Value(parent))
         else {
             unreachable!("a semantic value pair owns its diagnostic children");
         };
         children.push(parent_edge);
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(state) = &mut self.candidate_graph {
+            state.intrusion.diagnostic_edges.insert((parent, parent_edge));
+            if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+                undo.insert_diagnostic_edge((parent, parent_edge));
+            }
+        }
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         children.observe_push();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -12254,6 +12381,8 @@ impl InferenceSession {
             for member_position in start..end {
                 let node = self.diagnostic_scc_nodes[member_position];
                 let key = self.diagnostic_delta[node];
+                #[cfg(feature = "shadow-apply-candidate")]
+                if self.candidate_graph.is_some() { self.journal_candidate_memo(TypedPairKey::Value(key))?; }
                 let Some(TypedPairMemo::Value { completion, .. }) =
                     self.typed_pairs.get_mut(&TypedPairKey::Value(key))
                 else {

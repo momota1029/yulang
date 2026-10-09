@@ -35,7 +35,11 @@ This index is a navigation aid. The listed source document remains authoritative
   parents at extrusion and equates parent/copy variables when they enter the
   same SCC. The user directly authorized implementation. Actual equality and
   SCC integration are required; unused metadata or continued internal-SCC
-  rejection does not satisfy this operation. Complete Call/cutover remain open.
+  rejection does not satisfy this operation. The
+  [implementation checkpoint](../progress/2026-10-10-parent-copy-intrusion-implementation.md)
+  connects canonical equality, live use-time recapture and actual open recursive
+  uses, with bounded M2 reviews and owning builds. Runtime verification and
+  complete Call/public cutover remain open.
 
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)

@@ -6490,3 +6490,31 @@ observer-depth and source-planning peak exclusions are documented. Repaired
 candidate and default owning builds passed without warnings. No tests, runtime
 probes or measurements ran. Next implement the user-selected parent-copy SCC
 intrusion; complete Call/public cutover remain open.
+
+
+### Parent-copy SCC intrusion checkpoint complete (2026-10-10)
+
+The directly authorized [intrusion operation](../notes/design/2026-10-10-parent-copy-scc-intrusion.md)
+is implemented in the private successor. Actual extrusion parents are retained;
+qualifying same-SCC copies/parents share canonical row identity, merged bounds,
+minimum level and non-generic state. Quiescent propagation handles equality and
+rollback. Recursive definition components register open roots first, route
+internal uses with actual occurrences, execute every member schedule, and only
+then capture member graphs.
+
+[Implementation and review evidence](../notes/progress/2026-10-10-parent-copy-intrusion-implementation.md)
+records initial M2 semantic/resource review and three bounded repair bundles.
+All accepted majors are closed: current live-root recapture preserves later
+bounds; exact per-use graphs preserve row-map correspondence; borrowed same-state
+canonical source identity preserves existing assertions; hash diagnostic dedup,
+first-write undo and cached capacity reporting avoid the reported multiplication;
+SCC scratch stays charged through merge propagation. Final owning candidate and
+default builds passed without warnings; diff checks passed. No runtime tests,
+probes or measurements ran. Pending questions remain uncommitted.
+
+This completes the user-selected intrusion implementation checkpoint on
+research/simple-sub-intrusion, not the full inference goal. Next integrate
+complete Call construction and public/default inference extraction for the
+successor, then verify the concrete recursive/generalization behavior before
+replacing F5 on yulang3. Runtime behavior, general source/public correspondence,
+structured effects/protection, soundness and principality remain uncertified.

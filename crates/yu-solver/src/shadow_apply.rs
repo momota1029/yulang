@@ -115,19 +115,6 @@ impl CandidateInference {
             return Err(CandidateError::Unsupported);
         }
         let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).map_err(CandidateError::Collection)?;
-        if batch
-            .scc_plan()
-            .components_in_dependency_first_order()
-            .any(|component| {
-                !batch
-                    .scc_plan()
-                    .internal_uses(component)
-                    .expect("owned SCC")
-                    .is_empty()
-            })
-        {
-            return Err(CandidateError::Unsupported);
-        }
         let mut session = InferenceSession::try_new(batch).map_err(CandidateError::Solve)?;
         session
             .start_candidate_graph()
@@ -155,13 +142,13 @@ impl CandidateInference {
             .root_scheme_positions
             .get(root)
             .ok_or(ArtifactMismatch)?;
-        let graph = self
+        let state = self
             .solved
             .candidate_graph
             .as_ref()
-            .and_then(|state| state.graphs[*position].as_ref())
             .ok_or(ArtifactMismatch)?;
-        Ok(CandidateGraphExport { graph })
+        let graph = state.graphs[*position].as_ref().ok_or(ArtifactMismatch)?;
+        Ok(CandidateGraphExport { state, graph })
     }
     pub fn fresh_use(&self, occurrence: &HirOccurrenceId) -> Option<CandidateGraphFreshUse<'_>> {
         if !self.solved.hir.owns_occurrence(occurrence) {
@@ -176,12 +163,11 @@ impl CandidateInference {
             });
         }
         let route = state.routes.iter().find(|route| route.use_id.occurrence() == occurrence)?;
-        let graph = state.graphs[route.target].as_ref()?;
         Some(CandidateGraphFreshUse {
             state,
             occurrence: route.use_id.occurrence(),
             rows: &route.rows,
-            graph,
+            graph: &route.graph,
         })
     }
     /// Indexed observations retain one pending construction request per source Call.
@@ -205,11 +191,13 @@ pub enum CandidateGraphLeaf {
     EmptyEffect,
 }
 pub struct CandidateGraphExport<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
 }
 impl<'a> CandidateGraphExport<'a> {
     pub fn root(&self) -> CandidateGraphNode<'a> {
         CandidateGraphNode {
+            state: self.state,
             graph: self.graph,
             index: self.graph.root,
         }
@@ -218,15 +206,17 @@ impl<'a> CandidateGraphExport<'a> {
         self.graph.nodes.len()
     }
     pub fn rows(&self) -> impl Iterator<Item = CandidateGraphRow<'a>> + 'a {
+        let state = self.state;
         let graph = self.graph;
-        (0..graph.rows.len()).map(move |index| CandidateGraphRow { graph, index })
+        (0..graph.rows.len()).map(move |index| CandidateGraphRow { state, graph, index })
     }
     pub fn bounds(&self) -> impl Iterator<Item = CandidateGraphBound<'a>> + 'a {
+        let state = self.state;
         let graph = self.graph;
         graph
             .bounds
             .iter()
-            .map(move |bound| CandidateGraphBound { graph, bound })
+            .map(move |bound| CandidateGraphBound { state, graph, bound })
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
@@ -234,6 +224,7 @@ impl<'a> CandidateGraphExport<'a> {
 }
 #[derive(Clone, Copy)]
 pub struct CandidateGraphNode<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
     index: usize,
 }
@@ -268,6 +259,7 @@ impl<'a> CandidateGraphNode<'a> {
         match self.graph.nodes[self.index] {
             crate::candidate_scheme::Node::Function { children, .. } => {
                 Some(children.map(|index| Self {
+                    state: self.state,
                     graph: self.graph,
                     index,
                 }))
@@ -278,6 +270,7 @@ impl<'a> CandidateGraphNode<'a> {
     pub fn row(self) -> Option<CandidateGraphRow<'a>> {
         match self.graph.nodes[self.index] {
             crate::candidate_scheme::Node::Row { row, .. } => Some(CandidateGraphRow {
+                state: self.state,
                 graph: self.graph,
                 index: row,
             }),
@@ -287,6 +280,7 @@ impl<'a> CandidateGraphNode<'a> {
 }
 #[derive(Clone, Copy)]
 pub struct CandidateGraphRow<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
     index: usize,
 }
@@ -298,10 +292,13 @@ impl CandidateGraphRow<'_> {
         self.graph.rows[self.index].local
     }
     pub fn same_identity(self, other: Self) -> bool {
-        std::ptr::eq(self.graph, other.graph) && self.index == other.index
+        std::ptr::eq(self.state, other.state)
+            && self.state.intrusion.rep(self.graph.rows[self.index].key)
+                == other.state.intrusion.rep(other.graph.rows[other.index].key)
     }
 }
 pub struct CandidateGraphBound<'a> {
+    state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
     bound: &'a crate::candidate_scheme::Bound,
 }
@@ -311,12 +308,14 @@ impl<'a> CandidateGraphBound<'a> {
     }
     pub fn lower(&self) -> CandidateGraphNode<'a> {
         CandidateGraphNode {
+            state: self.state,
             graph: self.graph,
             index: self.bound.lower,
         }
     }
     pub fn upper(&self) -> CandidateGraphNode<'a> {
         CandidateGraphNode {
+            state: self.state,
             graph: self.graph,
             index: self.bound.upper,
         }
@@ -356,6 +355,7 @@ pub struct CandidateGraphFreshRow<'a> {
 impl<'a> CandidateGraphFreshRow<'a> {
     pub fn source_row(&self) -> CandidateGraphRow<'a> {
         CandidateGraphRow {
+            state: self.state,
             graph: self.graph,
             index: self.index,
         }
@@ -365,7 +365,7 @@ impl<'a> CandidateGraphFreshRow<'a> {
     }
     pub fn same_identity(&self, other: &Self) -> bool {
         std::ptr::eq(self.state, other.state)
-            && self.rows[self.index] == other.rows[other.index]
+            && self.state.intrusion.rep(self.rows[self.index]) == other.state.intrusion.rep(other.rows[other.index])
     }
 }
 /// Borrowed retained candidate solver relation only. All semantic premises
@@ -1303,7 +1303,7 @@ impl InferenceSession {
                 let result = self
                     .candidate_endpoint(CandidateEndpoint::Component(result), Polarity::Negative)?;
                 let (argument_effect, return_effect) = if self.batch.candidate_graph_effects {
-                    let application_row = self.live_components[result_effect].ordinal;
+                    let EffectEndpointKey::EffectRow(application_row) = self.canonical_effect(EffectEndpointKey::EffectRow(self.live_components[result_effect].ordinal)) else { unreachable!() };
                     let level = self.effect_levels[application_row as usize];
                     let row = self.fresh_effect_at_level(level)?;
                     invocation_effect = Some(row);
