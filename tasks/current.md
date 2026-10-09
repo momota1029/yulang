@@ -7109,3 +7109,32 @@ No production source-owned attachment or second solver was enabled; the scheme
 `(int -> ['b, io] 'c) -> int -> ['b] 'c` remains the unexecuted source target.
 No canonical DAG node was closed, no new semantic question was opened, and
 `yulang3` was not changed.
+
+### Formal-effect admission reduction and Function-only debt circuit (2026-10-10)
+
+Two research-only checkpoints were pushed after the callback target correction:
+[`4d5991b37`](../notes/progress/2026-10-10-formal-effect-admission-construct.md)
+isolates an exact identity-context bound for the currently admitted
+effect-free formal subset and gives a conditional joint finite observer for
+debt-only recursive grammars with a fixed finite mixed continuation. It does
+not certify the next effect-row constructor's recursive components.
+
+[`bda9ee399`](../notes/progress/2026-10-10-formal-effect-admission-falsify.md)
+records the Function-only source shape
+`my knot (f: 'c -> [io] 'c) = f (f f)`. Under the pinned annotation/application
+constructors and retained concrete-lower replay, it generates the prospective
+debt circuit `F -> C -> R -> C`, with a left POP on `C -> R` and unbounded
+natural debt counts. It uses no Tuple or provider backflow. The certificate is
+reviewed by one independent compiler referee with no findings in its declared
+conditional scope; see the [review record](../notes/progress/2026-10-10-formal-effect-admission-falsify-review.md).
+It is not parsed/accepted execution and does not establish a returning PUSH
+cycle. Current successor code still rejects explicit formal rows.
+
+Immediate next gate: derive the exact Effect dependency SCC for the prospective
+Function-only constructor, including
+PUSH subexpressions on recursive productions, same-kind symbolic tails,
+level-selected bounds, and parent-copy intrusion. The debt observer can cover
+only a proved debt-recursive component followed by finite PUSH consumers. If
+PUSH-bearing contexts return recursively, a separate exact mixed-recursion
+algorithm is required. Negative attachment construction, filters, use,
+generalization/freshening/rollback, public inference and F5 cutover remain open.

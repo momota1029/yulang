@@ -102,6 +102,20 @@ This index is a navigation aid. The listed source document remains authoritative
   PUSH-bearing/source-output/production gates. No new language authority or
   source-owned production attachment is enabled.
 
+- **Function-only formal effect feedback (2026-10-10, reviewed conditional source scope):**
+  The [one-formal source certificate](../progress/2026-10-10-formal-effect-admission-falsify.md)
+  shows the prospective `f (f f)` debt circuit without Tuple or provider
+  backflow, under the pinned Oracle constructors and concrete-lower replay.
+  One independent compiler referee found no issue within that conditional
+  scope; see the [review record](../progress/2026-10-10-formal-effect-admission-falsify-review.md).
+  It is not parsed/accepted source execution and has no returning PUSH cycle.
+  The [admission reduction](../progress/2026-10-10-formal-effect-admission-construct.md)
+  proves an identity-only context bound for the currently admitted effect-free
+  formal subset and gives a conditional joint debt observer. Both retain the
+  next constructor's Effect dependency SCC and mixed recursive PUSH consumer
+  as open. Explicit formal rows remain rejected by the candidate; no production
+  attachment or F5 cutover follows.
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
