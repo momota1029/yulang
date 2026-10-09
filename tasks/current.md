@@ -10,9 +10,10 @@ The active user objective is to complete type inference and replace the F5
 implementation on `yulang3`. The current working/push branch is
 `research/simple-sub-intrusion`; fetched `origin/yulang3` is its ancestor at
 `32f0a06314434c5dec12383f6b20f2cbcf472752`, with zero commits unique to that
-target and 1,915 commits unique to the research branch at the current
-checkpoint. The bounded `yu-core`/HIR/solver/types diff from that target is
-34,115 insertions and 102 deletions, largely shadow research paths, with
+target and 2,203 commits unique to the research branch at inspected checkpoint
+`7334dcfdb` (the remote target ref was rechecked directly). The bounded
+`yu-core`/HIR/solver/types diff at that checkpoint is 82 files with
+39,741 insertions and 249 deletions, largely shadow research paths, with
 additional F5 source edits. Current checkpoints have been pushed only to the
 research branch. No F5 replacement or target-branch integration has occurred;
 the large branch range and all Gate E / semantic / production approval
@@ -6442,3 +6443,35 @@ an annotation-absence field. Specific unsolved obligations keep their original
 inputs; scalar success cannot stand in for a complete consumer. Complete Call,
 structured effects, general source/public correspondence, principality and
 replacement on yulang3 remain open. Pending questions remain excluded from Git.
+
+### Ordinary inference replacement owners (2026-10-10)
+
+The [cutover entrypoint map](../notes/progress/2026-10-10-ordinary-inference-cutover-map.md)
+locates the actual library default path, F5 SCC/export/use assumptions and
+public result seams. There are no existing CLI/LSP/backend inference callers
+in this workspace; this finding does not add those implementations to the
+inference replacement scope. Target yulang3 remains at 32f0a063, rechecked
+against the remote. The opening checkpoint counts are now explicitly pinned.
+
+A producer owns candidate_call.rs (new), candidate_source.rs, shadow_apply.rs
+and lib.rs for actual source inputs connected to generated native demand and
+invocation rows, plus a validating pending compiler-construction consumer.
+Complete original registration/exposure/Gen-Call-0 and carrier/result/future
+suppliers are not fabricated or treated as scalar residuals. This slice is
+in progress and not yet frozen/reviewed/built. F5 target replacement remains open.
+
+### User-selected intrusion implementation (2026-10-10)
+
+The user explicitly defined intrusion as retaining extrusion-copy parents and
+making a copy equal to its parent when both enter the same SCC, then instructed
+implementation. The [decision](../notes/design/2026-10-10-parent-copy-scc-intrusion.md)
+is direct current authority; no new question-board choice is needed for it.
+Bounded architecture mapping now targets actual row equality, parent provenance,
+variable/SCC detection, recursive internal-use integration, propagation and
+rollback. Parent metadata without working equality/SCC admission is insufficient.
+
+The separate source-Call artifact has completed both M2 initial reviews; its
+sole accepted major was missing State::Clone. A fresh producer repaired that
+one derive; focused feature build and fresh semantic delta are running. Minor
+observer-depth and source-planning peak exclusions remain disclosed limitations.
+Keep this coherent checkpoint separate from the intrusion implementation.

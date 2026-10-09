@@ -30,6 +30,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Current user-selected intrusion operation (2026-10-10):**
+  [parent-copy SCC equality](2026-10-10-parent-copy-scc-intrusion.md) retains
+  parents at extrusion and equates parent/copy variables when they enter the
+  same SCC. The user directly authorized implementation. Actual equality and
+  SCC integration are required; unused metadata or continued internal-SCC
+  rejection does not satisfy this operation. Complete Call/cutover remain open.
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
