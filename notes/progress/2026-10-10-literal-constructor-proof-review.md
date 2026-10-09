@@ -271,3 +271,12 @@ mathematical verification, not a
 machine-checked proof or executable model. No production code, test, build,
 benchmark or runtime probe is included. The canonical DAG and its aggregate
 CallMem/C0 and JOINT_DEC states remain unchanged.
+
+Research checkpoint: `c0d304113322d149acd017db2455f263e265b3e5`, pushed
+non-forcibly with the expected-parent lease at
+`111da7c6e882bf6048fb4013ab93781160983fb6`. Its tree exactly equals the local
+reviewed commit tree `939ed95d53738f45beb13847df54f8808ca7a5b6`.
+The primary retained the original local commit on a checkpoint branch and
+aligned HEAD to the API commit without changing file contents. The subsequent
+task/index synchronization only records these reviewed scopes and this push;
+it adopts no semantics and changes no canonical DAG entry.

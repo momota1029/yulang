@@ -209,6 +209,23 @@ This index is a navigation aid. The listed source document remains authoritative
   `H_oldext`, bootstrap the complete original P, identify new roots with
   fixed old roots, close complete Call/inference gates or authorize F5.
 
+- **Reviewed literal emission and complete L collection, unadopted (2026-10-10):**
+  [definition and proof](../theory/2026-10-10-literal-emission-pipeline-proof.md)
+  constructs the formal/Name/literal source spine, Call-owned argument operand,
+  new concrete checking/operator/result declarations, acyclic Application/Code/
+  result-consumer sequence, full contextual IF, tagged emission and local O0.
+  It proves termination, exact inversion, whole action, unchanged old Keep
+  semantics and finite ordered collection/extraction for the **defined**
+  `RuleCall_L` envelope. The new `CertCall_L` has nine explicit dependent rows;
+  no unavailable original generic certificate declaration is assumed.
+  The complete old operator arms remain at their own original indices,
+  including W/Z/Option 2, independent admission and output-dependent futures.
+  Both independent fresh delta reviews passed; [review and scope](../progress/2026-10-10-literal-constructor-proof-review.md)
+  are checkpointed at `c0d304113`. These new declarations/rules are unadopted,
+  and this is not equality with an original literal rule, an original-consumer
+  or Generalize eligibility bridge, a proof of law inhabitance, a semantic
+  solver, complete Call acceptance or F5. The canonical DAG is unchanged.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)
