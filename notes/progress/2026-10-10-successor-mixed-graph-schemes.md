@@ -7,6 +7,7 @@ Scope: nonshipping top-level graph generalization and actual incoming-use routin
 Authority: current Simple-sub correction and existing source/constraint contracts;
 no new semantic adoption or production publication authority
 Mode: M2; compiler-referee and performance-auditor; measurement budget zero
+Implementation commit: `ae70f4c82`
 
 ## Operational implementation
 
@@ -88,6 +89,14 @@ git diff --check
 Both owning builds passed without warnings. The candidate build was repeated
 after the accessor repair and passed. No tests, execution probes, benchmarks or
 workspace-wide suite ran. Measurement consumption: zero processes and samples.
+
+The concurrent remote checkpoint `eed17418c` was inspected and merged at
+`ff5211424`. It adds two test-only modules and four `cfg(test)`/`shadow-f5`
+registration lines, plus its independent execution/review record. Its recorded
+two complete-bound and five deferred-call successes concern the existing live
+core at the stated external baseline; they are not execution evidence for this
+new graph scheme or successor observer. The merged production dependency cone
+is unchanged, so no build or test repetition was needed for that registration.
 
 Final code SHA-256 before integrating the separate remote test registration:
 

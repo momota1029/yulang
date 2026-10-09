@@ -6173,6 +6173,13 @@ no stronger resource certificate is claimed. Candidate/default owning Cargo
 checks passed without warnings; candidate check also passed after the repair.
 No tests, execution probes or measurements ran.
 
+The mixed-graph slice was committed at `ae70f4c82`. Concurrent remote
+`eed17418c` adds independently reviewed/executed test-only complete-bound and
+deferred-call modules; its scoped [execution record](../notes/progress/2026-10-10-simple-sub-deferred-call-implementation-review.md)
+does not exercise the new graph scheme path. The inspected merge `ff5211424`
+adds only their test registration to production-file text, with no change to
+the reviewed production dependency cone.
+
 The independently prepared next packet selects graph collection before batch
 construction, retains Apply/Group child effect components, adds one invocation
 effect row per Apply and routes callee evaluation/invocation output into the
