@@ -5455,3 +5455,16 @@ an authentic caller context, retaining the full predecessor telescope and
 guards, followed by the selected Parameter/Lambda constructors. Do not derive
 Hreg from completed `U_g`, HIR IDs, or empty captures. Hreg and all production
 and F5 cutover gates remain open.
+
+## User priority correction (2026-10-09)
+
+The user directed that practical, running type inference take priority over
+proof-system completeness. Continue toward the full inference/F5 replacement
+objective; do not make stronger characterization the default critical path
+when a correct ordinary inference slice can proceed without it. This priority
+does not authorize dropping selected call effects, protection, admission, or
+other observable contract fields. The proposed default `f 1` scalar projection
+still omits selected role/protection/admission evidence, so its production
+admission remains undecided; do not treat successful endpoint solving alone
+as a complete call judgment. No production implementation or F5 cutover gate
+is closed by this priority correction.
