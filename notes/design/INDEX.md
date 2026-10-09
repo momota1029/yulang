@@ -62,6 +62,12 @@ This index is a navigation aid. The listed source document remains authoritative
   HIR annotation construction and executable concrete/filter algebra remain
   the implementation cut; no compiler-code or runtime integration is claimed.
   See the [delivery record](../progress/2026-10-10-annotation-effect-hygiene-integration.md).
+  The later [concrete/co annotation implementation gate](2026-10-10-concrete-effect-annotation-implementation.md)
+  specifies actual whole-binding checks, positive target publication and private
+  executable effect operands. Its [initial frozen review](../progress/2026-10-10-concrete-effect-initial-review.md)
+  records three passing kernel tests, an owning build failure and accepted
+  semantic/resource repairs in progress. It does not certify source subtraction,
+  complete Call or public cutover.
 
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)

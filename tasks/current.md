@@ -6622,3 +6622,11 @@ confirmed HIR provenance reexport, depth measurement, shared view reconstruction
 and scratch ownership. Next freeze that repair, run owning build/integration and
 kernel checks, and close the findings through independent delta review. This
 stage supplies no actual source operation/subtraction or public cutover evidence.
+
+The architect also confirmed the [next closed-lifecycle retirement gate](../notes/progress/2026-10-10-candidate-closed-lifecycle-retirement-next-gate.md):
+give private candidate results their own typed owner and skip unused F5 finalizer
+startup/finish, while preserving ordinary/historical closed observers. This removes
+an actual old runtime prerequisite; it is not a transformed public scheme. Shared
+solver writes wait for the annotation repair's integration. Genuine transformed
+scheme extraction/independent use remains a subsequent design and implementation
+gate under the approved public-root policy.
