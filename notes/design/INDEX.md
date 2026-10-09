@@ -52,6 +52,18 @@ This index is a navigation aid. The listed source document remains authoritative
   connects actual Apply/Group effects and fresh invocation rows to that graph
   path; M2 static reviews and owning builds pass, with runtime evidence omitted.
 
+- **Reviewed deferred Simple-sub bound construction (2026-10-10):**
+  [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)
+  constructs finite same-index complete-inclusion accumulation, exact original
+  witness retention, and a row-only bridge to the actual solver. No immediate
+  formal resolution or satisfiability is required. The
+  [independent proof review](../progress/2026-10-10-simple-sub-complete-bound-review.md)
+  and [executed implementation review](../progress/2026-10-10-simple-sub-deferred-call-implementation-review.md)
+  record two adapter tests and five scalar/HIR deferred-call tests, including
+  actual nested result-to-argument sharing. This is a bounded research result;
+  whole Function decomposition, complete Call/C0, joint decision, source
+  Generalize/public export and fresh ordinary use are not inferred from it.
+
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and
   [SRC/SRC-J/GS/GC](../theory/2026-10-08-source-generalize-definition-and-proof.md)

@@ -6211,3 +6211,41 @@ actual source levels/nested initializer generalization using retained lexical
 ownership. Read-only packets locate those seams; do not substitute in-place
 F5 aging or a speculative registry construction. Full Call, ordinary public
 extraction and target-branch replacement remain open; the full goal is active.
+
+### Reviewed deferred Simple-sub bounds and actual solver tests (2026-10-10)
+
+The [complete construction](../notes/theory/2026-10-10-simple-sub-complete-bound-accumulation.md)
+now proves BOUND (finite same-index whole inclusion propagation with exact
+original witness retention), PATH (total discovery in the explicit finite
+Refl/Original/Compose proof language), and ROW (the actual same-level row-only
+Simple-sub storage seam). Both independent mathematical/specification reviews
+passed; the minor whole-observation projection clarification was repaired.
+The reviewed proof and [record](../notes/progress/2026-10-10-simple-sub-complete-bound-review.md)
+were pushed at `5c8efdcbc18fc493c3188a132f44491db60d739f`.
+
+The [test-only implementation and review](../notes/progress/2026-10-10-simple-sub-deferred-call-implementation-review.md)
+were pushed at `eed17418cf92bc3fd80fdbd3381a307f74d2bd1b`: two complete-bound
+adapter tests and five actual scalar/HIR deferred-call tests pass. The latter
+collect actual `invoke` and nested `relay` HIR before solver execution, preserve
+shared formal identities, directly assert nested result/argument incidence,
+and exercise late provider/result/effect replay and real contradictions.
+Both code reviewers passed with the same minor assertion gap, now repaired.
+The affected tests were rerun after the remote HIR change through `90629b2`;
+the ordinary owning package check passed. A separate compatibility-only
+allocator annotation follow-up at `489875759ef547f89ff8e29fde6ce78822c4ab7d`
+keeps atomic behavior/compiler compatibility and passes that check without
+the newly observed Rust 1.99 deprecation warnings.
+
+This removes separately supplied replay/path-certificate constructors and
+immediate formal/provider resolution from the bounded storage operation.
+PATH does not decide semantic satisfiability. The test adapter's immutable
+residual tokens/documentary references are not complete source certificates.
+Full Function/WholeArg decomposition, original CallMem/C0, general JOINT_DEC,
+Generalize/public/fresh-use correspondence and cutover stay open; the canonical
+DAG is unchanged. Basic collection still has no registry-q4 prerequisite.
+
+Active mathematical work now constructs the actual kind-qualified value/effect
+constraint graph through all four Function ports and its finite fresh graph,
+while keeping source eligibility and complete residual interpretation separate.
+An alternative generic source-use-map candidate has not supplied the actual
+original field telescope and is not promoted as a closed source theorem.
