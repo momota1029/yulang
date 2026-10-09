@@ -58,7 +58,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     }
     for expr in source.expressions() {
         if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
-            if parameter.annotation.as_ref().is_some_and(|a| !preflight_formal(&a.ty)) {
+            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !preflight_formal(&a.ty)) {
                 return Err(shadow_apply::CandidateError::Unsupported);
             }
         }
@@ -75,7 +75,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     Ok(())
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
-    ty.effects.is_none() && match &ty.value {
+    ty.effects.as_ref().is_none_or(|row| row.concrete.is_empty() && row.variables.len() == 1) && match &ty.value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument) && preflight_formal(result),
         _ => true,
     }

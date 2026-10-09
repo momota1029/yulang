@@ -6897,8 +6897,9 @@ The user's expected scheme is
 rejected the assistant's restatement that omitted the returned `int ->`
 function layer. Intermediate notes with the no-extra-arrow scheme are mistaken
 transcriptions. The example concerns the existing effect-hygiene contract,
-not a separate permission. The current candidate rejects explicit formal
-effect rows; source acceptance remains unverified.
+not a separate permission. The current candidate supports singleton
+variable-only formal effect tails as ordinary rows, but still rejects concrete
+`[E]` attachments; this example remains unaccepted and unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6941,8 +6942,8 @@ callback: its annotated `PUSH_i` cancels the incoming right `POP_i`, and its
 output-value wrapper leaves right `POP_i²`. The callback result is discarded,
 so no return to that same Function comparison is traced. This is an Oracle
 source-construction trace; it does not yet show replay returning to the same
-eligible bound slot or unbounded debt. The current successor rejects explicit
-formal effect rows and does not model this tuple route. See the updated
+eligible bound slot or unbounded debt. The current successor still rejects
+concrete formal attachments and does not model this tuple route. See the updated
 [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md)
 and [source trace](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md).
 
@@ -6977,10 +6978,10 @@ subsume; it does not show POP2 suppressing POP1. At Pos4/TV5 → Neg69/TV50,
 right POP2 is inserted and later right POP3/POP4 are subsumed. The trace lacks
 the source-origin/freshening map needed to call TV50 the named source `E`, and
 records no admitted mixed PUSH/POP context. Preserve the distinct premises and
-do not use this as an `e/E` versus `h/E` proof. The recorded callback scheme is
-provisional pending clarification of the latest correction. Positive covariant
-annotations already have a private
-source/propagation implementation. Full hygiene, complete Call,
+do not use this as an `e/E` versus `h/E` proof. The user's exact callback target
+is `(int -> ['b, io] 'c) -> int -> ['b] 'c`; it remains an unexecuted target for
+concrete contravariant subtraction. Positive covariant annotations already
+have a private source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)
@@ -7143,7 +7144,10 @@ natural debt counts. It uses no Tuple or provider backflow. The certificate is
 reviewed by one independent compiler referee with no findings in its declared
 conditional scope; see the [review record](../notes/progress/2026-10-10-formal-effect-admission-falsify-review.md).
 It is not parsed/accepted execution and does not establish a returning PUSH
-cycle. Current successor code still rejects explicit formal rows.
+cycle. A later bounded implementation accepts singleton variable-only effect
+tails on formal Function annotations as ordinary shared rows; concrete formal
+effect rows and closed `[]` remain unsupported. See the
+[implementation record](../notes/progress/2026-10-10-symbolic-formal-effect-tail-integration.md).
 
 The next frozen artifact,
 [`2026-10-10-contextual-self-discharge-falsifier.md`](../notes/progress/2026-10-10-contextual-self-discharge-falsifier.md),
@@ -7156,8 +7160,10 @@ original registration. Its [independent compiler-referee review](../notes/progre
 confirms the source ownership, filter check, and exact premise. This remains a
 conditional discriminator, not an admitted or executed witness: Oracle drops
 the candidate, and the current equal-level successor route selects an upper
-row, not the positive lower required by the fixture. Current successor also
-rejects explicit formal effect rows. The local result does not settle whether
+row, not the positive lower required by the fixture. Current successor still
+rejects concrete formal effect rows; singleton symbolic-only tails do not carry
+the contextual attachment needed by this discriminator. The local result does
+not settle whether
 upper retention is observable after extrusion and later scheme replay;
 contextual self-discharge, full Effect hygiene, complete Call, generalization,
 public cutover, and F5 replacement remain open.
@@ -7178,6 +7184,13 @@ an admitted explicit-formal witness: construction, contextual payload
 transport, replay/filter behavior and full SCC handling remain premises. See
 the [bridge review](../notes/progress/2026-10-10-upper-self-source-root-bridge-review.md)
 for the bounded independent result and exact omissions.
+
+The [symbolic formal-effect tail slice](../notes/progress/2026-10-10-symbolic-formal-effect-tail-integration.md)
+now shares named effect rows across formal ports and the whole-definition
+annotation. Its compiler-referee delta review and focused regressions close only
+that ordinary-flow case, including a late concrete lower and rollback. It does
+not implement concrete `[E]` subtraction, contextual payload transport or
+filter/replay semantics.
 
 Immediate next gate: implement the authentic explicit-formal constructor and
 contextual payload transport through capture, freshening, restoration,

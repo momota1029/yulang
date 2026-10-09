@@ -176,3 +176,120 @@ fn two_uses_of_a_local_annotated_callback_binding_freshen_independently() {
         assert!(b.iter().all(|other| !row.same_identity(other)), "each use owns fresh local rows");
     }
 }
+
+fn functions_at<'a>(graph: &CandidateGraphExport<'a>, start: CandidateGraphNode<'a>) -> Vec<[CandidateGraphNode<'a>; 4]> {
+    let mut pending = vec![start];
+    let mut visited = Vec::new();
+    let mut functions = Vec::new();
+    while let Some(node) = pending.pop() {
+        if visited.iter().any(|prior: &CandidateGraphNode<'a>| prior.same_identity(node)) { continue; }
+        visited.push(node);
+        if let Some(children) = node.children() { functions.push(children); continue; }
+        for bound in graph.bounds().filter(|bound| bound.kind() == yu_types::ComponentKind::Value) {
+            for (from, to) in [(bound.lower(), bound.upper()), (bound.upper(), bound.lower())] {
+                if from.same_identity(node) || node.row().is_some_and(|row| from.row().is_some_and(|other| row.same_identity(other))) {
+                    pending.push(to);
+                }
+            }
+        }
+    }
+    functions
+}
+
+fn effect_reaches<'a>(graph: &CandidateGraphExport<'a>, start: CandidateGraphNode<'a>, target: CandidateGraphNode<'a>) -> bool {
+    let mut pending = vec![start];
+    let mut visited = Vec::new();
+    while let Some(node) = pending.pop() {
+        if node.same_identity(target) || node.row().is_some_and(|row| target.row().is_some_and(|other| row.same_identity(other))) { return true; }
+        if visited.iter().any(|prior: &CandidateGraphNode<'a>| prior.same_identity(node)) { continue; }
+        visited.push(node);
+        for bound in graph.bounds().filter(|bound| bound.kind() == yu_types::ComponentKind::Effect) {
+            let lower = bound.lower();
+            if lower.same_identity(node) || node.row().is_some_and(|row| lower.row().is_some_and(|other| row.same_identity(other))) { pending.push(bound.upper()); }
+        }
+    }
+    false
+}
+
+#[test]
+fn symbolic_callback_tail_flows_to_the_body_effect_fiber() {
+    let hir = module("my apply (f:int -> ['e] int) = f 1; my alias = apply").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    for name in ["apply", "alias"] {
+        let graph = candidate.export(binding(&hir, name).definition_root()).unwrap();
+        let outer = functions_at(&graph, graph.root());
+        assert!(!outer.is_empty());
+        for function in outer {
+            let callbacks = functions_at(&graph, function[0]);
+            assert!(!callbacks.is_empty());
+            for callback in callbacks {
+                assert!(effect_reaches(&graph, callback[2], function[2]), "callback tail reaches its owning body result effect");
+            }
+        }
+    }
+}
+
+#[test]
+fn symbolic_tail_is_shared_across_formal_ports_in_one_binding() {
+    let hir = module("my share (f:int -> ['e] int) (g:int -> ['e] int) = g").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let graph = candidate.export(binding(&hir, "share").definition_root()).unwrap();
+    let outer = functions_at(&graph, graph.root());
+    assert!(!outer.is_empty());
+    for first in outer {
+        let first_callbacks = functions_at(&graph, first[0]);
+        let second = functions_at(&graph, first[3]);
+        assert!(!first_callbacks.is_empty() && !second.is_empty());
+        for next in second {
+            let second_callbacks = functions_at(&graph, next[0]);
+            assert!(!second_callbacks.is_empty());
+            for a in &first_callbacks {
+                for b in &second_callbacks {
+                    assert!(a[2].row().unwrap().same_identity(b[2].row().unwrap()), "same binding shares its symbolic effect coordinate");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn symbolic_local_callback_binding_uses_fresh_effect_rows() {
+    let hir = module("my answer = { my first (f:int -> ['e] int) = f; my second (f:int -> ['e] int) = f; my one = first; my two = first; second }").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let source = hir.local_source(binding(&hir, "answer").definition_root()).unwrap().unwrap();
+    let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form, LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Local(_) } if spelling.as_ref() == "first" || spelling.as_ref() == "second")).collect();
+    assert_eq!(uses.len(), 3);
+    let instances: Vec<_> = uses.iter().map(|expr| candidate.fresh_use(&expr.occurrence).unwrap()).collect();
+    for (index, instance) in instances.iter().enumerate() {
+        let effects: Vec<_> = instance.rows().filter(|row| row.source_row().is_local() && row.source_row().kind() == yu_types::ComponentKind::Effect).collect();
+        assert!(!effects.is_empty());
+        for other in &instances[index + 1..] {
+            for row in &effects {
+                assert!(other.rows().all(|other| !row.same_identity(&other)), "distinct bindings and uses own distinct effect rows");
+            }
+        }
+    }
+}
+
+#[test]
+fn symbolic_tail_spelling_does_not_share_between_definition_scopes() {
+    let hir = module("my first (f:int -> ['e] int) = f; my second (f:int -> ['e] int) = f").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let first = candidate.export(binding(&hir, "first").definition_root()).unwrap();
+    let second = candidate.export(binding(&hir, "second").definition_root()).unwrap();
+    let a: Vec<_> = functions_at(&first, first.root()).into_iter().flat_map(|outer| functions_at(&first, outer[0])).map(|callback| callback[2].row().unwrap()).collect();
+    let b: Vec<_> = functions_at(&second, second.root()).into_iter().flat_map(|outer| functions_at(&second, outer[0])).map(|callback| callback[2].row().unwrap()).collect();
+    assert!(!a.is_empty() && !b.is_empty());
+    for row in a { assert!(b.iter().all(|other| !row.same_identity(*other)), "distinct definitions retain distinct symbolic tail coordinates"); }
+}
+
+#[test]
+fn concrete_and_closed_empty_formal_effect_rows_remain_unsupported() {
+    for text in ["my f (x:int -> [] int) = x", "act io:\n    our next: () -> int\n\nmy f (x:int -> [io] int) = x"] {
+        assert!(matches!(CandidateInference::solve(module(text).unwrap()), Err(yu_solver::shadow_apply::CandidateError::Unsupported)), "{text}");
+    }
+}

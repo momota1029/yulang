@@ -43,6 +43,8 @@ pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId
 pub(super) struct State {
     pub formal_domains: HashMap<usize, Term>,
     pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
+    // Effect names share binding scope while remaining separate from value names.
+    annotation_effects: HashMap<(AnnotationScope, Box<str>), u32>,
     pub contributions: Vec<Contribution>,
     pub views: Vec<View>,
     brand: u64,
@@ -105,6 +107,7 @@ pub(super) struct Checkpoint {
     conflicts: Vec<TypedPairKey>,
     formal_domains: Vec<usize>,
     annotation_values: Vec<(AnnotationScope, Box<str>)>,
+    annotation_effects: Vec<(AnnotationScope, Box<str>)>,
     annotation_value_bytes: usize,
 }
 fn exhausted() -> SolveAvailabilityError {
@@ -124,6 +127,7 @@ impl Checkpoint {
             .and_then(|n| n.checked_add(bytes::<TypedPairKey>(self.conflicts.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<usize>(self.formal_domains.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_values.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_effects.capacity()).ok()?))
             .and_then(|n| n.checked_add(self.annotation_value_bytes))
             .ok_or_else(exhausted)
     }
@@ -150,12 +154,14 @@ impl State {
             conflicts: Vec::new(),
             formal_domains: Vec::new(),
             annotation_values: Vec::new(),
+            annotation_effects: Vec::new(),
             annotation_value_bytes: 0,
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
         for key in checkpoint.formal_domains { self.formal_domains.remove(&key); }
         for key in checkpoint.annotation_values { self.annotation_values.remove(&key); }
+        for key in checkpoint.annotation_effects { self.annotation_effects.remove(&key); }
         for key in checkpoint.conflicts {
             self.conflicts.remove(&key);
         }
@@ -191,6 +197,7 @@ impl State {
             bytes::<(TypedPairKey, Conflict)>(self.conflicts.capacity())?,
             bytes::<(usize, Term)>(self.formal_domains.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
+            bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_effects.capacity())?,
             self.nested_bytes,
             self.evidence_bytes,
         ];
@@ -208,7 +215,7 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<TypedPairKey>())
             .sum::<usize>();
         assert_eq!(state.evidence_bytes, evidence_bytes);
-        let retained_names = state.annotation_values.keys().map(|(_, name)| name.len()).sum::<usize>();
+        let retained_names = state.annotation_values.keys().chain(state.annotation_effects.keys()).map(|(_, name)| name.len()).sum::<usize>();
         assert_eq!(state.nested_bytes, retained_names);
         state.contributions.capacity() * std::mem::size_of::<Contribution>()
             + state.views.capacity() * std::mem::size_of::<View>()
@@ -219,6 +226,7 @@ impl State {
             + state.conflicts.capacity() * std::mem::size_of::<(TypedPairKey, Conflict)>()
             + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
+            + state.annotation_effects.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
             + retained_names + evidence_bytes
     }
     pub fn observe(
@@ -812,6 +820,27 @@ impl InferenceSession {
         Ok(row)
     }
 
+    fn candidate_formal_effect_variable(&mut self, scope: &AnnotationScope, name: &str, level: u32) -> Result<u32, SolveAvailabilityError> {
+        let key = (scope.clone(), Box::<str>::from(name));
+        if let Some(&row) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.get(&key) { return Ok(row); }
+        let graph = self.candidate_graph.as_mut().unwrap();
+        graph.intrusion.effect_algebra.annotation_effects.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.annotation_effects.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let row = self.fresh_effect_at_level(level)?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+        state.nested_bytes = state.nested_bytes.checked_add(name.len()).ok_or_else(exhausted)?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.annotation_value_bytes = undo.effect_algebra.annotation_value_bytes.checked_add(name.len()).ok_or_else(exhausted)?; undo.effect_algebra.annotation_effects.push(key.clone()); }
+        state.annotation_effects.insert(key, row);
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        self.record_failed_formal_sample(3)?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 3 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        Ok(row)
+    }
+
     #[cfg(test)]
     fn record_failed_formal_sample(&mut self, stage: u8) -> Result<(), SolveAvailabilityError> {
         if FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.get() == stage) {
@@ -819,8 +848,9 @@ impl InferenceSession {
             let Some(undo) = self.route_journal.as_ref()
                 .and_then(|journal| journal.intrusion.as_ref())
                 .map(|undo| &undo.effect_algebra) else { return Ok(()); };
-            assert_eq!(undo.annotation_values.iter().map(|(_, name)| name.len()).sum::<usize>(), undo.annotation_value_bytes);
+            assert_eq!(undo.annotation_values.iter().chain(undo.annotation_effects.iter()).map(|(_, name)| name.len()).sum::<usize>(), undo.annotation_value_bytes);
             assert!(undo.annotation_values.iter().all(|key| state.annotation_values.contains_key(key)));
+            assert!(undo.annotation_effects.iter().all(|key| state.annotation_effects.contains_key(key)));
             if stage == 2 {
                 assert!(!undo.formal_domains.is_empty());
                 assert!(undo.formal_domains.iter().all(|key| state.formal_domains.contains_key(key)));
@@ -831,7 +861,8 @@ impl InferenceSession {
                 + undo.conflicts.capacity() * std::mem::size_of::<TypedPairKey>()
                 + undo.formal_domains.capacity() * std::mem::size_of::<usize>()
                 + undo.annotation_values.capacity() * std::mem::size_of::<(AnnotationScope, Box<str>)>()
-                + undo.annotation_values.iter().map(|(_, name)| name.len()).sum::<usize>();
+                + undo.annotation_effects.capacity() * std::mem::size_of::<(AnnotationScope, Box<str>)>()
+                + undo.annotation_values.iter().chain(undo.annotation_effects.iter()).map(|(_, name)| name.len()).sum::<usize>();
             assert_eq!(state.bytes()?, owned);
             assert_eq!(undo.bytes()?, undo_owned);
             assert_eq!(self.execution_counters.inference_session_retained_bytes, self.resource_ledger.inference_session_retained_bytes);
@@ -843,7 +874,7 @@ impl InferenceSession {
     }
 
     fn candidate_formal_pair(&mut self, ty: &SourceAnnotationType, scope: &AnnotationScope, level: u32) -> Result<(Term, Term), SolveAvailabilityError> {
-        if ty.effects.is_some() { return Err(exhausted()); }
+        if ty.effects.as_ref().is_some_and(|row| !row.concrete.is_empty() || row.variables.len() != 1) { return Err(exhausted()); }
         match &ty.value {
             SourceAnnotationValue::Int => Ok((self.batch.collected_leaf_term(Leaf::IntPositive), self.batch.collected_leaf_term(Leaf::IntNegative))),
             SourceAnnotationValue::Unit => Ok((self.batch.collected_leaf_term(Leaf::UnitPositive), self.batch.collected_leaf_term(Leaf::UnitNegative))),
@@ -854,8 +885,8 @@ impl InferenceSession {
             SourceAnnotationValue::Function { argument, result } => {
                 let (ap, an) = self.candidate_formal_pair(argument, scope, level)?;
                 let (rp, rn) = self.candidate_formal_pair(result, scope, level)?;
-                let qa = self.fresh_effect_at_level(level)?;
-                let qr = self.fresh_effect_at_level(level)?;
+                let qa = self.candidate_formal_effect_port(argument.effects.as_ref(), scope, level)?;
+                let qr = self.candidate_formal_effect_port(result.effects.as_ref(), scope, level)?;
                 let qan = self.live_effect_term(Polarity::Negative, qa)?;
                 let qap = self.live_effect_term(Polarity::Positive, qa)?;
                 let qrn = self.live_effect_term(Polarity::Negative, qr)?;
@@ -865,9 +896,19 @@ impl InferenceSession {
         }
     }
 
+    fn candidate_formal_effect_port(&mut self, effects: Option<&SourceEffectRow>, scope: &AnnotationScope, level: u32) -> Result<u32, SolveAvailabilityError> {
+        match effects {
+            None => self.fresh_effect_at_level(level),
+            Some(row) if row.concrete.is_empty() && row.variables.len() == 1 =>
+                self.candidate_formal_effect_variable(scope, &row.variables[0], level),
+            Some(_) => Err(exhausted()),
+        }
+    }
+
     pub(super) fn candidate_formal_annotation(
         &mut self, annotation: &SourceAnnotation, parameter: usize, occurrence: &HirOccurrenceId, scope: &AnnotationScope,
     ) -> Result<(), SolveAvailabilityError> {
+        if annotation.ty.effects.is_some() { return Err(exhausted()); }
         let row = self.parameter_live_base.checked_add(u32::try_from(parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
         let level = self.value_levels[row as usize];
         if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
@@ -1139,7 +1180,9 @@ impl InferenceSession {
             return Err(exhausted());
         }
         let tail = if let Some(name) = row.variables.first() {
-            Some(if let Some(&row) = variables.get(name.as_ref()) {
+            Some(if let SignatureContext::Annotation(annotation) = context {
+                self.candidate_formal_effect_variable(&AnnotationScope::Definition(annotation.owner.clone()), name, level)?
+            } else if let Some(&row) = variables.get(name.as_ref()) {
                 row
             } else {
                 variables.try_reserve(1).map_err(|_| exhausted())?;
@@ -1241,14 +1284,17 @@ mod tests {
     #[test]
     fn paired_formal_failure_samples_live_named_and_domain_storage() {
         let name = "a".repeat(4096);
-        for stage in [2, 3] {
-            let mut session = make_session(&format!("my f (x:'{name} -> '{name}) = x"));
+        for (stage, symbolic) in [(2, false), (3, false), (2, true), (3, true)] {
+            let text = if symbolic { format!("my f (x:int -> ['{name}] int) = x") } else { format!("my f (x:'{name} -> '{name}) = x") };
+            let mut session = make_session(&text);
             let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
                 .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
             let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
-            let SourceAnnotationValue::Function { argument, .. } = &annotation.ty.value else { unreachable!() };
-            let SourceAnnotationValue::Variable(annotation_name) = &argument.value else { unreachable!() };
-            let expected_name_bytes = annotation_name.len();
+            let SourceAnnotationValue::Function { argument, result } = &annotation.ty.value else { unreachable!() };
+            let expected_name_bytes = if symbolic { result.effects.as_ref().unwrap().variables[0].len() } else {
+                let SourceAnnotationValue::Variable(annotation_name) = &argument.value else { unreachable!() };
+                annotation_name.len()
+            };
             let before_nested = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.nested_bytes;
             let mut before = None;
             FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(stage));
@@ -1270,6 +1316,7 @@ mod tests {
             let live_peak = session.resource_ledger.inference_session_peak_bytes;
             assert_eq!(state.nested_bytes, before_nested);
             assert!(state.annotation_values.is_empty());
+            assert!(state.annotation_effects.is_empty());
             assert!(state.formal_domains.is_empty());
             let surviving_state_bytes = state.bytes().unwrap();
             assert_eq!(surviving_state_bytes, state.formal_owned_bytes());
@@ -1280,6 +1327,93 @@ mod tests {
             assert_eq!(session.resource_ledger.inference_session_peak_bytes, live_peak);
         }
     }
+    #[test]
+    fn formal_and_whole_annotation_share_tail_in_the_returned_effect_fiber() {
+        let mut session = make_session("act E\nmy left (f:int -> ['e] int): (int -> ['e] int) -> (int -> ['e] int) = { my pure x = 1; pure }");
+        let owner = root(&session, "left");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert_eq!(state.annotation_effects.len(), 1, "formal and whole annotation own one shared tail");
+        let tail = state.annotation_effects[&(AnnotationScope::Definition(owner.clone()), Box::<str>::from("'e"))];
+        let component = session.batch.root_component_positions[&owner].component;
+        let value = session.live_components[component].ordinal;
+        let contribution = atom(&mut session, "E");
+        let (occurrence, cause) = cause(&session, "left", 61);
+        session.constrain_live_effect(contribution, EffectEndpointKey::EffectRow(tail), &occurrence, &cause).unwrap();
+        assert!(session.errors.is_empty());
+        let graph = session.capture_candidate_graph(value, 0).unwrap();
+        fn fiber(graph: &crate::candidate_scheme::Graph, start: usize, kind: ComponentKind) -> Vec<usize> {
+            let mut pending = vec![start];
+            let mut seen = Vec::new();
+            while let Some(node) = pending.pop() {
+                if seen.contains(&node) { continue; }
+                seen.push(node);
+                if let Node::EffectOperand { tail: Some(tail), .. } = graph.nodes[node] { pending.push(tail); }
+                for bound in graph.bounds.iter().filter(|bound| bound.kind == kind) {
+                    let same_row = match (graph.nodes[node], graph.nodes[bound.upper]) {
+                        (Node::Row { row: a, .. }, Node::Row { row: b, .. }) => graph.rows[a].key == graph.rows[b].key,
+                        _ => false,
+                    };
+                    if bound.upper == node || same_row { pending.push(bound.lower); }
+                }
+            }
+            seen
+        }
+        let outer: Vec<_> = fiber(&graph, graph.root, ComponentKind::Value).into_iter().filter_map(|index| match graph.nodes[index] {
+            Node::Function { polarity: Polarity::Positive, children } => Some(children), _ => None,
+        }).collect();
+        assert!(!outer.is_empty());
+        let mut checked = 0;
+        for function in outer {
+            for index in fiber(&graph, function[3], ComponentKind::Value) {
+                let Node::Function { polarity: Polarity::Positive, children } = graph.nodes[index] else { continue; };
+                let effects = fiber(&graph, children[2], ComponentKind::Effect);
+                // The unannotated pure implementation is also a lower; inspect
+                // the exposed annotation's returned Function at this fiber.
+                if effects.iter().any(|&index| matches!(graph.nodes[index], Node::EffectOperand { endpoint: EffectEndpointKey::Support(_), .. })) {
+                    assert!(effects.iter().any(|&index| matches!(graph.nodes[index], Node::Row { row, .. } if graph.rows[row].key == RowKey::Effect(tail))));
+                    assert!(effects.iter().any(|&index| matches!(graph.nodes[index], Node::EffectOperand { endpoint, .. } if endpoint == contribution)), "late concrete lower reaches the returned annotation effect fiber");
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0, "returned annotation effect fiber was checked");
+    }
+
+    #[test]
+    fn whole_annotation_failure_preserves_the_preexisting_formal_tail() {
+        let mut session = make_session("my left (f:int -> ['e] int): (int -> ['e] int) -> (int -> ['e] int) = { my pure x = 1; pure }");
+        let owner = root(&session, "left");
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = actions.iter().find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap() else { unreachable!() };
+        session.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
+        let names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
+        assert_eq!(names.len(), 1);
+        let candidate_source::Action::Annotation { annotation, endpoint, target, occurrence, level } = actions.iter().find(|action| matches!(action, candidate_source::Action::Annotation { .. })).unwrap() else { unreachable!() };
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_annotation(annotation, *endpoint, *target, occurrence, *level)?;
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, names);
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, names);
+    }
+
+    #[test]
+    fn symbolic_formal_tail_rows_are_scoped_to_local_bindings() {
+        let mut session = make_session("my answer = { my first (f:int -> ['e] int) = f; my second (f:int -> ['e] int) = f; second }");
+        let owner = root(&session, "answer");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let rows = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects;
+        assert_eq!(rows.len(), 2);
+        let entries: Vec<_> = rows.iter().collect();
+        assert!(entries.iter().all(|((scope, name), _)| matches!(scope, AnnotationScope::Local(_)) && name.as_ref() == "'e"));
+        assert_ne!(entries[0].0.0, entries[1].0.0);
+        assert_ne!(entries[0].1, entries[1].1);
+    }
+
     #[test]
     fn operation_nested_omitted_effect_rows_keep_their_actual_polarity_defaults() {
         let mut session = make_session("act tick:\n    our next: (() -> int) -> (int -> int)\n\nmy lookup = tick::next");

@@ -143,11 +143,11 @@ This index is a navigation aid. The listed source document remains authoritative
   original filter registration remains. An independent compiler referee
   verified the owner path and premise boundary
   [here](../progress/2026-10-10-contextual-self-discharge-falsifier-review.md).
-  Oracle drops the same-row candidate and the successor currently rejects
-  formal effect rows, so this is not an admitted witness or production
-  divergence. Equal-level successor selection is upper-oriented and does not
-  satisfy the positive-lower premise. Contextual self-discharge and its
-  successor observation rule remain open.
+  Oracle drops the same-row candidate and the successor has not enabled
+  concrete formal effect attachments or their contextual transport, so this is
+  not an admitted witness or production divergence. Equal-level successor
+  selection is upper-oriented and does not satisfy the positive-lower premise.
+  Contextual self-discharge and its successor observation rule remain open.
 
 - **Upper self retention through negative extrusion (2026-10-10, reviewed conditional source scope):**
   The [owner trace](../progress/2026-10-10-upper-self-filter-observer.md)
@@ -244,7 +244,12 @@ This index is a navigation aid. The listed source document remains authoritative
   The [primitive formal annotation delivery](../progress/2026-10-10-annotated-primitive-formal-integration.md)
   now connects grouped Int/Unit formals to executable body inference and argument
   checks. M2 review and nine new owning regressions close; the coherent phase's
-  83 focused tests/checks pass. Explicit effect formal interfaces remain open.
+  83 focused tests/checks pass. The later
+  [symbolic formal-effect tail slice](../progress/2026-10-10-symbolic-formal-effect-tail-integration.md)
+  connects singleton variable-only effect tails across formal ports and the
+  same definition's whole annotation, with focused rollback and late-lower
+  checks. Concrete formal rows, closed `[]`, contextual subtraction, owned-public
+  migration and full semantic gates remain open.
   The [paired Function formal constructor gate](../progress/2026-10-10-paired-function-formal-construction-gate.md)
   records independently reviewed shared omitted-port and binding-variable
   correspondence. The [paired formal delivery](../progress/2026-10-10-paired-function-formal-integration.md)
@@ -252,9 +257,10 @@ This index is a navigation aid. The listed source document remains authoritative
   argument flow, preserving callback effects through shared ordinary port rows.
   M2 runtime and fresh repair deltas close; 93 distinct focused tests and owning,
   workspace and default checks pass. Explicit attachments, wildcard, owned-public
-  migration and full semantic gates remain open. The user's concrete
-  `cb: (int -> [io] 'c)` / `run_io` example and a recorded scheme remain
-  provisional pending clarification of the latest correction.
+  migration and full semantic gates remain open. The user's exact callback
+  target is recorded in the hygiene integration authority:
+  `(int -> ['b, io] 'c) -> int -> ['b] 'c`. It remains an unexecuted target for
+  concrete contravariant subtraction and a real `run_io` source definition.
   The [cycle-source audit](../progress/2026-10-10-explicit-effect-termination-source-map.md)
   locates Oracle's self-edge and variable-bound guards; successor correspondence
   and negative-formal implementation remain open.
