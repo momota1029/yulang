@@ -62,6 +62,10 @@ This index is a navigation aid. The listed source document remains authoritative
   M2 review, one batched repair, fresh delta review and owning builds pass.
   Solver consumption with raised initializer levels and per-use freshening is
   the next compiler change; the sidecar alone does not establish local inference.
+  The [complete Call source-spine packet](../progress/2026-10-10-complete-call-source-spine-next-packet.md)
+  identifies existing symbolic formation constructors and their actual input
+  dependencies. Unknown-provider collection can precede role refinement;
+  no solved receipt, complete consumer or new registry is thereby supplied.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)

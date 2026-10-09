@@ -6348,3 +6348,22 @@ App rule and ordinary let freshening do not need a new semantic choice; keep
 ordinary-value q1 withdrawn and registry q4 off the basic inference path.
 Complete Call, general anchor closure, public extraction and target-branch F5
 replacement remain open. Pending question directories stay excluded from Git.
+
+### Source-level execution and complete Call next packet (2026-10-10)
+
+An implementer owns only the four solver paths for the confirmed source-directed
+execution schedule: immutable recipes with actual lexical levels; sequential
+initializer solve, boundary capture and local scheme installation; action-time
+module/local fresh uses; and direct/structural anchor closure. This live slice
+is not yet frozen, reviewed or build-verified. Keep continuation facts out of
+initializer solving until its scheme is installed. Default/public/cutover
+behavior remains outside this private implementation lease.
+
+A separate read-only owner audit produced the [complete Call source-spine
+packet](../notes/progress/2026-10-10-complete-call-source-spine-next-packet.md).
+Existing formation can retain shared formal roots, local complete demands and
+specific unsolved obligations without a known provider or early role change.
+After the source-level lease freezes, retain these at their owning construction
+points. Authentic annotation/seed provenance and complete consuming suppliers
+remain material requirements; scalar success cannot stand in for them.
+No new choice question or complete Call closure follows from this packet.
