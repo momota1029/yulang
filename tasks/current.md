@@ -6518,3 +6518,28 @@ complete Call construction and public/default inference extraction for the
 successor, then verify the concrete recursive/generalization behavior before
 replacing F5 on yulang3. Runtime behavior, general source/public correspondence,
 structured effects/protection, soundness and principality remain uncertified.
+
+
+### Annotation effect hygiene: policy/proof integration (2026-10-10)
+
+The user selected contravariant `[E]` as function-local subtraction permission
+at its effect position and covariant `[E]` as concrete allowance, ignoring type
+variables as concrete atoms. The user then requested reuse of older hygiene
+proofs and integration, with explicit policy recording as the fallback.
+
+The [selected policy and integration map](../notes/design/2026-10-10-annotation-effect-hygiene-integration.md)
+now reuses reviewed conditional transport/lifetime, owner preservation and
+exact-interface results without restarting them. It preserves source-variable
+flow, checks on later concrete lowers, original annotation ownership and
+existing attachment/support distinctions. Pure injective renaming is not a
+proof of canonical row identification. One scoped M1 conformance review found
+no issue; reference/diff checks passed; no compiler builds/tests/probes or
+measurements ran. See the [delivery record](../notes/progress/2026-10-10-annotation-effect-hygiene-integration.md).
+
+Compiler integration remains open because HIR does not retain resolved effect
+annotations and the solver alphabet lacks concrete effects and executable
+boundary filters. Next couple that annotation constructor with concrete effect
+comparison/filter propagation, capture/freshening/extrusion and equality/rollback
+preservation. Do not replace it with an unused grant bit, erase variable flow,
+or create a full Call registry/arbitrary-view proof prerequisite. The broader
+inference/F5 replacement objective remains active.

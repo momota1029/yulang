@@ -41,6 +41,17 @@ This index is a navigation aid. The listed source document remains authoritative
   uses, with bounded M2 reviews and owning builds. Runtime verification and
   complete Call/public cutover remain open.
 
+- **Current annotation effect hygiene policy (2026-10-10):**
+  [selected polarity policy and existing-proof integration](2026-10-10-annotation-effect-hygiene-integration.md)
+  records contravariant function-local concrete subtraction and covariant
+  concrete allowance. Variables are not concrete annotation atoms; their flow
+  and later concrete checks remain. Reviewed conditional hygiene transport,
+  owner/lifetime and exact-interface results are reused with their original
+  premises, without reopening them. Scoped conformance review passed. Actual
+  HIR annotation construction and executable concrete/filter algebra remain
+  the implementation cut; no compiler-code or runtime integration is claimed.
+  See the [delivery record](../progress/2026-10-10-annotation-effect-hygiene-integration.md).
+
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
   restores uniform fresh-result/callable-bound generation for literal and
