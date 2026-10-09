@@ -161,3 +161,25 @@ through construction, propagation, transport and rollback, then analyze
 termination on that representation. Keep semantics, source reachability and
 resource behavior distinct. No Cargo processes active; primary owns code,
 verification and Git.
+
+### Contextual cyclic algebra result and next consumer (2026-10-10)
+
+The direct task's constructive, falsification and pinned-source lanes are
+finished. Their exact word and upward-observer theorems passed independent
+mathematical review; the research executable's iterator and evidence-label
+repairs passed fresh independent delta review. No producer write lease or
+heavyweight build remains active at this handoff. The
+[result and scope](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
+and [full proofs](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
+are the new evidence, with the [counterexamples](../notes/progress/2026-10-10-contextual-effect-counterexamples.md)
+already checkpointed at `dd6b02ad`.
+
+Ready next method: source-owned one-ID mixed replay/Function-variance observer,
+preserving actual replay bracketing and consumed-filter ownership. The
+one-sided antichain algorithm must not silently consume evolving residual
+families or pending-POP compaction as if they were fixed active-family tests.
+No additional POP-count envelope or source-invented restriction is a solution.
+The exact finite automaton represents unbounded words; it is not a finite
+congruence of contexts. Keep freshening/intrusion/rollback implementation gates
+and the requested callback result open until the corresponding production
+constructor and consumer are implemented together and verified.

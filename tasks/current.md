@@ -6935,3 +6935,59 @@ Positive covariant annotations already have a private source/propagation
 implementation. No code or compiler tests changed in this audit; the finite
 Python model was rechecked once. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
+
+### Contextual effect cyclic algebra: exact partial solution (2026-10-10)
+
+The direct mathematical task started at remote `b69bb905` and incorporated
+upstream `2a7cc93c`'s inline colon source bridge. The
+[integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
+records a proved cyclic-algebra subsystem, not closure of the complete
+contravariant source attachment. The expected callback scheme remains
+`(int -> ['b, io] 'c) -> ['b] 'c`, still unverified in the successor.
+
+The independently reviewed
+[theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
+establishes exact finite normal-form languages for one attachment ID on any
+finite one-sided PUSH/POP graph, including arbitrary cycle powers. Balanced
+reachability plus a two-phase automaton preserves every exact POP count. A
+second theorem uses exact predecessor thresholds and Dickson's lemma to decide
+simultaneous upward active/filter observations for all initial count vectors,
+including future lower seeds. No numeric count bound, iteration cap, early
+callee resolution, complete registry, SAT prerequisite or new source rule is
+used. The POP-only self-loop omission theorem preserves only its specified
+side-effect-free active observations, not full residual-context identity.
+
+The [counterexample checkpoint](../notes/progress/2026-10-10-contextual-effect-counterexamples.md)
+is published at `dd6b02ad`. It proves that unrestricted support keys are not
+future-replay congruences, unbounded POP powers have infinitely many
+continuation-distinguishable classes, and actual normalized directed replay is
+nonassociative. These are algebraic witnesses with explicit source-reachability
+limits, not claimed source bugs in Oracle. Actual source formation confirms
+that shared rows can retain different attachment IDs.
+
+Research implementations pass 256 cyclic word graphs, 15,182 bounded actual
+walks, 3,304 decoded exact normal-form witnesses and 12,348 complete finite-DAG
+observer queries, plus large-count/correlation/late-lower/iterator controls.
+Independent code review exposed exhausted-iterator edge loss and guarded-input
+bypass; the repair and new regressions passed fresh delta review. The algebra
+checker passes 729 literal/count comparisons and 528 pair distinguishers. None
+of these counts substitutes for the general proofs. No Cargo/Oracle execution,
+runtime subtraction, production intrusion/freshening/rollback or full source
+test is claimed; no production solver was added or modified.
+
+The concrete remaining correctness boundary is the
+[source/consumer audit](../notes/progress/2026-10-10-contextual-effect-source-correspondence.md):
+Function swap/mixed replay needs its actual bracketing; row residuals change
+family payloads; compact projection observes pending POP entries even at zero
+active depth. The current finite upward observer is not a proof for those
+operations. The next smallest research cut is a source-owned single attachment
+with mixed replay and Function variance: derive a terminating exact
+active/filter consumer over its cyclic bracketed derivations, or a source
+invariant reducing them to the proved subsystem. Full residual output and the
+coupled source constructor/transport/journal then remain explicit consumers.
+
+The existing conditional hygiene/owner/lifetime/transport theorems retain their
+original premises. No canonical proof-DAG status or prerequisite was changed;
+whole termination, source soundness/completeness, principality, public owned
+schemes and `yulang3` cutover remain OPEN. No new question-board decision was
+created or consumed.
