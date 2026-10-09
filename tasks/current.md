@@ -5624,14 +5624,18 @@ and [the exact-view discriminator](../notes/progress/2026-10-10-native-reify-por
 commits `04beeef66` and `0946e42b8`. That native id/literal-0 construction does
 not yet establish a generic formal/literal-1 producer or attach the same
 literal ReturnImage to the independent Delay domain. Matching `Comp(empty,Int)`
-is insufficient to substitute its DataArg complete view for that image. Next,
-resolve the new pending [Call argument-Reify owner question](../questions/2026-10-10-original-call-argument-reify-owner/question.md):
-whether to design a generic original Call-owner registration and exact
-ReturnImage/Delay attachment with whole-action laws, or keep the current source
-rules fixed and leave this route unsupported until an existing complete
-producer is found. Only the dependent source-owner design/implementation work
-waits; unrelated inference work may continue. The question directory remains
-unstaged and uncommitted pending explicit approval and validation.
+is insufficient to substitute its DataArg complete view for that image. The
+approved [Call argument-Reify owner answer](../questions/2026-10-10-original-call-argument-reify-owner/approved-answer.md)
+selects a bounded source-rule design/construction gate for the original Call
+owner, with ordinary Value formal plus integer literal as its first case. Its
+[receipt](../questions/2026-10-10-original-call-argument-reify-owner/receipt.md)
+records validation and scope. The design must retain exact Call/argument/code/
+scope/environment/registry indices, attach the same complete ReturnImage to
+the independent Delay domain, and preserve existing registry entries, licenses
+and whole actions. This answer does not adopt emitted membership or O0/O1,
+accept `f 1`, authorize compiler implementation, solving, publication or F5
+cutover. The design gate is active; its exact producer laws require independent
+review, and downstream gates remain open.
 The tagged emission, full old-family conservation and local O0 remain
 conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
@@ -5650,3 +5654,16 @@ production routing, failure/resource policy, API or F5 cutover is authorized.
 The literal-emission direction decision is integrated; its receipt and current
 construction status remain tracked under the selected complete-Application
 gate. No pending question bundle remains from this decision.
+
+The approved annotation design's one-case owner audit is checkpointed in
+[the scoped Any-root construction attempt](../notes/theory/2026-10-10-source-annotation-any-root-construction-attempt.md),
+commit `1c185235c`. Source grammar clauses admit `0 as Any` in the ordinary
+binding-body context, but this is not an executed parse or semantic Any
+resolution. Associated HIR retains the annotation kind/range and completed
+operand, while the written TypeExpression remains only in CST; ordinary
+lowering rejects the annotation shape before solver collection. No selected
+constructor supplies the actual ordinary Any target root. The next annotation
+owner is a scoped written-Type resolution and complete Value(Any) root with
+its genuine source incidence and full membership/Top-law dependencies. This
+remains inside the approved detailed-design scope; no implementation,
+production Direct route or F5 cutover is authorized. No tests or builds ran.

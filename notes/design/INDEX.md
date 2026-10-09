@@ -119,6 +119,9 @@ This index is a navigation aid. The listed source document remains authoritative
   authorizes a detailed design only. Typed Any-root formation and its Top law,
   type-name resolution, production routing, failure/resource behavior and
   implementation remain open; keep this lane separate from Application_N.
+  The bounded [Any-root owner attempt](../theory/2026-10-10-source-annotation-any-root-construction-attempt.md)
+  finds no selected constructor for the written ordinary target root; it remains
+  conditional research and makes no implementation claim.
 
 - **Reviewed one-case source annotation design (2026-10-10):**
   [design](../theory/2026-10-10-source-owned-annotation-any-design.md) assigns
@@ -146,6 +149,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Compiler-referee and spec-auditor reviews closed after one batched repair.
   The user selected this as the next construction direction in
   `original-literal-call-emission/q1/d1`; the answer is integrated at `885e35264`.
+  The later `original-call-argument-reify-owner/q1/d1` answer authorizes only
+  a bounded design/construction gate for the generic Call-owned argument-Reify
+  registration and exact ReturnImage/Delay attachment; its receipt is at
+  `questions/2026-10-10-original-call-argument-reify-owner/receipt.md`.
   The proposed constructor, emitted membership and O0 extension remain
   unproved/unadopted; implementation, acceptance, other semantic gates and F5
   cutover remain open. A later bounded source inversion found that native
