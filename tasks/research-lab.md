@@ -65,3 +65,19 @@ workflow, then invalidate only packets whose assumptions changed.
 This workflow change does not authorize production inference cutover, broaden a
 supported source envelope, close a theorem, or require new user decisions about
 settled language semantics. The existing current-task objective remains intact.
+
+## 2026-10-10 coherent checkpoint queue
+
+- Value entry effect gate: source repair and test repairs frozen, M2 review
+  deltas clean; historical graph observer closure/check pass, 62 distinct focused
+  tests and owning/workspace checks pass. Primary
+  owns integration and all Cargo verification.
+- Formal filter transition contract: research-only checkpoint `9d7967c3a`;
+  independent source review found missing filter registration/erasure at row
+  insertion. `formal_filter_insertion_repair` has an exclusive two-path lease:
+  `notes/progress/2026-10-10-formal-filter-transition-contract.md` and
+  `tools/research_formal_filter_transition_contract.py`. Repair active, no
+  production authority, hygiene closure or theorem status promotion.
+- Formal source constructor/lifetime/output projection and independently owned
+  public schemes remain genuine next gates. Previous architecture mapping is
+  private proposal evidence, not approved public API or cutover.

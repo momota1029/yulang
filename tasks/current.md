@@ -6745,3 +6745,26 @@ their actual owners, then migrate independent public schemes/default entrypoint.
 Complete Call, hygiene, soundness/principality and target `yulang3` cutover
 remain required; no proof node is declared closed by this resource removal.
 Historical public observer/default F5 owners remain real migration targets.
+
+### Bare Value entry admission withdrawal (2026-10-10)
+
+The [bounded source-owner repair](../notes/progress/2026-10-10-value-entry-effect-integration.md)
+replaces the candidate lambda's closed-empty argument-effect admission port with
+formal-level entry/invocation rows and ordinary `entry <= invocation`,
+`bodyE <= invocation` constraints. Unused, identity, alias, local, recursive and
+higher-order effectful argument uses are accepted; source lookup/construction
+stay pure, and independent invocation/result fibers and rollback are checked.
+M2 semantic/regression review and repaired test deltas are clean; historical
+graph observer pre-write and closure reviews pass. 62 distinct focused tests,
+default/owning all-target all-feature and workspace checks pass without warnings. This is a runtime
+constraint dependency withdrawal, not a closed semantic theorem or native
+execution certification.
+
+Next: retain source-owned entry roles through whole-binding annotations and
+scheme transport; construct actual negative formal annotation and function-local
+Value/effect filter boundaries, then independent public scheme publication and
+default migration. Full Call, hygiene, soundness/principality and `yulang3` cutover
+remain required. Formal-filter research checkpoint `9d7967c3a` has an accepted
+source-correspondence defect: Oracle consumes/registers filters at row bound
+insertion. A disjoint research-only repair is active; do not adopt its old
+retained-filter transition or treat bounded checker agreement as hygiene proof.

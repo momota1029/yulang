@@ -312,8 +312,8 @@ impl ConstraintBatch {
                                 root_component: pos.value, body_value_endpoint: endpoints[body_index], body_effect_component: body.effect, lambda_effect_component: pos.effect,
                                 after_collected_fact: self.occurrences.len(),
                             });
-                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
-                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(3).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(3).ok_or_else(unavailable)?;
                             push(&mut actions, Action::Lambda(recipe))?;
                             continue;
                         }

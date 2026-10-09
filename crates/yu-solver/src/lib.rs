@@ -11127,7 +11127,45 @@ impl InferenceSession {
             Polarity::Positive,
             self.live_components[recipe.body_effect_component].ordinal,
         )?;
-        let function = self.positive_function_term(argument, empty, body_effect, result)?;
+        let (argument_effect, return_effect) = if self.candidate_graph_enabled() {
+            // Bare source parameters force the argument at entry, including
+            // unused parameters. Lookup remains pure after that rebinding.
+            let level = self.value_levels[parameter as usize];
+            let entry = self.fresh_effect_at_level(level)?;
+            let returned = self.fresh_effect_at_level(level)?;
+            let entry_positive = self.live_effect_term(Polarity::Positive, entry)?;
+            let return_negative = self.live_effect_term(Polarity::Negative, returned)?;
+            for (slot, lower) in [(3, entry_positive), (4, body_effect)] {
+                let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), slot);
+                let occurrence = ConstraintOccurrence {
+                    cause: CauseId::for_occurrence(id.clone()),
+                    id,
+                    lower,
+                    upper: return_negative,
+                };
+                self.store.admit_and_record_provenance(&occurrence)
+                    .map_err(SolveAvailabilityError::from)?;
+                let transitions = self.constrain_live_effect(
+                    self.effect_endpoint(lower, Polarity::Positive),
+                    self.effect_endpoint(return_negative, Polarity::Negative),
+                    &occurrence.id,
+                    &occurrence.cause,
+                )?;
+                #[cfg(test)]
+                { self.summary_false_to_true_transitions += transitions; }
+                #[cfg(not(test))]
+                let _ = transitions;
+                #[cfg(test)]
+                if slot == 3 && VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
+            (self.live_effect_term(Polarity::Negative, entry)?,
+             self.live_effect_term(Polarity::Positive, returned)?)
+        } else {
+            (empty, body_effect)
+        };
+        let function = self.positive_function_term(argument, argument_effect, return_effect, result)?;
         let root = self.batch.component_term_at(recipe.root_component);
         let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 2);
         let occurrence = ConstraintOccurrence {
@@ -31990,5 +32028,181 @@ mod tests {
                 assert_cause_mismatch_precedes_begin(&mut session, &route_id, incoming);
             }
         }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod value_entry_effect_tests {
+    use super::*;
+
+    fn session(text: &str) -> InferenceSession {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty(), "valid source fixture");
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("value-entry", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap()
+    }
+
+    fn invocation_has_tick(session: &InferenceSession, row: u32) -> bool {
+        let family = &session.batch.hir.source_effect_declarations()[0].id;
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        // Normalize both stored orientations once. Same-level a <= b may exist
+        // only as an upper edge on a; traversal still starts at this invocation.
+        let mut incoming = std::collections::HashMap::<EffectEndpointKey, Vec<EffectEndpointKey>>::new();
+        for (index, bounds) in session.effect_bounds.iter().enumerate() {
+            let owner = session.canonical_effect(EffectEndpointKey::EffectRow(index as u32));
+            for lower in bounds.direct_lower_rows.iter().copied().map(EffectEndpointKey::EffectRow)
+                .chain(bounds.exact_non_variable_lowers.iter().copied()) {
+                incoming.entry(owner).or_default().push(session.canonical_effect(lower));
+            }
+            for upper in bounds.direct_upper_rows.iter().copied().map(EffectEndpointKey::EffectRow)
+                .chain(bounds.exact_non_variable_uppers.iter().copied()) {
+                incoming.entry(session.canonical_effect(upper)).or_default().push(owner);
+            }
+        }
+        let mut pending = vec![EffectEndpointKey::EffectRow(row)];
+        let mut seen = std::collections::HashSet::new();
+        while let Some(endpoint) = pending.pop() {
+            let endpoint = session.canonical_effect(endpoint);
+            if !seen.insert(endpoint) { continue; }
+            match endpoint {
+                EffectEndpointKey::Contribution(index) if &algebra.contributions[index as usize].effect == family => return true,
+                EffectEndpointKey::AnnotationMember(view, member) if &algebra.views[view as usize].allowed[member as usize] == family => return true,
+                EffectEndpointKey::Support(view) => {
+                    let view = &algebra.views[view as usize];
+                    if view.allowed.contains(family) { return true; }
+                    if let Some(tail) = view.tail { pending.push(EffectEndpointKey::EffectRow(tail)); }
+                }
+                _ => {}
+            }
+            if let Some(lowers) = incoming.get(&endpoint) { pending.extend(lowers.iter().copied()); }
+        }
+        false
+    }
+
+    fn call_invocation(session: &InferenceSession, name: &str) -> u32 {
+        let owner = session.batch.hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
+            _ => None,
+        }).unwrap();
+        session.batch.candidate_calls.calls.iter().find(|call| &call.owner == owner)
+            .unwrap().native.as_ref().unwrap().invocation_row
+    }
+
+    #[test]
+    fn value_entry_routes_argument_support_into_the_complete_invocation() {
+        for body in [
+            "my ignore x = (); my answer = ignore (tick::next())",
+            "my ident x = x; my answer = ident (tick::next())",
+            "my ignore x = (); my alias = ignore; my answer = alias (tick::next())",
+            "my outer x = { my ignore y = (); ignore x }; my answer = outer (tick::next())",
+            "my apply f = f (tick::next()); my ignore x = (); my answer = apply ignore",
+            "my ignore x = (); my pure = ignore 1; my answer = ignore (tick::next())",
+            "my recur x = recur; my answer = recur (tick::next())",
+        ] {
+            let mut session = session(&format!("act tick:\n    our next: () -> int\n\n{body}"));
+            session.execute().unwrap();
+            assert!(session.errors.is_empty(), "{body}");
+            assert!(invocation_has_tick(&session, call_invocation(&session, "answer")), "{body}");
+            if body.contains("my pure") {
+                assert!(!invocation_has_tick(&session, call_invocation(&session, "pure")), "fresh pure invocation: {body}");
+            }
+        }
+    }
+
+    #[test]
+    fn lambda_and_parameter_lookup_keep_exact_pure_source_facts() {
+        let mut session = session("my ident x = x");
+        let recipe = session.batch.lambda_recipes[0].clone();
+        // These are the actual source Lambda and parameter Name components,
+        // rather than a solved Function's entry or invocation effects.
+        for component in [recipe.lambda_effect_component, recipe.body_effect_component] {
+            let term = session.batch.component_term_at(component);
+            let pure = session.batch.occurrences.iter().filter(|fact| {
+                (fact.upper == term && matches!(session.store.term_view(fact.lower), Ok(TermView::Leaf(Leaf::EffectBottomPositive))))
+                    || (fact.lower == term && matches!(session.store.term_view(fact.upper), Ok(TermView::Leaf(Leaf::EmptyEffectNegative))))
+            }).count();
+            assert_eq!(pure, 2);
+        }
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        for component in [recipe.lambda_effect_component, recipe.body_effect_component] {
+            let row = session.live_components[component].ordinal;
+            let EffectEndpointKey::EffectRow(row) = session.canonical_effect(EffectEndpointKey::EffectRow(row)) else { panic!("source effect row"); };
+            assert!(session.effect_bounds[row as usize].has_bottom_lower);
+            assert!(session.effect_bounds[row as usize].has_empty_upper);
+            assert!(!session.effect_bounds[row as usize].exact_non_variable_lowers.iter().any(|endpoint| matches!(endpoint, EffectEndpointKey::Contribution(_) | EffectEndpointKey::Support(_) | EffectEndpointKey::AnnotationMember(_, _))));
+        }
+    }
+
+    #[test]
+    fn source_entry_relation_replays_a_later_test_supplied_lower() {
+        let mut session = session("act tick:\n    our next: () -> int\n\nmy outer x = { my ident y = y; ident }");
+        let recipe = session.batch.lambda_recipes.iter().max_by_key(|recipe| session.batch.candidate_source.parameter_levels[&recipe.parameter_position]).unwrap().clone();
+        let parameter = session.parameter_live_base + recipe.parameter_position as u32;
+        let level = session.value_levels[parameter as usize];
+        assert_eq!(level, session.batch.candidate_source.parameter_levels[&recipe.parameter_position]);
+        assert_eq!(level, 2, "the local lambda retains its actual nested source level");
+        session.admit_lambda_fact(&recipe).unwrap();
+        let provenance = session.store.provenance().iter().find(|edge| {
+            let id = edge.cause().occurrence();
+            id.occurrence() == &recipe.occurrence && id.local_slot() == 2
+        }).unwrap();
+        let fact = session.store.facts().iter().find(|fact| fact.id() == provenance.fact()).unwrap();
+        let source_function = fact.lower();
+        let root_row = session.live_components[recipe.root_component].ordinal;
+        assert!(session.bounds[root_row as usize].exact_non_variable_lowers.contains(&ValueEndpointKey::PositiveFunction(source_function)), "the live source root receives its Function");
+        let TermView::PositiveFunction { argument_effect, result_effect, .. } = session.store.term_view(fact.lower()).unwrap() else { panic!("source Function"); };
+        let EffectEndpointKey::EffectRow(entry) = session.effect_endpoint(argument_effect, Polarity::Negative) else { panic!("live entry"); };
+        let EffectEndpointKey::EffectRow(invocation) = session.effect_endpoint(result_effect, Polarity::Positive) else { panic!("live invocation"); };
+        assert_ne!(entry, invocation);
+        assert_eq!(session.effect_levels[entry as usize], level);
+        assert_eq!(session.effect_levels[invocation as usize], level);
+        assert!(!session.effect_metadata[entry as usize].non_generic);
+        assert!(!session.effect_metadata[invocation as usize].non_generic);
+        assert!(!invocation_has_tick(&session, invocation));
+        // A test-supplied atom probes future lower replay; it is not a runtime
+        // Call event or evidence for complete Call semantics.
+        let declaration = &session.batch.hir.source_effect_declarations()[0];
+        let effect = declaration.id.clone();
+        let origin = declaration.operations[0].signature_position.clone();
+        let lower = session.candidate_effect_contribution(effect, origin).unwrap();
+        let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 90);
+        session.constrain_live_effect(lower, EffectEndpointKey::EffectRow(entry), &id, &CauseId::for_occurrence(id.clone())).unwrap();
+        assert!(invocation_has_tick(&session, invocation));
+        let unrelated = session.fresh_effect_at_level(level).unwrap();
+        assert!(!invocation_has_tick(&session, unrelated));
+        assert!(session.errors.is_empty());
+    }
+
+    #[test]
+    fn value_entry_first_edge_failure_rolls_back_and_retries() {
+        let mut session = session("my ignore x = ()");
+        let recipe = session.batch.lambda_recipes[0].clone();
+        let before = RouteCheckpoint::capture(&session);
+        VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.set(true));
+        assert_eq!(session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)),
+            Err(SolveAvailabilityError::IdentityExhausted));
+        before.assert_restored(&session);
+        session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
+        assert_eq!(session.effect_bounds.len(), before.effect_bounds.len() + 2);
+        assert_eq!(session.store.facts().len(), before.store.facts.len() + 3);
+    }
+
+    #[test]
+    fn value_entry_initial_failure_publishes_no_candidate() {
+        let initial = session("my ignore x = ()");
+        VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.set(true));
+        assert!(matches!(initial.run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
+        assert!(session("my ignore x = ()").run_candidate().is_ok());
     }
 }

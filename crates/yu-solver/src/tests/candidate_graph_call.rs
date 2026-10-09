@@ -99,7 +99,16 @@ fn candidate_call_function<'a>(graph: &CandidateGraphExport<'a>) -> [CandidateGr
         assert_eq!(node.row().expect("symbolic function port").kind(), kind);
     }
     assert_eq!(children[1].polarity(), Polarity::Negative);
-    assert_eq!(children[1].leaf(), Some(CandidateGraphLeaf::EmptyEffect));
+    let entry_effect = children[1].row().expect("symbolic entry effect port");
+    assert_eq!(entry_effect.kind(), ComponentKind::Effect);
+    assert!(
+        !entry_effect.same_identity(children[2].row().unwrap()),
+        "entry and invocation effects have distinct rows"
+    );
+    assert!(
+        candidate_call_reaches(graph, children[1], children[2], ComponentKind::Effect),
+        "entry effect reaches invocation effect"
+    );
     children
 }
 

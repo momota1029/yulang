@@ -998,12 +998,12 @@ impl ConstraintBatch {
         self.counters.emitted_facts = self
             .counters
             .emitted_facts
-            .checked_add(1)
+            .checked_add(if self.candidate_graph_effects { 3 } else { 1 })
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         self.counters.generated_work_items = self
             .counters
             .generated_work_items
-            .checked_add(1)
+            .checked_add(if self.candidate_graph_effects { 3 } else { 1 })
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         Ok(())
     }
@@ -1151,12 +1151,12 @@ impl ConstraintBatch {
         self.counters.emitted_facts = self
             .counters
             .emitted_facts
-            .checked_add(1)
+            .checked_add(if self.candidate_graph_effects { 3 } else { 1 })
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         self.counters.generated_work_items = self
             .counters
             .generated_work_items
-            .checked_add(1)
+            .checked_add(if self.candidate_graph_effects { 3 } else { 1 })
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         Ok(lambda_effect_component)
     }

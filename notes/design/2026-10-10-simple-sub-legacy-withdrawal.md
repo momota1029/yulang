@@ -75,6 +75,17 @@ and failure behavior. Candidate inference no longer depends on success of an
 unused F5 reservation. This is runtime dependency removal, not proof discharge;
 genuine semantic obligations and public migration remain open.
 
+## Implemented candidate source entry admission retirement
+
+The [Value entry delivery](../progress/2026-10-10-value-entry-effect-integration.md)
+removes the candidate source lambda's closed-empty argument-effect admission
+requirement. Source-level entry/invocation rows and normal constraints replace
+the rejected early purity condition; source parameter lookup and lambda
+construction remain pure. This removes an implementation dependency, not a
+proof obligation needed for complete Call, hygiene, soundness or principality.
+Authentic source-role transport through annotations and public schemes remains
+required before complete migration.
+
 ## Related authority
 
 - [Parent/copy SCC intrusion](2026-10-10-parent-copy-scc-intrusion.md).

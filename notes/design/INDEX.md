@@ -137,6 +137,10 @@ This index is a navigation aid. The listed source document remains authoritative
   M2 review, 66 focused tests and owning/workspace checks pass. Typed operation
   interface provenance survives ordinary transport; lookup remains pure.
   Complete execution consumers and public cutover remain open.
+  The [Value entry effect repair](../progress/2026-10-10-value-entry-effect-integration.md)
+  replaces candidate source lambda's early purity admission with ordinary
+  entry-to-invocation constraint flow. Source-role transport through annotations,
+  native consumers and full semantic certification remain open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates
