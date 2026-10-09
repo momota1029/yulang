@@ -837,6 +837,8 @@ pub struct ConstraintBatch {
     candidate_recipes: Vec<shadow_apply::CandidateConstraintRecipe>,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_own_row_references: bool,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_graph_effects: bool,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
     /// semantic key remains the artifact-branded definition root.
     root_definition_positions: HashMap<DefinitionRootId, usize>,
@@ -868,6 +870,16 @@ impl ConstraintBatch {
         hir: Arc<HirModule>,
         candidate_values: bool,
     ) -> Result<Self, CollectionAvailabilityError> {
+        Self::collect_candidate_mode(hir, candidate_values, false)
+    }
+
+    fn collect_candidate_mode(
+        hir: Arc<HirModule>,
+        candidate_values: bool,
+        candidate_graph_effects: bool,
+    ) -> Result<Self, CollectionAvailabilityError> {
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        let _ = candidate_graph_effects;
         let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
         let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
         let mut batch = Self {
@@ -898,6 +910,8 @@ impl ConstraintBatch {
             candidate_recipes: Vec::new(),
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_own_row_references: candidate_values,
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_graph_effects,
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),

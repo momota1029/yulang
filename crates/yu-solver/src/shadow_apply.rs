@@ -107,7 +107,7 @@ impl CandidateInference {
         }) {
             return Err(CandidateError::Unsupported);
         }
-        let batch = ConstraintBatch::collect_mode(hir, true).map_err(CandidateError::Collection)?;
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).map_err(CandidateError::Collection)?;
         if batch
             .scc_plan()
             .components_in_dependency_first_order()
@@ -801,12 +801,17 @@ pub(super) type CandidateEndpoint = LambdaValueEndpoint;
 pub(super) enum CandidateRelation {
     Group {
         child: CandidateEndpoint,
+        child_effect: usize,
         result: usize,
+        result_effect: usize,
     },
     Apply {
         callee: CandidateEndpoint,
+        callee_effect: usize,
         argument: CandidateEndpoint,
+        argument_effect: usize,
         result: usize,
+        result_effect: usize,
     },
 }
 #[derive(Clone, Debug)]
@@ -865,15 +870,20 @@ impl ConstraintBatch {
             .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
         formals.push(outer_position);
         formals.push(inner_position);
-        let (callee, _) = self.emit_candidate_expression(callee, &mut formals, parent, uses)?;
-        let (argument, _) = self.emit_candidate_expression(argument, &mut formals, parent, uses)?;
+        let (callee, callee_effect) =
+            self.emit_candidate_expression(callee, &mut formals, parent, uses)?;
+        let (argument, argument_effect) =
+            self.emit_candidate_expression(argument, &mut formals, parent, uses)?;
         let call = self.candidate_component(occurrence)?;
         self.retain_candidate_relation(
             occurrence,
             CandidateRelation::Apply {
                 callee,
+                callee_effect,
                 argument,
+                argument_effect,
                 result: call.value,
+                result_effect: call.effect,
             },
         )?;
         self.occurrence_component(inner_occurrence.clone(), ComponentKind::Value)?;
@@ -964,7 +974,9 @@ impl ConstraintBatch {
         };
         self.occurrence_component_positions
             .insert(occurrence.clone(), positions);
-        self.candidate_pure_effect(occurrence, positions.effect)?;
+        if !self.candidate_graph_effects {
+            self.candidate_pure_effect(occurrence, positions.effect)?;
+        }
         Ok(positions)
     }
     fn candidate_pure_effect(
@@ -987,15 +999,23 @@ impl ConstraintBatch {
         self.candidate_recipes
             .try_reserve(1)
             .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        let fact_count = if self.candidate_graph_effects {
+            match &relation {
+                CandidateRelation::Group { .. } => 2,
+                CandidateRelation::Apply { .. } => 3,
+            }
+        } else {
+            1
+        };
         self.counters.emitted_facts = self
             .counters
             .emitted_facts
-            .checked_add(1)
+            .checked_add(fact_count)
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         self.counters.generated_work_items = self
             .counters
             .generated_work_items
-            .checked_add(1)
+            .checked_add(fact_count)
             .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
         self.candidate_recipes.push(CandidateConstraintRecipe {
             occurrence: occurrence.clone(),
@@ -1162,13 +1182,16 @@ impl ConstraintBatch {
                 positions
             }
             ResolvedExpr::Group { inner, .. } => {
-                let (child, _) = self.emit_candidate_expression(inner, formals, parent, uses)?;
+                let (child, child_effect) =
+                    self.emit_candidate_expression(inner, formals, parent, uses)?;
                 let positions = self.candidate_component(occurrence)?;
                 self.retain_candidate_relation(
                     occurrence,
                     CandidateRelation::Group {
                         child,
+                        child_effect,
                         result: positions.value,
+                        result_effect: positions.effect,
                     },
                 )?;
                 positions
@@ -1176,16 +1199,20 @@ impl ConstraintBatch {
             ResolvedExpr::Apply {
                 callee, argument, ..
             } => {
-                let (callee, _) = self.emit_candidate_expression(callee, formals, parent, uses)?;
-                let (argument, _) =
+                let (callee, callee_effect) =
+                    self.emit_candidate_expression(callee, formals, parent, uses)?;
+                let (argument, argument_effect) =
                     self.emit_candidate_expression(argument, formals, parent, uses)?;
                 let positions = self.candidate_component(occurrence)?;
                 self.retain_candidate_relation(
                     occurrence,
                     CandidateRelation::Apply {
                         callee,
+                        callee_effect,
                         argument,
+                        argument_effect,
                         result: positions.value,
+                        result_effect: positions.effect,
                     },
                 )?;
                 positions
@@ -1220,23 +1247,44 @@ impl InferenceSession {
         &mut self,
         recipe: &CandidateConstraintRecipe,
     ) -> Result<(), SolveAvailabilityError> {
+        let mut invocation_effect = None;
         let (lower, upper) = match recipe.relation {
-            CandidateRelation::Group { child, result } => (
+            CandidateRelation::Group { child, result, .. } => (
                 self.candidate_endpoint(child, Polarity::Positive)?,
                 self.candidate_endpoint(CandidateEndpoint::Component(result), Polarity::Negative)?,
             ),
             CandidateRelation::Apply {
                 callee,
                 argument,
+                argument_effect,
                 result,
+                result_effect,
+                ..
             } => {
                 let callee = self.candidate_endpoint(callee, Polarity::Positive)?;
                 let argument = self.candidate_endpoint(argument, Polarity::Positive)?;
                 let result = self
                     .candidate_endpoint(CandidateEndpoint::Component(result), Polarity::Negative)?;
-                let bottom = self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
-                let empty = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
-                let demand = self.negative_function_term(argument, bottom, empty, result)?;
+                let (argument_effect, return_effect) = if self.batch.candidate_graph_effects {
+                    let application_row = self.live_components[result_effect].ordinal;
+                    let level = self.effect_levels[application_row as usize];
+                    let row = self.fresh_effect_at_level(level)?;
+                    invocation_effect = Some(row);
+                    (
+                        self.live_effect_term(
+                            Polarity::Positive,
+                            self.live_components[argument_effect].ordinal,
+                        )?,
+                        self.live_effect_term(Polarity::Negative, row)?,
+                    )
+                } else {
+                    (
+                        self.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+                        self.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    )
+                };
+                let demand =
+                    self.negative_function_term(argument, argument_effect, return_effect, result)?;
                 (callee, demand)
             }
         };
@@ -1262,7 +1310,68 @@ impl InferenceSession {
         }
         #[cfg(not(test))]
         let _ = transitions;
+        if self.batch.candidate_graph_effects {
+            match recipe.relation {
+                CandidateRelation::Group {
+                    child_effect,
+                    result_effect,
+                    ..
+                } => {
+                    self.admit_candidate_effect(
+                        recipe,
+                        1,
+                        self.live_components[child_effect].ordinal,
+                        self.live_components[result_effect].ordinal,
+                    )?;
+                }
+                CandidateRelation::Apply {
+                    callee_effect,
+                    result_effect,
+                    ..
+                } => {
+                    let result = self.live_components[result_effect].ordinal;
+                    self.admit_candidate_effect(
+                        recipe,
+                        1,
+                        self.live_components[callee_effect].ordinal,
+                        result,
+                    )?;
+                    self.admit_candidate_effect(
+                        recipe,
+                        2,
+                        invocation_effect.expect("graph Apply allocates its invocation effect"),
+                        result,
+                    )?;
+                }
+            }
+        }
         self.sample_f4_resources(ResourceBoundary::InitialAdmission)
+    }
+
+    fn admit_candidate_effect(
+        &mut self,
+        recipe: &CandidateConstraintRecipe,
+        slot: u8,
+        lower: u32,
+        upper: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), slot);
+        let occurrence = ConstraintOccurrence {
+            cause: CauseId::for_occurrence(id.clone()),
+            id,
+            lower: self.live_effect_term(Polarity::Positive, lower)?,
+            upper: self.live_effect_term(Polarity::Negative, upper)?,
+        };
+        self.store
+            .admit_and_record_provenance(&occurrence)
+            .map_err(SolveAvailabilityError::from)?;
+        self.constrain_live_effect(
+            EffectEndpointKey::EffectRow(lower),
+            EffectEndpointKey::EffectRow(upper),
+            &occurrence.id,
+            &occurrence.cause,
+        )?;
+        Ok(())
     }
 }
 

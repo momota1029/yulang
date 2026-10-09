@@ -6188,3 +6188,26 @@ construction and formal fetch remain distinct from invocation. Full Call,
 polarity-copy extrusion, public publication and target-branch F5 replacement
 remain open; no registry adoption or new semantic question is needed for these
 existing scalar effect-flow relations.
+
+### Successor source Apply/Group effects (2026-10-10)
+
+The [source effect implementation record](../notes/progress/2026-10-10-successor-source-effect-flow.md)
+now selects graph collection before batch construction, retains callee/argument
+and Group child effects, and generates a fresh invocation-effect row per Apply.
+Argument evaluation enters the negative Function demand; callee evaluation and
+invocation output enter application evaluation through separately attributed
+facts. Captured-local Apply uses the same flow. Graph Apply/Group no longer
+receive fixed-empty upper facts. Formal fetch, Lambda construction and the
+legacy/default paths retain their existing contracts.
+
+M2 compiler/resource reviews found no BLOCKING/major finding in the frozen
+delta. Candidate/default owning Cargo checks passed without warnings; no tests,
+execution probes or measurements ran. Source-operation counters and retained
+recipe size accounting cover the added work, while full propagated-task cost
+and failed-attempt high-water evidence remain unmeasured.
+
+Next implement the graph-only Simple-sub polarity-copy bound owner and connect
+actual source levels/nested initializer generalization using retained lexical
+ownership. Read-only packets locate those seams; do not substitute in-place
+F5 aging or a speculative registry construction. Full Call, ordinary public
+extraction and target-branch replacement remain open; the full goal is active.

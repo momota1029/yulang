@@ -48,6 +48,9 @@ This index is a navigation aid. The listed source document remains authoritative
   to private SCC/incoming-use execution. M2 review and owning builds cover that
   implementation slice; source Call effect generation and runtime verification
   remain the next work, with complete Call/publication/cutover still open.
+  The [source effect-flow checkpoint](../progress/2026-10-10-successor-source-effect-flow.md)
+  connects actual Apply/Group effects and fresh invocation rows to that graph
+  path; M2 static reviews and owning builds pass, with runtime evidence omitted.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and
