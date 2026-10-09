@@ -6290,8 +6290,10 @@ were repaired. The two affected tests passed again after repair.
 Before publication, concurrent `334fd35` changed candidate bounds to directional
 ownership and selected-side restoration. The full remote delta was preserved;
 all 13 new focused tests passed on the rebased tree without assertion changes.
-This revalidates runtime behavior, while the existing theorem stays pinned to
-`280d399e`; its latest-owner directional proof delta is under construction.
+This revalidates runtime behavior, while the earlier theorem stays pinned to
+`280d399e`. The [directional source theorem](../notes/theory/2026-10-10-candidate-directional-source-correspondence.md)
+now derives the changed owner/restoration rules directly; its independent
+mathematical and specification reviews passed with no findings.
 
 This supplies new construction and execution evidence for the existing
 nonshipping candidate graph path, not ordinary certified source acceptance or
@@ -6348,6 +6350,42 @@ App rule and ordinary let freshening do not need a new semantic choice; keep
 ordinary-value q1 withdrawn and registry q4 off the basic inference path.
 Complete Call, general anchor closure, public extraction and target-branch F5
 replacement remain open. Pending question directories stay excluded from Git.
+
+### Reviewed directional source membership construction (2026-10-10)
+
+The [new theorem and review](../notes/progress/2026-10-10-candidate-directional-source-review.md)
+close the actual level-one constructor correspondence at `334fd35`. Source
+locality and identity extrusion follow from real startup/admission/use owners.
+Active membership closedness starts with actual empty lists and memo; rooted
+capture retains a closed subset through every owner membership and all four
+Function children. Fresh restoration explicitly inserts each source slot on
+its recorded side using one typed map. Its induced memberships stay within the
+renamed closed set, so the final pre-receiver logical set is exactly `M(C)`.
+The subsequent receiving-root active solve preserves the invariant for the next
+actual dependency-ordered capture. No supplied saturation or completed graph
+is assumed, and no immediate provider/effect solution is required.
+
+Both independent reviewers passed the full frozen proof with no findings.
+Current invocation flow is `e.upper re`, not old paired `re.lower e`; possible
+omission of the pure Name predecessor is explicit. The proof does not assume
+idle restoration visits every opposite slot despite its changing index boundary.
+It establishes membership-set equality and seed insertion, not physical slot,
+comparison-cache, terminal-diagnostic or complete source evidence equivalence.
+The 13 targeted tests passed on the directional implementation without assertion
+changes. Later HIR-only `801e16e` leaves all four solver owners unchanged; its new
+local carrier entrypoint remains outside these ordinary candidate source tests.
+All 13 focused tests also passed after that HIR merge, with no assertion changes
+or warnings; the new local-source entrypoint itself remains unexecuted here.
+
+This removes the changed constructor/replay assumptions at the bounded seam.
+General unequal-level source inference, original complete Call/C0 and JOINT,
+source-Generalize/public scheme correspondence and F5 cutover remain open.
+No canonical DAG status or language/public-contract choice changed. The full
+production inference objective remains active; no stronger all-active snapshot
+or arbitrary abstract-predicate decision theorem is imposed as a prerequisite.
+The later live-let correction is binding: this theorem's finite worklist
+closure is not completed initializer solving and creates no mandatory immutable
+local-scheme barrier. Its scope is the pinned module-graph implementation.
 
 ### Source-level execution and complete Call next packet (2026-10-10)
 

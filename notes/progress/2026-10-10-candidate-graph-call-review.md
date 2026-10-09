@@ -188,9 +188,9 @@ Call goal immediately satisfiable during generation, and this result adds none.
 The primary synchronized `tasks/current.md` and `notes/design/INDEX.md`, including
 the earlier reviewed raw-graph checkpoint. No pending question adoption is
 included. The subsequently observed remote polarity-copy implementation changes
-the bound owner/replay rules; this theorem remains explicitly pinned until its
-separate constructive delta is reviewed. No assertion about unchanged replay
-rules is inferred merely from rebasing these files.
+the bound owner/replay rules. The separate completed directional proof is linked
+below, while this theorem remains explicitly pinned to its original owner.
+No assertion about unchanged replay rules follows merely from rebasing these files.
 
 ## Latest remote revalidation
 
@@ -206,5 +206,8 @@ On the rebased tree, the same focused four-module command passed all 13 tests,
 warnings. This is runtime revalidation of the new same-level source path and
 unchanged legacy helpers. It does not execute a younger-row polarity copy.
 The `280d399e` theorem remains pinned: new replay reinstalls the captured owner
-side, not the old paired-edge seed submission. A constructive directional delta
-is being proved independently before any latest-owner theorem is claimed.
+side, not the old paired-edge seed submission. The subsequently completed
+[directional theorem/review](2026-10-10-candidate-directional-source-review.md)
+derives that new behavior independently. Both mathematical and specification
+reviewers passed it without findings; the old theorem remains pinned rather
+than silently reinterpreted.
