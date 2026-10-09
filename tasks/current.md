@@ -5880,3 +5880,23 @@ source-owned registry design gate, or keep `P_old` external and park this Call
 path. The complete Call contract is unchanged. The q3 directory is pending and
 must remain uncommitted; independent inference work continues where it does not
 depend on this registry.
+
+### Built-in `any` name versus semantic root (2026-10-10)
+
+The approved lowercase name rule resolves source `any` only. A focused design-
+obligation audit classifies retaining the exact `q_type`, lexical scope and
+resolved builtin incidence as reconstruction debt at syntax association and
+written-Type lowering. It classifies the complete ordinary `Value(Any)` root
+and hereditary Top law as genuine soundness/natural-inference obligations;
+current constructors do not supply them. The negative F5 Top node and a
+quantifier upper bound are not substitutes for that source-owned root. No
+implementation or new Any semantics are authorized by the name decision.
+
+The next useful independent gate is a reviewed builtin descriptor-introduction
+package naming every genuine membership interpretation, guard, evidence
+binder, scope/dependency field and Top-law supplier for `my widened = 0 as any`.
+Drafting that package needs no additional choice while it reuses existing
+selected meaning; if it needs a new semantic clause, stop and route that exact
+clause through a separate approval. Broad arbitrary-view characterization is
+not a prerequisite for this one-case design unless a concrete dependency is
+found.
