@@ -7168,20 +7168,26 @@ confirm that the prior Empty-filter discriminator does not observe upper-only
 retention in its local no-lower trace. Negative extrusion separately creates a
 positive parent-to-copy lower and copies selected uppers without replay;
 parent metadata alone is not an SCC edge. A later scheme may observe the
-context if it reaches original T plus an anchored copy, but this source
-interface and attachment-payload transport are unproved. No admitted source
-witness or safe-discharge theorem follows.
+context if it reaches original T plus an anchored copy. The independently
+reviewed [source-root bridge](../notes/progress/2026-10-10-upper-self-source-root-bridge.md)
+now derives a real omitted-row route where the later scheme reaches original T
+and anchored copy C through the retained formal domain and captured lower.
+Conditionally, a separate symbolic-only formal routes Empty to fresh T' and
+distinguishes retaining versus dropping the contextual PUSH upper. This is not
+an admitted explicit-formal witness: construction, contextual payload
+transport, replay/filter behavior and full SCC handling remain premises. See
+the [bridge review](../notes/progress/2026-10-10-upper-self-source-root-bridge-review.md)
+for the bounded independent result and exact omissions.
 
-Immediate next gate: use the reviewed upper-self/extrusion trace to establish
-whether an actual later scheme reaches original T and an anchored copy with
-the annotation payload intact, then specify the smallest exact contextual
-constructor/replay/filter observer. Keep the paired-`as` left-only result
-separate from the formal-lambda callback route; map the latter's complete
-Effect dependency SCC, including PUSH subexpressions, same-kind symbolic tails,
-and parent-copy intrusion. Existing recursive full-left-pair observers do not
-cover arbitrary mixed recursion. Negative attachment construction, filters,
-use, generalization/freshening/rollback, public inference and F5 cutover remain
-open.
+Immediate next gate: implement the authentic explicit-formal constructor and
+contextual payload transport through capture, freshening, restoration,
+filtering and replay, then run the bridge's keep/drop source mutation and map
+the complete Effect dependency SCC, including PUSH subexpressions, same-kind
+symbolic tails, and parent-copy intrusion. Keep the paired-`as` left-only
+result separate from the formal-lambda callback route; existing recursive
+full-left-pair observers do not cover arbitrary mixed recursion. Negative
+attachment construction, filters, use, generalization/freshening/rollback,
+public inference and F5 cutover remain open.
 
 ### Returning recursive PUSH: direct source instance solved (2026-10-10)
 

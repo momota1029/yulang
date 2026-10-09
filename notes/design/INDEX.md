@@ -158,9 +158,17 @@ This index is a navigation aid. The listed source document remains authoritative
   select an upper when both rows are fresh, or a positive lower when the left
   row is an outer anchor. The [independent review](../progress/2026-10-10-upper-self-filter-observer-review.md)
   confirms these owner paths and keeps the source-reachability and contextual
-  payload premises open. No admitted counterexample or safe-discharge theorem
-  follows; the next gate is to establish the original-row/anchored-copy source
-  interface and exact payload transport.
+  payload premises open. The separately reviewed
+  [source-root bridge](../progress/2026-10-10-upper-self-source-root-bridge.md)
+  establishes a real omitted-row source route that retains original T and an
+  anchored negative-extrusion copy C in one later scheme. Its conditional
+  extension supplies an Empty observer through a separate symbolic-only
+  formal. The independent
+  [bridge review](../progress/2026-10-10-upper-self-source-root-bridge-review.md)
+  found no issues in that bounded derivation. Explicit formal-row construction,
+  contextual payload transport, filter/replay and whole-source SCC behavior
+  remain premises; this is still not an admitted counterexample or a safe-
+  discharge theorem.
 
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
