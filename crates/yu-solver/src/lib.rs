@@ -16665,6 +16665,10 @@ impl InferenceSession {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+    #[cfg(feature = "shadow-f5")]
+    mod complete_bound_constraints;
+    #[cfg(feature = "shadow-f5")]
+    mod deferred_call_constraints;
     mod f5c_binder_substitution;
     mod f5c_depth_limit;
     mod f5c_flat_walk_sink;
