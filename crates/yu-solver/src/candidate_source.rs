@@ -22,6 +22,7 @@ pub(super) enum Action {
     Module(HirOccurrenceId),
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
+    Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
 impl Plan {
     pub fn bytes(&self) -> usize {
@@ -29,6 +30,9 @@ impl Plan {
             checked_capacity_bytes::<(DefinitionRootId, Vec<Action>)>(self.schedules.capacity(), "source schedules"),
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
+            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
+                if let Action::Annotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else { 0 }
+            }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
             checked_capacity_bytes::<HirLocalId>(self.locals.capacity(), "source local identities"),
@@ -47,6 +51,9 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
     Ok(())
 }
 pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
+    if source.annotation().is_some_and(|annotation| annotation.ty.effects.is_some() || !preflight_annotation(&annotation.ty, true)) {
+        return Err(shadow_apply::CandidateError::Unsupported);
+    }
     for expr in source.expressions() {
         if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous, .. }) {
             return Err(shadow_apply::CandidateError::Unsupported);
@@ -54,6 +61,17 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     }
     Ok(())
 }
+fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
+    if let Some(row) = &ty.effects {
+        if row.variables.len() > 1 || (!positive && !row.concrete.is_empty()) { return false; }
+    }
+    match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
+            preflight_annotation(argument, !positive) && preflight_annotation(result, positive),
+        _ => true,
+    }
+}
+
 pub(super) fn retain_placeholder_errors(expr: &ResolvedExpr, permitted: &mut HashSet<yu_hir::HirErrorId>) -> Result<(), shadow_apply::CandidateError> {
     // The HIR carrier owns this unsupported legacy placeholder. Its successful
     // source formation is checked separately; unrelated diagnostics stay visible.
@@ -277,9 +295,20 @@ impl ConstraintBatch {
         }
         let root = self.root_component_positions[source.definition_root()].component;
         let body = source.body().ordinal() as usize;
-        push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
-        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
-        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+        if let Some(annotation) = source.annotation() {
+            // Prepare the annotation constructor's primitives before sealing,
+            // including bodies whose source expressions contain no literals.
+            for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
+                self.term_for_leaf(leaf)?;
+            }
+            push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
+            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+        } else {
+            push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
+            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+        }
         self.candidate_source.schedules.try_reserve(1).map_err(|_| unavailable())?;
         self.candidate_source.schedules.insert(source.definition_root().clone(), actions);
         self.candidate_source.active = true;
@@ -360,6 +389,7 @@ impl InferenceSession {
                 }
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
+                Action::Annotation { annotation, endpoint, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level)?,
             }
         }
         Ok(())

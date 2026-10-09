@@ -68,6 +68,10 @@ This index is a navigation aid. The listed source document remains authoritative
   records three passing kernel tests, an owning build failure and accepted
   semantic/resource repairs in progress. It does not certify source subtraction,
   complete Call or public cutover.
+  The [later implementation delivery](../progress/2026-10-10-concrete-effect-annotation-implementation.md)
+  closes those bounded repairs with independent delta review, 43 focused passing
+  tests and warning-free owning checks. Default-parser deep-input stack safety
+  remains a separate recorded gap; source subtraction/public cutover remain open.
 
 - **Current Simple-sub correction (2026-10-10):**
   [algorithm and code reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)

@@ -79,7 +79,14 @@ impl CandidateInference {
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         let mut calls = Vec::new();
         let mut permitted_errors = HashSet::new();
+        let mut declaration_errors = HashSet::new();
+        for declaration in hir.source_effect_declarations() {
+            declaration_errors.extend(declaration.placeholder_errors.iter().copied());
+        }
         for item in hir.items() {
+            if let HirItem::Error { errors, .. } = item {
+                if !errors.is_empty() && errors.iter().all(|error| declaration_errors.contains(error)) { continue; }
+            }
             if let HirItem::Binding(binding) = item {
                 if let Some(source) = hir.local_source(binding.definition_root())
                     .map_err(|_| CandidateError::Unsupported)? {
@@ -96,8 +103,8 @@ impl CandidateInference {
             preflight_expression(expr, &mut calls, &mut permitted_errors)?;
         }
         if hir.errors().iter().any(|error| {
-            !permitted_errors.contains(&error.id())
-                || error.kind() != HirErrorKind::UnsupportedExpression
+            !(permitted_errors.contains(&error.id()) && error.kind() == HirErrorKind::UnsupportedExpression)
+                && !(declaration_errors.contains(&error.id()) && error.kind() == HirErrorKind::UnsupportedItem)
         }) {
             return Err(CandidateError::Unsupported);
         }
@@ -157,6 +164,19 @@ impl CandidateInference {
             graph: &route.graph,
         })
     }
+    pub fn effect_conflict(&self, kind: SolverErrorKind) -> Result<CandidateEffectConflict<'_>, ArtifactMismatch> {
+        let SolverErrorKind::IncompatibleEffect { operand, annotation } = kind else { return Err(ArtifactMismatch); };
+        let state = &self.solved.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion.effect_algebra;
+        let (operand, annotation) = state.observe(operand, annotation).ok_or(ArtifactMismatch)?;
+        let operand = match operand {
+            crate::candidate_effect::ObservedOperand::Contribution(value) => CandidateEffectOperand::Contribution { effect: &value.effect, origin: &value.origin, instance: value.instance },
+            crate::candidate_effect::ObservedOperand::AnnotationMember { view, member, effect } => CandidateEffectOperand::AnnotationMember { annotation: CandidateEffectAnnotation { owner: &view.owner, position: &view.position }, member, effect },
+        };
+        Ok(CandidateEffectConflict {
+            operand,
+            annotation: annotation.map(|view| CandidateEffectAnnotation { owner: &view.owner, position: &view.position }),
+        })
+    }
     /// Indexed observations retain one pending construction request per source Call.
     pub fn source_call_count(&self) -> usize { self.solved.candidate_calls.calls.len() }
     pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
@@ -165,6 +185,18 @@ impl CandidateInference {
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
     }
+}
+pub enum CandidateEffectOperand<'a> {
+    Contribution { effect: &'a yu_hir::shadow::SourceEffectId, origin: &'a yu_hir::shadow::SourceNodeKey, instance: u32 },
+    AnnotationMember { annotation: CandidateEffectAnnotation<'a>, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
+}
+pub struct CandidateEffectConflict<'a> {
+    pub operand: CandidateEffectOperand<'a>,
+    pub annotation: Option<CandidateEffectAnnotation<'a>>,
+}
+pub struct CandidateEffectAnnotation<'a> {
+    pub owner: &'a DefinitionRootId,
+    pub position: &'a yu_hir::shadow::SourceNodeKey,
 }
 /// Exact immutable leaf of the private retained graph.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -237,7 +269,7 @@ impl<'a> CandidateGraphNode<'a> {
     pub fn polarity(self) -> Polarity {
         use crate::candidate_scheme::{Atom, Node};
         match self.graph.nodes[self.index] {
-            Node::Row { polarity, .. } | Node::Function { polarity, .. } => polarity,
+            Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
             Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::EffectBottom) => Polarity::Positive,
             Node::Leaf(_) => Polarity::Negative,
         }

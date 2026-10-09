@@ -5,6 +5,7 @@ Scope: Private executable representation and the first source/consumer slice
 Authority: user-authorized integration; annotation-effect-hygiene-integration §1, §4
 Reviewed-by: architect and independent compiler-referee, 2026-10-10
 Supersedes: no language contract or theorem
+Implementation: bounded private concrete/co checkpoint verified; source subtraction and public cutover remain open
 
 This implements the [selected policy](2026-10-10-annotation-effect-hygiene-integration.md),
 not a new interpretation. The first coupled slice forms actual nullary `act E;`
@@ -135,3 +136,9 @@ These owner repairs were confirmed by the architect after the initial frozen
 review. The [review/check record](../progress/2026-10-10-concrete-effect-initial-review.md)
 records remaining implementation findings; this design does not claim they are
 already repaired.
+
+The later [implementation delivery](../progress/2026-10-10-concrete-effect-annotation-implementation.md)
+records independent repair closure, 43 focused passing tests and warning-free
+owning checks. It also records the separate default-parser stack gap; dedicated
+deep-fixture workers verify HIR's parsed-artifact contract only. No complete
+Call, source subtraction, general soundness/principality or F5 cutover is inferred.

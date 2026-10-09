@@ -218,6 +218,10 @@ mod candidate_extrusion;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_intrusion;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_effect;
+#[cfg(feature = "shadow-apply-candidate")]
+pub use candidate_effect::{EffectOperandHandle, EffectAnnotationHandle};
+#[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
 #[cfg(feature = "shadow-f5")]
 pub mod shadow_f5;
@@ -747,6 +751,14 @@ struct CanonicalValuePairKey {
 enum EffectEndpointKey {
     BottomPositive,
     EmptyNegative,
+    #[cfg(feature = "shadow-apply-candidate")]
+    Contribution(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    Allowance(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    Support(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    AnnotationMember(u32, u32),
     /// This ordinal is allocated by `InferenceSession`, never by collection.
     EffectRow(u32),
 }
@@ -3890,6 +3902,8 @@ impl SolvedProjection {
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SolverErrorKind {
+    #[cfg(feature = "shadow-apply-candidate")]
+    IncompatibleEffect { operand: EffectOperandHandle, annotation: Option<EffectAnnotationHandle> },
     CrossKind {
         lower: ComponentKind,
         upper: ComponentKind,
@@ -11537,6 +11551,9 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId,
         cause: &CauseId,
     ) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        let previous_processing = self.candidate_processing(None);
+        let result = (|| {
         assert!(
             self.typed_worklist.is_empty(),
             "constrain begins with an empty worklist"
@@ -11547,6 +11564,7 @@ impl InferenceSession {
         loop {
             #[cfg(feature = "shadow-apply-candidate")]
             if self.typed_worklist.is_empty() && self.candidate_graph.is_some() {
+                self.candidate_task_scope(initial);
                 self.settle_candidate_intrusion(match initial { LiveConstraintTask::Value(root) => Some(root), _ => None })?;
             }
             let Some(item) = self.typed_worklist.pop_front() else {
@@ -11562,9 +11580,15 @@ impl InferenceSession {
             if matches!(item.task, LiveConstraintTask::Value(_)) {
                 self.typed_pair_worklist_pops += 1;
             }
+            #[cfg(feature = "shadow-apply-candidate")]
+            self.candidate_task_scope(item.task);
             match item.task {
                 LiveConstraintTask::Effect(lower, upper) => {
                     let key = TypedPairKey::Effect { lower, upper };
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if self.candidate_graph.is_some() {
+                        self.candidate_enqueue_evidence(LiveConstraintTask::Effect(self.canonical_effect(lower), self.canonical_effect(upper)))?;
+                    }
                     if self.pair_is_current(key) {
                         self.execution_counters.constraint_pair_duplicates += 1;
                     } else {
@@ -11770,6 +11794,8 @@ impl InferenceSession {
                 }
             }
         }
+        #[cfg(feature = "shadow-apply-candidate")]
+        { self.candidate_processing(None); self.candidate_replay_effect_conflicts(initial, occurrence, cause)?; }
         self.complete_diagnostic_delta()?;
         if let LiveConstraintTask::Value(root) = initial {
             self.replay_witness(root, occurrence, cause)?;
@@ -11788,9 +11814,15 @@ impl InferenceSession {
             "constrain drains its worklist before return"
         );
         Ok(transitions)
+        })();
+        #[cfg(feature = "shadow-apply-candidate")]
+        { self.candidate_processing(previous_processing); }
+        result
     }
 
     fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        self.candidate_enqueue_evidence(task)?;
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_back(TypedWorkItem { task });
@@ -11806,6 +11838,8 @@ impl InferenceSession {
     }
 
     fn enqueue_front(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        self.candidate_enqueue_evidence(task)?;
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_front(TypedWorkItem { task });
@@ -12974,7 +13008,9 @@ impl InferenceSession {
         lower: ValueShape,
         upper: ValueShape,
     ) -> Result<(), SolveAvailabilityError> {
-        let kind = SolverErrorKind::IncompatibleValue { lower, upper };
+        self.report_solver_kind(occurrence, cause, SolverErrorKind::IncompatibleValue { lower, upper })
+    }
+    fn report_solver_kind(&mut self, occurrence: &ConstraintOccurrenceId, cause: &CauseId, kind: SolverErrorKind) -> Result<(), SolveAvailabilityError> {
         let key = (occurrence.clone(), kind);
         if !self.reported_errors.contains(&key) {
         reserve_typed_route_lane!(

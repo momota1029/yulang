@@ -16,6 +16,8 @@ use crate::{AssociationError, HirExpr, associate_chain_owned, range_of};
 
 #[cfg(any(feature = "shadow", test))]
 pub(crate) mod local_source;
+#[cfg(any(feature = "shadow", test))]
+pub(crate) mod source_annotation;
 
 /// A compiler-supplied, already-normalized file key.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -793,6 +795,8 @@ pub struct HirModule {
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -927,6 +931,10 @@ fn lower_module_with_counters(
     }
     let recoveries = validated_recoveries(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
+    #[cfg(any(feature = "shadow", test))]
+    if counters.local_source {
+        counters.effect_declarations = source_annotation::declarations(&root, identity.module(), &counters.source_nodes)?;
+    }
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
         let ordinal = u32::try_from(index).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
@@ -959,7 +967,7 @@ fn lower_module_with_counters(
         if definition_root.is_some() {
             counters.definition_root_allocation_bytes += std::mem::size_of::<DefinitionRootId>();
         }
-        items.push(lower_plan(
+        let item = lower_plan(
             plan,
             parsed,
             &namespace,
@@ -972,7 +980,14 @@ fn lower_module_with_counters(
             &artifact,
             &mut next_occurrence_ordinal,
             &mut scope,
-        )?);
+        )?;
+        #[cfg(any(feature = "shadow", test))]
+        if counters.local_source && plan.node.kind() == SyntaxKind::ActDeclaration {
+            let declaration = counters.effect_declarations.iter_mut().find(|declaration| declaration.range == plan.range)
+                .ok_or(HirAvailabilityError::StructuralProjection)?;
+            if let HirItem::Error { errors, .. } = &item { declaration.placeholder_errors.extend(errors.iter().copied()); }
+        }
+        items.push(item);
     }
     Ok(HirModule {
         artifact,
@@ -982,6 +997,8 @@ fn lower_module_with_counters(
         captured_source: None,
         #[cfg(any(feature = "shadow", test))]
         local_sources: std::mem::take(&mut counters.local_sources),
+        #[cfg(any(feature = "shadow", test))]
+        effect_declarations: std::mem::take(&mut counters.effect_declarations),
         identity,
         source_revision: parsed.revision(),
         items,
@@ -1009,6 +1026,8 @@ struct LoweringCounters {
     local_source: bool,
     #[cfg(any(feature = "shadow", test))]
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
+    #[cfg(any(feature = "shadow", test))]
+    effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
     #[cfg(any(feature = "shadow", test))]
     shadow_applications: bool,
     #[cfg(any(feature = "shadow", test))]
@@ -2112,7 +2131,11 @@ fn plain_binding_header(
     if target.kind() != SyntaxKind::Pattern || has_recovery(target) {
         return None;
     }
-    let pattern_children = target.children().collect::<Vec<_>>();
+    let pattern_children = target.children().filter(|_child| {
+        #[cfg(any(feature = "shadow", test))]
+        if _counters.local_source && _child.kind() == SyntaxKind::PatternTypeAnnotation { return false; }
+        true
+    }).collect::<Vec<_>>();
     let (head, tails) = pattern_children.split_first()?;
     let head = identifier_pattern_name(head)?;
     #[cfg(any(feature = "shadow", test))]

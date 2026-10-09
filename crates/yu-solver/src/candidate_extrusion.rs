@@ -7,24 +7,8 @@ struct Key(ExtrusionEndpoint, Polarity, u32);
 enum Work {
     Visit(Key),
     Function(Key, [Key; 4], [Term; 4]),
-    Bound(ExtrusionEndpoint, Polarity, Key),
-}
-fn push<T>(items: &mut Vec<T>, item: T) -> Result<(), SolveAvailabilityError> {
-    items
-        .try_reserve(1)
-        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-    items.push(item);
-    Ok(())
-}
-fn insert(
-    map: &mut HashMap<Key, ExtrusionEndpoint>,
-    key: Key,
-    value: ExtrusionEndpoint,
-) -> Result<(), SolveAvailabilityError> {
-    map.try_reserve(1)
-        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-    map.insert(key, value);
-    Ok(())
+    EffectView(Key, u32, Key),
+    Bound(ExtrusionEndpoint, Polarity, Key, crate::candidate_effect::BoundKey),
 }
 fn opposite(p: Polarity) -> Polarity {
     match p {
@@ -47,162 +31,281 @@ impl InferenceSession {
         // Finish structural nodes before following selected row bounds. A
         // bound may name the Function currently being rebuilt through a row.
         let mut pending_bounds = Vec::new();
-        let root = Key(self.canonical_extrusion(initial), polarity, level);
-        push(&mut work, Work::Visit(root))?;
-        while let Some(task) = work.pop().or_else(|| pending_bounds.pop()) {
-            match task {
-                Work::Visit(key @ Key(endpoint, p, target)) => {
-                    if rows.contains_key(&key) || structure.contains_key(&key) {
-                        continue;
-                    }
-                    let row = match endpoint {
-                        ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)) => {
-                            Some((false, i, self.value_levels[i as usize]))
-                        }
-                        ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(i)) => {
-                            Some((true, i, self.effect_levels[i as usize]))
-                        }
-                        _ => None,
-                    };
-                    if let Some((effect, ordinal, original_level)) = row {
-                        if original_level <= target {
-                            insert(&mut rows, key, endpoint)?;
+        let mut view_remap = HashMap::new();
+        let mut charge = 0usize;
+        let result = (|| {
+            // Account each capacity delta before nested constructors can sample it.
+            macro_rules! work_push {
+                ($items:ident, $item:expr) => {{
+                    let item = $item;
+                    let old = $items.capacity();
+                    $items
+                        .try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    self.candidate_scratch_growth(
+                        &mut charge,
+                        ($items.capacity() - old)
+                            .checked_mul(std::mem::size_of::<Work>())
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    )?;
+                    $items.push(item);
+                    Ok::<(), SolveAvailabilityError>(())
+                }};
+            }
+            macro_rules! map_insert {
+                ($map:ident, $key:expr, $value:expr) => {{
+                    let key = $key;
+                    let value = $value;
+                    let old = $map.capacity();
+                    $map.try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    self.candidate_scratch_growth(
+                        &mut charge,
+                        ($map.capacity() - old)
+                            .checked_mul(std::mem::size_of::<(Key, ExtrusionEndpoint)>())
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    )?;
+                    $map.insert(key, value);
+                    Ok::<(), SolveAvailabilityError>(())
+                }};
+            }
+            let root = Key(self.canonical_extrusion(initial), polarity, level);
+            work_push!(work, Work::Visit(root))?;
+            while let Some(task) = work.pop().or_else(|| pending_bounds.pop()) {
+                match task {
+                    Work::Visit(key @ Key(endpoint, p, target)) => {
+                        if rows.contains_key(&key) || structure.contains_key(&key) {
                             continue;
                         }
-                        let i = ordinal as usize;
-                        // Snapshot lengths before the one-sided source link.
-                        let (direct, exact) = if effect {
-                            let b = &self.effect_bounds[i];
-                            if p == Polarity::Positive {
-                                (b.direct_lower_rows.len(), b.exact_non_variable_lowers.len())
-                            } else {
-                                (b.direct_upper_rows.len(), b.exact_non_variable_uppers.len())
+                        let row = match endpoint {
+                            ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)) => {
+                                Some((false, i, self.value_levels[i as usize]))
                             }
-                        } else {
-                            let b = &self.bounds[i];
-                            if p == Polarity::Positive {
-                                (b.direct_lower_rows.len(), b.exact_non_variable_lowers.len())
-                            } else {
-                                (b.direct_upper_rows.len(), b.exact_non_variable_uppers.len())
+                            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(i)) => {
+                                Some((true, i, self.effect_levels[i as usize]))
                             }
+                            _ => None,
                         };
-                        let copy = if effect {
-                            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(
-                                self.fresh_effect_at_level(target)?,
-                            ))
-                        } else {
-                            ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(
-                                self.fresh_value_at_level(target)?,
-                            ))
-                        };
-                        self.retain_extrusion_parent(copy, endpoint, p, target)?;
-                        insert(&mut rows, key, copy)?;
-                        self.candidate_insert_bound(endpoint, opposite(p), copy)?;
-                        for n in (0..direct + exact).rev() {
-                            let bound = if effect {
+                        if let Some((effect, ordinal, original_level)) = row {
+                            if original_level <= target {
+                                map_insert!(rows, key, endpoint)?;
+                                continue;
+                            }
+                            let i = ordinal as usize;
+                            // Snapshot lengths before the one-sided source link.
+                            let (direct, exact) = if effect {
                                 let b = &self.effect_bounds[i];
-                                ExtrusionEndpoint::Effect(if n < direct {
-                                    EffectEndpointKey::EffectRow(if p == Polarity::Positive {
-                                        b.direct_lower_rows[n]
-                                    } else {
-                                        b.direct_upper_rows[n]
-                                    })
-                                } else if p == Polarity::Positive {
-                                    b.exact_non_variable_lowers[n - direct]
+                                if p == Polarity::Positive {
+                                    (b.direct_lower_rows.len(), b.exact_non_variable_lowers.len())
                                 } else {
-                                    b.exact_non_variable_uppers[n - direct]
-                                })
+                                    (b.direct_upper_rows.len(), b.exact_non_variable_uppers.len())
+                                }
                             } else {
                                 let b = &self.bounds[i];
-                                ExtrusionEndpoint::Value(if n < direct {
-                                    ValueEndpointKey::ValueRow(if p == Polarity::Positive {
-                                        b.direct_lower_rows[n]
-                                    } else {
-                                        b.direct_upper_rows[n]
-                                    })
-                                } else if p == Polarity::Positive {
-                                    b.exact_non_variable_lowers[n - direct]
+                                if p == Polarity::Positive {
+                                    (b.direct_lower_rows.len(), b.exact_non_variable_lowers.len())
                                 } else {
-                                    b.exact_non_variable_uppers[n - direct]
-                                })
+                                    (b.direct_upper_rows.len(), b.exact_non_variable_uppers.len())
+                                }
                             };
-                            let child = Key(self.canonical_extrusion(bound), p, target);
-                            push(&mut pending_bounds, Work::Bound(copy, p, child))?;
-                            push(&mut pending_bounds, Work::Visit(child))?;
+                            let copy = if effect {
+                                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(
+                                    self.fresh_effect_at_level(target)?,
+                                ))
+                            } else {
+                                ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(
+                                    self.fresh_value_at_level(target)?,
+                                ))
+                            };
+                            self.retain_extrusion_parent(copy, endpoint, p, target)?;
+                            map_insert!(rows, key, copy)?;
+                            self.candidate_insert_bound(endpoint, opposite(p), copy)?;
+                            for n in (0..direct + exact).rev() {
+                                let bound = if effect {
+                                    let b = &self.effect_bounds[i];
+                                    ExtrusionEndpoint::Effect(if n < direct {
+                                        EffectEndpointKey::EffectRow(if p == Polarity::Positive {
+                                            b.direct_lower_rows[n]
+                                        } else {
+                                            b.direct_upper_rows[n]
+                                        })
+                                    } else if p == Polarity::Positive {
+                                        b.exact_non_variable_lowers[n - direct]
+                                    } else {
+                                        b.exact_non_variable_uppers[n - direct]
+                                    })
+                                } else {
+                                    let b = &self.bounds[i];
+                                    ExtrusionEndpoint::Value(if n < direct {
+                                        ValueEndpointKey::ValueRow(if p == Polarity::Positive {
+                                            b.direct_lower_rows[n]
+                                        } else {
+                                            b.direct_upper_rows[n]
+                                        })
+                                    } else if p == Polarity::Positive {
+                                        b.exact_non_variable_lowers[n - direct]
+                                    } else {
+                                        b.exact_non_variable_uppers[n - direct]
+                                    })
+                                };
+                                let child = Key(self.canonical_extrusion(bound), p, target);
+                                work_push!(
+                                    pending_bounds,
+                                    Work::Bound(
+                                        copy,
+                                        p,
+                                        child,
+                                        crate::candidate_effect::BoundKey(endpoint, p, bound)
+                                    )
+                                )?;
+                                work_push!(pending_bounds, Work::Visit(child))?;
+                            }
+                            continue;
                         }
-                        continue;
+                        if let ExtrusionEndpoint::Effect(
+                            EffectEndpointKey::Allowance(id)
+                            | EffectEndpointKey::Support(id)
+                            | EffectEndpointKey::AnnotationMember(id, _),
+                        ) = endpoint
+                        {
+                            let tail = self
+                                .candidate_graph
+                                .as_ref()
+                                .unwrap()
+                                .intrusion
+                                .effect_algebra
+                                .views[id as usize]
+                                .tail;
+                            if let Some(tail) = tail {
+                                let child = Key(
+                                    self.canonical_extrusion(ExtrusionEndpoint::Effect(
+                                        EffectEndpointKey::EffectRow(tail),
+                                    )),
+                                    p,
+                                    target,
+                                );
+                                work_push!(work, Work::EffectView(key, id, child))?;
+                                work_push!(work, Work::Visit(child))?;
+                            } else {
+                                map_insert!(structure, key, endpoint)?;
+                            }
+                            continue;
+                        }
+                        let ports = match endpoint {
+                            ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(t)) => {
+                                Self::positive_function_children(
+                                    &self.store,
+                                    ValueEndpointKey::PositiveFunction(t),
+                                )
+                            }
+                            ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(t)) => {
+                                Self::negative_function_children(
+                                    &self.store,
+                                    ValueEndpointKey::NegativeFunction(t),
+                                )
+                            }
+                            _ => None,
+                        };
+                        if let Some((a, ae, re, r)) = ports {
+                            let terms = [a, ae, re, r];
+                            let children = [
+                                Key(
+                                    ExtrusionEndpoint::Value(self.value_endpoint(a, opposite(p))),
+                                    opposite(p),
+                                    target,
+                                ),
+                                Key(
+                                    ExtrusionEndpoint::Effect(
+                                        self.effect_endpoint(ae, opposite(p)),
+                                    ),
+                                    opposite(p),
+                                    target,
+                                ),
+                                Key(
+                                    ExtrusionEndpoint::Effect(self.effect_endpoint(re, p)),
+                                    p,
+                                    target,
+                                ),
+                                Key(
+                                    ExtrusionEndpoint::Value(self.value_endpoint(r, p)),
+                                    p,
+                                    target,
+                                ),
+                            ];
+                            work_push!(work, Work::Function(key, children, terms))?;
+                            for child in children.into_iter().rev() {
+                                work_push!(work, Work::Visit(child))?;
+                            }
+                        } else {
+                            map_insert!(structure, key, endpoint)?;
+                        }
                     }
-                    let ports = match endpoint {
-                        ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(t)) => {
-                            Self::positive_function_children(
-                                &self.store,
-                                ValueEndpointKey::PositiveFunction(t),
-                            )
-                        }
-                        ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(t)) => {
-                            Self::negative_function_children(
-                                &self.store,
-                                ValueEndpointKey::NegativeFunction(t),
-                            )
-                        }
-                        _ => None,
-                    };
-                    if let Some((a, ae, re, r)) = ports {
-                        let terms = [a, ae, re, r];
-                        let children = [
-                            Key(
-                                ExtrusionEndpoint::Value(self.value_endpoint(a, opposite(p))),
-                                opposite(p),
-                                target,
-                            ),
-                            Key(
-                                ExtrusionEndpoint::Effect(self.effect_endpoint(ae, opposite(p))),
-                                opposite(p),
-                                target,
-                            ),
-                            Key(
-                                ExtrusionEndpoint::Effect(self.effect_endpoint(re, p)),
-                                p,
-                                target,
-                            ),
-                            Key(
-                                ExtrusionEndpoint::Value(self.value_endpoint(r, p)),
-                                p,
-                                target,
-                            ),
-                        ];
-                        push(&mut work, Work::Function(key, children, terms))?;
-                        for child in children.into_iter().rev() {
-                            push(&mut work, Work::Visit(child))?;
-                        }
-                    } else {
-                        insert(&mut structure, key, endpoint)?;
-                    }
-                }
-                Work::Bound(owner, p, key) => {
-                    let copied = rows
-                        .get(&key)
-                        .or_else(|| structure.get(&key))
-                        .copied()
-                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    self.candidate_insert_bound(owner, p, copied)?;
-                }
-                Work::Function(key @ Key(original, p, _), children, originals) => {
-                    let mut terms = originals;
-                    let mut changed = false;
-                    for i in 0..4 {
+                    Work::EffectView(key, id, child) => {
                         let endpoint = rows
-                            .get(&children[i])
-                            .or_else(|| structure.get(&children[i]))
+                            .get(&child)
+                            .or_else(|| structure.get(&child))
                             .copied()
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                        if endpoint != children[i].0 {
-                            changed = true;
-                            terms[i] = self.candidate_endpoint_term(endpoint, children[i].1)?;
-                        }
+                        let ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(tail)) =
+                            endpoint
+                        else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        let old = view_remap.capacity();
+                        view_remap
+                            .try_reserve(1)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        self.candidate_scratch_growth(
+                            &mut charge,
+                            (view_remap.capacity() - old)
+                                .checked_mul(std::mem::size_of::<((u32, Option<u32>), u32)>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                        )?;
+                        let copy =
+                            self.candidate_remapped_effect_view(id, Some(tail), &mut view_remap)?;
+                        let copied = match key.0 {
+                            ExtrusionEndpoint::Effect(EffectEndpointKey::Support(_)) => {
+                                EffectEndpointKey::Support(copy)
+                            }
+                            ExtrusionEndpoint::Effect(EffectEndpointKey::AnnotationMember(
+                                _,
+                                member,
+                            )) => EffectEndpointKey::AnnotationMember(copy, member),
+                            _ => EffectEndpointKey::Allowance(copy),
+                        };
+                        map_insert!(structure, key, ExtrusionEndpoint::Effect(copied))?;
                     }
-                    let result =
-                        if !changed {
+                    Work::Bound(owner, p, key, source) => {
+                        let copied = rows
+                            .get(&key)
+                            .or_else(|| structure.get(&key))
+                            .copied()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.candidate_insert_bound(owner, p, copied)?;
+                        self.candidate_transfer_bound_origins(
+                            source,
+                            crate::candidate_effect::BoundKey(
+                                self.canonical_extrusion(owner),
+                                p,
+                                self.canonical_extrusion(copied),
+                            ),
+                        )?;
+                    }
+                    Work::Function(key @ Key(original, p, _), children, originals) => {
+                        let mut terms = originals;
+                        let mut changed = false;
+                        for i in 0..4 {
+                            let endpoint = rows
+                                .get(&children[i])
+                                .or_else(|| structure.get(&children[i]))
+                                .copied()
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            if endpoint != children[i].0 {
+                                changed = true;
+                                terms[i] = self.candidate_endpoint_term(endpoint, children[i].1)?;
+                            }
+                        }
+                        let result = if !changed {
                             original
                         } else {
                             ExtrusionEndpoint::Value(if p == Polarity::Positive {
@@ -215,40 +318,22 @@ impl InferenceSession {
                                 )?)
                             })
                         };
-                    insert(&mut structure, key, result)?;
+                        map_insert!(structure, key, result)?;
+                    }
                 }
             }
-        }
-        let result = rows
-            .get(&root)
-            .or_else(|| structure.get(&root))
-            .copied()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let scratch = rows
-            .capacity()
-            .checked_add(structure.capacity())
-            .and_then(|n| n.checked_mul(std::mem::size_of::<(Key, ExtrusionEndpoint)>()))
-            .and_then(|n| {
-                work.capacity()
-                    .checked_add(pending_bounds.capacity())
-                    .and_then(|n| n.checked_mul(std::mem::size_of::<Work>()))
-                    .and_then(|w| n.checked_add(w))
-            })
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let state = self
-            .candidate_graph
-            .as_mut()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        state.scratch_bytes = state
-            .scratch_bytes
-            .checked_add(scratch)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let sampled = self.sample_f4_resources(ResourceBoundary::IncomingRoute);
-        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
-        sampled?;
-        Ok(result)
+            let result = rows
+                .get(&root)
+                .or_else(|| structure.get(&root))
+                .copied()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            Ok(result)
+        })();
+        drop((rows, structure, work, pending_bounds, view_remap));
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        result
     }
-
     fn candidate_endpoint_term(
         &mut self,
         endpoint: ExtrusionEndpoint,
@@ -295,6 +380,7 @@ impl InferenceSession {
         }
         let owner = self.canonical_extrusion(owner);
         let bound = self.canonical_extrusion(bound);
+        self.candidate_bound_origin(crate::candidate_effect::BoundKey(owner, p, bound), None)?;
         match (owner, bound) {
             (
                 ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)),
@@ -496,6 +582,9 @@ impl InferenceSession {
                 }
                 _ => unreachable!(),
             };
+            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound), task)?;
+            let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other), task)?;
             self.constrain_live(task, occurrence, cause)?;
         }
         Ok(())
@@ -534,6 +623,9 @@ impl InferenceSession {
                 }
                 _ => unreachable!(),
             };
+            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound), task)?;
+            let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other), task)?;
             self.enqueue_task(task)?;
         }
         Ok(())
@@ -588,7 +680,7 @@ impl InferenceSession {
             }
             (_, EffectEndpointKey::EffectRow(b)) => (b, Polarity::Positive, lower),
             (EffectEndpointKey::EffectRow(a), _) => (a, Polarity::Negative, upper),
-            _ => return Ok(()),
+            _ => return self.candidate_check_effect_operand(lower, upper),
         };
         let owner = ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(i));
         let bound = ExtrusionEndpoint::Effect(bound);

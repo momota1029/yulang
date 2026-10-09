@@ -8,6 +8,7 @@ mod tests;
 
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub effect_algebra: candidate_effect::State,
     values: Vec<u32>,
     effects: Vec<u32>,
     parents: Vec<Parent>,
@@ -26,6 +27,7 @@ struct Parent {
     target: u32,
 }
 pub(super) struct Undo {
+    pub(super) effect_algebra: candidate_effect::Checkpoint,
     values_len: usize,
     effects_len: usize,
     parents_len: usize,
@@ -82,6 +84,7 @@ impl State {
     }
     pub fn begin(&self) -> Undo {
         Undo {
+            effect_algebra: self.effect_algebra.checkpoint(),
             values_len: self.values.len(),
             effects_len: self.effects.len(),
             parents_len: self.parents.len(),
@@ -98,6 +101,7 @@ impl State {
         }
     }
     pub fn rollback(&mut self, undo: Undo, memos: &mut HashMap<TypedPairKey, TypedPairMemo>) {
+        self.effect_algebra.rollback(undo.effect_algebra);
         for (key, parent) in undo.forests.into_iter().rev() {
             match key {
                 RowKey::Value(row) => self.values[row as usize] = parent,
@@ -125,6 +129,7 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[
+            self.effect_algebra.bytes()?,
             bytes::<u32>(self.values.capacity())?,
             bytes::<u32>(self.effects.capacity())?,
             bytes::<Parent>(self.parents.capacity())?,
@@ -144,6 +149,7 @@ impl Undo {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[
+            self.effect_algebra.bytes()?,
             bytes::<(RowKey, u32)>(self.forests.capacity())?,
             bytes::<(TypedPairKey, Option<u64>)>(self.completions.capacity())?,
             bytes::<(TypedPairKey, TypedPairMemo)>(self.memos.capacity())?,
@@ -425,6 +431,11 @@ impl InferenceSession {
                         )?;
                     }
                 }
+                ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(id) | EffectEndpointKey::Support(id)) => {
+                    if let Some(tail) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail {
+                        graph.edge(cursor, self.canonical_extrusion(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(tail))))?;
+                    }
+                }
                 ExtrusionEndpoint::Value(value) => {
                     let (polarity, ports) = if let Some(ports) =
                         Self::positive_function_children(&self.store, value)
@@ -549,6 +560,9 @@ impl InferenceSession {
                     n,
                 );
                 self.candidate_insert_bound(row_endpoint(parent), side, item)?;
+                self.candidate_transfer_bound_origins(
+                    candidate_effect::BoundKey(row_endpoint(copy), side, item),
+                    candidate_effect::BoundKey(row_endpoint(parent), side, self.canonical_extrusion(item)))?;
             }
         }
         if effect {
@@ -604,7 +618,7 @@ impl Dependencies {
                 ValueEndpointKey::ValueRow(_)
                     | ValueEndpointKey::PositiveFunction(_)
                     | ValueEndpointKey::NegativeFunction(_)
-            ) | ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_))
+            ) | ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_) | EffectEndpointKey::Allowance(_) | EffectEndpointKey::Support(_))
         ) {
             return Ok(None);
         }

@@ -6630,3 +6630,25 @@ an actual old runtime prerequisite; it is not a transformed public scheme. Share
 solver writes wait for the annotation repair's integration. Genuine transformed
 scheme extraction/independent use remains a subsequent design and implementation
 gate under the approved public-root policy.
+
+### Concrete/co annotation checkpoint verified (2026-10-10)
+
+The [implementation delivery](../notes/progress/2026-10-10-concrete-effect-annotation-implementation.md)
+connects actual nullary declaration identity and whole-binding annotations to
+paired negative checking/positive publication, immutable concrete support and
+allowance with symbolic future checks, actual scheme/extrusion/SCC transport and
+transactional diagnostics/accounting. All accepted M3 findings and later runtime
+compilation causes are closed by fresh delta review. The focused matrix passes
+43 tests; candidate all-target and feature-free owning checks pass without warnings.
+No benchmark or full semantic proof was performed. Deep HIR fixture tests use
+dedicated 16 MiB workers; an isolated 2 MiB probe localizes a separate 128-group
+overflow inside `yu_syntax::parse_file`, before HIR can guard its parsed artifact.
+That parser owner remains explicit and is not claimed fixed by larger test stacks.
+
+Next implement the confirmed private candidate closed-lifecycle retirement gate,
+then authentic Unit/operation formation with the actual declaration-result
+consumer. Source Apply alone constructs an inert operation request carrier in
+frozen Oracle; forcing/execution is a distinct later owner, so family contribution
+must not be injected merely from callee shape. Genuine contravariant attachments,
+complete Call, public transformed schemes, soundness/principality and default
+F5 replacement on `yulang3` remain open. Pending questions stay excluded from Git.

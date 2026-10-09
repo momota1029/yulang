@@ -9,7 +9,8 @@ use std::{
     ops::Range,
     sync::Arc,
 };
-use yu_syntax::{ParsedFile, SourceNodeKey, SyntaxKind, SyntaxNode, SyntaxToken};
+pub use yu_syntax::SourceNodeKey;
+use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 
 /// Experimental identity retention during the existing lowering path.
 /// This adds no inference or source-role judgment.
@@ -20,6 +21,8 @@ pub fn lower_module_with_source_identity(
 ) -> Result<HirModule, HirAvailabilityError> {
     crate::module::lower_module_with_source_identity(identity, parsed, imports)
 }
+
+pub use crate::module::source_annotation::{SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectDeclaration, SourceEffectRow};
 
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
@@ -37,6 +40,7 @@ pub fn lower_module_with_local_source(
 }
 
 impl HirModule {
+    pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] { &self.effect_declarations }
     /// Returns only a carrier belonging to this exact immutable artifact.
     pub fn local_source(
         &self,

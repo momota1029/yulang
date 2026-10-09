@@ -51,6 +51,7 @@ pub(super) struct Row {
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Node {
     Leaf(Atom),
+    EffectOperand { endpoint: EffectEndpointKey, tail: Option<usize>, polarity: Polarity },
     Row {
         row: usize,
         polarity: Polarity,
@@ -306,6 +307,19 @@ impl<'a> Capture<'a> {
                 Node::Leaf(Atom::EffectBottom)
             }
             Endpoint::Effect(E::EmptyNegative, Polarity::Negative) => Node::Leaf(Atom::EmptyEffect),
+            Endpoint::Effect(endpoint @ E::Contribution(_), Polarity::Positive) => Node::EffectOperand { endpoint, tail: None, polarity: Polarity::Positive },
+            Endpoint::Effect(endpoint @ E::AnnotationMember(id, _), Polarity::Positive) => {
+                let tail = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail;
+                let tail = tail.map(|row| self.intern(Endpoint::Effect(E::EffectRow(row), Polarity::Positive))).transpose()?;
+                Node::EffectOperand { endpoint, tail, polarity: Polarity::Positive }
+            },
+            Endpoint::Effect(endpoint @ E::Allowance(id), Polarity::Negative)
+            | Endpoint::Effect(endpoint @ E::Support(id), Polarity::Positive) => {
+                let polarity = if matches!(endpoint, E::Support(_)) { Polarity::Positive } else { Polarity::Negative };
+                let tail = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail;
+                let tail = tail.map(|row| self.intern(Endpoint::Effect(E::EffectRow(row), polarity))).transpose()?;
+                Node::EffectOperand { endpoint, tail, polarity }
+            }
             Endpoint::Value(V::PositiveFunction(term), Polarity::Positive)
             | Endpoint::Value(V::NegativeFunction(term), Polarity::Negative) => {
                 let (p, terms) = match self
@@ -483,6 +497,7 @@ impl<'a> Capture<'a> {
 impl InferenceSession {
     pub(super) fn start_candidate_graph(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut state = GraphState::default();
+        state.intrusion.effect_algebra.initialize()?;
         state
             .graphs
             .try_reserve_exact(self.batch.definitions.len())
@@ -496,7 +511,7 @@ impl InferenceSession {
         self.candidate_graph = Some(state);
         Ok(())
     }
-    fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
+    pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         let mut capture = Capture {
             session: self,
             graph: Graph {
@@ -678,7 +693,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry_scratch;
         result
     }
-    fn freshen_candidate_graph(
+    pub(super) fn freshen_candidate_graph(
         &mut self, graph: &Graph, use_level: u32,
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
@@ -718,6 +733,43 @@ impl InferenceSession {
             };
             rows.push(key);
         }
+        let mut view_remap = HashMap::new();
+        view_remap.try_reserve(graph.nodes.len()).map_err(|_| exhausted())?;
+        let view_scratch = bytes::<((u32, Option<u32>), u32)>(view_remap.capacity())?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(view_scratch).ok_or_else(exhausted)?;
+        let mut effect_operands = HashMap::new();
+        effect_operands.try_reserve(graph.nodes.len()).map_err(|_| exhausted())?;
+        let operand_scratch = bytes::<(usize, EffectEndpointKey)>(effect_operands.capacity())?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(operand_scratch).ok_or_else(exhausted)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        for (index, node) in graph.nodes.iter().enumerate() {
+            if let Node::EffectOperand { endpoint, tail, .. } = *node {
+                let endpoint = match endpoint {
+                    EffectEndpointKey::Allowance(id) | EffectEndpointKey::Support(id) => {
+                        let tail = tail.map(|index| match graph.nodes[index] {
+                            Node::Row { row, .. } => match rows[row] { RowKey::Effect(row) => Ok(row), _ => Err(exhausted()) },
+                            _ => Err(exhausted()),
+                        }).transpose()?;
+                        { let copy = self.candidate_remapped_effect_view(id, tail, &mut view_remap)?;
+                            if matches!(endpoint, EffectEndpointKey::Support(_)) { EffectEndpointKey::Support(copy) } else { EffectEndpointKey::Allowance(copy) } }
+                    }
+                    EffectEndpointKey::AnnotationMember(id, member) => {
+                        let tail = tail.map(|index| match graph.nodes[index] {
+                            Node::Row { row, .. } => match rows[row] { RowKey::Effect(row) => Ok(row), _ => Err(exhausted()) },
+                            _ => Err(exhausted()),
+                        }).transpose()?;
+                        EffectEndpointKey::AnnotationMember(self.candidate_remapped_effect_view(id, tail, &mut view_remap)?, member)
+                    }
+                    EffectEndpointKey::Contribution(id) => {
+                        let atom = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions[id as usize];
+                        let (effect, origin) = (atom.effect.clone(), atom.origin.clone());
+                        self.candidate_effect_contribution(effect, origin)?
+                    }
+                    _ => return Err(exhausted()),
+                };
+                effect_operands.insert(index, endpoint);
+            }
+        }
         // Structural Function nodes form a DAG. Cycles run through rows,
         // whose preallocated identities terminate structural reconstruction.
         for root in 0..graph.nodes.len() {
@@ -730,6 +782,7 @@ impl InferenceSession {
                     continue;
                 }
                 let term = match graph.nodes[index] {
+                    Node::EffectOperand { .. } => continue,
                     Node::Leaf(atom) => match atom {
                         Atom::Bottom => self.positive_bottom_term()?,
                         Atom::Top => self.negative_top_term()?,
@@ -772,17 +825,20 @@ impl InferenceSession {
         // Replay preserves the captured owner side even when fresh rows
         // share a level. Induced comparisons run on the ordinary worklist.
         for bound in &graph.bounds {
-            let lower = terms[bound.lower].ok_or_else(exhausted)?;
-            let upper = terms[bound.upper].ok_or_else(exhausted)?;
             let (lower, upper) = match bound.kind {
-                ComponentKind::Value => (
-                    ExtrusionEndpoint::Value(self.value_endpoint(lower, Polarity::Positive)),
-                    ExtrusionEndpoint::Value(self.value_endpoint(upper, Polarity::Negative)),
-                ),
-                ComponentKind::Effect => (
-                    ExtrusionEndpoint::Effect(self.effect_endpoint(lower, Polarity::Positive)),
-                    ExtrusionEndpoint::Effect(self.effect_endpoint(upper, Polarity::Negative)),
-                ),
+                ComponentKind::Value => {
+                    let lower = terms[bound.lower].ok_or_else(exhausted)?;
+                    let upper = terms[bound.upper].ok_or_else(exhausted)?;
+                    (ExtrusionEndpoint::Value(self.value_endpoint(lower, Polarity::Positive)),
+                     ExtrusionEndpoint::Value(self.value_endpoint(upper, Polarity::Negative)))
+                }
+                ComponentKind::Effect => {
+                    let lower = if let Some(&operand) = effect_operands.get(&bound.lower) { operand }
+                        else { self.effect_endpoint(terms[bound.lower].ok_or_else(exhausted)?, Polarity::Positive) };
+                    let upper = if let Some(&operand) = effect_operands.get(&bound.upper) { operand }
+                        else { self.effect_endpoint(terms[bound.upper].ok_or_else(exhausted)?, Polarity::Negative) };
+                    (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper))
+                }
             };
             let (owner, item) = if bound.side == Polarity::Positive {
                 (upper, lower)

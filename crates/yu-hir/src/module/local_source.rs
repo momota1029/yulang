@@ -18,6 +18,7 @@ pub struct LocalSource {
     body: LocalSourceIndex,
     expressions: Vec<LocalSourceExpr>,
     bindings: Vec<LocalSourceBinding>,
+    annotation: Option<source_annotation::SourceAnnotation>,
 }
 impl LocalSource {
     pub fn definition_root(&self) -> &DefinitionRootId {
@@ -34,13 +35,15 @@ impl LocalSource {
     pub fn expressions(&self) -> &[LocalSourceExpr] {
         &self.expressions
     }
+    pub fn annotation(&self) -> Option<&source_annotation::SourceAnnotation> { self.annotation.as_ref() }
     pub fn bindings(&self) -> &[LocalSourceBinding] {
         &self.bindings
     }
     /// Reserved arena/vector storage and retained spelling bytes; shared source
     /// and artifact payloads and allocator overhead are excluded.
     pub fn retained_arena_bytes(&self) -> usize {
-        self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
+        self.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes())
+            + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
             + self
                 .expressions
@@ -333,6 +336,7 @@ pub(super) fn form(
         body: root,
         expressions,
         bindings: builder.bindings,
+        annotation: source_annotation::form(&plan.node, owner, counters)?,
     })
 }
 impl Builder<'_> {
@@ -574,6 +578,7 @@ impl Builder<'_> {
             if statement.kind() != SyntaxKind::BindingStatement || has_recovery(&statement) {
                 return Err(invalid());
             }
+            if statement.descendants().any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation) { return Err(invalid()); }
             let (visibility, name, parameters) =
                 plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
             if visibility != HirVisibility::Private || depth + parameters.len() + 1 > 128 {
