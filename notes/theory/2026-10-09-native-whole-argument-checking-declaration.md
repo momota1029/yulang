@@ -712,6 +712,13 @@ solving, complete enclosing CallMem/C0, output-dependent e_out, W/Z arms,
 unknown imports, all-language principality and production correspondence stay
 outside. No canonical DAG status changes follow from these bounded results.
 
+The later [selected literal source case](2026-10-09-native-id-original-wholearg-construction.md)
+constructs an original WholeArgCompatible occurrence and a sound extensional
+checking witness at the actual native Int inlet without using this new
+NativeCheck declaration as its kernel. That local satisfaction/retention
+result does not identify the general original declaration or every old
+evidence/reference fiber discussed here.
+
 ## 9. Verification, dependencies and frozen commit packet
 
 Method: source-definition expansion, a new ordinary declaration introduction,

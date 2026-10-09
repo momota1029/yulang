@@ -5,12 +5,14 @@ Branch: `research/simple-sub-intrusion`
 Initial remote baseline: `c4cf02dd3307e6051b6d23b8af17c6f0633c09f0`
 First integration baseline: `6beac749c8d1891212560a8edbc60fa670022d83`
 Status: reviewed bounded results; requested aggregate gates remain open
-Implementation, changed language semantics and F5 cutover: none
+Existing fixed semantic contracts, production implementation and F5 cutover: unchanged
+New native literal source-constructor selection: section A2 below
 
 ## Review protocol
 
-Three producers used disjoint exact theory-file leases and the same pinned
-semantic baseline. The primary alone handled authority, integration and Git.
+The three initial attack producers and the later direct literal-checking
+producer used disjoint exact theory-file leases and the same pinned semantic
+baseline. The primary alone handled authority, integration and Git.
 Fresh reviewers read frozen artifacts and direct governing sources; they did
 not receive producer conversations or each other's reports. Mathematical and
 specification review were separate. The selected mode was M3; no compiler
@@ -156,3 +158,68 @@ frozen bytes and initial baseline; Markdown, local links and staged whitespace
 checks pass. Only status/review metadata changed after the repaired freeze.
 Original Call formation, complete IF, typed M_E, DescMem, CallMem/C0 and general
 JOINT_DEC remain open. No alternative, authority or DAG status is changed.
+
+## A2 — original literal checking occurrence and extensional satisfaction
+
+Artifact: [MIN-ORIG-WHOLEARG, E, ER, S and LC](../theory/2026-10-09-native-id-original-wholearg-construction.md).
+Selection: [native literal Call argument checking](../design/2026-10-09-native-literal-call-checking-definition.md).
+Frozen reviewed SHA-256:
+`b3bf05f0763056084abd66aa7842e4214019c9267d9a97f8e4cb2b54daf949b9`.
+
+This later direct attack does not reuse A's new declaration as the original
+checking kernel. It constructs one actual original checking occurrence and
+a finite proof of the original extensional judgment at the literal Call's
+registered native inlet. A separate read-only falsification pass found no
+counterexample to the bare case, while insisting that the exact Name/Name
+ReturnImage operand must not be replaced by the complete DataArg view.
+That pass was research evidence, not independent certification of the artifact.
+
+Fresh independent `attack_a_literal_math_review` and
+`attack_a_literal_spec_review` both returned PASS, with no actionable finding.
+They read the frozen artifact and direct source cone without producer,
+falsifier or other reviewer communications. The mathematical PASS certifies
+the theorem under selection of its explicitly proposed literal case. The
+specification PASS recommends it as a faithful native specialization and
+retention completion under current constructor authorization, finding no
+materially different external semantic choice that needs renewed approval.
+
+The primary adopts exactly that reviewed case. Generic initial-context §4.4
+already writes the argument operand as Result(I_a); typed-core §6 gives
+Result(Value(Int))=Comp(empty,Int). SD-NPB's DataArg assembly is fieldwise
+identity with this original registered complete view. The new source rule
+retains the actual WholeArgCompatible conjunct and its original placement
+before satisfaction. It does not replace the exact ReturnImage operand of
+the separately selected Name/Name source case or any fixed foreign emitter.
+
+The decisive positive theorem derives complete inlet inclusion from the
+independently selected image laws, using each complete J member's own
+hereditary evidence. Source-built Car proves actual literal realization
+separately. All licensed extras, pending/current-world raw/future cases,
+provider identity and original binders survive. Frame checking and Raw sum
+injection remain distinct. E constructs the unsolved occurrence; ER erases
+only its retained account; S derives complete checking; LC retains genuine
+finite source choices and every original intermediate proof field.
+
+**Premises actually eliminated in this native literal case:** a supplied
+argument-conjunct occurrence/retention derivation, and a supplied successful
+extensional WholeArgCompatible proof at its actual Int/empty-residual inlet.
+The explicit identity/image construction supplies the latter for an
+unconstrained source proof slot. A previously selected different genuine
+proof is preserved by LC, not replaced with Identity. No decision for
+arbitrary active proof predicates follows.
+
+Independent caller/registration/world/authority and hereditary action laws
+remain inputs. No all-old-fiber or declaration/reference identification,
+complete Application/Gen-Call-0/Code-Call q, full IF, M_E/DescMem, CallMem/C0,
+all whole-Call W/Z laws or general JOINT_DEC is supplied. Therefore A's
+general original-declaration bridge and B's original q premise are not
+retroactively closed. This is a genuine local source checking theorem,
+not the requested complete source Call theorem.
+
+Primary verification: all 13 direct semantic dependency hashes match their
+frozen bytes and initial baseline; Markdown and local links pass. The new
+selection record contains only the reviewed constructor and its exact
+authorization/scope, with no extra semantic clause. After review only
+selection/review status and provenance were changed in the theorem.
+Canonical DAG JSON and Markdown remain byte-identical to the initial
+baseline; no aggregate status, prerequisite or production condition changed.
