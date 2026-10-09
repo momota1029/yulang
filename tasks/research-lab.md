@@ -198,8 +198,8 @@ does not make its observers terminate.
 
 | Job | Method | Frozen inputs / output lease | State / next evidence |
 | --- | --- | --- | --- |
-| `bracketed_replay_decision` | Constructive termination/decidability proof for mixed bracketed observers | Theorem §§5–8, source correspondence §§2–5, exact Oracle operation owners; scratch `/tmp/yulang-bracketed-replay-proof/` only | running; proof or exact consumer obstruction |
-| `bracketed_replay_search` | Independent bounded counterexample/model search retaining bracketing and source-vs-arbitrary distinction | Counterexamples §§4–7, theorem §§5–8; ≤128 MiB, ≤30 s/run, ≤90 s aggregate CPU; scratch `/tmp/yulang-bracketed-replay-search/` only | running; minimal discriminator or finite-observer candidate and bounded coverage |
+| `bracketed_replay_decision` | Constructive termination/decidability proof for mixed bracketed observers | Theorem §§5–8, source correspondence §§2–5, exact Oracle operation owners; scratch `/tmp/yulang-bracketed-replay-proof/` only | complete; unreviewed conditional power-of-two `both_from_right` copying grammar; upward predecessors fail on full replay coordinates; source port-cycle premise open; recorded at `99a3c72dd` |
+| `bracketed_replay_search` | Independent bounded counterexample/model search retaining bracketing and source-vs-arbitrary distinction | Counterexamples §§4–7, theorem §§5–8; ≤128 MiB, ≤30 s/run, ≤90 s aggregate CPU; scratch `/tmp/yulang-bracketed-replay-search/` only | complete; 104 comparisons, 12 paired depths, three mutations; correlated observer discriminator recorded at `f7caacde5`; shared-derivation source premise open |
 | `bracketed_replay_architecture` | Successor ownership and integration-seam synthesis | Read-only constructor/transport/solver owners; no output writes | complete; recommends source-owned negative constructor-to-bracketed grammar correspondence, no production write yet |
 
 The primary owns shared records and any implementation. No compiler files,
@@ -210,3 +210,11 @@ exact procedure (or a source-derived invariant reduces it to a proved
 subsystem); then separately review constructor correspondence and operational
 rollback/resource coverage. Full Call, `run_io` provider identity, callback
 result text, scheme publication and `yulang3` cutover remain open.
+
+The one-sided theorem is unchanged; the full mixed consumer remains open. The
+next source-conformance task is an exact reachability audit of the actual
+`both_from_right` Function argument-effect port and replay endpoint/owner cycle,
+plus whether a shared derivation is retained where one is copied into both
+branches. Do not encode either synthetic grammar into production. No theorem
+producer claims source reachability, global termination, full hygiene or
+compiler behavior.

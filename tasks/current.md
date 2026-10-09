@@ -6996,11 +6996,27 @@ The concrete remaining correctness boundary is the
 Function swap/mixed replay needs its actual bracketing; row residuals change
 family payloads; compact projection observes pending POP entries even at zero
 active depth. The current finite upward observer is not a proof for those
-operations. The next smallest research cut is a source-owned single attachment
-with mixed replay and Function variance: derive a terminating exact
-active/filter consumer over its cyclic bracketed derivations, or a source
-invariant reducing them to the proved subsystem. Full residual output and the
-coupled source constructor/transport/journal then remain explicit consumers.
+operations. Follow-up research sharpens the next cut. Under a conditional
+grammar cycle, `both_from_right` can double right debt and generate powers of
+two; ordinary finite-automaton or pushdown output-language representations
+cannot capture every exact residual. Componentwise upward-antichain predecessor
+closure also fails for full three-coordinate replay. These are conditional
+method obstructions, not undecidability or source-reachability results; see the
+[unreviewed proof-method report](../notes/progress/2026-10-10-bracketed-replay-decision-obstructions.md).
+A separate bounded model shows correlated tree observers can distinguish inputs
+with the same sign/active/presence summaries after residual-head consumption
+and compact projection, while a restricted nested family admits a closed-form
+observer. See its [conditional discriminator and checker](../notes/progress/2026-10-10-correlated-mixed-replay-discriminator.md).
+
+The source-level hinge is now precise: determine whether the actual
+`both_from_right` Function port and replay ownership can return recursively to
+the same eligible bound slot, and whether the correlated tree observer's
+shared-derivation premise can arise. Preserve exact replay trees and current
+source guards while deriving that endpoint/port invariant. If the cycle is
+source-reachable, derive an exact observer for it; if not, prove the reducing
+invariant against output residuals, pending-POP projection, extrusion and SCC
+merges. The source-owned constructor/transport/journal and callback result
+remain open.
 
 The existing conditional hygiene/owner/lifetime/transport theorems retain their
 original premises. No canonical proof-DAG status or prerequisite was changed;
