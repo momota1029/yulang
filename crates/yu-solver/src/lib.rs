@@ -16750,6 +16750,8 @@ mod tests {
     mod complete_bound_constraints;
     #[cfg(feature = "shadow-f5")]
     mod deferred_call_constraints;
+    #[cfg(feature = "shadow-f5")]
+    mod kind_qualified_graph;
     mod f5c_binder_substitution;
     mod f5c_depth_limit;
     mod f5c_flat_walk_sink;
