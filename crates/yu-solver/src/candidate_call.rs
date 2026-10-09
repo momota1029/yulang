@@ -271,17 +271,17 @@ fn scope_owned(source: &LocalSource, scope: &LocalSourceScope) -> bool {
         }
     }
 }
-pub(super) fn observe(
-    solved: &SolvedModule,
+pub(super) fn observe<'a>(
+    hir: &'a HirModule,
+    store: &ConstraintStore,
+    state: &'a State,
     index: usize,
-) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
-    let state = &solved.candidate_calls;
+) -> Result<CandidateSourceCall<'a>, ArtifactMismatch> {
     let input = state.calls.get(index).ok_or(ArtifactMismatch)?;
-    if !solved.hir.owns_definition_root(&input.owner) {
+    if !hir.owns_definition_root(&input.owner) {
         return Err(ArtifactMismatch);
     }
-    let source = solved
-        .hir
+    let source = hir
         .local_source(&input.owner)
         .map_err(|_| ArtifactMismatch)?
         .ok_or(ArtifactMismatch)?;
@@ -304,9 +304,9 @@ pub(super) fn observe(
     }
     let callee = source.expression(callee).ok_or(ArtifactMismatch)?;
     let argument = source.expression(argument).ok_or(ArtifactMismatch)?;
-    if !solved.hir.owns_occurrence(&expression.occurrence)
-        || !solved.hir.owns_occurrence(&callee.occurrence)
-        || !solved.hir.owns_occurrence(&argument.occurrence)
+    if !hir.owns_occurrence(&expression.occurrence)
+        || !hir.owns_occurrence(&callee.occurrence)
+        || !hir.owns_occurrence(&argument.occurrence)
     {
         return Err(ArtifactMismatch);
     }
@@ -317,8 +317,7 @@ pub(super) fn observe(
         return Err(ArtifactMismatch);
     }
     let native = input.native.as_ref().ok_or(ArtifactMismatch)?;
-    match solved
-        .store
+    match store
         .term_view(native.demand)
         .map_err(|_| ArtifactMismatch)?
     {
@@ -358,11 +357,11 @@ pub(super) fn observe(
             Polarity::Negative,
         ),
     ] {
-        if !native_port(&solved.store, term, kind, polarity) {
+        if !native_port(store, term, kind, polarity) {
             return Err(ArtifactMismatch);
         }
     }
-    if !matches!(solved.store.term_view(native.invocation_effect), Ok(TermView::LiveVariable(row)) if row.ordinal() == native.invocation_row)
+    if !matches!(store.term_view(native.invocation_effect), Ok(TermView::LiveVariable(row)) if row.ordinal() == native.invocation_row)
     {
         return Err(ArtifactMismatch);
     }
@@ -403,8 +402,8 @@ pub(super) fn observe(
         };
         if parameter.id != registration.parameter
             || parameter.id.definition_root() != source.definition_root()
-            || !solved.hir.owns_occurrence(&lambda.occurrence)
-            || !solved.hir.owns_occurrence(&name.occurrence)
+            || !hir.owns_occurrence(&lambda.occurrence)
+            || !hir.owns_occurrence(&name.occurrence)
             || !scope_owned(source, &lambda.scope)
             || !scope_owned(source, &parameter.scope)
             || !scope_owned(source, &name.scope)

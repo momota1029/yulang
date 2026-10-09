@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 Inspected committed baseline: `29f645c56d62cd18ae15557ca612c52c549fb620`
-Status: architect-confirmed private lifecycle refactor; implementation pending
+Status: private lifecycle refactor implemented and verified; public cutover remains open
 Authority: [active legacy withdrawal](../design/2026-10-10-simple-sub-legacy-withdrawal.md)
 Mode: M2 implementation gate; semantic and regression reviews, zero measurement budget
 
@@ -45,7 +45,8 @@ renaming the full source relation or consulting the original definition at use.
 This lifecycle gate does not close that requirement, complete Call, hygiene,
 soundness, principality or production cutover.
 
-Implement after the moving concrete/co annotation repair freezes and integrates;
-the shared solver paths require serialization. No code, test or measurement ran
-for this read-only mapping. No new user decision was identified for removing the
-unused private runtime prerequisite.
+Implemented after concrete/co annotation checkpoint `5bbbdff7b` integrated.
+The [delivery record](2026-10-10-candidate-closed-lifecycle-retirement.md)
+records actual ownership changes, independent review and executed guards.
+The original mapping was read-only; the implementation removes the unused
+private runtime prerequisite without selecting a new public representation.

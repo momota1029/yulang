@@ -7428,10 +7428,6 @@ impl OrderingObserver {
 /// prevent later independent components from solving.
 #[derive(Debug)]
 pub struct SolvedModule {
-    #[cfg(feature = "shadow-apply-candidate")]
-    candidate_calls: candidate_call::State,
-    #[cfg(feature = "shadow-apply-candidate")]
-    candidate_graph: Option<candidate_scheme::GraphState>,
     #[cfg(feature = "shadow-f5")]
     #[cfg_attr(
         not(feature = "shadow-scc-observer"),
@@ -7470,6 +7466,57 @@ pub struct SolvedModule {
     resource_ledger: IndependentResourceLedger,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     f5c_matrix_observer: Option<F5cMatrixObserver>,
+}
+
+// Frozen observations shared by the legacy and private candidate result owners.
+struct FrozenInferenceData {
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_calls: candidate_call::State,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_graph: Option<candidate_scheme::GraphState>,
+    #[cfg(feature = "shadow-f5")]
+    #[cfg_attr(
+        not(feature = "shadow-scc-observer"),
+        allow(
+            dead_code,
+            reason = "retained capture is queried through the SCC observer"
+        )
+    )]
+    shadow_fresh_capture: Option<ShadowFreshCapture>,
+    #[cfg(feature = "shadow-f5")]
+    pending_applications: Vec<PendingApplicationOccurrence>,
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    collection_artifact: Arc<CollectionArtifactToken>,
+    hir: Arc<HirModule>,
+    projection_order: Vec<HirOccurrenceId>,
+    projections: HashMap<HirOccurrenceId, SolvedProjection>,
+    root_scheme_positions: HashMap<DefinitionRootId, usize>,
+    root_scheme_identity_payload_bytes: Vec<usize>,
+    #[allow(
+        dead_code,
+        reason = "F4 retains exact route provenance for future explanation without adding a public lifecycle query"
+    )]
+    routed_uses: Vec<RoutedUseProvenance>,
+    errors: Vec<SolverError>,
+    store: ConstraintStore,
+    counters: ProductionCounters,
+    #[cfg(test)]
+    resource_boundary_samples: usize,
+    #[cfg(test)]
+    resource_ledger: IndependentResourceLedger,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_observer: Option<F5cMatrixObserver>,
+}
+
+#[cfg(feature = "shadow-apply-candidate")]
+struct CandidateSolvedResult {
+    data: FrozenInferenceData,
+}
+
+struct FinishedInference {
+    data: FrozenInferenceData,
+    schemes: Vec<Option<ClosedValueScheme>>,
+    closed_types: Option<ClosedTypeArena>,
 }
 
 /// Private owner for one concrete inference attempt.
@@ -7515,6 +7562,20 @@ struct ShadowFreshCapture {
     pending: Option<ShadowFreshRoute>,
     routes: Vec<ShadowFreshRoute>,
     positions: HashMap<DefinitionUseId, usize>,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct ClosedLifecycleProbe {
+    starts: usize,
+    finishes: usize,
+    fail_start: bool,
+    fail_finish: bool,
+}
+#[cfg(test)]
+thread_local! {
+    static CLOSED_LIFECYCLE_PROBE: std::cell::RefCell<ClosedLifecycleProbe> =
+        std::cell::RefCell::new(ClosedLifecycleProbe::default());
 }
 
 struct InferenceSession {
@@ -9542,6 +9603,10 @@ impl InferenceSession {
     }
 
     fn try_new(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        let legacy_closed = !batch.candidate_graph_effects;
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        let legacy_closed = true;
         let value_component_count = batch
             .components
             .iter()
@@ -9654,9 +9719,11 @@ impl InferenceSession {
             routed_uses: Vec::new(),
             routed_use_positions: HashSet::new(),
             schemes: Vec::new(),
-            finalization: Some(
-                ClosedTypeFinalizationSession::try_new().map_err(Self::map_finalization_error)?,
-            ),
+            finalization: if legacy_closed {
+                Some(Self::start_closed_finalization()?)
+            } else {
+                None
+            },
             current_closed_retained_bytes: 0,
             drafts: Vec::new(),
             instantiation_scratch: InstantiationScratch::default(),
@@ -9845,7 +9912,7 @@ impl InferenceSession {
         reserve_startup!(cross_kind_components, value_capacity, CrossKindComponents);
         reserve_startup!(routed_uses, routed_capacity, RoutedUses);
         reserve_startup!(routed_use_positions, routed_capacity, RoutedUsePositions);
-        reserve_startup!(schemes, definition_count, Schemes);
+        if legacy_closed { reserve_startup!(schemes, definition_count, Schemes); }
         reserve_startup!(drafts, draft_capacity, Drafts);
         session
             .extrusion_value_marks
@@ -9853,7 +9920,7 @@ impl InferenceSession {
         session
             .extrusion_effect_marks
             .resize(effect_component_count, 0);
-        session.schemes.resize(definition_count, None);
+        if legacy_closed { session.schemes.resize(definition_count, None); }
         // Collection IDs are frozen recipe positions only.  Every component,
         // including effect components, receives exactly one checked dense live
         // ordinal at level one before any fact admission.
@@ -9915,6 +9982,38 @@ impl InferenceSession {
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
         session.sample_f4_resources(ResourceBoundary::InitialReservation)?;
+        Ok(session)
+    }
+
+    fn start_closed_finalization() -> Result<ClosedTypeFinalizationSession, SolveAvailabilityError> {
+        #[cfg(test)]
+        CLOSED_LIFECYCLE_PROBE.with(|probe| {
+            let mut probe = probe.borrow_mut();
+            if probe.fail_start { return Err(SolveAvailabilityError::IdentityExhausted); }
+            probe.starts += 1;
+            Ok(())
+        })?;
+        ClosedTypeFinalizationSession::try_new().map_err(Self::map_finalization_error)
+    }
+
+    fn finish_closed_finalization(
+        finalization: ClosedTypeFinalizationSession,
+    ) -> Result<yu_types::ClosedTypeFinalizationOutput, SolveAvailabilityError> {
+        #[cfg(test)]
+        CLOSED_LIFECYCLE_PROBE.with(|probe| {
+            let mut probe = probe.borrow_mut();
+            if probe.fail_finish { return Err(SolveAvailabilityError::IdentityExhausted); }
+            probe.finishes += 1;
+            Ok(())
+        })?;
+        finalization.finish().map_err(Self::map_finalization_error)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn try_new_candidate(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
+        assert!(batch.candidate_graph_effects);
+        let mut session = Self::try_new(batch)?;
+        session.start_candidate_graph()?;
         Ok(session)
     }
 
@@ -10112,7 +10211,7 @@ impl InferenceSession {
         self.injected_finalization_failure_after = Some(successful_finalizations);
     }
 
-    fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
+    fn execute(&mut self) -> Result<(), SolveAvailabilityError> {
         #[cfg(feature = "shadow-apply-candidate")]
         let source_mode = self.candidate_graph.is_some() && self.batch.candidate_source.active;
         #[cfg(not(feature = "shadow-apply-candidate"))]
@@ -10127,7 +10226,28 @@ impl InferenceSession {
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.store.finish_accounting();
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
+        Ok(())
+    }
+
+    fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
+        self.execute()?;
         self.finish()
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn run_candidate(mut self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
+        assert!(self.candidate_graph.is_some() && self.finalization.is_none());
+        self.execute()?;
+        self.finish_candidate()
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn finish_candidate(self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
+        assert!(self.candidate_graph.is_some() && self.finalization.is_none());
+        let finished = self.finish_observations()?;
+        assert!(finished.closed_types.is_none());
+        assert!(finished.schemes.is_empty());
+        Ok(CandidateSolvedResult { data: finished.data })
     }
 
     #[cfg(test)]
@@ -16139,7 +16259,42 @@ impl InferenceSession {
         VerifiedSchemeDefinition { record, position }
     }
 
-    fn finish(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
+    fn finish(self) -> Result<SolvedModule, SolveAvailabilityError> {
+        // A legacy result can only be published with a genuine closed arena.
+        assert!(self.finalization.is_some());
+        let FinishedInference { data, schemes, closed_types } = self.finish_observations()?;
+        Ok(SolvedModule {
+            #[cfg(feature = "shadow-f5")]
+            shadow_fresh_capture: data.shadow_fresh_capture,
+            #[cfg(feature = "shadow-f5")]
+            pending_applications: data.pending_applications,
+            #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+            collection_artifact: data.collection_artifact,
+            hir: data.hir,
+            projection_order: data.projection_order,
+            projections: data.projections,
+            root_scheme_positions: data.root_scheme_positions,
+            root_scheme_identity_payload_bytes: data.root_scheme_identity_payload_bytes,
+            routed_uses: data.routed_uses,
+            errors: data.errors,
+            store: data.store,
+            counters: data.counters,
+            #[cfg(test)]
+            resource_boundary_samples: data.resource_boundary_samples,
+            #[cfg(test)]
+            resource_ledger: data.resource_ledger,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_observer: data.f5c_matrix_observer,
+            schemes,
+            closed_types: closed_types.expect("legacy finalization produced its closed arena"),
+            solved_root_query_probes: AtomicUsize::new(0),
+            scheme_root_query_probes: AtomicUsize::new(0),
+            scheme_root_query_identity_hash_byte_incidences: AtomicUsize::new(0),
+            scheme_root_query_logical_successful_equality_byte_incidences: AtomicUsize::new(0),
+        })
+    }
+
+    fn finish_observations(mut self) -> Result<FinishedInference, SolveAvailabilityError> {
         let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
         let mut work = ProductionCounters::default();
         let mut lambda_recipes = self
@@ -16219,33 +16374,31 @@ impl InferenceSession {
             ],
             "F4 finish scheme-root index",
         );
-        // Projection allocation is a real coexistence boundary: the closed
-        // session and its reusable staging are still live here.
+        // Projection allocation coexists with actual solver staging and, on
+        // the legacy path, the closed finalization session.
         self.sample_f4_resources_with_finish_output(
             ResourceBoundary::FinishOutputWithStaging,
             work.solved_projection_retained_bytes,
         )?;
-        // `finish` is fallible only for terminal closed-type accounting. Map it
-        // after the real pre-finish coexistence sample but before combining
-        // final counters or constructing the public result.
-        let finalization = self
-            .finalization
-            .take()
-            .expect("F4 finalization session is consumed exactly once by finish");
-        let finished_closed = finalization
-            .finish()
-            .map_err(Self::map_finalization_error)?;
-        #[cfg(all(test, feature = "f5c_resource_probe"))]
-        {
-            self.f5c_matrix_finished_closed = Some(finished_closed.f5c_resource_probe());
-        }
-        let (closed_types, receipt) = finished_closed.into_parts();
-        assert_eq!(
-            receipt.retained_bytes_before_finish(),
-            self.current_closed_retained_bytes,
-            "closed finalization receipt continues the solver-owned total"
-        );
-        self.current_closed_retained_bytes = receipt.retained_bytes_after_finish();
+        // Only legacy results own a closed arena and its finalization receipt.
+        let closed_types = if let Some(finalization) = self.finalization.take() {
+            let finished_closed = Self::finish_closed_finalization(finalization)?;
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            {
+                self.f5c_matrix_finished_closed = Some(finished_closed.f5c_resource_probe());
+            }
+            let (closed_types, receipt) = finished_closed.into_parts();
+            assert_eq!(
+                receipt.retained_bytes_before_finish(),
+                self.current_closed_retained_bytes,
+                "closed finalization receipt continues the solver-owned total"
+            );
+            self.current_closed_retained_bytes = receipt.retained_bytes_after_finish();
+            Some(closed_types)
+        } else {
+            assert_eq!(self.current_closed_retained_bytes, 0);
+            None
+        };
         self.instantiation_scratch = InstantiationScratch::default();
         self.execution_counters
             .instantiation_substitution_actual_capacity = 0;
@@ -16379,7 +16532,8 @@ impl InferenceSession {
                 .map(|(position, route)| (route.use_id.clone(), position))
                 .collect();
         }
-        Ok(SolvedModule {
+        let schemes = self.schemes;
+        let data = FrozenInferenceData {
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_calls: self.batch.candidate_calls,
             #[cfg(feature = "shadow-apply-candidate")]
@@ -16395,23 +16549,18 @@ impl InferenceSession {
             projections,
             root_scheme_positions: self.batch.root_definition_positions,
             root_scheme_identity_payload_bytes: self.batch.root_scheme_identity_payload_bytes,
-            schemes: self.schemes,
-            closed_types,
             routed_uses: self.routed_uses,
             errors,
             store: self.store,
             counters,
-            solved_root_query_probes: AtomicUsize::new(0),
-            scheme_root_query_probes: AtomicUsize::new(0),
-            scheme_root_query_identity_hash_byte_incidences: AtomicUsize::new(0),
-            scheme_root_query_logical_successful_equality_byte_incidences: AtomicUsize::new(0),
             #[cfg(test)]
             resource_boundary_samples: self.resource_boundary_samples,
             #[cfg(test)]
             resource_ledger: self.resource_ledger,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             f5c_matrix_observer: self.f5c_matrix_observer,
-        })
+        };
+        Ok(FinishedInference { data, schemes, closed_types })
     }
 }
 impl SolvedModule {
@@ -17040,6 +17189,130 @@ impl InferenceSession {
         assert_eq!(self.resource_ledger.inference_session_peak_bytes,
             self.execution_counters.inference_session_peak_bytes);
         self.f5c_matrix_observer = Some(observer);
+    }
+}
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod candidate_lifecycle_retirement {
+    use super::*;
+
+    struct ProbeReset;
+    impl ProbeReset {
+        fn new() -> Self {
+            CLOSED_LIFECYCLE_PROBE.with(|probe| *probe.borrow_mut() = ClosedLifecycleProbe::default());
+            Self
+        }
+    }
+    impl Drop for ProbeReset {
+        fn drop(&mut self) {
+            CLOSED_LIFECYCLE_PROBE.with(|probe| *probe.borrow_mut() = ClosedLifecycleProbe::default());
+        }
+    }
+    pub(super) fn hir(text: &str) -> Arc<HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("lifecycle", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap())
+    }
+    fn batch(hir: Arc<HirModule>) -> ConstraintBatch {
+        ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()
+    }
+    fn assert_calls(starts: usize, finishes: usize) {
+        CLOSED_LIFECYCLE_PROBE.with(|probe| {
+            let probe = probe.borrow();
+            assert_eq!((probe.starts, probe.finishes), (starts, finishes));
+        });
+    }
+
+    #[test]
+    fn candidate_never_delegates_closed_lifecycle_even_with_legacy_failure() {
+        let _reset = ProbeReset::new();
+        CLOSED_LIFECYCLE_PROBE.with(|probe| {
+            let mut probe = probe.borrow_mut();
+            probe.fail_start = true;
+            probe.fail_finish = true;
+        });
+        let hir = hir("my id x = x; my first = id 1; my second = id 1");
+        let weak = Arc::downgrade(&hir);
+        let candidate = crate::shadow_apply::CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        assert!(candidate.observes_hir(&hir));
+        assert_eq!(candidate.source_call_count(), 2);
+        for i in 0..2 { assert!(candidate.source_call(i).is_ok()); }
+        assert_calls(0, 0);
+        drop(hir);
+        assert!(weak.upgrade().is_some());
+        drop(candidate);
+        assert!(weak.upgrade().is_none());
+    }
+
+    #[test]
+    fn private_graph_workers_skip_startup_and_transfer_actual_payload() {
+        let _reset = ProbeReset::new();
+        let mut session = InferenceSession::try_new(batch(hir("my id x = x; my result = id 1"))).unwrap();
+        assert!(session.finalization.is_none());
+        assert!(session.schemes.is_empty());
+        assert_calls(0, 0);
+        session.start_candidate_graph().unwrap();
+        let solved = session.run_candidate().unwrap();
+        assert!(solved.data.errors.is_empty());
+        assert!(!solved.data.projections.is_empty());
+        assert!(!solved.data.store.facts().is_empty());
+        assert!(solved.data.resource_boundary_samples > 0);
+        let state = solved.data.candidate_graph.as_ref().unwrap();
+        assert_eq!((state.scratch_bytes, state.orchestration_bytes), (0, 0));
+        assert_eq!(solved.data.resource_ledger.instantiation_substitution_retained_bytes, 0);
+        assert_calls(0, 0);
+    }
+
+    #[test]
+    fn candidate_failure_and_abandoned_session_release_owners_without_closed_calls() {
+        let _reset = ProbeReset::new();
+        let hir = hir("my id x = x; my result = id 1");
+        let weak = Arc::downgrade(&hir);
+        let session = InferenceSession::try_new_candidate(batch(hir)).unwrap();
+        drop(session);
+        assert!(weak.upgrade().is_none());
+
+        let hir = self::hir("my id x = x; my result = id 1");
+        let weak = Arc::downgrade(&hir);
+        let mut session = InferenceSession::try_new_candidate(batch(hir)).unwrap();
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+        assert!(matches!(session.run_candidate(), Err(SolveAvailabilityError::ReceiptMismatch)));
+        assert!(weak.upgrade().is_none());
+
+        let hir = self::hir("my id x = x; my result = id 1");
+        let weak = Arc::downgrade(&hir);
+        let mut session = InferenceSession::try_new_candidate(batch(hir)).unwrap();
+        session.execute().unwrap();
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::InferenceTerm);
+        assert!(matches!(session.finish_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
+        assert!(weak.upgrade().is_none());
+        assert_calls(0, 0);
+    }
+
+    #[test]
+    fn ordinary_closed_lifecycle_remains_real_and_fallible() {
+        let _reset = ProbeReset::new();
+        let ordinary = || ConstraintBatch::collect(hir("my value = 1")).unwrap();
+        let solved = SolvedModule::solve(ordinary()).unwrap();
+        assert!(solved.errors().is_empty());
+        let HirItem::Binding(binding) = &solved.hir.items()[0] else { panic!("binding"); };
+        assert!(solved.closed_types.scheme_view(solved.schemes[*solved.root_scheme_positions.get(binding.definition_root()).unwrap()].as_ref().unwrap()).is_ok());
+        assert_calls(1, 1);
+        drop(solved);
+        CLOSED_LIFECYCLE_PROBE.with(|probe| probe.borrow_mut().fail_start = true);
+        assert!(matches!(SolvedModule::solve(ordinary()), Err(SolveAvailabilityError::IdentityExhausted)));
+        CLOSED_LIFECYCLE_PROBE.with(|probe| {
+            let mut probe = probe.borrow_mut(); probe.fail_start = false; probe.fail_finish = true;
+        });
+        let hir = hir("my value = 1");
+        let weak = Arc::downgrade(&hir);
+        assert!(matches!(SolvedModule::solve(ConstraintBatch::collect(hir).unwrap()), Err(SolveAvailabilityError::IdentityExhausted)));
+        assert!(weak.upgrade().is_none());
+        assert_calls(2, 1);
     }
 }
 
@@ -18723,7 +18996,7 @@ mod tests {
             .get_mut(&root)
             .expect("collected definition owns a frozen scheme position") = 1;
         let mut summary_reads = 0;
-        let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+        let mut finalization = InferenceSession::start_closed_finalization().unwrap();
         let _ = InferenceSession::generalize(
             &batch,
             &[],
@@ -26943,7 +27216,7 @@ mod tests {
         ];
 
         for draft in malformed {
-            let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+            let mut finalization = InferenceSession::start_closed_finalization().unwrap();
             assert!(matches!(
                 InferenceSession::finalize_generalization_draft_raw(
                     &mut finalization,
@@ -26993,7 +27266,7 @@ mod tests {
         ];
 
         for draft in malformed {
-            let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+            let mut finalization = InferenceSession::start_closed_finalization().unwrap();
             assert!(matches!(
                 InferenceSession::finalize_generalization_draft_raw(
                     &mut finalization,
@@ -27022,7 +27295,7 @@ mod tests {
                 result: test_tracked_one(&test_source_meter, F5cPositive::Recursive(1)),
             },
         };
-        let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+        let mut finalization = InferenceSession::start_closed_finalization().unwrap();
 
         let finalized =
             InferenceSession::finalize_generalization_draft_raw(&mut finalization, &draft, false)

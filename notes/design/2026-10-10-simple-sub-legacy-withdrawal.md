@@ -54,6 +54,17 @@ scope. It does not replace genuine source evidence with arbitrary native IDs,
 erase symbolic effect flow, weaken Call to arrow decomposition, or certify the
 current private successor as the production inferencer.
 
+## Implemented candidate lifecycle retirement
+
+The [candidate lifecycle delivery](../progress/2026-10-10-candidate-closed-lifecycle-retirement.md)
+removes closed-finalization construction, finish and closed-scheme slots from
+the private graph candidate lifecycle. Live graph execution and per-use
+freshening replace that runtime prerequisite. Public legacy closed observers
+retain their actual finalization owner until public successor migration is
+complete. This is implementation dependency removal, not discharge of a
+semantic proof node; complete Call, public export, hygiene, soundness and
+principality remain required.
+
 ## Related authority
 
 - [Parent/copy SCC intrusion](2026-10-10-parent-copy-scc-intrusion.md).

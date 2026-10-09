@@ -122,6 +122,10 @@ This index is a navigation aid. The listed source document remains authoritative
   the [legacy withdrawal regressions](../progress/2026-10-10-simple-sub-legacy-withdrawal.md)
   and owning intrusion regressions now verify bounded generic-local cases.
   Broader source correspondence and complete Call/public cutover remain open.
+  The [candidate lifecycle retirement](../progress/2026-10-10-candidate-closed-lifecycle-retirement.md)
+  removes candidate construction/finish of the legacy closed finalizer and
+  its result-shell dependency. M2 review and 52 focused tests pass; public
+  closed result ownership remains genuine and public successor cutover open.
   The [source Call input checkpoint](../progress/2026-10-10-call-source-inputs.md)
   retains authentic formal/operand inputs connected to generated native demands.
   Validating pending construction remains distinct from original certificates

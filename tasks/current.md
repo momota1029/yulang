@@ -6645,10 +6645,32 @@ dedicated 16 MiB workers; an isolated 2 MiB probe localizes a separate 128-group
 overflow inside `yu_syntax::parse_file`, before HIR can guard its parsed artifact.
 That parser owner remains explicit and is not claimed fixed by larger test stacks.
 
-Next implement the confirmed private candidate closed-lifecycle retirement gate,
-then authentic Unit/operation formation with the actual declaration-result
+The private candidate closed-lifecycle retirement gate is implemented and
+verified in the checkpoint below. Next implement authentic Unit/operation
+formation with the actual declaration-result
 consumer. Source Apply alone constructs an inert operation request carrier in
 frozen Oracle; forcing/execution is a distinct later owner, so family contribution
 must not be injected merely from callee shape. Genuine contravariant attachments,
 complete Call, public transformed schemes, soundness/principality and default
 F5 replacement on `yulang3` remain open. Pending questions stay excluded from Git.
+
+### Candidate closed-lifecycle dependency withdrawn (2026-10-10)
+
+The [delivery record](../notes/progress/2026-10-10-candidate-closed-lifecycle-retirement.md)
+records a genuine private candidate result owner, shared actual inference data,
+candidate startup/finish without closed finalization, and Call observation
+borrowing its real inputs. Legacy public closed results retain their real arena;
+no empty closed payload substitutes for missing public schemes. M2 semantic and
+regression reviews plus fresh delta review close the one accepted compilation
+finding. Seven lifecycle guards, the 43-test annotation/intrusion/local matrix
+and two focused historical closed controls pass (52 tests total). Candidate
+all-target and default owning checks pass without warnings. Measurement budget
+consumed: zero. No new semantic theorem is claimed proved or retired by this
+runtime ownership removal.
+
+Next: integrate authentic Unit primitive adapters, then actual operation
+declaration/carrier and justified result-consumer formation. The isolated
+`/tmp/yulang-unit-types-production-candidate/` delta is prepared but unintegrated
+and uncompiled; it is not shipping evidence. Complete Call, contravariant effect
+attachments, hygiene correspondence, public transformed schemes,
+soundness/principality and target `yulang3` cutover remain active.

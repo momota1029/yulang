@@ -73,7 +73,7 @@ pub struct CandidateValueObservation {
 /// Private successor inference using retained value and effect variable graphs.
 /// Complete Call, source admission and public scheme correspondence remain open.
 pub struct CandidateInference {
-    solved: SolvedModule,
+    solved: CandidateSolvedResult,
 }
 impl CandidateInference {
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
@@ -109,35 +109,34 @@ impl CandidateInference {
             return Err(CandidateError::Unsupported);
         }
         let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).map_err(CandidateError::Collection)?;
-        let mut session = InferenceSession::try_new(batch).map_err(CandidateError::Solve)?;
-        session
-            .start_candidate_graph()
-            .map_err(CandidateError::Solve)?;
+        let session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
         Ok(Self {
-            solved: session.run().map_err(CandidateError::Solve)?,
+            solved: session.run_candidate().map_err(CandidateError::Solve)?,
         })
     }
     pub fn observes_hir(&self, hir: &HirModule) -> bool {
-        std::ptr::eq(self.solved.hir.as_ref(), hir)
+        std::ptr::eq(self.solved.data.hir.as_ref(), hir)
     }
     /// Candidate conflicts never establish source rejection.
     pub fn candidate_conflicts(&self) -> &[SolverError] {
-        self.solved.errors()
+        &self.solved.data.errors
     }
     pub fn export(
         &self,
         root: &DefinitionRootId,
     ) -> Result<CandidateGraphExport<'_>, ArtifactMismatch> {
-        if !self.solved.hir.owns_definition_root(root) {
+        if !self.solved.data.hir.owns_definition_root(root) {
             return Err(ArtifactMismatch);
         }
         let position = self
             .solved
+            .data
             .root_scheme_positions
             .get(root)
             .ok_or(ArtifactMismatch)?;
         let state = self
             .solved
+            .data
             .candidate_graph
             .as_ref()
             .ok_or(ArtifactMismatch)?;
@@ -145,10 +144,10 @@ impl CandidateInference {
         Ok(CandidateGraphExport { state, graph })
     }
     pub fn fresh_use(&self, occurrence: &HirOccurrenceId) -> Option<CandidateGraphFreshUse<'_>> {
-        if !self.solved.hir.owns_occurrence(occurrence) {
+        if !self.solved.data.hir.owns_occurrence(occurrence) {
             return None;
         }
-        let state = self.solved.candidate_graph.as_ref()?;
+        let state = self.solved.data.candidate_graph.as_ref()?;
         if let Some(route) = state.local_routes.iter().find(|route| &route.occurrence == occurrence) {
             let scheme = state.locals.get(route.slot)?.as_ref()?;
             if scheme.id != route.local { return None; }
@@ -166,7 +165,7 @@ impl CandidateInference {
     }
     pub fn effect_conflict(&self, kind: SolverErrorKind) -> Result<CandidateEffectConflict<'_>, ArtifactMismatch> {
         let SolverErrorKind::IncompatibleEffect { operand, annotation } = kind else { return Err(ArtifactMismatch); };
-        let state = &self.solved.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion.effect_algebra;
+        let state = &self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion.effect_algebra;
         let (operand, annotation) = state.observe(operand, annotation).ok_or(ArtifactMismatch)?;
         let operand = match operand {
             crate::candidate_effect::ObservedOperand::Contribution(value) => CandidateEffectOperand::Contribution { effect: &value.effect, origin: &value.origin, instance: value.instance },
@@ -178,9 +177,9 @@ impl CandidateInference {
         })
     }
     /// Indexed observations retain one pending construction request per source Call.
-    pub fn source_call_count(&self) -> usize { self.solved.candidate_calls.calls.len() }
+    pub fn source_call_count(&self) -> usize { self.solved.data.candidate_calls.calls.len() }
     pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
-        crate::candidate_call::observe(&self.solved, index)
+        crate::candidate_call::observe(&self.solved.data.hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
@@ -1472,6 +1471,34 @@ mod tests {
             )
             .unwrap(),
         )
+    }
+    #[test]
+    fn candidate_lifecycle_retirement_keeps_borrowed_effect_handles_and_rejects_foreign_call_hir() {
+        let hir = crate::candidate_lifecycle_retirement::hir("act E\nmy left x = x; my result = left 1");
+        let foreign = crate::candidate_lifecycle_retirement::hir("act E\nmy left x = x; my result = left 1");
+        let effect = hir.source_effect_declarations()[0].id.clone();
+        let origin = effect.declaration.clone();
+        let root = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "left" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap()).unwrap();
+        session.execute().unwrap();
+        let operand = session.candidate_effect_contribution(effect.clone(), origin.clone()).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(hir.local_source(&root).unwrap().unwrap().expressions()[0].occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session.constrain_live_effect(operand, EffectEndpointKey::EmptyNegative, &occurrence, &cause).unwrap();
+        let candidate = CandidateInference { solved: session.finish_candidate().unwrap() };
+        let kind = candidate.candidate_conflicts().iter().find_map(|error| matches!(error.kind(), SolverErrorKind::IncompatibleEffect { .. }).then_some(error.kind())).unwrap();
+        let observed = candidate.effect_conflict(kind).unwrap();
+        let CandidateEffectOperand::Contribution { effect: actual, origin: actual_origin, .. } = observed.operand else { panic!("actual contribution"); };
+        assert_eq!((actual, actual_origin), (&effect, &origin));
+        assert!(observed.annotation.is_none());
+        let other = CandidateInference::solve(foreign.clone()).unwrap();
+        assert!(other.effect_conflict(kind).is_err());
+        assert!(crate::candidate_call::observe(&foreign, &candidate.solved.data.store, &candidate.solved.data.candidate_calls, 0).is_err());
+        assert!(candidate.source_call(0).is_ok());
     }
     #[test]
     fn candidate_apply_fact_observation_rejects_copied_call() {

@@ -136,9 +136,9 @@ fn natural_recursive_definitions_use_open_roots_and_keep_real_function_bounds() 
         assert!(!session.batch.scc_plan().components_in_dependency_first_order().all(|component|
             session.batch.scc_plan().internal_uses(component).unwrap().is_empty()));
         session.start_candidate_graph().unwrap();
-        let solved = session.run().unwrap();
-        assert!(solved.errors().is_empty());
-        let state = solved.candidate_graph.as_ref().unwrap();
+        let solved = session.run_candidate().unwrap();
+        assert!(solved.data.errors.is_empty());
+        let state = solved.data.candidate_graph.as_ref().unwrap();
         assert!(state.intrusion.active_roots.is_empty());
         assert!(state.intrusion.active_uses.is_empty());
         for graph in state.graphs.iter().flatten() {
@@ -154,14 +154,14 @@ fn natural_local_capture_keeps_live_late_integer_bounds_and_shared_older_images(
     let hir = hir("my succ x = 1; my apply g = { my relay x = g x; my before = relay 1; relay 1 }; my answer = apply succ");
     let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap()).unwrap();
     session.start_candidate_graph().unwrap();
-    let solved = session.run().unwrap();
-    assert!(solved.errors().is_empty());
-    let state = solved.candidate_graph.as_ref().unwrap();
+    let solved = session.run_candidate().unwrap();
+    assert!(solved.data.errors.is_empty());
+    let state = solved.data.candidate_graph.as_ref().unwrap();
     assert!(!state.intrusion.parents.is_empty(), "captured younger coordinates underwent actual extrusion");
-    let answer = solved.hir.items().iter().find_map(|item| match item {
+    let answer = solved.data.hir.items().iter().find_map(|item| match item {
         HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding.definition_root()), _ => None,
     }).unwrap();
-    let apply = solved.hir.items().iter().find_map(|item| match item {
+    let apply = solved.data.hir.items().iter().find_map(|item| match item {
         HirItem::Binding(binding) if binding.name().spelling() == "apply" => Some(binding.definition_root()), _ => None,
     }).unwrap();
     let source = hir.local_source(apply).unwrap().unwrap();
@@ -181,7 +181,7 @@ fn natural_local_capture_keeps_live_late_integer_bounds_and_shared_older_images(
             && state.intrusion.rep(source.key) == state.intrusion.rep(other.key)
             && state.intrusion.rep(routes[0].rows[a]) != state.intrusion.rep(routes[1].rows[b]))),
         "eligible local coordinates have independent fresh images alongside shared captures");
-    let position = solved.root_scheme_positions[answer];
+    let position = solved.data.root_scheme_positions[answer];
     let graph = state.graphs[position].as_ref().unwrap();
     let same_node = |a: usize, b: usize| a == b || match (graph.nodes[a], graph.nodes[b]) {
         (crate::candidate_scheme::Node::Row { row: a, .. }, crate::candidate_scheme::Node::Row { row: b, .. }) =>
