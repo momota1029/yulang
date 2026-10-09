@@ -5673,6 +5673,23 @@ conditional; O1/SeedExposure, original kernel realization, C0/admission,
 complete solving, publication and F5 cutover remain open. No implementation,
 tests or builds ran.
 
+New evidence arrived in upstream commit `7b723269c`: the independently
+reviewed [Call Reify constructor proof](../notes/theory/2026-10-10-original-call-reify-constructor-proof.md)
+and its [review record](../notes/progress/2026-10-10-literal-constructor-proof-review.md).
+The proof repairs the old-image domain overclaim and constructs a typed tagged
+extension plus a distinct source-owned `J_lit`, while retaining arbitrary old
+image packages. Its four construction choices remain unadopted. It takes
+`P_old` as input, so it does not construct the actual selected-source registry
+or discharge q1's authentic registry/consumer question; it also does not prove
+complete Call emission/O0/O1 or authorize implementation. The user's explicit
+「完全契約で」 fixes the complete Call contract and rules out four-port solving
+as the success criterion. A linked pending [q2](../questions/2026-10-10-call-reify-registry-construction/q2/question.md)
+asks whether to adopt the reviewed tagged construction as the next bounded
+design gate or retain it as research while continuing actual-source registry
+investigation. q1 remains preserved and pending; neither question bundle is
+committed. Complete-Call implementation and acceptance remain blocked pending
+the scoped design and source-owner decisions.
+
 The approved annotation q1/d1's next design slice is recorded in the
 [one-case Any annotation design](../notes/theory/2026-10-10-source-owned-annotation-any-design.md).
 It assigns ownership from the literal's current Int root and prior evidence,

@@ -173,7 +173,17 @@ This index is a navigation aid. The listed source document remains authoritative
   input, so its lookup branch and old-consumer manifest cannot yet be
   instantiated. Question `call-reify-registry-construction/q1` asks whether to
   expand the bounded design gate upstream to that owner; the question bundle
-  remains local and uncommitted pending an approved answer.
+  remains local and uncommitted pending an approved answer. The independently
+  reviewed [constructor proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
+  repairs the old-image domain overclaim and proposes a typed tagged registry
+  extension plus a distinct source-owned `J_lit`. Its four semantic choices
+  remain unadopted, and it assumes `P_old` rather than constructing the actual
+  selected-source registry. The user's explicit 「完全契約で」 fixes the full
+  Call contract. Linked pending question `call-reify-registry-construction/q2`
+  asks whether to adopt that exact construction direction as a bounded design
+  gate or retain it as research while investigating the actual registry owner.
+  q1 and q2 remain local and uncommitted; neither authorizes implementation,
+  complete Call acceptance or F5 cutover.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
