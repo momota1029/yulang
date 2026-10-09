@@ -705,6 +705,7 @@ mod tests {
     mod shadow_call_source_occurrences;
     mod shadow_call_use_source_inputs;
     mod shadow_captured_call_input;
+    mod shadow_colon_application;
     mod shadow_legacy_apply_structure;
     mod shadow_resolved_call_incidence;
     mod shadow_retained_expression_inventory;

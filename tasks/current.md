@@ -6918,6 +6918,14 @@ new semantic choice. The exact contextual skip premise is that every local
 check, residual/output consequence, latent Function consequence, and provenance
 obligation remains owned and live after equality, freshening, and rollback.
 
+The `ColonApplicationTail` source carrier now reaches `LocalSourceForm::Apply`
+as one inline argument, retaining the nested `cb 1` application and source
+identity. Focused HIR regressions cover this spelling, ordinary ML/Call tails,
+recovery/layout rejection, and outer sequence ownership. This is syntax/HIR
+transport only: it does not establish `run_io` semantics, typed effect-port
+flow, subtraction, or the corrected result scheme. See the
+[source bridge checkpoint](../notes/progress/2026-10-10-colon-application-source-bridge.md).
+
 Next: implement the source-owned contravariant attachment and executable
 subtraction consumer as one coupled gate, reusing the selected hygiene policy
 and its existing conditional proofs. Include the corrected callback result as

@@ -186,6 +186,13 @@ fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
     }
     Ok(child)
 }
+pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
+    let child = only_child(node)?;
+    if child.kind() != SyntaxKind::OperatorChain {
+        return Err(invalid());
+    }
+    Ok(child)
+}
 fn body(statement: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
     let mut nodes = Vec::new();
     for node in statement.children() {
@@ -454,7 +461,12 @@ impl Builder<'_> {
                 }
                 let mut current = index;
                 for (ordinal, tail) in tails.iter().enumerate().rev() {
-                    if !matches!(tail.kind(), SyntaxKind::MlArgument | SyntaxKind::CallTail) {
+                    if !matches!(
+                        tail.kind(),
+                        SyntaxKind::MlArgument
+                            | SyntaxKind::CallTail
+                            | SyntaxKind::ColonApplicationTail
+                    ) {
                         return Err(invalid());
                     }
                     if tail.children_with_tokens().any(|element| {
@@ -470,7 +482,11 @@ impl Builder<'_> {
                     {
                         None
                     } else {
-                        Some(only_child(tail)?)
+                        Some(if tail.kind() == SyntaxKind::ColonApplicationTail {
+                            inline_colon_argument(tail)?
+                        } else {
+                            only_child(tail)?
+                        })
                     };
                     let callee = self.slot()?;
                     let argument = self.slot()?;
