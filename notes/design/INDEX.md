@@ -351,9 +351,10 @@ This index is a navigation aid. The listed source document remains authoritative
   conditional findings and source locators are linked from `tasks/current.md`;
   the actual-registry audit further finds that the complete `P` remains an
   input, so its lookup branch and old-consumer manifest cannot yet be
-  instantiated. Question `call-reify-registry-construction/q1` asks whether to
-  expand the bounded design gate upstream to that owner; the question bundle
-  remains local and uncommitted pending an approved answer. The independently
+  instantiated. The earlier registry q1 asked whether to expand the bounded
+  design gate upstream; q2/q3 later supplied the adopted bounded directions.
+  Its obsolete unanswered file was removed in the
+  [question-board cleanup](../progress/2026-10-10-question-board-cleanup.md). The independently
   reviewed [constructor proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
   repairs the old-image domain overclaim and proposes a typed tagged registry
   extension plus a distinct source-owned `J_lit`. The four choices are now
@@ -362,8 +363,8 @@ This index is a navigation aid. The listed source document remains authoritative
   selected-source registry. The user's explicit 「完全契約で」 fixes the full
   Call contract. Approved `call-reify-registry-construction/q2` adopts that
   exact construction direction as a bounded design gate while retaining actual
-  registry construction as open. q1 remains preserved as pending history; q2
-  was integrated at
+  registry construction as open. q1 is withdrawn history in the cleanup record;
+  q2 was integrated at
   `a4e789ee4`; its [receipt](../questions/2026-10-10-call-reify-registry-construction/q2/receipt.md)
   and [bounded direction](2026-10-10-call-reify-construction-direction.md)
   adopt exactly the four reviewed choices while retaining source construction
@@ -437,11 +438,11 @@ This index is a navigation aid. The listed source document remains authoritative
   checkpointed at `de26db327`, stops at the original formal introduction's
   unprovided complete input telescope and typed raw-P substitution. It does not
   assert an incompatible declaration or source impossibility. The six choices
-  are unadopted; [registry q4](../../questions/2026-10-10-call-reify-registry-construction/q4/question.md)
-  requests exact adoption. No compiler implementation or full inference closure.
-  Following the current user correction, that request is suspended as an
-  inference prerequisite; the proposal remains unadopted research. See the
-  Simple-sub reassessment above.
+  are unadopted. The former registry q4 adoption request was removed in the
+  [question-board cleanup](../progress/2026-10-10-question-board-cleanup.md) after
+  the user correction removed it from the inference critical path. The proposal
+  remains unadopted research; no compiler implementation or full inference
+  closure follows. See the Simple-sub reassessment above.
 
 - **Reviewed source-owned invoke registry candidate, unadopted (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)

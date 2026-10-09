@@ -69,3 +69,11 @@ Posting does not pause a goal; continue independent authorized work. No watcher,
 background polling, notification or automatic goal pause/wake/resume exists.
 Necessary resumption follows the live runtime contract. Approval/integration waive
 no independent review or compiler implementation gate.
+
+## Retired pending questions
+
+The [2026-10-10 cleanup record](../notes/progress/2026-10-10-question-board-cleanup.md)
+records the user-authorized removal of withdrawn/superseded unapproved questions.
+The 22 integrated decision bundles remain unchanged as provenance. Historical
+predecessor/pending wording inside finalized bundles describes their integration
+time; it does not recreate removed live questions or approve an old draft.

@@ -130,3 +130,14 @@ publication/freshening and intrusion transport. These are evidence-producing
 read-only audits, not a new full soundness review. No compiler edits, tests,
 builds, execution probes or measurements ran. Full effect/role/protection
 inference, actual source-to-solver correspondence and F5 cutover remain open.
+
+## Subsequent question-board cleanup
+
+The user's explicit instruction to delete unnecessary q & a supersedes retention
+of these pending files. The withdrawn ordinary-value q1 and its unapproved
+three draft revisions, superseded registry q1, and suspended registry q4 were
+removed; none was adopted or consumed. The
+[cleanup record](2026-10-10-question-board-cleanup.md) retains their dispositions.
+Approved q2/q3 bundles and genuine Call obligations are retained. Earlier
+retention statements above describe the reassessment checkpoint, not live
+pending questions after cleanup.

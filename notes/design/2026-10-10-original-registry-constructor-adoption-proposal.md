@@ -116,8 +116,12 @@ also needs the actual complete Call formation, O0/O1, independent C0/admission,
 effective correlated solving, completed-source Generalize, transformed ordinary
 public extraction/fresh checking and atomic publication.
 
-The [ordinary-value/formal refinement question](../../questions/2026-10-10-call-formal-ordinary-value-refinement/q1/question.md)
-remains separate; neither literal-only nor uniform scope is selected here.
+The former ordinary-value/formal refinement question was withdrawn: the
+[Simple-sub reassessment](../progress/2026-10-10-simple-sub-question-reassessment.md)
+records why its literal-versus-general choice was unnecessary. The unapproved
+question/drafts were removed in the
+[question-board cleanup](../progress/2026-10-10-question-board-cleanup.md).
+This proposal does not select a new application inference restriction.
 The full Call contract and all four q2 choices remain fixed. No RuleCall_L
 equations, effect/protection removal or new printed invoke scheme are adopted.
 

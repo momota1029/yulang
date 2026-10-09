@@ -5923,7 +5923,8 @@ choice and actual `P_old` correspondence remain open; see the
 [scope record](../notes/design/2026-10-10-source-owned-registry-design-gate.md).
 
 The bounded decision on the first ordinary-value refinement is now on the
-question board at [call-formal-ordinary-value-refinement/q1](../questions/2026-10-10-call-formal-ordinary-value-refinement/q1/question.md).
+question board as ordinary-value q1 (subsequently withdrawn and removed; see
+[cleanup](../notes/progress/2026-10-10-question-board-cleanup.md)).
 It asks whether to start with actual Int Data at the Call argument child, use a
 uniform ordinary-Value rule, or defer that rule. Only this dependent source-rule
 design waits; other solver/export and registry research may proceed under their
@@ -6064,8 +6065,8 @@ proposal/conformance component; [coverage and hashes](../notes/progress/2026-10-
 It identifies new nominal recipe/raw-registry, owner/port/Entry/registration,
 source-generated image, whole-consumer and action definitions for the selected
 pre-Call source interpretation. The exact definitions remain unadopted.
-[Registry q4](../questions/2026-10-10-call-reify-registry-construction/q4/question.md)
-asks whether to adopt that connected object or retain it as a candidate until
+Registry q4 (subsequently suspended and removed; see
+[cleanup](../notes/progress/2026-10-10-question-board-cleanup.md)) asked whether to adopt that connected object or retain it as a candidate until
 the actual original introduction is elaborated. The ordinary-value refinement
 q1 remains separate and pending. Questions stay unstaged/uncommitted.
 
@@ -6862,3 +6863,22 @@ ordinary solver publication/query migration. Both read-only production maps are
 complete; do not repeat mapping as progress. Wildcards, complete Call, hygiene,
 soundness/principality and target `yulang3` cutover remain active. The pending
 question bundles remain excluded from staging.
+
+### Question-board cleanup at user request (2026-10-10)
+
+The user explicitly requested deletion of unnecessary q & a and commits for
+needed material. All 22 tracked decision bundles have question/current draft/
+approved answer/receipt files and remain as decision provenance. The three
+untracked directories contain no finalized approved answer: ordinary-value q1
+has a withdrawn premise and unapproved d1/d2/d3 drafts; registry q1 is superseded
+by integrated q2/q3; registry q4 is unadopted research removed from the inference
+critical path. Their eight files are deleted; dispositions remain in the
+[cleanup record](../notes/progress/2026-10-10-question-board-cleanup.md), and live
+links/index wording are repaired. Earlier pending/preservation statements above
+are historical checkpoint descriptions, superseded by this cleanup.
+
+No answer was adopted by housekeeping. Approved committed bundles are unchanged;
+complete Call, effect hygiene, soundness/principality and inference/public/default
+migration remain active. M1 independent read-only reference/disposition review
+has no blocking findings; narrow file/link/diff checks pass. Zero compiler
+builds/tests or performance samples/processes for this record-only cleanup.
