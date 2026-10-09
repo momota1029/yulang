@@ -210,6 +210,8 @@ mod scc;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_scheme;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_extrusion;
+#[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
 #[cfg(feature = "shadow-f5")]
 pub mod shadow_f5;
@@ -3895,8 +3897,9 @@ impl From<ConstraintError> for SolveAvailabilityError {
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct VariableBounds {
-    /// The two row lists are the paired physical representation of one direct
-    /// variable edge.  They deliberately do not encode transitive reachability.
+    /// Legacy solving uses paired adjacency for a direct variable edge.
+    /// Private graph solving retains only the selected lower or upper side.
+    /// Neither mode encodes transitive reachability.
     direct_lower_rows: Vec<u32>,
     direct_upper_rows: Vec<u32>,
     exact_non_variable_lowers: Vec<ValueEndpointKey>,
@@ -4084,7 +4087,7 @@ enum FunctionField {
     Result,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum ExtrusionEndpoint {
     Value(ValueEndpointKey),
     Effect(EffectEndpointKey),
@@ -10992,6 +10995,17 @@ impl InferenceSession {
         }
     }
 
+    fn candidate_graph_enabled(&self) -> bool {
+        #[cfg(feature = "shadow-apply-candidate")]
+        {
+            self.candidate_graph.is_some()
+        }
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        {
+            false
+        }
+    }
+
     /// Lower reachable younger variables with reusable generation marks.  The
     /// traversal follows only installed exact structure and direct adjacency;
     /// it neither allocates per pair nor materializes transitive relations.
@@ -11195,6 +11209,10 @@ impl InferenceSession {
         lower: EffectEndpointKey,
         upper: EffectEndpointKey,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            return self.candidate_apply_effect(lower, upper);
+        }
         match (lower, upper) {
             (EffectEndpointKey::EffectRow(a), EffectEndpointKey::EffectRow(b)) => {
                 let minimum = self.effect_levels[a as usize].min(self.effect_levels[b as usize]);
@@ -11467,28 +11485,76 @@ impl InferenceSession {
                         Self::positive_function_children(&self.store, key.lower),
                         Self::negative_function_children(&self.store, key.upper),
                     ) else {
-                        // Atoms and structured constructors have no live
-                        // level.  Only a structural bound is extruded into
-                        // its receiving variable; Var/Var aging belongs to
-                        // the direct-row transition below.
-                        match (key.lower, key.upper) {
-                            (lower, ValueEndpointKey::ValueRow(row))
-                                if !matches!(lower, ValueEndpointKey::ValueRow(_)) =>
-                            {
-                                self.extrude_value_endpoint(
-                                    lower,
-                                    self.value_levels[row as usize],
-                                )?;
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        if self.candidate_graph.is_some() {
+                            let mut rewritten = key;
+                            match (key.lower, key.upper) {
+                                (lower, ValueEndpointKey::ValueRow(row))
+                                    if !matches!(lower, ValueEndpointKey::ValueRow(_)) =>
+                                {
+                                    let ExtrusionEndpoint::Value(copied) = self.candidate_extrude(
+                                        ExtrusionEndpoint::Value(lower),
+                                        Polarity::Positive,
+                                        self.value_levels[row as usize],
+                                    )?
+                                    else {
+                                        unreachable!()
+                                    };
+                                    rewritten.lower = copied;
+                                }
+                                (ValueEndpointKey::ValueRow(row), upper)
+                                    if !matches!(upper, ValueEndpointKey::ValueRow(_)) =>
+                                {
+                                    let ExtrusionEndpoint::Value(copied) = self.candidate_extrude(
+                                        ExtrusionEndpoint::Value(upper),
+                                        Polarity::Negative,
+                                        self.value_levels[row as usize],
+                                    )?
+                                    else {
+                                        unreachable!()
+                                    };
+                                    rewritten.upper = copied;
+                                }
+                                _ => {}
                             }
-                            (ValueEndpointKey::ValueRow(row), upper)
-                                if !matches!(upper, ValueEndpointKey::ValueRow(_)) =>
-                            {
-                                self.extrude_value_endpoint(
-                                    upper,
-                                    self.value_levels[row as usize],
+                            if rewritten != key {
+                                self.record_typed_pair_admission(
+                                    memo_key,
+                                    TypedPairMemo::Value {
+                                        children: DiagnosticChildren::new(),
+                                        direct_witness: None,
+                                        completion: DiagnosticCompletion::Pending,
+                                    },
                                 )?;
+                                self.record_diagnostic_edge(key, rewritten, None)?;
+                                self.enqueue_task(LiveConstraintTask::Value(rewritten))?;
+                                continue;
                             }
-                            _ => {}
+                        }
+                        if !self.candidate_graph_enabled() {
+                            // Atoms and structured constructors have no live
+                            // level.  Only a structural bound is extruded into
+                            // its receiving variable; Var/Var aging belongs to
+                            // the direct-row transition below.
+                            match (key.lower, key.upper) {
+                                (lower, ValueEndpointKey::ValueRow(row))
+                                    if !matches!(lower, ValueEndpointKey::ValueRow(_)) =>
+                                {
+                                    self.extrude_value_endpoint(
+                                        lower,
+                                        self.value_levels[row as usize],
+                                    )?;
+                                }
+                                (ValueEndpointKey::ValueRow(row), upper)
+                                    if !matches!(upper, ValueEndpointKey::ValueRow(_)) =>
+                                {
+                                    self.extrude_value_endpoint(
+                                        upper,
+                                        self.value_levels[row as usize],
+                                    )?;
+                                }
+                                _ => {}
+                            }
                         }
                         self.record_typed_pair_admission(
                             memo_key,
@@ -12412,6 +12478,10 @@ impl InferenceSession {
         &mut self,
         key: CanonicalValuePairKey,
     ) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            return self.candidate_apply_value(key);
+        }
         let mut transitions = 0;
         match (key.lower, key.upper) {
             (ValueEndpointKey::ValueRow(lower), ValueEndpointKey::ValueRow(upper)) => {

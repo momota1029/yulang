@@ -68,6 +68,7 @@ pub(super) enum Atom {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Bound {
     pub kind: ComponentKind,
+    pub side: Polarity,
     pub lower: usize,
     pub upper: usize,
 }
@@ -348,12 +349,16 @@ impl<'a> Capture<'a> {
     fn bound(
         &mut self,
         kind: ComponentKind,
+        side: Polarity,
         lower: Endpoint,
         upper: Endpoint,
     ) -> Result<(), SolveAvailabilityError> {
         let lower = self.intern(lower)?;
         let upper = self.intern(upper)?;
-        push(&mut self.graph.bounds, Bound { kind, lower, upper })
+        push(
+            &mut self.graph.bounds,
+            Bound { kind, side, lower, upper },
+        )
     }
     fn expand_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
         let Row { key, local } = self.graph.rows[index];
@@ -398,6 +403,7 @@ impl<'a> Capture<'a> {
                 for &lower in &row.direct_lower_rows {
                     self.bound(
                         ComponentKind::Value,
+                        Polarity::Positive,
                         Endpoint::Value(ValueEndpointKey::ValueRow(lower), p),
                         Endpoint::Value(ValueEndpointKey::ValueRow(i), n),
                     )?;
@@ -405,6 +411,7 @@ impl<'a> Capture<'a> {
                 for &upper in &row.direct_upper_rows {
                     self.bound(
                         ComponentKind::Value,
+                        Polarity::Negative,
                         Endpoint::Value(ValueEndpointKey::ValueRow(i), p),
                         Endpoint::Value(ValueEndpointKey::ValueRow(upper), n),
                     )?;
@@ -415,6 +422,7 @@ impl<'a> Capture<'a> {
                     }
                     self.bound(
                         ComponentKind::Value,
+                        Polarity::Positive,
                         Endpoint::Value(lower, p),
                         Endpoint::Value(ValueEndpointKey::ValueRow(i), n),
                     )?;
@@ -425,6 +433,7 @@ impl<'a> Capture<'a> {
                     }
                     self.bound(
                         ComponentKind::Value,
+                        Polarity::Negative,
                         Endpoint::Value(ValueEndpointKey::ValueRow(i), p),
                         Endpoint::Value(upper, n),
                     )?;
@@ -438,6 +447,7 @@ impl<'a> Capture<'a> {
                 for &lower in &row.direct_lower_rows {
                     self.bound(
                         ComponentKind::Effect,
+                        Polarity::Positive,
                         Endpoint::Effect(EffectEndpointKey::EffectRow(lower), p),
                         Endpoint::Effect(EffectEndpointKey::EffectRow(i), n),
                     )?;
@@ -445,6 +455,7 @@ impl<'a> Capture<'a> {
                 for &upper in &row.direct_upper_rows {
                     self.bound(
                         ComponentKind::Effect,
+                        Polarity::Negative,
                         Endpoint::Effect(EffectEndpointKey::EffectRow(i), p),
                         Endpoint::Effect(EffectEndpointKey::EffectRow(upper), n),
                     )?;
@@ -455,6 +466,7 @@ impl<'a> Capture<'a> {
                     }
                     self.bound(
                         ComponentKind::Effect,
+                        Polarity::Positive,
                         Endpoint::Effect(lower, p),
                         Endpoint::Effect(EffectEndpointKey::EffectRow(i), n),
                     )?;
@@ -465,6 +477,7 @@ impl<'a> Capture<'a> {
                     }
                     self.bound(
                         ComponentKind::Effect,
+                        Polarity::Negative,
                         Endpoint::Effect(EffectEndpointKey::EffectRow(i), p),
                         Endpoint::Effect(upper, n),
                     )?;
@@ -755,29 +768,27 @@ impl InferenceSession {
         }
         let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence.clone());
+        // Replay preserves the captured owner side even when fresh rows
+        // share a level. Induced comparisons run on the ordinary worklist.
         for bound in &graph.bounds {
             let lower = terms[bound.lower].ok_or_else(exhausted)?;
             let upper = terms[bound.upper].ok_or_else(exhausted)?;
-            match bound.kind {
-                ComponentKind::Value => {
-                    self.constrain_live_value(
-                        CanonicalValuePairKey {
-                            lower: self.value_endpoint(lower, Polarity::Positive),
-                            upper: self.value_endpoint(upper, Polarity::Negative),
-                        },
-                        &occurrence,
-                        &cause,
-                    )?;
-                }
-                ComponentKind::Effect => {
-                    self.constrain_live_effect(
-                        self.effect_endpoint(lower, Polarity::Positive),
-                        self.effect_endpoint(upper, Polarity::Negative),
-                        &occurrence,
-                        &cause,
-                    )?;
-                }
-            }
+            let (lower, upper) = match bound.kind {
+                ComponentKind::Value => (
+                    ExtrusionEndpoint::Value(self.value_endpoint(lower, Polarity::Positive)),
+                    ExtrusionEndpoint::Value(self.value_endpoint(upper, Polarity::Negative)),
+                ),
+                ComponentKind::Effect => (
+                    ExtrusionEndpoint::Effect(self.effect_endpoint(lower, Polarity::Positive)),
+                    ExtrusionEndpoint::Effect(self.effect_endpoint(upper, Polarity::Negative)),
+                ),
+            };
+            let (owner, item) = if bound.side == Polarity::Positive {
+                (upper, lower)
+            } else {
+                (lower, upper)
+            };
+            self.candidate_restore_bound(owner, bound.side, item, &occurrence, &cause)?;
         }
         let lower = terms[graph.root].ok_or_else(exhausted)?;
         let upper = self.batch.component_term_at(record.use_value_component);

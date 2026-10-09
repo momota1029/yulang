@@ -6249,3 +6249,29 @@ constraint graph through all four Function ports and its finite fresh graph,
 while keeping source eligibility and complete residual interpretation separate.
 An alternative generic source-use-map candidate has not supplied the actual
 original field telescope and is not promoted as a closed source theorem.
+
+### Successor polarity-copy bound owner (2026-10-10)
+
+The [polarity-copy implementation record](../notes/progress/2026-10-10-successor-polarity-copy-extrusion.md)
+now replaces in-place aging only in the private graph path. Kind-qualified
+polarized representatives retain original levels, selected lower/upper bounds
+and one-sided source links. Function argument ports reverse polarity; result
+ports preserve it. Iterative reconstruction defers bound traversal until each
+structural memo entry completes. Graph comparison uses directional receiving
+owners and opposite-bound replay; schemes retain their owner side through fresh
+use. Existing diagnostic and route journals retain their responsibilities.
+
+M2 semantic/resource reviews found no BLOCKING/major finding. Candidate/default
+owning builds passed without warnings on the frozen dependency set; no tests,
+execution probes or measurements ran. Per-operation memoization does not imply
+aggregate linearity: opposite-polarity copies can cross P*N memberships and
+lower/upper replay crosses L*U bounds. Successful logical samples do not certify
+failed-attempt peaks or allocator/RSS storage.
+
+The source carrier for generic sequential local declarations is a disjoint HIR
+slice under review, excluded from the solver checkpoint. Its parameter ownership,
+trailing separator handling and lexical lookup cost have concrete review concerns
+to adjudicate and repair. Then connect actual initializer levels and sequential
+solve/freeze/install/use scheduling; current admitted source levels remain one.
+General anchor closure, complete Call, public extraction and target-branch F5
+replacement remain open. The full objective stays active.

@@ -51,6 +51,10 @@ This index is a navigation aid. The listed source document remains authoritative
   The [source effect-flow checkpoint](../progress/2026-10-10-successor-source-effect-flow.md)
   connects actual Apply/Group effects and fresh invocation rows to that graph
   path; M2 static reviews and owning builds pass, with runtime evidence omitted.
+  The [polarity-copy checkpoint](../progress/2026-10-10-successor-polarity-copy-extrusion.md)
+  adds original-level-preserving copies, directional bound ownership and
+  owner-preserving scheme replay to the private graph path. Actual nested source
+  levels, runtime evidence and complete Call/public cutover remain open.
 
 - **Reviewed deferred Simple-sub bound construction (2026-10-10):**
   [BOUND/PATH/ROW](../theory/2026-10-10-simple-sub-complete-bound-accumulation.md)
