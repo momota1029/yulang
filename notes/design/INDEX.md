@@ -244,6 +244,25 @@ This index is a navigation aid. The listed source document remains authoritative
   or Generalize eligibility bridge, a proof of law inhabitance, a semantic
   solver, complete Call acceptance or F5. The canonical DAG is unchanged.
 
+- **Reviewed source-owned invoke registry candidate, unadopted (2026-10-10):**
+  [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
+  build the actual formal/Name/literal pre-Call registry from source recipes,
+  with seven source rows plus computed local declaration closure. Raw syntax
+  is sealed before contextual typed decoding. Explicit NEW owner/port/entry
+  interfaces give a complete type-argument rank proof, formal lookup/decoder
+  square, entry inversion, shared proof-choice preservation, post-decoding
+  consumer dependency closure and same-P reflection under lawful action.
+  Both fresh mathematical and specification delta reviews passed after the
+  late-typed-reference repair; [review record](../progress/2026-10-10-original-registry-construction-review.md).
+  Proof checkpoint `fdda52fd8ec9eb1b3a691825a7b895b3a40fc753` was pushed before
+  this shared-record update. P_old/Reg/lookup/manifest inputs are eliminated
+  in this defined pre-Call construction. Registry q3 does not yet adopt its
+  representation, raw-P interface or owner permission; arbitrary original
+  opaque declarations are not presumed to conform. Complete original Call
+  emission/checking, WholeArgCompatible, C0/admission, solving and publication
+  remain unproved. The separate L theorem is not an original-consumer bridge.
+  No canonical DAG promotion, language restriction, implementation or F5.
+
 - **Authoritative exhaustive native signature formation (2026-10-08):**
   [signature definition](2026-10-08-native-signature-formation-definition.md)
   and [Theorem SIG](../theory/2026-10-08-source-signature-incidence-construction.md)

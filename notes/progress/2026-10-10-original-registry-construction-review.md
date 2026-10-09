@@ -232,3 +232,23 @@ respectively
 and `41e25bc633f69df302361f41c60c0c324e9713a7194373f23f9f7a182724e4a1`.
 Complete original CallMem/C0, effective JOINT_DEC, Generalize/publication and
 F5 are not promoted by a pre-Call representation theorem.
+
+## 6. Checkpoint and shared-record integration
+
+The independently reviewed proof and this review record were committed and
+pushed as `fdda52fd8ec9eb1b3a691825a7b895b3a40fc753`, directly after
+`c32ff7c0980e8844803cc7638cfdc34b06900a51`. The primary inspected the complete
+one-commit outbound range, staged only the two intended Markdown files, and
+checked whitespace and working-tree isolation. The GitHub-created tree matched
+the verified local commit tree exactly:
+`4907f81eca78fb5fcd30b06777ec8810a198e404`. The remote branch update used the
+expected parent and no force. Fetch then confirmed the exact remote commit;
+the local branch was aligned only after proving identical trees and no staged
+or unstaged tracked changes. The original local commit remains checkpointed.
+
+The following M0 record-only integration updates `tasks/current.md` and
+`notes/design/INDEX.md` with the completed candidate, eliminated inputs and
+exact original-Call/q3/production boundary. This is the promised synchronization
+after the proof checkpoint, not a new theorem or semantic decision. The two
+withdrawn B/C drafts remain outside the Git tree. No tests or broad review
+panel was repeated for these record changes.
