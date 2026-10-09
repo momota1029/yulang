@@ -81,3 +81,14 @@ settled language semantics. The existing current-task objective remains intact.
 - Formal source constructor/lifetime/output projection and independently owned
   public schemes remain genuine next gates. Previous architecture mapping is
   private proposal evidence, not approved public API or cutover.
+
+### Formal insertion repair checkpoint
+
+The `formal_filter_insertion_repair` two-file lease is frozen and complete.
+Primary bounded checker and independent delta review pass; accepted historical
+insertion mismatch closed only within the supplied finite model. Shared meaning
+is synchronized in current task above. `formal_filter_production_cut` is an
+active read-only architect assignment, and `formal_filter_identity_lifetime_map`
+is an active read-only source mapping; neither has production write authority.
+Their outputs target authentic constructor/lifetime/projection integration,
+not another proof of the finite checker.

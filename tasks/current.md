@@ -6768,3 +6768,21 @@ remain required. Formal-filter research checkpoint `9d7967c3a` has an accepted
 source-correspondence defect: Oracle consumes/registers filters at row bound
 insertion. A disjoint research-only repair is active; do not adopt its old
 retained-filter transition or treat bounded checker agreement as hygiene proof.
+
+### Formal filter insertion correspondence repaired (2026-10-10)
+
+The conditional [transition model](../notes/progress/2026-10-10-formal-filter-transition-contract.md)
+now registers/checks row filters at both insertion orientations and erases their
+left filter before retaining bounds. Later Function replay preserves the pop
+word without moving the consumed filter into latent ports. Independent delta
+review closes the accepted source mismatch within the finite model; primary
+checker passes 341 words, 3,087 replay inputs, 68 event orders and seven mutations,
+with maxima 11 facts/four pending tasks. One checker process, zero timing samples
+or benchmark processes. Earlier `9d7967c3a` insertion correspondence is superseded.
+
+This is no hygiene theorem or production cutover: source construction, authentic
+attachment lifetime/ID freshening, support projection, weighted-cycle termination
+and actual SCC/rollback remain required. An architect is resolving the smallest
+coupled production cut; a read-only Oracle map follows actual generalized
+subtraction IDs and frame/output lifetime. No new source restriction or registry
+adoption prerequisite is inferred.

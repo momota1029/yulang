@@ -137,6 +137,7 @@ def swapped_literal(w):
 EMPTY = Weight()
 PUSH = Weight(((0, 0, 1),))
 POP = Weight(((0, 1, 0),), (), E)
+POP_ERASED = Weight(POP.left, POP.right, ALL)
 
 
 def is_row(node):
@@ -159,12 +160,76 @@ def function_children(fact, reverse):
             (re, ure, w), (r, ur, w))
 
 
+@dataclass(frozen=True)
+class Snapshot:
+    facts: frozenset
+    filters: frozenset  # (row, allowed finite set), stored separately from bounds
+    checks: frozenset  # ("stack", attachment ID, filter) / ("con", node, filter)
+    violations: frozenset
+
+
+def erased(w):
+    return Weight(w.left, w.right, ALL)
+
+
+def concrete_family(node):
+    if node.startswith("con:E#"):
+        return E
+    if node.startswith("con:F#"):
+        return frozenset(("F",))
+    return None
+
+
 def run_worklist(events, mutant=None, aliases=None):
-    """Candidate incremental bounds: retain/replay every contextual task."""
+    """Incremental insertion: check/register F, erase F, then replay bounds.
+
+    The shape/filter rules are supplied from the pinned Oracle, not validated
+    by agreement with run_reference. Extrusion/provenance/subsumption omitted.
+    """
     aliases = aliases or {}
-    facts, memo = set(), set()
+    facts, memo, filters, checks, violations = set(), set(), set(), set(), set()
     pending = deque()
     peak = 0
+
+    def stack_check(w, f):
+        if f != ALL:
+            for i, _, n in w.left:
+                if n:
+                    checks.add(("stack", i, f))
+                    if not FAMILIES[i] <= f:
+                        violations.add(("stack", i, f))
+
+    def pos_check(node, f):
+        if f == ALL:
+            return
+        if is_row(node):
+            register(node, f)
+        elif node in FUNCTIONS:
+            # Oracle Pos::Fun is a no-op, not a port traversal.
+            if mutant == "recurse-function-filter":
+                for child in FUNCTIONS[node]:
+                    pos_check(child, f)
+        else:
+            family = concrete_family(node)
+            if family is not None:
+                checks.add(("con", node, f))
+                if not family <= f:
+                    violations.add(("con", node, f))
+
+    def weighted_check(node, w, f):
+        if f != ALL:
+            stack_check(w, f)
+            pos_check(node, w.filter & f)
+
+    def register(row, f):
+        key = row, f
+        if f == ALL or key in filters:
+            return
+        filters.add(key)
+        for lower, target, w in tuple(facts):
+            if target == row:
+                weighted_check(lower, w, f)
+
     for event in events:
         pending.append(event)
         while pending:
@@ -178,39 +243,104 @@ def run_worklist(events, mutant=None, aliases=None):
             if key in memo:
                 continue
             memo.add(key)
-            fact = l, u, w
+            guard(len(memo))
+            # Row-row gets both insertion orientations in Oracle. The fixtures
+            # exclude same-row constraints and weighted cycles.
+            if is_row(u):
+                weighted_check(l, w, w.filter)
+            if is_row(l):
+                stack_check(w, w.filter)
+                register(l, w.filter)
+            stored = w
+            if is_row(l) or is_row(u):
+                keep_upper = mutant == "retain-upper-filter" and is_row(l)
+                keep_lower = mutant == "retain-lower-filter" and is_row(u)
+                if not (keep_upper or keep_lower):
+                    stored = erased(w)
+            fact = l, u, stored
             old = tuple(facts)
             facts.add(fact)
-            guard(len(facts))
+            guard(len(facts) + len(filters) + len(checks) + len(violations))
+            if is_row(u) and mutant != "skip-future-filter":
+                for row, f in tuple(filters):
+                    if row == u:
+                        weighted_check(l, stored, f)
             pending.extend(function_children(fact, swapped))
             for a, b, previous in old:
                 if b == l and is_row(l):
-                    pending.append((a, u, replay(previous, w, mutant)))
+                    pending.append((a, u, replay(previous, stored, mutant)))
                 if u == a and is_row(u):
-                    pending.append((l, b, replay(w, previous, mutant)))
-    return facts, peak
+                    pending.append((l, b, replay(stored, previous, mutant)))
+    return Snapshot(frozenset(facts), frozenset(filters), frozenset(checks),
+                    frozenset(violations)), peak
 
 
 def run_reference(events, aliases=None):
-    """Reference batch saturation, literal weight reduction, no task memo."""
+    """Batch saturation with literal weights and separately saturated filters.
+
+    Independently scheduled/reduced, but uses the same source shape, insertion
+    and checking schema as the incremental implementation.
+    """
     aliases = aliases or {}
-    facts = {(aliases.get(l, l), aliases.get(u, u), w) for l, u, w in events}
+    tasks = {(aliases.get(l, l), aliases.get(u, u), w) for l, u, w in events}
+    filters, checks, violations = set(), set(), set()
     while True:
-        previous = set(facts)
-        for fact in previous:
-            facts.update(function_children(fact, swapped_literal))
-        for a, middle, w in previous:
+        before = tasks.copy(), filters.copy(), checks.copy(), violations.copy()
+        facts = {(l, u, erased(w) if is_row(l) or is_row(u) else w)
+                 for l, u, w in tasks}
+
+        def inspect_stack(w, f):
+            if f == ALL:
+                return
+            for i, _, n in w.left:
+                if n > 0:
+                    checks.add(("stack", i, f))
+                    if FAMILIES[i] - f:
+                        violations.add(("stack", i, f))
+
+        def inspect_pos(node, f):
+            if f == ALL:
+                return
+            if is_row(node):
+                filters.add((node, f))
+            elif node not in FUNCTIONS:
+                family = concrete_family(node)
+                if family is not None:
+                    checks.add(("con", node, f))
+                    if family - f:
+                        violations.add(("con", node, f))
+
+        def inspect_weighted(node, w, f):
+            inspect_stack(w, f)
+            inspect_pos(node, w.filter & f)
+
+        for l, u, w in tuple(tasks):
+            if is_row(u):
+                inspect_weighted(l, w, w.filter)
+            if is_row(l):
+                inspect_stack(w, w.filter)
+                inspect_pos(l, w.filter)
+        # Registered variable filters are persistent and visit all stored lowers.
+        for row, f in tuple(filters):
+            for l, u, w in facts:
+                if u == row:
+                    inspect_weighted(l, w, f)
+        for fact in facts:
+            tasks.update(function_children(fact, swapped_literal))
+        for a, middle, w in facts:
             if is_row(middle):
-                for other, b, v in previous:
+                for other, b, v in facts:
                     if middle == other:
-                        facts.add((a, b, replay_literal(w, v)))
-        guard(len(facts))
-        if facts == previous:
-            return facts
+                        tasks.add((a, b, replay_literal(w, v)))
+        guard(len(tasks) + len(filters) + len(checks) + len(violations))
+        if before == (tasks, filters, checks, violations):
+            return Snapshot(frozenset(facts), frozenset(filters), frozenset(checks),
+                            frozenset(violations))
 
 
-def outputs(facts):
-    return {fact for fact in facts if not is_row(fact[0]) and not is_row(fact[1])}
+def outputs(snapshot):
+    return {fact for fact in snapshot.facts
+            if not is_row(fact[0]) and not is_row(fact[1])}
 
 
 def main():
@@ -230,39 +360,79 @@ def main():
         assert replay(a, b) == replay_literal(a, b)
         assert swapped(a) == swapped_literal(a)
         replay_checks += 1
-    # Unknown returned value acquires a Function after the output view exists.
+    # Filter is registered on v:return, erased from its stored upper, and
+    # never recursively applied to ports of a later Function lower.
     late = (("v:return", "fun:U", POP),
             ("con:E#attached", "e:latent", PUSH),
             ("con:E#unattached", "e:latent", EMPTY),
             ("fun:L", "v:return", EMPTY))
-    # Distinct routes sharing the same canonical row must keep both contexts.
+    lower_late = (("fun:L", "v:return", POP),
+                  ("con:E#attached", "e:latent", PUSH),
+                  ("con:E#unattached", "e:latent", EMPTY),
+                  ("v:return", "fun:U", EMPTY))
     contexts = (("e:alias", "sink:row", POP),
                 ("e:shared", "sink:row", Weight(((1, 1, 0),), (), E)),
                 ("con:E#attached", "e:shared", PUSH))
     aliases = {"e:alias": "e:shared"}
+    future_bad = (("e:checked", "sink:row", POP),
+                  ("con:F#late", "e:checked", EMPTY))
+    lower_bad = (("con:F#lower", "e:checked", POP),
+                 ("e:checked", "sink:row", EMPTY))
+    push_filtered = Weight(PUSH.left, (), frozenset(("F",)))
+    stack_upper = (("e:checked", "sink:row", push_filtered),
+                   ("con:F#lower", "e:checked", EMPTY))
+    stack_lower = (("con:F#lower", "e:checked", push_filtered),
+                   ("e:checked", "sink:row", EMPTY))
+    bridge = (("e:source", "e:target", POP),
+              ("con:F#late", "e:source", EMPTY),
+              ("e:target", "sink:row", EMPTY))
+    fixtures = ((late, {}), (lower_late, {}), (contexts, aliases),
+                (future_bad, {}), (lower_bad, {}), (stack_upper, {}),
+                (stack_lower, {}), (bridge, {}))
     graph_checks = max_facts = max_pending = 0
-    for fixture, mapping in ((late, {}), (contexts, aliases)):
-        expected = outputs(run_reference(fixture, mapping))
+    for fixture, mapping in fixtures:
+        expected = run_reference(fixture, mapping)
         for order in permutations(fixture):
             actual, peak = run_worklist(order, aliases=mapping)
-            assert outputs(actual) == expected
-            max_facts = max(max_facts, len(actual))
+            assert actual == expected, (fixture, order, actual, expected)
+            max_facts = max(max_facts, len(actual.facts))
             max_pending = max(max_pending, peak)
             graph_checks += 1
-    late_reference = outputs(run_reference(late))
-    assert ("con:E#attached", "sink:latent", Weight((), (), E)) in late_reference
-    assert ("con:E#unattached", "sink:latent", POP) in late_reference
-    # Existing provider facts remain untouched; no reversed provider fact forms.
-    assert ("con:E#attached", "e:latent", PUSH) in run_reference(late)
-    assert not any(l == "sink:latent" for l, _, _ in run_reference(late))
+    late_reference = run_reference(late)
+    assert ("v:return", E) in late_reference.filters
+    assert not any(row == "e:latent" for row, _ in late_reference.filters)
+    assert ("v:return", "fun:U", POP_ERASED) in late_reference.facts
+    assert ("con:E#attached", "sink:latent", EMPTY) in outputs(late_reference)
+    assert ("con:E#unattached", "sink:latent", POP_ERASED) in outputs(late_reference)
+    lower_reference = run_reference(lower_late)
+    assert not lower_reference.filters  # checking Pos::Fun does not descend
+    assert ("fun:L", "v:return", POP_ERASED) in lower_reference.facts
+    assert ("con:E#unattached", "sink:latent", POP_ERASED) in outputs(lower_reference)
+    assert ("con", "con:F#late", E) in run_reference(future_bad).violations
+    assert ("con", "con:F#lower", E) in run_reference(lower_bad).violations
+    assert ("stack", 0, frozenset(("F",))) in run_reference(stack_upper).violations
+    assert ("stack", 0, frozenset(("F",))) in run_reference(stack_lower).violations
+    # Existing provider bounds remain untouched; no reversed provider fact forms.
+    assert ("con:E#attached", "e:latent", PUSH) in late_reference.facts
+    assert not any(l == "sink:latent" for l, _, _ in late_reference.facts)
     witnesses = {
         "context-erasure": (contexts, aliases),
         "global-family-cancel": (contexts, aliases),
         "effect-only-wrap": (late, {}),
+        "retain-upper-filter": (late, {}),
+        "retain-lower-filter": (lower_late, {}),
+        "skip-future-filter": (future_bad, {}),
+        "recurse-function-filter": (late, {}),
     }
     for mutation, (fixture, mapping) in witnesses.items():
         actual, _ = run_worklist(fixture, mutation, mapping)
-        assert outputs(actual) != outputs(run_reference(fixture, mapping)), mutation
+        assert actual != run_reference(fixture, mapping), mutation
+        if mutation in ("retain-upper-filter", "retain-lower-filter"):
+            assert outputs(actual) != outputs(run_reference(fixture, mapping)), mutation
+        if mutation == "skip-future-filter":
+            assert ("con", "con:F#late", E) not in actual.violations
+        if mutation == "recurse-function-filter":
+            assert ("e:latent", E) in actual.filters
     print(f"PASS bounded transition consistency: words={word_checks}, replay={replay_checks}, "
           f"event_orders={graph_checks}, mutations_detected={len(witnesses)}, "
           f"max_facts={max_facts}, max_pending={max_pending}; no support-projection claim")

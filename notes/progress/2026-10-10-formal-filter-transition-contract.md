@@ -1,22 +1,32 @@
 # Formal annotation filter: directed transition candidate
 
 Date: 2026-10-10
-Status: frozen research candidate; bounded checker passed; independent review pending
+Status: repaired conditional research candidate; bounded checker and independent delta review passed
 Claim class: source-inspected algebra correspondence and conditional finite transition characterization
 Production authority: none; no semantic adoption, proof closure, or compiler change
-Baseline: `7bb417ea45a651071ff87da7f7d38d81a2a93879`
+Repair baseline: `9d7967c3a6c1db0304963e21681c770d0080be44`
+Original candidate baseline: `7bb417ea45a651071ff87da7f7d38d81a2a93879`
 Branch assigned by primary: `research/simple-sub-intrusion`
 Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Lease: this note and `tools/research_formal_filter_transition_contract.py` only
 Verification owner: primary; producer may perform syntax inspection only
 
-Primary verification: `timeout 30 python3 -B tools/research_formal_filter_transition_contract.py`
-passed: 341 words, 3,087 replay pairs, 30 event orders and three detected
-mutations; maximum 11 facts and four pending tasks. One bounded checker process
-ran, with no timing samples or benchmark processes. This is consistency of the
-shared source-derived transition assumptions, not support-projection, source
-formation, hygiene or compiler conformance evidence. Shared task/index status
-synchronization is deferred to integration after the independent review.
+Primary repair verification: `timeout 30 python3 -B tools/research_formal_filter_transition_contract.py`
+passed: 341 words, 3,087 replay inputs, 68 event orders and seven detected
+mutations; maximum 11 facts/four pending tasks. One lightweight checker process
+ran; zero timing samples, benchmark processes or compiler builds. Independent
+source-semantic delta review found no findings and closed the insertion mismatch
+within this finite supplied model. This is not source formation, support
+projection, full hygiene or production conformance evidence.
+
+Historical verification at `9d7967c3a`: 341 words, 3,087 replay inputs, 30 event
+orders and three mutations passed, maximum 11 facts/four pending tasks. That
+revision incorrectly retained the left filter on stored bounds, including
+`v:return <: fun:U` carrying `POP=(pop0,{E},empty)`, then replayed `{E}` into
+latent result ports. The accepted source mismatch invalidates that revision's
+insertion/filter correspondence. Its passing checker was consistency evidence
+for the wrong shared schema. It is not verification of this repair. Shared
+status synchronization remains the primary's responsibility after adjudication.
 
 ## Objective, authority and source anchors
 
@@ -48,7 +58,10 @@ The stable Oracle source inspected in this assignment supplies these rules:
 | `constraints/mod.rs:3566–3612` | Ordinary variance swaps directed sides, replay concatenates left weights in path order and right weights in reverse path order, then applies directed mix. |
 | `constraints/directed_weight.rs:12–39,137–176,399–420` | Per-ID count composition, equal-family requirement for one ID, and directed mix. |
 | `constraints/machine/propagate.rs:207–271` | Four Function ports; ordinary argument ports swap weights, result ports retain weights. Pure argument-effect passthrough is a separate branch using `both_from_right()`. |
-| `constraints/machine/bounds.rs:3285–3360` | Filters check registered variable lowers, including future lowers; filtering a Value Function does not immediately recurse through its ports. |
+| `constraints/machine/bounds.rs:630–646,714,3174–3191` | Lower insertion checks the weighted positive lower with its left filter, erases that filter before storage, then applies filters already registered on the target to the stored lower. |
+| `constraints/machine/bounds.rs:815–831,3193–3210` | Upper insertion checks active left stacks, registers the left filter on the source row, then erases it before storage. |
+| `constraints/machine/bounds.rs:3213–3255,3285–3360` | Registered filters check current/future variable lowers. Filtering a Value Function is a no-op, without port traversal. |
+| `constraints/row_effect.rs:834–848,875–932` | Active stack families and concrete effect families are checked against a filter; the checker covers only finite zero-argument E/F families. |
 
 At the successor baseline, `lib.rs:753–778` has kind-qualified endpoint pairs but
 no directed context in `TypedPairKey`. `candidate_extrusion.rs:358–637` inserts
@@ -70,8 +83,11 @@ This is a candidate representation of inspected transitions, conditional on:
 2. Every weighted endpoint/bound carries the actual ordered weight and the
    attachment records it references. No source occurrence/frame is reconstructed
    from a row representative, Function shape, level, or successful comparison.
-3. Every emitted lower/upper bound is replayed against the opposite side,
-   including later bounds, within one typed worklist and its one semantic memo.
+3. Every emitted row bound follows the insertion check/register/erasure rule
+   below before replay against retained opposite bounds, including later bounds,
+   within one typed worklist and its one semantic memo. Registered filters persist
+   for the finite run and are applied to future lowers; this is not a source
+   lifetime theorem.
 4. Checked support is finite, normal row comparison is used, and Function
    argument-effect passthrough, wildcard/empty annotation rules, generalized ID
    rebinding, and output support projection are outside the experiment.
@@ -110,13 +126,39 @@ permit unioning distinct A records into a new source grant.
 
 ## Row lifting, Function lifting and late discovery
 
-Store a lower bound as `(b,W_b→r,Arefs)` and an upper bound as
-`(u,W_r→u,Arefs)`. Joining them enqueues `(b,u,replay(W_b→r,W_r→u))`.
-For a new lower, join every retained upper; for a new upper, join every retained
-lower. A direct row edge is a weighted edge, not a permission on either row.
-The baseline's one-sided level-selected storage can remain only if its existing
-replay invariant is extended to these contexts. A row alias cannot reduce the
-bound key to `(representative,side,endpoint)` while omitting W/Arefs.
+Let `erase(W)=(L,All,R)`. The insertion operations precede row joining:
+
+```text
+weighted_check(b,W,F):
+  check every active family in W.left against F
+  check positive shape b against (W.filter ∩ F)
+lower_insert(r,b,W):
+  weighted_check(b,W,W.filter)
+  store (b,erase(W)) at r
+  weighted_check(b,erase(W),G) for each G registered at r
+upper_insert(r,u,W):
+  check every active family in W.left against W.filter
+  register W.filter on r; check every current stored lower at r
+  store (u,erase(W)) at r
+```
+
+`All` checks/registration are no-ops. Positive shape checking registers a filter
+on a variable and checks concrete effect families; `Pos::Fun` is a no-op and
+never traverses Function fields. Future lower insertion applies the registered
+filter to that lower's active stacks and positive shape. For row-row input,
+Oracle inserts both orientations; each consumes the supplied filter and stores
+its erased context. The checker includes one acyclic row-row fixture. It omits
+Oracle extrusion, subsumption, provenance and same-row short circuits.
+
+Joining retained `(b,W_b→r)` and `(u,W_r→u)` enqueues
+`(b,u,replay(W_b→r,W_r→u))`. These **stored** contexts already have `All` left
+filters. Pop/push IDs and counts remain intact: erasure removes only F, not the
+ordered directed word. A direct row edge is a weighted edge, not a permission
+on either row. The baseline's one-sided level-selected storage can remain only
+if its replay invariant accommodates this separation between checked row filters
+and retained directed contexts. A row alias cannot reduce the bound key to
+`(representative,side,endpoint)` while omitting W/Arefs. No successor data layout
+or new semantics is selected here.
 
 For `Function(a,ae,re,r) <: Function(A,AE,RE,R)` under W, enqueue:
 
@@ -137,8 +179,9 @@ return-effect target. Applying the ordinary table to that branch is a failure.
 A lambda output must construct `View(Value,body_value,pop_i[S_i],A_i)` and
 `View(Effect,body_effect,pop_i[S_i],A_i)` together. When the value is initially a
 row v, retain its weighted upper use. A later lower Function f replays through v,
-obtains the weighted Function comparison, and carries its return context to
-latent effects. No initial Function shape or solved provider is required.
+obtains a Function comparison carrying the retained pop word **without** its
+consumed left filter, and carries that directed word to latent effects. The
+registered filter on v checks f as a positive Function, with no port traversal. No initial Function shape or solved provider is required.
 The checker has this exact delayed topology. Wrapping only the immediate body
 effect loses the context at the future latent return-effect port.
 
@@ -197,7 +240,10 @@ publication. This checker does not validate that transaction implementation.
 The checker has two implementations: count arithmetic/incremental worklist and
 literal per-ID word cancellation/batch saturation. Both use the same **supplied**
 source transition schema, concrete identity dictionary, Function table and
-row-join rule. Algorithmic independence covers reduction/scheduling only. Neither
+row-join rule, insertion erasure rule and positive-shape filter-checking rule.
+Algorithmic independence covers reduction/scheduling only. The repair grounds
+those rules by the pinned source sections above; model agreement adds no further
+source validation. Neither
 invokes Oracle, source lowering, current Rust propagation, support projection or
 the retained full hygiene theorems. Agreement cannot prove those input rules or
 their source formation. This is not a full `[E]` removal oracle.
@@ -208,14 +254,27 @@ Planned deterministic domain, no random seed:
 - Replay inputs: both left words length 0–2, right-pop words length 0–2 over
   IDs 0/1: `21 × 21 × 7 = 3087` pairs. Filters are `{E}` then `{E,F}`;
   arbitrary filter pairs and arbitrary concrete/type-argument sets are omitted.
-- Two finite graph fixtures: unknown returned value then Function (four events,
-  all 24 orders), and two source IDs sharing a canonical row (three events,
-  all six orders). No weighted cycles or arbitrary nested Function graphs.
-- Mutations: `context-erasure` suppresses a distinct W at the same endpoint
-  pair; `global-family-cancel` identifies distinct IDs with equal sets;
-  `effect-only-wrap` discards the body Value wrapper. Each must differ from the
-  literal reference. These attack shortcuts in transition retention, not the
-  already known whole-support subtraction example.
+- Eight graph fixtures, all event permutations: late Function through an upper
+  wrapper (four events, 24 orders); through a lower wrapper (four, 24); equal-set
+  IDs at one canonical row (three, six); future forbidden concrete lower (two,
+  two); immediately checked lower insertion (two, two); upper active-stack check
+  (two, two); lower active-stack check (two, two); acyclic row-row filter bridge
+  (three, six). Total 68 orders. These expose both insertion orientations,
+  current/future registered checks and absence of Function port traversal.
+- Seven mutations: the original `context-erasure`, `global-family-cancel` and
+  `effect-only-wrap`; plus `retain-upper-filter`, `retain-lower-filter`,
+  `skip-future-filter` and `recurse-function-filter`. Each must differ from the
+  literal/batch reference snapshot, which now compares retained facts,
+  registered filters, checks and violations. The retain-filter mutations must
+  specifically change non-row output contexts, skip-future must omit the named
+  forbidden F check, and Function recursion must register E on the latent row.
+  These detect representation/checking shortcuts, not whole-support removal.
+- Filter checking covers only finite sets over zero-argument concrete E/F,
+  active stacks and row variables. Row items, Stack/NonSubtract positive shape
+  recursion, unions, other shape branches, type-argument unification, wildcard,
+  Empty/AllExcept filters and arbitrary filter pairs are omitted. `All` is the
+  finite surrogate `{E,F}`, never an assertion that Oracle wildcard is finite.
+  No weighted cycles, arbitrary nested Function graphs or source programs run.
 
 The model retains an unattached E contribution as a distinct output task with a
 residual pop, while an attached E route has cancellation of its matching push.
@@ -231,45 +290,60 @@ and B possible filters, a loose context bound is `B (D+1)^(3A)` before authority
 reference variants. This bound is conditional on a finite count/context envelope;
 it gives no termination guarantee for weighted cycles producing new contexts.
 Never silently cap counts to change an accepted result. The checker fails at
-4096 retained facts/pending tasks or its 29-second deadline; the primary command
+4096 candidate memo entries, candidate retained facts plus filters/checks/
+violations, reference tasks plus filters/checks/violations, or pending tasks,
+or its 29-second deadline; the primary command
 also has a 30-second process cap. Actual Python memory and wall usage are unknown.
 No CPU timing measurements are requested; one lightweight process, no builds.
 
-Producer verification at handoff: syntax inspection only. Primary execution,
-mutation detection and observed maxima are recorded in the verification paragraph above.
+Producer verification at repair handoff: syntax inspection only. Primary revised
+execution, mutation detection, maxima and independent review are recorded above;
+historical counts refer only to the superseded schema.
 No compiler tests, Cargo, formatting, Git mutations, or child agents were used.
 
 ## Conditional derivation and precise remaining cut
 
-Under hypotheses 1–4, source wrapper normalization gives a weighted body row
-use. Lower/upper replay composes its context with a later Function lower.
-The ordinary Function rule carries that context to both result ports, including
-the latent effect row. A concrete contribution arriving before or after the use
-is joined by the same ordered composition, because both insertion sides replay
-retained opposite bounds. Per-ID normalization preserves independent IDs at
-equal sets; canonicalization changes only row coordinates. These are conditional
-local transition statements; no reviewed theorem is asserted.
+Under hypotheses 1–4, source wrapper normalization produces the body row use
+`v:return <: fun:U` with `W=(pop0,{E},empty)`. Upper insertion registers `{E}`
+on v, checks the active stack (there is none), and retains
+`(v,fun:U,(pop0,All,empty))`. A later lower `fun:L <: v` checks the registered
+filter on `Pos::Fun`, with no recursive work. Replay therefore produces
+`fun:L <: fun:U` under `(pop0,All,empty)`. Ordinary Function result ports retain
+that context. On the latent effect row, joining the attached `push0` route gives
+`(empty,All,empty)` while the unattached route retains `(pop0,All,empty)`.
+The old model instead delivered `{E}` on both results. This four-event fixture
+adds the two concrete routes to the minimized two-event insertion discriminator:
+`v <: fun:U` under POP; `fun:L <: v` under EMPTY. No concrete source program or
+support-projection claim follows from either witness.
 
-The smallest discriminating topology is one unknown Value row between a Function
-lower and a pop-wrapped Function upper, plus one latent effect row receiving a
-push-bearing concrete lower. Dropping the Value wrapper changes the latent task's
-directed context. The separate two-route fixture uses one canonical row and two
-distinct IDs with equal sets; pair-only memoization loses one contextual task.
-These are executable witnesses of candidate transition loss, not source-language
-counterexamples.
+The opposite-orientation discriminator inserts `fun:L <: v` under POP, then
+`v <: fun:U` under EMPTY. Lower insertion checks the Function without traversing
+it, retains POP_ERASED, and creates no filter on v. Replay again carries the pop
+word with All into the result ports. An immediately forbidden concrete F lower
+with left filter E records a violation before storage erases E. Separately,
+registering E on a row before a later concrete F lower must record that violation;
+all permutations verify the analogous current-lower check. Active-stack fixtures
+use an E push with filter F and must record a stack violation in each orientation.
 
-Recommended next action: independently review the row/Function contract and run
-the bounded checker, then require the source owner to supply the negative formal
-constructor and exact frame/output-lifetime/ID-freshening bridge before the coupled
-filter implementation. Do not claim that increasing this finite domain would
-resolve that missing construction premise. Full support projection and the
-Oracle pure argument-effect passthrough need distinct source correspondence work.
+These are source-inspected local operational correspondences and conditional
+finite characterization, not reviewed theorems. They preserve provider bounds,
+independent same-set IDs and row-coordinate aliases within the stated fixtures.
+Source formation of authentic annotation records, frame/output lifetime,
+ID-freshening, support projection, pure argument-effect passthrough, actual SCC
+reindexing/generation, transaction rollback and weighted-cycle termination stay
+unproved. The new filter registry is a finite supplied operational input, not a
+new successor ownership or expiry policy.
+
+Recommended next action: primary runs the bounded repaired checker and requests
+one independent delta review against the exact insertion/filter source anchors;
+then keep the source constructor/lifetime/projection gate open rather than
+increasing finite counts to claim it closed.
 
 ## Commit packet
 
 - Exact paths: `notes/progress/2026-10-10-formal-filter-transition-contract.md`;
   `tools/research_formal_filter_transition_contract.py`.
-- Baseline: `7bb417ea45a651071ff87da7f7d38d81a2a93879`; Oracle:
+- Repair baseline: `9d7967c3a6c1db0304963e21681c770d0080be44`; Oracle:
   `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - Pinned dependency Git blobs: authority `e38db742e7fec97fc6215b60addcf1b80b904f2e`;
   successor lib `5c5cbf30c4b52f1ed5eb40a69f1f72192401e9e7`, extrusion
@@ -280,16 +354,22 @@ Oracle pure argument-effect passthrough need distinct source correspondence work
   directed weights `a5998519c74f89a8bd65b22defd8f0a1e4fd59d9`, propagation
   `d558e7b9c17d33e91c5bb39c4cd85ebbfa4a8b09`, constraints module
   `14860e3664a7ac05f7493f1d51fe69a6f34216e5`, tail
-  `8289bfdc6a17b2469ae168ac7939d34813fda474`.
+  `8289bfdc6a17b2469ae168ac7939d34813fda474`; newly inspected bounds
+  `365ed25a8b3b7e468a7a4e57159125be53209708`, row-effect checking
+  `d33c8d34f14dd5acc3b995050f4e9f7fa07ade25`.
 - Changed dependency hashes: none intentionally; only pinned Git source read.
   Primary must revalidate the live negative-formal producer separately.
-- Claim/review: unreviewed conditional research candidate, frozen at producer
-  handoff; no independent review or runtime conformance claim.
+- Claim/review: conditional research candidate; accepted insertion mismatch
+  repaired and independent source-semantic delta review passed. No runtime
+  conformance or full hygiene claim.
 - Check: primary command
   `timeout 30s python3 -B tools/research_formal_filter_transition_contract.py`;
-  primary execution passed as recorded above. Independent review remains pending.
-- Proposed commit message: `research: specify formal filter row and Function transitions`.
+  revised execution passed as recorded above. Producer syntax inspection only;
+  historical passing execution is superseded for insertion correspondence.
+- Proposed commit message: `research: correct formal filter insertion and erasure witnesses`.
 - Shared deltas left to primary/curator: record this as a candidate transition
-  contract in `tasks/current.md`/`tasks/research-lab.md`; retain the open negative
+  contract in `tasks/current.md`/`tasks/research-lab.md` as repaired, with
+  `9d7967c3a` insertion evidence superseded and revised verification passed;
+  retain the open negative
   source constructor, lifetime/freshening, passthrough and support-projection
   obligations. No theory status or design index promotion is requested.
