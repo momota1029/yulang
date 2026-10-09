@@ -7157,10 +7157,10 @@ confirms the source ownership, filter check, and exact premise. This remains a
 conditional discriminator, not an admitted or executed witness: Oracle drops
 the candidate, and the current equal-level successor route selects an upper
 row, not the positive lower required by the fixture. Current successor also
-rejects explicit formal effect rows. The immediate gate is to explain this
-fixture under the selected successor retention orientation and filter
-observation rule; contextual self-discharge, full Effect hygiene, complete
-Call, generalization, public cutover, and F5 replacement remain open.
+rejects explicit formal effect rows. The local result does not settle whether
+upper retention is observable after extrusion and later scheme replay;
+contextual self-discharge, full Effect hygiene, complete Call, generalization,
+public cutover, and F5 replacement remain open.
 
 The follow-up [upper self-filter owner trace](../notes/progress/2026-10-10-upper-self-filter-observer.md)
 and its [independent review](../notes/progress/2026-10-10-upper-self-filter-observer-review.md)
@@ -7182,3 +7182,59 @@ and parent-copy intrusion. Existing recursive full-left-pair observers do not
 cover arbitrary mixed recursion. Negative attachment construction, filters,
 use, generalization/freshening/rollback, public inference and F5 cutover remain
 open.
+
+### Returning recursive PUSH: direct source instance solved (2026-10-10)
+
+The user's follow-up explicitly required solving recursive PUSH or deriving a
+source separation into debt recursion. Starting at latest remote `e3ddf9f1`,
+this phase produced a direct solution, with independent mathematical, source
+and executable reviews. Incoming documentation updates through `566310fa`
+were inspected and preserved; no compiler or rule dependency changed. See the
+[complete integration record](../notes/progress/2026-10-10-recursive-push-results.md).
+
+The [main theorem](../notes/progress/2026-10-10-recursive-push-observer-construction.md)
+at `c78346a8` decides exact finite mixed observations of arbitrary finite
+left-only recursive grammars with independent binary replay. Both leading
+POP and active PUSH counts may be simultaneously positive and unbounded.
+A global-minimum certificate retains the exact pair in a finite PVASS;
+the published general PVASS decision theorem supplies termination. The proof
+does not cap recursive PUSH mass or assume the residual set semilinear.
+It does not cover recursively shared children, right debt or mixed swap/both.
+
+The [source construction](../notes/progress/2026-10-10-recursive-push-source-invariant.md)
+at `e941268b` supplies authentic consecutive `as` annotations on one actual
+provider lambda, with an eager real Act-operation Row seed. It gives the
+distinct-owner `r --PUSH_i--> e --identity--> r` recurrence. A nested variant
+adds `h --POP_i--> e --identity--> h` and admits every exact `(p,n)` at `e`.
+Concrete Row lowers bypass Var-only self omission, support suppression and
+frontier skipping. All incoming Function ports of these exact programs were
+audited: their entire pre-generalization recursively reachable component is
+left-only, one-ID/fixed-family, hence within the main theorem. This refutes a
+universal debt-only source invariant and signed-depth collapse. Neither new
+source was compiled; public acceptance/generalized future uses are unclaimed.
+
+The [additional algebra theorem](../notes/progress/2026-10-10-recursive-push-algebra-attack.md)
+at `7b4f3e68` directly accelerates a recurring PUSH/right-POP cancellation
+context, full-pair affine growth and explicitly shared active doubling.
+The [research observer](../tools/research_recursive_push_observer.py) at
+`79e02343` decides finite DNF count queries for these supplying families and
+the source push ray/all-left-pair sets. It uses exact finite signed-carry
+automata, preserves every raw observer node and correlated hole choice, and
+has no numeric unfolding cutoff. It is not a general PVASS implementation or
+a second production solver. Producer runs passed 8,685 and 4,939 assertions;
+an independent literal/kernel/trace probe passed 80,478 assertions. The final
+code SHA and exact verification envelopes are in the integration record.
+
+All three independent reviews had no blocking/major defect. Two source-only
+minor inventory/arithmetic wording corrections were applied and checked by
+the primary. Source/compiler tests, the target callback scheme and weighted
+successor lifecycle remain unexecuted; this environment had no Cargo/Rust or
+retained Oracle harness. No production source-owned attachment was enabled,
+no canonical proof-DAG status changed, and no `yulang3` cutover occurred.
+
+**Next single mathematical bottleneck:** an exact observer closed under right
+debt, swap/both and correlated recursive copying returning into the same
+PUSH-bearing Effect component. The solved source instances and arbitrary
+left-word theorem are a real direct advance; they do not certify that every
+source reduces to that class. Preserve the existing source filter/orientation,
+authority, residual-key, intrusion/freshening/rollback and full hygiene gates.

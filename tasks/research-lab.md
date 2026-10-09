@@ -343,3 +343,37 @@ exact residual keys, identify row equality with attachment authority, or infer p
 allowance. Existing conditional hygiene/owner/lifetime/transport premises and
 all full source soundness/completeness, principality, freshening/intrusion/
 rollback, target scheme and `yulang3` gates remain open.
+
+### Returning recursive PUSH: direct decision checkpoint (2026-10-10)
+
+The follow-up wave started at remote `e3ddf9f1` and used the actual four-slot
+runtime limit: the primary plus three complementary producers, followed by
+independent reviews as outputs froze. This is a completed queue, not live
+worker state. The [integration record](../notes/progress/2026-10-10-recursive-push-results.md)
+contains exact hashes, proofs, accepted minor corrections and check envelopes.
+
+| Job | Method / lease | Disposition |
+| --- | --- | --- |
+| `recursive_push_construct` | Unique full-left recursive grammar/PVASS proof note | Complete; published `c78346a8`; independent math review has no blocking/major defect |
+| `recursive_push_attack` | Unique cancellation/growth/shared-doubling algebra note | Complete; published `7b4f3e68`; explicit families reviewed, unrestricted mixed recursion excluded |
+| `recursive_push_source` | Unique actual `as`/Act Row construction note and scratch fixtures | Complete; published `e941268b`; full pre-generalization left-only closure of the two fixtures reviewed; two minor source inventory/arithmetic corrections applied |
+| `recursive_push_code` | New `tools/research_recursive_push_observer.py` and isolated scratch probe | Complete; published `79e02343`; exact finite signed-carry observer reviewed and checked; no production changes |
+| `recursive_push_math_referee` | Read-only mathematical/external theorem applicability review | Complete; no blocking/major defect, zero executable processes |
+| `recursive_push_source_referee` | Read-only full owning-source and admission review | Complete; no blocking/major defect, two minor corrections, zero executable processes |
+| `recursive_push_code_referee` | Read-only algorithm and independent literal/kernel attack | Complete; no blocking/major defect; one bounded process, 80,478 assertions PASS |
+| Primary | Authority, source minor corrections, shared records, dependency checks and Git | Integration owner; all leases frozen, no pending repair |
+
+The main theorem now handles arbitrary independent-child **left-only PUSH
+recursion**, retaining both exact counts without a recursive PUSH budget.
+The actual nested source has all `(p,n)` at its shared Effect slot, not only
+a debt grammar. The elementary research observer implements this source set
+and the stated exact orbit/geometric families with finite binary carry states.
+It is not a general PVASS implementation and is not called by the successor.
+
+The next single mathematical job is the returning **mixed** Effect component:
+right debt, swap/both and correlated recursive copying can defeat left-word
+flattening and the old debt budget. The source-wide separation is still not
+assumed. Existing lifecycle, residual-key, filter orientation and complete
+source semantics obligations remain. No Cargo/Rust/harness was available, so
+new source acceptance and target-scheme compiler tests are unrun. No new
+question, production enabling, canonical DAG closure or `yulang3` cutover.

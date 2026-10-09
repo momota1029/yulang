@@ -102,23 +102,23 @@ This index is a navigation aid. The listed source document remains authoritative
   PUSH-bearing/source-output/production gates. No new language authority or
   source-owned production attachment is enabled.
 
-- **Recursive PUSH with full left POP/PUSH pairs (2026-10-10, conditional research):**
-  The [source invariant audit](../progress/2026-10-10-recursive-push-source-invariant.md)
-  derives two paired-`as` source schemas whose admitted contextual components
-  carry actual concrete PUSH lowers and remain left-only before the enclosing
-  drain; the source construction/admission slice received independent review.
-  The [recursive observer construction](../progress/2026-10-10-recursive-push-observer-construction.md)
-  gives a conditional exact observer for arbitrary one-ID recursive left-only
-  full `(POP^p PUSH^n)` grammars under finite mixed continuations. The
-  [full-pair subcase attack](../progress/2026-10-10-recursive-push-algebra-attack.md)
-  adds exact linear and nonlinear families, with a bounded executable checker
-  at [research_recursive_push_observer.py](../../tools/research_recursive_push_observer.py).
-  The mathematical observer and checker remain unreviewed; no Oracle parsing,
-  compiler execution, public acceptance or production integration is claimed.
-  These results refute a universal debt-only invariant for the exhibited
-  source schemas, but do not cover recursively mixed replay, arbitrary source
-  programs, contextual self-obligation correspondence, or the formal-lambda
-  callback target.
+- **Recursive PUSH: direct decision and actual source instance (2026-10-10, reviewed research):**
+  The [full-left recursive theorem](../progress/2026-10-10-recursive-push-observer-construction.md)
+  decides arbitrary finite left-word grammars with independent binary replay,
+  followed by any finite mixed observer. It retains both unbounded leading POP
+  and active PUSH counts through an exact global-minimum/PVASS construction;
+  no finite recursive PUSH budget is assumed. The
+  [reviewed source construction](../progress/2026-10-10-recursive-push-source-invariant.md)
+  derives actual consecutive `as` annotations, their concrete Act Row seed,
+  retained distinct-owner PUSH/identity and POP/identity loops, and complete
+  pre-generalization left-only closure for those two sources. The nested slot
+  realizes all `(p,n)` in `N²`. Compiler execution is unrun. The
+  [algebra theorem](../progress/2026-10-10-recursive-push-algebra-attack.md)
+  also supplies exact mixed cancellation, affine growth and shared geometric
+  PUSH families. The [integration/review record](../progress/2026-10-10-recursive-push-results.md)
+  connects these proofs to the independently reviewed finite-state observer,
+  executable evidence and counterexamples. Unrestricted returning mixed
+  contexts, source lifecycle, production attachments and cutover remain open.
 
 - **Function-only formal effect feedback (2026-10-10, reviewed conditional source scope):**
   The [one-formal source certificate](../progress/2026-10-10-formal-effect-admission-falsify.md)
