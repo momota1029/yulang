@@ -5843,3 +5843,28 @@ conformance for the actual `P_old`, its lookup/inversion and old-consumer
 dependency closure, followed by the remaining complete Call obligations. No
 compiler implementation, tests, builds, semantic checking, `f 1` acceptance or
 F5 cutover occurred in these integration/record updates.
+
+### Selected-source P_old construction attempt (2026-10-10)
+
+The frozen [constructor-directed attempt](../notes/theory/2026-10-10-selected-source-p-old-construction-attempt.md),
+pushed at `fe3a73734`, forms a conditional `F_form` presentation from actual
+selected source-owned formation records while preserving complete dependent
+fibers and all complete Call fields. It does not construct the original
+`P_old`. The minimized first cut grants the actual formal registration and
+Name route, then lacks an owner rule proving that this same `reg_f` decodes
+from an original `P_old` key/payload with exact lookup equality. The new
+`N_arg` and `N_lit` sorts cannot fill that original-key gap.
+
+A separate consumer audit confirms that old consumers can be retained through
+the unchanged `P_old` interpretation in the approved tagged route, but actual
+consumer applicability still needs fixed-original typed maps and a concrete
+dependency manifest. Exhaustive old-entry coverage, O0/O1, complete Q and C0,
+admission/licensing, solving, principality, export and F5 remain open. The
+unadopted `c0d304113` L extension does not close bootstrap or consumer
+correspondence.
+
+Next: find the authentic source-registration-to-original-registry
+representation certificate, starting with the one-formal lookup/decoder square;
+then establish exhaustive entry and consumer closure before moving to the
+remaining complete Call fields. The artifact is exploratory and unreviewed. No
+tests, builds, executable probes or compiler changes ran.

@@ -186,8 +186,9 @@ This index is a navigation aid. The listed source document remains authoritative
   remains local and uncommitted pending an approved answer. The independently
   reviewed [constructor proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
   repairs the old-image domain overclaim and proposes a typed tagged registry
-  extension plus a distinct source-owned `J_lit`. Its four semantic choices
-  remain unadopted, and it assumes `P_old` rather than constructing the actual
+  extension plus a distinct source-owned `J_lit`. The four choices are now
+  adopted only as the bounded direction, and the proof assumes `P_old` rather
+  than constructing the actual
   selected-source registry. The user's explicit 「完全契約で」 fixes the full
   Call contract. Approved `call-reify-registry-construction/q2` adopts that
   exact construction direction as a bounded design gate while retaining actual
@@ -197,7 +198,11 @@ This index is a navigation aid. The listed source document remains authoritative
   and [bounded direction](2026-10-10-call-reify-construction-direction.md)
   adopt exactly the four reviewed choices while retaining source construction
   and complete Call conformance as open gates. This does not authorize
-  implementation, acceptance or F5 cutover.
+  implementation, acceptance or F5 cutover. The unreviewed conditional
+  [selected-source construction attempt](../theory/2026-10-10-selected-source-p-old-construction-attempt.md)
+  identifies the first missing original-registration-to-`P_old` lookup/decoder
+  bridge; exhaustive entry coverage and complete old-consumer closure remain
+  open.
 
 - **Reviewed concrete Call argument constructors; bounded direction adopted (2026-10-10):**
   [definition and proof](../theory/2026-10-10-original-call-reify-constructor-proof.md)
