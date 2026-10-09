@@ -46,11 +46,13 @@ This index is a navigation aid. The listed source document remains authoritative
   The [mixed graph scheme checkpoint](../progress/2026-10-10-successor-mixed-graph-schemes.md)
   now connects kind-qualified value/effect bound capture and per-use freshening
   to private SCC/incoming-use execution. M2 review and owning builds cover that
-  implementation slice; source Call effect generation and runtime verification
-  remain the next work, with complete Call/publication/cutover still open.
+  implementation slice; the later source-flow and executed-construction results
+  below extend its evidence. Complete Call/publication/cutover remain open.
   The [source effect-flow checkpoint](../progress/2026-10-10-successor-source-effect-flow.md)
   connects actual Apply/Group effects and fresh invocation rows to that graph
-  path; M2 static reviews and owning builds pass, with runtime evidence omitted.
+  path. Its initial checkpoint has M2 static reviews and owning builds; the
+  [actual source construction/execution review](../progress/2026-10-10-candidate-graph-call-review.md)
+  now supplies bounded runtime evidence for `invoke` and repeated `invoke id`.
   The [polarity-copy checkpoint](../progress/2026-10-10-successor-polarity-copy-extrusion.md)
   adds original-level-preserving copies, directional bound ownership and
   owner-preserving scheme replay to the private graph path. Actual nested source
@@ -72,6 +74,24 @@ This index is a navigation aid. The listed source document remains authoritative
   actual nested result-to-argument sharing. This is a bounded research result;
   whole Function decomposition, complete Call/C0, joint decision, source
   Generalize/public export and fresh ordinary use are not inferred from it.
+
+- **Reviewed finite value/effect graph construction (2026-10-10):**
+  [RAW-EXTRACT / RAW-FRESH](../theory/2026-10-10-simple-sub-kind-qualified-graph-construction.md)
+  constructs the whole defined active scalar projection and a kind-qualified
+  immutable fresh graph with an inverse. The [independent review](../progress/2026-10-10-kind-qualified-graph-review.md)
+  records four executed tests, including actual symbolic-effect F5 failure,
+  provider replay, cycles and opposite-polarity sharing. This stronger raw
+  snapshot is not imposed on the actual rooted candidate path or equated with
+  full operational/source restoration.
+
+- **Reviewed source-generated candidate capture and use (2026-10-10):**
+  [SOURCE-LOCAL / CAPTURE / FRESH-ROUTE / REPLAY / TERMINATION](../theory/2026-10-10-candidate-graph-call-correspondence.md)
+  derives the actual graph and fresh mapping from the source/session constructor
+  at `280d399e`, with symbolic invocation effects and no solved-provider premise.
+  The [proof and code review](../progress/2026-10-10-candidate-graph-call-review.md)
+  records two passing actual source fixtures and repaired assertion gaps.
+  These are nonshipping scalar graph/route results; complete Call, source
+  Generalize/public principality and ordinary fresh-use acceptance remain open.
 
 - **Authoritative native source Generalize (2026-10-08):**
   [source definition](2026-10-08-source-generalize-definition.md) and

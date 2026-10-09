@@ -133,7 +133,7 @@ JOINT_DEC, Source Generalize, public scheme, source eligibility, lawful complete
 fresh-use or F5 production gate is closed here. There is no new requirement to
 solve a formal, choose a provider, or prove satisfiability during generation.
 
-Shared `tasks/current.md` and `notes/design/INDEX.md` synchronization follows the
-reviewed research checkpoint; the primary owns those files. No pending question
+Shared `tasks/current.md` and `notes/design/INDEX.md` were synchronized after the
+reviewed research checkpoint by the primary. No pending question
 bundle, production implementation, manifest, lockfile or semantic expectation
 is included in this result.

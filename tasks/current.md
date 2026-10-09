@@ -6244,11 +6244,64 @@ Full Function/WholeArg decomposition, original CallMem/C0, general JOINT_DEC,
 Generalize/public/fresh-use correspondence and cutover stay open; the canonical
 DAG is unchanged. Basic collection still has no registry-q4 prerequisite.
 
-Active mathematical work now constructs the actual kind-qualified value/effect
-constraint graph through all four Function ports and its finite fresh graph,
-while keeping source eligibility and complete residual interpretation separate.
-An alternative generic source-use-map candidate has not supplied the actual
-original field telescope and is not promoted as a closed source theorem.
+### Reviewed finite value/effect graph construction (2026-10-10)
+
+The [RAW-EXTRACT / RAW-FRESH construction](../notes/theory/2026-10-10-simple-sub-kind-qualified-graph-construction.md)
+and [independent proof/implementation review](../notes/progress/2026-10-10-kind-qualified-graph-review.md)
+are pushed at `01bf7312360afe94ed40d4363208cf323baa8f1e`. The concrete constructor
+retains every active value/effect row, all four ordered bound lists, actual
+component/root references, all admitted typed-pair keys and every Function
+child. One kind-qualified map preserves both polarities and row cycles; a
+separate nominal term-record map gives an exact immutable-record inverse.
+It does not clone the whole operational session or require complete raw capture
+as a prerequisite for the actual rooted candidate exporter.
+
+Both proof reviewers passed without findings. Both code reviewers passed; the
+minor executed-scope comment was clarified. Four discriminating tests passed
+under `shadow-f5` and under `shadow-apply-candidate`. Two multi-codegen-unit link
+attempts failed with undefined hidden Rust symbols; the latter feature check
+passed with a separate target, incremental disabled and one codegen unit.
+No build policy changed. The actual F5 unbounded-negative-effect witness and
+four-port provider effect replay were executed, with full raw-record round-trip
+checks. The optional REALIZE/PARTIAL/residual recipes remain proof-only.
+
+### Source-generated candidate Call graph and repeated use (2026-10-10)
+
+The [actual constructor theorem](../notes/theory/2026-10-10-candidate-graph-call-correspondence.md)
+and [review/execution record](../notes/progress/2026-10-10-candidate-graph-call-review.md)
+connect the `280d399e` collector to its real SCC capture and incoming-use route.
+SOURCE-LOCAL derives the current empty-import source envelope's local rows;
+CAPTURE constructs its least rooted four-port/bound closure; FRESH-ROUTE
+constructs one typed fresh map and actual retained-bound/root submission;
+REPLAY and TERMINATION prove logical substitution factorization and finite
+constructor/propagation behavior. Neither a supplied completed graph nor an
+immediately solved Function/provider/effect is a premise.
+
+The two actual `CandidateInference::solve` fixtures pass: `invoke f = f 1`
+followed by two Name uses, and `id x = x; invoke f = f 1` followed by two
+`invoke id` applications. Tests inspect the actual source Name/use ownership,
+unknown formal demand, absence of premature positive Function/Empty bounds,
+shared symbolic invocation/body effect, all-local classification, disjoint
+Value/Effect fresh maps and Int propagation to both receiving result roots.
+Both mathematical/specification proof reviews and both code reviews passed;
+the terminal-precedence clarification and two minor assertion-coverage gaps
+were repaired. The two affected tests passed again after repair.
+
+Before publication, concurrent `334fd35` changed candidate bounds to directional
+ownership and selected-side restoration. The full remote delta was preserved;
+all 13 new focused tests passed on the rebased tree without assertion changes.
+This revalidates runtime behavior, while the existing theorem stays pinned to
+`280d399e`; its latest-owner directional proof delta is under construction.
+
+This supplies new construction and execution evidence for the existing
+nonshipping candidate graph path, not ordinary certified source acceptance or
+a closed public scheme. Full CallMem/C0, JOINT_DEC, source-Generalize/public
+correspondence, general lexical levels/polarity-copy extrusion, complete effect/
+protection/provider/world/admission/future evidence and F5 cutover remain open.
+The canonical DAG is unchanged. The original complete residual contract is not
+replaced by the scalar spine; no unsupported generic source-use supplier is
+promoted as a theorem. Implementation authority remains the current research
+branch and existing candidate path.
 
 ### Successor polarity-copy bound owner (2026-10-10)
 
