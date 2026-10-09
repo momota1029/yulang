@@ -6568,3 +6568,14 @@ or complete registry runtime gate before basic constraint generation was found.
 Anonymous lambda expressions remain outside the current generic LocalSource
 formation envelope. The full inference goal stays active; this checkpoint is
 not complete legacy withdrawal or production cutover.
+
+### Actual intrusion runtime evidence (2026-10-10)
+
+[Five owning regression tests](../notes/progress/2026-10-10-intrusion-runtime-regressions.md)
+now pass for real extrusion parent provenance, same-SCC equality versus its
+non-SCC control, merged metadata/later bounds, failed-route rollback and natural
+recursive/captured-local behavior. Fresh repair strengthened late-result
+reachability and exact older-anchor sharing assertions. This closes the missing
+runtime evidence for those bounded operations, not general semantic correctness.
+Concrete effect/co-annotation construction is the next active implementation;
+full source subtraction still requires authentic contribution attachment.

@@ -2,6 +2,10 @@
 use crate::candidate_scheme::RowKey;
 use crate::*;
 
+#[cfg(test)]
+#[path = "candidate_intrusion_tests.rs"]
+mod tests;
+
 #[derive(Debug, Default)]
 pub(super) struct State {
     values: Vec<u32>,
