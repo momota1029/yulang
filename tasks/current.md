@@ -5468,3 +5468,14 @@ still omits selected role/protection/admission evidence, so its production
 admission remains undecided; do not treat successful endpoint solving alone
 as a complete call judgment. No production implementation or F5 cutover gate
 is closed by this priority correction.
+
+The user then selected the complete-contract route for `f 1`, rejecting the
+four-port approximation. This fixes the implementation target while retaining
+the open owner obligations: a concrete complete `WholeArgCompatible` instance,
+pre-comparison `DemandFormation`, and the source-owned unannotated-formal role
+refinement with directional protection. Current HIR/solver paths retain
+structural call identities but have no producer for that package; the shadow
+candidate drops operand effects and supplies an empty call effect. Next work
+must make the complete package executable from actual source owners before
+default collection can admit Apply. No code, tests, or cutover authority
+follows from the choice alone.
