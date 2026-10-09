@@ -6893,15 +6893,14 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 and wrote the inferred scheme `(int -> ['b, io] 'c) -> int -> ['b] 'c`. The
-Authoritative hygiene note records the same source with scheme
-`(int -> ['b, io] 'c) -> ['b] 'c`. A later “ソレはミス” challenges the
-assistant's interpretation of a correction, but its referent remains
-unresolved. Preserve this mismatch and do not silently choose either scheme as
-the final regression target. The locality requirement is to subtract the
-attached `io` while retaining independent `'b` flow. This is
-the same contract as effect hygiene, not a separate permission. The current
-candidate still rejects explicit formal effect rows; this is a target, not
-verified compiler behavior.
+later “ソレはミス” refers to that extra `int ->` in the result: it was a typo
+in the user's earlier message. The corrected target is
+`(int -> ['b, io] 'c) -> ['b] 'c`, as already recorded in the Authoritative
+hygiene note. Do not treat the two schemes as an unresolved design mismatch.
+The locality requirement is to subtract the attached `io` while retaining
+independent `'b` flow. This is the same contract as effect hygiene, not a
+separate permission. The current candidate still rejects explicit formal
+effect rows; this is a target, not verified compiler behavior.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6940,9 +6939,8 @@ a conditional source falsifier, not an executable program or a termination
 counterexample. Levels do not prove it unreachable. See the updated
 [cycle audit](../notes/progress/2026-10-10-explicit-effect-termination-source-map.md).
 
-Next: settle the exact callback result text after the unresolved “ソレはミス”
-correction, then derive the attachment constructor's actual output ownership and
-whether recursive uses expose its POP-bearing result. Establish a finite
+Next: derive the attachment constructor's actual output ownership and whether
+recursive uses expose its POP-bearing result. Establish a finite
 admission/ownership relation preserving exact replay before enabling contextual
 production; then implement the source-owned subtraction consumer and add the
 owning source regression. Positive covariant annotations already have a private
@@ -6956,10 +6954,9 @@ upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
 contravariant source attachment. Its result note preserves the scheme
-`(int -> ['b, io] 'c) -> ['b] 'c`, while the user's earlier direct example
-included an additional `int ->` in the result. Their later “ソレはミス” has
-not identified its referent, so the final callback scheme remains unresolved
-and neither form is verified in the successor.
+`(int -> ['b, io] 'c) -> ['b] 'c`. The user's later “ソレはミス” confirms
+that the extra `int ->` in the earlier conversational form was a mistake. The
+scheme target is settled, though it remains unverified in the successor.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)

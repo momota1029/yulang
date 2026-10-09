@@ -6,10 +6,10 @@ Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Status: read-only source audit; candidate invariants, not an independent proof review
 Scope: actual negative concrete attachment construction, contextual consumers,
 four Function ports, finite admission and remaining source support
-Authority: selected annotation policy and callback target currently recorded in
-`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`; the direct
-user message's differing result text and later “ソレはミス” correction remain
-unresolved as recorded in `tasks/current.md`
+Authority: selected annotation policy and corrected callback target recorded in
+`notes/design/2026-10-10-annotation-effect-hygiene-integration.md`. The user's
+later “ソレはミス” corrects the extra `int ->` in the earlier conversational
+scheme; the target is `(int -> ['b, io] 'c) -> ['b] 'c`.
 
 ## Constructor, not a row-global removal flag
 
