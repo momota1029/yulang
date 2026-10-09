@@ -1,7 +1,7 @@
 # Original Call argument-Reify source rule: bounded candidate
 
 Date: 2026-10-10
-Status: Draft, non-authoritative research candidate; unreviewed; frozen on handoff
+Status: Draft, non-authoritative research candidate; accepted major review finding repaired by producer, delta review pending; frozen on handoff
 Baseline: `308723895cb91f3520589b240a6838e834c41be5` (primary pin)
 Lease: this file only
 Method: source-directed dependent construction and explicit supplier factorization
@@ -19,6 +19,9 @@ the semantic attachment is **not constructed from the inspected laws**.
 Section 5 identifies its separate supplier operations and laws. Thus this is a
 conditional rule candidate, not adoption of an original constructor or a proof
 that the full original carrier contract is constructible at this baseline.
+The absent branch also requires the actual old-registry supplier's preservation
+law for exposed active guards, domains and licenses (§4). This law remains open;
+retaining old entries verbatim does not establish it.
 
 The approved `original-call-argument-reify-owner/q1/d1` Option 1 authorizes this
 bounded design/construction only. Its question, matching `answer-draft.md`,
@@ -44,6 +47,7 @@ Exact governing sections and dependencies:
 | `2026-10-07-original-call-formation-definition.md` §§2,4,6; `2026-10-07-original-call-owner-definition.md` §§2–4.1 | O0/O1 consume actual emitted records and independent seed; neither is this pre-emission registration supplier. |
 | `2026-10-10-original-literal-call-emission-extension-candidate.md` §§2–3,5 | Later complete tagged source emission, whole old-family conservation and local O0 construction remain open. |
 | `2026-10-10-original-literal-call-argument-reify-construction.md` §§2–5; `2026-10-10-generic-original-call-argument-registration-factor.md` §§3–5; `2026-10-10-native-argument-registration-extraction.md` §§2–4 | Retained supplier cut and legitimate same-index native projection. This note proposes the newly authorized construction, rather than repeating those attacks. |
+| `2026-10-10-original-call-reify-rule-falsification.md` §§3–4 | Conditional old-active-license obstruction and the explicit extension supplier obligation. Read after the first candidate freeze; incorporated in this renewed repair lease, not claimed as an authentic Yulang license or an independently reviewed result. |
 
 `rules/research-lab.md`, `rules/design-authority.md` and
 `rules/git-concurrency.md` were read in full. `notes/design/INDEX.md` and
@@ -130,7 +134,9 @@ CallArgumentManifest M;
 lookup(P,k_site), then exact-reuse or paired fresh-birth evidence;
 o_arg, r_arg, registered site/root certificates;
 independent Delay attachment A at this same J_a/site/root;
-registry result P', old-image inclusion and lookup certificates;
+tentative finite extension P_plus and old-image inclusion/lookup certificates;
+old-active preservation certificate H_oldext(P,P_plus) at this extension;
+successful registry result P' (P_plus, or P in exact reuse);
 proposed origin rho_arg; Carrier-Delay(q_ca,rho_arg).
 ```
 
@@ -184,7 +190,9 @@ proof alternatives. Compare those fields with M using their exact dependent
 identities. Require a typed equality for the entire manifest and root/site
 incidence, transporting all fields together. Check that the incumbent's
 attachment was supplied by the same independent complete Delay interface
-for the same q_ca/J_a/refs. Return `(P,o,r,e,reuse)` without overwriting e.
+for the same q_ca/J_a/refs. The old-active preservation certificate is the
+original identity law at the unchanged P. Return `(P,o,r,e,reuse,H_oldext_id)`
+without overwriting e.
 A new local derivation can retain another attachment proof; it does not erase
 or replace the incumbent's choices. Concrete unequal required fields yield
 `RegistryConflict(k_site,field,expected,found)`; missing complete projection or
@@ -199,10 +207,43 @@ same manifest; no integer counter policy is prescribed. Its chosen labels
 are explicit dependent outputs, with equality only under coherent renaming.
 Stage a root certificate and site certificate for this pair. Obtain the
 independent attachment of §5 at these exact labels. If attachment fails, no
-new registry is returned. Otherwise define P' by immutable extension with the
-staged pair, using fresh-key evidence; all prior entries remain verbatim.
-The new site stores M, birth, the root link and A. Root/site links cannot be
-allocated independently, and an old root is not silently retagged.
+new registry is returned. Otherwise form the tentative immutable extension
+`P_plus = P + stagedPair`, using fresh-key evidence; all prior entries remain
+verbatim. Before returning any successful P', require the actual original
+supplier certificate `H_oldext(P,P_plus)` specified below. If its applicability
+is unresolved, a required field is absent, or any preservation obligation
+fails, stop construction and return no successful registry or origin. Only
+with that certificate set `P'=P_plus`. The staged registry entry retains M,
+birth, the root link and A; the returned dependent constructor additionally
+retains H_oldext about this already formed tentative extension. Thus the
+preservation certificate is not a circular field of P_plus. Root/site links
+cannot be allocated independently, and an old root is not silently retagged.
+
+**Open old-active preservation supplier.** H_oldext is a law of the actual
+old registry/contracts at this exact finite extension, separate from finite-map
+lookup, source renaming and Delay attachment. For every original old entry and
+every exposed old active consumer guard, admitted event/history/future domain
+and licensing interface, it supplies typed reindexing along the old inclusion
+at the unchanged original source/world/dependency tuple. It preserves the
+guard's interpretation, retains every previously admitted domain element with
+its dependencies, and transports every original license/guard/domain witness
+and alternative into the corresponding valid fiber at P_plus. Its inverse on
+this old image recovers the same evidence and interface fields. It cannot
+replace an old consumer's registry dependency by a snapshot, narrow its old
+domain, select another license or drop an alternative to manufacture transport.
+The supplied maps must obey identity/composition and the whole-action square
+of §7. Their exact applicability at P_plus is required, not merely a module
+signature promising such maps. Exact reuse uses the unchanged registry's
+identity certificate, without an extension-domain inference.
+
+The [frozen falsification](../progress/2026-10-10-original-call-reify-rule-falsification.md)
+§3 illustrates why this premise is necessary: conditionally admit an old
+license `L_old(P,k_site) iff lookup(P,k_site)=Absent`; a fresh insertion
+preserves its old entry but changes that license from true to false. That
+conditional guard is not claimed to be an authentic Yulang law. It falsifies
+the inference from freshness, unchanged entries and lawful renaming to old
+active-license preservation. H_oldext cannot be supplied for that example;
+the absent branch must stop even if the new Delay attachment is granted.
 
 The candidate finite-map calculation proves:
 
@@ -215,8 +256,10 @@ retract(i(e)) = e                                [every old entry]
 
 Here i is the exact old-entry inclusion; in reuse it is identity. Projection
 of an absent-branch new entry is undefined for the old retraction. This is
-old-registry preservation on its image. It does not prove preservation of
-all formulas quantifying over an enlarged original registry/emitted family.
+finite-map preservation on its image. Preservation of the exposed old active
+guard/domain/license interfaces additionally uses H_oldext, and is not derived
+from these lookup equations. No preservation of arbitrary other formulas
+quantifying over an enlarged original registry/emitted family is claimed.
 
 The proposed constructor schema is:
 
@@ -224,12 +267,14 @@ The proposed constructor schema is:
 local source checks of §2; actual q_ca/J_a/refs manifest M
 registry branch of this section at original P with exact certificates
 A : independently supplied typed Delay attachment of §5
+H_oldext : actual old-active guard/domain/license preservation at the
+           tentative extension, or original identity certificate in reuse
 ---------------------------------------------------------------- CallArg-Reify-Literal^draft
 (P', o_arg,r_arg, rho_arg^draft,
- full manifest inversion, old-entry/lookup certificates)
+ full manifest inversion, old-entry/lookup and H_oldext certificates)
 ```
 
-`rho_arg^draft = CallArgumentReify(M,branch,A)` is a *candidate* term for
+`rho_arg^draft = CallArgumentReify(M,branch,A,H_oldext)` is a *candidate* term for
 
 ```text
 ReifyOrigin_orig(o_arg,ca,r_arg,R_a,Delta,
@@ -314,17 +359,23 @@ arm. It returns the actual j, local source/formal/route/child certificates,
 literal primitive/Result/code derivations, full J_a and module references,
 refs and their inclusions, lookup/search certificate, branch, o_arg/r_arg,
 complete attachment maps/licenses and all stored alternatives. Absent inversion
-returns P, freshness/birth, the staged pair and exact extension. Reuse inversion
-returns the original incumbent and whole-manifest equality, without replacing
-its proof fiber. Keep entries use the unchanged original registry inverse.
+returns P, freshness/birth, the staged pair, exact tentative/successful extension
+and the actual H_oldext maps with their applicability, exposed old guard/domain/
+license families, witness alternatives and action laws. Reuse inversion returns
+the original incumbent, whole-manifest equality and identity old-active
+certificate, without replacing its proof fiber. No successful absent-arm
+inverse omits the preservation premise. Keep entries use the unchanged original
+registry inverse.
 An original entry from another constructor is never inverted as this arm by
 matching its endpoint or labels. No exhaustive inversion theorem for all
 original Reify origins is claimed.
 
 **Conditional derivation.** Grant selection/realization of this candidate
-original source introduction, the complete original registry interface and all
-§5 supplier laws at j. Sections 2–4 first form the literal prefix, manifest,
-registry plan and independently licensed attachment. Then the proposed
+original source introduction, the complete original registry interface, the
+applicable H_oldext of §4 and all §5 supplier laws at j. Sections 2–4 first form
+the literal prefix, manifest, registry plan and independently licensed
+attachment, then check the old-active preservation certificate before success.
+Missing or unresolved applicability stops this implication. Then the proposed
 introduction produces rho_arg at these same indices. Apply the existing rule:
 
 ```text
@@ -350,7 +401,8 @@ S,B,X,c,a,q_ca,T,Delta,xi,refs,P,P',
 formal roots/routes/source edges; M; o_arg,r_arg and lookup/branch/birth;
 complete Prim/Return/Delay modules and J_a;
 all domains, guards/licenses, alternatives, witnesses, profiles,
-provider/world/raw continuation/output-dependent future families and A.
+provider/world/raw continuation/output-dependent future families and A;
+H_oldext with its actual exposed old guards/domains/licenses and complete maps.
 ```
 
 It respects fixed imports, source/role tags and binder order. Nominal source
@@ -361,6 +413,23 @@ keys, lookup/absence and exact typed equalities. Candidate fresh labels move
 with their birth witnesses; results compare under that coherent renaming,
 not literal equality of counter-generated numbers.
 
+Legal action on a successful extension also requires the actual supplier to
+transport H_oldext into an applicable preservation certificate at
+`(theta P,theta P_plus)`. For every old guard/domain/license witness w its
+reindexing maps must satisfy
+
+```text
+theta(extTransport_(P,P_plus)(w))
+  = extTransport_(theta P,theta P_plus)(theta w).
+```
+
+The square includes every exposed old domain, witness alternative and its
+dependent future fields, with component identity/composition laws. It is not
+a consequence of finite-map equivariance: insertion changes the domain and
+is not nominal renaming. An unresolved or failed transported preservation
+certificate stops construction/action of this successful arm; positive lookup
+transport alone is insufficient.
+
 On successful candidate artifacts define action by mapping all stored fields
 and reapplying the same constructor. Exact-reuse equality maps as a whole.
 Certified absence remains absence because source nominal keys are transported
@@ -368,10 +437,12 @@ injectively. Freshness uses the same nominal support map. Immutable extension
 then gives, by finite-map cases and component action laws:
 
 ```text
-act_theta(P',M,branch,A) = registerDraft(act_theta(P,M,branch,A))
+act_theta(P',M,branch,A,H_oldext)
+  = registerDraft(act_theta(P,M,branch,A,H_oldext))
 act_theta(lookup(P',k)) = lookup(act_theta P',act_theta k)
 act_theta(i(e)) = i(act_theta e)
-act_theta(rho_arg^draft) = CallArgumentReify(theta M,theta branch,theta A)
+act_theta(rho_arg^draft)
+  = CallArgumentReify(theta M,theta branch,theta A,theta H_oldext)
 act_theta(Carrier-Delay(q_ca,rho_arg))
   = Carrier-Delay(theta q_ca,theta rho_arg)
 act_id(z)=z; act_(psi o theta)(z)=act_psi(act_theta(z)).
@@ -379,9 +450,9 @@ act_id(z)=z; act_(psi o theta)(z)=act_psi(act_theta(z)).
 
 `registerDraft` here takes the transported branch/birth evidence; it is not a
 claim about rerunning an unspecified physical allocator. Its semantic equations
-remain conditional on §5's component actions, interpreted licenses and domain
-certificates. Syntax recursion alone proves neither those laws nor original
-source realization.
+remain conditional on §4's actual old-active preservation/action supplier and
+§5's component actions, interpreted licenses and domain certificates. Syntax
+recursion alone proves neither those laws nor original source realization.
 
 A conflict caused by unequal endpoint fields need not remain a conflict under
 noninjective endpoint substitution. Therefore conflict reflection/preservation
@@ -403,6 +474,8 @@ executed mutations, tests, builds or measurements were performed.
 Analytic failure conditions discriminate the design obligations: stale or
 partial registry search cannot certify absence; a role/source/code/module/ref
 mismatch cannot certify exact reuse; overwriting an old entry breaks old lookup;
+unresolved or failed old-active guard/domain/license preservation stops a fresh
+extension even when lookup and the new attachment succeed;
 replacing J_a by DataArg or R_a loses exact image identity; dropping an alternative
 breaks interface inversion; source-only histories break the required input-domain
 map; snapshotting state breaks inert semantics; transporting a live world without
@@ -429,6 +502,11 @@ recommended.
 
 Checks: sequential bounded `cat/sed/rg` reads; leased-path nonexistence check;
 SHA-256 capture of direct dependencies and final static lease/hash inspection.
+The first frozen candidate received an accepted major finding requiring the
+explicit old-active preservation premise. This renewed narrow lease repairs
+that finding in the success rule, telescope, inversion and action; producer
+inspection is not independent certification, and delta review remains pending.
+The frozen falsifier was read after initial freeze and its hash is added below.
 No Git operation was performed, including baseline blob comparison. The pin is
 the primary's supplied baseline; the primary must compare these dependency
 hashes against that revision before integration. No scratch output, production
@@ -438,16 +516,17 @@ Budget: at most one lightweight command process at a time, zero heavy processes,
 zero compute probes, one leased output. CPU, peak RSS and total wall time were
 not instrumented. No numeric wall-time cap was provided in the packet.
 
-Recommended next action: independently review this precise candidate, focusing
-on whether the original Delay module supplies §5's complete input/license and
-latent attachment operations at the literal ReturnImage. Keep adoption blocked
-until that supplier and the registry/original-introduction interpretation are
-established or explicitly selected within the authorized design gate.
+Recommended next action: obtain focused independent delta review of the
+explicit §4 old-active preservation premise and its inversion/action use.
+Adoption remains blocked on the actual preservation supplier, §5's Delay
+input/license/latent attachment and original-introduction interpretation;
+none is discharged by this repair.
 
 ## 9. Dependency snapshot and commit packet
 
 SHA-256 captured from the filesystem before writing, for the direct frozen
-semantic/research inputs and approved bundle:
+semantic/research inputs and approved bundle. The final falsifier row was
+captured under the renewed repair lease after the initial candidate freeze:
 
 ```text
 61601a7394785d02af206d7ed86aaa2af58a12fab317f1148f298610ac8796e7 questions/2026-10-10-original-call-argument-reify-owner/question.md
@@ -469,6 +548,7 @@ e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240 notes/theory/20
 4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f notes/design/2026-10-07-original-call-formation-definition.md
 0b86e367cf8170f4f9d095f0afe8e9f6003209189dc358e294941727962ff110 notes/design/2026-10-07-original-call-owner-definition.md
 578193deb6bde5a3562874ff5bc96f6844809cf2006c7156fc382886ee723d50 notes/theory/2026-10-10-original-literal-call-emission-extension-candidate.md
+400dc3ffcda2ab0e380aad8a15683c01554868d7bf77d039eb1bdb58e6aac813 notes/progress/2026-10-10-original-call-reify-rule-falsification.md
 ```
 
 Commit packet:
@@ -476,10 +556,10 @@ Commit packet:
 - Exact leased/changed path: `notes/theory/2026-10-10-original-call-argument-reify-source-rule-candidate.md`.
 - Baseline SHA: `308723895cb91f3520589b240a6838e834c41be5`; supplied pin; baseline blob comparison remains primary-owned.
 - Dependency hashes changed by producer: none. Submission recheck is reported to the primary; no dependency writes were made.
-- Review/claim status: frozen Draft, non-authoritative, unreviewed conditional candidate; explicit original Delay/registry/source-introduction realization suppliers remain open.
+- Review/claim status: frozen Draft, non-authoritative conditional candidate; accepted major finding repaired by producer, focused delta review pending. Actual old-active preservation and original Delay/registry/source-introduction realization suppliers remain open.
 - Checks already run: full assigned policy reads, exact governing-clause reads, approved q1/d1/receipt read, sequential dependency hashes, leased-path and static inspection; no tests/builds/probes/Git operations.
 - Proposed one-line research-checkpoint message: `research: draft bounded Call argument Reify registration rule`.
-- Shared-record deltas left for primary/curator: record the proposed finite registration/inversion/action procedure separately from the unresolved independent Delay license/input/latent-interface supplier; retain downstream emitted membership/O0/O1/acceptance/C0/solve/publication/cutover as open. No task, index, authority, DAG or question-board status promotion is requested as completed.
+- Shared-record deltas left for primary/curator: record the proposed finite registration/inversion/action procedure separately from the unresolved actual old-active guard/domain/license preservation and independent Delay license/input/latent-interface suppliers; retain downstream emitted membership/O0/O1/acceptance/C0/solve/publication/cutover as open. No task, index, authority, DAG or question-board status promotion is requested as completed.
 
 Producer writes stop before handoff for frozen review. Repair needs an explicit
 renewed lease.
