@@ -116,6 +116,13 @@ effect hygiene, soundness and principality remain genuine requirements. Their
 missing proofs or compiler correspondence cannot be closed by retiring an old
 construction route.
 
+Retirement completion is checked per mechanism using the
+[completion evidence contract](../notes/design/2026-10-10-simple-sub-legacy-withdrawal.md#mechanism-by-mechanism-completion-evidence):
+record its owning entrypoint and consumers, the replacing Simple-sub operation,
+the removed runtime dependency and focused regressions, plus any removed proof
+edges and their reasons. Remaining real legacy consumers stay explicit migration
+tasks; adding a successor route alone does not complete withdrawal.
+
 ## Design status
 
 New design documents use:

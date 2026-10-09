@@ -9,6 +9,14 @@ two independent reviews covering implementation/regression and dependency semant
 
 ## Actual dependency removal
 
+The user's explicit withdrawal policy now also specifies per-mechanism
+completion evidence: owner/callers, replacing Simple-sub operation, actual
+dependency removal, focused regressions, exact retired proof edges/reasons and
+remaining consumers. This policy clarification is M0, primary-owned, with no
+reviewers or measurement processes. Scoped whitespace/reference checks suffice;
+no compiler tests are rerun for this record-only change. Existing implementation
+and semantic reviews below retain their bounded scope.
+
 The successor `CandidateInference` no longer recognizes the exact
 `ShadowLocalBind` fixture in preflight. Graph collection no longer looks up or
 emits that fixture. Generic `LocalSource` formation owns lexical local programs;

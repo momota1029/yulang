@@ -6805,6 +6805,12 @@ schemes, complete semantic requirements and target `yulang3` cutover remain open
 
 ### Primitive formal source annotations integrated (2026-10-10)
 
+Withdrawal policy also records per-mechanism completion evidence in the
+[current authority](../notes/design/2026-10-10-simple-sub-legacy-withdrawal.md#mechanism-by-mechanism-completion-evidence).
+Adding a parallel route alone is insufficient; remaining consumers and genuine
+semantic requirements stay explicit. Policy-only clarification uses M0 with no
+new compiler checks or reviewers.
+
 The [primitive delivery](../notes/progress/2026-10-10-annotated-primitive-formal-integration.md)
 connects actual grouped Int/Unit formal annotations to ordinary positive body
 information and negative argument checks before body synthesis. Top/local,

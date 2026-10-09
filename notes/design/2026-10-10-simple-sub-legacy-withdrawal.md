@@ -31,6 +31,24 @@ contract remain in force.
 Prefer actual refactoring and regression tests. Record the precise remaining
 legacy entrypoints rather than declaring retirement from documentation alone.
 
+## Mechanism-by-mechanism completion evidence
+
+For every withdrawal, record the old mechanism and its actual owning entrypoint,
+the callers that depended on it, the replacing Simple-sub operation, the removed
+implementation dependency, and focused regression evidence. Identify remaining
+legacy consumers explicitly. A parallel successor path or an unused replacement
+does not complete retirement while the current inference route still requires
+the old mechanism. Complete migration includes removing the obsolete path once
+its last genuine consumer has migrated.
+
+For a proof prerequisite, record the exact removed node or dependency edge,
+why the selected inferencer no longer needs it, and which genuine requirement
+continues elsewhere. Use retirement status rather than proved or unresolved
+status for the obsolete prerequisite. Keep historical proof sources clearly
+separate from current Authority. Neither implementation tests nor retirement
+of a construction-specific lemma discharge complete Call, effect hygiene,
+soundness or principality.
+
 ## First bounded retirement
 
 1. Remove the mandatory finite source-context/static-port enumeration
