@@ -65,3 +65,52 @@ hashes and the initial baseline; Markdown newline, fences, whitespace and
 local links pass. No production, tests, Authority, source rejection policy or
 canonical DAG field changed in this checkpoint. Shared task/index integration
 is deferred to the final cross-attack record commit.
+
+## A — native declaration, fixed/raw evidence fibers and exact reduct
+
+Artifact: [native whole-argument checking declaration](../theory/2026-10-09-native-whole-argument-checking-declaration.md).
+
+Initial reviewed SHA-256:
+`6b93de96641949fe24359159eecca2bdf8fe8ffa532e9d9145c51ff86c6fb6b1`.
+Repaired, independently delta-reviewed SHA-256:
+`b75cfd82b9772b020c2ae4c382b1a7eeeae9ec7356011961cb40f3177baef29d`.
+
+Independent `attack_a_math_review` found a major overclaim in universal
+registry-observer conservativity. Independent `attack_a_spec_review` found
+a blocking original-owner identification: the existing independently
+interpreted WholeArgCompatible leaf is not a free parameter that can be
+instantiated by the new native definition. The primary accepted both findings
+and issued one repair bundle to a fresh producer.
+
+The repair removed Theorem O and every original-emission/identification claim,
+retained a distinct native declaration/reference, and narrowed Theorem F to
+the exact old reduct and selected native evidence/image fibers. F retains the
+old quantified domains. It expressly excludes active registry/reference/slot
+and Contrib/Inc/Cover consumers over the enlarged interface; a registration-
+count predicate demonstrates why universal observer preservation is false.
+
+Fresh independent `attack_a_delta_math` and `attack_a_delta_spec` both returned
+PASS for these repairs and their affected direct dependency cone. Previously
+clean A–E proof areas were carried forward, with the affected reference, action
+and claim boundaries checked. Neither reviewer read the other's report.
+
+The accepted construction defines a Parameter-owned checking declaration
+without an input Kernel, WholeContract or whole-checking certificate. It
+derives soundness, the complete fixed-frame gamma fiber and the presentation-
+indexed raw fiber, lawful actions, and SD-NPB source-produced native witnesses.
+Its independent definition retains the complete J relation, original binder
+order, proof auxiliaries, same provider, current guards and history domains.
+Only the raw slice at a fixed presentation corresponds to that frame's gamma.
+
+This eliminates a supplier of the **new native** declaration, its explicit
+interface/action and its native checking witnesses. It does not eliminate
+the original WholeArgCompatible-origin, N's independent checking contract,
+complete original IF, typed M_E/DescMem or CallMem/C0. Typed-core inclusion
+soundness is not a complete original proof-fiber or source-emission theorem.
+The original source gate remains open.
+
+Primary verification: all 23 recorded direct dependencies match their frozen
+hashes and the initial baseline; Markdown, local links and staged whitespace
+checks pass. The semantic dependency files are unchanged at the integration
+head. Only status/review metadata changed after the repaired freeze. No
+production code, semantic selection or canonical DAG status changed.
