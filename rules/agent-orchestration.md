@@ -158,11 +158,47 @@ it consumes one of the two leaf slots and obeys the per-decision budget above.
 A changed model starts a new bounded assignment; it does not mutate the model
 of an already-running Sol worker. Record requested and observed settings.
 
-If custom roles, nested spawning or native model overrides are unavailable,
-return the same bounded packets to the primary for supported sibling dispatch.
-Do not bypass runtime limits, change a pin, invent configuration keys, claim
-Astra ran, or repeatedly retry an unavailable route. Continue feasible work
-under the actual configured model and report the specific remaining limit.
+### Proof-dispatch liveness and runtime fallback
+
+For a substantive open proof/semantic bridge with stable premises, the primary
+allocates an actual constructive proof packet and exclusive research-note lease
+while independent implementation proceeds. Native `prover` is preferred; an
+unavailable agent name must not cancel the theorem or become a mandatory setup
+or re-planning task. No additional user command is required to try the lane.
+
+1. Inspect the actual `spawn_agent` interface and attempt the registered
+   `prover` at most once per session when available. Launch success means an
+   actual returned worker identity, **not** a valid TOML file, a prompt naming
+   `prover`, a CLI exit status, or a past session's successful launch.
+2. On `unknown agent_type`, unavailable custom roles, model/effort override
+   rejection, or another runtime routing failure, immediately use a
+   runtime-supported generic worker with the exact proof task, governing
+   baseline, output lease, and the applicable instructions from
+   `.codex/agents/prover.toml` supplied in its task packet. Use only role and
+   model options actually supported by that spawn interface; request Sol/high
+   when supported, otherwise record the effective choice as unknown. This is
+   a **prover-equivalent generic worker**, not an observed custom `prover`.
+3. If *no* agent spawn is supported, the primary continues the same constructive
+   proof/source audit itself and returns the derivation or the precise missing
+   premise. A routing error alone cannot justify `blocked`, `done`, or a
+   proof-status promotion. Do not keep trying equivalent failed spawns.
+4. Record attempted and actual identities, requested/observed model/effort,
+   artifact/proof status, and the specific runtime limitation. Freeze all
+   outputs before assigning a fresh independent `compiler_referee`; fallback
+   does not relax source reachability, semantics, budgets or review isolation.
+
+All eleven project roles are declared in `.codex/config.toml`; in some CLI
+versions project-local declarations are not registered when the runtime's role
+table is built. For a **fresh standalone CLI invocation**,
+`tools/codex-prover.sh '<proof obligation>'` explicitly supplies the same
+role registrations through `-c` overrides. This is an optional diagnostic
+and proof entry point, **not** a reason to launch a nested Codex process from
+an already-running team or to halt in-session fallback. It does not prove
+that a tool-backed runtime supports named roles or Astra overrides.
+
+Do not bypass runtime limits, change a role's pin to fake a model switch,
+invent configuration keys, claim Astra ran, or retry an unavailable route.
+Continue feasible proof work and report genuine mathematical blockers separately.
 
 Report each child's identity, role, effective settings when observable, lease,
 dependency and state to the primary's queue. Release a leaf's outputs only

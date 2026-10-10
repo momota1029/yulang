@@ -13,3 +13,46 @@ interrupt_message = true
 [agents.prover]
 config_file = "agents/prover.toml"
 description = "Construct bounded constructive proofs and exact source-to-proof bridges for Yulang."
+
+# Explicit declarations make custom roles discoverable by Codex CLI; standalone
+# .codex/agents/*.toml files alone do not register tool-visible roles.
+
+[agents.architect]
+config_file = "agents/architect.toml"
+description = "Read-only compiler architect for new decisions, cross-layer changes, uncertain behavior, and authoritative gate design."
+
+[agents.compiler_referee]
+config_file = "agents/compiler-referee.toml"
+description = "Read-only adversarial referee for compiler semantics, root causes, IR invariants, soundness, recovery ownership, and edge cases."
+
+[agents.docs_writer]
+config_file = "agents/docs-writer.toml"
+description = "Write-enabled public-documentation specialist for web/docs, README files, guides, release notes, and paired Japanese/English prose."
+
+[agents.implementer]
+config_file = "agents/implementer.toml"
+description = "Write-enabled compiler worker that implements a confirmed design gate or accepted review findings without inventing policy."
+
+[agents.performance_auditor]
+config_file = "agents/performance-auditor.toml"
+description = "Read-only performance and resource auditor for traversals, allocation, clones, caches, worklists, parallelism, and heavy verification."
+
+[agents.regression_auditor]
+config_file = "agents/regression-auditor.toml"
+description = "Read-only regression auditor for sibling cases, public call sites, fixtures, CST/AST parity, diagnostics, and unintended surface changes."
+
+[agents.researcher]
+config_file = "agents/researcher.toml"
+description = "Complementary research producer for counterexamples, executable models and source-to-artifact evidence on explicitly leased paths."
+
+[agents.spec_auditor]
+config_file = "agents/spec-auditor.toml"
+description = "Read-only exact-conformance auditor for Authoritative designs, language specifications, approved gates, and test contracts."
+
+[agents.task_decomposer]
+config_file = "agents/task-decomposer.toml"
+description = "Read-only dependency-aware decomposition into concrete proof, falsification, source-correspondence and implementation packets without taking primary coordination."
+
+[agents.theory_curator]
+config_file = "agents/theory-curator.toml"
+description = "Synchronize leased theory maps with adjudicated results and user corrections without inventing proofs, semantics or implementation authority."

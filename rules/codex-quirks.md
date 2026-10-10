@@ -28,6 +28,22 @@ Tool availability, sandbox git permissions, test cost, rustfmt version, and repo
 
 Formatting drift caused by a toolchain mismatch should be isolated from logic changes, not mixed into a semantic commit.
 
+## Custom-agent discovery and proof continuity
+
+A project's `.codex/agents/*.toml` files alone may not be discoverable:
+register every custom role under `[agents.<name>]` in `.codex/config.toml`.
+Even a registered project role can be invisible to a tool-backed or CLI
+runtime (upstream reports: openai/codex issues #14579 and #15250). A role
+definition or prior successful launch is not evidence of a current launch.
+
+On a failed `prover` spawn, use a supported generic worker with the proof-role
+instructions and the *same* frozen statement/lease; if all spawning fails,
+the primary itself keeps the proof obligation alive. Do not turn this into an
+environment-setup-only task. `tools/codex-prover.sh` explicitly registers
+the roles for a new standalone CLI session when that is the chosen entry point.
+Validate registration/CLI argument generation with
+`bash tools/test-codex-prover.sh`; the mock test is not a live model launch.
+
 ## Review convergence
 
 Repeatedly sending the same ambiguous instruction to the same role rarely resolves the ambiguity. Narrow the question, identify missing authority/evidence, or escalate to the appropriate role. Do not retry until a plausible answer appears.
