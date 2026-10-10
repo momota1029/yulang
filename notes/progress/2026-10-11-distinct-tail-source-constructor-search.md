@@ -1,9 +1,11 @@
 # Distinct-tail source constructor cut
 
-Status: frozen, unreviewed research-only conditional constructor derivation.
+Status: constructive ordinary-source witness with independent conditional PASS.
+Research-only; no production conclusion.
 Baseline: `9577b9dd578f2a995b9b9fd1df0d60b081523681`.
 Producer: `/root/distinct_tail_constructor_search`.
-Exclusive lease: this note. Restoration R remains OPEN.
+The witness run used `77c4ac5bb`. The source-construction question for R is
+constructively answered; broader restoration/correctness obligations remain open.
 
 ## Objective, authority and method
 
@@ -168,3 +170,80 @@ Shared-record deltas intentionally left to primary/curator: preserve R OPEN;
 record the exact root-computation/scope/action premise and Allowance-versus-
 Support discriminant if adjudicated useful. No shared task, theory, index,
 authority, question-board, compiler or test path was edited. Writes stop here.
+
+## Ordinary-source constructive witness (primary diagnostic, 2026-10-11)
+
+This addendum answers the source-construction question affirmatively. It is a
+constructive witness to existence of the requested state, not a universal
+theorem about every source program, not an implementation defect claim, and
+not closure of effect hygiene or restoration correctness.
+
+Exact source:
+
+```yulang
+act E
+my left (f:int -> ['r] int) g = { my bridge (consume:(int -> [E, 't] int) -> ['x] int) = ({ my cb z = { my old = f 1; consume cb }; my feed = g bridge; consume cb } as [
+    E
+    'x
+] int); bridge }
+```
+
+The equal-indentation row entries parse as separate atoms without commas.
+The diagnostic run reported no parser structural recoveries and no solver
+errors after the ordinary root action schedule completed. Its row levels at
+the selected prefix were `S49=1`, `C55=1`, `R43=1`, `X29=1`, `T25=2`, and
+`T'66=1`; the witness depends on actual graph reachability and parent records,
+not a level inequality. To capture the
+transient state, the root action list was stepped in its existing order; the
+snapshot was taken at zero-based action 42 (`Lambda(1)`) inside
+`candidate_intrusion`, after `graph.components()` and before its parent-merge
+loop. This is one actual physical candidate graph, not a reconstructed graph
+or an injected transition system.
+
+At that snapshot, the observed nodes and edges were:
+
+```text
+S=Effect(49), C=Effect(55), T=Effect(25), T'=Effect(66)
+R=Effect(43), X=Effect(29)
+actual positive parent records: (C,S), (T',T), both target 1
+SCC(C)=S; SCC(T') != T
+C -> R                         direct positive lower
+R -> Allowance(1) -> X         exact distinct-tail negative bound
+X -> ... -> S                  ordinary physical graph path
+S -> Allowance(0) -> T         original negative check
+T -> T'                        positive tail path
+T' -> T                        no path in this snapshot
+```
+
+Thus `S -> C -> R -> X -> ... -> S` closes the positive owner/copy SCC,
+while `T -> T'` exists without the return path that would qualify the copied
+tail with its original. The scope map assigns `'t` to row 25 and `'x` to row
+29 in the same `Local(HirLocalId(0))` annotation scope, matching the formal
+callback row and expression-ascription row. Parent provenance comes from
+actual intrusion records and is not counted as a physical graph edge.
+
+The snapshot is pre-merge: a later action (zero-based action 47, `Local`)
+eventually closes the tail SCC too. That later state does not erase the earlier
+qualifying state. The hook and test used to observe this were temporary
+diagnostic edits and have been restored; no instrumentation or test was
+committed. Captured diagnostic material is in `/tmp/yulang_final_snapshot.log`,
+`/tmp/yulang_premerge_tail.log`, and `/tmp/yulang_exact_witness_snapshot.log`.
+The independent compiler-referee review returned a conditional PASS: the
+reported canonical nodes, actual positive parent records and same-invocation
+SCC/path facts satisfy the selective owner/tail qualification criterion.
+Primary log inspection confirmed the first selected snapshot's distinct
+component IDs for the tail pair, direct `C55` lower `R43`, stored
+`R43 -> Allowance(1)`, `T25 -> T'66`, and absent `T'66 -> T25`. The reviewer
+did not independently execute the source; parser recovery, HIR scope and
+action provenance remain primary-produced observations. The run used one bounded `cargo test` process,
+one CPU affinity, a 1.5 GiB virtual-memory ceiling, and a 120-second timeout;
+it reported one passing temporary probe and no failures. It was diagnostic
+verification, not a retained regression test.
+
+The fallback `tools/codex-prover.sh` launched a real nested child with
+`agent_type=prover`; requested settings were Sol/high, while effective runtime
+settings were not observable. That prover produced only a static parser/scope
+route note and did not execute or certify this witness. The source witness is
+primary-produced and received an independent conditional review. The global
+restoration/certificate issue remains active and unresolved: no later missing
+restore fiber or failed rescue path has been demonstrated.

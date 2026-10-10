@@ -8467,15 +8467,21 @@ bridge for stale work items without changing context, residual or fresh-use
 semantics, then continue the exact source root through inference. Keep the
 identity-lemma review and focused regression/retry evidence as closure gates.
 Separately,
-continue from the successful delayed-Lambda traces to construct the exact
-missing distinct-tail Allowance on R31 and connect the retained positive copy
-C73 back to S26 without closing `(T'72,T24)`, or derive a
-constructor-complete exclusion for that continuation. The restored-product proof remains separate:
-its uncovered mutation/transport invariant cannot be inferred from a source
-trace. If a real selective owner SCC appears, test both pair memberships at
-one snapshot, then trace a later same-owner restore through every product,
-mutation, replay and diagnostic consumer to identify an absent required fiber
-or prove coverage. The
+the primary has now constructed the missing distinct-tail Allowance route from
+ordinary parsed source: one pre-merge intrusion snapshot contains a positive
+owner/copy SCC and an unclosed copied-tail/original-tail pair. The exact source,
+rows, physical paths, schedule point, and bounded probe details are in the
+[constructive witness addendum](../notes/progress/2026-10-11-distinct-tail-source-constructor-search.md#ordinary-source-constructive-witness-primary-diagnostic-2026-10-11).
+Independent compiler-referee review conditionally passed the selective owner-
+SCC/tail-nonreachability interpretation; primary inspection matched the
+first-snapshot log to the recorded node identities and graph paths. Parser,
+scope and action provenance are primary-produced, not independently rerun.
+This resolves source constructibility only; it does not establish a lost
+restore obligation or failure of replay/diagnostic rescue. The next gate is a
+later same-owner restore trace through every product, mutation, replay and
+diagnostic consumer, identifying an absent required fiber or proving coverage.
+The restored-product proof remains separate: its uncovered mutation/transport
+invariant cannot be inferred from a source trace. The
 `source-hir-selective-scc-proof.md` prover artifact remains open and unreviewed;
 its requested Sol/high settings were not observable. The current-component
 inventory has passed focused spec review; implementation must first give
