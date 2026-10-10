@@ -8360,13 +8360,13 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: finish integration of the reviewed finite live-operation slice and its
-records, preserving the unverified test/build status. Then implement the next
-source-owned context operation/receiver seam without enabling composed-negative
-concrete rows. Continue tracing any exact source-owned `C -> ... -> S` path;
-even a witness still needs the dynamic omitted fiber pair and failed
-ordinary/diagnostic rescue. The current-component inventory has passed focused
-spec review; implementation must first give mutation, observation withdrawal,
+Next: advance from payload-free operations to the next source-owned context
+operation/receiver seam, retaining exact context and keeping composed-negative
+concrete rows rejected. This slice has not been compiled or executed in this
+turn. Continue tracing any exact source-owned `C -> ... -> S` path; even a
+witness still needs the dynamic omitted fiber pair and failed ordinary/
+diagnostic rescue. The current-component inventory has passed focused spec
+review; implementation must first give mutation, observation withdrawal,
 private deferral and member publication/rollback explicit owners. Do not start
 two-cycle publication or acceleration until those owners and exact recognition
 are implemented and checked. Full Oracle hygiene transfer, ordinary Simple-sub

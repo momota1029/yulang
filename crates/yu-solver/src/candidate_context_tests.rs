@@ -1292,8 +1292,9 @@ fn replay_retains_order_shared_context_and_explicit_queue_identity() {
         }));
         session.enqueue_item(TypedWorkItem { task: replay_task, relation: Some(child) }, false).unwrap();
         assert_eq!(session.typed_worklist.pop_front(), Some(TypedWorkItem { task: replay_task, relation: Some(child) }));
-        // Carrier construction does not admit the later operation evaluator.
-        assert_eq!(session.candidate_context_execute(replay_task, Some(child)), Err(exhausted()));
+        // Payload-free operations are executable while the exact replay context stays attached.
+        assert_eq!(session.candidate_context_execute(replay_task, Some(child)), Ok(false));
+        assert_eq!(state(session).post_check_context(child), retained);
         assert_eq!(state(session).bytes().unwrap(), state(session).enumerated_bytes());
         Ok(())
         }).unwrap();

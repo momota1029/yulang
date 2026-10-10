@@ -1736,6 +1736,7 @@ impl InferenceSession {
         let mut visited = HashSet::new();
         let mut filters = Vec::new();
         let mut weights = HashSet::new();
+        let mut unrestricted_operations = false;
         let mut charge = 0;
         let result = (|| {
             let before = pending.capacity();
@@ -1782,9 +1783,21 @@ impl InferenceSession {
                         pending.push(upper);
                         pending.push(lower);
                     }
+                    ContextExpr::Swap { input } | ContextExpr::WithoutLeftFilter { input } => {
+                        if input.0 >= id.0 { return Err(exhausted()); }
+                        unrestricted_operations = true;
+                        let before = pending.capacity();
+                        pending.try_reserve(1).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
+                            .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
+                        pending.push(input);
+                    }
                     _ => return Err(exhausted()),
                 }
             }
+            // This slice executes unary operations only on payload-free input.
+            // Weighted inversion/removal still needs its own checked-filter owner.
+            if unrestricted_operations && !filters.is_empty() { return Err(exhausted()); }
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let prior = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context
                 .checking_filters.replace((relation, std::mem::take(&mut weights)));
@@ -1814,11 +1827,14 @@ impl InferenceSession {
         let key = state.relations[relation.0 as usize].key;
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
         if key.context == IDENTITY { return Ok(false); }
-        let lower = match task {
-            LiveConstraintTask::Effect(lower, _) => lower,
-            LiveConstraintTask::Value(_) => return Err(exhausted()),
-        };
         self.candidate_zero_word_filters(relation, key.context, |session, filters| {
+            // Unrestricted operations have no receiver check to discharge. Keep
+            // their exact construction for Function ports, bounds and replay.
+            if filters.is_empty() { return Ok(false); }
+            let lower = match task {
+                LiveConstraintTask::Effect(lower, _) => lower,
+                LiveConstraintTask::Value(_) => return Err(exhausted()),
+            };
             let consumed_endpoint = match key.pair {
                 TypedPairKey::Effect { upper: EffectEndpointKey::Allowance(view), .. } =>
                     filters.iter().any(|weight| session.candidate_graph.as_ref().unwrap()
