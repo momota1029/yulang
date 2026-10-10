@@ -154,3 +154,30 @@ fn outer_application_later_constrains_the_live_local_scheme() {
     let fresh = candidate.fresh_use(&relay.occurrence).unwrap();
     assert!(fresh.rows().any(|row| row.kind() == ComponentKind::Effect));
 }
+
+#[test]
+fn recursive_definition_is_fresh_at_external_uses() {
+    let hir = module(
+        "my loop x = loop x; my integer: int = loop 1; my identity x = x; my function: int -> int = loop identity",
+        false,
+    );
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+
+    let mut uses = Vec::new();
+    for name in ["integer", "function"] {
+        let source = hir.local_source(root(&hir, name)).unwrap().unwrap();
+        uses.extend(source.expressions().iter().filter(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::ModuleDef(_) }
+                if spelling.as_ref() == "loop"
+        )).map(|expression| candidate.fresh_use(&expression.occurrence).unwrap()));
+    }
+    assert_eq!(uses.len(), 2, "each external recursive use has its own source occurrence");
+    let first: Vec<_> = uses[0].rows().filter(|row| row.source_row().is_local()).collect();
+    let second: Vec<_> = uses[1].rows().filter(|row| row.source_row().is_local()).collect();
+    assert!(!first.is_empty() && !second.is_empty(), "both uses instantiate recursive scheme rows");
+    for row in first {
+        assert!(second.iter().all(|other| !row.same_identity(other)), "external recursive uses receive independent row images");
+    }
+}

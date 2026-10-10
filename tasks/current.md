@@ -7451,3 +7451,20 @@ post-write semantic review closed within M2; see the
 This gate is not effect-hygiene completion: no concrete subtraction,
 source-operation execution, complete Call, public/default cutover, soundness/
 principality or F5 replacement is claimed.
+
+### Recursive-definition external instantiation regression (2026-10-10)
+
+The live candidate now has a source regression for a self-recursive definition
+used externally at both integer and Function shapes. It checks that both actual
+module-reference occurrences retain nonempty generalized row images and that
+the two fresh-use images are disjoint under canonical row identity. This is
+evidence for independent external instantiation of this recursive fixture; it
+does not prove internal SCC monomorphism, mutual recursion, recursive
+soundness, or public/F5 publication. The focused test passes and an independent
+compiler review found no blocking, major, or open minor finding. See the
+[regression record](../notes/progress/2026-10-10-recursive-definition-external-instantiation.md).
+
+The next implementation gates remain unchanged: contextual residual identity
+and concrete negative formal rows await the pending decision; authentic
+operation execution/Force, complete Call, public/default cutover,
+soundness/principality and F5 replacement remain open.
