@@ -29,7 +29,12 @@ struct AttachmentSet {
     composed_polarity: Polarity,
     lexical_scope: candidate_effect::AnnotationScope,
     member_ordinals: Vec<usize>,
+    // Dormant source preparation only. The owning weight already retains the
+    // exact resolved members; live zero-word/filter execution never reads this.
+    unit_push: Option<SourceUnitPush>,
 }
+#[derive(Debug)]
+struct SourceUnitPush;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct AttachmentSource {
     pub composed_polarity: Polarity,
@@ -217,7 +222,6 @@ fn exhausted() -> SolveAvailabilityError {
 #[derive(Debug, Default, Eq, PartialEq)]
 struct ExactCount(Vec<u32>);
 impl ExactCount {
-    #[cfg(test)]
     fn from_u32(value: u32) -> Result<Self, SolveAvailabilityError> {
         let mut out = Self::default();
         if value != 0 { out.0.try_reserve(1).map_err(|_| exhausted())?; out.0.push(value); }
@@ -820,6 +824,7 @@ impl State {
                 composed_polarity: source.composed_polarity,
                 lexical_scope: source.lexical_scope,
                 member_ordinals,
+                unit_push: (source.composed_polarity == Polarity::Positive && !allowed.is_empty()).then_some(SourceUnitPush),
             })
         }).transpose()?;
         let ordinal_bytes = attachment.as_ref().map_or(Some(0), |set| set.member_ordinals.capacity().checked_mul(std::mem::size_of::<usize>())).ok_or_else(exhausted)?;
@@ -828,6 +833,26 @@ impl State {
         self.weights.push(LocalWeight { left_word: [], allowed: members, right_pops: [], boundary, owner: owner.clone(), position: position.clone(), attachment });
         self.weight_bytes = weight_bytes;
         Ok(id)
+    }
+    // The adapter is private and detached. It does not produce a live
+    // ContextExpr, relation, bound, registration, or executable local word.
+    #[cfg_attr(not(test), allow(dead_code, reason = "source PUSH preparation has no live consumer"))]
+    fn materialize_unit_push(&self, weight: LocalWeightId) -> Result<Option<DetachedWeight>, SolveAvailabilityError> {
+        let payload = self.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+        let Some(set) = &payload.attachment else { return Ok(None); };
+        if set.unit_push.is_none() { return Ok(None); }
+        let mut atoms = Vec::new();
+        atoms.try_reserve_exact(payload.allowed.len()).map_err(|_| exhausted())?;
+        atoms.extend(payload.allowed.iter().cloned());
+        let mut out = DetachedWeight::identity();
+        out.left.try_reserve_exact(1).map_err(|_| exhausted())?;
+        out.left.push(DetachedLeftEntry {
+            id: DetachedAttachmentId(weight.0),
+            pops: ExactCount::default(),
+            pushes: ExactCount::from_u32(1)?,
+            family: Some(DetachedPushFamily(atoms)),
+        });
+        Ok(Some(out))
     }
     pub fn attachment_source(&self, weight: LocalWeightId) -> Option<AttachmentSource> {
         self.weights[weight.0 as usize].attachment.as_ref().map(|set| AttachmentSource {

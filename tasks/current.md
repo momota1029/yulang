@@ -7897,4 +7897,12 @@ recorded in the [structural fold](../notes/progress/2026-10-10-context-structura
 and [numeric evaluator](../notes/progress/2026-10-10-context-numeric-evaluator.md)
 progress records. Numeric operation payload construction, relation-sensitive
 completion, freshening, source integration, and two-cycle invalidation remain
-the next gates before recursive nonempty context admission.
+the next gates before recursive nonempty context admission. One following
+source-preparation slice now attaches a dormant unit-PUSH marker to admitted
+written covariant sets with nonempty concrete members and materializes it only
+through the detached evaluator. Existing source identity/freshening is reused;
+no live dispatch or zero-word filter behavior changed. M1 compiler-referee
+review passed, with 3 source-seed and 8 detached focused tests passing. See the
+[source PUSH seed checkpoint](../notes/progress/2026-10-10-context-source-push-seed.md).
+The next gate is relation-sensitive completion and contextual transport before
+any source-derived nonempty context can reach live propagation.

@@ -59,6 +59,11 @@ cost and conformance review.
 
 ## Remaining gates
 
+The following [source PUSH seed checkpoint](2026-10-10-context-source-push-seed.md)
+now prepares one dormant unit-PUSH from admitted written covariant attachments
+with nonempty resolved members. That seed is still outside live context
+construction and execution.
+
 This evaluator does not establish source-derived operation payload formation,
 Function-port context propagation, relation-sensitive completion, attachment
 freshening, executable filter ownership/discharge, residual/gamma consumers, or

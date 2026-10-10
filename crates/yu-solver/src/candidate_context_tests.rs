@@ -1645,3 +1645,124 @@ fn captured_bundle_spans_are_sparse_and_shared_across_reconstruction() {
     assert_eq!(state(&session).bundles.len(), bundles + 1);
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
 }
+
+#[test]
+fn source_unit_push_preparation_retains_exact_set_and_evaluates_detached_only() {
+    for (text, closed) in [
+        ("act E\nact F\nmy answer:[F, E, F] int = 1", true),
+        ("act E\nact F\nmy answer x:'a -> [F, E, F, 'e] 'a = x", false),
+    ] {
+    let mut session = session_with_source(text);
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    assert!(session.errors.is_empty());
+    let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+    let view = algebra.views.iter().find(|view| view.allowed.len() == 3).unwrap();
+    let weight = view.source_weight.unwrap();
+    assert_eq!(view.closed_weight, closed.then_some(weight));
+    let before = state(&session).checkpoint();
+    let bounds = session.effect_bounds.clone();
+    let detached = state(&session).materialize_unit_push(weight).unwrap().unwrap();
+    let payload = &state(&session).weights[weight.0 as usize];
+    assert_eq!(detached.left[0].id, DetachedAttachmentId(weight.0));
+    assert_eq!(detached.left[0].pushes.0, [1]);
+    assert_eq!(detached.left[0].family, Some(DetachedPushFamily(payload.allowed.clone())));
+    assert_eq!(payload.attachment.as_ref().unwrap().member_ordinals, [0, 1, 2]);
+    assert!(payload.left_word.is_empty() && payload.right_pops.is_empty());
+    assert_eq!(state(&session).checkpoint(), before);
+    let mut table: Vec<_> = (0..state(&session).weights.len()).map(|_| DetachedWeight::identity()).collect();
+    table[weight.0 as usize] = detached;
+    let pop = LocalWeightId(table.len() as u32);
+    table.push(numeric_weight(DetachedLeftEntry {
+        id: DetachedAttachmentId(weight.0), pops: ExactCount::from_u32(1).unwrap(),
+        pushes: ExactCount::default(), family: None,
+    }));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let push_node = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+    let pop_node = context.context(ContextExpr::PrefixLeft { weight: pop, input: IDENTITY }).unwrap();
+    let replay = context.context(ContextExpr::Replay { lower: push_node, upper: pop_node }).unwrap();
+    assert_eq!(context.evaluate_context(push_node, &table).unwrap().value.left[0].pushes.0, [1]);
+    assert_eq!(context.evaluate_context(replay, &table).unwrap().value, DetachedWeight::identity());
+    assert_eq!(session.effect_bounds, bounds);
+    assert_eq!(state(&session).checkpoint().relations, before.relations);
+    assert_eq!(state(&session).checkpoint().discharges, before.discharges);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
+fn source_unit_push_preparation_copies_share_per_use_and_retry_with_fresh_ids() {
+    let mut session = session_with_source("act E\nmy answer = { my first:[E] int = 1; my second:[E] int = 2; second }");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let seeds: Vec<_> = state(&session).weights.iter().enumerate().filter_map(|(id, payload)|
+        payload.attachment.as_ref().filter(|set| set.unit_push.is_some()).map(|_| LocalWeightId(id as u32))).collect();
+    assert_eq!(seeds.len(), 2);
+    assert_ne!(seeds[0], seeds[1]);
+    assert_eq!(state(&session).allowed(seeds[0]), state(&session).allowed(seeds[1]));
+    let view = state(&session).weights[seeds[0].0 as usize].boundary;
+    let before = state(&session).checkpoint();
+    let copy = |session: &mut InferenceSession| {
+        let mut remap = HashMap::new(); remap.try_reserve(1).map_err(|_| exhausted())?;
+        let mut charge = 0;
+        session.candidate_scratch_growth(&mut charge,
+            remap.capacity() * std::mem::size_of::<((u32, Option<u32>), u32)>())?;
+        let first = session.candidate_remapped_effect_view(view, None, &mut remap)?;
+        assert_eq!(first, session.candidate_remapped_effect_view(view, None, &mut remap)?);
+        drop(remap);
+        session.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        let second = session.candidate_copy_effect_view(view, None)?;
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let first_weight = algebra.views[first as usize].source_weight.unwrap();
+        let second_weight = algebra.views[second as usize].source_weight.unwrap();
+        assert_ne!(first_weight, seeds[0]); assert_ne!(first_weight, second_weight);
+        for id in [first_weight, second_weight] {
+            let original = &algebra.context.weights[seeds[0].0 as usize];
+            let copied = &algebra.context.weights[id.0 as usize];
+            assert_eq!((&copied.owner, &copied.position), (&original.owner, &original.position));
+            assert_eq!(algebra.context.attachment_source(id), algebra.context.attachment_source(seeds[0]));
+            let detached = algebra.context.materialize_unit_push(id)?.unwrap();
+            assert_eq!(detached.left[0].id, DetachedAttachmentId(id.0));
+            assert_eq!(detached.left[0].family, Some(DetachedPushFamily(original.allowed.clone())));
+        }
+        assert_eq!(algebra.context.bytes()?, algebra.context.enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(first_weight)
+    };
+    assert_eq!(session.with_route_transaction(|session| { copy(session)?; Err::<(), _>(exhausted()) }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    let first = session.with_route_transaction(copy).unwrap();
+    let second = session.with_route_transaction(copy).unwrap();
+    assert_ne!(first, second);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn source_unit_push_preparation_excludes_empty_symbolic_operation_and_formal_rows() {
+    for text in [
+        "my answer:[] int = 1",
+        "my answer x:int -> int = x",
+        "my answer x:'a -> ['e] 'a = x",
+        "my answer x:[] int -> int = x",
+        "act E:\n    our emit: () -> int\n\nmy answer = E::emit()",
+    ] {
+        let mut session = session_with_source(text);
+        let owner = empty_bundle_owner(&session);
+        session.execute_candidate_source_root(&owner).unwrap();
+        for id in 0..state(&session).weights.len() {
+            assert!(state(&session).materialize_unit_push(LocalWeightId(id as u32)).unwrap().is_none());
+        }
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+    let mut session = session_with_source("act E\nmy answer (cb:int -> ['e] int) = cb");
+    let action = session.batch.candidate_source.schedules.values().flatten().find(|action|
+        matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+    let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+    let mut annotation = (*annotation).clone();
+    let yu_hir::shadow::SourceAnnotationValue::Function { result, .. } = &mut annotation.ty.value else { unreachable!() };
+    result.effects.as_mut().unwrap().concrete.push(session.batch.hir.source_effect_declarations()[0].id.clone());
+    let before = state(&session).checkpoint();
+    assert_eq!(session.with_route_transaction(|session|
+        session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert!(state(&session).weights.is_empty());
+}
