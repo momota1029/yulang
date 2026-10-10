@@ -7220,7 +7220,8 @@ full Call, hygiene and F5 cutover remain open.
 ### Newly integrated mixed-context research (2026-10-10)
 
 Four upstream research artifacts were integrated at `9610f0c3e` through
-`c2674ba5a`. Their claims remain producer-frozen and independently unreviewed;
+`c2674ba5a`, followed by the independent-replay interface characterization at
+`de5c400d6`. Their claims remain producer-frozen and independently unreviewed;
 none changes source semantics or production code.
 
 - The two-ID shared-child construction proves undecidability for an unguarded
@@ -7236,6 +7237,12 @@ none changes source semantics or production code.
   actual mix-normal boundary while preserving checks and filter events. The
   source bridge remains conditional on the missing explicit contextual
   constructor and transport.
+- The independent-replay characterization shows that primitive bound replay
+  chooses lower and upper records independently, while `both` duplicates one
+  selected input atomically. Therefore the shared-child PCP reduction does not
+  transfer to that primitive interface, and replacing atomic `both` by two
+  independent children is unsound. The exact recursive decision question for
+  this interface remains open.
 
 These results reinforce the need to keep residual identity, source admission,
 and generic algebra decidability as separate obligations. They do not resolve
