@@ -3014,3 +3014,75 @@ fn retained_input_rejects_missing_bound_keys_and_mismatched_transport_parent_inc
     assert!(gaps.contains(&InputGap::TransportAuthenticationUnavailable));
     assert!(context.edges.is_empty());
 }
+
+
+#[test]
+fn queued_relation_equality_transport_retains_context_ancestry_and_retry() {
+    for effect in [false, true] {
+      for context_case in 0..4 {
+        let mut session = session();
+        let (occurrence, cause) = cause(&session, 0);
+        let parent = if effect {
+            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap()))
+        } else { value(session.fresh_value_at_level(2).unwrap()) };
+        if !effect {
+            session.candidate_restore_bound(parent, Polarity::Negative, ExtrusionEndpoint::Value(ValueEndpointKey::UnitNegative), &occurrence, &cause).unwrap();
+        }
+        let copy = session.candidate_extrude(parent, Polarity::Positive, 0).unwrap();
+        let raw = match copy {
+            ExtrusionEndpoint::Value(upper) => LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::IntPositive, upper }),
+            ExtrusionEndpoint::Effect(upper) => LiveConstraintTask::Effect(match parent { ExtrusionEndpoint::Effect(lower) => lower, _ => unreachable!() }, upper),
+        };
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let residual = if context_case == 0 { IDENTITY } else { context.context(ContextExpr::Swap { input: IDENTITY }).unwrap() };
+        let retained = if context_case == 3 { context.context(ContextExpr::Replay { lower: residual, upper: residual }).unwrap() } else { residual };
+        let original = context.relation(task_pair(raw), retained).unwrap();
+        if context_case >= 2 {
+            context.discharged.insert(original);
+            context.discharge_log.push(original);
+            if context_case == 3 { context.discharge_residuals.insert(original, residual); }
+        }
+        let expected = context.post_check_context(original);
+        let original_key = state(&session).relations[original.0 as usize].key;
+        assert_eq!(session.candidate_context_transport_task(raw, Some(original)).unwrap(), Some(original));
+        let before = state(&session).checkpoint();
+        let mut first = None;
+        for rollback in [true, false] {
+            let result = session.with_route_transaction(|session| {
+                session.candidate_restore_bound(copy, Polarity::Negative, parent, &occurrence, &cause)?;
+                session.settle_candidate_intrusion(None)?;
+                assert_eq!(session.canonical_extrusion(copy), parent);
+                let child = session.candidate_context_transport_task(raw, Some(original))?.unwrap();
+                assert_ne!(child, original);
+                assert_eq!(state(session).relations[original.0 as usize].key, original_key);
+                assert_eq!(state(session).relations[child.0 as usize].key.context, expected);
+                assert!(state(session).dependency_keys.contains(&Dependency::Derived { parent: original, child }));
+                session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(child);
+                assert_eq!(session.candidate_context_execute(raw, Some(original))?, false);
+                assert_eq!(state(session).processing, Some(child));
+                if effect {
+                    assert_eq!(session.candidate_context_transport_task(raw, Some(child))?, Some(child));
+                } else {
+                    session.constrain_live_item(TypedWorkItem { task: raw, relation: Some(original) }, &occurrence, &cause)?;
+                    let canonical = session.candidate_context_pair(task_pair(raw));
+                    assert_eq!(state(session).relations[child.0 as usize].key.pair, canonical);
+                    assert!(session.typed_pairs.contains_key(&task_pair(raw)), "raw diagnostic memo remains retained");
+                    assert!(session.errors.iter().any(|error| error.occurrence == occurrence && error.cause == cause));
+                    assert!(session.candidate_graph.as_ref().unwrap().intrusion.completed.contains_key(&child), "canonical continuation completes the transported relation");
+                }
+                if rollback { first = Some(child); Err(exhausted()) }
+                else { assert_eq!(first, Some(child)); Ok(()) }
+            });
+            if rollback { assert_eq!(result, Err(exhausted())); assert_eq!(state(&session).checkpoint(), before); }
+            else { result.unwrap(); }
+        }
+      }
+    }
+}
+
+#[test]
+fn local_annotation_bridge_queued_endpoints_follow_parent_copy_equality() {
+    let mut session = session_with_source("act E\nmy left (f:int -> ['r] int) g = { my bridge (consume:(int -> [E, 't] int) -> ['x] int): ((int -> [E, 't] int) -> ['x] int) -> [E, 'x] int = { my cb z = { my old = f 1; consume cb }; my feed = g bridge; consume cb }; bridge }");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+}

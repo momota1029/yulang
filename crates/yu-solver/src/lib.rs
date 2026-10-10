@@ -11840,11 +11840,13 @@ impl InferenceSession {
                 self.candidate_task_scope(initial);
                 self.settle_candidate_intrusion(match initial { LiveConstraintTask::Value(root) => Some(root), _ => None })?;
             }
-            let Some(item) = self.typed_worklist.pop_front() else {
+            let Some(mut item) = self.typed_worklist.pop_front() else {
                 #[cfg(feature = "shadow-apply-candidate")]
                 if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.dirty) { continue; }
                 break;
             };
+            #[cfg(not(feature = "shadow-apply-candidate"))]
+            let _ = &mut item;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             self.observe_f5c_structured_pair_top(
                 2, self.typed_worklist.len(), self.typed_worklist.capacity(),
@@ -11855,6 +11857,8 @@ impl InferenceSession {
             }
             #[cfg(feature = "shadow-apply-candidate")]
             self.candidate_task_scope(item.task);
+            #[cfg(feature = "shadow-apply-candidate")]
+            { item.relation = self.candidate_context_transport_task(item.task, item.relation)?; }
             #[cfg(feature = "shadow-apply-candidate")]
             if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = item.relation; }
             #[cfg(feature = "shadow-apply-candidate")]
@@ -11888,7 +11892,7 @@ impl InferenceSession {
                         if canonical != key {
                             self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
                             self.record_diagnostic_edge(key, canonical, None)?;
-                            self.enqueue_task(LiveConstraintTask::Value(canonical))?;
+                            self.enqueue_item(TypedWorkItem { task: LiveConstraintTask::Value(canonical), relation: item.relation }, false)?;
                             continue;
                         }
                         // A previously extruded structural bound retains its transformed

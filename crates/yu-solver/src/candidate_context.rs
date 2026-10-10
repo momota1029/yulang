@@ -1832,6 +1832,25 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
     }
+    pub(super) fn candidate_context_transport_task(
+        &mut self,
+        task: LiveConstraintTask,
+        relation: Option<RelationId>,
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let Some(parent) = relation else { return Ok(None); };
+        let pair = self.candidate_context_pair(task_pair(task));
+        let key = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context
+            .relations[parent.0 as usize].key;
+        assert_eq!(self.candidate_context_pair(key.pair), pair, "task retains its relation endpoints");
+        if key.pair == pair { return Ok(Some(parent)); }
+        // Equality changes execution identity, while the original relation and
+        // raw task remain available for occurrence diagnostics and rollback.
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let child = state.relation(pair, state.post_check_context(parent))?;
+        state.dependency(Dependency::Derived { parent, child })?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(child))
+    }
     // Admission checks precede endpoint memoization and equality handling.
     // Exact Allowance endpoints are handled by their retained registrations;
     // other endpoint pairs still propagate normally after filter discharge.
@@ -1840,7 +1859,17 @@ impl InferenceSession {
         task: LiveConstraintTask,
         relation: Option<RelationId>,
     ) -> Result<bool, SolveAvailabilityError> {
-        let Some(relation) = relation else { return Ok(false); };
+        let Some(relation) = self.candidate_context_transport_task(task, relation)? else { return Ok(false); };
+        let previous = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing.replace(relation);
+        let result = self.candidate_context_execute_relation(task, relation);
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous;
+        result
+    }
+    fn candidate_context_execute_relation(
+        &mut self,
+        task: LiveConstraintTask,
+        relation: RelationId,
+    ) -> Result<bool, SolveAvailabilityError> {
         let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let key = state.relations[relation.0 as usize].key;
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
