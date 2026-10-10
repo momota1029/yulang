@@ -210,6 +210,208 @@ pub(super) struct Checkpoint {
 fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
 }
+// Source correspondence: frozen constraints/directed_weight.rs and
+// constraints/mod.rs:3566–3612, as mapped by the contextual-effect source note.
+// Detached finite atom-set algebra: no source admission, parameterized/cofinite
+// families, certificate authorization, residual construction, or filter discharge.
+#[derive(Debug, Default, Eq, PartialEq)]
+struct ExactCount(Vec<u32>);
+impl ExactCount {
+    #[cfg(test)]
+    fn from_u32(value: u32) -> Result<Self, SolveAvailabilityError> {
+        let mut out = Self::default();
+        if value != 0 { out.0.try_reserve(1).map_err(|_| exhausted())?; out.0.push(value); }
+        Ok(out)
+    }
+    fn copy(&self) -> Result<Self, SolveAvailabilityError> {
+        let mut out = Self::default();
+        out.0.try_reserve(self.0.len()).map_err(|_| exhausted())?;
+        out.0.extend_from_slice(&self.0);
+        Ok(out)
+    }
+    fn is_zero(&self) -> bool { self.0.is_empty() }
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.len().cmp(&other.0.len()).then_with(|| self.0.iter().rev().cmp(other.0.iter().rev()))
+    }
+    fn add(&self, other: &Self) -> Result<Self, SolveAvailabilityError> {
+        let length = self.0.len().max(other.0.len());
+        let mut out = Self::default();
+        out.0.try_reserve(length.checked_add(1).ok_or_else(exhausted)?).map_err(|_| exhausted())?;
+        let mut carry = 0u64;
+        for i in 0..length {
+            let sum = self.0.get(i).copied().unwrap_or(0) as u64
+                + other.0.get(i).copied().unwrap_or(0) as u64 + carry;
+            out.0.push(sum as u32); carry = sum >> 32;
+        }
+        if carry != 0 { out.0.push(carry as u32); }
+        Ok(out)
+    }
+    fn subtract(&self, other: &Self) -> Result<Self, SolveAvailabilityError> {
+        if self.compare(other).is_lt() { return Err(exhausted()); }
+        let mut out = self.copy()?;
+        let mut borrow = 0u64;
+        for (i, limb) in out.0.iter_mut().enumerate() {
+            let sub = other.0.get(i).copied().unwrap_or(0) as u64 + borrow;
+            let original = *limb as u64;
+            *limb = if original < sub { original + (1u64 << 32) - sub } else { original - sub } as u32;
+            borrow = u64::from(original < sub);
+        }
+        while out.0.last() == Some(&0) { out.0.pop(); }
+        Ok(out)
+    }
+}
+// PUSH payloads have finite resolved families. All belongs only to filters.
+#[derive(Debug)]
+struct DetachedPushFamily(Vec<SourceEffectId>);
+impl PartialEq for DetachedPushFamily {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.iter().all(|x| other.0.contains(x)) && other.0.iter().all(|x| self.0.contains(x))
+    }
+}
+impl Eq for DetachedPushFamily {}
+impl DetachedPushFamily {
+    fn copy(&self) -> Result<Self, SolveAvailabilityError> {
+        let mut out = Vec::new();
+        out.try_reserve(self.0.len()).map_err(|_| exhausted())?;
+        out.extend(self.0.iter().cloned());
+        Ok(Self(out))
+    }
+}
+#[derive(Debug)]
+enum DetachedFilter { All, Finite(Vec<SourceEffectId>) }
+impl PartialEq for DetachedFilter {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::All, Self::All) => true,
+            (Self::Finite(a), Self::Finite(b)) => a.iter().all(|x| b.contains(x)) && b.iter().all(|x| a.contains(x)),
+            _ => false,
+        }
+    }
+}
+impl Eq for DetachedFilter {}
+impl DetachedFilter {
+    fn copy(&self) -> Result<Self, SolveAvailabilityError> {
+        match self {
+            Self::All => Ok(Self::All),
+            Self::Finite(atoms) => {
+                let mut out = Vec::new(); out.try_reserve(atoms.len()).map_err(|_| exhausted())?;
+                out.extend(atoms.iter().cloned()); Ok(Self::Finite(out))
+            }
+        }
+    }
+    fn intersect(&self, other: &Self) -> Result<Self, SolveAvailabilityError> {
+        match (self, other) {
+            (Self::All, family) | (family, Self::All) => family.copy(),
+            (Self::Finite(a), Self::Finite(b)) => {
+                let mut out = Vec::new(); out.try_reserve(a.len().min(b.len())).map_err(|_| exhausted())?;
+                for atom in a { if b.contains(atom) && !out.contains(atom) { out.push(atom.clone()); } }
+                Ok(Self::Finite(out))
+            }
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DetachedAttachmentId(u32);
+#[derive(Debug, Eq, PartialEq)]
+struct DetachedLeftEntry {
+    id: DetachedAttachmentId,
+    pops: ExactCount,
+    pushes: ExactCount,
+    family: Option<DetachedPushFamily>,
+}
+impl DetachedLeftEntry {
+    fn copy(&self) -> Result<Self, SolveAvailabilityError> {
+        Ok(Self { id: self.id, pops: self.pops.copy()?, pushes: self.pushes.copy()?,
+            family: self.family.as_ref().map(DetachedPushFamily::copy).transpose()? })
+    }
+}
+#[derive(Debug, Eq, PartialEq)]
+struct DetachedRightEntry { id: DetachedAttachmentId, pops: ExactCount }
+#[derive(Debug, Eq, PartialEq)]
+struct DetachedWeight {
+    left: Vec<DetachedLeftEntry>,
+    filter: DetachedFilter,
+    right: Vec<DetachedRightEntry>,
+}
+impl DetachedWeight {
+    fn identity() -> Self { Self { left: Vec::new(), filter: DetachedFilter::All, right: Vec::new() } }
+    fn copy(&self) -> Result<Self, SolveAvailabilityError> {
+        let mut out = Self::identity(); out.filter = self.filter.copy()?;
+        out.left.try_reserve(self.left.len()).map_err(|_| exhausted())?;
+        for entry in &self.left { out.left.push(entry.copy()?); }
+        out.append_right(&self.right)?;
+        Ok(out)
+    }
+    fn append_left(&mut self, entries: &[DetachedLeftEntry]) -> Result<(), SolveAvailabilityError> {
+        for incoming in entries {
+            if incoming.pushes.is_zero() != incoming.family.is_none() { return Err(exhausted()); }
+            let Some(index) = self.left.iter().position(|entry| entry.id == incoming.id) else {
+                if !incoming.pops.is_zero() || !incoming.pushes.is_zero() {
+                    self.left.try_reserve(1).map_err(|_| exhausted())?;
+                    self.left.push(incoming.copy()?); self.left.sort_unstable_by_key(|entry| entry.id.0);
+                }
+                continue;
+            };
+            let current = &self.left[index];
+            if let (Some(a), Some(b)) = (&current.family, &incoming.family) {
+                if a != b { return Err(exhausted()); }
+            }
+            let (pops, pushes) = if incoming.pops.compare(&current.pushes).is_le() {
+                (current.pops.copy()?, current.pushes.subtract(&incoming.pops)?.add(&incoming.pushes)?)
+            } else {
+                (current.pops.add(&incoming.pops.subtract(&current.pushes)?)?, incoming.pushes.copy()?)
+            };
+            let family = if pushes.is_zero() { None } else {
+                Some(current.family.as_ref().or(incoming.family.as_ref()).ok_or_else(exhausted)?.copy()?)
+            };
+            if pops.is_zero() && pushes.is_zero() { self.left.remove(index); }
+            else { self.left[index] = DetachedLeftEntry { id: incoming.id, pops, pushes, family }; }
+        }
+        Ok(())
+    }
+    fn append_right(&mut self, entries: &[DetachedRightEntry]) -> Result<(), SolveAvailabilityError> {
+        for incoming in entries {
+            if incoming.pops.is_zero() { continue; }
+            if let Some(current) = self.right.iter_mut().find(|entry| entry.id == incoming.id) {
+                current.pops = current.pops.add(&incoming.pops)?;
+            } else {
+                self.right.try_reserve(1).map_err(|_| exhausted())?;
+                self.right.push(DetachedRightEntry { id: incoming.id, pops: incoming.pops.copy()? });
+                self.right.sort_unstable_by_key(|entry| entry.id.0);
+            }
+        }
+        Ok(())
+    }
+    fn right_to_left(&mut self, entries: &[DetachedRightEntry]) -> Result<(), SolveAvailabilityError> {
+        for entry in entries {
+            self.append_left(&[DetachedLeftEntry { id: entry.id, pops: entry.pops.copy()?, pushes: ExactCount::default(), family: None }])?;
+        }
+        Ok(())
+    }
+    fn mix(mut self) -> Result<Self, SolveAvailabilityError> {
+        if self.left.is_empty() || self.right.is_empty() { return Ok(self); }
+        let right = std::mem::take(&mut self.right);
+        for entry in right {
+            let id = entry.id;
+            self.right_to_left(&[entry])?;
+            if let Some(index) = self.left.iter().position(|left| left.id == id) {
+                if self.left[index].pushes.is_zero() {
+                    let left = self.left.remove(index);
+                    self.append_right(&[DetachedRightEntry { id, pops: left.pops }])?;
+                }
+            }
+        }
+        Ok(self)
+    }
+}
+#[derive(Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "detached result has no live source consumer"))]
+struct DetachedEvaluation {
+    value: DetachedWeight,
+    // One exact record per reachable node retains weight/certificate tokens.
+    // Numeric equality never interns or rewrites construction records.
+    nodes: Vec<(ContextId, Option<ContextExpr>)>,
+}
 impl State {
     // Detached postorder fold: the callback sees the exact construction token
     // and ordered children. No relation, source task, or certificate is consumed.
@@ -260,6 +462,55 @@ impl State {
             results.insert(id, result);
         }
         results.remove(&root).ok_or_else(exhausted)
+    }
+    #[cfg_attr(not(test), allow(dead_code, reason = "detached algebra has no source consumer"))]
+    fn evaluate_context(&self, root: ContextId, weights: &[DetachedWeight]) -> Result<DetachedEvaluation, SolveAvailabilityError> {
+        let mut nodes = Vec::new();
+        let value = self.fold_context(root, |id, expression, children: &[&DetachedWeight]| {
+            let value = match expression {
+                None => DetachedWeight::identity(),
+                Some(ContextExpr::PrefixLeft { weight, .. }) => {
+                    let prefix = weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+                    let mut out = DetachedWeight::identity();
+                    out.append_left(&prefix.left)?; out.append_left(&children[0].left)?;
+                    out.filter = prefix.filter.intersect(&children[0].filter)?;
+                    out.append_right(&children[0].right)?; out
+                }
+                Some(ContextExpr::SuffixRightPops { weight, .. }) => {
+                    let suffix = weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+                    let mut out = children[0].copy()?;
+                    out.right.clear();
+                    // Oracle suffix uses only leading POPs of the wrapper.
+                    for entry in &suffix.left {
+                        out.append_right(&[DetachedRightEntry { id: entry.id, pops: entry.pops.copy()? }])?;
+                    }
+                    out.append_right(&children[0].right)?; out
+                }
+                Some(ContextExpr::Swap { .. }) => {
+                    let mut out = DetachedWeight::identity(); out.right_to_left(&children[0].right)?;
+                    for entry in &children[0].left {
+                        out.append_right(&[DetachedRightEntry { id: entry.id, pops: entry.pops.copy()? }])?;
+                    }
+                    out
+                }
+                Some(ContextExpr::BothFromRight { .. }) => {
+                    let mut out = DetachedWeight::identity(); out.right_to_left(&children[0].right)?;
+                    out.append_right(&children[0].right)?; out
+                }
+                Some(ContextExpr::WithoutLeftFilter { .. }) => {
+                    let mut out = children[0].copy()?; out.filter = DetachedFilter::All; out
+                }
+                Some(ContextExpr::Replay { .. }) => {
+                    let mut out = children[0].copy()?; out.append_left(&children[1].left)?;
+                    out.filter = children[0].filter.intersect(&children[1].filter)?;
+                    out.right.clear(); out.append_right(&children[1].right)?;
+                    out.append_right(&children[0].right)?; out.mix()?
+                }
+            };
+            nodes.try_reserve(1).map_err(|_| exhausted())?; nodes.push((id, expression));
+            Ok(value)
+        })?;
+        Ok(DetachedEvaluation { value, nodes })
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {

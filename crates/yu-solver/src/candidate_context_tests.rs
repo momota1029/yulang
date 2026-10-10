@@ -65,6 +65,127 @@ fn detached_fold_invalid_handles_use_internal_availability() {
     assert_eq!(context.fold_context(ContextId(1), |_, _, _: &[&()]| Ok(())), Err(exhausted()));
 }
 
+fn numeric_family() -> DetachedPushFamily {
+    DetachedPushFamily(vec![session().batch.hir.source_effect_declarations()[0].id.clone()])
+}
+fn numeric_entry(id: u32, pops: u32, pushes: u32, family: DetachedPushFamily) -> DetachedLeftEntry {
+    DetachedLeftEntry { id: DetachedAttachmentId(id), pops: ExactCount::from_u32(pops).unwrap(),
+        pushes: ExactCount::from_u32(pushes).unwrap(), family: (pushes != 0).then_some(family) }
+}
+fn numeric_weight(entry: DetachedLeftEntry) -> DetachedWeight {
+    DetachedWeight { left: vec![entry], filter: DetachedFilter::All, right: vec![] }
+}
+fn numeric_node(context: &mut State, slot: u32) -> ContextId {
+    context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(slot), input: IDENTITY }).unwrap()
+}
+
+#[test]
+fn detached_numeric_exact_counts_cross_limb_boundaries() {
+    let family = numeric_family();
+    let max = ExactCount::from_u32(u32::MAX).unwrap();
+    let one = ExactCount::from_u32(1).unwrap();
+    let boundary = max.add(&one).unwrap();
+    assert_eq!(boundary.0, [0, 1]);
+    assert_eq!(boundary.subtract(&max).unwrap(), one);
+    let larger = boundary.add(&boundary).unwrap().add(&one).unwrap();
+    assert_eq!(larger.0, [1, 2]);
+    assert_eq!(larger.subtract(&boundary).unwrap().0, [1, 1]);
+    assert!(one.subtract(&boundary).is_err());
+    let mut context = State::default();
+    let weights = [
+        numeric_weight(numeric_entry(0, 0, u32::MAX, family.copy().unwrap())),
+        numeric_weight(numeric_entry(0, 0, 1, family.copy().unwrap())),
+        numeric_weight(numeric_entry(0, u32::MAX, 0, family.copy().unwrap())),
+    ];
+    let a = numeric_node(&mut context, 0); let b = numeric_node(&mut context, 1); let c = numeric_node(&mut context, 2);
+    let ab = context.context(ContextExpr::Replay { lower: a, upper: b }).unwrap();
+    let root = context.context(ContextExpr::Replay { lower: ab, upper: c }).unwrap();
+    let result = context.evaluate_context(root, &weights).unwrap();
+    assert_eq!(result.value.left, [numeric_entry(0, 0, 1, family.copy().unwrap())]);
+    let large_pop = numeric_weight(DetachedLeftEntry { id: DetachedAttachmentId(0), pops: larger,
+        pushes: ExactCount::default(), family: None });
+    let mut accumulated = large_pop.copy().unwrap();
+    accumulated.append_left(&[numeric_entry(0, 1, 0, family.copy().unwrap())]).unwrap();
+    assert_eq!(accumulated.left[0].pops.0, [2, 2]);
+    let mut right = DetachedWeight::identity();
+    right.append_right(&[DetachedRightEntry { id: DetachedAttachmentId(0), pops: max }]).unwrap();
+    right.append_right(&[DetachedRightEntry { id: DetachedAttachmentId(0), pops: one }]).unwrap();
+    assert_eq!(right.right[0].pops.0, [0, 1]);
+}
+
+#[test]
+fn detached_numeric_replay_order_and_directed_mix() {
+    let family = numeric_family();
+    let mut context = State::default();
+    let weights = [
+        numeric_weight(numeric_entry(0, 0, 1, family.copy().unwrap())),
+        numeric_weight(numeric_entry(0, 1, 0, family.copy().unwrap())),
+    ];
+    let push = numeric_node(&mut context, 0); let pop = numeric_node(&mut context, 1);
+    let cancellation = context.context(ContextExpr::Replay { lower: push, upper: pop }).unwrap();
+    assert!(context.evaluate_context(cancellation, &weights).unwrap().value.left.is_empty());
+    let reverse = context.context(ContextExpr::Replay { lower: pop, upper: push }).unwrap();
+    assert_eq!(context.evaluate_context(reverse, &weights).unwrap().value.left,
+        [numeric_entry(0, 1, 1, family.copy().unwrap())]);
+    let right = context.context(ContextExpr::SuffixRightPops { input: IDENTITY, weight: LocalWeightId(1) }).unwrap();
+    let mixed = context.context(ContextExpr::Replay { lower: push, upper: right }).unwrap();
+    assert_eq!(context.evaluate_context(mixed, &weights).unwrap().value, DetachedWeight::identity());
+    let pop_right = context.context(ContextExpr::Replay { lower: pop, upper: right }).unwrap();
+    let result = context.evaluate_context(pop_right, &weights).unwrap().value;
+    assert!(result.left.is_empty()); assert_eq!(result.right[0].pops.0, [2]);
+    assert!(context.evaluate_context(right, &weights).unwrap().value.left.is_empty());
+}
+
+#[test]
+fn detached_numeric_swap_both_and_filter_are_algebra_only() {
+    let family = numeric_family();
+    let mut context = State::default();
+    let mut weight = numeric_weight(numeric_entry(3, 2, 4, family.copy().unwrap()));
+    weight.filter = DetachedFilter::Finite(vec![]);
+    let weights = [weight, numeric_weight(numeric_entry(7, 5, 0, family.copy().unwrap()))];
+    let base = numeric_node(&mut context, 0);
+    let right = context.context(ContextExpr::SuffixRightPops { input: base, weight: LocalWeightId(1) }).unwrap();
+    let swap = context.context(ContextExpr::Swap { input: right }).unwrap();
+    let twice = context.context(ContextExpr::Swap { input: swap }).unwrap();
+    let swapped = context.evaluate_context(swap, &weights).unwrap().value;
+    assert_eq!(swapped.left, [numeric_entry(7, 5, 0, family.copy().unwrap())]);
+    assert_eq!(swapped.right[0].id, DetachedAttachmentId(3));
+    assert_eq!(swapped.right[0].pops.0, [2]); assert_eq!(swapped.filter, DetachedFilter::All);
+    assert_ne!(context.evaluate_context(twice, &weights).unwrap().value,
+        context.evaluate_context(right, &weights).unwrap().value, "swap is not an involution");
+    let both = context.context(ContextExpr::BothFromRight { input: right, certificate: EntryCertificateId(999) }).unwrap();
+    let result = context.evaluate_context(both, &weights).unwrap();
+    assert_eq!(result.value.left, [numeric_entry(7, 5, 0, family.copy().unwrap())]);
+    assert_eq!(result.value.right[0].pops.0, [5]);
+    assert!(result.nodes.contains(&(both, Some(ContextExpr::BothFromRight { input: right, certificate: EntryCertificateId(999) }))));
+    let without = context.context(ContextExpr::WithoutLeftFilter { input: base }).unwrap();
+    assert_eq!(context.evaluate_context(without, &weights).unwrap().value.filter, DetachedFilter::All);
+    assert!(context.discharged.is_empty()); assert!(context.weights.is_empty());
+}
+
+#[test]
+fn detached_numeric_families_are_exact_sets_and_ids_remain_distinct() {
+    let family = numeric_family();
+    let session = session_with_source("act E\nact F\nmy seed = 1");
+    let declarations = session.batch.hir.source_effect_declarations();
+    let e = declarations[0].id.clone(); let f = declarations[1].id.clone();
+    let set = DetachedFilter::Finite(vec![e.clone(), f.clone()]);
+    assert_eq!(DetachedFilter::All.intersect(&set).unwrap(), set);
+    assert_eq!(DetachedFilter::All.intersect(&DetachedFilter::All).unwrap(), DetachedFilter::All);
+    assert_ne!(DetachedFilter::All, DetachedFilter::Finite(vec![e.clone(), f.clone()]));
+    assert_eq!(set.intersect(&DetachedFilter::Finite(vec![e.clone()])).unwrap(), DetachedFilter::Finite(vec![e.clone()]));
+    assert_eq!(set, DetachedFilter::Finite(vec![f.clone(), e.clone(), e.clone()]));
+    let mut word = numeric_weight(numeric_entry(0, 0, 1, DetachedPushFamily(vec![e.clone()])));
+    assert!(word.append_left(&[numeric_entry(0, 0, 1, DetachedPushFamily(vec![f]))]).is_err());
+    word.append_left(&[numeric_entry(1, 0, 1, DetachedPushFamily(vec![e]))]).unwrap();
+    assert_eq!(word.left.len(), 2, "equal nominal family does not equate attachment IDs");
+    word.append_left(&[numeric_entry(0, 1, 0, family.copy().unwrap())]).unwrap();
+    assert_eq!(word.left.len(), 1);
+    assert_eq!(word.left[0].id, DetachedAttachmentId(1));
+    let mut context = State::default(); let root = numeric_node(&mut context, 17);
+    assert!(matches!(context.evaluate_context(root, &[]), Err(SolveAvailabilityError::IdentityExhausted)));
+}
+
 fn session() -> InferenceSession {
     session_with_source("act E\nmy seed = 1")
 }

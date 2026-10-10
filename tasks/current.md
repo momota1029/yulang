@@ -7883,10 +7883,18 @@ replay order and bracketing, evaluates shared children once, and rejects
 malformed handles through the existing internal availability result. It has no
 source-task, weight-execution, certificate-authorization, relation-admission,
 or `candidate_context_execute` call path. The M1 compiler-referee review passed;
-three focused fold tests and scoped `git diff --check` passed. Numeric operation
-evaluation remains the immediate next sub-slice. The approved contract requires
-exact unbounded natural counts, so legacy Oracle `u32` saturation cannot be
-copied; the detached finite atom-set fragment may use explicit `All` filters
-and finite resolved families, without claiming parameterized-family or
-residual/gamma support. See the
-[structural-fold checkpoint](../notes/progress/2026-10-10-context-structural-fold.md).
+three focused fold tests and scoped `git diff --check` passed. The immediately
+following detached numeric evaluator now implements exact unbounded natural
+counts and the finite resolved atom-set fragment with `All` only in filters.
+It covers prefix/suffix, swap, both, filter clearing, ordered replay and
+directed mix while preserving construction traces; it does not authorize
+certificates, discharge filters, admit relations or connect to source tasks.
+The initial compiler-referee review found and the batched repair closed an
+unsupported `All` PUSH family; fresh delta review passed. Seven focused detached
+tests and scoped `git diff --check` pass. Allocation-failure injection, broad
+suites, and non-test builds remain unrun. These two preparatory checkpoints are
+recorded in the [structural fold](../notes/progress/2026-10-10-context-structural-fold.md)
+and [numeric evaluator](../notes/progress/2026-10-10-context-numeric-evaluator.md)
+progress records. Numeric operation payload construction, relation-sensitive
+completion, freshening, source integration, and two-cycle invalidation remain
+the next gates before recursive nonempty context admission.

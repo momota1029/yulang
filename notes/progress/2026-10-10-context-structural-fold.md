@@ -35,16 +35,13 @@ Focused verification passed:
 No broad suite, benchmark, or timing measurement ran. No performance budget was
 consumed. The full M1 reviewer budget was consumed by the compiler-referee.
 
-## Next sub-slice and limits
+## Follow-up and limits
 
-Implement exact numeric evaluation for the finite atom-set fragment while
-keeping it detached from source construction, relation admission and live
-execution. The approved gate requires unbounded natural counts; legacy Oracle
-`u32` saturation is not a valid representation of that successor contract.
-Use arbitrary-precision counts with exact add/compare/subtract and propagate
-allocation failure through internal availability handling. Finite resolved
-families and explicit `All` filters suffice for this bounded evaluator; do not
-claim parameterized-family matching or residual/gamma support.
+The subsequent [numeric evaluator checkpoint](2026-10-10-context-numeric-evaluator.md)
+implements the detached finite atom-set algebra with exact unbounded counts.
+This record continues to certify only the structural fold itself. Neither
+checkpoint authorizes parameterized-family matching, residual/gamma support,
+certificate authorization, filter discharge, or live source execution.
 
 No source operation payload construction, Function-port propagation, filter
 discharge, certificate authorization, recursive admission, full contextual
