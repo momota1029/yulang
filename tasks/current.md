@@ -8558,6 +8558,12 @@ as `/root/source_transport_proof`; its session JSONL authenticates
 direct-edge level lemma passed independent compiler-referee review. See [the
 prover callback-return result](../notes/progress/2026-10-11-prover-callback-return-obstruction.md).
 The lemma excludes only direct ordinary row-comparison edges from supplying
-an upward `q113 -> R45` path while levels and representatives stay fixed. A
-source observer is checking q113's actual outgoing keys and view tails at the
-target restore. Alternative A/B and diagnostic rescue remain open.
+an upward `q113 -> R45` path while levels and representatives stay fixed. The
+independently reviewed [q113 observer](../notes/progress/2026-10-11-q113-outgoing-closure-observation.md)
+found the closed two-node outgoing graph `E113 -> Allowance9 -> E113` at all
+26 sampled restore boundaries, with no path to R45 or R47 and no
+representative changes. Callback0 adds only the incoming `R47 -> Allowance9 ->
+q113` path. This is evidence for this one source interval; transient states
+inside drains, later replay/diagnostics, alternate schedules, and full
+provenance remain unobserved. Alternative A/B and diagnostic rescue remain
+open.
