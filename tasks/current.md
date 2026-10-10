@@ -8781,11 +8781,18 @@ terms; it does not assert provenance parity.
 
 This does not enable production suspension or close authentic §7 support,
 external incidence deferral, lifecycle withdrawal/recomputation, or SCC
-publication. Dispatch/Function remains atomic. Next gate: ensure nonterminal
-drain resume prepares the full outstanding acknowledgement prefix before any
-side effect, pop, or appended acknowledgement; then continue lifecycle/deferral
-ownership and the source-owned §7 regression. q113, complete Simple-sub
-inference, soundness/principality, and F5 cutover remain open.
+publication. Dispatch/Function remains atomic. The acknowledgement-prefix
+obligation now has a conditional constructive invariant, finite executable
+falsification envelope, and source-owner map in the three
+[nonterminal acknowledgement-prefix research notes](../notes/progress/2026-10-11-nonterminal-ack-prefix-proof.md).
+The risk is not reachable from the pinned baseline: no retained nonterminal
+resume caller exists, route entry requires an empty worklist, and route
+rollback clears queue/diagnostic scratch instead of restoring a prior retained
+queue. The next gate is to establish owned nonterminal drain continuation and
+route/queue rollback under §§3 and 6, then wire full outstanding-prefix
+preflight before effects, pop, append, or direct Function admission. Preserve
+terminal one-ack behavior and repeated operation occurrences. q113, complete
+Simple-sub inference, soundness/principality, and F5 cutover remain open.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no
