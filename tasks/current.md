@@ -8575,3 +8575,13 @@ q113` path. This is evidence for this one source interval; transient states
 inside drains, later replay/diagnostics, alternate schedules, and full
 provenance remain unobserved. Alternative A/B and diagnostic rescue remain
 open.
+
+The same-scope source variation subsequently constructed and captured a real
+`q95 -> X33` return, but restored it only after the selected S53 product. Its
+independently reviewed suffix audit found a later E112-owned re-emission of
+S53/Allowance9, no S53-owned product revisit or R47/R45 merge, and a final
+uninstantiated boundary0 recipe containing the relevant fibers. This still
+does not establish semantic discharge or a failing source state; diagnostic
+consumer evidence and future-use replay remain absent. See the [later
+schedule audit](../notes/progress/2026-10-11-q113-later-schedule-audit.md)
+and its frozen [trace artifact](/tmp/yulang-source-q113-later-schedule-20261011.md).
