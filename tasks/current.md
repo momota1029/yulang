@@ -42,6 +42,14 @@ contract and report that identity honestly. The helper also works for fresh
 standalone sessions. Apply the `yulang-proofs` skill, record requested and
 observed settings separately, and never describe a generic fallback as a
 custom `prover` launch.
+
+A second live launch through `tools/codex-prover.sh` is confirmed in the child
+session JSONL as `agent_role=prover` (`/root/retained_input_proof`). The request
+was Sol/high; this session did not expose the child's effective model/effort.
+It produced the unreviewed conditional derivation in
+[`retained-input-indistinguishability-proof`](../notes/progress/2026-10-10-retained-input-indistinguishability-proof.md).
+The finite supplied-model check passed; source-reachable readiness separation
+and the readiness gate remain open.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
