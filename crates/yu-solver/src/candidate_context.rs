@@ -14,6 +14,9 @@ pub(super) struct ReplayChildAck {
     pub operation: ReplayOperationId,
     pub index: usize,
 }
+// Queue transfer and child completion are distinct replay frontiers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ReplayDriveOutcome { Complete, Queued }
 // This stack owns the inner synchronous driver's continuation data. Lifecycle
 // suspension and the source/extrusion frames are separate, still-disabled gates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -667,6 +670,8 @@ pub(super) struct State {
     typed_drain_undo: Vec<TypedDrainUndo>,
     #[cfg(test)]
     fail_replay_completion_undo_reserve: bool,
+    #[cfg(test)]
+    fail_replay_completion_after: Option<usize>,
     #[cfg(test)]
     failed_replay_completion_bytes: Option<(usize, usize)>,
     #[cfg(test)]
@@ -1846,7 +1851,15 @@ impl State {
         let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
         if ack.index >= operation.queued || ack.index < operation.consumed { return Err(exhausted()); }
         #[cfg(test)]
-        if transactional && std::mem::take(&mut self.fail_replay_completion_undo_reserve) {
+        let counted_failure = if transactional {
+            match self.fail_replay_completion_after {
+                Some(0) => { self.fail_replay_completion_after = None; true }
+                Some(remaining) => { self.fail_replay_completion_after = Some(remaining - 1); false }
+                None => false,
+            }
+        } else { false };
+        #[cfg(test)]
+        if transactional && (std::mem::take(&mut self.fail_replay_completion_undo_reserve) || counted_failure) {
             let ack_bytes = self.typed_drains.last().unwrap().replay_acks.capacity()
                 * std::mem::size_of::<ReplayChildAck>();
             self.failed_replay_completion_bytes = Some((self.bytes()?, ack_bytes));
@@ -2963,12 +2976,17 @@ impl InferenceSession {
     pub(super) fn candidate_context_drive_replay(
         &mut self, id: ReplayOperationId,
         provenance: Option<(&ConstraintOccurrenceId, &CauseId)>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<ReplayDriveOutcome, SolveAvailabilityError> {
         loop {
             let transferred = self.candidate_context_consume_replay_child(id, provenance)?;
-            if !transferred || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id).is_none_or(|operation| operation.retired) { break; }
+            let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id);
+            if operation.is_none_or(|operation| operation.retired) { return Ok(ReplayDriveOutcome::Complete); }
+            if !transferred {
+                // Only the outer worklist consumer can complete queued children.
+                if provenance.is_some() { return Err(exhausted()); }
+                return Ok(ReplayDriveOutcome::Queued);
+            }
         }
-        Ok(())
     }
     pub(super) fn candidate_context_canonicalize_bounds(&mut self) -> Result<(), SolveAvailabilityError> {
         // Representative changes affect third-owner incidence as well as the

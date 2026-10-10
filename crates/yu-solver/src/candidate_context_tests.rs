@@ -4690,3 +4690,90 @@ fn internal_restoration_owner_steps_keep_multiple_live_products_and_return_owner
     }
     run(&mut session());
 }
+
+#[test]
+fn retained_nonterminal_prefix_failure_precedes_pop_and_restores_repeated_operation_undo() {
+    for successful_preparations in [1, 2] {
+        let mut session = session();
+        let (index, restoration, replay) = terminal_drain_fixture(&mut session, false);
+        let (queued_frame, _, queued_replay) = terminal_drain_fixture(&mut session, false);
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        assert_eq!(queued_frame, index + 1);
+        context.typed_drains.pop();
+        let queued_operation = &context.replay_operations[&queued_replay];
+        let queued_item = TypedWorkItem { task: queued_operation.task,
+            relation: Some(queued_operation.children[0]),
+            replay_ack: Some(ReplayChildAck { operation: queued_replay, index: 0 }) };
+        context.typed_drains[index].stage = TypedDrainStage::Transport;
+        session.typed_worklist.push_back(queued_item);
+        let frame = state(&session).typed_drains[index].clone();
+        let ack_capacity = frame.replay_acks.capacity();
+        let replay_before = state(&session).replay_operations[&replay].clone();
+        let queued_before = state(&session).replay_operations[&queued_replay].clone();
+        let restoration_before = state(&session).restorations[&restoration].clone();
+        let queue = session.typed_worklist.clone();
+        let capacity = session.typed_worklist.capacity();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.fail_replay_completion_after = Some(successful_preparations);
+            assert_eq!(session.step_typed_drain(index), Err(exhausted()));
+            assert_eq!(state(session).typed_drains[index].prepared_acks, successful_preparations);
+            assert_eq!(session.typed_worklist, queue, "preflight failure occurs before queue ownership transfer");
+            let journal = session.route_journal.as_ref().unwrap();
+            assert_eq!(journal.checked_retained_bytes()?, journal.checked_independent_retained_bytes()?);
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(state(&session).typed_drains[index], frame);
+        assert_eq!(state(&session).typed_drains[index].replay_acks.capacity(), ack_capacity);
+        assert_eq!(state(&session).replay_operations[&replay], replay_before);
+        assert_eq!(state(&session).replay_operations[&queued_replay], queued_before);
+        assert_eq!(state(&session).restorations[&restoration], restoration_before);
+        assert_eq!(session.typed_worklist, queue);
+        assert_eq!(session.typed_worklist.capacity(), capacity);
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            assert_eq!(session.step_typed_drain(index)?, DrainStep::More);
+            assert!(session.typed_worklist.is_empty());
+            let frame = &state(session).typed_drains[index];
+            assert_eq!(frame.prepared_acks, 3);
+            assert_eq!(frame.current, Some(queued_item));
+            assert_eq!(state(session).restorations[&restoration], restoration_before,
+                "an unfinished typed step cannot advance its restoration parent");
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(state(&session).typed_drains[index], frame);
+        assert_eq!(session.typed_worklist, queue);
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
+fn direct_function_steps_prepare_full_retained_prefix_before_admission_or_enqueue() {
+    for pending in [false, true] {
+        let mut session = session();
+        let (index, _, replay) = terminal_drain_fixture(&mut session, false);
+        let relation = state(&session).replay_operations[&replay].children[0];
+        let task = state(&session).replay_operations[&replay].task;
+        let value_pair = task_pair(task);
+        let effect_pair = TypedPairKey::Effect { lower: EffectEndpointKey::BottomPositive, upper: EffectEndpointKey::EmptyNegative };
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        context.processing = Some(relation);
+        let frame = &mut context.typed_drains[index];
+        frame.current = Some(TypedWorkItem { task, relation: Some(relation), replay_ack: None });
+        frame.stage = if pending { TypedDrainStage::FunctionEnqueue } else { TypedDrainStage::FunctionAdmission };
+        frame.function = Some(FunctionDispatch {
+            children: [(FunctionField::Argument, value_pair), (FunctionField::ArgumentEffect, effect_pair),
+                (FunctionField::ResultEffect, effect_pair), (FunctionField::Result, value_pair)], next: 0,
+            pending: pending.then_some(TypedWorkItem { task, relation: Some(relation), replay_ack: None }),
+        });
+        let frame = state(&session).typed_drains[index].clone();
+        let before = state(&session).checkpoint();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.fail_replay_completion_after = Some(1);
+            assert_eq!(session.candidate_step_function_dispatch(index), Err(exhausted()));
+            assert_eq!(state(session).typed_drains[index].function, frame.function);
+            assert!(session.typed_worklist.is_empty());
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(state(&session).checkpoint(), before);
+        assert_eq!(state(&session).typed_drains[index], frame);
+    }
+}

@@ -8101,7 +8101,33 @@ struct EffectRowUndo {
     mark: u32,
 }
 
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DrainCompletion { transitions: usize }
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DrainStep { More, Complete(DrainCompletion) }
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum RoutePurpose { Fresh, RetainedResume }
+
+enum WorkspaceUndo {
+    PushFront,
+    PushBack,
+    PopFront(TypedWorkItem),
+    DiagnosticAdmission(CanonicalValuePairKey),
+    FreshDiagnosticClear,
+    WorklistGrowth(VecDeque<TypedWorkItem>),
+    DeltaGrowth(Vec<CanonicalValuePairKey>),
+    IndexGrowth(HashMap<CanonicalValuePairKey, usize>),
+    DeltaClear(Vec<CanonicalValuePairKey>),
+    IndexClear(HashMap<CanonicalValuePairKey, usize>),
+}
+
 struct RouteMutationJournal {
+    purpose: RoutePurpose,
+    workspace: Vec<WorkspaceUndo>,
+    workspace_payload_bytes: usize,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_routes_len: usize,
     #[cfg(feature = "shadow-apply-candidate")]
@@ -8140,7 +8166,7 @@ struct RouteMutationJournal {
 
 impl RouteMutationJournal {
     fn checked_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        Self::checked_capacity_bytes([
+        let base = Self::checked_capacity_bytes([
             self.value_rows.capacity(),
             self.effect_rows.capacity(),
             self.value_row_seen.capacity(),
@@ -8148,7 +8174,10 @@ impl RouteMutationJournal {
             self.candidate_local_slots.capacity(),
             self.typed_pair_keys.capacity(),
             self.reported_error_keys.capacity(),
-        ])
+        ])?;
+        let workspace = checked_fixed_capacity_bytes([(self.workspace.capacity(), std::mem::size_of::<WorkspaceUndo>())])?;
+        base.checked_add(workspace).and_then(|bytes| bytes.checked_add(self.workspace_payload_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
 
     fn checked_capacity_bytes(capacities: [usize; 7]) -> Result<usize, SolveAvailabilityError> {
@@ -8165,52 +8194,32 @@ impl RouteMutationJournal {
 
     #[cfg(test)]
     fn retained_bytes(&self) -> usize {
-        checked_usize_sum(
-            [
-                checked_capacity_bytes::<ValueRowUndo>(
-                    self.value_rows.capacity(),
-                    "F5c route value-row undo",
-                ),
-                checked_capacity_bytes::<EffectRowUndo>(
-                    self.effect_rows.capacity(),
-                    "F5c route effect-row undo",
-                ),
-                checked_capacity_bytes::<u32>(
-                    self.value_row_seen.capacity(),
-                    "F5c route value-row generations",
-                ),
-                checked_capacity_bytes::<u32>(
-                    self.effect_row_seen.capacity(),
-                    "F5c route effect-row generations",
-                ),
-                checked_capacity_bytes::<usize>(
-                    self.candidate_local_slots.capacity(),
-                    "F5c route candidate local-slot undo",
-                ),
-                checked_capacity_bytes::<TypedPairKey>(
-                    self.typed_pair_keys.capacity(),
-                    "F5c route typed-pair undo",
-                ),
-                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
-                    self.reported_error_keys.capacity(),
-                    "F5c route reported-error undo",
-                ),
-            ],
-            "F5c route journal",
-        )
+        self.checked_retained_bytes().expect("route journal retained bytes")
     }
 
     #[cfg(test)]
     fn checked_independent_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        Self::checked_independent_capacity_bytes([
-            self.value_rows.capacity(),
-            self.effect_rows.capacity(),
-            self.value_row_seen.capacity(),
-            self.effect_row_seen.capacity(),
-            self.candidate_local_slots.capacity(),
-            self.typed_pair_keys.capacity(),
+        let mut total = Self::checked_independent_capacity_bytes([
+            self.value_rows.capacity(), self.effect_rows.capacity(),
+            self.value_row_seen.capacity(), self.effect_row_seen.capacity(),
+            self.candidate_local_slots.capacity(), self.typed_pair_keys.capacity(),
             self.reported_error_keys.capacity(),
-        ])
+        ])?;
+        let mut add = |capacity: usize, size: usize| -> Result<(), SolveAvailabilityError> {
+            total = total.checked_add(capacity.checked_mul(size).ok_or(SolveAvailabilityError::IdentityExhausted)?)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(())
+        };
+        add(self.workspace.capacity(), std::mem::size_of::<WorkspaceUndo>())?;
+        for undo in &self.workspace {
+            match undo {
+                WorkspaceUndo::WorklistGrowth(queue) => add(queue.capacity(), std::mem::size_of::<TypedWorkItem>())?,
+                WorkspaceUndo::DeltaGrowth(delta) | WorkspaceUndo::DeltaClear(delta) => add(delta.capacity(), std::mem::size_of::<CanonicalValuePairKey>())?,
+                WorkspaceUndo::IndexGrowth(index) | WorkspaceUndo::IndexClear(index) => add(index.capacity(), std::mem::size_of::<(CanonicalValuePairKey, usize)>())?,
+                _ => {}
+            }
+        }
+        Ok(total)
     }
 
     #[cfg(test)]
@@ -8966,9 +8975,15 @@ impl InferenceSession {
     }
 
     fn begin_route_transaction(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.begin_route_transaction_for(RoutePurpose::Fresh)
+    }
+
+    fn begin_route_transaction_for(&mut self, purpose: RoutePurpose) -> Result<(), SolveAvailabilityError> {
         assert!(self.route_journal.is_none());
-        debug_assert!(self.typed_worklist.is_empty());
-        debug_assert!(self.diagnostic_delta.is_empty());
+        if purpose == RoutePurpose::Fresh {
+            debug_assert!(self.typed_worklist.is_empty());
+            debug_assert!(self.diagnostic_delta.is_empty());
+        }
         if self
             .route_journal_spare
             .as_ref()
@@ -8983,6 +8998,9 @@ impl InferenceSession {
             .route_journal_spare
             .take()
             .unwrap_or_else(|| RouteMutationJournal {
+                purpose: RoutePurpose::Fresh,
+                workspace: Vec::new(),
+                workspace_payload_bytes: 0,
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_routes_len: 0,
                 #[cfg(feature = "shadow-apply-candidate")]
@@ -9164,6 +9182,8 @@ impl InferenceSession {
                 independent_nested_capacities: self.independent_nested_capacities.clone(),
             };
         }
+        journal.purpose = purpose;
+        debug_assert!(journal.workspace.is_empty());
         self.route_journal = Some(journal);
         Ok(())
     }
@@ -9173,6 +9193,13 @@ impl InferenceSession {
         operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
     ) -> Result<T, SolveAvailabilityError> {
         self.begin_route_transaction()?;
+        self.finish_route_transaction(operation)
+    }
+
+    fn finish_route_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
         match operation(self) {
             Ok(value) => {
                 #[allow(unused_mut, reason = "candidate route undo is released only with its feature")]
@@ -9199,6 +9226,8 @@ impl InferenceSession {
                     journal.candidate_source = None;
                 }
                 self.store.commit_route();
+                journal.workspace.clear();
+                journal.workspace_payload_bytes = 0;
                 self.route_journal_spare = Some(journal);
                 Ok(value)
             }
@@ -9634,12 +9663,20 @@ impl InferenceSession {
         self.extrusion_stack.clear();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_f5c_live_top(7);
-        self.typed_worklist.clear();
+        let retained_resume = journal.purpose == RoutePurpose::RetainedResume;
+        if retained_resume {
+            self.rollback_workspace(&mut journal);
+        } else {
+            journal.workspace.clear();
+            journal.workspace_payload_bytes = 0;
+            self.typed_worklist.clear();
+        }
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_f5c_structured_pair_top(
             2, self.typed_worklist.len(), self.typed_worklist.capacity(),
         );
-        self.clear_diagnostic_scratch();
+        if retained_resume { self.clear_diagnostic_completion_scratch(); }
+        else { self.clear_diagnostic_scratch_unjournalled(); }
         #[cfg(test)]
         {
             let counters = &journal.test_counters;
@@ -11400,12 +11437,8 @@ impl InferenceSession {
     #[cfg(feature = "shadow-apply-candidate")]
     fn candidate_reopen_root(&mut self, root: CanonicalValuePairKey) -> Result<(), SolveAvailabilityError> {
         self.journal_candidate_memo(TypedPairKey::Value(root))?;
-        reserve_typed_route_lane!(self, self.diagnostic_delta, 1, F5bCapacityLane::DiagnosticDelta);
-        reserve_typed_route_lane!(self, self.diagnostic_delta_indices, 1, F5bCapacityLane::DiagnosticDeltaIndices);
-        if !self.diagnostic_delta_indices.contains_key(&root) {
-            self.diagnostic_delta_indices.insert(root, self.diagnostic_delta.len());
-            self.diagnostic_delta.push(root);
-        }
+        self.reserve_diagnostic_admission(root)?;
+        self.admit_diagnostic(root)?;
         if let Some(TypedPairMemo::Value { completion, .. }) = self.typed_pairs.get_mut(&TypedPairKey::Value(root)) { *completion = DiagnosticCompletion::Pending; }
         Ok(())
     }
@@ -11880,6 +11913,10 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         inferred_entry: Option<candidate_context::InferredEntryOriginId>,
     ) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() {
+            return self.run_candidate_typed_drain(initial_item, occurrence, cause, inferred_entry);
+        }
         let initial = initial_item.task;
         #[cfg(feature = "shadow-apply-candidate")]
         let drain = if let Some(graph) = &mut self.candidate_graph {
@@ -11898,7 +11935,7 @@ impl InferenceSession {
             self.typed_worklist.is_empty(),
             "constrain begins with an empty worklist"
         );
-        self.clear_diagnostic_scratch();
+        self.clear_diagnostic_scratch()?;
         let mut transitions = 0;
         #[cfg(feature = "shadow-apply-candidate")]
         {
@@ -11941,7 +11978,7 @@ impl InferenceSession {
                 self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_child_completion(ack, transactional)?;
                 self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             }
-            let Some(mut item) = self.typed_worklist.pop_front() else {
+            let Some(mut item) = self.pop_worklist()? else {
                 #[cfg(feature = "shadow-apply-candidate")]
                 if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.dirty) { continue; }
                 break;
@@ -11991,7 +12028,271 @@ impl InferenceSession {
             let context_consumed = drain.map(|index|
                 self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].context_consumed.unwrap()
             ).unwrap_or(context_consumed);
-            match item.task {
+            self.dispatch_live_item(item,
+                #[cfg(feature = "shadow-apply-candidate")]
+                drain,
+                #[cfg(feature = "shadow-apply-candidate")]
+                context_consumed,
+                &mut transitions)?;
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(index) = drain {
+                if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].function.is_some() {
+                    self.candidate_drive_function_dispatch(index)?;
+                }
+            }
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(index) = drain {
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+            frame.current = None;
+            frame.function = None;
+            frame.transitions = transitions;
+            frame.stage = candidate_context::TypedDrainStage::Diagnostics;
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        { self.candidate_processing(None); self.candidate_replay_effect_conflicts(initial, occurrence, cause)?; }
+        self.complete_diagnostic_delta()?;
+        if let LiveConstraintTask::Value(root) = initial {
+            self.replay_witness(root, occurrence, cause)?;
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if self.candidate_graph.is_some() && matches!(initial, LiveConstraintTask::Effect(..)) {
+            // An effect dependency can close a mixed SCC and induce value
+            // comparisons. Their diagnostics belong to this actual cause.
+            for index in 0..self.diagnostic_delta.len() {
+                self.replay_witness(self.diagnostic_delta[index], occurrence, cause)?;
+            }
+        }
+        self.clear_diagnostic_scratch()?;
+        debug_assert!(
+            self.typed_worklist.is_empty(),
+            "constrain drains its worklist before return"
+        );
+        Ok(transitions)
+        })();
+        #[cfg(feature = "shadow-apply-candidate")]
+        {
+            if let Some(index) = drain {
+                if result.is_ok() {
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].stage =
+                        candidate_context::TypedDrainStage::Acknowledgements;
+                    result = self.candidate_finish_typed_drain(index);
+                }
+                if result.is_err() {
+                    // Availability failure still unwinds a newly created synchronous
+                    // drain; retained terminal callers leave their frame owned.
+                    let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
+                    debug_assert_eq!(frames.len(), index + 1);
+                    let frame = frames.pop().unwrap();
+                    debug_assert_eq!(frame.initial, initial);
+                    debug_assert_eq!(&frame.occurrence, occurrence);
+                    debug_assert_eq!(&frame.cause, cause);
+                    debug_assert_eq!(frame.previous_processing, previous_processing);
+                    debug_assert_eq!(frame.previous_relation, previous_relation);
+                }
+            }
+            self.candidate_processing(previous_processing);
+            if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
+        }
+        result
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn start_typed_drain(&mut self, item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>) -> Result<usize, SolveAvailabilityError> {
+        assert!(self.typed_worklist.is_empty(), "constrain begins with an empty worklist");
+        let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let index = graph.intrusion.effect_algebra.context.begin_typed_drain(item.task, occurrence, cause,
+            graph.intrusion.effect_algebra.processing, graph.intrusion.effect_algebra.context.processing)?;
+        self.candidate_processing(None);
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
+        self.clear_diagnostic_scratch()?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        self.candidate_context_seed(item.task, occurrence, inferred_entry)?;
+        self.enqueue_item(item, false)?;
+        Ok(index)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn run_candidate_typed_drain(&mut self, item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>) -> Result<usize, SolveAvailabilityError> {
+        let graph = self.candidate_graph.as_ref().unwrap();
+        let index = graph.intrusion.effect_algebra.context.typed_drains.len();
+        let previous_processing = graph.intrusion.effect_algebra.processing;
+        let previous_relation = graph.intrusion.effect_algebra.context.processing;
+        let result = (|| {
+            let index = self.start_typed_drain(item, occurrence, cause, inferred_entry)?;
+            loop {
+                if let DrainStep::Complete(receipt) = self.step_typed_drain(index)? { return Ok(receipt.transitions); }
+            }
+        })();
+        if result.is_err() {
+            let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
+            if frames.len() > index {
+                debug_assert_eq!(frames.len(), index + 1);
+                frames.pop();
+            }
+        }
+        self.candidate_processing(previous_processing);
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous_relation;
+        result
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn prepare_nonterminal_drain(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let transactional = self.route_journal.is_some();
+        let context = &mut self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context;
+        let frame = context.typed_drains.get(index).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if index + 1 != context.typed_drains.len() || frame.completed_acks > frame.prepared_acks || frame.prepared_acks > frame.replay_acks.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let before = context.terminal_storage();
+        let ack_capacity = context.typed_drains[index].replay_acks.capacity();
+        let preparation = (|| {
+            context.prepare_typed_drain_update(index, transactional)?;
+            while context.typed_drains[index].prepared_acks < context.typed_drains[index].replay_acks.len() {
+                let ack = context.typed_drains[index].replay_acks[context.typed_drains[index].prepared_acks];
+                context.prepare_replay_child_completion(ack, transactional)?;
+                context.typed_drains[index].prepared_acks += 1;
+            }
+            Ok(())
+        })();
+        let after = context.terminal_storage();
+        let grew = after.0 > before.0 || after.1 > before.1 || (after.2 > before.2 && ack_capacity != 0);
+        if grew {
+            if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
+            else { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+        }
+        preparation
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn step_typed_drain(&mut self, index: usize) -> Result<DrainStep, SolveAvailabilityError> {
+        use candidate_context::TypedDrainStage as Stage;
+        let frame = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?
+            .intrusion.effect_algebra.context.typed_drains.get(index).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let stage = frame.stage;
+        if matches!(stage, Stage::Acknowledgements | Stage::ReturnReady) {
+            return Ok(match self.candidate_step_typed_drain_terminal(index)? {
+                Some(transitions) => DrainStep::Complete(DrainCompletion { transitions }),
+                None => DrainStep::More,
+            });
+        }
+        self.prepare_nonterminal_drain(index)?;
+        let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+        let (initial, current, consumed, mut transitions) = (frame.initial, frame.current, frame.context_consumed, frame.transitions);
+        if let Some(item) = current {
+            self.candidate_task_scope(item.task);
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = item.relation;
+        }
+        match stage {
+            Stage::Transport if current.is_none() => {
+                if self.typed_worklist.is_empty() {
+                    self.candidate_task_scope(initial);
+                    self.settle_candidate_intrusion(match initial { LiveConstraintTask::Value(root) => Some(root), _ => None })?;
+                }
+                if let Some(ack) = self.typed_worklist.front().and_then(|item| item.replay_ack) {
+                    let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                    let capacity = frame.replay_acks.capacity();
+                    frame.replay_acks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    if frame.replay_acks.capacity() != capacity {
+                        if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
+                        else { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+                    }
+                    let transactional = self.route_journal.is_some();
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_child_completion(ack, transactional)?;
+                    self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                }
+                let item = self.pop_worklist()?;
+                let dirty = self.candidate_graph.as_ref().unwrap().intrusion.dirty;
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                if let Some(item) = item {
+                    frame.current = Some(item);
+                    if let Some(ack) = item.replay_ack {
+                        debug_assert_eq!(frame.prepared_acks, frame.replay_acks.len());
+                        frame.replay_acks.push(ack);
+                        frame.prepared_acks += 1;
+                    }
+                    #[cfg(test)]
+                    if matches!(item.task, LiveConstraintTask::Value(_)) { self.typed_pair_worklist_pops += 1; }
+                } else if !dirty { frame.stage = Stage::Diagnostics; }
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                self.observe_f5c_structured_pair_top(2, self.typed_worklist.len(), self.typed_worklist.capacity());
+            }
+            Stage::Transport => {
+                let mut item = current.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                item.relation = self.candidate_context_transport_task(item.task, item.relation)?;
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                context.processing = item.relation;
+                context.typed_drains[index].current = Some(item);
+                context.typed_drains[index].stage = Stage::Context;
+            }
+            Stage::Context => {
+                let item = current.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let consumed = self.candidate_context_execute(item.task, item.relation)?;
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                frame.context_consumed = Some(consumed);
+                frame.stage = Stage::Dispatch;
+            }
+            Stage::Dispatch => {
+                let mut item = current.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                item.replay_ack = None;
+                self.dispatch_live_item(item, Some(index), consumed.ok_or(SolveAvailabilityError::IdentityExhausted)?, &mut transitions)?;
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                frame.transitions = transitions;
+                if frame.function.is_none() {
+                    frame.current = None;
+                    frame.context_consumed = None;
+                    frame.stage = Stage::Transport;
+                }
+            }
+            Stage::FunctionAdmission | Stage::FunctionEnqueue => {
+                if !self.candidate_step_function_dispatch(index)? {
+                    let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                    frame.current = None;
+                    frame.function = None;
+                    frame.context_consumed = None;
+                    frame.stage = Stage::Transport;
+                }
+            }
+            Stage::Diagnostics => {
+                let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                let (occurrence, cause) = (frame.occurrence.clone(), frame.cause.clone());
+                self.candidate_processing(None);
+                self.candidate_replay_effect_conflicts(initial, &occurrence, &cause)?;
+                self.complete_diagnostic_delta()?;
+                if let LiveConstraintTask::Value(root) = initial { self.replay_witness(root, &occurrence, &cause)?; }
+                if matches!(initial, LiveConstraintTask::Effect(..)) {
+                    for position in 0..self.diagnostic_delta.len() { self.replay_witness(self.diagnostic_delta[position], &occurrence, &cause)?; }
+                }
+                self.clear_diagnostic_scratch()?;
+                debug_assert!(self.typed_worklist.is_empty(), "constrain drains its worklist before return");
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].stage = Stage::Acknowledgements;
+            }
+            Stage::Acknowledgements | Stage::ReturnReady => unreachable!(),
+        }
+        Ok(DrainStep::More)
+    }
+
+    #[cfg(all(test, feature = "shadow-apply-candidate"))]
+    fn resume_typed_drain_route<T>(&mut self, index: usize,
+        operation: impl FnOnce(&mut Self, usize) -> Result<T, SolveAvailabilityError>) -> Result<T, SolveAvailabilityError> {
+        let context = &self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context;
+        if index + 1 != context.typed_drains.len() { return Err(SolveAvailabilityError::IdentityExhausted); }
+        self.begin_route_transaction_for(RoutePurpose::RetainedResume)?;
+        self.finish_route_transaction(|session| operation(session, index))
+    }
+
+    fn dispatch_live_item(
+        &mut self,
+        item: TypedWorkItem,
+        #[cfg(feature = "shadow-apply-candidate")]
+        drain: Option<usize>,
+        #[cfg(feature = "shadow-apply-candidate")]
+        context_consumed: bool,
+        transitions: &mut usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        match item.task {
                 LiveConstraintTask::Effect(lower, upper) => {
                     let key = TypedPairKey::Effect { lower, upper };
                     #[cfg(feature = "shadow-apply-candidate")]
@@ -12012,7 +12313,7 @@ impl InferenceSession {
                     let memo_key = TypedPairKey::Value(key);
                     if self.pair_is_current(memo_key) {
                         self.execution_counters.constraint_pair_duplicates += 1;
-                        continue;
+                        return Ok(());
                     }
                     #[cfg(feature = "shadow-apply-candidate")]
                     if self.candidate_graph.is_some() {
@@ -12021,7 +12322,7 @@ impl InferenceSession {
                             self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
                             self.record_diagnostic_edge(key, canonical, None)?;
                             self.enqueue_item(TypedWorkItem { task: LiveConstraintTask::Value(canonical), relation: item.relation, replay_ack: None }, false)?;
-                            continue;
+                            return Ok(());
                         }
                         // A previously extruded structural bound retains its transformed
                         // child. Replaying the original would allocate another copy graph.
@@ -12033,7 +12334,7 @@ impl InferenceSession {
                                     let edge = match &self.typed_pairs[&memo_key] { TypedPairMemo::Value { children, .. } => children[index], _ => unreachable!() };
                                     self.enqueue_task(LiveConstraintTask::Value(edge.child))?;
                                 }
-                                continue;
+                                return Ok(());
                             }
                         }
                     }
@@ -12051,7 +12352,7 @@ impl InferenceSession {
                                 completion: DiagnosticCompletion::Pending,
                             },
                         )?;
-                        continue;
+                        return Ok(());
                     }
                     if matches!(key.lower, ValueEndpointKey::BottomPositive)
                         || matches!(key.upper, ValueEndpointKey::TopNegative)
@@ -12064,7 +12365,7 @@ impl InferenceSession {
                                 completion: DiagnosticCompletion::Pending,
                             },
                         )?;
-                        continue;
+                        return Ok(());
                     }
                     let (Some(lower), Some(upper)) = (
                         Self::positive_function_children(&self.store, key.lower),
@@ -12113,7 +12414,7 @@ impl InferenceSession {
                                 )?;
                                 self.record_diagnostic_edge(key, rewritten, None)?;
                                 self.enqueue_task(LiveConstraintTask::Value(rewritten))?;
-                                continue;
+                                return Ok(());
                             }
                         }
                         if !self.candidate_graph_enabled() {
@@ -12149,8 +12450,8 @@ impl InferenceSession {
                                 completion: DiagnosticCompletion::Pending,
                             },
                         )?;
-                        transitions += self.apply_value_task(key)?;
-                        continue;
+                        *transitions += self.apply_value_task(key)?;
+                        return Ok(());
                     };
                     let children = [
                         (
@@ -12200,8 +12501,7 @@ impl InferenceSession {
                         let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                         frame.function = Some(candidate_context::FunctionDispatch { children, next: 0, pending: None });
                         frame.stage = candidate_context::TypedDrainStage::FunctionAdmission;
-                        self.candidate_drive_function_dispatch(index)?;
-                        continue;
+                        return Ok(());
                     }
                     for (field, child) in children.into_iter().rev() {
                         let task = match child {
@@ -12221,61 +12521,7 @@ impl InferenceSession {
                     }
                 }
             }
-        }
-        #[cfg(feature = "shadow-apply-candidate")]
-        if let Some(index) = drain {
-            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
-            frame.current = None;
-            frame.function = None;
-            frame.transitions = transitions;
-            frame.stage = candidate_context::TypedDrainStage::Diagnostics;
-        }
-        #[cfg(feature = "shadow-apply-candidate")]
-        { self.candidate_processing(None); self.candidate_replay_effect_conflicts(initial, occurrence, cause)?; }
-        self.complete_diagnostic_delta()?;
-        if let LiveConstraintTask::Value(root) = initial {
-            self.replay_witness(root, occurrence, cause)?;
-        }
-        #[cfg(feature = "shadow-apply-candidate")]
-        if self.candidate_graph.is_some() && matches!(initial, LiveConstraintTask::Effect(..)) {
-            // An effect dependency can close a mixed SCC and induce value
-            // comparisons. Their diagnostics belong to this actual cause.
-            for index in 0..self.diagnostic_delta.len() {
-                self.replay_witness(self.diagnostic_delta[index], occurrence, cause)?;
-            }
-        }
-        self.clear_diagnostic_scratch();
-        debug_assert!(
-            self.typed_worklist.is_empty(),
-            "constrain drains its worklist before return"
-        );
-        Ok(transitions)
-        })();
-        #[cfg(feature = "shadow-apply-candidate")]
-        {
-            if let Some(index) = drain {
-                if result.is_ok() {
-                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].stage =
-                        candidate_context::TypedDrainStage::Acknowledgements;
-                    result = self.candidate_finish_typed_drain(index);
-                }
-                if result.is_err() {
-                    // Availability failure still unwinds a newly created synchronous
-                    // drain; retained terminal callers leave their frame owned.
-                    let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
-                    debug_assert_eq!(frames.len(), index + 1);
-                    let frame = frames.pop().unwrap();
-                    debug_assert_eq!(frame.initial, initial);
-                    debug_assert_eq!(&frame.occurrence, occurrence);
-                    debug_assert_eq!(&frame.cause, cause);
-                    debug_assert_eq!(frame.previous_processing, previous_processing);
-                    debug_assert_eq!(frame.previous_relation, previous_relation);
-                }
-            }
-            self.candidate_processing(previous_processing);
-            if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
-        }
-        result
+        Ok(())
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
@@ -12349,6 +12595,7 @@ impl InferenceSession {
 
     #[cfg(feature = "shadow-apply-candidate")]
     fn candidate_step_function_dispatch(&mut self, drain: usize) -> Result<bool, SolveAvailabilityError> {
+        self.prepare_nonterminal_drain(drain)?;
         let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
         let dispatch = frame.function.as_ref().unwrap();
         if dispatch.next == dispatch.children.len() { return Ok(false); }
@@ -12373,6 +12620,154 @@ impl InferenceSession {
         Ok(true)
     }
 
+    fn workspace_retains_allocations(&self) -> bool {
+        self.route_journal.as_ref().is_some_and(|journal| journal.purpose == RoutePurpose::RetainedResume)
+    }
+
+    fn observe_workspace_capacity(&mut self, grew: bool) -> Result<(), SolveAvailabilityError> {
+        if grew && !self.incoming_route_accounting_active && self.workspace_retains_allocations() {
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        } else {
+            self.observe_typed_route_capacity(grew)
+        }
+    }
+
+    fn workspace_payload_after(&self, capacity: usize, size: usize) -> Result<usize, SolveAvailabilityError> {
+        self.route_journal.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.workspace_payload_bytes
+            .checked_add(capacity.checked_mul(size).ok_or(SolveAvailabilityError::IdentityExhausted)?)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn reserve_workspace_undo(&mut self, additional: usize) -> Result<(), SolveAvailabilityError> {
+        if let Some(journal) = &mut self.route_journal {
+            let capacity = journal.workspace.capacity();
+            let reservation = journal.workspace.try_reserve(additional);
+            let grew = journal.workspace.capacity() != capacity;
+            self.observe_workspace_capacity(grew)?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Ok(())
+    }
+
+    fn reserve_worklist(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.reserve_workspace_undo(2)?;
+        if self.workspace_retains_allocations() && self.typed_worklist.len() == self.typed_worklist.capacity() {
+            let capacity = self.typed_worklist.capacity().checked_mul(2)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?.max(4);
+            let payload = self.workspace_payload_after(self.typed_worklist.capacity(), std::mem::size_of::<TypedWorkItem>())?;
+            let mut replacement = VecDeque::new();
+            reserve_f5b(&mut replacement, capacity, F5bCapacityLane::TypedWorklist).map_err(SolveAvailabilityError::from)?;
+            let mut old = std::mem::replace(&mut self.typed_worklist, replacement);
+            self.typed_worklist.extend(old.drain(..));
+            let journal = self.route_journal.as_mut().unwrap();
+            journal.workspace_payload_bytes = payload;
+            journal.workspace.push(WorkspaceUndo::WorklistGrowth(old));
+            self.observe_workspace_capacity(true)?;
+        } else {
+            reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
+        }
+        Ok(())
+    }
+
+    fn reserve_diagnostic_admission(&mut self, key: CanonicalValuePairKey) -> Result<(), SolveAvailabilityError> {
+        let _ = key;
+        self.reserve_workspace_undo(3)?;
+        if self.workspace_retains_allocations() && self.diagnostic_delta.len() == self.diagnostic_delta.capacity() {
+            let capacity = self.diagnostic_delta.capacity().checked_mul(2)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?.max(4);
+            let payload = self.workspace_payload_after(self.diagnostic_delta.capacity(), std::mem::size_of::<CanonicalValuePairKey>())?;
+            let mut replacement = Vec::new();
+            reserve_f5b(&mut replacement, capacity, F5bCapacityLane::DiagnosticDelta)?;
+            let mut old = std::mem::replace(&mut self.diagnostic_delta, replacement);
+            self.diagnostic_delta.append(&mut old);
+            let journal = self.route_journal.as_mut().unwrap();
+            journal.workspace_payload_bytes = payload;
+            journal.workspace.push(WorkspaceUndo::DeltaGrowth(old));
+            self.observe_workspace_capacity(true)?;
+        } else {
+            reserve_typed_route_lane!(self, self.diagnostic_delta, 1, F5bCapacityLane::DiagnosticDelta);
+        }
+        if self.workspace_retains_allocations() && self.diagnostic_delta_indices.len() == self.diagnostic_delta_indices.capacity() {
+            let capacity = self.diagnostic_delta_indices.capacity().checked_mul(2)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?.max(4);
+            let payload = self.workspace_payload_after(self.diagnostic_delta_indices.capacity(), std::mem::size_of::<(CanonicalValuePairKey, usize)>())?;
+            let mut replacement = HashMap::new();
+            reserve_f5b(&mut replacement, capacity, F5bCapacityLane::DiagnosticDeltaIndices)?;
+            let mut old = std::mem::replace(&mut self.diagnostic_delta_indices, replacement);
+            self.diagnostic_delta_indices.extend(old.drain());
+            let journal = self.route_journal.as_mut().unwrap();
+            journal.workspace_payload_bytes = payload;
+            journal.workspace.push(WorkspaceUndo::IndexGrowth(old));
+            self.observe_workspace_capacity(true)?;
+        } else {
+            reserve_typed_route_lane!(self, self.diagnostic_delta_indices, 1, F5bCapacityLane::DiagnosticDeltaIndices);
+        }
+        Ok(())
+    }
+
+    fn admit_diagnostic(&mut self, key: CanonicalValuePairKey) -> Result<(), SolveAvailabilityError> {
+        if !self.diagnostic_delta_indices.contains_key(&key) {
+            if self.diagnostic_delta.len() == self.diagnostic_delta.capacity()
+                || self.diagnostic_delta_indices.len() == self.diagnostic_delta_indices.capacity() {
+                self.reserve_diagnostic_admission(key)?;
+            }
+            self.reserve_workspace_undo(1)?;
+            if let Some(journal) = &mut self.route_journal {
+                journal.workspace.push(WorkspaceUndo::DiagnosticAdmission(key));
+            }
+            self.diagnostic_delta_indices.insert(key, self.diagnostic_delta.len());
+            self.diagnostic_delta.push(key);
+        }
+        Ok(())
+    }
+
+    fn pop_worklist(&mut self) -> Result<Option<TypedWorkItem>, SolveAvailabilityError> {
+        if self.typed_worklist.is_empty() { return Ok(None); }
+        self.reserve_workspace_undo(1)?;
+        let item = self.typed_worklist.front().copied().unwrap();
+        if let Some(journal) = &mut self.route_journal { journal.workspace.push(WorkspaceUndo::PopFront(item)); }
+        Ok(self.typed_worklist.pop_front())
+    }
+
+    fn rollback_workspace(&mut self, journal: &mut RouteMutationJournal) {
+        while let Some(undo) = journal.workspace.pop() {
+            match undo {
+                WorkspaceUndo::FreshDiagnosticClear => unreachable!("fresh clear is discarded with its route"),
+                WorkspaceUndo::PushFront => { self.typed_worklist.pop_front().expect("undo front push"); }
+                WorkspaceUndo::PushBack => { self.typed_worklist.pop_back().expect("undo back push"); }
+                WorkspaceUndo::PopFront(item) => self.typed_worklist.push_front(item),
+                WorkspaceUndo::DiagnosticAdmission(key) => {
+                    assert_eq!(self.diagnostic_delta.pop(), Some(key));
+                    self.diagnostic_delta_indices.remove(&key);
+                }
+                WorkspaceUndo::WorklistGrowth(mut old) => {
+                    old.extend(self.typed_worklist.drain(..));
+                    self.typed_worklist = old;
+                }
+                WorkspaceUndo::DeltaGrowth(mut old) => {
+                    old.append(&mut self.diagnostic_delta);
+                    self.diagnostic_delta = old;
+                }
+                WorkspaceUndo::IndexGrowth(mut old) => {
+                    old.extend(self.diagnostic_delta_indices.drain());
+                    self.diagnostic_delta_indices = old;
+                }
+                WorkspaceUndo::DeltaClear(delta) => self.diagnostic_delta = delta,
+                WorkspaceUndo::IndexClear(indices) => self.diagnostic_delta_indices = indices,
+            }
+        }
+        // The frontier admits keys or clears wholesale; it never removes a
+        // committed individual key. Inverse admissions can leave HashMap
+        // tombstones, whose capacity() would undercount the retained buckets.
+        // Reset them only on failed retained routes, reusing the same allocation.
+        self.diagnostic_delta_indices.clear();
+        debug_assert!(self.diagnostic_delta_indices.capacity() >= self.diagnostic_delta.len());
+        for (index, &key) in self.diagnostic_delta.iter().enumerate() {
+            self.diagnostic_delta_indices.insert(key, index);
+        }
+        journal.workspace_payload_bytes = 0;
+    }
+
     fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
         self.enqueue_item(TypedWorkItem {
             task,
@@ -12390,7 +12785,7 @@ impl InferenceSession {
         }
         #[cfg(not(feature = "shadow-apply-candidate"))]
         let _ = &mut item;
-        reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
+        self.reserve_worklist()?;
         let old_capacity = self.typed_worklist.capacity();
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(ack) = item.replay_ack {
@@ -12398,6 +12793,9 @@ impl InferenceSession {
             // only infallible queue insertion follows the cursor mutation.
             let transactional = self.route_journal.is_some();
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.transfer_replay_child(ack, transactional)?;
+        }
+        if let Some(journal) = &mut self.route_journal {
+            journal.workspace.push(if front { WorkspaceUndo::PushFront } else { WorkspaceUndo::PushBack });
         }
         if front { self.typed_worklist.push_front(item); }
         else { self.typed_worklist.push_back(item); }
@@ -12474,20 +12872,7 @@ impl InferenceSession {
             self.observe_typed_route_capacity(true)?;
         }
         pair_reservation?;
-        if matches!(key, TypedPairKey::Value(_)) {
-            reserve_typed_route_lane!(
-                self,
-                self.diagnostic_delta,
-                1,
-                F5bCapacityLane::DiagnosticDelta
-            );
-            reserve_typed_route_lane!(
-                self,
-                self.diagnostic_delta_indices,
-                1,
-                F5bCapacityLane::DiagnosticDeltaIndices
-            );
-        }
+        if let TypedPairKey::Value(value) = key { self.reserve_diagnostic_admission(value)?; }
         #[cfg(feature = "shadow-apply-candidate")]
         if self.candidate_graph.is_some() { self.mark_candidate_pair(key)?; }
         let replacing = self.typed_pairs.contains_key(&key);
@@ -12521,11 +12906,7 @@ impl InferenceSession {
         );
         self.execution_counters.constraint_pair_admissions += 1;
         if let TypedPairKey::Value(value) = key {
-            if !self.diagnostic_delta_indices.contains_key(&value) {
-                let index = self.diagnostic_delta.len();
-                self.diagnostic_delta.push(value);
-                self.diagnostic_delta_indices.insert(value, index);
-            }
+            self.admit_diagnostic(value)?;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             {
                 self.observe_f5c_structured_pair_top(
@@ -13018,7 +13399,7 @@ impl InferenceSession {
                 .all(|pending| *pending == 0),
             "the delta condensation completes every new diagnostic entry"
         );
-        self.clear_diagnostic_scratch();
+        self.clear_diagnostic_scratch()?;
         Ok(())
     }
 
@@ -13068,7 +13449,35 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn clear_diagnostic_scratch(&mut self) {
+    fn clear_diagnostic_scratch(&mut self) -> Result<(), SolveAvailabilityError> {
+        if self.workspace_retains_allocations() && (!self.diagnostic_delta.is_empty() || !self.diagnostic_delta_indices.is_empty()) {
+            self.reserve_workspace_undo(2)?;
+            let payload = self.workspace_payload_after(self.diagnostic_delta.capacity(), std::mem::size_of::<CanonicalValuePairKey>())?;
+            let mut delta = Vec::new();
+            reserve_f5b(&mut delta, self.diagnostic_delta.capacity(), F5bCapacityLane::DiagnosticDelta)?;
+            let old_delta = std::mem::replace(&mut self.diagnostic_delta, delta);
+            let journal = self.route_journal.as_mut().unwrap();
+            journal.workspace_payload_bytes = payload;
+            journal.workspace.push(WorkspaceUndo::DeltaClear(old_delta));
+            self.observe_workspace_capacity(true)?;
+            let payload = self.workspace_payload_after(self.diagnostic_delta_indices.capacity(), std::mem::size_of::<(CanonicalValuePairKey, usize)>())?;
+            let mut indices = HashMap::new();
+            reserve_f5b(&mut indices, self.diagnostic_delta_indices.capacity(), F5bCapacityLane::DiagnosticDeltaIndices)?;
+            let old_indices = std::mem::replace(&mut self.diagnostic_delta_indices, indices);
+            let journal = self.route_journal.as_mut().unwrap();
+            journal.workspace_payload_bytes = payload;
+            journal.workspace.push(WorkspaceUndo::IndexClear(old_indices));
+            self.observe_workspace_capacity(true)?;
+        }
+        if !self.workspace_retains_allocations() && self.route_journal.is_some() {
+            self.reserve_workspace_undo(1)?;
+            self.route_journal.as_mut().unwrap().workspace.push(WorkspaceUndo::FreshDiagnosticClear);
+        }
+        self.clear_diagnostic_scratch_unjournalled();
+        Ok(())
+    }
+
+    fn clear_diagnostic_scratch_unjournalled(&mut self) {
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.sync_f5c_structured_pair_scratch();
         self.diagnostic_delta.clear();
@@ -32746,4 +33155,158 @@ mod value_entry_effect_tests {
         assert!(matches!(initial.run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
         assert!(session("my ignore x = ()").run_candidate().is_ok());
     }
+}
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod retained_drain_workspace_tests {
+    use super::*;
+
+    fn fixture() -> (InferenceSession, usize) {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed = 1");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("retained-drain", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        let binding = session.batch.hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding), _ => None,
+        }).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let key = CanonicalValuePairKey { lower: ValueEndpointKey::BottomPositive, upper: ValueEndpointKey::TopNegative };
+        let index = session.with_route_transaction(|session| {
+            let index = session.start_typed_drain(item(key), &occurrence, &cause, None)?;
+            assert_eq!(session.step_typed_drain(index)?, DrainStep::More);
+            Ok(index)
+        }).unwrap();
+        (session, index)
+    }
+
+    fn item(key: CanonicalValuePairKey) -> TypedWorkItem {
+        TypedWorkItem { task: LiveConstraintTask::Value(key), relation: None, replay_ack: None }
+    }
+
+    #[test]
+    fn retained_workspace_inverse_mutations_restore_order_frontier_and_growth_allocations() {
+        let (mut session, index) = fixture();
+        let roots: Vec<_> = (0..12).map(|_| {
+            let row = session.fresh_value_at_level(1).unwrap();
+            CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(row), upper: ValueEndpointKey::TopNegative }
+        }).collect();
+        session.typed_worklist = VecDeque::with_capacity(1);
+        session.enqueue_item(item(roots[0]), false).unwrap();
+        session.diagnostic_delta = Vec::with_capacity(1);
+        session.diagnostic_delta_indices = HashMap::new();
+        session.reserve_diagnostic_admission(roots[0]).unwrap();
+        session.admit_diagnostic(roots[0]).unwrap();
+        let queue = session.typed_worklist.clone();
+        let delta = session.diagnostic_delta.clone();
+        let indices = session.diagnostic_delta_indices.clone();
+        let capacities = (session.typed_worklist.capacity(), session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity());
+        let frame = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].clone();
+        assert_eq!(session.resume_typed_drain_route(index, |session, _| {
+            session.enqueue_item(item(roots[1]), false)?;
+            session.enqueue_item(item(roots[2]), true)?;
+            assert_eq!(session.pop_worklist()?.unwrap().task, LiveConstraintTask::Value(roots[2]));
+            let before_duplicate = session.diagnostic_delta.clone();
+            session.reserve_diagnostic_admission(roots[0])?;
+            session.admit_diagnostic(roots[0])?;
+            assert_eq!(session.diagnostic_delta, before_duplicate);
+            for &root in &roots[1..] {
+                session.reserve_diagnostic_admission(root)?;
+                session.admit_diagnostic(root)?;
+            }
+            assert!(session.typed_worklist.capacity() > capacities.0);
+            assert!(session.diagnostic_delta.capacity() > capacities.1);
+            assert!(session.diagnostic_delta_indices.capacity() > capacities.2);
+            let journal = session.route_journal.as_ref().unwrap();
+            assert_eq!(journal.checked_retained_bytes()?, journal.checked_independent_retained_bytes()?);
+            assert!(journal.workspace.iter().any(|undo| matches!(undo, WorkspaceUndo::WorklistGrowth(_))));
+            session.clear_diagnostic_scratch()?;
+            assert!(session.diagnostic_delta.is_empty());
+            assert!(session.diagnostic_delta_indices.is_empty());
+            let journal = session.route_journal.as_ref().unwrap();
+            assert_eq!(journal.checked_retained_bytes()?, journal.checked_independent_retained_bytes()?);
+            assert!(journal.workspace.iter().any(|undo| matches!(undo, WorkspaceUndo::DeltaClear(_))));
+            session.reserve_diagnostic_admission(roots[1])?;
+            session.admit_diagnostic(roots[1])?;
+            Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.typed_worklist, queue);
+        assert_eq!(session.diagnostic_delta, delta);
+        assert_eq!(session.diagnostic_delta_indices, indices);
+        assert_eq!((session.typed_worklist.capacity(), session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity()), capacities);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index], frame);
+        let spare = session.route_journal_spare.as_ref().unwrap();
+        assert!(spare.workspace.is_empty());
+        assert_eq!(spare.checked_retained_bytes().unwrap(), spare.checked_independent_retained_bytes().unwrap());
+    }
+
+    #[test]
+    fn retained_driver_resumes_saved_item_and_only_completes_after_return_ready() {
+        let (mut session, index) = fixture();
+        let initial = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].clone();
+        assert!(initial.current.is_some(), "the first committed step owns its popped item");
+        let queue = session.typed_worklist.clone();
+        let queue_capacity = session.typed_worklist.capacity();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            for _ in 0..3 { assert_eq!(session.step_typed_drain(index)?, DrainStep::More); }
+            Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index], initial);
+        assert_eq!(session.typed_worklist, queue);
+        assert_eq!(session.typed_worklist.capacity(), queue_capacity);
+        let mut completed = false;
+        for _ in 0..16 {
+            let result = session.resume_typed_drain_route(index, |session, index| {
+                let stage = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].stage;
+                let step = session.step_typed_drain(index)?;
+                if matches!(step, DrainStep::Complete(_)) {
+                    assert_eq!(stage, candidate_context::TypedDrainStage::ReturnReady);
+                }
+                Ok(step)
+            }).unwrap();
+            if let DrainStep::Complete(receipt) = result {
+                assert_eq!(receipt.transitions, 0);
+                completed = true;
+                break;
+            }
+        }
+        assert!(completed);
+        assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.is_empty());
+        assert!(session.typed_worklist.is_empty());
+        assert!(session.errors.is_empty());
+    }
+    #[test]
+    fn retained_dense_index_rollback_restores_capacity_without_growth() {
+        let (mut session, index) = fixture();
+        let roots: Vec<_> = (0..26).map(|_| {
+            let row = session.fresh_value_at_level(1).unwrap();
+            CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(row), upper: ValueEndpointKey::TopNegative }
+        }).collect();
+        session.diagnostic_delta = Vec::with_capacity(64);
+        session.diagnostic_delta_indices = HashMap::with_capacity(24);
+        for &root in &roots[..24] {
+            session.reserve_diagnostic_admission(root).unwrap();
+            session.admit_diagnostic(root).unwrap();
+        }
+        let delta = session.diagnostic_delta.clone();
+        let indices = session.diagnostic_delta_indices.clone();
+        let capacities = (session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity());
+        assert!(capacities.1 >= roots.len());
+        assert_eq!(session.resume_typed_drain_route(index, |session, _| {
+            for &root in &roots[24..] {
+                session.reserve_diagnostic_admission(root)?;
+                session.admit_diagnostic(root)?;
+            }
+            assert_eq!((session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity()), capacities);
+            assert!(session.route_journal.as_ref().unwrap().workspace.iter().all(|undo|
+                !matches!(undo, WorkspaceUndo::DeltaGrowth(_) | WorkspaceUndo::IndexGrowth(_))));
+            Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.diagnostic_delta, delta);
+        assert_eq!(session.diagnostic_delta_indices, indices);
+        assert_eq!((session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity()), capacities);
+    }
+
 }

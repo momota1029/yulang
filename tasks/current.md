@@ -8790,15 +8790,22 @@ resume caller exists, route entry requires an empty worklist, and route
 rollback clears queue/diagnostic scratch instead of restoring a prior retained
 queue. The owner-composition proof and bounded test contract are now recorded
 in [the continuation research notes](../notes/progress/2026-10-11-nonterminal-drain-owner-composition-proof.md).
-The next M2 gate is a retained nonterminal drain owner with per-mutation queue
-and diagnostic-frontier undo, exact parent completion receipts, and full
-outstanding-prefix preflight before effects, pop, append, or direct Function
-admission. Whole-workspace copying per resume is excluded by the structural
-cost audit. The selected implementation seam and stop conditions are in
-[the owner plan](../notes/progress/2026-10-11-nonterminal-drain-owner-seam.md).
-Preserve terminal one-ack behavior and repeated operation occurrences. q113,
-complete Simple-sub inference, soundness/principality, and F5 cutover remain
-open.
+The bounded M2 retained-drain owner implementation is now in place: per-step
+full-prefix preflight, per-mutation queue/frontier undo, exact completion
+receipts, retained-allocation restoration, and a production synchronous adapter
+share one start/step driver. Existing terminal one-ack behavior and repeated
+operation occurrences remain intact. Compiler-referee and spec-auditor reviews
+found no issue; the focused owner, terminal, Function, replay, and restoration
+checks passed. See the [retained owner record](../notes/progress/2026-10-11-nonterminal-retained-drain-owner.md).
+
+The production adapter remains synchronous and the retained resume driver is
+private test scaffolding. The parent constructive proof remains OPEN until the
+original source paths and proof invariant have a complete correspondence.
+Authentic source suspension, lifecycle invalidation and ordered observation
+withdrawal/recomputation, external incidence deferral, resumable SCC
+publication, q113, complete Simple-sub inference, soundness/principality, and
+F5 cutover remain open. The [owner plan](../notes/progress/2026-10-11-nonterminal-drain-owner-seam.md)
+records the implementation boundary and stop conditions.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no

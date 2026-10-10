@@ -705,7 +705,10 @@ impl InferenceSession {
             return Ok(Some(emission));
         }
         if let Some(replay) = active {
-            self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?;
+            if self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?
+                != candidate_context::ReplayDriveOutcome::Complete {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.advance_restoration(restoration, transactional);
             return Ok(None);
         }
