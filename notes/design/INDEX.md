@@ -38,6 +38,14 @@ This index is a navigation aid. The listed source document remains authoritative
   Historical construction routes do not retain authority over a withdrawn
   mechanism. See the scoped delivery and remaining migration in that record.
 
+- **Ordinary successor HIR carrier (reviewed proposal; approval pending):**
+  [supplementary source carrier](2026-10-10-ordinary-hir-successor-carrier.md)
+  retains source facts after ordinary admission without changing HIR items,
+  diagnostics, recovery, or ordinary occurrence identities. Directly enabling
+  the existing opt-in carrier is incompatible with those contracts. The
+  proposed sidecar is not implementation authority and closes no default
+  inference, public export, Call, hygiene, soundness/principality, or F5 gate.
+
 - **Current user-selected intrusion operation (2026-10-10):**
   [parent-copy SCC equality](2026-10-10-parent-copy-scc-intrusion.md) retains
   parents at extrusion and equates parent/copy variables when they enter the

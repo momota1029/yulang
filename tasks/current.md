@@ -7571,3 +7571,22 @@ out of scope. Contextual residual identity is selected, but concrete negative
 formal rows remain gated on source admission and full residual lifecycle
 obligations. Authentic operation execution/Force, complete Call, effect hygiene,
 public/default cutover and F5 replacement remain open.
+
+### Ordinary HIR successor carrier proposal (2026-10-10)
+
+The ordinary route still omits the source carrier required by successor
+collection. A read-only HIR authority audit found that directly setting the
+existing `local_source` switch would change ordinary header admission,
+diagnostics, availability failures, and occurrence ordinals. A reviewed
+proposal now specifies a supplementary per-admitted-root carrier formed after
+ordinary HIR construction, with source-ordered outcomes and staged provenance
+publication. It preserves existing HIR errors/recovery and does not expand
+header admission. The spec audit and independent compiler review found no
+remaining proposal findings after two minor precision repairs. This is a new
+internal architecture decision; the proposal remains non-authoritative pending
+user approval. No implementation, tests, or builds ran for this proposal.
+
+Next: obtain the scoped carrier decision, then implement and verify the
+behavior-preserving HIR bridge before connecting ordinary collection and the
+public successor result. The full ordinary/public/F5 migration, exact callback
+effect hygiene, complete Call, soundness and principality remain open.
