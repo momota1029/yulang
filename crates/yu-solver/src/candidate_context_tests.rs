@@ -4005,3 +4005,87 @@ fn owned_function_dispatch_retains_admitted_child_until_enqueue_and_rolls_back()
         assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
     }
 }
+
+#[test]
+fn source_local_annotation_wait_retains_construction_and_restores_prior_frame_on_failure() {
+    use crate::candidate_source::{CandidateRun, Schedule, Stage, Support, Wait};
+    let mut session = session_with_source("my outer = { my local:int = 1; local }");
+    let root = session.batch.definitions[0].root.clone();
+    let position = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, crate::candidate_source::Action::LocalAnnotation { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next < position {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    let frame = session.candidate_graph.as_ref().unwrap().source.unwrap();
+    let Stage::PublishLocal { slot, exposed, .. } = frame.stage else { panic!("constructed annotation must await publication"); };
+    assert_eq!(frame.next, position, "construction does not consume the publication action");
+    assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_none());
+    let bounds_len = session.bounds.len();
+    let facts_len = session.store.facts.len();
+    let wait = Wait { generation: 7, dependency: position };
+    assert_eq!(session.drive_candidate_source(Support { wait: Some(wait) }).unwrap(), CandidateRun::Suspended(wait));
+    let waiting = session.candidate_graph.as_ref().unwrap().source.unwrap();
+    let counters = session.execution_counters.clone();
+    let samples = session.resource_boundary_samples;
+    for _ in 0..3 {
+        assert_eq!(session.drive_candidate_source(Support { wait: Some(wait) }).unwrap(), CandidateRun::Suspended(wait));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().source, Some(waiting));
+        assert_eq!(session.resource_boundary_samples, samples, "unchanged wait does no work or sampling");
+    }
+    assert_eq!(session.execution_counters, counters);
+    let mut checkpoint = None;
+    assert_eq!(session.with_route_transaction(|session| {
+        checkpoint = Some(RouteCheckpoint::capture(session));
+        assert_eq!(session.step_candidate_source(Support::READY)?, CandidateRun::Complete(false));
+        assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_some());
+        assert_eq!(session.candidate_graph.as_ref().unwrap().source.unwrap().next, position + 1);
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    checkpoint.unwrap().assert_restored(&session);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().source, Some(waiting), "rollback restores a frame present before the checkpoint, including its wait and constructed root");
+    assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_none());
+    session.with_route_transaction(|session| {
+        assert_eq!(session.step_candidate_source(Support::READY)?, CandidateRun::Complete(false));
+        Ok(())
+    }).unwrap();
+    let scheme = session.candidate_graph.as_ref().unwrap().locals[slot].as_ref().unwrap();
+    assert_eq!(ValueEndpointKey::ValueRow(scheme.root), session.value_endpoint(exposed, Polarity::Positive));
+    assert_eq!(session.bounds.len(), bounds_len, "publication does not reconstruct the exposed root");
+    assert_eq!(session.store.facts.len(), facts_len, "publication does not repeat annotation links");
+    assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
+    assert!(session.candidate_graph.as_ref().unwrap().source.is_none());
+}
+
+#[test]
+fn source_cursor_wait_after_completed_local_use_does_not_freshen_it_again() {
+    use crate::candidate_source::{Action, CandidateRun, Schedule, Support, Wait};
+    let text = "my outer = { my id x = x; my first = id 1; id 2 }";
+    let mut session = session_with_source(text);
+    let root = session.batch.definitions[0].root.clone();
+    let first_use = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, Action::Local { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next <= first_use {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    assert_eq!(session.candidate_graph.as_ref().unwrap().local_routes.len(), 1);
+    let next_use = state(&session).checkpoint();
+    let facts_len = session.store.facts.len();
+    let wait = Wait { generation: 11, dependency: first_use + 1 };
+    for _ in 0..3 {
+        assert_eq!(session.drive_candidate_source(Support { wait: Some(wait) }).unwrap(), CandidateRun::Suspended(wait));
+        assert_eq!(state(&session).checkpoint(), next_use, "waiting preserves the completed per-use identities");
+        assert_eq!(session.store.facts.len(), facts_len);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().local_routes.len(), 1);
+    }
+    assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
+    assert_eq!(session.candidate_graph.as_ref().unwrap().local_routes.len(), 2, "only the remaining source occurrence freshens");
+    let mut uninterrupted = session_with_source(text);
+    let root = uninterrupted.batch.definitions[0].root.clone();
+    uninterrupted.execute_candidate_source_root(&root).unwrap();
+    assert_eq!(session.candidate_graph.as_ref().unwrap().local_routes.len(), uninterrupted.candidate_graph.as_ref().unwrap().local_routes.len());
+    assert_eq!(session.store.facts.len(), uninterrupted.store.facts.len());
+    assert_eq!(session.errors, uninterrupted.errors);
+}

@@ -1018,6 +1018,15 @@ impl InferenceSession {
         endpoint: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
         level: u32, boundary: u32, computation_effect: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        let exposed = self.construct_candidate_local_annotation(annotation, slot, endpoint, occurrence, level, computation_effect)?;
+        self.install_candidate_local_term(slot, exposed, boundary)
+    }
+
+    pub(super) fn construct_candidate_local_annotation(
+        &mut self, annotation: &SourceAnnotation, slot: usize,
+        endpoint: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
+        level: u32, computation_effect: usize,
+    ) -> Result<Term, SolveAvailabilityError> {
         if !candidate_source::preflight_local_annotation(&annotation.ty) { return Err(exhausted()); }
         let scope = AnnotationScope::Local(self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone());
         let context = SignatureContext::Annotation(annotation, scope);
@@ -1060,8 +1069,7 @@ impl InferenceSession {
             if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 4 { stage.set(0); true } else { false }) { return Err(exhausted()); }
             let upper = self.live_value_term(Polarity::Negative, root)?;
             self.admit_candidate_value_link(occurrence, 41, positive, upper)?;
-            let exposed = self.live_value_term(Polarity::Positive, root)?;
-            self.install_candidate_local_term(slot, exposed, boundary)
+            self.live_value_term(Polarity::Positive, root)
         })();
         drop((value_variables, effect_variables, views));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;

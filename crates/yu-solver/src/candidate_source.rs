@@ -28,6 +28,30 @@ pub(super) enum Action {
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
+// The plan remains immutable while this frame is live. Root positions select
+// the original schedule, so resume never reconstructs actions from graph edges.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Schedule { Loose, Root(usize) }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Stage { Execute, PublishLocal { slot: usize, exposed: Term, boundary: u32 } }
+// Synthetic source-boundary token, not a certificate or readiness witness.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Wait { pub generation: u64, pub dependency: usize }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Frame {
+    pub schedule: Schedule,
+    pub next: usize,
+    pub stage: Stage,
+    pub wait: Option<Wait>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CandidateRun<T> { Complete(T), Suspended(Wait) }
+// Only the test adapter supplies a wait here; a production lifecycle owner
+// must supply authenticated support before this can be connected to certificates.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Support { pub wait: Option<Wait> }
+impl Support { pub const READY: Self = Self { wait: None }; }
+
 impl Plan {
     pub fn bytes(&self) -> usize {
         checked_usize_sum([
@@ -535,19 +559,86 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn execute_candidate_loose(&mut self) -> Result<(), SolveAvailabilityError> {
-        let actions = std::mem::take(&mut self.batch.candidate_source.loose);
-        let result = self.execute_candidate_actions(&actions);
-        self.batch.candidate_source.loose = actions;
-        result
+        self.execute_candidate_source_schedule(Schedule::Loose)
     }
     pub(super) fn execute_candidate_source_root(&mut self, root: &DefinitionRootId) -> Result<(), SolveAvailabilityError> {
-        let actions = self.batch.candidate_source.schedules.remove(root).ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let result = self.execute_candidate_actions(&actions);
-        self.batch.candidate_source.schedules.insert(root.clone(), actions);
-        result
+        let position = *self.batch.root_definition_positions.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.execute_candidate_source_schedule(Schedule::Root(position))
     }
-    fn execute_candidate_actions(&mut self, actions: &[Action]) -> Result<(), SolveAvailabilityError> {
-        for action in actions {
+    fn execute_candidate_source_schedule(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
+        self.begin_candidate_source(schedule)?;
+        let result = self.drive_candidate_source(Support::READY);
+        if result.is_err() { self.candidate_graph.as_mut().unwrap().source = None; }
+        match result? {
+            CandidateRun::Complete(()) => Ok(()),
+            CandidateRun::Suspended(_) => unreachable!("synchronous source caller supplies supported execution"),
+        }
+    }
+    pub(super) fn begin_candidate_source(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
+        let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if state.source.is_some() { return Err(SolveAvailabilityError::IdentityExhausted); }
+        state.source = Some(Frame { schedule, next: 0, stage: Stage::Execute, wait: None });
+        if let Err(error) = self.sample_f4_resources(ResourceBoundary::SourceDrafts) {
+            self.candidate_graph.as_mut().unwrap().source = None;
+            return Err(error);
+        }
+        Ok(())
+    }
+    // This private driver retains the session in `self`. Until inner operations
+    // have retained outcomes, support may only change at completed action or
+    // construction boundaries. Production certificate creation remains disabled.
+    pub(super) fn drive_candidate_source(&mut self, support: Support) -> Result<CandidateRun<()>, SolveAvailabilityError> {
+        loop {
+            match self.step_candidate_source(support)? {
+                CandidateRun::Complete(true) => return Ok(CandidateRun::Complete(())),
+                CandidateRun::Complete(false) => {},
+                CandidateRun::Suspended(wait) => return Ok(CandidateRun::Suspended(wait)),
+            }
+        }
+    }
+    pub(super) fn step_candidate_source(&mut self, support: Support) -> Result<CandidateRun<bool>, SolveAvailabilityError> {
+        let frame = self.candidate_graph.as_ref().and_then(|state| state.source).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if let Some(wait) = support.wait {
+            self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = Some(wait);
+            return Ok(CandidateRun::Suspended(wait));
+        }
+        self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = None;
+        if let Stage::PublishLocal { slot, exposed, boundary } = frame.stage {
+            self.install_candidate_local_term(slot, exposed, boundary)?;
+            let current = self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap();
+            current.stage = Stage::Execute;
+            current.next += 1;
+            return Ok(CandidateRun::Complete(false));
+        }
+        let actions = match frame.schedule {
+            Schedule::Loose => &self.batch.candidate_source.loose,
+            Schedule::Root(position) => {
+                let root = &self.batch.definitions.get(position).ok_or(SolveAvailabilityError::IdentityExhausted)?.root;
+                self.batch.candidate_source.schedules.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?
+            }
+        };
+        let Some(action) = actions.get(frame.next).cloned() else {
+            self.candidate_graph.as_mut().unwrap().source = None;
+            return Ok(CandidateRun::Complete(true));
+        };
+        match &action {
+            Action::Install { slot, initializer, boundary } => {
+                let exposed = self.candidate_endpoint(*initializer, Polarity::Positive)?;
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().stage = Stage::PublishLocal { slot: *slot, exposed, boundary: *boundary };
+                return Ok(CandidateRun::Complete(false));
+            }
+            Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => {
+                let exposed = self.construct_candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *computation_effect)?;
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().stage = Stage::PublishLocal { slot: *slot, exposed, boundary: *boundary };
+                return Ok(CandidateRun::Complete(false));
+            }
+            _ => {},
+        }
+        self.execute_candidate_action(&action)?;
+        self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().next += 1;
+        Ok(CandidateRun::Complete(false))
+    }
+    fn execute_candidate_action(&mut self, action: &Action) -> Result<(), SolveAvailabilityError> {
             match action {
                 Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
@@ -572,7 +663,6 @@ impl InferenceSession {
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
             }
-        }
         Ok(())
     }
 }

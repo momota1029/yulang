@@ -8108,6 +8108,8 @@ struct RouteMutationJournal {
     candidate_local_routes_len: usize,
     candidate_local_slots: Vec<usize>,
     #[cfg(feature = "shadow-apply-candidate")]
+    candidate_source: Option<candidate_source::Frame>,
+    #[cfg(feature = "shadow-apply-candidate")]
     intrusion: Option<candidate_intrusion::Undo>,
     store: RouteStoreJournal,
     value_rows_len: usize,
@@ -8983,6 +8985,8 @@ impl InferenceSession {
                 candidate_local_routes_len: 0,
                 candidate_local_slots: Vec::new(),
                 #[cfg(feature = "shadow-apply-candidate")]
+                candidate_source: None,
+                #[cfg(feature = "shadow-apply-candidate")]
                 intrusion: None,
                 store: RouteStoreJournal {
                     facts_len: 0,
@@ -9102,6 +9106,7 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         {
             journal.intrusion = self.candidate_graph.as_ref().map(|state| state.intrusion.begin());
+            journal.candidate_source = self.candidate_graph.as_ref().and_then(|state| state.source);
             journal.candidate_local_routes_len = self.candidate_graph.as_ref().map(|state| state.local_routes.len()).unwrap_or(0);
             journal.candidate_routes_len = self.candidate_graph
                 .as_ref()
@@ -9172,6 +9177,7 @@ impl InferenceSession {
                         state.intrusion.effect_algebra.context.commit_replay_operations(undo.effect_algebra.context_checkpoint());
                     }
                     journal.intrusion = None;
+                    journal.candidate_source = None;
                 }
                 self.store.commit_route();
                 self.route_journal_spare = Some(journal);
@@ -9318,6 +9324,7 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &mut self.candidate_graph {
             if let Some(undo) = journal.intrusion.take() { state.intrusion.rollback(undo, &mut self.typed_pairs); }
+            state.source = journal.candidate_source.take();
             for slot in journal.candidate_local_slots.drain(..) {
                 state.locals[slot] = None;
             }
@@ -10531,8 +10538,13 @@ impl InferenceSession {
                         .as_ref()
                         .map(|state| {
                             let intrusion_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.intrusion.as_ref()).map(|undo| undo.bytes()).transpose()?.unwrap_or(0);
+                            let intrusion_bytes = state.intrusion.bytes()?;
+                            let source_bytes = state.source.map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);
+                            let source_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.candidate_source).map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);
                             state.retained_bytes
-                                .checked_add(state.intrusion.bytes()?)
+                                .checked_add(source_bytes)
+                                .and_then(|bytes| bytes.checked_add(source_undo_bytes))
+                                .and_then(|bytes| bytes.checked_add(intrusion_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.scratch_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.orchestration_bytes))
                                 .and_then(|bytes| bytes.checked_add(intrusion_undo_bytes))

@@ -8688,3 +8688,37 @@ compiler-referee review. One minor hypothesis gap was repaired by explicitly
 seeding required-omega ownership at activation and excluding unscheduled
 required omegas at terminal publication. This strengthens only a conditional
 lemma; Alternative A/B and the source-level decision remain OPEN.
+
+The next source continuation slice now retains the immutable loose/root action
+schedule, action cursor, construction/publication stage, and a private synthetic
+wait. Local annotation and Install keep their constructed term through a wait;
+route rollback restores a pre-existing frame and local slot. The two named
+source-driver regressions passed, as did the no-feature solver check. The
+compiler-referee and spec-auditor found no issue within this bounded slice.
+See the [private source-action suspension record](../notes/progress/2026-10-11-private-source-action-suspension.md).
+This does not suspend inside freshening, restoration, replay, typed drain,
+Function dispatch, extrusion, or recomputation, and it does not add lifecycle
+generation/support registration, observation withdrawal, recomputation, or
+resumable SCC publication.
+
+The [resumed-restoration proof note](../notes/progress/2026-10-11-resumed-restoration-source-correspondence.md)
+derives trace equality only under aligned mutation schedules and retained
+frames/batches. Its concrete parent/copy vector witness shows an externally
+interleaved incidence change can alter a saved live index; §4/§5 therefore
+requires deferral while that dependency is unresolved. The separate
+[incidence audit](../notes/progress/2026-10-11-resume-incidence-falsifier.md)
+confirms that direct appends and redirects also affect the existing synchronous
+live-index loop; it does not establish a current source-level resume failure.
+The [authentic §7 route search](../notes/progress/2026-10-11-authentic-lifecycle-source-route.md)
+remains an unreviewed bounded obstruction: current retained-input construction
+still lacks readiness/filter/dependent-observation witnesses, and the available
+six-product source route supplies no late Function/swap witness. These notes
+do not close source reachability, q113 A/B, or the suspension lifecycle.
+
+Immediate next gate: add the lifecycle-generation and exact observation-support
+owners that can gate source waits; defer only cross-component mutations whose
+owner/vector/fiber dependencies intersect a suspended continuation. Then retain
+the fresh-use restoration/typed-child handoff, withdraw and recompute dependent
+observations in order, and continue toward atomic SCC publication. Keep the
+authentic §7 source-owned late Function/swap regression and production
+certificate readiness as explicit later closure requirements.

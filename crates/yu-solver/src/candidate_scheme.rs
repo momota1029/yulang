@@ -9,6 +9,7 @@ pub(super) struct GraphState {
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
+    pub source: Option<candidate_source::Frame>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
     pub orchestration_bytes: usize,
