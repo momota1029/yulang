@@ -1,4 +1,4 @@
-//! Identity-context relation authority for the private candidate.
+//! Exact structural context relation authority for the private candidate.
 //! Derivations are a separate fiber: retaining another origin does not create
 //! another semantic task or unfold a recursive identity derivation.
 use crate::candidate_effect::BoundKey;
@@ -9,6 +9,45 @@ pub(super) struct RelationId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ContextId(u32);
 const IDENTITY: ContextId = ContextId(0);
+// This handle names a complete immutable operation payload. Its source-owned
+// constructor is a later seam; nominal effect or attachment IDs are not weights.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "operation payload construction is a later gate")
+)]
+struct LocalWeightId(u32);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct EntryCertificateId(u32);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "context propagation is a later gate")
+)]
+enum ContextExpr {
+    PrefixLeft {
+        weight: LocalWeightId,
+        input: ContextId,
+    },
+    SuffixRightPops {
+        input: ContextId,
+        weight: LocalWeightId,
+    },
+    Swap {
+        input: ContextId,
+    },
+    BothFromRight {
+        input: ContextId,
+        certificate: EntryCertificateId,
+    },
+    Replay {
+        lower: ContextId,
+        upper: ContextId,
+    },
+    WithoutLeftFilter {
+        input: ContextId,
+    },
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct RelationKey {
     pair: TypedPairKey,
@@ -52,6 +91,8 @@ struct Origin {
 }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    contexts: Vec<ContextExpr>,
+    context_keys: HashMap<ContextExpr, ContextId>,
     relations: Vec<Relation>,
     keys: HashMap<RelationKey, RelationId>,
     dependencies: Vec<Dependency>,
@@ -67,6 +108,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    contexts: usize,
     relations: usize,
     dependencies: usize,
     origins: usize,
@@ -80,6 +122,7 @@ fn exhausted() -> SolveAvailabilityError {
 impl State {
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            contexts: self.contexts.len(),
             relations: self.relations.len(),
             dependencies: self.dependencies.len(),
             origins: self.origins.len(),
@@ -89,6 +132,9 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for context in self.contexts.drain(checkpoint.contexts..) {
+            self.context_keys.remove(&context);
+        }
         for relation in self.relations.drain(checkpoint.relations..) {
             self.keys.remove(&relation.key);
         }
@@ -112,6 +158,12 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            self.contexts
+                .capacity()
+                .checked_mul(std::mem::size_of::<ContextExpr>()),
+            self.context_keys
+                .capacity()
+                .checked_mul(std::mem::size_of::<(ContextExpr, ContextId)>()),
             self.relations
                 .capacity()
                 .checked_mul(std::mem::size_of::<Relation>()),
@@ -170,7 +222,9 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.relations.capacity() * std::mem::size_of::<Relation>()
+        self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
+            + self.context_keys.capacity() * std::mem::size_of::<(ContextExpr, ContextId)>()
+            + self.relations.capacity() * std::mem::size_of::<Relation>()
             + self.keys.capacity() * std::mem::size_of::<(RelationKey, RelationId)>()
             + self.dependencies.capacity() * std::mem::size_of::<Dependency>()
             + self.dependency_keys.capacity() * std::mem::size_of::<Dependency>()
@@ -182,11 +236,49 @@ impl State {
             + self.edge_log.capacity() * std::mem::size_of::<(RelationId, RelationId)>()
             + adjacency_bytes
     }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "context propagation is a later gate")
+    )]
+    fn context(&mut self, expression: ContextExpr) -> Result<ContextId, SolveAvailabilityError> {
+        match expression {
+            ContextExpr::PrefixLeft { input, .. }
+            | ContextExpr::SuffixRightPops { input, .. }
+            | ContextExpr::Swap { input }
+            | ContextExpr::BothFromRight { input, .. }
+            | ContextExpr::WithoutLeftFilter { input } => self.assert_context(input),
+            ContextExpr::Replay { lower, upper } => {
+                self.assert_context(lower);
+                self.assert_context(upper);
+            }
+        }
+        if let Some(&id) = self.context_keys.get(&expression) {
+            return Ok(id);
+        }
+        let id = ContextId(
+            u32::try_from(self.contexts.len())
+                .map_err(|_| exhausted())?
+                .checked_add(1)
+                .ok_or_else(exhausted)?,
+        );
+        self.contexts.try_reserve(1).map_err(|_| exhausted())?;
+        self.context_keys.try_reserve(1).map_err(|_| exhausted())?;
+        self.contexts.push(expression);
+        self.context_keys.insert(expression, id);
+        Ok(id)
+    }
+    fn assert_context(&self, context: ContextId) {
+        assert!(
+            context == IDENTITY || context.0 as usize <= self.contexts.len(),
+            "context must be identity or an already interned node"
+        );
+    }
     fn relation(
         &mut self,
         pair: TypedPairKey,
         context: ContextId,
     ) -> Result<RelationId, SolveAvailabilityError> {
+        self.assert_context(context);
         let key = RelationKey { pair, context };
         if let Some(&id) = self.keys.get(&key) {
             return Ok(id);

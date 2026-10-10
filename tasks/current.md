@@ -7707,3 +7707,22 @@ Next: implement contextual attachment/context operations and the two-cycle
 certificate lifecycle on this single relation authority, preserving the exact
 formal-row refusal and source admission. Keep ordinary carrier approval and
 the later default/public cutover as separate gates.
+
+### Exact context-expression DAG foundation (2026-10-10)
+
+The private relation store now interns exact structural operation nodes for
+prefix/suffix, Function transforms, ordered replay and filter erasure. Child
+sharing/order, opaque weight identity and source-owned `both` certificate
+identity survive keying; node creation rolls back and retained capacity is
+accounted. The focused 12-test context suite passes, and independent exact
+conformance review found no finding. Production relation constructors remain
+identity-only, so this foundation does not yet propagate annotations or effects.
+See [the progress record](../notes/progress/2026-10-10-exact-context-expression-dag.md).
+
+Next: resolve the pending annotation-member attachment identity question, then
+construct authentic source-owned weight/filter payloads and carry contextual
+relation identity through worklist scheduling, bound insertion/replay,
+extrusion, capture/freshening and intrusion. The certified-cycle invalidation
+and rollback/retry gate remains required before admitting those recursive
+contexts. Complete Call, effect hygiene, ordinary/default/public migration,
+soundness/principality and F5 retirement remain open.

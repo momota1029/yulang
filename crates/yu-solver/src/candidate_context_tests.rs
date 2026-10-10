@@ -280,10 +280,13 @@ fn same_endpoints_keep_distinct_context_handles_and_intern_each_key_once() {
     let mut context = State::default();
     let pair = task_pair(task(0, 0));
     let identity = context.relation(pair, IDENTITY).unwrap();
-    let distinct = context.relation(pair, ContextId(1)).unwrap();
+    let operation = context
+        .context(ContextExpr::Swap { input: IDENTITY })
+        .unwrap();
+    let distinct = context.relation(pair, operation).unwrap();
     assert_ne!(identity, distinct);
     assert_eq!(context.relation(pair, IDENTITY).unwrap(), identity);
-    assert_eq!(context.relation(pair, ContextId(1)).unwrap(), distinct);
+    assert_eq!(context.relation(pair, operation).unwrap(), distinct);
     assert_eq!(context.relations.len(), 2);
     assert_eq!(context.keys.len(), 2);
 }
@@ -367,4 +370,146 @@ fn contextual_adjacency_retained_bytes_match_owned_capacity_across_rollback() {
         })
         .unwrap();
     assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn exact_context_operations_intern_ordered_payloads_and_shared_children() {
+    let mut context = State::default();
+    let first = ContextExpr::PrefixLeft {
+        weight: LocalWeightId(0),
+        input: IDENTITY,
+    };
+    let left = context.context(first).unwrap();
+    assert_eq!(context.context(first).unwrap(), left);
+    let different_payload = context
+        .context(ContextExpr::PrefixLeft {
+            weight: LocalWeightId(1),
+            input: IDENTITY,
+        })
+        .unwrap();
+    assert_ne!(left, different_payload);
+    let right = context
+        .context(ContextExpr::SuffixRightPops {
+            input: IDENTITY,
+            weight: LocalWeightId(0),
+        })
+        .unwrap();
+    assert_ne!(left, right);
+    let left_then_right = context
+        .context(ContextExpr::SuffixRightPops {
+            input: left,
+            weight: LocalWeightId(0),
+        })
+        .unwrap();
+    let right_then_left = context
+        .context(ContextExpr::PrefixLeft {
+            weight: LocalWeightId(0),
+            input: right,
+        })
+        .unwrap();
+    assert_ne!(left_then_right, right_then_left);
+    let shared = ContextExpr::Replay {
+        lower: left,
+        upper: left,
+    };
+    let shared_id = context.context(shared).unwrap();
+    assert_eq!(context.context(shared).unwrap(), shared_id);
+    assert_eq!(context.contexts[shared_id.0 as usize - 1], shared);
+    let ordered = context
+        .context(ContextExpr::Replay {
+            lower: left,
+            upper: right,
+        })
+        .unwrap();
+    let reversed = context
+        .context(ContextExpr::Replay {
+            lower: right,
+            upper: left,
+        })
+        .unwrap();
+    assert_ne!(ordered, reversed);
+    assert_ne!(ordered, shared_id);
+    let swap = context.context(ContextExpr::Swap { input: left }).unwrap();
+    let both = context
+        .context(ContextExpr::BothFromRight {
+            input: left,
+            certificate: EntryCertificateId(0),
+        })
+        .unwrap();
+    let without = context
+        .context(ContextExpr::WithoutLeftFilter { input: left })
+        .unwrap();
+    let different_certificate = context
+        .context(ContextExpr::BothFromRight {
+            input: left,
+            certificate: EntryCertificateId(1),
+        })
+        .unwrap();
+    assert_ne!(both, different_certificate);
+    let pair = task_pair(task(0, 0));
+    let first_relation = context.relation(pair, both).unwrap();
+    let second_relation = context.relation(pair, different_certificate).unwrap();
+    assert_ne!(first_relation, second_relation);
+    assert_ne!(swap, both);
+    assert_ne!(both, without);
+    assert_ne!(swap, without);
+}
+
+#[test]
+fn context_nodes_rollback_atomically_with_relations_and_retain_capacity_accounting() {
+    let mut session = session();
+    let before = state(&session).checkpoint();
+    let before_bytes = state(&session).bytes().unwrap();
+    let run = |session: &mut InferenceSession| {
+        let context = &mut session
+            .candidate_graph
+            .as_mut()
+            .unwrap()
+            .intrusion
+            .effect_algebra
+            .context;
+        let mut input = IDENTITY;
+        for payload in 0..24 {
+            input = context.context(ContextExpr::PrefixLeft {
+                weight: LocalWeightId(payload),
+                input,
+            })?;
+            context.relation(task_pair(task(0, 0)), input)?;
+        }
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(input)
+    };
+    let result = session.with_route_transaction(|session| {
+        run(session)?;
+        Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+    });
+    assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+    let context = state(&session);
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(context.context_keys.len(), before.contexts);
+    assert_eq!(context.keys.len(), before.relations);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    assert!(context.bytes().unwrap() >= before_bytes);
+    let retried = session.with_route_transaction(run).unwrap();
+    assert_eq!(retried, ContextId(before.contexts as u32 + 24));
+    let context = state(&session);
+    assert_eq!(context.contexts.len(), before.contexts + 24);
+    assert_eq!(context.context_keys.len(), context.contexts.len());
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+#[should_panic(expected = "context must be identity or an already interned node")]
+fn context_construction_rejects_nonexistent_child() {
+    let mut context = State::default();
+    let _ = context.context(ContextExpr::Swap {
+        input: ContextId(1),
+    });
+}
+
+#[test]
+#[should_panic(expected = "context must be identity or an already interned node")]
+fn relation_construction_rejects_nonexistent_context() {
+    let mut context = State::default();
+    let _ = context.relation(task_pair(task(0, 0)), ContextId(1));
 }
