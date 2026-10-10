@@ -7217,6 +7217,33 @@ implement and verify the complete contextual slice. Concrete annotation
 construction, filters/use, generalization/freshening/rollback, public inference,
 full Call, hygiene and F5 cutover remain open.
 
+### Newly integrated mixed-context research (2026-10-10)
+
+Four upstream research artifacts were integrated at `9610f0c3e` through
+`c2674ba5a`. Their claims remain producer-frozen and independently unreviewed;
+none changes source semantics or production code.
+
+- The two-ID shared-child construction proves undecidability for an unguarded
+  abstract mixed-weight grammar support query. Its bridge to authentic source
+  programs and a required compiler consumer is explicitly absent, so it does
+  not prove source-level impossibility or authorize restricting source input.
+- The nonpositive-displacement result gives an exact finite observer for its
+  stated grammar class and arbitrary finite future contexts. The invariant is
+  not established for actual source suppliers; positive-displacement recursive
+  suppliers remain outside that result.
+- The self-edge result makes equal endpoints insufficient for contextual
+  omission. Its candidate criterion is empty residual directed context at the
+  actual mix-normal boundary while preserving checks and filter events. The
+  source bridge remains conditional on the missing explicit contextual
+  constructor and transport.
+
+These results reinforce the need to keep residual identity, source admission,
+and generic algebra decidability as separate obligations. They do not resolve
+the residual-lineage question or justify a finite entry cap. Continue with the
+user decision in the [contextual residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md),
+then establish the authentic source admission envelope before enabling the
+concrete formal-row path.
+
 ### Returning recursive PUSH: direct source instance solved (2026-10-10)
 
 The user's follow-up explicitly required solving recursive PUSH or deriving a
