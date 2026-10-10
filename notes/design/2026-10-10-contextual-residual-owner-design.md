@@ -15,9 +15,12 @@ Supersedes: None
 The selected annotation policy is unchanged: contravariant concrete `[E]`
 permits local subtraction at that annotation position; covariant `[E]` allows
 that concrete effect. The returned callback scheme remains
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The example composes annotation-local
-subtraction/hygiene with the distinct `run_io` operation semantics; neither
-obligation proves the other.
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The whole example is an end-to-end
+hygiene obligation: its construction and proof need annotation-local authority,
+the `run_io` handler residual, preservation of independent effects, and the
+returned Function use. These have distinct owners, but handler residual
+behavior is not outside the hygiene case. Existing conditional results do not
+prove the exact source/result pair.
 
 The approved intrusion rule still equates an actual parent/copy row pair when
 the pair is in one SCC. This draft asks how contextual residual owners follow

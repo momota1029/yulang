@@ -6893,16 +6893,18 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
 The user's expected scheme is
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The example composes two distinct
-responsibilities: `run_io` must handle `io` in the computation while retaining
-independent `'b` flow, and the callback annotation's `[io]` attachment has its
-own local subtraction and hygiene obligations. Hygiene does not define or
-prove `run_io` semantics. The earlier wording that collapsed the full example
-into one hygiene discussion was mistaken. Intermediate notes omitting the
-returned `int ->` layer are also mistaken transcriptions. The current candidate
-supports singleton variable-only formal effect tails as ordinary rows, but
-still rejects concrete `[E]` attachments; the complete example remains
-unaccepted and unverified.
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The whole source/result pair is an
+end-to-end effect-hygiene obligation: `run_io` must consume the locally
+permitted `io`, independent `'b` flow must survive, and the annotation's
+authority must remain local across shared rows, same-family contributions,
+callback uses and the returned-function use. These have distinct
+construction/proof owners, but the claim that handler residual behavior is
+outside the hygiene discussion was mistaken. Existing conditional hygiene
+results do not prove this exact source/result derivation. Intermediate notes
+omitting the returned `int ->` layer are also mistaken transcriptions. The
+current candidate supports singleton variable-only formal effect tails as
+ordinary rows, but still rejects concrete `[E]` attachments; the complete
+example remains unaccepted and unverified.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle

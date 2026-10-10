@@ -167,12 +167,13 @@ effects from its checks. This scheme is not a claim that
 the current successor accepts the source or that the whole type is already
 verified by a runtime test.
 
-The example composes two distinct responsibilities. `run_io: cb 1` must have
-ordinary application and handler semantics that remove the handled `io` from
-the enclosing computation while preserving the callback's independent `'b`
-effect. The annotation policy separately governs the local `[io]` attachment
-at the callback boundary. For that subtraction, hygiene requires preserving
-the shared row, independent same-family contributions, and other callback
-uses. Hygiene does not define `run_io` or prove its handler behavior. The
-current paired formal constructor still rejects explicit effect rows; this
-scenario remains an end-to-end target for both open responsibilities.
+The whole example is an end-to-end effect-hygiene obligation. Its expected
+scheme depends on `run_io: cb 1` consuming the locally permitted `io` while
+preserving independent `'b` flow, and on the `[io]` attachment retaining its
+local authority across shared rows, same-family contributions, callback uses,
+and returned-function use. These are distinct construction and proof owners,
+but treating handler residual behavior as outside the hygiene discussion is a
+mistake: the integration target is the exact source/result pair above. Existing
+conditional hygiene results may supply premises, but they do not establish
+that this source derives the exact scheme. The current paired formal constructor
+still rejects explicit effect rows, so the end-to-end target remains unverified.
