@@ -324,17 +324,35 @@ impl InferenceSession {
     ) -> Result<Option<candidate_context::RelationId>, SolveAvailabilityError> {
         self.candidate_context_admit(task)
     }
+    #[cfg(test)]
+    pub(super) fn candidate_bound_origin_count(&self, bound: BoundKey) -> usize {
+        self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.origins.get(&bound).map_or(0, Vec::len)
+    }
     pub(super) fn candidate_bound_origin(
+        &mut self, bound: BoundKey, explicit: Option<TypedPairKey>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let Some(graph) = &self.candidate_graph else { return Ok(()); };
+        let cause = candidate_context::BoundAdmissionCause::OwnerEmission { processing: graph.intrusion.effect_algebra.context.processing };
+        self.candidate_bound_origin_with_evidence(bound, explicit, cause).map(|_| ())
+    }
+    pub(super) fn candidate_bound_origin_with_evidence(
         &mut self,
         bound: BoundKey,
         explicit: Option<TypedPairKey>,
-    ) -> Result<(), SolveAvailabilityError> {
-        let Some(graph) = &self.candidate_graph else { return Ok(()); };
+        cause: candidate_context::BoundAdmissionCause,
+    ) -> Result<candidate_context::BoundAdmissionId, SolveAvailabilityError> {
+        let graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
         let origin = explicit.or(graph.intrusion.effect_algebra.processing).unwrap_or_else(|| bound_pair(bound));
-        self.candidate_context_bound(bound, origin)?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.evidence_attempt();
+        let relation = self.candidate_context_bound(bound, origin)?;
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
         if state.origin_keys.contains(&(bound, origin)) {
-            return Ok(());
+            let id = state.context.evidence_admit(bound, origin, relation, cause, true)?;
+            state.context.evidence_admission_sample();
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            #[cfg(test)]
+            self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::Admission)?;
+            return Ok(id);
         }
         let mut undo = self
             .route_journal
@@ -367,7 +385,12 @@ impl InferenceSession {
         if let Some(undo) = undo {
             undo.origins.push((bound, origin, new));
         }
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        let id = state.context.evidence_admit(bound, origin, relation, cause, false)?;
+        state.context.evidence_admission_sample();
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::Admission)?;
+        Ok(id)
     }
     pub(super) fn candidate_capture_incidence(
         &mut self, tail: u32, source: u32, view: u32,
@@ -443,7 +466,7 @@ impl InferenceSession {
         while let Some(index) = cursor {
             let (parent, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
             cursor = next;
-            self.candidate_context_transport_witness(parent, to, 0, Some(candidate_context::TransportWitness { from, to, reason }))?;
+            self.candidate_context_transport_witness_with_evidence(parent, to, 0, candidate_context::TransportWitness { from, to, reason })?;
         }
         let count = self
             .candidate_graph
@@ -462,7 +485,15 @@ impl InferenceSession {
                 .intrusion
                 .effect_algebra
                 .origins[&from][index];
-            self.candidate_bound_origin(to, Some(origin))?;
+            // The origin table does not retain an origin-to-fiber association.
+            // Do not infer one from endpoints; this transport has an explicit gap.
+            let relation = None;
+            let snapshot = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.evidence_snapshot(from, relation)
+                .with_gap(candidate_context::CoverageGap::MissingOriginAssociation);
+            let antecedent = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.import_evidence(snapshot)?;
+            self.candidate_bound_origin_with_evidence(to, Some(origin), candidate_context::BoundAdmissionCause::BoundTransport { antecedent, through: reason })?;
+            #[cfg(test)]
+            self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::Transport)?;
         }
         Ok(())
     }

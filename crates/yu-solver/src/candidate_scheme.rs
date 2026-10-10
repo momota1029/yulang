@@ -14,6 +14,20 @@ pub(super) struct GraphState {
     pub orchestration_bytes: usize,
     pub capture_peak_bytes: usize,
     pub use_peak_bytes: usize,
+    #[cfg(test)]
+    pub evidence_failure: Option<candidate_context::EvidenceFailurePoint>,
+    #[cfg(test)]
+    pub failed_evidence_point: Option<candidate_context::EvidenceFailurePoint>,
+    #[cfg(test)]
+    pub failed_evidence_sample: Option<(candidate_context::EvidenceFailurePoint, usize, usize)>,
+    #[cfg(test)]
+    pub import_failure_sample: Option<(usize, usize, bool)>,
+    #[cfg(test)]
+    pub failed_import_count: Option<usize>,
+    #[cfg(test)]
+    pub capture_evidence_peak_capacity: usize,
+    #[cfg(test)]
+    pub import_evidence_peak_capacity: usize,
 }
 
 #[derive(Debug)]
@@ -21,6 +35,7 @@ pub(super) struct Graph {
     pub nodes: Vec<Node>,
     pub rows: Vec<Row>,
     pub bounds: Vec<Bound>,
+    pub bound_evidence: Vec<candidate_context::EvidenceSnapshot>,
     pub attachment_bundles: Vec<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>,
     pub attachment_spans: HashMap<candidate_context::RelationId, (usize, usize)>,
     pub context_views: Vec<(candidate_context::LocalWeightId, u32, Option<usize>)>,
@@ -76,8 +91,12 @@ pub(super) enum Atom {
     EffectBottom,
     EmptyEffect,
 }
+// This reference is valid only inside its owning Graph.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CapturedEvidenceRef(pub usize);
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Bound {
+    pub evidence: CapturedEvidenceRef,
     pub relation: Option<candidate_context::RelationId>,
     pub source_bound: candidate_effect::BoundKey,
     pub kind: ComponentKind,
@@ -138,6 +157,7 @@ impl Graph {
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<Bound>(self.bounds.capacity())?,
+            bytes::<candidate_context::EvidenceSnapshot>(self.bound_evidence.capacity())?,
             bytes::<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>(self.attachment_bundles.capacity())?,
             bytes::<(candidate_context::RelationId, (usize, usize))>(self.attachment_spans.capacity())?,
         ])
@@ -164,7 +184,15 @@ impl GraphState {
         Ok(())
     }
 }
+#[derive(Default)]
+struct CaptureEvidenceMeter {
+    bytes: std::cell::Cell<usize>,
+    #[cfg(test)]
+    capacity: std::cell::Cell<usize>,
+}
 struct Capture<'a> {
+    evidence_keys: HashMap<candidate_context::EvidenceSnapshot, CapturedEvidenceRef>,
+    evidence_charge: &'a CaptureEvidenceMeter,
     session: &'a InferenceSession,
     graph: Graph,
     endpoints: HashMap<Endpoint, usize>,
@@ -174,6 +202,15 @@ struct Capture<'a> {
     boundary: u32,
 }
 impl<'a> Capture<'a> {
+    fn charge_evidence(&self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.evidence_charge.capacity.set(self.evidence_keys.capacity());
+        self.evidence_charge.bytes.set(sum(&[
+            bytes::<(candidate_context::EvidenceSnapshot, CapturedEvidenceRef)>(self.evidence_keys.capacity())?,
+            bytes::<candidate_context::EvidenceSnapshot>(self.graph.bound_evidence.capacity())?,
+        ])?);
+        Ok(())
+    }
     fn intern(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
         let endpoint = match endpoint { Endpoint::Value(v, p) => Endpoint::Value(self.session.canonical_value(v), p), Endpoint::Effect(e, p) => Endpoint::Effect(self.session.canonical_effect(e), p) };
         if let Some(&index) = self.endpoints.get(&endpoint) {
@@ -429,7 +466,25 @@ impl<'a> Capture<'a> {
             let key = (kind, side, lower, upper, relation);
             if self.bound_keys.contains(&key) { continue; }
             self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
-            push(&mut self.graph.bounds, Bound { relation, source_bound: candidate_effect::BoundKey(owner, side, item), kind, side, lower, upper })?;
+            let source_bound = candidate_effect::BoundKey(owner, side, item);
+            let snapshot = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.evidence_snapshot(source_bound, relation);
+            let evidence = if let Some(&evidence) = self.evidence_keys.get(&snapshot) { evidence } else {
+                let reserved = self.evidence_keys.try_reserve(1);
+                self.charge_evidence()?;
+                reserved.map_err(|_| exhausted())?;
+                let reserved = self.graph.bound_evidence.try_reserve(1);
+                self.charge_evidence()?;
+                reserved.map_err(|_| exhausted())?;
+                #[cfg(test)]
+                if self.session.candidate_graph.as_ref().unwrap().evidence_failure == Some(candidate_context::EvidenceFailurePoint::CaptureScratch) {
+                    return Err(exhausted());
+                }
+                let evidence = CapturedEvidenceRef(self.graph.bound_evidence.len());
+                self.graph.bound_evidence.push(snapshot);
+                self.evidence_keys.insert(snapshot, evidence);
+                evidence
+            };
+            push(&mut self.graph.bounds, Bound { evidence, relation, source_bound, kind, side, lower, upper })?;
             self.bound_keys.insert(key);
         }
         Ok(())
@@ -560,17 +615,44 @@ impl InferenceSession {
     }
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
-        let result = self.capture_candidate_graph_inner(row, boundary);
-        if result.is_err() { self.candidate_graph.as_mut().unwrap().scratch_bytes = entry; }
+        let evidence_charge = CaptureEvidenceMeter::default();
+        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge);
+        #[cfg(test)]
+        {
+            let state = self.candidate_graph.as_mut().unwrap();
+            state.capture_evidence_peak_capacity = state.capture_evidence_peak_capacity.max(evidence_charge.capacity.get());
+        }
+        if result.is_err() {
+            // Capture owns immutable session access. Its checked capacity meter
+            // survives failure, so dropped transient evidence is still sampled.
+            let state = self.candidate_graph.as_mut().unwrap();
+            state.scratch_bytes = entry.checked_add(evidence_charge.bytes.get()).ok_or_else(exhausted)?;
+            state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
+            let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
+            #[cfg(test)]
+            if self.candidate_graph.as_ref().unwrap().evidence_failure == Some(candidate_context::EvidenceFailurePoint::CaptureScratch) {
+                let total = self.resource_ledger.inference_session_retained_bytes;
+                let state = self.candidate_graph.as_mut().unwrap();
+                state.evidence_failure = None;
+                state.failed_evidence_point = Some(candidate_context::EvidenceFailurePoint::CaptureScratch);
+                state.failed_evidence_sample = Some((candidate_context::EvidenceFailurePoint::CaptureScratch, state.scratch_bytes, total));
+            }
+            self.candidate_graph.as_mut().unwrap().scratch_bytes = entry;
+            // Preserve the original capture failure even if its sample also fails.
+            let _ = sampled;
+        }
         result
     }
-    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter) -> Result<Graph, SolveAvailabilityError> {
         let mut capture = Capture {
+            evidence_keys: HashMap::new(),
+            evidence_charge,
             session: self,
             graph: Graph {
                 nodes: Vec::new(),
                 rows: Vec::new(),
                 bounds: Vec::new(),
+                bound_evidence: Vec::new(),
                 attachment_bundles: Vec::new(),
                 attachment_spans: HashMap::new(),
                 context_views: Vec::new(),
@@ -643,6 +725,7 @@ impl InferenceSession {
             }
         }
         let scratch = sum(&[
+            bytes::<(candidate_context::EvidenceSnapshot, CapturedEvidenceRef)>(capture.evidence_keys.capacity())?,
             bytes::<candidate_context::ContextId>(context_seen.capacity())?,
             bytes::<candidate_context::LocalWeightId>(payload_seen.capacity())?,
             bytes::<candidate_context::ContextId>(context_pending.capacity())?,
@@ -660,6 +743,7 @@ impl InferenceSession {
             rows,
             pending,
             bound_keys,
+            evidence_keys,
             ..
         } = capture;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
@@ -670,12 +754,14 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
         let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
-        drop((endpoints, rows, pending, bound_keys, attachment_resolved, context_seen, payload_seen, context_pending, payloads));
+        drop((endpoints, rows, pending, bound_keys, evidence_keys, attachment_resolved, context_seen, payload_seen, context_pending, payloads));
         self.candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
             .scratch_bytes -= scratch;
         sampled?;
+        #[cfg(test)]
+        self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::CaptureScratch)?;
         Ok(graph)
     }
     pub(super) fn execute_candidate_graph_plan(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -993,6 +1079,62 @@ impl InferenceSession {
                 terms[index] = Some(term);
             }
         }
+        let mut evidence_remap = Vec::new();
+        let reserve_count = graph.bound_evidence.len();
+        #[cfg(test)]
+        let reserve_count = if self.candidate_graph.as_ref().unwrap().evidence_failure == Some(candidate_context::EvidenceFailurePoint::ImportReserve) {
+            // Exercise the real capacity-overflow error without allocating.
+            usize::MAX
+        } else { reserve_count };
+        let reserved = evidence_remap.try_reserve_exact(reserve_count);
+        let evidence_scratch = bytes::<candidate_context::EvidenceSnapshotId>(evidence_remap.capacity())?;
+        let state = self.candidate_graph.as_mut().unwrap();
+        #[cfg(test)]
+        { state.import_evidence_peak_capacity = state.import_evidence_peak_capacity.max(evidence_remap.capacity()); }
+        state.scratch_bytes = state.scratch_bytes.checked_add(evidence_scratch).ok_or_else(exhausted)?;
+        state.use_peak_bytes = state.use_peak_bytes.max(state.scratch_bytes);
+        let reservation = reserved.map_err(|_| exhausted());
+        let sampled = self.sample_f4_resources(ResourceBoundary::IncomingRoute);
+        if let Err(error) = reservation {
+            #[cfg(test)]
+            {
+                let state = self.candidate_graph.as_mut().unwrap();
+                state.import_failure_sample = Some((state.scratch_bytes, self.resource_ledger.inference_session_retained_bytes, sampled.is_ok()));
+                if state.evidence_failure == Some(candidate_context::EvidenceFailurePoint::ImportReserve) {
+                    state.evidence_failure = None;
+                    state.failed_evidence_point = Some(candidate_context::EvidenceFailurePoint::ImportReserve);
+                    state.failed_evidence_sample = Some((candidate_context::EvidenceFailurePoint::ImportReserve, state.scratch_bytes, self.resource_ledger.inference_session_retained_bytes));
+                    state.failed_import_count = Some(evidence_remap.len());
+                }
+            }
+            return Err(error);
+        }
+        sampled?;
+        let imported = (|| {
+            for &snapshot in &graph.bound_evidence {
+                let id = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.import_evidence(snapshot)?;
+                evidence_remap.push(id);
+                #[cfg(test)]
+                if evidence_remap.len() == 1 && evidence_remap.len() < graph.bound_evidence.len()
+                    && self.candidate_graph.as_ref().unwrap().evidence_failure == Some(candidate_context::EvidenceFailurePoint::ImportedSnapshot) {
+                    self.candidate_graph.as_mut().unwrap().failed_import_count = Some(evidence_remap.len());
+                    self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::ImportedSnapshot)?;
+                }
+            }
+            Ok::<(), SolveAvailabilityError>(())
+        })();
+        if let Err(error) = imported {
+            // The remap is still alive and charged at this error sample.
+            let sampled = self.sample_f4_resources(ResourceBoundary::IncomingRoute);
+            #[cfg(test)]
+            {
+                let state = self.candidate_graph.as_mut().unwrap();
+                state.import_failure_sample = Some((state.scratch_bytes, self.resource_ledger.inference_session_retained_bytes, sampled.is_ok()));
+            }
+            let _ = sampled;
+            return Err(error);
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         // Replay preserves the captured owner side even when fresh rows
         // share a level. Induced comparisons run on the ordinary worklist.
         for bound in &graph.bounds {
@@ -1016,6 +1158,7 @@ impl InferenceSession {
             } else {
                 (lower, upper)
             };
+            let mut mapped_relation = None;
             if let Some(parent) = bound.relation {
                 // One reconstruction route shares all captured relation inputs.
                 // Independent uses retain independent transport origins even
@@ -1023,13 +1166,17 @@ impl InferenceSession {
                 let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
                 let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
                     context_use, *context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound)?;
+                mapped_relation = Some(child);
                 if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
                     for &(_, old) in &graph.attachment_bundles[start..start + length] {
                         self.candidate_context_fresh_bundle(child, bundle_remap[&old])?;
                     }
                 }
             }
-            self.candidate_restore_bound(owner, bound.side, item, occurrence, cause)?;
+            let antecedent = *evidence_remap.get(bound.evidence.0).ok_or_else(exhausted)?;
+            self.candidate_restore_bound_with_evidence(owner, bound.side, item, occurrence, cause,
+                candidate_context::BoundAdmissionCause::FreshUse { antecedent, use_origin: context_use,
+                    source_bound: bound.source_bound, mapped_relation })?;
         }
         let lower = terms[graph.root].ok_or_else(exhausted)?;
         drop(bundle_remap);

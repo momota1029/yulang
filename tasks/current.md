@@ -8504,9 +8504,15 @@ append, but future certificate-dependent observations and publication still
 lack owners. The `current-component-generation-bridge` note's earlier claim
 that all nonidentity Swap contexts are unexecutable is stale: payload-free
 Swap/WithoutLeftFilter fragments are now accepted by the zero-word executor.
-The reviewed lifecycle contract remains unimplemented; its exact pre-existing
-identity FunctionPort regression and incremental-index/resource requirements
-are included in the next implementation packet.
+The [inert bound-evidence retention slice](../notes/progress/2026-10-11-bound-evidence-retention-slice.md)
+now records admissions, emissions, replay recipes, snapshots, reverse
+construction links, and fiber transforms with rollback/accounting. Its focused
+regressions cover the actual reservation-error branch, mid-import failure,
+two-fiber ambiguous-origin transport, and named Function-port polarity; 7
+focused tests passed. The conformance delta review passed. This supplies
+producer evidence only: it has no circuit-authorization consumer, and the
+reviewed invalidation/private-deferral/publication lifecycle remains
+unimplemented.
 
 That exact pre-existing-relation case now has a focused regression covering
 dependency-only evidence mutation, unchanged relation/context counts and

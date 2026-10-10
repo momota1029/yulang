@@ -201,8 +201,331 @@ impl BundleTransports {
             .and_then(|n| n.checked_add(self.log.capacity().checked_mul(std::mem::size_of::<(RelationId, RelationId, Option<usize>)>())?)).ok_or_else(exhausted)
     }
 }
+// Inert producer retention. IDs name construction records, never authorization.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct BoundAdmissionId(pub usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct BoundEmissionId(pub usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct BoundEvidenceGroupId(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct EvidenceSnapshotId(pub usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ReplayRecipeId(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) enum CoverageGap {
+    MissingBoundRelation, MissingBoundGroup, MissingPhysicalEmission, MissingAntecedent,
+    ProcessingAntecedentsUnavailable, OrdinarySeedAuthenticationUnavailable,
+    ReplayUseAntecedentsNotRetained, MissingOriginAssociation,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub(super) struct EvidenceCoverage { gaps: u8 }
+impl EvidenceCoverage {
+    fn add(&mut self, gap: CoverageGap) {
+        assert!((gap as u8) < u8::BITS as u8);
+        self.gaps |= 1 << gap as u8;
+    }
+    #[cfg(test)]
+    fn contains(self, gap: CoverageGap) -> bool { self.gaps & (1 << gap as u8) != 0 }
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) enum BoundLane {
+    ValueLowerRow, ValueUpperRow, ValueLowerAtom, ValueUpperAtom,
+    EffectLowerRow, EffectUpperRow, EffectLowerAtom, EffectUpperAtom,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct PhysicalBoundSlot { pub owner: candidate_scheme::RowKey, pub lane: BoundLane, pub index: usize }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum BoundAdmissionCause {
+    OwnerEmission { processing: Option<RelationId> },
+    FreshUse { antecedent: EvidenceSnapshotId, use_origin: usize, source_bound: BoundKey, mapped_relation: Option<RelationId> },
+    BoundTransport { antecedent: EvidenceSnapshotId, through: TransportReason },
+}
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "inert producer evidence has no authorization consumer"))]
+pub(super) struct BoundAdmission {
+    pub bound: BoundKey, pub origin: TypedPairKey, pub relation: RelationId,
+    group: BoundEvidenceGroupId, pub cause: BoundAdmissionCause, pub coverage: EvidenceCoverage,
+    previous_on_group: Option<BoundAdmissionId>,
+}
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "inert physical emission evidence"))]
+pub(super) struct BoundEmission {
+    pub admission: BoundAdmissionId, pub bound: BoundKey, pub physical: PhysicalBoundSlot,
+    previous_on_group: Option<BoundEmissionId>,
+}
+#[derive(Clone, Copy, Debug)]
+struct BoundEvidenceGroup {
+    admission_head: Option<BoundAdmissionId>, emission_head: Option<BoundEmissionId>,
+    coverage: EvidenceCoverage,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct EvidenceSnapshot {
+    pub source_bound: BoundKey, pub relation: Option<RelationId>,
+    admission_head: Option<BoundAdmissionId>, emission_head: Option<BoundEmissionId>,
+    pub coverage: EvidenceCoverage,
+}
+impl EvidenceSnapshot {
+    pub(super) fn with_gap(mut self, gap: CoverageGap) -> Self { self.coverage.add(gap); self }
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct FiberTransformId(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct FiberTransform {
+    antecedent: EvidenceSnapshotId, from: BoundKey, to: BoundKey,
+    source_relation: RelationId, child_relation: RelationId, reason: TransportReason,
+    coverage: EvidenceCoverage,
+}
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "typed inert reverse incidence has no authorization consumer"))]
+enum EvidenceDependent { Admission(BoundAdmissionId), FiberTransform(FiberTransformId) }
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "structural replay evidence has no authorization consumer"))]
+struct ReplayRecipe { dependency: Dependency, coverage: EvidenceCoverage }
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "inert reverse construction incidence"))]
+struct EvidenceReverseEdge { antecedent: EvidenceSnapshotId, dependent: EvidenceDependent, previous: Option<usize> }
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct EvidenceCounters {
+    attempts: usize, duplicate_admissions: usize, snapshot_hits: usize,
+    fresh_uses: usize, transports: usize, replay_visits: usize, recipe_hits: usize,
+    admission_samples: usize, emission_samples: usize, witness_attempts: usize, transform_hits: usize,
+}
+#[derive(Debug, Default)]
+struct BoundEvidence {
+    admissions: Vec<BoundAdmission>, emissions: Vec<BoundEmission>,
+    groups: Vec<BoundEvidenceGroup>, group_keys: HashMap<(BoundKey, RelationId), BoundEvidenceGroupId>,
+    group_log: Vec<(BoundEvidenceGroupId, BoundEvidenceGroup)>,
+    snapshots: Vec<EvidenceSnapshot>, snapshot_keys: HashMap<EvidenceSnapshot, EvidenceSnapshotId>,
+    recipes: Vec<ReplayRecipe>, recipe_keys: HashMap<Dependency, ReplayRecipeId>,
+    reverse: Vec<EvidenceReverseEdge>, reverse_heads: HashMap<EvidenceSnapshotId, usize>,
+    transforms: Vec<FiberTransform>, transform_keys: HashMap<FiberTransform, FiberTransformId>,
+    transform_children: HashMap<RelationId, FiberTransformId>,
+    transform_child_log: Vec<(RelationId, FiberTransformId, Option<FiberTransformId>)>,
+    counters: EvidenceCounters,
+    #[cfg(test)]
+    failed_attempts: usize,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct EvidenceCheckpoint {
+    admissions: usize, emissions: usize, groups: usize, group_log: usize,
+    snapshots: usize, recipes: usize, reverse: usize, transforms: usize, transform_children: usize, counters: EvidenceCounters,
+}
+impl BoundEvidence {
+    fn checkpoint(&self) -> EvidenceCheckpoint {
+        EvidenceCheckpoint { admissions: self.admissions.len(), emissions: self.emissions.len(),
+            groups: self.groups.len(), group_log: self.group_log.len(), snapshots: self.snapshots.len(),
+            recipes: self.recipes.len(), reverse: self.reverse.len(), transforms: self.transforms.len(),
+            transform_children: self.transform_child_log.len(), counters: self.counters }
+    }
+    fn rollback(&mut self, checkpoint: EvidenceCheckpoint) {
+        #[cfg(test)]
+        { self.failed_attempts += self.counters.attempts - checkpoint.counters.attempts; }
+        for edge in self.reverse.drain(checkpoint.reverse..).rev() {
+            if let Some(previous) = edge.previous { self.reverse_heads.insert(edge.antecedent, previous); }
+            else { self.reverse_heads.remove(&edge.antecedent); }
+        }
+        for (child, _, previous) in self.transform_child_log.drain(checkpoint.transform_children..).rev() {
+            if let Some(previous) = previous { self.transform_children.insert(child, previous); }
+            else { self.transform_children.remove(&child); }
+        }
+        for transform in self.transforms.drain(checkpoint.transforms..) { self.transform_keys.remove(&transform); }
+        for (group, old) in self.group_log.drain(checkpoint.group_log..).rev() { self.groups[group.0] = old; }
+        // Every new group has an admission whose immutable key owns its map entry.
+        for admission in &self.admissions[checkpoint.admissions..] {
+            if admission.group.0 >= checkpoint.groups { self.group_keys.remove(&(admission.bound, admission.relation)); }
+        }
+        for snapshot in self.snapshots.drain(checkpoint.snapshots..) { self.snapshot_keys.remove(&snapshot); }
+        for recipe in self.recipes.drain(checkpoint.recipes..) { self.recipe_keys.remove(&recipe.dependency); }
+        self.admissions.truncate(checkpoint.admissions);
+        self.emissions.truncate(checkpoint.emissions);
+        self.groups.truncate(checkpoint.groups);
+        self.counters = checkpoint.counters;
+    }
+    fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        let parts = [
+            Some(std::mem::size_of::<EvidenceCounters>() + if cfg!(test) { std::mem::size_of::<usize>() } else { 0 }),
+            self.admissions.capacity().checked_mul(std::mem::size_of::<BoundAdmission>()),
+            self.emissions.capacity().checked_mul(std::mem::size_of::<BoundEmission>()),
+            self.groups.capacity().checked_mul(std::mem::size_of::<BoundEvidenceGroup>()),
+            self.group_keys.capacity().checked_mul(std::mem::size_of::<((BoundKey, RelationId), BoundEvidenceGroupId)>()),
+            self.group_log.capacity().checked_mul(std::mem::size_of::<(BoundEvidenceGroupId, BoundEvidenceGroup)>()),
+            self.snapshots.capacity().checked_mul(std::mem::size_of::<EvidenceSnapshot>()),
+            self.snapshot_keys.capacity().checked_mul(std::mem::size_of::<(EvidenceSnapshot, EvidenceSnapshotId)>()),
+            self.recipes.capacity().checked_mul(std::mem::size_of::<ReplayRecipe>()),
+            self.recipe_keys.capacity().checked_mul(std::mem::size_of::<(Dependency, ReplayRecipeId)>()),
+            self.transforms.capacity().checked_mul(std::mem::size_of::<FiberTransform>()),
+            self.transform_keys.capacity().checked_mul(std::mem::size_of::<(FiberTransform, FiberTransformId)>()),
+            self.transform_children.capacity().checked_mul(std::mem::size_of::<(RelationId, FiberTransformId)>()),
+            self.transform_child_log.capacity().checked_mul(std::mem::size_of::<(RelationId, FiberTransformId, Option<FiberTransformId>)>()),
+            self.reverse.capacity().checked_mul(std::mem::size_of::<EvidenceReverseEdge>()),
+            self.reverse_heads.capacity().checked_mul(std::mem::size_of::<(EvidenceSnapshotId, usize)>()),
+        ];
+        parts.into_iter().try_fold(0usize, |n, part| n.checked_add(part.ok_or_else(exhausted)?).ok_or_else(exhausted))
+    }
+    #[cfg(test)]
+    fn enumerated_bytes(&self) -> usize {
+        assert_eq!(self.group_keys.len(), self.groups.len());
+        assert_eq!(self.snapshot_keys.len(), self.snapshots.len());
+        assert_eq!(self.recipe_keys.len(), self.recipes.len());
+        for (&snapshot, &id) in &self.snapshot_keys { assert_eq!(self.snapshots[id.0], snapshot); }
+        for (&dependency, &id) in &self.recipe_keys { assert_eq!(self.recipes[id.0].dependency, dependency); }
+        for edge in &self.reverse {
+            match edge.dependent {
+                EvidenceDependent::Admission(id) => assert!(id.0 < self.admissions.len()),
+                EvidenceDependent::FiberTransform(id) => assert!(id.0 < self.transforms.len()),
+            }
+            assert!(edge.antecedent.0 < self.snapshots.len());
+        }
+        assert_eq!(self.transforms.len(), self.transform_keys.len());
+        for (&transform, &id) in &self.transform_keys { assert_eq!(self.transforms[id.0], transform); }
+        for (index, admission) in self.admissions.iter().enumerate() {
+            let _ = admission.origin;
+            if let Some(previous) = admission.previous_on_group {
+                assert!(previous.0 < index);
+                assert_eq!(self.admissions[previous.0].group, admission.group);
+            }
+        }
+        for emission in &self.emissions {
+            assert_eq!(emission.bound, self.admissions[emission.admission.0].bound);
+            if let Some(previous) = emission.previous_on_group { assert!(previous.0 < self.emissions.len()); }
+        }
+        std::mem::size_of::<EvidenceCounters>() + std::mem::size_of::<usize>()
+            + self.admissions.capacity() * std::mem::size_of::<BoundAdmission>()
+            + self.emissions.capacity() * std::mem::size_of::<BoundEmission>()
+            + self.groups.capacity() * std::mem::size_of::<BoundEvidenceGroup>()
+            + self.group_keys.capacity() * std::mem::size_of::<((BoundKey, RelationId), BoundEvidenceGroupId)>()
+            + self.group_log.capacity() * std::mem::size_of::<(BoundEvidenceGroupId, BoundEvidenceGroup)>()
+            + self.snapshots.capacity() * std::mem::size_of::<EvidenceSnapshot>()
+            + self.snapshot_keys.capacity() * std::mem::size_of::<(EvidenceSnapshot, EvidenceSnapshotId)>()
+            + self.recipes.capacity() * std::mem::size_of::<ReplayRecipe>()
+            + self.recipe_keys.capacity() * std::mem::size_of::<(Dependency, ReplayRecipeId)>()
+            + self.transforms.capacity() * std::mem::size_of::<FiberTransform>()
+            + self.transform_keys.capacity() * std::mem::size_of::<(FiberTransform, FiberTransformId)>()
+            + self.transform_children.capacity() * std::mem::size_of::<(RelationId, FiberTransformId)>()
+            + self.transform_child_log.capacity() * std::mem::size_of::<(RelationId, FiberTransformId, Option<FiberTransformId>)>()
+            + self.reverse.capacity() * std::mem::size_of::<EvidenceReverseEdge>()
+            + self.reverse_heads.capacity() * std::mem::size_of::<(EvidenceSnapshotId, usize)>()
+    }
+    fn snapshot(&self, source_bound: BoundKey, relation: Option<RelationId>) -> EvidenceSnapshot {
+        let mut coverage = EvidenceCoverage::default();
+        if relation.is_none() { coverage.add(CoverageGap::MissingBoundRelation); }
+        let group = relation.and_then(|relation| self.group_keys.get(&(source_bound, relation)))
+            .map(|id| self.groups[id.0]);
+        let (admission_head, emission_head) = if let Some(group) = group {
+            coverage.gaps |= group.coverage.gaps;
+            (group.admission_head, group.emission_head)
+        } else { coverage.add(CoverageGap::MissingBoundGroup); (None, None) };
+        if admission_head.is_none() { coverage.add(CoverageGap::MissingAntecedent); }
+        if emission_head.is_none() { coverage.add(CoverageGap::MissingPhysicalEmission); }
+        EvidenceSnapshot { source_bound, relation, admission_head, emission_head, coverage }
+    }
+    fn intern_snapshot(&mut self, snapshot: EvidenceSnapshot) -> Result<EvidenceSnapshotId, SolveAvailabilityError> {
+        if let Some(&id) = self.snapshot_keys.get(&snapshot) { self.counters.snapshot_hits += 1; return Ok(id); }
+        self.snapshots.try_reserve(1).map_err(|_| exhausted())?;
+        self.snapshot_keys.try_reserve(1).map_err(|_| exhausted())?;
+        let id = EvidenceSnapshotId(self.snapshots.len());
+        self.snapshots.push(snapshot);
+        self.snapshot_keys.insert(snapshot, id);
+        Ok(id)
+    }
+    fn admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: RelationId,
+        cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
+        let mut coverage = EvidenceCoverage::default();
+        let antecedent = match cause {
+            BoundAdmissionCause::OwnerEmission { .. } => {
+                coverage.add(CoverageGap::ProcessingAntecedentsUnavailable);
+                coverage.add(CoverageGap::OrdinarySeedAuthenticationUnavailable);
+                coverage.add(CoverageGap::MissingAntecedent);
+                None
+            }
+            BoundAdmissionCause::FreshUse { antecedent, .. } | BoundAdmissionCause::BoundTransport { antecedent, .. } => {
+                coverage = self.snapshots.get(antecedent.0).ok_or_else(exhausted)?.coverage;
+                Some(antecedent)
+            }
+        };
+        if matches!(cause, BoundAdmissionCause::FreshUse { .. }) { coverage.add(CoverageGap::ReplayUseAntecedentsNotRetained); }
+        self.admissions.try_reserve(1).map_err(|_| exhausted())?;
+        self.groups.try_reserve(1).map_err(|_| exhausted())?;
+        self.group_keys.try_reserve(1).map_err(|_| exhausted())?;
+        self.group_log.try_reserve(1).map_err(|_| exhausted())?;
+        if antecedent.is_some() {
+            self.reverse.try_reserve(1).map_err(|_| exhausted())?;
+            self.reverse_heads.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let group = if let Some(&group) = self.group_keys.get(&(bound, relation)) { group } else {
+            let group = BoundEvidenceGroupId(self.groups.len());
+            self.groups.push(BoundEvidenceGroup { admission_head: None, emission_head: None, coverage: EvidenceCoverage::default() });
+            self.group_keys.insert((bound, relation), group);
+            group
+        };
+        let old = self.groups[group.0];
+        self.group_log.push((group, old));
+        let id = BoundAdmissionId(self.admissions.len());
+        self.admissions.push(BoundAdmission { bound, origin, relation, group, cause, coverage, previous_on_group: old.admission_head });
+        self.groups[group.0].admission_head = Some(id);
+        self.groups[group.0].coverage.gaps |= coverage.gaps;
+        if let Some(antecedent) = antecedent {
+            let previous = self.reverse_heads.insert(antecedent, self.reverse.len());
+            self.reverse.push(EvidenceReverseEdge { antecedent, dependent: EvidenceDependent::Admission(id), previous });
+        }
+        self.counters.duplicate_admissions += usize::from(duplicate);
+        self.counters.fresh_uses += usize::from(matches!(cause, BoundAdmissionCause::FreshUse { .. }));
+        self.counters.transports += usize::from(matches!(cause, BoundAdmissionCause::BoundTransport { .. }));
+        Ok(id)
+    }
+    fn reserve_emission(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.emissions.try_reserve(1).map_err(|_| exhausted())?;
+        self.group_log.try_reserve(1).map_err(|_| exhausted())?;
+        Ok(())
+    }
+    fn emit(&mut self, admission: BoundAdmissionId, physical: PhysicalBoundSlot) -> BoundEmissionId {
+        let record = self.admissions[admission.0];
+        let old = self.groups[record.group.0];
+        self.group_log.push((record.group, old));
+        let id = BoundEmissionId(self.emissions.len());
+        self.emissions.push(BoundEmission { admission, bound: record.bound, physical, previous_on_group: old.emission_head });
+        self.groups[record.group.0].emission_head = Some(id);
+        id
+    }
+    fn transform(&mut self, antecedent: EvidenceSnapshotId, witness: TransportWitness,
+        source_relation: RelationId, child_relation: RelationId) -> Result<FiberTransformId, SolveAvailabilityError> {
+        self.counters.witness_attempts += 1;
+        let mut coverage = self.snapshots[antecedent.0].coverage;
+        coverage.add(CoverageGap::MissingOriginAssociation);
+        let transform = FiberTransform { antecedent, from: witness.from, to: witness.to,
+            source_relation, child_relation, reason: witness.reason, coverage };
+        if let Some(&id) = self.transform_keys.get(&transform) { self.counters.transform_hits += 1; return Ok(id); }
+        self.transforms.try_reserve(1).map_err(|_| exhausted())?;
+        self.transform_keys.try_reserve(1).map_err(|_| exhausted())?;
+        self.transform_children.try_reserve(1).map_err(|_| exhausted())?;
+        self.transform_child_log.try_reserve(1).map_err(|_| exhausted())?;
+        self.reverse.try_reserve(1).map_err(|_| exhausted())?;
+        self.reverse_heads.try_reserve(1).map_err(|_| exhausted())?;
+        let id = FiberTransformId(self.transforms.len());
+        self.transforms.push(transform);
+        self.transform_keys.insert(transform, id);
+        let previous = self.transform_children.insert(child_relation, id);
+        self.transform_child_log.push((child_relation, id, previous));
+        let previous = self.reverse_heads.insert(antecedent, self.reverse.len());
+        self.reverse.push(EvidenceReverseEdge { antecedent, dependent: EvidenceDependent::FiberTransform(id), previous });
+        Ok(id)
+    }
+    fn recipe(&mut self, dependency: Dependency) -> Result<(), SolveAvailabilityError> {
+        self.counters.replay_visits += 1;
+        if self.recipe_keys.contains_key(&dependency) { self.counters.recipe_hits += 1; return Ok(()); }
+        self.recipes.try_reserve(1).map_err(|_| exhausted())?;
+        self.recipe_keys.try_reserve(1).map_err(|_| exhausted())?;
+        let mut coverage = EvidenceCoverage::default();
+        coverage.add(CoverageGap::ReplayUseAntecedentsNotRetained);
+        self.recipe_keys.insert(dependency, ReplayRecipeId(self.recipes.len()));
+        self.recipes.push(ReplayRecipe { dependency, coverage });
+        Ok(())
+    }
+}
 #[derive(Debug, Default)]
 pub(super) struct State {
+    evidence: BoundEvidence,
     pub inferred_entries: Vec<InferredEntryOrigin>,
     pub bundles: Vec<AttachmentBundle>,
     bundle_bytes: usize,
@@ -242,6 +565,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    evidence: EvidenceCheckpoint,
     inferred_entries: usize,
     bundles: usize,
     source_bundles: usize,
@@ -1059,8 +1383,26 @@ impl State {
         })?;
         Ok(DetachedEvaluation { value, nodes })
     }
+    pub(super) fn evidence_snapshot(&self, bound: BoundKey, relation: Option<RelationId>) -> EvidenceSnapshot {
+        self.evidence.snapshot(bound, relation)
+    }
+    pub(super) fn import_evidence(&mut self, snapshot: EvidenceSnapshot) -> Result<EvidenceSnapshotId, SolveAvailabilityError> {
+        self.evidence.intern_snapshot(snapshot)
+    }
+    pub(super) fn evidence_admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: RelationId,
+        cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
+        self.evidence.admit(bound, origin, relation, cause, duplicate)
+    }
+    pub(super) fn evidence_attempt(&mut self) { self.evidence.counters.attempts += 1; }
+    pub(super) fn evidence_admission_sample(&mut self) { self.evidence.counters.admission_samples += 1; }
+    pub(super) fn reserve_evidence_emission(&mut self) -> Result<(), SolveAvailabilityError> { self.evidence.reserve_emission() }
+    pub(super) fn evidence_emit(&mut self, admission: BoundAdmissionId, slot: PhysicalBoundSlot) -> BoundEmissionId {
+        self.evidence.counters.emission_samples += 1;
+        self.evidence.emit(admission, slot)
+    }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            evidence: self.evidence.checkpoint(),
             inferred_entries: self.inferred_entries.len(),
             bundles: self.bundles.len(),
             source_bundles: self.source_bundle_log.len(),
@@ -1080,6 +1422,7 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        self.evidence.rollback(checkpoint.evidence);
         self.inferred_entries.truncate(checkpoint.inferred_entries);
         for bundle in self.bundles.drain(checkpoint.bundles..) {
             self.bundle_bytes -= bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>();
@@ -1137,6 +1480,7 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            Some(self.evidence.bytes()?),
             self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
             Some(self.bundle_bytes),
             self.bundles.capacity().checked_mul(std::mem::size_of::<AttachmentBundle>()),
@@ -1220,7 +1564,8 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
+        self.evidence.enumerated_bytes()
+            + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
             + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
             + self.source_bundles.capacity() * std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()
@@ -1591,7 +1936,24 @@ pub(super) fn bound_pair(BoundKey(owner, side, item): BoundKey) -> TypedPairKey 
         _ => unreachable!("bound component kind"),
     }
 }
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum EvidenceFailurePoint { Admission, Emission, ImportReserve, ImportedSnapshot, Transport, Recipe, CaptureScratch }
 impl InferenceSession {
+    #[cfg(test)]
+    pub(super) fn candidate_evidence_failure(&mut self, point: EvidenceFailurePoint) -> Result<(), SolveAvailabilityError> {
+        let graph = self.candidate_graph.as_mut().unwrap();
+        if graph.evidence_failure != Some(point) { return Ok(()); }
+        graph.evidence_failure = None;
+        graph.failed_evidence_point = Some(point);
+        // Fault injection follows a charged sample, including transient growth.
+        let scratch = graph.scratch_bytes;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        let total = self.resource_ledger.inference_session_retained_bytes;
+        self.candidate_graph.as_mut().unwrap().failed_evidence_sample = Some((point, scratch, total));
+        Err(exhausted())
+    }
+
     pub(super) fn candidate_context_pair(&self, pair: TypedPairKey) -> TypedPairKey {
         match pair {
             TypedPairKey::Value(pair) => TypedPairKey::Value(CanonicalValuePairKey {
@@ -1939,7 +2301,7 @@ impl InferenceSession {
         &mut self,
         bound: BoundKey,
         origin: TypedPairKey,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<RelationId, SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(bound));
         let origin = self.candidate_context_pair(origin);
         let origin_context = self.candidate_context_source(origin)?;
@@ -1975,7 +2337,8 @@ impl InferenceSession {
         let context = if checked_boundary { IDENTITY } else { state.post_check_context(parent) };
         let child = state.relation(pair, context)?;
         state.dependency(Dependency::Derived { child, parent })?;
-        state.attach(bound, child)
+        state.attach(bound, child)?;
+        Ok(child)
     }
     pub(super) fn candidate_context_replay<T>(
         &mut self,
@@ -2041,6 +2404,10 @@ impl InferenceSession {
                             else { state.context(ContextExpr::Replay { lower: lower_context, upper: upper_context })? };
                         let child = state.relation(pair, context)?;
                         let dependency = Dependency::Replay { child, lower, upper, lower_input, upper_input };
+                        state.evidence.recipe(dependency)?;
+                        #[cfg(test)]
+                        self.candidate_evidence_failure(EvidenceFailurePoint::Recipe)?;
+                        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
                         if !incoming_use && state.dependency_keys.contains(&dependency) { continue; }
                         state.dependency(dependency)?;
                         let old_capacity = replay.capacity();
@@ -2118,10 +2485,28 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         self.candidate_context_transport_witness(parent, to, use_origin, None)
     }
+    pub(super) fn candidate_context_transport_witness_with_evidence(
+        &mut self, parent: RelationId, to: BoundKey, use_origin: usize, witness: TransportWitness,
+    ) -> Result<(RelationId, FiberTransformId), SolveAvailabilityError> {
+        if to != witness.to { return Err(exhausted()); }
+        let pair = self.candidate_context_pair(bound_pair(to));
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let snapshot = state.evidence.snapshot(witness.from, Some(parent));
+        let antecedent = state.evidence.intern_snapshot(snapshot)?;
+        let child = state.relation(pair, state.post_check_context(parent))?;
+        state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(witness) })?;
+        let transform = state.evidence.transform(antecedent, witness, parent, child)?;
+        state.attach(to, child)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok((child, transform))
+    }
     pub(super) fn candidate_context_transport_witness(
         &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
         witness: Option<TransportWitness>,
     ) -> Result<(), SolveAvailabilityError> {
+        if let Some(witness) = witness {
+            return self.candidate_context_transport_witness_with_evidence(parent, to, use_origin, witness).map(|_| ());
+        }
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self
             .candidate_graph

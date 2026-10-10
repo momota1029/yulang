@@ -392,16 +392,22 @@ impl InferenceSession {
         p: Polarity,
         bound: ExtrusionEndpoint,
     ) -> Result<(), SolveAvailabilityError> {
-        self.candidate_insert_bound_impl(owner, p, bound, true)
+        let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
+        self.candidate_insert_bound_with_evidence(owner, p, bound, true,
+            candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
     }
     pub(super) fn candidate_insert_bound_without_capture(
         &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint,
     ) -> Result<(), SolveAvailabilityError> {
-        self.candidate_insert_bound_impl(owner, p, bound, false)
+        let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
+        self.candidate_insert_bound_with_evidence(owner, p, bound, false,
+            candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
     }
-    fn candidate_insert_bound_impl(
+    pub(super) fn candidate_insert_bound_with_evidence(
         &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint, capture: bool,
-    ) -> Result<(), SolveAvailabilityError> {
+        cause: candidate_context::BoundAdmissionCause,
+    ) -> Result<candidate_context::BoundEmissionId, SolveAvailabilityError> {
+        let mut physical: candidate_context::PhysicalBoundSlot;
         macro_rules! insert_bound {
             ($rows:ident, $index:expr, $field:ident, $item:expr, $lane:expr, $effect:expr) => {{
                 let i = $index;
@@ -416,12 +422,34 @@ impl InferenceSession {
                     std::mem::size_of_val(&$item),
                     reserved,
                 )?;
+                physical.index = self.$rows[i].$field.len();
                 self.$rows[i].$field.push($item);
             }};
         }
         let owner = self.canonical_extrusion(owner);
         let bound = self.canonical_extrusion(bound);
-        self.candidate_bound_origin(crate::candidate_effect::BoundKey(owner, p, bound), None)?;
+        use candidate_context::BoundLane;
+        use candidate_scheme::RowKey;
+        let (row, lane) = match (owner, bound, p) {
+            (ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)), ExtrusionEndpoint::Value(item), p)
+                if (i as usize) < self.bounds.len() => (RowKey::Value(i), match (p, item) {
+                    (Polarity::Positive, ValueEndpointKey::ValueRow(_)) => BoundLane::ValueLowerRow,
+                    (Polarity::Negative, ValueEndpointKey::ValueRow(_)) => BoundLane::ValueUpperRow,
+                    (Polarity::Positive, _) => BoundLane::ValueLowerAtom,
+                    (Polarity::Negative, _) => BoundLane::ValueUpperAtom,
+                }),
+            (ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(i)), ExtrusionEndpoint::Effect(item), p)
+                if (i as usize) < self.effect_bounds.len() => (RowKey::Effect(i), match (p, item) {
+                    (Polarity::Positive, EffectEndpointKey::EffectRow(_)) => BoundLane::EffectLowerRow,
+                    (Polarity::Negative, EffectEndpointKey::EffectRow(_)) => BoundLane::EffectUpperRow,
+                    (Polarity::Positive, _) => BoundLane::EffectLowerAtom,
+                    (Polarity::Negative, _) => BoundLane::EffectUpperAtom,
+                }),
+            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+        };
+        let admission = self.candidate_bound_origin_with_evidence(crate::candidate_effect::BoundKey(owner, p, bound), None, cause)?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.reserve_evidence_emission()?;
+        physical = candidate_context::PhysicalBoundSlot { owner: row, lane, index: 0 };
         match (owner, bound) {
             (
                 ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)),
@@ -527,8 +555,13 @@ impl InferenceSession {
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         }
         if capture { self.candidate_register_capture_bound(crate::candidate_effect::BoundKey(owner, p, bound))?; }
-        self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.dirty = true;
-        Ok(())
+        let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        graph.intrusion.dirty = true;
+        let emission = graph.intrusion.effect_algebra.context.evidence_emit(admission, physical);
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::Emission)?;
+        Ok(emission)
     }
 
     pub(super) fn candidate_opposite_count(
@@ -596,19 +629,30 @@ impl InferenceSession {
     /// Scheme initialization is entered with an idle solver. Each induced
     /// comparison drains the owning worklist and replays its diagnostic with
     /// the incoming use's provenance; no mutable completed parent is reused.
+    #[cfg(test)]
     pub(super) fn candidate_restore_bound(
+        &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<(), SolveAvailabilityError> {
+        let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
+        self.candidate_restore_bound_with_evidence(owner, p, bound, occurrence, cause,
+            candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
+    }
+
+    pub(super) fn candidate_restore_bound_with_evidence(
         &mut self,
         owner: ExtrusionEndpoint,
         p: Polarity,
         bound: ExtrusionEndpoint,
         occurrence: &ConstraintOccurrenceId,
         cause: &CauseId,
-    ) -> Result<(), SolveAvailabilityError> {
+        evidence: candidate_context::BoundAdmissionCause,
+    ) -> Result<candidate_context::BoundEmissionId, SolveAvailabilityError> {
         assert!(
             self.typed_worklist.is_empty(),
             "scheme initialization owns an idle worklist"
         );
-        self.candidate_insert_bound(owner, p, bound)?;
+        let emission = self.candidate_insert_bound_with_evidence(owner, p, bound, true, evidence)?;
         let owner = self.canonical_extrusion(owner);
         let bound = self.canonical_extrusion(bound);
         let count = self.candidate_opposite_count(owner, p)?;
@@ -639,7 +683,7 @@ impl InferenceSession {
                 Ok(())
             })?;
         }
-        Ok(())
+        Ok(emission)
     }
 
     pub(super) fn candidate_replay_bound(

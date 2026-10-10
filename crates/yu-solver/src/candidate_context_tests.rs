@@ -2210,6 +2210,7 @@ fn captured_bundle_spans_are_sparse_and_shared_across_reconstruction() {
     assert_eq!(graph.bytes().unwrap(), graph.nodes.capacity() * std::mem::size_of::<candidate_scheme::Node>()
         + graph.rows.capacity() * std::mem::size_of::<candidate_scheme::Row>()
         + graph.bounds.capacity() * std::mem::size_of::<candidate_scheme::Bound>()
+        + graph.bound_evidence.capacity() * std::mem::size_of::<EvidenceSnapshot>()
         + graph.attachment_bundles.capacity() * std::mem::size_of::<(RelationId, AttachmentBundleId)>()
         + graph.attachment_spans.capacity() * std::mem::size_of::<(RelationId, (usize, usize))>());
     let (occurrence, cause) = cause(&session, 93);
@@ -3155,4 +3156,354 @@ fn local_annotation_bridge_queued_endpoints_follow_parent_copy_equality() {
     let mut session = session_with_source("act E\nmy left (f:int -> ['r] int) g = { my bridge (consume:(int -> [E, 't] int) -> ['x] int): ((int -> [E, 't] int) -> ['x] int) -> [E, 'x] int = { my cb z = { my old = f 1; consume cb }; my feed = g bridge; consume cb }; bridge }");
     let owner = empty_bundle_owner(&session);
     session.execute_candidate_source_root(&owner).unwrap();
+}
+
+#[test]
+fn support_retention_duplicate_admissions_emissions_and_sampling_preserve_semantic_dedup() {
+    let mut session = session();
+    let owner = value(session.fresh_value_at_level(1).unwrap());
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let bound = BoundKey(owner, Polarity::Positive, lower);
+    let cause = BoundAdmissionCause::OwnerEmission { processing: None };
+    let first = session.candidate_insert_bound_with_evidence(owner, Polarity::Positive, lower, true, cause).unwrap();
+    let semantic = (state(&session).relations.len(), state(&session).bound_keys.len(), state(&session).dependencies.len());
+    let second = session.candidate_insert_bound_with_evidence(owner, Polarity::Positive, lower, true, cause).unwrap();
+    assert_ne!(first, second);
+    assert_eq!(semantic, (state(&session).relations.len(), state(&session).bound_keys.len(), state(&session).dependencies.len()));
+    while state(&session).evidence.admissions.len() < state(&session).evidence.admissions.capacity() {
+        session.candidate_bound_origin(bound, None).unwrap();
+    }
+    let before_len = state(&session).evidence.admissions.len();
+    let before = state(&session).evidence.counters;
+    let sampled_before = session.resource_ledger.inference_session_retained_bytes;
+    let bytes = state(&session).evidence.bytes().unwrap();
+    session.candidate_bound_origin(bound, None).unwrap();
+    let evidence = &state(&session).evidence;
+    assert_eq!(evidence.admissions.len(), before_len + 1);
+    assert_eq!(evidence.emissions.len(), 2);
+    assert_eq!(evidence.emissions[0].physical.index, 0);
+    assert_eq!(evidence.emissions[1].physical.index, 1);
+    assert_eq!(evidence.counters.admission_samples, before.admission_samples + 1);
+    assert_eq!(evidence.counters.duplicate_admissions, before.duplicate_admissions + 1);
+    assert!(evidence.bytes().unwrap() > bytes);
+    assert!(session.resource_ledger.inference_session_retained_bytes >= sampled_before + evidence.bytes().unwrap() - bytes);
+    assert_eq!(session.candidate_bound_origin_count(bound), 1);
+    assert!(evidence.admissions.iter().all(|admission| admission.coverage.contains(CoverageGap::OrdinarySeedAuthenticationUnavailable)));
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn support_retention_frozen_transitive_snapshots_and_delta_rollback() {
+    let mut session = session();
+    let (occurrence, cause) = cause(&session, 84);
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let a = BoundKey(value(session.fresh_value_at_level(2).unwrap()), Polarity::Positive, lower);
+    let b = BoundKey(value(session.fresh_value_at_level(2).unwrap()), Polarity::Positive, lower);
+    let c_row = session.fresh_value_at_level(2).unwrap();
+    let c = BoundKey(value(c_row), Polarity::Positive, lower);
+    let first_emission = session.candidate_insert_bound_with_evidence(a.0, a.1, a.2, true, BoundAdmissionCause::OwnerEmission { processing: None }).unwrap();
+    let relation = state(&session).bound_relations(a).next().unwrap();
+    let snapshot = state(&session).evidence.snapshot(a, Some(relation));
+    let source = session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.import_evidence(snapshot).unwrap();
+    let middle_emission = session.candidate_insert_bound_with_evidence(b.0, b.1, b.2, true,
+        BoundAdmissionCause::BoundTransport { antecedent: source, through: TransportReason::EqualityCanonicalization }).unwrap();
+    let b_relation = state(&session).bound_relations(b).next().unwrap();
+    let frozen_b = state(&session).evidence.snapshot(b, Some(b_relation));
+    let middle_source = session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.import_evidence(frozen_b).unwrap();
+    let mapped = session.candidate_context_fresh_transport(b_relation, c, 1, IDENTITY, b).unwrap();
+    session.candidate_insert_bound_with_evidence(c.0, c.1, c.2, true,
+        BoundAdmissionCause::FreshUse { antecedent: middle_source, use_origin: 1, source_bound: b, mapped_relation: Some(mapped) }).unwrap();
+    let graph = session.capture_candidate_graph(c_row, 0).unwrap();
+    session.candidate_graph.as_mut().unwrap().scratch_bytes -= graph.bytes().unwrap();
+    for key in [a, b] { session.candidate_insert_bound(key.0, key.1, key.2).unwrap(); }
+    assert_eq!(state(&session).evidence.snapshots[source.0], snapshot);
+    assert_eq!(state(&session).evidence.snapshots[middle_source.0], frozen_b);
+    assert_eq!(snapshot.emission_head, Some(first_emission));
+    assert_eq!(frozen_b.emission_head, Some(middle_emission));
+    assert_eq!(state(&session).evidence.emissions[first_emission.0].previous_on_group, None);
+    assert_eq!(state(&session).evidence.emissions[middle_emission.0].previous_on_group, None);
+    let before = state(&session).checkpoint();
+    assert_eq!(session.with_route_transaction(|session| {
+        session.freshen_candidate_graph(&graph, 3, &occurrence, &cause)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    session.with_route_transaction(|session| session.freshen_candidate_graph(&graph, 3, &occurrence, &cause).map(|_| ())).unwrap();
+    assert_eq!(state(&session).evidence.snapshots[source.0], snapshot);
+    assert_eq!(state(&session).evidence.snapshots[middle_source.0], frozen_b);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn support_retention_capture_fresh_use_imports_and_route_failure_retry() {
+    let mut session = session();
+    let (occurrence, cause) = cause(&session, 81);
+    let root = session.fresh_value_at_level(2).unwrap();
+    let shared = session.fresh_value_at_level(0).unwrap();
+    let effect = session.fresh_effect_at_level(2).unwrap();
+    session.candidate_insert_bound(value(root), Polarity::Positive, value(shared)).unwrap();
+    let argument = session.batch.collected_leaf_term(Leaf::IntNegative);
+    let result = session.batch.collected_leaf_term(Leaf::IntPositive);
+    let argument_effect = session.live_effect_term(Polarity::Negative, effect).unwrap();
+    let result_effect = session.live_effect_term(Polarity::Positive, effect).unwrap();
+    let function = session.positive_function_term(argument, argument_effect, result_effect, result).unwrap();
+    let endpoint = session.value_endpoint(function, Polarity::Positive);
+    session.candidate_insert_bound(value(root), Polarity::Positive, ExtrusionEndpoint::Value(endpoint)).unwrap();
+    session.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(effect)), Polarity::Positive,
+        ExtrusionEndpoint::Effect(EffectEndpointKey::BottomPositive)).unwrap();
+    let graph = session.capture_candidate_graph(root, 0).unwrap();
+    assert!(!graph.bounds.is_empty());
+    assert!(graph.bound_evidence.len() <= graph.bounds.len());
+    assert!(graph.bounds.iter().all(|bound| bound.evidence.0 < graph.bound_evidence.len()));
+    session.candidate_graph.as_mut().unwrap().scratch_bytes -= graph.bytes().unwrap();
+    let before = state(&session).checkpoint();
+    let row_lengths = (session.bounds.len(), session.effect_bounds.len());
+    let failed: Result<(), SolveAvailabilityError> = session.with_route_transaction(|session| {
+        session.freshen_candidate_graph(&graph, 3, &occurrence, &cause)?;
+        Err(exhausted())
+    });
+    assert_eq!(failed, Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!((session.bounds.len(), session.effect_bounds.len()), row_lengths);
+    for _ in 0..2 {
+        session.with_route_transaction(|session| session.freshen_candidate_graph(&graph, 3, &occurrence, &cause).map(|_| ())).unwrap();
+    }
+    let evidence = &state(&session).evidence;
+    let uses = evidence.admissions[before.evidence.admissions..].iter().filter_map(|admission| match admission.cause {
+        BoundAdmissionCause::FreshUse { antecedent, use_origin, mapped_relation, .. } => {
+            assert!(antecedent.0 < evidence.snapshots.len());
+            assert!(admission.coverage.contains(CoverageGap::ReplayUseAntecedentsNotRetained));
+            assert!(mapped_relation.is_some());
+            Some(use_origin)
+        }
+        _ => None,
+    }).collect::<HashSet<_>>();
+    assert_eq!(uses.len(), 2);
+    assert!(session.candidate_graph.as_ref().unwrap().capture_evidence_peak_capacity >= graph.bound_evidence.len());
+    assert!(session.candidate_graph.as_ref().unwrap().import_evidence_peak_capacity >= graph.bound_evidence.len());
+    assert!(evidence.emissions[before.evidence.emissions..].iter().any(|emission| emission.physical.lane == BoundLane::EffectLowerAtom));
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn support_retention_shared_and_fanout_replay_recipes_stay_canonical() {
+    for (anchors, k, uses) in [(1, 4, 8), (4, 2, 4)] {
+        let mut session = session();
+        let (occurrence, cause) = cause(&session, 82);
+        let mut owners = Vec::new();
+        for _ in 0..anchors {
+            let owner = value(session.fresh_value_at_level(0).unwrap());
+            let mut lowers = Vec::new();
+            for _ in 0..k {
+                let lower = value(session.fresh_value_at_level(0).unwrap());
+                let upper = value(session.fresh_value_at_level(0).unwrap());
+                session.candidate_insert_bound(owner, Polarity::Positive, lower).unwrap();
+                session.candidate_insert_bound(owner, Polarity::Negative, upper).unwrap();
+                lowers.push(lower);
+            }
+            owners.push((owner, lowers));
+        }
+        // Actual restore owners execute incoming-use replay on shared identities.
+        for _ in 0..uses {
+            for (owner, lowers) in &owners {
+                for &lower in lowers {
+                    session.candidate_restore_bound(*owner, Polarity::Positive, lower, &occurrence, &cause).unwrap();
+                }
+            }
+        }
+        let context = state(&session);
+        let dependencies = context.dependencies.iter().filter(|dependency| matches!(dependency, Dependency::Replay { .. })).count();
+        assert_eq!(context.evidence.recipes.len(), dependencies);
+        assert!(context.evidence.recipes.iter().all(|recipe| recipe.coverage.contains(CoverageGap::ReplayUseAntecedentsNotRetained)));
+        let recipe_count = context.evidence.recipes.len();
+        let visits = context.evidence.counters.replay_visits;
+        let semantic = (context.relations.len(), context.dependencies.len(), context.bound_keys.len());
+        for (owner, lowers) in &owners {
+            for &lower in lowers { session.candidate_restore_bound(*owner, Polarity::Positive, lower, &occurrence, &cause).unwrap(); }
+        }
+        let context = state(&session);
+        assert_eq!(context.evidence.recipes.len(), recipe_count);
+        assert_eq!((context.relations.len(), context.dependencies.len(), context.bound_keys.len()), semantic);
+        assert!(context.evidence.counters.replay_visits > visits);
+        assert!(context.evidence.counters.recipe_hits > 0);
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+        eprintln!("support retention anchors={anchors} K=L={k} U={uses}: D={dependencies}, fibers={}, products={}, hits={}, admissions={}, emissions={}, bytes={}",
+            context.bound_keys.len(), context.evidence.counters.replay_visits, context.evidence.counters.recipe_hits,
+            context.evidence.admissions.len(), context.evidence.emissions.len(), context.evidence.bytes().unwrap());
+    }
+    let mut source = session_with_source("my answer = 1 as int");
+    let owner = empty_bundle_owner(&source);
+    source.execute_candidate_source_root(&owner).unwrap();
+    assert!(source.errors.is_empty());
+}
+
+#[test]
+fn support_retention_charged_failure_locations_rollback_no_ids_escape_and_retry() {
+    for point in [EvidenceFailurePoint::Admission, EvidenceFailurePoint::Emission,
+        EvidenceFailurePoint::ImportReserve, EvidenceFailurePoint::ImportedSnapshot, EvidenceFailurePoint::Transport,
+        EvidenceFailurePoint::Recipe, EvidenceFailurePoint::CaptureScratch] {
+        let mut session = session();
+        let (occurrence, cause) = cause(&session, 83);
+        let root = session.fresh_value_at_level(2).unwrap();
+        let destination = session.fresh_value_at_level(2).unwrap();
+        let lower = value(session.fresh_value_at_level(0).unwrap());
+        let upper = value(session.fresh_value_at_level(0).unwrap());
+        session.candidate_insert_bound(value(root), Polarity::Positive, lower).unwrap();
+        session.candidate_insert_bound(value(root), Polarity::Negative, upper).unwrap();
+        let graph = session.capture_candidate_graph(root, 0).unwrap();
+        session.candidate_graph.as_mut().unwrap().scratch_bytes -= graph.bytes().unwrap();
+        assert!(graph.bound_evidence.len() > 1);
+        let before = state(&session).checkpoint();
+        let route_before = (session.bounds.len(), session.effect_bounds.len(), session.candidate_graph.as_ref().unwrap().routes.len());
+        let row_before = (session.bounds[root as usize].direct_lower_rows.len(), session.bounds[root as usize].direct_upper_rows.len(),
+            session.bounds[root as usize].exact_non_variable_lowers.len(), session.bounds[root as usize].has_int_positive_lower);
+        let peak = session.resource_ledger.inference_session_peak_bytes;
+        session.candidate_graph.as_mut().unwrap().evidence_failure = Some(point);
+        let execute = |session: &mut InferenceSession| -> Result<(), SolveAvailabilityError> {
+            match point {
+                EvidenceFailurePoint::Admission | EvidenceFailurePoint::Emission => session.candidate_insert_bound(value(root), Polarity::Positive,
+                    ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive)),
+                EvidenceFailurePoint::ImportReserve | EvidenceFailurePoint::ImportedSnapshot => session.freshen_candidate_graph(&graph, 3, &occurrence, &cause).map(|_| ()),
+                EvidenceFailurePoint::Transport => session.candidate_transfer_bound_origins(
+                    BoundKey(value(root), Polarity::Positive, lower), BoundKey(value(destination), Polarity::Positive, lower),
+                    TransportReason::ParentCopy { parent_index: 0 }),
+                EvidenceFailurePoint::Recipe => session.candidate_restore_bound(value(root), Polarity::Positive, lower, &occurrence, &cause),
+                EvidenceFailurePoint::CaptureScratch => session.capture_candidate_graph(root, 0).map(|_| ()),
+            }
+        };
+        assert_eq!(session.with_route_transaction(execute), Err(exhausted()), "failure at {point:?}");
+        assert_eq!(session.candidate_graph.as_ref().unwrap().failed_evidence_point, Some(point));
+        assert_eq!(state(&session).checkpoint(), before, "rollback at {point:?}");
+        assert_eq!((session.bounds.len(), session.effect_bounds.len(), session.candidate_graph.as_ref().unwrap().routes.len()), route_before);
+        if point == EvidenceFailurePoint::ImportedSnapshot {
+            assert_eq!(session.candidate_graph.as_ref().unwrap().failed_import_count, Some(1));
+            let (scratch, total, sampled) = session.candidate_graph.as_ref().unwrap().import_failure_sample.unwrap();
+            assert!(sampled && scratch > 0);
+            assert!(session.resource_ledger.inference_session_peak_bytes >= total);
+        }
+        assert_eq!((session.bounds[root as usize].direct_lower_rows.len(), session.bounds[root as usize].direct_upper_rows.len(),
+            session.bounds[root as usize].exact_non_variable_lowers.len(), session.bounds[root as usize].has_int_positive_lower), row_before);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        assert!(session.resource_ledger.inference_session_peak_bytes >= peak);
+        if matches!(point, EvidenceFailurePoint::ImportReserve | EvidenceFailurePoint::CaptureScratch) {
+            let (_, charged_scratch, charged_total) = session.candidate_graph.as_ref().unwrap().failed_evidence_sample.unwrap();
+            if point == EvidenceFailurePoint::CaptureScratch { assert!(charged_scratch > 0); }
+            assert!(charged_total >= charged_scratch + state(&session).bytes().unwrap());
+            assert!(session.resource_ledger.inference_session_peak_bytes >= charged_total);
+            if point == EvidenceFailurePoint::ImportReserve {
+                let (scratch, total, sampled) = session.candidate_graph.as_ref().unwrap().import_failure_sample.unwrap();
+                assert!(sampled);
+                assert_eq!(session.candidate_graph.as_ref().unwrap().failed_import_count, Some(0));
+                assert_eq!(session.candidate_graph.as_ref().unwrap().import_evidence_peak_capacity, 0);
+                assert!(scratch >= charged_scratch);
+                assert!(session.resource_ledger.inference_session_peak_bytes >= total);
+            }
+        }
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+        session.with_route_transaction(execute).unwrap();
+        let evidence = &state(&session).evidence;
+        assert!(evidence.admissions.iter().all(|admission| match admission.cause {
+            BoundAdmissionCause::FreshUse { antecedent, .. } | BoundAdmissionCause::BoundTransport { antecedent, .. } => antecedent.0 < evidence.snapshots.len(),
+            _ => true,
+        }));
+        assert!(evidence.emissions.iter().all(|emission| emission.admission.0 < evidence.admissions.len()));
+        if matches!(point, EvidenceFailurePoint::Admission | EvidenceFailurePoint::Emission | EvidenceFailurePoint::ImportedSnapshot | EvidenceFailurePoint::Transport | EvidenceFailurePoint::Recipe) {
+            assert!(evidence.failed_attempts > 0 || point == EvidenceFailurePoint::ImportedSnapshot);
+        }
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
+fn support_retention_actual_extrusion_freezes_exact_fiber_heads_and_rolls_back() {
+    let mut session = session();
+    let parent = value(session.fresh_value_at_level(2).unwrap());
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let from = BoundKey(parent, Polarity::Positive, lower);
+    let emission = session.candidate_insert_bound_with_evidence(parent, Polarity::Positive, lower, true,
+        BoundAdmissionCause::OwnerEmission { processing: None }).unwrap();
+    let source_relation = state(&session).bound_relations(from).next().unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let second_relation = context.relation(bound_pair(from), operation).unwrap();
+    context.attach(from, second_relation).unwrap();
+    context.processing = Some(second_relation);
+    let second_emission = session.candidate_insert_bound_with_evidence(parent, Polarity::Positive, lower, true,
+        BoundAdmissionCause::OwnerEmission { processing: Some(second_relation) }).unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
+    let parents = [source_relation, second_relation];
+    let frozen: Vec<_> = parents.iter().map(|&parent| state(&session).evidence.snapshot(from, Some(parent))).collect();
+    assert_ne!(frozen[0], frozen[1]);
+    assert_eq!(frozen[0].emission_head, Some(emission));
+    assert_eq!(frozen[1].emission_head, Some(second_emission));
+    let before = state(&session).checkpoint();
+    for rollback in [true, false] {
+        let result = session.with_route_transaction(|session| {
+            let copy = session.candidate_extrude(parent, Polarity::Positive, 0)?;
+            let transforms: Vec<_> = state(session).evidence.transforms.iter().filter(|transform| transform.from == from && transform.to.0 == copy).copied().collect();
+            assert_eq!(transforms.len(), 2);
+            assert_ne!(transforms[0].antecedent, transforms[1].antecedent);
+            assert_ne!(transforms[0].child_relation, transforms[1].child_relation);
+            for (index, &source_relation) in parents.iter().enumerate() {
+                let transform = *transforms.iter().find(|transform| transform.source_relation == source_relation).unwrap();
+                assert_eq!(state(session).evidence.snapshots[transform.antecedent.0], frozen[index]);
+                assert!(transform.coverage.contains(CoverageGap::MissingOriginAssociation));
+                assert!(state(session).dependency_keys.contains(&Dependency::Transport { child: transform.child_relation,
+                    parent: source_relation, use_origin: 0, witness: Some(TransportWitness { from, to: transform.to, reason: transform.reason }) }));
+                let count = state(session).evidence.transforms.len();
+                let semantic = (state(session).relations.len(), state(session).dependencies.len(), state(session).bound_keys.len());
+                session.candidate_context_transport_witness_with_evidence(source_relation, transform.to, 0,
+                    TransportWitness { from, to: transform.to, reason: transform.reason })?;
+                assert_eq!(state(session).evidence.transforms.len(), count);
+                assert_eq!((state(session).relations.len(), state(session).dependencies.len(), state(session).bound_keys.len()), semantic);
+                assert!(state(session).evidence.counters.transform_hits > 0);
+                session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(source_relation);
+                session.candidate_insert_bound(parent, Polarity::Positive, lower)?;
+                session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
+                assert_eq!(state(session).evidence.snapshots[transform.antecedent.0], frozen[index]);
+                assert_ne!(state(session).evidence.snapshot(from, Some(source_relation)).emission_head, frozen[index].emission_head);
+            }
+            assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+            if rollback { Err(exhausted()) } else { Ok(()) }
+        });
+        if rollback { assert_eq!(result, Err(exhausted())); assert_eq!(state(&session).checkpoint(), before); }
+        else { result.unwrap(); }
+    }
+}
+
+#[test]
+fn support_retention_identity_function_named_ports_rollback_retry() {
+    let mut session = session_with_source("my answer x:int -> int = x");
+    let owner = empty_bundle_owner(&session);
+    let before = state(&session).checkpoint();
+    let mut attempted = Vec::new();
+    for rollback in [true, false] {
+        let result = session.with_route_transaction(|session| {
+            session.execute_candidate_source_root(&owner)?;
+            let context = state(session);
+            let ports: Vec<_> = context.dependencies.iter().filter_map(|dependency| {
+                if let Dependency::FunctionPort { child, parent, field, operation } = *dependency {
+                    Some((child, parent, field, operation))
+                } else { None }
+            }).collect();
+            for (field, operation) in [
+                (FunctionField::Argument, FunctionPortOperation::Swap),
+                (FunctionField::ArgumentEffect, FunctionPortOperation::Swap),
+                (FunctionField::ResultEffect, FunctionPortOperation::Preserve),
+                (FunctionField::Result, FunctionPortOperation::Preserve),
+            ] {
+                assert!(ports.iter().any(|port| (port.2, port.3) == (field, operation)), "missing named port {field:?}");
+            }
+            assert!(!context.evidence.admissions.is_empty());
+            assert!(context.evidence.emissions.iter().all(|emission| emission.admission.0 < context.evidence.admissions.len()));
+            if rollback { attempted = ports; Err(exhausted()) }
+            else { assert_eq!(ports, attempted); Ok(()) }
+        });
+        if rollback {
+            assert_eq!(result, Err(exhausted()));
+            assert_eq!(state(&session).checkpoint(), before);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        } else { result.unwrap(); }
+    }
 }
