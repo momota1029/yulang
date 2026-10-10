@@ -7217,15 +7217,31 @@ fan-out, reverse feedback, exact admission and dependent explicit-concrete-
 formal implementation remain open. The integrated question receipt records
 the approval and design freshness validation.
 
+The reviewed [contextual attachment/admission proposal](../design/2026-10-10-contextual-attachment-admission-design.md)
+now specifies a private relation carrier, lifecycle transitions, and exact
+accelerators for two source-reviewed paired-ascription cycles. M3 semantic and
+conformance reviews found no remaining issue after a compiler-referee delta
+repair for late-edge invalidation, dependent-result withdrawal, deferral, and
+certificate rollback. The proposal remains non-authoritative pending the
+user's choice; it does not admit concrete formal rows or establish the general
+mixed-component procedure. A pending decision is recorded in
+`questions/2026-10-10-contextual-attachment-admission/`. Independent source
+mapping also confirms that the exact callback remains unavailable in the
+candidate: concrete formal `[io]` is rejected, `LocalSourceForm` has no
+`Catch` carrier, and `run_io` is an ordinary name rather than a handler
+intrinsic. Complete Call, the generic handler/source route, public/default
+inference, and F5 cutover remain open.
+
 The reviewed evidence does not establish a source-reachable independent gamma
 ingress, and does not prove that no such source exists. It must not become a
 source restriction. The unbounded paired-`as` left-PUSH family also rules out a
 raw finite context-entry cap as the entire admission argument. No numeric
 resource threshold, diagnostic, or source rejection is selected. With lineage
-identity now selected, continue with the source-grounded admission trace, then
-implement and verify the complete contextual slice. Concrete annotation
-construction, filters/use, generalization/freshening/rollback, public inference,
-full Call, hygiene and F5 cutover remain open.
+identity now selected, implement and verify only the reviewed contextual gate
+after the pending decision; then continue the full explicit-attachment and
+public-cutover work. Concrete annotation construction, filters/use,
+generalization/freshening/rollback, public inference, full Call, hygiene and F5
+cutover remain open.
 
 ### Newly integrated mixed-context research (2026-10-10)
 
