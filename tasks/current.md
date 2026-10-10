@@ -7195,30 +7195,27 @@ that ordinary-flow case, including a late concrete lower and rollback. It does
 not implement concrete `[E]` subtraction, contextual payload transport or
 filter/replay semantics.
 
-Immediate next gate: implement the authentic explicit-formal constructor and
-contextual payload transport through capture, freshening, restoration,
-filtering and replay, then run the bridge's keep/drop source mutation and map
-the complete Effect dependency SCC, including PUSH subexpressions, same-kind
-symbolic tails, and parent-copy intrusion. Keep the paired-`as` left-only
-result separate from the formal-lambda callback route; existing recursive
-full-left-pair observers do not cover arbitrary mixed recursion. Negative
-attachment construction, filters, use, generalization/freshening/rollback,
-public inference and F5 cutover remain open.
+The authentic explicit-formal constructor and contextual payload transport
+remain the next implementation slice, but a new reviewed representation choice
+must be recorded first. The [contextual residual-owner design](../design/2026-10-10-contextual-residual-owner-design.md)
+now covers annotation identity, filters, contextual task/memo/bound/replay
+identity, both residual directions, all Function-port transforms,
+level-selected extrusion, capture/freshening, same-SCC parent-copy intrusion,
+and rollback. Independent semantic and spec reviews closed their findings at
+the recorded hash. It remains non-authoritative pending the user's choice of
+residual lineage policy. The corresponding [question](../questions/2026-10-10-contextual-residual-owner/question.md)
+blocks only residual representation and dependent explicit-concrete-formal
+implementation; it does not pause independent inference work.
 
-**Implementation precondition from the 2026-10-10 residual-owner audit:** the
-candidate has no canonical contextual residual owner; its task, memo, bound,
-scheme and SCC records carry endpoints without attachment weights. Therefore
-the next action is a reviewed constructor/consumer/admission design before
-enabling explicit concrete formal rows. It must cover exact residual identity,
-filter registration, contextual self-edges, mixed replay bracketing, all four
-Function ports, parent-copy equality, freshening and rollback. A raw finite
-context-entry cap is not acceptable as the whole solution: the separate
-paired-`as` source class has an unbounded exact PUSH sequence with a proposed
-one-ID left-only observer, while the formal-lambda callback's mixed residual
-consumer remains open. No resource threshold or source rejection is selected.
-See the [residual-owner checkpoint](../notes/progress/2026-10-10-contextual-residual-owner-gate.md).
-After this design gate, resume the source-grounded one/two-annotation
-admission trace, then implement the complete coupled contextual slice.
+The reviewed evidence does not establish a source-reachable independent gamma
+ingress, and does not prove that no such source exists. It must not become a
+source restriction. The unbounded paired-`as` left-PUSH family also rules out a
+raw finite context-entry cap as the entire admission argument. No numeric
+resource threshold, diagnostic, or source rejection is selected. After the
+lineage choice, continue with the source-grounded admission trace, then
+implement and verify the complete contextual slice. Concrete annotation
+construction, filters/use, generalization/freshening/rollback, public inference,
+full Call, hygiene and F5 cutover remain open.
 
 ### Returning recursive PUSH: direct source instance solved (2026-10-10)
 
