@@ -8585,3 +8585,12 @@ does not establish semantic discharge or a failing source state; diagnostic
 consumer evidence and future-use replay remain absent. See the [later
 schedule audit](../notes/progress/2026-10-11-q113-later-schedule-audit.md)
 and its frozen [trace artifact](/tmp/yulang-source-q113-later-schedule-20261011.md).
+
+An authenticated `prover` child then applied the reviewed successful-drain
+lemma to the original q113 run. Independent compiler-referee review passed:
+through every state in the six successful callbacks, the proposed
+q113→R45 return is absent, so the specific R47/R45 equality-transport route
+cannot displace the S53/R47 fiber in this interval. This is a fixed-source
+route exclusion, not global Alternative B; other source constructors,
+diagnostic discharge, and the source-level A/B decision remain open. See the
+[third-owner route proof record](../notes/progress/2026-10-11-q113-third-owner-route-exclusion.md).
