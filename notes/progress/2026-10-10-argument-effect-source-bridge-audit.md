@@ -1,7 +1,7 @@
 # Ordinary Function Argument Effect: source and live-consumer audit
 
 Date: 2026-10-10
-Status: unreviewed bounded static source characterization; no theorem, hygiene,
+Status: independently reviewed bounded static source characterization; no theorem, hygiene,
 source acceptance, implementation-gate, or production-conformance promotion
 Assigned baseline: `3fab829c0683e4b3b06dfe61f4b60a12884560a5`
 Worker: `/root/argument_effect_source_bridge`; complementary source audit
@@ -132,7 +132,7 @@ Correct endpoints and an operation-labelled dependency do not supply it.
 | --- | --- |
 | §3 exact operation tree and relation identity | Executable structural interning and `RelationKey { pair, context }` at `candidate_context.rs:1417`; component kind is in the typed pair. Exact construction is not full operation execution. |
 | §3/§3.1 annotation-owned set and member ordinals | Retained per-view payload, owner/position/scope/polarity and ordinals; source payload survives symbolic tails. `unit_push` is dormant and the words remain empty. Negative empty bundles are explicitly inert provenance at `candidate_effect.rs:1137`, not an executable grant. |
-| §4 Function ordering | Executable constructor matches swap-before-child-prefix for its restricted local-prefix input. The comment at `candidate_context.rs:114` saying child context is reconstructed and no structural Swap is constructed is stale for nonidentity parents; the function body at `:1680` is the direct evidence. `retained_input` still marks FunctionPort dependencies inert (`:494`). |
+| §4 Function ordering | Executable constructor matches swap-before-child-prefix for its restricted local-prefix input. At `candidate_context.rs:114`, the comment that child admission reconstructs its own context is stale for nonidentity parents; its narrower claim that no structural `Swap(Identity)` is constructed remains accurate because the implementation elides that node. The function body at `:1680` is direct evidence. `retained_input` still marks FunctionPort dependencies inert (`:494`). |
 | §4 admission before equality | Context execution occurs before endpoint memo/equality handling. Closed zero-word filters are validated/registered and discharged; `post_check_context` becomes Identity only for a discharged relation (`:1560`). Nonidentity Value, Swap, suffix POP, Both and nested prefixes are rejected. |
 | §4 negative wrapper/filter obligations | Closed Allowance checks and future-bound replay are executable. Source concrete composed-negative rows are rejected before solving; corresponding constructor guards also reject them. Actual right POP and active-family obligations have no live execution in this consumer. |
 | §4 concrete residual, lineage gamma and feedback | Absent from the inspected route. No `ResidualRecipe`/gamma constructor occurs in the searched context/effect/scheme/extrusion/intrusion owners. This is a bounded owner audit, not a whole-repository absence theorem. |
@@ -188,8 +188,10 @@ Exact CPU/RAM and wall time were not measured; budget consumption is unknown
 numerically. Unverified scope includes the complete fixture trace, actual
 nonidentity Function reachability, arbitrary mixed recursion, attachment-local
 negative subtraction, handler selection, full Call, soundness/principality and
-public/default/F5 cutover. Review remains pending; this producer provides no
-independent certification.
+public/default/F5 cutover. The independent compiler-referee review found no
+blocking or major issue and one minor source-comment paraphrase, corrected
+above. This remains a bounded characterization, with no source-reachability or
+gate certification.
 
 Recommended next action: assign the owning live inverse-context consumer cut,
 with source-produced PUSH/POP and receiver obligations as retained premises,
@@ -221,8 +223,9 @@ endpoint-polarity probe cannot resolve this consumer gap.
 - Exact leased path: `notes/progress/2026-10-10-argument-effect-source-bridge-audit.md`.
 - Baseline SHA: `3fab829c0683e4b3b06dfe61f4b60a12884560a5`.
 - Changed dependency hashes: none observed; frozen table and Oracle blobs above.
-- Claim/review status: unreviewed bounded static source characterization; writes
-  stopped at submission; no theorem, gate or production promotion.
+- Claim/review status: independently reviewed bounded static source
+  characterization; writes stopped after the minor wording repair; no theorem,
+  gate or production promotion.
 - Checks already run: read-only source/Oracle extraction, baseline/hash equality,
   narrow note integrity check; no builds/tests/execution.
 - Proposed checkpoint message: `research: audit ordinary Function argument effect source and consumer seam`.

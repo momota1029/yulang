@@ -1,7 +1,7 @@
 # Nested Function effect variance and exact port-operation order
 
 Date: 2026-10-10
-Status: unreviewed research derivation and bounded source characterization;
+Status: independently reviewed research derivation and bounded source characterization;
 no proof-gate closure or production conformance claim
 Assigned baseline: `3fab829c0683e4b3b06dfe61f4b60a12884560a5`
 Exclusive write lease: this note only
@@ -354,8 +354,9 @@ are frozen on delivery; independent review and global budgets remain primary-own
 Exact path: `notes/progress/2026-10-10-nested-function-effect-variance-bridge-proof.md`.
 Baseline: `3fab829c0683e4b3b06dfe61f4b60a12884560a5`.
 Changed dependency hashes: none observed between this leaf's first complete
-snapshot and delivery; baseline byte equality still needs primary validation.
-Claim/review status: unreviewed constructive research derivation, literal
+snapshot and delivery; the primary revalidated current source hashes against
+the frozen table.
+Claim/review status: independently reviewed constructive research derivation, literal
 Effect-only counterpath, restricted operation-word theorem, corrected
 all-argument-edge theorem and bounded source characterization; no self-
 certification, gate promotion, production conformance or semantic authority.
@@ -372,6 +373,13 @@ leave attachment construction, current/future consumer, lifecycle, complete
 Call, soundness/principality and negative-concrete admission open. No shared
 task, index, theory or design record was edited.
 
-One next action: the primary freezes and validates this dependency snapshot,
-then assigns fresh independent compiler-referee review of the corrected
-quantifiers, counterpath, operation-order induction and bounded source bridge.
+One next action: assign the exact source-owned attachment construction and live
+inverse-context consumer bridge, retaining the current/future receiver checks
+and lifecycle obligations; keep negative-concrete admission gated.
+
+Independent review: a fresh `compiler_referee` review found no blocking or
+major issue in the corrected sign recurrence, exact operation-word order,
+conditional hygiene composition, or bounded source characterization. It found
+one minor comment paraphrase in the companion source audit, corrected there.
+No source-reachability, executable subtraction, lifecycle, soundness,
+principality or admission gate was certified.
