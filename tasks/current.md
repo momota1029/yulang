@@ -27,13 +27,16 @@ under the [bounded delegation policy](../rules/agent-orchestration.md#proof-dele
 `task_decomposer` proposes concrete dependency-aware packets when needed;
 `prover` owns constructive proofs, with complementary `researcher` methods.
 The custom `prover` role is registered through `.codex/config.toml` and was
-launched for a bounded constructive lemma and a conditional contravariant-effect
-derivation; effective runtime model/effort remains unobserved. Apply the
-`yulang-proofs` skill on future proof obligations.
-The current API collaboration schema still omits the `prover` role. This turn
-tried the configured CLI fallback once, but its JSON stream showed no prover
-child dispatch; that attempt is not counted as a prover run. The earlier
-verified prover dispatches and their committed outputs remain valid evidence.
+launched for bounded constructive lemmas and a conditional contravariant-effect
+derivation. On 2026-10-10 the configured `codex exec` fallback was verified in
+the JSONL session record: a real child had `agent_role=prover`,
+`model=gpt-6.1-sol`, and `effort=high`. Its conditional reconstruction of
+Function-path polarity and exact-witness residual support assumes the existing
+attachment, typed-transport, owner, and consumer premises; it does not prove
+their source construction or close effect hygiene. Apply the `yulang-proofs`
+skill on future proof obligations. The direct API collaboration schema still
+omits `prover`, so use the verified CLI fallback there rather than treating the
+custom role registration alone as a launch.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
@@ -7976,17 +7979,24 @@ observations, and publication; private deferral that retains an unsupported
 late edge; and atomic rollback/retry for the whole certificate dependency
 state. Conditional one-memo, one-publication, and stale-edge witnesses show
 why each lifecycle part matters; they do not claim current source reachability
-or a compiler bug. See the
-[cycle certificate gap map](../notes/progress/2026-10-10-context-cycle-certificate-gap-map.md).
+or a compiler bug. The frozen Function-port projection falsifier adds a
+conditional two-effect-edge witness: Swap and Preserve incidences can project
+to the same endpoint adjacency, although the retained raw port records keep
+their labels. It rules out the adjacency-only shortcut, not the richer retained
+graph or an existing production recognizer. See the
+[cycle certificate gap map](../notes/progress/2026-10-10-context-cycle-certificate-gap-map.md)
+and the [Function-port projection falsifier](../notes/progress/2026-10-10-entry-circuit-source-falsifier.md).
 
-Next: implement the source-owned inferred-entry certificate and exact circuit
-recognition/invalidation/deferral as one M3 lifecycle gate, preserving both
-approved unbounded circuit classes and all exact contexts. The path must retain
-late unsupported edges privately, withdraw every dependent observation before
-reuse/publication, and restore the complete pre-route certificate/dependency/
-observation/publication state on failure before a supported retry. Complete
-Call, full effect hygiene, soundness/principality, ordinary/default/public
-inference, and F5 retirement remain open.
+Next: implement Packet 1 of the approved contextual-admission gate: retain and
+expose a complete inert circuit-input graph with exact relation kinds/endpoints,
+seed origins, operation incidences, attachment/member and filter identities,
+receiving owners, ordered replay inputs, shared context children, and transport
+provenance. Keep it separate from parent-copy SCC state and do not execute
+nonidentity operations or certify recursion. Then recognize the two approved
+complete components, implement transactional withdrawal/deferral/rollback, and
+only then connect operation execution. Complete Call, full effect hygiene,
+soundness/principality, ordinary/default/public inference, and F5 retirement
+remain open.
 
 The private HIR source carrier now retains expression ascriptions with their
 exact annotation tail, occurrence, range, and lexical scope. Candidate source
