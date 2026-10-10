@@ -8253,19 +8253,58 @@ read-only `git rev-parse HEAD` violated its no-Git packet; it is explicitly
 recorded, and the producer reported no Git mutations. No tests/builds ran.
 Checkpoint: `87ad21a03`.
 
-Next: find a normal source schedule where the shared incoming-incidence owner
-already has a positive lower before the negative Allowance restore and where
-the first callback then creates/settles the relevant parent-copy SCC before a
-later outer index. Require an exact missed lower/upper obligation plus failed
-ordinary replay and Value/Effect diagnostic reachability before calling it a
-witness. Keep API-injected contexts excluded. If no such source schedule is
-found, locate the owning compiler operation needed to create that state under
-the current approved semantics. Then freeze and independently review a complete
-current-component generation contract covering every recognizer-input
-mutation, every dependent
-reuse/publication, and transaction withdrawal/rollback. Then implement that
-contract under the approved two-cycle gate, followed by exact recognition,
-private deferral and rollback/retry evidence. In parallel, retain the
-source-owned PUSH/POP construction and inverse-context consumer as prerequisites
-for concrete contravariant effect admission. Keep negative-concrete admission
-disabled until the full approved lifecycle bridge is reviewed.
+### Positive-lower restoration source bridge (2026-10-10)
+
+The bounded [fixture search](../notes/progress/2026-10-10-positive-lower-incidence-fixture-search.md)
+covered 20 solver test files and found no qualifying authored fixture. An
+independent regression-auditor review reproduced its inventory and found no
+blocking or major issue. Its dependency hashes were checked against baseline
+`ddbb588d2`; the artifact is checkpointed at `155780d75`.
+
+The actual direct-operation fixture at
+`candidate_effect_annotation.rs:345` does create real positive bounds, including
+on its original negative root Allowance port. That port, Function ports, and
+symbolic tail are level 1 and generic at the top-level boundary 0, so capture
+freshens them before restoring the incidence Allowance; the original lower is
+not present on the fresh owner's pre-restore snapshot. This is a bounded
+exclusion for that fixture, not a universal reachability claim. Its source
+tracer issued two read-only Git commands despite a no-Git packet; no mutation
+occurred, and the violation was returned explicitly.
+
+An independent [positive-lower insertion derivation](../notes/progress/2026-10-10-positive-lower-bound-insertion-proof.md)
+now characterizes when `candidate_apply_effect` physically pushes a positive
+lower onto its canonical upper row: after canonicalization, the upper is a row
+and the lower is either non-row or an older row. It distinguishes direct bound
+vectors from contextual-fiber deduplication and worklist memo suppression.
+The actual `prover` role ran through `tools/codex-prover.sh` as
+`/root/proof_bridge`; requested Sol/high, observed model/effort unknown. An
+independent compiler-referee review found no major issue and one minor level
+wording defect, fixed to name canonical rows. Exact source provenance, timely
+admission and survival on the same owner remain an unproved premise. The note
+is checkpointed at `8eaceb287`; no tests/builds/probes ran.
+
+The alternate positive-tail-extrusion seam can copy a positive lower to an
+incoming owner before inserting its remapped negative Allowance. The bounded
+fixture audit found only separate ingredients: a mixed covariant formal row
+whose owner remains level 2 and freshens at bridge uses; a local symbolic
+annotation whose checking owner is freshened before incidence restoration; and
+the maker fixture whose shared-owner provider arrives too late. No inspected
+authored schedule composes positive input bounds, positive extrusion to a lower
+annotated boundary, and later nongeneric capture/use on the same canonical
+owner. This is an exclusion over the inspected paths, not proof of impossibility.
+
+Next: trace one ordinary HIR action sequence that composes those three steps
+and record the exact occurrence, scopes, levels, parent/copy provenance,
+canonical positive owner, incoming negative Allowance and pre-restore snapshot.
+If the sequence exists, continue through the required within-loop owner/vector
+change, exact missed obligation, ordinary replay, and Value/Effect diagnostic
+rescue checks before calling it a witness. If it does not, identify the owning
+source constructor/consumer and keep the semantic gate open. In parallel, freeze
+and independently review a complete current-component generation contract
+covering every recognizer-input mutation, dependent reuse/publication, and
+transaction withdrawal/rollback; then implement the approved two-cycle gate
+with exact recognition, private deferral and rollback/retry evidence. Preserve
+the source-owned PUSH/POP construction and inverse-context consumer as
+prerequisites for concrete contravariant effect admission, and keep
+negative-concrete admission disabled until the full approved lifecycle bridge
+is reviewed.
