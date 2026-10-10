@@ -36,14 +36,18 @@ impl LocalSource {
     pub fn expressions(&self) -> &[LocalSourceExpr] {
         &self.expressions
     }
-    pub fn annotation(&self) -> Option<&source_annotation::SourceAnnotation> { self.annotation.as_ref() }
+    pub fn annotation(&self) -> Option<&source_annotation::SourceAnnotation> {
+        self.annotation.as_ref()
+    }
     pub fn bindings(&self) -> &[LocalSourceBinding] {
         &self.bindings
     }
     /// Reserved arena/vector storage and retained spelling bytes; shared source
     /// and artifact payloads and allocator overhead are excluded.
     pub fn retained_arena_bytes(&self) -> usize {
-        self.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes())
+        self.annotation
+            .as_ref()
+            .map_or(0, |annotation| annotation.retained_arena_bytes())
             + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
             + self
@@ -52,7 +56,13 @@ impl LocalSource {
                 .map(|expr| match &expr.form {
                     LocalSourceForm::Integer(text) => text.len(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
-                    LocalSourceForm::Lambda { parameter, .. } => parameter.spelling.len() + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes()),
+                    LocalSourceForm::Lambda { parameter, .. } => {
+                        parameter.spelling.len()
+                            + parameter
+                                .annotation
+                                .as_ref()
+                                .map_or(0, |annotation| annotation.retained_arena_bytes())
+                    }
                     LocalSourceForm::Block { bindings, .. } => {
                         bindings.capacity() * std::mem::size_of::<u32>()
                     }
@@ -69,7 +79,13 @@ impl LocalSource {
                         + binding
                             .parameters
                             .iter()
-                            .map(|parameter| parameter.spelling.len() + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes()))
+                            .map(|parameter| {
+                                parameter.spelling.len()
+                                    + parameter
+                                        .annotation
+                                        .as_ref()
+                                        .map_or(0, |annotation| annotation.retained_arena_bytes())
+                            })
                             .sum::<usize>()
                 })
                 .sum::<usize>()
@@ -86,7 +102,9 @@ pub struct LocalSourceExpr {
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
     Unit,
-    Operation { resolution: source_annotation::SourceOperationResolution },
+    Operation {
+        resolution: source_annotation::SourceOperationResolution,
+    },
     Integer(Box<str>),
     Name {
         spelling: Box<str>,
@@ -266,7 +284,11 @@ pub(super) fn form(
             range: parameter.range.clone(),
             spelling: parameter.name.spelling.clone().into_boxed_str(),
             scope: scope.clone(),
-            annotation: admitted.annotation.as_ref().map(|node| source_annotation::parse_annotation(node, owner, builder.counters)).transpose()?,
+            annotation: admitted
+                .annotation
+                .as_ref()
+                .map(|node| source_annotation::parse_annotation(node, owner, builder.counters))
+                .transpose()?,
         };
         builder.push_binding(
             parameter.spelling.clone(),
@@ -454,8 +476,14 @@ impl Builder<'_> {
                     push(&mut children, child)?;
                 }
                 let (head, all_tails) = children.split_first().ok_or_else(invalid)?;
-                let operation_tail = all_tails.first().filter(|tail| tail.kind() == SyntaxKind::PathTail);
-                let tails = if operation_tail.is_some() { &all_tails[1..] } else { all_tails };
+                let operation_tail = all_tails
+                    .first()
+                    .filter(|tail| tail.kind() == SyntaxKind::PathTail);
+                let tails = if operation_tail.is_some() {
+                    &all_tails[1..]
+                } else {
+                    all_tails
+                };
                 if depth + tails.len() > 128 {
                     return Err(invalid());
                 }
@@ -516,26 +544,59 @@ impl Builder<'_> {
                     current = callee;
                 }
                 if let Some(tail) = operation_tail {
-                    if head.kind() != SyntaxKind::IdentifierExpression || has_recovery(tail) { return Err(invalid()); }
-                    let tokens: Vec<_> = tail.children_with_tokens().filter(|e| !matches!(e.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)).collect();
-                    let [separator, member] = tokens.as_slice() else { return Err(invalid()); };
-                    if separator.kind() != SyntaxKind::ColonColon || member.kind() != SyntaxKind::Identifier { return Err(invalid()); }
+                    if head.kind() != SyntaxKind::IdentifierExpression || has_recovery(tail) {
+                        return Err(invalid());
+                    }
+                    let tokens: Vec<_> = tail
+                        .children_with_tokens()
+                        .filter(|e| {
+                            !matches!(e.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)
+                        })
+                        .collect();
+                    let [separator, member] = tokens.as_slice() else {
+                        return Err(invalid());
+                    };
+                    if separator.kind() != SyntaxKind::ColonColon
+                        || member.kind() != SyntaxKind::Identifier
+                    {
+                        return Err(invalid());
+                    }
                     let family = head.text().to_string();
                     let member: Box<str> = member.to_string().into_boxed_str();
                     use source_annotation::SourceOperationResolution;
                     let resolution = match self.counters.effect_namespace.get(&family) {
                         None => SourceOperationResolution::Unresolved,
-                        Some(families) if families.len() != 1 => SourceOperationResolution::Ambiguous,
-                        Some(families) => match self.counters.operation_namespace.get(&(families[0].clone(), member)) {
+                        Some(families) if families.len() != 1 => {
+                            SourceOperationResolution::Ambiguous
+                        }
+                        Some(families) => match self
+                            .counters
+                            .operation_namespace
+                            .get(&(families[0].clone(), member))
+                        {
                             None => SourceOperationResolution::Unresolved,
-                            Some(members) if members.len() != 1 => SourceOperationResolution::Ambiguous,
-                            Some(members) if members[0].visibility == HirVisibility::Private => SourceOperationResolution::Private,
-                            Some(members) => SourceOperationResolution::Resolved(members[0].clone()),
+                            Some(members) if members.len() != 1 => {
+                                SourceOperationResolution::Ambiguous
+                            }
+                            Some(members) if members[0].visibility == HirVisibility::Private => {
+                                SourceOperationResolution::Private
+                            }
+                            Some(members) => {
+                                SourceOperationResolution::Resolved(members[0].clone())
+                            }
                         },
                     };
-                    self.set(current, tail, scope, LocalSourceForm::Operation { resolution })?;
+                    self.set(
+                        current,
+                        tail,
+                        scope,
+                        LocalSourceForm::Operation { resolution },
+                    )?;
                 } else {
-                    push(&mut self.work, Work::Expression(head.clone(), current, depth + tails.len(), scope))?;
+                    push(
+                        &mut self.work,
+                        Work::Expression(head.clone(), current, depth + tails.len(), scope),
+                    )?;
                 }
             }
             SyntaxKind::IdentifierExpression => {
@@ -633,7 +694,9 @@ impl Builder<'_> {
             if statement.kind() != SyntaxKind::BindingStatement || has_recovery(&statement) {
                 return Err(invalid());
             }
-            if source_annotation::form(&statement, &self.owner, self.counters)?.is_some() { return Err(invalid()); }
+            if source_annotation::form(&statement, &self.owner, self.counters)?.is_some() {
+                return Err(invalid());
+            }
             let (visibility, name, parameters) =
                 plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
             if visibility != HirVisibility::Private || depth + parameters.len() + 1 > 128 {
@@ -679,7 +742,17 @@ impl Builder<'_> {
                         source,
                         range: parameter.name.range,
                         spelling: parameter.name.spelling.into_boxed_str(),
-                        annotation: parameter.annotation.as_ref().map(|node| source_annotation::parse_annotation(node, &self.owner, self.counters)).transpose()?,
+                        annotation: parameter
+                            .annotation
+                            .as_ref()
+                            .map(|node| {
+                                source_annotation::parse_annotation(
+                                    node,
+                                    &self.owner,
+                                    self.counters,
+                                )
+                            })
+                            .transpose()?,
                         scope: parameter_scope,
                     },
                 )?;
@@ -747,10 +820,17 @@ mod tests {
     fn empty_call_uses_distinct_unit_and_apply_occurrences_at_call_tail() {
         let module = lower("my invoke f = f()").unwrap();
         let source = module.local_sources.values().next().unwrap();
-        let apply = source.expressions().iter().find(|expr| {
-            matches!(expr.form, LocalSourceForm::Apply { .. })
-        }).unwrap();
-        let LocalSourceForm::Apply { argument, source_form, .. } = &apply.form else {
+        let apply = source
+            .expressions()
+            .iter()
+            .find(|expr| matches!(expr.form, LocalSourceForm::Apply { .. }))
+            .unwrap();
+        let LocalSourceForm::Apply {
+            argument,
+            source_form,
+            ..
+        } = &apply.form
+        else {
             unreachable!();
         };
         assert_eq!(*source_form, SyntaxKind::CallTail);
@@ -772,7 +852,10 @@ mod tests {
         assert_eq!(unit.range, 11..13);
         assert!(matches!(unit.scope, LocalSourceScope::Definition(_)));
         for text in ["my value = (1,)", "my value = (1, 2)", "my value = ("] {
-            assert!(matches!(lower(text), Err(HirAvailabilityError::StructuralProjection)));
+            assert!(matches!(
+                lower(text),
+                Err(HirAvailabilityError::StructuralProjection)
+            ));
         }
     }
 }

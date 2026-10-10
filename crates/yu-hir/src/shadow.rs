@@ -22,7 +22,11 @@ pub fn lower_module_with_source_identity(
     crate::module::lower_module_with_source_identity(identity, parsed, imports)
 }
 
-pub use crate::module::source_annotation::{SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectDeclaration, SourceEffectRow, SourceOperationId, SourceOperationDeclaration, SourceOperationResolution};
+pub use crate::module::source_annotation::{
+    SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectDeclaration,
+    SourceEffectId, SourceEffectRow, SourceOperationDeclaration, SourceOperationId,
+    SourceOperationResolution,
+};
 
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
@@ -40,7 +44,9 @@ pub fn lower_module_with_local_source(
 }
 
 impl HirModule {
-    pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] { &self.effect_declarations }
+    pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] {
+        &self.effect_declarations
+    }
     /// Returns only a carrier belonging to this exact immutable artifact.
     pub fn local_source(
         &self,

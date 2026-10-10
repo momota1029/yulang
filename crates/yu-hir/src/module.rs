@@ -933,7 +933,8 @@ fn lower_module_with_counters(
     let root = SyntaxNode::new_root(parsed.green().clone());
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
-        counters.effect_declarations = source_annotation::declarations(&root, identity.module(), counters)?;
+        counters.effect_declarations =
+            source_annotation::declarations(&root, identity.module(), counters)?;
     }
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
@@ -947,14 +948,34 @@ fn lower_module_with_counters(
 
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
-        for (declaration, plan) in counters.effect_declarations.iter().zip(plans.iter().filter(|plan| plan.node.kind() == SyntaxKind::ActDeclaration)) {
+        for (declaration, plan) in counters.effect_declarations.iter().zip(
+            plans
+                .iter()
+                .filter(|plan| plan.node.kind() == SyntaxKind::ActDeclaration),
+        ) {
             let ordinal = plan.ordinal;
-            if counters.effect_namespace.get(declaration.spelling.as_ref()).is_some_and(|ids| ids.len() > 1) {
-                sink.lowering(HirErrorKind::DuplicateDefinition, HirErrorAttachment::DirectRootItem(ordinal), declaration.range.clone())?;
+            if counters
+                .effect_namespace
+                .get(declaration.spelling.as_ref())
+                .is_some_and(|ids| ids.len() > 1)
+            {
+                sink.lowering(
+                    HirErrorKind::DuplicateDefinition,
+                    HirErrorAttachment::DirectRootItem(ordinal),
+                    declaration.range.clone(),
+                )?;
             }
             for member in &declaration.operations {
-                if counters.operation_namespace.get(&(declaration.id.clone(), member.spelling.clone())).is_some_and(|members| members.len() > 1) {
-                    sink.lowering(HirErrorKind::DuplicateDefinition, HirErrorAttachment::DirectRootItem(ordinal), member.range.clone())?;
+                if counters
+                    .operation_namespace
+                    .get(&(declaration.id.clone(), member.spelling.clone()))
+                    .is_some_and(|members| members.len() > 1)
+                {
+                    sink.lowering(
+                        HirErrorKind::DuplicateDefinition,
+                        HirErrorAttachment::DirectRootItem(ordinal),
+                        member.range.clone(),
+                    )?;
                 }
             }
         }
@@ -1000,10 +1021,20 @@ fn lower_module_with_counters(
         )?;
         #[cfg(any(feature = "shadow", test))]
         if counters.local_source && plan.node.kind() == SyntaxKind::ActDeclaration {
-            let declaration = counters.effect_declarations.get_mut(effect_ordinal)
+            let declaration = counters
+                .effect_declarations
+                .get_mut(effect_ordinal)
                 .ok_or(HirAvailabilityError::StructuralProjection)?;
             effect_ordinal += 1;
-            if let HirItem::Error { errors, .. } = &item { declaration.placeholder_errors.extend(errors.iter().copied().filter(|id| sink.errors.iter().any(|error| error.id == *id && error.kind == HirErrorKind::UnsupportedItem))); }
+            if let HirItem::Error { errors, .. } = &item {
+                declaration
+                    .placeholder_errors
+                    .extend(errors.iter().copied().filter(|id| {
+                        sink.errors.iter().any(|error| {
+                            error.id == *id && error.kind == HirErrorKind::UnsupportedItem
+                        })
+                    }));
+            }
         }
         items.push(item);
     }
@@ -1049,7 +1080,10 @@ struct LoweringCounters {
     #[cfg(any(feature = "shadow", test))]
     effect_namespace: HashMap<String, Vec<source_annotation::SourceEffectId>>,
     #[cfg(any(feature = "shadow", test))]
-    operation_namespace: HashMap<(source_annotation::SourceEffectId, Box<str>), Vec<Arc<source_annotation::SourceOperationDeclaration>>>,
+    operation_namespace: HashMap<
+        (source_annotation::SourceEffectId, Box<str>),
+        Vec<Arc<source_annotation::SourceOperationDeclaration>>,
+    >,
     #[cfg(any(feature = "shadow", test))]
     shadow_applications: bool,
     #[cfg(any(feature = "shadow", test))]
@@ -1388,7 +1422,9 @@ fn lower_plan(
             .local_sources
             .try_reserve(1)
             .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        counters.local_sources.insert(definition_root.clone(), carrier);
+        counters
+            .local_sources
+            .insert(definition_root.clone(), carrier);
     }
     let mut lambda_occurrences = Vec::with_capacity(parameters.len());
     for ordinal in 0..parameters.len() {
@@ -2155,11 +2191,16 @@ fn plain_binding_header(
     if target.kind() != SyntaxKind::Pattern || has_recovery(target) {
         return None;
     }
-    let pattern_children = target.children().filter(|_child| {
-        #[cfg(any(feature = "shadow", test))]
-        if _counters.local_source && _child.kind() == SyntaxKind::PatternTypeAnnotation { return false; }
-        true
-    }).collect::<Vec<_>>();
+    let pattern_children = target
+        .children()
+        .filter(|_child| {
+            #[cfg(any(feature = "shadow", test))]
+            if _counters.local_source && _child.kind() == SyntaxKind::PatternTypeAnnotation {
+                return false;
+            }
+            true
+        })
+        .collect::<Vec<_>>();
     let (head, tails) = pattern_children.split_first()?;
     let head = identifier_pattern_name(head)?;
     #[cfg(any(feature = "shadow", test))]
@@ -2186,16 +2227,43 @@ fn plain_binding_header(
             return None;
         };
         #[cfg(any(feature = "shadow", test))]
-        let (argument, annotation) = if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern {
-            if argument.children_with_tokens().filter_map(|element| element.into_token()).any(|token| !matches!(token.kind(), SyntaxKind::LParen | SyntaxKind::RParen | SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment)) { return None; }
-            let children = argument.children().collect::<Vec<_>>();
-            let [pattern] = children.as_slice() else { return None; };
-            if pattern.kind() != SyntaxKind::Pattern { return None; }
-            let children = pattern.children().collect::<Vec<_>>();
-            let [identifier, annotation] = children.as_slice() else { return None; };
-            if annotation.kind() != SyntaxKind::PatternTypeAnnotation { return None; }
-            (identifier.clone(), Some(annotation.clone()))
-        } else { ((*argument).clone(), None) };
+        let (argument, annotation) =
+            if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern {
+                if argument
+                    .children_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| {
+                        !matches!(
+                            token.kind(),
+                            SyntaxKind::LParen
+                                | SyntaxKind::RParen
+                                | SyntaxKind::Whitespace
+                                | SyntaxKind::Newline
+                                | SyntaxKind::LineComment
+                                | SyntaxKind::BlockComment
+                        )
+                    })
+                {
+                    return None;
+                }
+                let children = argument.children().collect::<Vec<_>>();
+                let [pattern] = children.as_slice() else {
+                    return None;
+                };
+                if pattern.kind() != SyntaxKind::Pattern {
+                    return None;
+                }
+                let children = pattern.children().collect::<Vec<_>>();
+                let [identifier, annotation] = children.as_slice() else {
+                    return None;
+                };
+                if annotation.kind() != SyntaxKind::PatternTypeAnnotation {
+                    return None;
+                }
+                (identifier.clone(), Some(annotation.clone()))
+            } else {
+                ((*argument).clone(), None)
+            };
         parameters.push(AdmittedParameter {
             name: identifier_pattern_name(&argument)?,
             #[cfg(any(feature = "shadow", test))]
