@@ -181,3 +181,32 @@ fn recursive_definition_is_fresh_at_external_uses() {
         assert!(second.iter().all(|other| !row.same_identity(other)), "external recursive uses receive independent row images");
     }
 }
+
+#[test]
+fn mutually_recursive_definitions_accept_external_uses_at_distinct_shapes() {
+    let hir = module(
+        "my even x = odd x; my odd x = even x; my integer: int = even 1; my identity x = x; my function: int -> int = odd identity",
+        false,
+    );
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+
+    for (name, target) in [("integer", "even"), ("function", "odd")] {
+        let source = hir.local_source(root(&hir, name)).unwrap().unwrap();
+        let occurrence = source
+            .expressions()
+            .iter()
+            .find(|expression| matches!(
+                &expression.form,
+                LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::ModuleDef(_) }
+                    if spelling.as_ref() == target
+            ))
+            .map(|expression| &expression.occurrence)
+            .unwrap();
+        let use_image = candidate.fresh_use(occurrence).unwrap();
+        assert!(
+            use_image.rows().any(|row| row.source_row().is_local()),
+            "each external member use instantiates SCC scheme rows"
+        );
+    }
+}

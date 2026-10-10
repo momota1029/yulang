@@ -7454,14 +7454,18 @@ principality or F5 replacement is claimed.
 
 ### Recursive-definition external instantiation regression (2026-10-10)
 
-The live candidate now has a source regression for a self-recursive definition
-used externally at both integer and Function shapes. It checks that both actual
-module-reference occurrences retain nonempty generalized row images and that
-the two fresh-use images are disjoint under canonical row identity. This is
-evidence for independent external instantiation of this recursive fixture; it
-does not prove internal SCC monomorphism, mutual recursion, recursive
-soundness, or public/F5 publication. The focused test passes and an independent
-compiler review found no blocking, major, or open minor finding. See the
+The live candidate now has source regressions for a self-recursive definition
+used externally at both integer and Function shapes, and a mutual `even`/`odd`
+cycle with external uses at those distinct shapes. The self-recursive test
+checks that both actual module-reference occurrences retain nonempty
+generalized row images and that the two fresh-use images are disjoint under
+canonical row identity. The mutual test confirms conflict-free external use
+and nonempty generic images, without claiming cross-member fresh-image
+disjointness. This is evidence for independent instantiation in the first
+fixture and shape acceptance in the second; it does not prove internal SCC
+monomorphism, mutual recursion soundness, or public/F5 publication. The focused
+tests pass and independent compiler review found no blocking or major finding;
+minor naming findings were narrowed and reverified. See the
 [regression record](../notes/progress/2026-10-10-recursive-definition-external-instantiation.md).
 
 The next implementation gates remain unchanged: contextual residual identity
