@@ -1,13 +1,14 @@
 # Resumable private candidate suspension contract
 
-Status: Reviewed; not user-approved; no implementation authority
+Status: Authoritative for private candidate suspension and lifecycle continuation
 Scope: private candidate execution suspension and lifecycle continuation for the
 approved contextual-attachment admission gate
 Authority basis: `notes/design/2026-10-10-contextual-attachment-admission-design.md`
-§§4–6; this draft proposes an implementation contract for that approved gate
+§§4–6; it specifies the private implementation contract for that approved gate
 and does not change language semantics, supported-input policy, or public APIs
 Supersedes: none
 Reviewed-by: independent compiler-referee and spec-auditor; exact-wording delta reviews passed 2026-10-11
+Approved-by: user, “承認して実装を進めて” (2026-10-11)
 
 ## 1. Purpose
 
@@ -21,7 +22,7 @@ loops. Returning from a nested loop loses its local continuation; retrying the
 outer operation can allocate a second fresh use, reinsert a bound, repeat a
 completed child, or skip a pending obligation.
 
-This draft selects a private defunctionalized continuation stack to preserve
+This design selects a private defunctionalized continuation stack to preserve
 that existing execution order. It is a private implementation mechanism, not
 a new type rule, error result, resource bound, or public pending-inference API.
 
@@ -178,7 +179,7 @@ withdraw unrelated observations.
 
 All frame, child-batch, dependency, and journal storage is fallibly reserved
 before the mutation that relies on it. Retained and rollback bytes are included
-in existing resource accounting. This draft adds no time/size cap and no
+in existing resource accounting. This design adds no time/size cap and no
 source-level rejection.
 
 ## 7. Required verification before enabling production certificates

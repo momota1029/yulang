@@ -139,6 +139,15 @@ This index is a navigation aid. The listed source document remains authoritative
   Catch/complete Call, and public/default/F5 cutover remain open. The original
   carrier answer bundle is integrated at `7a6490172`.
 
+- [Private candidate suspension contract](2026-10-11-private-candidate-suspension-contract.md)
+  — Authoritative after the user's explicit approval “承認して実装を進めて”.
+  Specifies the private continuation stack, retained source/SCC progress,
+  dependency invalidation/recomputation, private deferral, rollback and atomic
+  publication for the existing contextual-admission gate. No public pending
+  API, language-semantic change, or source restriction is selected. Production
+  certificate creation remains gated on complete readiness and recognition
+  evidence.
+
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)
   proves finite exact one-ID normal-form automata and terminating multi-ID

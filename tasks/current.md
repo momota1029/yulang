@@ -8493,13 +8493,13 @@ scheme source audits can continue against the frozen baseline. Full Oracle
 hygiene transfer, ordinary Simple-sub inference, general residuals, complete
 Call/Catch, soundness/principality and F5 cutover remain open.
 
-The nested synchronous caller gap now has a reviewed private continuation-stack
-contract at [private candidate suspension](../notes/design/2026-10-11-private-candidate-suspension-contract-draft.md).
+The nested synchronous caller gap now has an approved private continuation-stack
+contract at [private candidate suspension](../notes/design/2026-10-11-private-candidate-suspension-contract.md).
 It preserves freshening, bound/replay cursors, typed child drains, source/SCC
 progress, invalidation recomputation, rollback and group publication without a
-public pending API or semantic change. The contract is reviewed but not
-user-approved, so it grants no implementation authority; lifecycle code remains
-unimplemented pending that decision.
+public pending API or semantic change. The user approved the reviewed contract
+on 2026-10-11; lifecycle code remains unimplemented and is the immediate
+implementation gate.
 
 The [FunctionPort lifecycle mutation bridge](../notes/progress/2026-10-11-functionport-lifecycle-mutation.md)
 identifies a mutation class that an allocation/equality-generation hook alone
