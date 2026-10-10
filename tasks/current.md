@@ -8432,6 +8432,18 @@ This exposes a source-reachable endpoint-lifecycle failure, not an R witness,
 global impossibility proof or completed root-cause repair. Checkpoints are
 `88eee6ef4` and `c2f7851d8`.
 
+After the queued-relation transport repair, the [symbolic whole-argument
+source attempt](../notes/progress/2026-10-10-source-owner-construction-search.md)
+ran one fresh parsed/lowered root to completion with zero solver errors. It
+reused formal result X, omitted the repeated `[E,'t]` argument tail and retained
+actual positive pairs `(C62,S25)` and `(T'61,T23)`. Both pairs stayed outside
+same-SCC qualification at the same physical snapshot; C62 reaches T'61 but not
+S25. This is a bounded failed source construction. The separate constructor
+review finds no current history-preserved invariant that proves the owner-only
+state impossible, so that universal source question remains open, as do
+unchanged-owner restoration, the omitted fiber, and full replay/diagnostic
+rescue.
+
 The [identity-context transport derivation](../notes/progress/2026-10-10-identity-context-stale-relation-lemma.md)
 shows that identity means no local filter work, but is not by itself proof that
 the stale relation's origins/replay/diagnostic ancestry reaches the canonical
