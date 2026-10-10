@@ -220,6 +220,8 @@ mod candidate_intrusion;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_effect;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_context;
+#[cfg(feature = "shadow-apply-candidate")]
 pub use candidate_effect::{EffectOperandHandle, EffectAnnotationHandle};
 #[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;
@@ -11313,7 +11315,7 @@ impl InferenceSession {
 
     fn pair_is_current(&self, key: TypedPairKey) -> bool {
         #[cfg(feature = "shadow-apply-candidate")]
-        if let Some(state) = &self.candidate_graph { return state.intrusion.completed.get(&key) == Some(&state.intrusion.generation); }
+        if let Some(state) = &self.candidate_graph { return state.intrusion.effect_algebra.context.contains(self.candidate_context_pair(key)) && state.intrusion.completed.get(&key) == Some(&state.intrusion.generation); }
         self.typed_pairs.contains_key(&key)
     }
 
@@ -11751,6 +11753,8 @@ impl InferenceSession {
         );
         self.clear_diagnostic_scratch();
         let mut transitions = 0;
+        #[cfg(feature = "shadow-apply-candidate")]
+        self.candidate_context_seed(initial, occurrence)?;
         self.enqueue_task(initial)?;
         loop {
             #[cfg(feature = "shadow-apply-candidate")]

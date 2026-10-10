@@ -45,6 +45,7 @@ pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
 pub(super) struct CaptureIncidence { pub source: u32, pub view: u32, pub next: Option<usize> }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub context: candidate_context::State,
     pub formal_domains: HashMap<usize, Term>,
     pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
     // Effect names share binding scope while remaining separate from value names.
@@ -53,8 +54,6 @@ pub(super) struct State {
     pub views: Vec<View>,
     brand: u64,
     pub processing: Option<TypedPairKey>,
-    edges: HashMap<TypedPairKey, Vec<TypedPairKey>>,
-    edge_keys: HashSet<(TypedPairKey, TypedPairKey)>,
     origins: HashMap<BoundKey, Vec<TypedPairKey>>,
     origin_keys: HashSet<(BoundKey, TypedPairKey)>,
     // Capture incidence only: these are ordinary bounds, never row edges.
@@ -106,11 +105,11 @@ pub(super) struct View {
     pub tail: Option<u32>,
 }
 pub(super) struct Checkpoint {
+    context: candidate_context::Checkpoint,
     contributions: usize,
     views: usize,
     nested_bytes: usize,
     processing: Option<TypedPairKey>,
-    edges: Vec<(TypedPairKey, TypedPairKey, bool)>,
     origins: Vec<(BoundKey, TypedPairKey, bool)>,
     capture_incidence: Vec<(u32, Option<CaptureBucket>)>,
     capture_links: Vec<(usize, Option<usize>)>,
@@ -132,11 +131,8 @@ fn bytes<T>(capacity: usize) -> Result<usize, SolveAvailabilityError> {
 }
 impl Checkpoint {
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        bytes::<(TypedPairKey, TypedPairKey, bool)>(self.edges.capacity())?
-            .checked_add(bytes::<(BoundKey, TypedPairKey, bool)>(
-                self.origins.capacity(),
-            )?)
-            .and_then(|n| n.checked_add(bytes::<(u32, Option<CaptureBucket>)>(self.capture_incidence.capacity()).ok()?))
+        bytes::<(BoundKey, TypedPairKey, bool)>(self.origins.capacity())?
+            .checked_add(bytes::<(u32, Option<CaptureBucket>)>(self.capture_incidence.capacity())?)
             .and_then(|n| n.checked_add(bytes::<(usize, Option<usize>)>(self.capture_links.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<(u32, u32)>(self.capture_keys.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<TypedPairKey>(self.conflicts.capacity()).ok()?))
@@ -160,11 +156,11 @@ impl State {
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            context: self.context.checkpoint(),
             contributions: self.contributions.len(),
             views: self.views.len(),
             nested_bytes: self.nested_bytes,
             processing: self.processing,
-            edges: Vec::new(),
             origins: Vec::new(),
             capture_incidence: Vec::new(),
             capture_links: Vec::new(),
@@ -178,19 +174,12 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        self.context.rollback(checkpoint.context);
         for key in checkpoint.formal_domains { self.formal_domains.remove(&key); }
         for key in checkpoint.annotation_values { self.annotation_values.remove(&key); }
         for key in checkpoint.annotation_effects { self.annotation_effects.remove(&key); }
         for key in checkpoint.conflicts {
             self.conflicts.remove(&key);
-        }
-        for (parent, child, new) in checkpoint.edges.into_iter().rev() {
-            self.edge_keys.remove(&(parent, child));
-            assert_eq!(self.edges.get_mut(&parent).unwrap().pop(), Some(child));
-            if new {
-                let entries = self.edges.remove(&parent).unwrap();
-                self.evidence_bytes -= entries.capacity() * std::mem::size_of::<TypedPairKey>();
-            }
         }
         for (bound, origin, new) in checkpoint.origins.into_iter().rev() {
             self.origin_keys.remove(&(bound, origin));
@@ -216,10 +205,9 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            self.context.bytes()?,
             bytes::<Contribution>(self.contributions.capacity())?,
             bytes::<View>(self.views.capacity())?,
-            bytes::<(TypedPairKey, Vec<TypedPairKey>)>(self.edges.capacity())?,
-            bytes::<(TypedPairKey, TypedPairKey)>(self.edge_keys.capacity())?,
             bytes::<(BoundKey, Vec<TypedPairKey>)>(self.origins.capacity())?,
             bytes::<(BoundKey, TypedPairKey)>(self.origin_keys.capacity())?,
             bytes::<(u32, CaptureBucket)>(self.capture_incidence.capacity())?,
@@ -242,17 +230,16 @@ impl State {
         // Formal witnesses may own annotation views, but never operation payloads.
         assert!(state.contributions.is_empty());
         assert!(state.views.iter().all(|view| matches!(view.provenance, ViewOrigin::Annotation)));
-        let evidence_bytes = state.edges.values().chain(state.origins.values())
+        let evidence_bytes = state.origins.values()
             .map(|entries| entries.capacity() * std::mem::size_of::<TypedPairKey>())
             .sum::<usize>();
         assert_eq!(state.evidence_bytes, evidence_bytes);
         let retained_names = state.annotation_values.keys().chain(state.annotation_effects.keys()).map(|(_, name)| name.len()).sum::<usize>();
         let retained_views = state.views.iter().map(|view| view.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>();
         assert_eq!(state.nested_bytes, retained_names + retained_views);
-        state.contributions.capacity() * std::mem::size_of::<Contribution>()
+        state.context.enumerated_bytes()
+            + state.contributions.capacity() * std::mem::size_of::<Contribution>()
             + state.views.capacity() * std::mem::size_of::<View>()
-            + state.edges.capacity() * std::mem::size_of::<(TypedPairKey, Vec<TypedPairKey>)>()
-            + state.edge_keys.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey)>()
             + state.origins.capacity() * std::mem::size_of::<(BoundKey, Vec<TypedPairKey>)>()
             + state.origin_keys.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey)>()
             + state.capture_incidence.capacity() * std::mem::size_of::<(u32, CaptureBucket)>()
@@ -333,75 +320,17 @@ impl InferenceSession {
         &mut self,
         task: LiveConstraintTask,
     ) -> Result<(), SolveAvailabilityError> {
-        let parent = self
-            .candidate_graph
-            .as_ref()
-            .and_then(|graph| graph.intrusion.effect_algebra.processing);
-        if let Some(parent) = parent {
-            self.candidate_effect_edge(parent, task_key(task))?;
-        }
-        Ok(())
-    }
-    fn candidate_effect_edge(
-        &mut self,
-        parent: TypedPairKey,
-        child: TypedPairKey,
-    ) -> Result<(), SolveAvailabilityError> {
-        if parent == child {
-            return Ok(());
-        }
-        let Some(graph) = &mut self.candidate_graph else {
-            return Ok(());
-        };
-        let state = &mut graph.intrusion.effect_algebra;
-        if state.edge_keys.contains(&(parent, child)) {
-            return Ok(());
-        }
-        let mut undo = self
-            .route_journal
-            .as_mut()
-            .and_then(|journal| journal.intrusion.as_mut())
-            .map(|undo| &mut undo.effect_algebra);
-        if let Some(undo) = &mut undo {
-            undo.edges.try_reserve(1).map_err(|_| exhausted())?;
-        }
-        state.edge_keys.try_reserve(1).map_err(|_| exhausted())?;
-        state.edges.try_reserve(1).map_err(|_| exhausted())?;
-        let new = !state.edges.contains_key(&parent);
-        let mut fresh = Vec::new();
-        let entries = if new {
-            &mut fresh
-        } else {
-            state.edges.get_mut(&parent).unwrap()
-        };
-        let old = entries.capacity();
-        entries.try_reserve(1).map_err(|_| exhausted())?;
-        state.evidence_bytes = state
-            .evidence_bytes
-            .checked_add(bytes::<TypedPairKey>(entries.capacity() - old)?)
-            .ok_or_else(exhausted)?;
-        entries.push(child);
-        if new {
-            state.edges.insert(parent, fresh);
-        }
-        state.edge_keys.insert((parent, child));
-        if let Some(undo) = undo {
-            undo.edges.push((parent, child, new));
-        }
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        self.candidate_context_admit(task)
     }
     pub(super) fn candidate_bound_origin(
         &mut self,
         bound: BoundKey,
         explicit: Option<TypedPairKey>,
     ) -> Result<(), SolveAvailabilityError> {
-        let Some(graph) = &mut self.candidate_graph else {
-            return Ok(());
-        };
-        let state = &mut graph.intrusion.effect_algebra;
-        let origin = explicit
-            .or(state.processing)
-            .unwrap_or_else(|| bound_pair(bound));
+        let Some(graph) = &self.candidate_graph else { return Ok(()); };
+        let origin = explicit.or(graph.intrusion.effect_algebra.processing).unwrap_or_else(|| bound_pair(bound));
+        self.candidate_context_bound(bound, origin)?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
         if state.origin_keys.contains(&(bound, origin)) {
             return Ok(());
         }
@@ -502,33 +431,14 @@ impl InferenceSession {
         }
         Ok(())
     }
-    pub(super) fn candidate_bound_dependencies(
-        &mut self,
-        bound: BoundKey,
-        child: LiveConstraintTask,
-    ) -> Result<(), SolveAvailabilityError> {
-        let count = self
-            .candidate_graph
-            .as_ref()
-            .and_then(|graph| graph.intrusion.effect_algebra.origins.get(&bound))
-            .map_or(0, Vec::len);
-        for index in 0..count {
-            let origin = self
-                .candidate_graph
-                .as_ref()
-                .unwrap()
-                .intrusion
-                .effect_algebra
-                .origins[&bound][index];
-            self.candidate_effect_edge(origin, task_key(child))?;
-        }
-        Ok(())
-    }
     pub(super) fn candidate_transfer_bound_origins(
         &mut self,
         from: BoundKey,
         to: BoundKey,
     ) -> Result<(), SolveAvailabilityError> {
+        if let Some(parent) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound(from) {
+            self.candidate_context_transport(parent, to, 0)?;
+        }
         let count = self
             .candidate_graph
             .as_ref()
@@ -623,7 +533,9 @@ impl InferenceSession {
         let mut charge = 0usize;
         let result = (|| {
             pending.try_reserve(1).map_err(|_| exhausted())?;
+            let initial_pair = self.candidate_context_pair(task_key(initial));
             pending.push(task_key(initial));
+            if initial_pair != task_key(initial) { pending.try_reserve(1).map_err(|_| exhausted())?; pending.push(initial_pair); }
             while let Some(key) = pending.pop() {
                 if visited.contains(&key) {
                     continue;
@@ -635,7 +547,7 @@ impl InferenceSession {
                     .unwrap()
                     .intrusion
                     .effect_algebra;
-                let count = state.edges.get(&key).map_or(0, Vec::len);
+                let count = state.context.children(key).count();
                 let conflict = state.conflicts.get(&key).copied();
                 pending.try_reserve(count).map_err(|_| exhausted())?;
                 let next = bytes::<TypedPairKey>(pending.capacity())?
@@ -659,17 +571,7 @@ impl InferenceSession {
                         },
                     )?;
                 }
-                if let Some(children) = self
-                    .candidate_graph
-                    .as_ref()
-                    .unwrap()
-                    .intrusion
-                    .effect_algebra
-                    .edges
-                    .get(&key)
-                {
-                    pending.extend(children.iter().copied());
-                }
+                pending.extend(self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.children(key));
             }
             Ok(())
         })();
@@ -958,7 +860,6 @@ impl InferenceSession {
             let undo_owned = undo.capture_incidence.capacity() * std::mem::size_of::<(u32, Option<CaptureBucket>)>()
                 + undo.capture_links.capacity() * std::mem::size_of::<(usize, Option<usize>)>()
                 + undo.capture_keys.capacity() * std::mem::size_of::<(u32, u32)>()
-                + undo.edges.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey, bool)>()
                 + undo.origins.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey, bool)>()
                 + undo.conflicts.capacity() * std::mem::size_of::<TypedPairKey>()
                 + undo.formal_domains.capacity() * std::mem::size_of::<usize>()
@@ -2178,6 +2079,169 @@ mod tests {
         assert_eq!(state.capture_records, before_records);
         assert_eq!(state.capture_incidence_keys, before_keys);
     }
+    fn attach_effect_bound_origins(
+        session: &mut InferenceSession,
+        owner: EffectEndpointKey,
+        upper: EffectEndpointKey,
+        origins: &[TypedPairKey],
+    ) {
+        for &origin in origins {
+            let previous = session.candidate_processing(Some(origin));
+            session.candidate_insert_bound(ExtrusionEndpoint::Effect(owner), Polarity::Negative,
+                ExtrusionEndpoint::Effect(upper)).unwrap();
+            session.candidate_processing(previous);
+        }
+    }
+    fn assert_effect_replay_has_one_owning_conflict(
+        session: &mut InferenceSession,
+        lower: EffectEndpointKey,
+        upper: EffectEndpointKey,
+        slot: u8,
+    ) {
+        let before = session.errors.len();
+        solve_effect(session, lower, upper, slot);
+        assert_eq!(session.errors.len(), before + 1);
+        let (occurrence, cause) = cause(session, "left", slot);
+        let error = session.errors.last().unwrap();
+        assert_eq!(error.occurrence, occurrence);
+        assert_eq!(error.cause, cause);
+        assert!(matches!(error.kind, SolverErrorKind::IncompatibleEffect { .. }));
+    }
+
+    #[test]
+    fn multiply_originated_bound_replays_future_conflict_once_for_each_owning_cause() {
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let owner = root(&session, "left");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
+        let bound_owner = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(1).unwrap());
+        let first = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(0).unwrap());
+        let second = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(0).unwrap());
+        solve_effect(&mut session, first, first, 41);
+        solve_effect(&mut session, second, second, 42);
+        attach_effect_bound_origins(&mut session, bound_owner, allowed, &[
+            TypedPairKey::Effect { lower: first, upper: first },
+            TypedPairKey::Effect { lower: second, upper: second },
+        ]);
+        assert!(session.errors.is_empty());
+        let forbidden = atom(&mut session, "F");
+        assert_effect_replay_has_one_owning_conflict(&mut session, forbidden, bound_owner, 43);
+        assert_effect_replay_has_one_owning_conflict(&mut session, first, first, 44);
+        assert_effect_replay_has_one_owning_conflict(&mut session, second, second, 45);
+    }
+
+    #[test]
+    fn raw_and_canonical_effect_roots_replay_late_conflict_after_parent_copy_intrusion() {
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let owner = root(&session, "left");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
+        let parent = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap());
+        session.candidate_insert_bound(ExtrusionEndpoint::Effect(parent), Polarity::Negative,
+            ExtrusionEndpoint::Effect(allowed)).unwrap();
+        let ExtrusionEndpoint::Effect(copy) = session.candidate_extrude(
+            ExtrusionEndpoint::Effect(parent), Polarity::Positive, 0).unwrap() else { panic!("effect copy"); };
+        assert_ne!(copy, parent);
+        solve_effect(&mut session, copy, allowed, 51);
+        let (occurrence, cause) = cause(&session, "left", 52);
+        session.candidate_restore_bound(ExtrusionEndpoint::Effect(copy), Polarity::Negative,
+            ExtrusionEndpoint::Effect(parent), &occurrence, &cause).unwrap();
+        solve_effect(&mut session, copy, copy, 53);
+        assert_eq!(session.canonical_effect(copy), parent);
+        assert!(session.errors.is_empty());
+        let forbidden = atom(&mut session, "F");
+        assert_effect_replay_has_one_owning_conflict(&mut session, forbidden, parent, 54);
+        assert_effect_replay_has_one_owning_conflict(&mut session, copy, allowed, 55);
+        assert_effect_replay_has_one_owning_conflict(&mut session, parent, allowed, 56);
+    }
+
+    #[test]
+    fn multiply_originated_bound_keeps_future_conflict_paths_through_extrusion_and_intrusion() {
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let owner = root(&session, "left");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
+        let parent = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap());
+        let first = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(0).unwrap());
+        let second = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(0).unwrap());
+        solve_effect(&mut session, first, first, 61);
+        solve_effect(&mut session, second, second, 62);
+        attach_effect_bound_origins(&mut session, parent, allowed, &[
+            TypedPairKey::Effect { lower: first, upper: first },
+            TypedPairKey::Effect { lower: second, upper: second },
+        ]);
+        let ExtrusionEndpoint::Effect(copy) = session.candidate_extrude(
+            ExtrusionEndpoint::Effect(parent), Polarity::Negative, 0).unwrap() else { panic!("effect copy"); };
+        assert_ne!(copy, parent);
+        let forbidden = atom(&mut session, "F");
+        assert_effect_replay_has_one_owning_conflict(&mut session, forbidden, copy, 63);
+        assert_effect_replay_has_one_owning_conflict(&mut session, first, first, 64);
+        assert_effect_replay_has_one_owning_conflict(&mut session, second, second, 65);
+        let (occurrence, intrusion_cause) = cause(&session, "left", 66);
+        session.candidate_restore_bound(ExtrusionEndpoint::Effect(copy), Polarity::Positive,
+            ExtrusionEndpoint::Effect(parent), &occurrence, &intrusion_cause).unwrap();
+        solve_effect(&mut session, copy, copy, 67);
+        assert_eq!(session.canonical_effect(copy), parent);
+        // Add another contribution after equality rather than relying only on
+        // the conflict retained before intrusion.
+        let later_forbidden = atom(&mut session, "F");
+        assert_effect_replay_has_one_owning_conflict(&mut session, later_forbidden, parent, 68);
+        // Both actual forbidden contributions remain reachable, once each.
+        for (origin, slot) in [(first, 69), (second, 70)] {
+            let before = session.errors.len();
+            solve_effect(&mut session, origin, origin, slot);
+            assert_eq!(session.errors.len(), before + 2);
+            let (occurrence, cause) = cause(&session, "left", slot);
+            assert!(session.errors[before..].iter().all(|error| error.occurrence == occurrence && error.cause == cause));
+            let operands: HashSet<_> = session.errors[before..].iter().map(|error| match error.kind {
+                SolverErrorKind::IncompatibleEffect { operand, .. } => operand,
+                _ => panic!("effect conflict"),
+            }).collect();
+            assert_eq!(operands.len(), 2);
+        }
+    }
+
+    #[test]
+    fn transported_fresh_effect_conflicts_do_not_replay_on_template_or_valid_use() {
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let owner = root(&session, "left");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
+        let template = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap());
+        session.candidate_insert_bound(ExtrusionEndpoint::Effect(template), Polarity::Negative,
+            ExtrusionEndpoint::Effect(allowed)).unwrap();
+        let template_bound = BoundKey(ExtrusionEndpoint::Effect(template), Polarity::Negative,
+            ExtrusionEndpoint::Effect(allowed));
+        let source = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound(template_bound).unwrap();
+        let invalid = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(3).unwrap());
+        let valid = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(3).unwrap());
+        // Exercise the same bound-carrier transport seam used by freshening,
+        // with two independent use origins and the shared annotation boundary.
+        for (endpoint, use_origin) in [(invalid, 1), (valid, 2)] {
+            session.candidate_context_transport(source,
+                BoundKey(ExtrusionEndpoint::Effect(endpoint), Polarity::Negative, ExtrusionEndpoint::Effect(allowed)),
+                use_origin).unwrap();
+            session.candidate_insert_bound(ExtrusionEndpoint::Effect(endpoint), Polarity::Negative,
+                ExtrusionEndpoint::Effect(allowed)).unwrap();
+        }
+        let f = atom(&mut session, "F");
+        solve_effect(&mut session, f, invalid, 31);
+        assert_eq!(session.errors.len(), 1);
+        let (invalid_occurrence, invalid_cause) = cause(&session, "left", 31);
+        assert_eq!(session.errors[0].occurrence, invalid_occurrence);
+        assert_eq!(session.errors[0].cause, invalid_cause);
+        solve_effect(&mut session, template, allowed, 32);
+        assert_eq!(session.errors.len(), 1, "template recheck must not replay a fresh-use conflict");
+        let e = atom(&mut session, "E");
+        solve_effect(&mut session, e, valid, 33);
+        solve_effect(&mut session, valid, allowed, 34);
+        assert_eq!(session.errors.len(), 1, "independent valid use must retain its own diagnostics");
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        assert!(context.bound(template_bound).is_some());
+        assert!(context.children(TypedPairKey::Effect { lower: template, upper: allowed })
+            .all(|pair| pair != TypedPairKey::Effect { lower: invalid, upper: allowed }));
+    }
+
     #[test]
     fn covariant_allowance_is_not_production_and_conflicts_keep_actual_boundary_and_cause() {
         let mut session =
@@ -2502,14 +2566,6 @@ mod tests {
             .intrusion
             .effect_algebra
             .checkpoint();
-        let old_edges = session
-            .candidate_graph
-            .as_ref()
-            .unwrap()
-            .intrusion
-            .effect_algebra
-            .edge_keys
-            .len();
         let old_origins = session
             .candidate_graph
             .as_ref()
@@ -2563,7 +2619,8 @@ mod tests {
             .effect_algebra;
         assert_eq!(state.views.len(), before.views);
         assert_eq!(state.contributions.len(), before.contributions);
-        assert_eq!(state.edge_keys.len(), old_edges);
+        assert_eq!(state.context.checkpoint(), before.context);
+        assert_eq!(state.context.bytes().unwrap(), state.context.enumerated_bytes());
         assert_eq!(state.origin_keys.len(), old_origins);
         assert_eq!(session.errors.len(), old_errors);
         assert_eq!(session.effect_bounds.len(), old_rows);
@@ -2574,6 +2631,10 @@ mod tests {
                 .exact_non_variable_uppers
                 .contains(&EffectEndpointKey::Allowance(closed))
         );
+        solve_effect(&mut session, EffectEndpointKey::EffectRow(parent), EffectEndpointKey::Allowance(closed), 22);
+        assert_eq!(session.errors.len(), old_errors, "rolled-back conflicts must not remain reachable");
+        let retried_forbidden = atom(&mut session, "F");
+        assert_effect_replay_has_one_owning_conflict(&mut session, retried_forbidden, EffectEndpointKey::EffectRow(parent), 23);
     }
     #[test]
     fn forbidden_siblings_do_not_contaminate_a_later_allowed_cause() {

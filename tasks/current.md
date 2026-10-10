@@ -7675,3 +7675,35 @@ The approved private carrier/two-circuit gate remains selected; generic
 negative-formal admission, mixed residual completion, exact run_io callback,
 full hygiene/principality/Call and public/default F5 remain open. No production
 change or additional broad test was made for this record.
+
+
+### Contextual identity relation foundation (2026-10-10)
+
+The approved contextual attachment gate now has a private identity-context
+relation foundation. Typed canonical relations retain occurrence origins,
+bound identities, ordered lower/upper replay dependencies, and transport
+provenance. Semantic conflict replay uses this relation graph as its single
+adjacency authority; transport alone does not make a fresh-use conflict flow
+back into a generic template. Extrusion and qualifying intrusion preserve
+multiple origins. Route rollback and retained-capacity accounting are covered.
+
+Focused solver tests pass: contextual relation 8, candidate effect 25,
+candidate intrusion 5, annotated function formals 10, annotated primitive
+formals 21, and Simple-sub local source 7. The exact commands and limits are
+recorded in [the progress checkpoint](../notes/progress/2026-10-10-contextual-identity-relation-foundation.md).
+Independent compiler and performance delta reviews found no remaining concrete
+issue. No timing measurement or speedup claim was made.
+
+This is an incomplete implementation checkpoint. The relation store currently
+admits identity contexts only; source-owned attachment operations, filters,
+residual recipes, the approved two-cycle acceleration and late-edge
+invalidation remain the next implementation gate. Concrete/closed-empty
+formal effect rows remain unsupported. Complete Call, full effect hygiene,
+soundness, principality, ordinary/default publication and F5 retirement remain
+open. The separate ordinary-HIR carrier question remains pending and is not
+approved by this checkpoint.
+
+Next: implement contextual attachment/context operations and the two-cycle
+certificate lifecycle on this single relation authority, preserving the exact
+formal-row refusal and source admission. Keep ordinary carrier approval and
+the later default/public cutover as separate gates.

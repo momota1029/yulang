@@ -624,9 +624,11 @@ impl InferenceSession {
                 }
                 _ => unreachable!(),
             };
-            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound), task)?;
             let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
-            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other), task)?;
+            let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
+            let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
+            let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
+            self.candidate_context_replay(lower_input, upper_input, task)?;
             self.constrain_live(task, occurrence, cause)?;
         }
         Ok(())
@@ -665,9 +667,11 @@ impl InferenceSession {
                 }
                 _ => unreachable!(),
             };
-            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound), task)?;
             let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
-            self.candidate_bound_dependencies(crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other), task)?;
+            let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
+            let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
+            let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
+            self.candidate_context_replay(lower_input, upper_input, task)?;
             self.enqueue_task(task)?;
         }
         Ok(())

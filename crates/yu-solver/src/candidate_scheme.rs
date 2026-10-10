@@ -75,6 +75,7 @@ pub(super) enum Atom {
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Bound {
+    pub relation: Option<candidate_context::RelationId>,
     pub kind: ComponentKind,
     pub side: Polarity,
     pub lower: usize,
@@ -404,12 +405,15 @@ impl<'a> Capture<'a> {
         lower: Endpoint,
         upper: Endpoint,
     ) -> Result<(), SolveAvailabilityError> {
+        let endpoint = |endpoint| match endpoint { Endpoint::Value(v, _) => ExtrusionEndpoint::Value(v), Endpoint::Effect(e, _) => ExtrusionEndpoint::Effect(e) };
+        let (owner, item) = if side == Polarity::Positive { (endpoint(upper), endpoint(lower)) } else { (endpoint(lower), endpoint(upper)) };
+        let relation = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound(candidate_effect::BoundKey(owner, side, item));
         let lower = self.intern(lower)?;
         let upper = self.intern(upper)?;
         let key = (kind, side, lower, upper);
         if self.bound_keys.contains(&key) { return Ok(()); }
         self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
-        push(&mut self.graph.bounds, Bound { kind, side, lower, upper })?;
+        push(&mut self.graph.bounds, Bound { relation, kind, side, lower, upper })?;
         self.bound_keys.insert(key);
         Ok(())
     }
@@ -726,6 +730,7 @@ impl InferenceSession {
         &mut self, graph: &Graph, use_level: u32,
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
+        let context_use = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.begin_use()?;
         let mut canonical_rows = HashMap::new();
         canonical_rows.try_reserve(graph.rows.len()).map_err(|_| exhausted())?;
         let mut rows = Vec::new();
@@ -876,6 +881,13 @@ impl InferenceSession {
             } else {
                 (lower, upper)
             };
+            if let Some(parent) = bound.relation {
+                // One reconstruction route shares all captured relation inputs.
+                // Independent uses retain independent transport origins even
+                // when an older, nongeneric coordinate is shared.
+                self.candidate_context_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
+                    context_use)?;
+            }
             self.candidate_restore_bound(owner, bound.side, item, occurrence, cause)?;
         }
         let lower = terms[graph.root].ok_or_else(exhausted)?;
