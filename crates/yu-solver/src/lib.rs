@@ -3996,6 +3996,8 @@ enum LiveConstraintTask {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct TypedWorkItem {
     task: LiveConstraintTask,
+    #[cfg(feature = "shadow-apply-candidate")]
+    relation: Option<candidate_context::RelationId>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -11744,8 +11746,24 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId,
         cause: &CauseId,
     ) -> Result<usize, SolveAvailabilityError> {
+        self.constrain_live_item(TypedWorkItem {
+            task: initial,
+            #[cfg(feature = "shadow-apply-candidate")]
+            relation: None,
+        }, occurrence, cause)
+    }
+
+    fn constrain_live_item(
+        &mut self,
+        initial_item: TypedWorkItem,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let initial = initial_item.task;
         #[cfg(feature = "shadow-apply-candidate")]
         let previous_processing = self.candidate_processing(None);
+        #[cfg(feature = "shadow-apply-candidate")]
+        let previous_relation = self.candidate_graph.as_mut().and_then(|graph| graph.intrusion.effect_algebra.context.processing.take());
         let result = (|| {
         assert!(
             self.typed_worklist.is_empty(),
@@ -11755,7 +11773,7 @@ impl InferenceSession {
         let mut transitions = 0;
         #[cfg(feature = "shadow-apply-candidate")]
         self.candidate_context_seed(initial, occurrence)?;
-        self.enqueue_task(initial)?;
+        self.enqueue_item(initial_item, false)?;
         loop {
             #[cfg(feature = "shadow-apply-candidate")]
             if self.typed_worklist.is_empty() && self.candidate_graph.is_some() {
@@ -11777,6 +11795,10 @@ impl InferenceSession {
             }
             #[cfg(feature = "shadow-apply-candidate")]
             self.candidate_task_scope(item.task);
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = item.relation; }
+            #[cfg(feature = "shadow-apply-candidate")]
+            let context_consumed = self.candidate_context_execute(item.task, item.relation)?;
             match item.task {
                 LiveConstraintTask::Effect(lower, upper) => {
                     let key = TypedPairKey::Effect { lower, upper };
@@ -11788,6 +11810,9 @@ impl InferenceSession {
                         self.execution_counters.constraint_pair_duplicates += 1;
                     } else {
                         self.record_typed_pair_admission(key, TypedPairMemo::Effect)?;
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        if !context_consumed { self.apply_effect_task(lower, upper)?; }
+                        #[cfg(not(feature = "shadow-apply-candidate"))]
                         self.apply_effect_task(lower, upper)?;
                     }
                 }
@@ -12011,39 +12036,46 @@ impl InferenceSession {
         Ok(transitions)
         })();
         #[cfg(feature = "shadow-apply-candidate")]
-        { self.candidate_processing(previous_processing); }
+        {
+            self.candidate_processing(previous_processing);
+            if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
+        }
         result
     }
 
     fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
-        #[cfg(feature = "shadow-apply-candidate")]
-        self.candidate_enqueue_evidence(task)?;
-        reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
-        let old_capacity = self.typed_worklist.capacity();
-        self.typed_worklist.push_back(TypedWorkItem { task });
-        #[cfg(all(test, feature = "f5c_resource_probe"))]
-        self.observe_f5c_structured_pair_top(
-            2, self.typed_worklist.len(), self.typed_worklist.capacity(),
-        );
-        #[cfg(test)]
-        self.record_typed_worklist_push(task, old_capacity);
-        #[cfg(not(test))]
-        let _ = old_capacity;
-        Ok(())
+        self.enqueue_item(TypedWorkItem {
+            task,
+            #[cfg(feature = "shadow-apply-candidate")]
+            relation: None,
+        }, false)
     }
 
     fn enqueue_front(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
+        self.enqueue_item(TypedWorkItem {
+            task,
+            #[cfg(feature = "shadow-apply-candidate")]
+            relation: None,
+        }, true)
+    }
+
+    fn enqueue_item(&mut self, mut item: TypedWorkItem, front: bool) -> Result<(), SolveAvailabilityError> {
         #[cfg(feature = "shadow-apply-candidate")]
-        self.candidate_enqueue_evidence(task)?;
+        if item.relation.is_none() {
+            item.relation = self.candidate_enqueue_evidence(item.task)?;
+        }
+        #[cfg(not(feature = "shadow-apply-candidate"))]
+        let _ = &mut item;
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
-        self.typed_worklist.push_front(TypedWorkItem { task });
+        if front { self.typed_worklist.push_front(item); }
+        else { self.typed_worklist.push_back(item); }
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_f5c_structured_pair_top(
             2, self.typed_worklist.len(), self.typed_worklist.capacity(),
         );
         #[cfg(test)]
-        self.record_typed_worklist_push(task, old_capacity);
+        self.record_typed_worklist_push(item.task, old_capacity);
         #[cfg(not(test))]
         let _ = old_capacity;
         Ok(())
@@ -23238,10 +23270,18 @@ mod tests {
         session
             .constrain_live_value(key, &first, &first_cause)
             .unwrap();
+        #[cfg(not(feature = "shadow-apply-candidate"))]
         assert_eq!(
             std::mem::size_of::<TypedWorkItem>(),
             std::mem::size_of::<LiveConstraintTask>(),
-            "typed transmission storage carries no occurrence/cause identity"
+            "default typed transmission storage carries no occurrence/cause identity"
+        );
+        #[cfg(feature = "shadow-apply-candidate")]
+        assert!(
+            std::mem::size_of::<TypedWorkItem>()
+                >= std::mem::size_of::<LiveConstraintTask>()
+                    + std::mem::size_of::<Option<candidate_context::RelationId>>(),
+            "candidate typed transmission retains its task and relation identity"
         );
         assert!(session.typed_pair_worklist_pushes > 1);
         let after_first_pairs = session.typed_pairs.len();

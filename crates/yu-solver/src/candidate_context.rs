@@ -25,6 +25,9 @@ struct EntryCertificateId(u32);
     allow(dead_code, reason = "context propagation is a later gate")
 )]
 enum ContextExpr {
+    // A covariant closed annotation check. The view owns the resolved atom
+    // set and exact source occurrence; its index is not nominal effect identity.
+    ClosedAllowance { view: u32, input: ContextId },
     PrefixLeft {
         weight: LocalWeightId,
         input: ContextId,
@@ -56,6 +59,7 @@ struct RelationKey {
 #[derive(Clone, Copy, Debug)]
 struct Relation {
     key: RelationKey,
+    previous_on_pair: Option<RelationId>,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Dependency {
@@ -95,6 +99,7 @@ pub(super) struct State {
     context_keys: HashMap<ContextExpr, ContextId>,
     relations: Vec<Relation>,
     keys: HashMap<RelationKey, RelationId>,
+    pair_heads: HashMap<TypedPairKey, RelationId>,
     dependencies: Vec<Dependency>,
     dependency_keys: HashSet<Dependency>,
     origins: Vec<Origin>,
@@ -105,6 +110,9 @@ pub(super) struct State {
     edge_keys: HashSet<(RelationId, RelationId)>,
     edge_log: Vec<(RelationId, RelationId)>,
     edge_bytes: usize,
+    pub processing: Option<RelationId>,
+    discharged: HashSet<RelationId>,
+    discharge_log: Vec<RelationId>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
@@ -115,6 +123,8 @@ pub(super) struct Checkpoint {
     bounds: usize,
     uses: usize,
     edges: usize,
+    processing: Option<RelationId>,
+    discharges: usize,
 }
 fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
@@ -129,14 +139,24 @@ impl State {
             bounds: self.bound_keys.len(),
             uses: self.uses,
             edges: self.edge_log.len(),
+            processing: self.processing,
+            discharges: self.discharge_log.len(),
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for relation in self.discharge_log.drain(checkpoint.discharges..) {
+            self.discharged.remove(&relation);
+        }
         for context in self.contexts.drain(checkpoint.contexts..) {
             self.context_keys.remove(&context);
         }
-        for relation in self.relations.drain(checkpoint.relations..) {
+        for relation in self.relations.drain(checkpoint.relations..).rev() {
             self.keys.remove(&relation.key);
+            if let Some(previous) = relation.previous_on_pair {
+                self.pair_heads.insert(relation.key.pair, previous);
+            } else {
+                self.pair_heads.remove(&relation.key.pair);
+            }
         }
         for dependency in self.dependencies.drain(checkpoint.dependencies..) {
             self.dependency_keys.remove(&dependency);
@@ -146,6 +166,7 @@ impl State {
         }
         self.origins.truncate(checkpoint.origins);
         self.uses = checkpoint.uses;
+        self.processing = checkpoint.processing;
         for (parent, child) in self.edge_log.drain(checkpoint.edges..).rev() {
             self.edge_keys.remove(&(parent, child));
             let entries = self.edges.get_mut(&parent).unwrap();
@@ -158,6 +179,8 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            self.discharged.capacity().checked_mul(std::mem::size_of::<RelationId>()),
+            self.discharge_log.capacity().checked_mul(std::mem::size_of::<RelationId>()),
             self.contexts
                 .capacity()
                 .checked_mul(std::mem::size_of::<ContextExpr>()),
@@ -170,6 +193,9 @@ impl State {
             self.keys
                 .capacity()
                 .checked_mul(std::mem::size_of::<(RelationKey, RelationId)>()),
+            self.pair_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<(TypedPairKey, RelationId)>()),
             self.dependencies
                 .capacity()
                 .checked_mul(std::mem::size_of::<Dependency>()),
@@ -222,10 +248,13 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
+        self.discharged.capacity() * std::mem::size_of::<RelationId>()
+            + self.discharge_log.capacity() * std::mem::size_of::<RelationId>()
+            + self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
             + self.context_keys.capacity() * std::mem::size_of::<(ContextExpr, ContextId)>()
             + self.relations.capacity() * std::mem::size_of::<Relation>()
             + self.keys.capacity() * std::mem::size_of::<(RelationKey, RelationId)>()
+            + self.pair_heads.capacity() * std::mem::size_of::<(TypedPairKey, RelationId)>()
             + self.dependencies.capacity() * std::mem::size_of::<Dependency>()
             + self.dependency_keys.capacity() * std::mem::size_of::<Dependency>()
             + self.origins.capacity() * std::mem::size_of::<Origin>()
@@ -242,7 +271,8 @@ impl State {
     )]
     fn context(&mut self, expression: ContextExpr) -> Result<ContextId, SolveAvailabilityError> {
         match expression {
-            ContextExpr::PrefixLeft { input, .. }
+            ContextExpr::ClosedAllowance { input, .. }
+            | ContextExpr::PrefixLeft { input, .. }
             | ContextExpr::SuffixRightPops { input, .. }
             | ContextExpr::Swap { input }
             | ContextExpr::BothFromRight { input, .. }
@@ -286,7 +316,9 @@ impl State {
         let id = RelationId(u32::try_from(self.relations.len()).map_err(|_| exhausted())?);
         self.relations.try_reserve(1).map_err(|_| exhausted())?;
         self.keys.try_reserve(1).map_err(|_| exhausted())?;
-        self.relations.push(Relation { key });
+        self.pair_heads.try_reserve(1).map_err(|_| exhausted())?;
+        let previous_on_pair = self.pair_heads.insert(pair, id);
+        self.relations.push(Relation { key, previous_on_pair });
         self.keys.insert(key, id);
         Ok(id)
     }
@@ -295,10 +327,7 @@ impl State {
         Ok(self.uses)
     }
     pub fn contains(&self, pair: TypedPairKey) -> bool {
-        self.keys.contains_key(&RelationKey {
-            pair,
-            context: IDENTITY,
-        })
+        self.pair_heads.contains_key(&pair)
     }
     fn dependency(&mut self, dependency: Dependency) -> Result<(), SolveAvailabilityError> {
         if self.dependency_keys.contains(&dependency) {
@@ -365,15 +394,12 @@ impl State {
         Ok(())
     }
     pub fn children(&self, pair: TypedPairKey) -> impl Iterator<Item = TypedPairKey> + '_ {
-        self.keys
-            .get(&RelationKey {
-                pair,
-                context: IDENTITY,
-            })
-            .and_then(|id| self.edges.get(id))
-            .into_iter()
-            .flatten()
-            .map(|id| self.relations[id.0 as usize].key.pair)
+        std::iter::successors(self.pair_heads.get(&pair).copied(), |id| {
+            self.relations[id.0 as usize].previous_on_pair
+        })
+        .filter_map(|id| self.edges.get(&id))
+        .flatten()
+        .map(|id| self.relations[id.0 as usize].key.pair)
     }
     pub fn bound(&self, key: BoundKey) -> Option<RelationId> {
         self.bounds.get(&key).copied()
@@ -428,6 +454,19 @@ impl InferenceSession {
             },
         }
     }
+    fn candidate_closed_allowance(&self, pair: TypedPairKey) -> Option<u32> {
+        let TypedPairKey::Effect { upper: EffectEndpointKey::Allowance(view), .. } = pair else { return None; };
+        let view_data = &self.candidate_graph.as_ref()?.intrusion.effect_algebra.views[view as usize];
+        (view_data.tail.is_none() && matches!(view_data.provenance, candidate_effect::ViewOrigin::Annotation)).then_some(view)
+    }
+    fn candidate_context_source(&mut self, pair: TypedPairKey) -> Result<ContextId, SolveAvailabilityError> {
+        let view = self.candidate_closed_allowance(pair);
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        match view {
+            Some(view) => state.context(ContextExpr::ClosedAllowance { view, input: IDENTITY }),
+            None => Ok(IDENTITY),
+        }
+    }
     pub(super) fn candidate_context_seed(
         &mut self,
         task: LiveConstraintTask,
@@ -437,6 +476,7 @@ impl InferenceSession {
             return Ok(());
         }
         let pair = self.candidate_context_pair(task_pair(task));
+        let context = self.candidate_context_source(pair)?;
         let state = &mut self
             .candidate_graph
             .as_mut()
@@ -444,7 +484,7 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let relation = state.relation(pair, IDENTITY)?;
+        let relation = state.relation(pair, context)?;
         state.origins.try_reserve(1).map_err(|_| exhausted())?;
         state.origins.push(Origin {
             relation,
@@ -455,29 +495,75 @@ impl InferenceSession {
     pub(super) fn candidate_context_admit(
         &mut self,
         task: LiveConstraintTask,
-    ) -> Result<(), SolveAvailabilityError> {
-        let Some(graph) = &self.candidate_graph else {
-            return Ok(());
-        };
-        let parent = graph
-            .intrusion
-            .effect_algebra
-            .processing
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let Some(graph) = &self.candidate_graph else { return Ok(None); };
+        let retained_parent = graph.intrusion.effect_algebra.context.processing;
+        let parent = graph.intrusion.effect_algebra.processing
             .map(|p| self.candidate_context_pair(p));
         let pair = self.candidate_context_pair(task_pair(task));
-        let state = &mut self
-            .candidate_graph
-            .as_mut()
-            .unwrap()
-            .intrusion
-            .effect_algebra
-            .context;
-        let child = state.relation(pair, IDENTITY)?;
+        let context = self.candidate_context_source(pair)?;
+        let parent_context = parent.map(|pair| self.candidate_context_source(pair)).transpose()?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let child = state.relation(pair, context)?;
         if let Some(parent) = parent {
-            let parent = state.relation(parent, IDENTITY)?;
+            let parent = match retained_parent {
+                Some(id) if state.relations[id.0 as usize].key.pair == parent => id,
+                _ => state.relation(parent, parent_context.unwrap())?,
+            };
             state.dependency(Dependency::Derived { child, parent })?;
         }
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(child))
+    }
+    // Admission checks run before endpoint memoization and equality handling.
+    // Once consumed, the normal Allowance bound retains current/future-lower
+    // obligations. Children use the discharged context, not a repeated filter.
+    pub(super) fn candidate_context_execute(
+        &mut self,
+        task: LiveConstraintTask,
+        relation: Option<RelationId>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let Some(relation) = relation else { return Ok(false); };
+        let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let key = state.relations[relation.0 as usize].key;
+        assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
+        if key.context == IDENTITY { return Ok(false); }
+        if state.discharged.contains(&relation) { return Ok(true); }
+        let ContextExpr::ClosedAllowance { view, input: IDENTITY } = state.contexts[key.context.0 as usize - 1] else {
+            // Only closed source filters have an executable consumer in this
+            // slice. Other ContextExpr constructors are not admitted here.
+            return Err(exhausted());
+        };
+        let LiveConstraintTask::Effect(lower, _) = task else { return Err(exhausted()); };
+        let upper = EffectEndpointKey::Allowance(view);
+        let registered = match self.canonical_effect(lower) {
+            EffectEndpointKey::EffectRow(row) => self.effect_bounds[row as usize].exact_non_variable_uppers.contains(&upper),
+            _ => false,
+        };
+        if registered {
+            // The allowance already owns its executable bound, but this
+            // source occurrence still needs an edge to that bound. Otherwise
+            // a conflict recorded before this relation was admitted cannot
+            // be replayed at this occurrence.
+            let EffectEndpointKey::EffectRow(row) = self.canonical_effect(lower) else { unreachable!() };
+            self.candidate_bound_origin(
+                BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                    Polarity::Negative,
+                    ExtrusionEndpoint::Effect(upper),
+                ),
+                Some(task_pair(task)),
+            )?;
+        } else {
+            self.candidate_apply_effect(lower, upper)?;
+        }
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        state.discharged.try_reserve(1).map_err(|_| exhausted())?;
+        state.discharge_log.try_reserve(1).map_err(|_| exhausted())?;
+        state.discharged.insert(relation);
+        state.discharge_log.push(relation);
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(true)
     }
     pub(super) fn candidate_context_bound(
         &mut self,
@@ -486,6 +572,8 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(bound));
         let origin = self.candidate_context_pair(origin);
+        let origin_context = self.candidate_context_source(origin)?;
+        let retained_parent = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.processing;
         let state = &mut self
             .candidate_graph
             .as_mut()
@@ -494,7 +582,10 @@ impl InferenceSession {
             .effect_algebra
             .context;
         let child = state.relation(pair, IDENTITY)?;
-        let parent = state.relation(origin, IDENTITY)?;
+        let parent = match retained_parent {
+            Some(id) if state.relations[id.0 as usize].key.pair == origin => id,
+            _ => state.relation(origin, origin_context)?,
+        };
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)
     }

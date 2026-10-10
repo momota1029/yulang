@@ -319,7 +319,7 @@ impl InferenceSession {
     pub(super) fn candidate_enqueue_evidence(
         &mut self,
         task: LiveConstraintTask,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<Option<candidate_context::RelationId>, SolveAvailabilityError> {
         self.candidate_context_admit(task)
     }
     pub(super) fn candidate_bound_origin(

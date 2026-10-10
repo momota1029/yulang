@@ -2,7 +2,10 @@ use super::*;
 use yu_hir::shadow::lower_module_with_local_source;
 
 fn session() -> InferenceSession {
-    let source: Arc<yu_syntax::SourceText> = Arc::from("act E\nmy seed = 1");
+    session_with_source("act E\nmy seed = 1")
+}
+fn session_with_source(text: &str) -> InferenceSession {
+    let source: Arc<yu_syntax::SourceText> = Arc::from(text);
     let parsed = yu_syntax::parse_file(
         source.clone(),
         Arc::new(yu_syntax::scan_header(source)),
@@ -566,4 +569,135 @@ fn context_construction_rejects_nonexistent_child() {
 fn relation_construction_rejects_nonexistent_context() {
     let mut context = State::default();
     let _ = context.relation(task_pair(task(0, 0)), ContextId(1));
+}
+
+
+#[test]
+fn source_closed_annotation_filters_execute_and_keep_resolved_members() {
+    for (allowed, errors) in [("E", 0), ("", 1)] {
+        let mut session = session_with_source(&format!(
+            "act E:\n    our emit: () -> int\n\nmy answer:[{allowed}] int = E::emit()"
+        ));
+        let owner = session.batch.hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        session.execute_candidate_source_root(&owner).unwrap();
+        assert_eq!(session.errors.len(), errors);
+        let context = state(&session);
+        assert!(!context.discharge_log.is_empty(), "actual annotation filters have an executable consumer");
+        for &id in &context.discharge_log {
+            let relation = context.relations[id.0 as usize].key;
+            let ContextExpr::ClosedAllowance { view, input: IDENTITY } = context.contexts[relation.context.0 as usize - 1] else { panic!("closed source filter"); };
+            let view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize];
+            assert!(matches!(view.provenance, candidate_effect::ViewOrigin::Annotation));
+            assert!(view.tail.is_none());
+            if !allowed.is_empty() {
+                assert_eq!(view.allowed, vec![session.batch.hir.source_effect_declarations()[0].id.clone()]);
+            }
+        }
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    }
+}
+
+#[test]
+fn equal_endpoint_filters_register_both_obligations_before_memo_and_self_omission() {
+    let mut session = session();
+    let receiver = session.fresh_effect_at_level(1).unwrap();
+    let (occurrence, cause) = cause(&session, 0);
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let first = session.candidate_effect_view(owner.clone(), effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    let second = session.candidate_effect_view(owner, effect.declaration.clone(), Vec::new(), None).unwrap();
+    let task = LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(receiver), EffectEndpointKey::EffectRow(receiver));
+    // Complete the ordinary endpoint pair first: contextual admission must
+    // still execute each new, source-owned filter on this receiver.
+    session.constrain_live(task, &occurrence, &cause).unwrap();
+    let before = state(&session).checkpoint();
+    let run = |session: &mut InferenceSession| {
+        for view in [first, second] {
+            let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            let filter = context.context(ContextExpr::ClosedAllowance { view, input: IDENTITY })?;
+            let relation = context.relation(task_pair(task), filter)?;
+            session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, &occurrence, &cause)?;
+            assert!(state(session).discharged.contains(&relation));
+        }
+        let uppers = &session.effect_bounds[receiver as usize].exact_non_variable_uppers;
+        assert!(uppers.contains(&EffectEndpointKey::Allowance(first)));
+        assert!(uppers.contains(&EffectEndpointKey::Allowance(second)));
+        assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        run(session)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert!(!session.effect_bounds[receiver as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(first)));
+    assert!(!session.effect_bounds[receiver as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(second)));
+    session.with_route_transaction(run).unwrap();
+    let contribution = session.candidate_effect_contribution(effect, session.batch.hir.source_effect_declarations()[0].id.declaration.clone()).unwrap();
+    session.constrain_live(LiveConstraintTask::Effect(contribution, EffectEndpointKey::EffectRow(receiver)), &occurrence, &cause).unwrap();
+    assert_eq!(session.errors.len(), 1, "the second filter rejects a future E lower although the first allows it");
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn pre_registered_filter_replays_current_conflict_at_new_relation_and_rolls_back() {
+    let mut session = session();
+    let receiver = session.fresh_effect_at_level(1).unwrap();
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let view = session.candidate_effect_view(
+        owner,
+        effect.declaration.clone(),
+        Vec::new(),
+        None,
+    ).unwrap();
+    let row = EffectEndpointKey::EffectRow(receiver);
+    let allowance = EffectEndpointKey::Allowance(view);
+    // The bound exists before this contextual relation is admitted.
+    session.candidate_apply_effect(row, allowance).unwrap();
+    let (first_occurrence, first_cause) = cause(&session, 0);
+    let contribution = session.candidate_effect_contribution(
+        effect,
+        session.batch.hir.source_effect_declarations()[0].id.declaration.clone(),
+    ).unwrap();
+    session.constrain_live(
+        LiveConstraintTask::Effect(contribution, row),
+        &first_occurrence,
+        &first_cause,
+    ).unwrap();
+    let prior_errors = session.errors.len();
+    assert!(prior_errors > 0, "the existing bound records the current conflict");
+
+    let task = LiveConstraintTask::Effect(row, row);
+    let (occurrence, cause) = cause(&session, 1);
+    let before = state(&session).checkpoint();
+    let admit = |session: &mut InferenceSession| {
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let filtered = context.context(ContextExpr::ClosedAllowance { view, input: IDENTITY })?;
+        let relation = context.relation(task_pair(task), filtered)?;
+        session.constrain_live_item(
+            TypedWorkItem { task, relation: Some(relation) },
+            &occurrence,
+            &cause,
+        )
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        admit(session)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(session.errors.len(), prior_errors);
+
+    session.with_route_transaction(admit).unwrap();
+    assert_eq!(session.errors.len(), prior_errors + 1, "the new relation replays the current conflict");
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
 }

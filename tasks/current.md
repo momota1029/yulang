@@ -7763,3 +7763,22 @@ formation definitions; independently, implement contextual attachment
 construction under the newly integrated member-grouping decision. Full effect
 hygiene, ordinary/default/public migration, soundness/principality and F5
 replacement remain open.
+
+### Contextual closed-Allowance replay checkpoint (2026-10-10)
+
+The candidate worklist now retains exact contextual relation identity. Closed
+covariant source Allowance checks execute before endpoint memoization/self
+omission and remain registered on the true receiver for later lowers. An
+already registered Allowance now links each newly admitted relation to the
+existing bound before discharge, so stored conflicts replay at that relation's
+source occurrence; rollback/retry is covered. The candidate work-item layout
+contract accounts for the new relation handle while preserving the default
+layout assertion. The focused 15-test contextual suite and both default and
+candidate focused layout tests pass. See the
+[checkpoint record](../notes/progress/2026-10-10-contextual-closed-allowance-replay.md).
+
+This is a partial contextual gate only. General operation transport, residual
+lineage, two-cycle invalidation, full effect hygiene, complete Call,
+public/default inference, soundness/principality and F5 retirement remain open.
+Continue through the same Simple-sub relation authority; do not infer any
+callback result scheme from the user-retracted example.
