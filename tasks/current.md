@@ -8546,5 +8546,12 @@ remains conditional: R47 is a negative copy of R45, so merging them could
 transport S53's fiber without replay; the exact missing source edge is
 `q113 ->* R45`. This static route analysis ran no source execution and proves
 neither its reachability nor global impossibility. Alternative A and B remain
-open; prover execution is still unavailable in this runtime despite the
-repository's configured prover role.
+open. A configured prover child was launched through `tools/codex-prover.sh`
+as `/root/source_transport_proof`; its session JSONL authenticates
+`agent_role=prover`, `model=gpt-6.1-sol`, and `effort=high`. Its conditional
+direct-edge level lemma passed independent compiler-referee review. See [the
+prover callback-return result](../notes/progress/2026-10-11-prover-callback-return-obstruction.md).
+The lemma excludes only direct ordinary row-comparison edges from supplying
+an upward `q113 -> R45` path while levels and representatives stay fixed. A
+source observer is checking q113's actual outgoing keys and view tails at the
+target restore. Alternative A/B and diagnostic rescue remain open.
