@@ -997,6 +997,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap()
             .scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
         let result = (|| {
+            self.candidate_negative_empty_bundle(annotation, occurrence, &context)?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let negative = self.candidate_signature_value(
                 &context, &annotation.ty,
@@ -1069,6 +1070,8 @@ impl InferenceSession {
             .checked_add(scratch)
             .ok_or_else(exhausted)?;
         let result = (|| {
+            self.candidate_negative_empty_bundle(annotation, occurrence,
+                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())))?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let upper = self.candidate_signature_value(
                 &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
@@ -1106,6 +1109,41 @@ impl InferenceSession {
         drop((value_variables, effect_variables, views));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
+    }
+
+    fn candidate_negative_empty_bundle(
+        &mut self, annotation: &SourceAnnotation, occurrence: &HirOccurrenceId,
+        context: &SignatureContext<'_>,
+    ) -> Result<(), SolveAvailabilityError> {
+        fn collect(ty: &SourceAnnotationType, variance: Polarity, annotation: &SourceAnnotation,
+            scope: &AnnotationScope, sets: &mut Vec<candidate_context::EmptyAttachmentSet>) -> Result<(), SolveAvailabilityError> {
+            if variance == Polarity::Negative {
+                if let Some(row) = &ty.effects {
+                    if row.concrete.is_empty() && row.variables.is_empty() {
+                        sets.try_reserve(1).map_err(|_| exhausted())?;
+                        sets.push(candidate_context::EmptyAttachmentSet {
+                            owner: annotation.owner.clone(), position: row.position.clone(),
+                            source: candidate_context::AttachmentSource { composed_polarity: variance, lexical_scope: scope.clone() },
+                        });
+                    }
+                }
+            }
+            if let SourceAnnotationValue::Function { argument, result } = &ty.value {
+                let opposite = if variance == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+                collect(argument, opposite, annotation, scope, sets)?;
+                collect(result, variance, annotation, scope, sets)?;
+            }
+            Ok(())
+        }
+        let SignatureContext::Annotation(_, scope) = context else { return Ok(()); };
+        let mut sets = Vec::new();
+        collect(&annotation.ty, Polarity::Positive, annotation, scope, &mut sets)?;
+        if !sets.is_empty() {
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retain_bundle(
+                candidate_context::AttachmentBundle { occurrence: ConstraintOccurrenceId::new(occurrence.clone(), 41), sets }, true)?;
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        }
+        Ok(())
     }
 
     fn candidate_annotation_computation_effect<'a>(

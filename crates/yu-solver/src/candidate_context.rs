@@ -35,6 +35,22 @@ pub(super) struct AttachmentSource {
     pub composed_polarity: Polarity,
     pub lexical_scope: candidate_effect::AnnotationScope,
 }
+// These identities retain source construction only. They never enter a
+// RelationKey, ContextExpr, executable View, or endpoint comparison.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct AttachmentBundleId(pub usize);
+#[derive(Clone, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "inert source provenance has no executable attachment consumer"))]
+pub(super) struct EmptyAttachmentSet {
+    pub owner: DefinitionRootId,
+    pub position: SourceNodeKey,
+    pub source: AttachmentSource,
+}
+#[derive(Clone, Debug)]
+pub(super) struct AttachmentBundle {
+    pub occurrence: ConstraintOccurrenceId,
+    pub sets: Vec<EmptyAttachmentSet>,
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct EntryCertificateId(u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -108,8 +124,48 @@ struct Origin {
     relation: RelationId,
     occurrence: ConstraintOccurrenceId,
 }
+#[derive(Clone, Copy, Debug)]
+struct BundleIncidence {
+    relation: RelationId,
+    bundle: AttachmentBundleId,
+    previous_on_relation: Option<usize>,
+}
+#[derive(Debug, Default)]
+struct BundleTransports {
+    heads: HashMap<RelationId, usize>,
+    log: Vec<(RelationId, RelationId, Option<usize>)>,
+}
+impl BundleTransports {
+    fn insert(&mut self, parent: RelationId, child: RelationId) -> Result<(), SolveAvailabilityError> {
+        self.heads.try_reserve(1).map_err(|_| exhausted())?;
+        self.log.try_reserve(1).map_err(|_| exhausted())?;
+        let previous = self.heads.insert(parent, self.log.len());
+        self.log.push((parent, child, previous));
+        Ok(())
+    }
+    fn rollback(&mut self, length: usize) {
+        for (parent, _, previous) in self.log.drain(length..).rev() {
+            if let Some(previous) = previous { self.heads.insert(parent, previous); }
+            else { self.heads.remove(&parent); }
+        }
+    }
+    fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.heads.capacity().checked_mul(std::mem::size_of::<(RelationId, usize)>())
+            .and_then(|n| n.checked_add(self.log.capacity().checked_mul(std::mem::size_of::<(RelationId, RelationId, Option<usize>)>())?)).ok_or_else(exhausted)
+    }
+}
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub bundles: Vec<AttachmentBundle>,
+    bundle_bytes: usize,
+    source_bundles: HashMap<ConstraintOccurrenceId, AttachmentBundleId>,
+    source_bundle_log: Vec<ConstraintOccurrenceId>,
+    bundle_incidence: HashSet<(RelationId, AttachmentBundleId)>,
+    bundle_incidence_log: Vec<BundleIncidence>,
+    bundle_incidence_heads: HashMap<RelationId, usize>,
+    bundle_transports: Option<BundleTransports>,
+    #[cfg(test)]
+    bundle_visits: usize,
     weights: Vec<LocalWeight>,
     weight_bytes: usize,
     contexts: Vec<ContextExpr>,
@@ -135,6 +191,10 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    bundles: usize,
+    source_bundles: usize,
+    bundle_incidence: usize,
+    bundle_transports: Option<usize>,
     weights: usize,
     contexts: usize,
     relations: usize,
@@ -153,6 +213,10 @@ fn exhausted() -> SolveAvailabilityError {
 impl State {
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            bundles: self.bundles.len(),
+            source_bundles: self.source_bundle_log.len(),
+            bundle_incidence: self.bundle_incidence_log.len(),
+            bundle_transports: self.bundle_transports.as_ref().map(|index| index.log.len()),
             weights: self.weights.len(),
             contexts: self.contexts.len(),
             relations: self.relations.len(),
@@ -167,6 +231,17 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for bundle in self.bundles.drain(checkpoint.bundles..) {
+            self.bundle_bytes -= bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>();
+        }
+        for origin in self.source_bundle_log.drain(checkpoint.source_bundles..) { self.source_bundles.remove(&origin); }
+        for incidence in self.bundle_incidence_log.drain(checkpoint.bundle_incidence..).rev() {
+            self.bundle_incidence.remove(&(incidence.relation, incidence.bundle));
+            if let Some(previous) = incidence.previous_on_relation { self.bundle_incidence_heads.insert(incidence.relation, previous); }
+            else { self.bundle_incidence_heads.remove(&incidence.relation); }
+        }
+        if let Some(length) = checkpoint.bundle_transports { self.bundle_transports.as_mut().unwrap().rollback(length); }
+        else { self.bundle_transports = None; }
         for weight in self.weights.drain(checkpoint.weights..) {
             self.weight_bytes -= weight.allowed.capacity() * std::mem::size_of::<SourceEffectId>()
                 + weight.attachment.as_ref().map_or(0, |set| set.member_ordinals.capacity() * std::mem::size_of::<usize>());
@@ -211,6 +286,14 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            Some(self.bundle_bytes),
+            self.bundles.capacity().checked_mul(std::mem::size_of::<AttachmentBundle>()),
+            self.source_bundles.capacity().checked_mul(std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()),
+            self.source_bundle_log.capacity().checked_mul(std::mem::size_of::<ConstraintOccurrenceId>()),
+            self.bundle_incidence.capacity().checked_mul(std::mem::size_of::<(RelationId, AttachmentBundleId)>()),
+            self.bundle_incidence_log.capacity().checked_mul(std::mem::size_of::<BundleIncidence>()),
+            self.bundle_incidence_heads.capacity().checked_mul(std::mem::size_of::<(RelationId, usize)>()),
+            Some(self.bundle_transports.as_ref().map_or(Ok(0), BundleTransports::bytes)?),
             Some(self.weight_bytes),
             self.weights.capacity().checked_mul(std::mem::size_of::<LocalWeight>()),
             self.replay_heads.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()),
@@ -284,7 +367,16 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.weights.capacity() * std::mem::size_of::<LocalWeight>()
+        self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
+            + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
+            + self.source_bundles.capacity() * std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()
+            + self.source_bundle_log.capacity() * std::mem::size_of::<ConstraintOccurrenceId>()
+            + self.bundle_incidence.capacity() * std::mem::size_of::<(RelationId, AttachmentBundleId)>()
+            + self.bundle_incidence_log.capacity() * std::mem::size_of::<BundleIncidence>()
+            + self.bundle_incidence_heads.capacity() * std::mem::size_of::<(RelationId, usize)>()
+            + self.bundle_transports.as_ref().map_or(0, |index| index.heads.capacity() * std::mem::size_of::<(RelationId, usize)>()
+                + index.log.capacity() * std::mem::size_of::<(RelationId, RelationId, Option<usize>)>())
+            + self.weights.capacity() * std::mem::size_of::<LocalWeight>()
             + self.weights.iter().map(|w| w.allowed.capacity() * std::mem::size_of::<SourceEffectId>()
                 + w.attachment.as_ref().map_or(0, |set| set.member_ordinals.capacity() * std::mem::size_of::<usize>())).sum::<usize>()
             + self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
@@ -336,6 +428,83 @@ impl State {
         self.contexts.push(expression);
         self.context_keys.insert(expression, id);
         Ok(id)
+    }
+    pub fn retain_bundle(&mut self, bundle: AttachmentBundle, source: bool) -> Result<AttachmentBundleId, SolveAvailabilityError> {
+        let identity = AttachmentBundleId(self.bundles.len());
+        let bytes = bundle.sets.capacity().checked_mul(std::mem::size_of::<EmptyAttachmentSet>()).ok_or_else(exhausted)?;
+        let total = self.bundle_bytes.checked_add(bytes).ok_or_else(exhausted)?;
+        self.bundles.try_reserve(1).map_err(|_| exhausted())?;
+        if source {
+            assert!(!self.source_bundles.contains_key(&bundle.occurrence));
+            self.source_bundles.try_reserve(1).map_err(|_| exhausted())?;
+            self.source_bundle_log.try_reserve(1).map_err(|_| exhausted())?;
+            self.source_bundles.insert(bundle.occurrence.clone(), identity);
+            self.source_bundle_log.push(bundle.occurrence.clone());
+        }
+        self.bundles.push(bundle);
+        self.bundle_bytes = total;
+        Ok(identity)
+    }
+    pub fn relation_bundles(&self, relation: RelationId) -> impl Iterator<Item = AttachmentBundleId> + '_ {
+        std::iter::successors(self.bundle_incidence_heads.get(&relation).copied(), |&index| {
+            self.bundle_incidence_log[index].previous_on_relation
+        }).map(|index| self.bundle_incidence_log[index].bundle)
+    }
+    fn activate_bundle_transports(&mut self) -> Result<(), SolveAvailabilityError> {
+        if self.bundle_transports.is_some() { return Ok(()); }
+        // This one scan is paid only by sessions using bundle provenance.
+        let mut index = BundleTransports::default();
+        for dependency in &self.dependencies {
+            if let Dependency::Transport { parent, child, use_origin: 0 } = *dependency { index.insert(parent, child)?; }
+        }
+        self.bundle_transports = Some(index);
+        Ok(())
+    }
+    fn bundle_incidence_insert(&mut self, relation: RelationId, bundle: AttachmentBundleId) -> Result<(), SolveAvailabilityError> {
+        if self.bundle_incidence.contains(&(relation, bundle)) { return Ok(()); }
+        self.bundle_incidence.try_reserve(1).map_err(|_| exhausted())?;
+        self.bundle_incidence_log.try_reserve(1).map_err(|_| exhausted())?;
+        self.bundle_incidence_heads.try_reserve(1).map_err(|_| exhausted())?;
+        let previous_on_relation = self.bundle_incidence_heads.insert(relation, self.bundle_incidence_log.len());
+        self.bundle_incidence.insert((relation, bundle));
+        self.bundle_incidence_log.push(BundleIncidence { relation, bundle, previous_on_relation });
+        Ok(())
+    }
+    fn bundle_link(&mut self, relation: RelationId, bundle: AttachmentBundleId) -> Result<(), SolveAvailabilityError> {
+        if self.bundle_incidence.contains(&(relation, bundle)) { return Ok(()); }
+        self.activate_bundle_transports()?;
+        let mut cursor = self.bundle_incidence_log.len();
+        self.bundle_incidence_insert(relation, bundle)?;
+        // The append log is an iterative queue. Each new incidence visits only
+        // diagnostic successors and the sparse zero-use transport chain.
+        while cursor < self.bundle_incidence_log.len() {
+            let BundleIncidence { relation: parent, bundle, .. } = self.bundle_incidence_log[cursor];
+            cursor += 1;
+            let count = self.edges.get(&parent).map_or(0, Vec::len);
+            for index in 0..count {
+                let child = self.edges[&parent][index];
+                #[cfg(test)] { self.bundle_visits += 1; }
+                self.bundle_incidence_insert(child, bundle)?;
+            }
+            let mut next = self.bundle_transports.as_ref().unwrap().heads.get(&parent).copied();
+            while let Some(index) = next {
+                let (_, child, previous) = self.bundle_transports.as_ref().unwrap().log[index];
+                next = previous;
+                #[cfg(test)] { self.bundle_visits += 1; }
+                self.bundle_incidence_insert(child, bundle)?;
+            }
+        }
+        Ok(())
+    }
+    fn bundle_edge(&mut self, parent: RelationId, child: RelationId) -> Result<(), SolveAvailabilityError> {
+        let mut next = self.bundle_incidence_heads.get(&parent).copied();
+        while let Some(index) = next {
+            let incidence = self.bundle_incidence_log[index];
+            next = incidence.previous_on_relation;
+            #[cfg(test)] { self.bundle_visits += 1; }
+            self.bundle_link(child, incidence.bundle)?;
+        }
+        Ok(())
     }
     pub fn source_weight(&mut self, boundary: u32, owner: &DefinitionRootId, position: &SourceNodeKey, allowed: &[SourceEffectId], source: Option<AttachmentSource>) -> Result<LocalWeightId, SolveAvailabilityError> {
         let id = LocalWeightId(u32::try_from(self.weights.len()).map_err(|_| exhausted())?);
@@ -424,6 +593,12 @@ impl State {
                 self.edge(upper, child)?;
             }
         }
+        if let Dependency::Transport { child, parent, use_origin: 0 } = dependency {
+            if let Some(index) = &mut self.bundle_transports {
+                index.insert(parent, child)?;
+                self.bundle_edge(parent, child)?;
+            }
+        }
         self.dependencies.push(dependency);
         self.dependency_keys.insert(dependency);
         Ok(())
@@ -462,7 +637,7 @@ impl State {
         }
         self.edge_keys.insert((parent, child));
         self.edge_log.push((parent, child));
-        Ok(())
+        self.bundle_edge(parent, child)
     }
     pub fn children(&self, pair: TypedPairKey) -> impl Iterator<Item = TypedPairKey> + '_ {
         std::iter::successors(self.pair_heads.get(&pair).copied(), |id| {
@@ -586,6 +761,10 @@ impl InferenceSession {
             .effect_algebra
             .context;
         let relation = state.relation(pair, context)?;
+        if matches!(occurrence.local_slot(), 40 | 41) {
+            let anchor = ConstraintOccurrenceId::new(occurrence.occurrence().clone(), 41);
+            if let Some(&bundle) = state.source_bundles.get(&anchor) { state.bundle_link(relation, bundle)?; }
+        }
         state.origins.try_reserve(1).map_err(|_| exhausted())?;
         state.origins.push(Origin {
             relation,
@@ -807,6 +986,15 @@ impl InferenceSession {
             }
         }
         Ok(())
+    }
+    pub(super) fn candidate_context_transport_bundle(
+        &mut self, parent: RelationId, to: BoundKey, bundle: AttachmentBundleId,
+    ) -> Result<(), SolveAvailabilityError> {
+        let pair = self.candidate_context_pair(bound_pair(to));
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let child = state.relation(pair, state.post_check_context(parent))?;
+        state.bundle_link(child, bundle)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
     pub(super) fn candidate_context_transport(
         &mut self,

@@ -21,6 +21,8 @@ pub(super) struct Graph {
     pub nodes: Vec<Node>,
     pub rows: Vec<Row>,
     pub bounds: Vec<Bound>,
+    pub attachment_bundles: Vec<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>,
+    pub attachment_spans: HashMap<candidate_context::RelationId, (usize, usize)>,
     pub root: usize,
     pub live_root: u32,
     pub boundary: u32,
@@ -133,6 +135,8 @@ impl Graph {
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<Bound>(self.bounds.capacity())?,
+            bytes::<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>(self.attachment_bundles.capacity())?,
+            bytes::<(candidate_context::RelationId, (usize, usize))>(self.attachment_spans.capacity())?,
         ])
     }
 }
@@ -558,6 +562,8 @@ impl InferenceSession {
                 nodes: Vec::new(),
                 rows: Vec::new(),
                 bounds: Vec::new(),
+                attachment_bundles: Vec::new(),
+                attachment_spans: HashMap::new(),
                 root: 0,
                 live_root: row,
                 boundary,
@@ -582,7 +588,26 @@ impl InferenceSession {
                 row_cursor += 1;
             }
         }
+        let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let mut attachment_resolved = HashSet::new();
+        for bound in &capture.graph.bounds {
+            if let Some(relation) = bound.relation {
+                if attachment_resolved.contains(&relation) { continue; }
+                attachment_resolved.try_reserve(1).map_err(|_| exhausted())?;
+                attachment_resolved.insert(relation);
+                let start = capture.graph.attachment_bundles.len();
+                for bundle in context.relation_bundles(relation) {
+                    push(&mut capture.graph.attachment_bundles, (relation, bundle))?;
+                }
+                let length = capture.graph.attachment_bundles.len() - start;
+                if length != 0 {
+                    capture.graph.attachment_spans.try_reserve(1).map_err(|_| exhausted())?;
+                    capture.graph.attachment_spans.insert(relation, (start, length));
+                }
+            }
+        }
         let scratch = sum(&[
+            bytes::<candidate_context::RelationId>(attachment_resolved.capacity())?,
             bytes::<(Endpoint, usize)>(capture.endpoints.capacity())?,
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
             bytes::<Endpoint>(capture.pending.capacity())?,
@@ -605,7 +630,7 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
         let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
-        drop((endpoints, rows, pending, bound_keys));
+        drop((endpoints, rows, pending, bound_keys, attachment_resolved));
         self.candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
@@ -777,6 +802,22 @@ impl InferenceSession {
             };
             rows.push(key);
         }
+        let mut bundle_remap = HashMap::new();
+        bundle_remap.try_reserve(graph.attachment_bundles.len()).map_err(|_| exhausted())?;
+        let bundle_scratch = bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(bundle_remap.capacity())?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(bundle_scratch).ok_or_else(exhausted)?;
+        for &(_, old) in &graph.attachment_bundles {
+            if bundle_remap.contains_key(&old) { continue; }
+            let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            let original = &state.bundles[old.0];
+            let mut sets = Vec::new();
+            sets.try_reserve_exact(original.sets.len()).map_err(|_| exhausted())?;
+            sets.extend_from_slice(&original.sets);
+            let bundle = candidate_context::AttachmentBundle { occurrence: original.occurrence.clone(), sets };
+            let fresh = state.retain_bundle(bundle, false)?;
+            bundle_remap.insert(old, fresh);
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         let mut view_remap = HashMap::new();
         view_remap.try_reserve(graph.nodes.len()).map_err(|_| exhausted())?;
         let view_scratch = bytes::<((u32, Option<u32>), u32)>(view_remap.capacity())?;
@@ -897,10 +938,17 @@ impl InferenceSession {
                 // when an older, nongeneric coordinate is shared.
                 self.candidate_context_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
                     context_use)?;
+                if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
+                    for &(_, old) in &graph.attachment_bundles[start..start + length] {
+                        self.candidate_context_transport_bundle(parent, candidate_effect::BoundKey(owner, bound.side, item), bundle_remap[&old])?;
+                    }
+                }
             }
             self.candidate_restore_bound(owner, bound.side, item, occurrence, cause)?;
         }
         let lower = terms[graph.root].ok_or_else(exhausted)?;
+        drop(bundle_remap);
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= bundle_scratch;
         Ok((lower, rows))
     }
     fn instantiate_candidate_graph(

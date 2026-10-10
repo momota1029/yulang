@@ -1214,3 +1214,249 @@ fn mixed_written_attachment_sets_survive_fresh_copy_and_rollback_without_closed_
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
     session.with_route_transaction(copy_and_check).unwrap();
 }
+
+fn empty_bundle_owner(session: &InferenceSession) -> DefinitionRootId {
+    session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()), _ => None,
+    }).unwrap()
+}
+
+#[test]
+fn negative_written_empty_bundles_preserve_leaf_ports_and_executable_graph() {
+    for (written, omitted, local) in [
+        ("my answer x:[] int -> int = x", "my answer x:int -> int = x", false),
+        ("my answer = { my local x:[] int -> int = x; 1 }", "my answer = { my local x:int -> int = x; 1 }", true),
+    ] {
+        let mut session = session_with_source(written);
+        let owner = empty_bundle_owner(&session);
+        session.execute_candidate_source_root(&owner).unwrap();
+        let context = state(&session);
+        assert_eq!(context.bundles.len(), 1);
+        let bundle = &context.bundles[0];
+        assert_eq!(bundle.occurrence.local_slot(), 41);
+        assert_eq!(bundle.sets.len(), 1);
+        let set = &bundle.sets[0];
+        assert_eq!(set.owner, owner);
+        assert_eq!(set.source.composed_polarity, Polarity::Negative);
+        assert_eq!(matches!(set.source.lexical_scope, candidate_effect::AnnotationScope::Local(_)), local);
+        let actions: Vec<_> = session.batch.candidate_source.schedules.values().flatten().collect();
+        let (annotation, occurrence) = actions.iter().find_map(|action| match action {
+            candidate_source::Action::Annotation { annotation, occurrence, .. } if !local => Some((annotation, occurrence)),
+            candidate_source::Action::LocalAnnotation { annotation, occurrence, .. } if local => Some((annotation, occurrence)), _ => None,
+        }).unwrap();
+        let yu_hir::shadow::SourceAnnotationValue::Function { argument, .. } = &annotation.ty.value else { unreachable!() };
+        assert_eq!(set.position, argument.effects.as_ref().unwrap().position);
+        assert_eq!(bundle.occurrence, ConstraintOccurrenceId::new(occurrence.clone(), 41));
+        for slot in [40, 41] {
+            let source = ConstraintOccurrenceId::new(occurrence.clone(), slot);
+            let origin = context.origins.iter().find(|origin| origin.occurrence == source).unwrap();
+            assert!(context.relation_bundles(origin.relation).any(|bundle| bundle == AttachmentBundleId(0)));
+        }
+        let root = if local { session.candidate_graph.as_ref().unwrap().locals.iter().flatten().next().unwrap().root }
+            else { session.live_components[session.batch.root_component_positions[&owner].component].ordinal };
+        let graph = session.capture_candidate_graph(root, 0).unwrap();
+        assert!(!graph.attachment_bundles.is_empty());
+        assert!(graph.nodes.iter().any(|node| matches!(node, candidate_scheme::Node::Function { children, .. }
+            if matches!(graph.nodes[children[1]], candidate_scheme::Node::Leaf(candidate_scheme::Atom::EmptyEffect)))));
+        let counts = (graph.nodes.len(), graph.rows.len(), graph.bounds.len(),
+            session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), state(&session).contexts.len());
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+        let mut baseline = session_with_source(omitted);
+        let owner = empty_bundle_owner(&baseline);
+        baseline.execute_candidate_source_root(&owner).unwrap();
+        let root = if local { baseline.candidate_graph.as_ref().unwrap().locals.iter().flatten().next().unwrap().root }
+            else { baseline.live_components[baseline.batch.root_component_positions[&owner].component].ordinal };
+        let graph = baseline.capture_candidate_graph(root, 0).unwrap();
+        assert!(state(&baseline).bundles.is_empty());
+        assert_eq!(counts, (graph.nodes.len(), graph.rows.len(), graph.bounds.len(),
+            baseline.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), state(&baseline).contexts.len()));
+    }
+}
+
+#[test]
+fn negative_written_empty_bundles_share_per_use_and_rollback_retry() {
+    let mut session = session_with_source("my answer = { my first x:[] 'a -> 'a = x; my second x:[] 'a -> 'a = x; 1 }");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    assert_eq!(state(&session).bundles.len(), 2);
+    let first = &state(&session).bundles[0];
+    let second = &state(&session).bundles[1];
+    assert_ne!(first.occurrence, second.occurrence);
+    assert_ne!(first.sets[0].position, second.sets[0].position);
+    assert_ne!(first.sets[0].source.lexical_scope, second.sets[0].source.lexical_scope);
+    let local = session.candidate_graph.as_ref().unwrap().locals.iter().flatten().last().unwrap();
+    let graph = session.capture_candidate_graph(local.root, local.boundary).unwrap();
+    assert!(graph.attachment_bundles.len() > 1, "paired publication relations share their bundle");
+    let (occurrence, cause) = cause(&session, 90);
+    let before = state(&session).checkpoint();
+    let copy = |session: &mut InferenceSession| {
+        let count = state(session).bundles.len();
+        session.freshen_candidate_graph(&graph, 2, &occurrence, &cause)?;
+        assert_eq!(state(session).bundles.len(), count + 1, "all references share one bundle within a use");
+        let fresh = AttachmentBundleId(count);
+        assert!(state(session).bundle_incidence_log.iter().any(|incidence| incidence.bundle == fresh));
+        assert_eq!(state(session).bundles[count].occurrence, state(session).bundles[graph.attachment_bundles[0].1.0].occurrence);
+        assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(fresh)
+    };
+    assert_eq!(session.with_route_transaction(|session| { copy(session)?; Err::<(), _>(exhausted()) }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    let first = session.with_route_transaction(copy).unwrap();
+    let second = session.with_route_transaction(copy).unwrap();
+    assert_ne!(first, second);
+}
+
+#[test]
+fn negative_written_empty_bundle_publication_failure_restores_source_links() {
+    let mut session = session_with_source("my answer x:[] int -> int = x");
+    let owner = empty_bundle_owner(&session);
+    let before = state(&session).checkpoint();
+    assert_eq!(session.with_route_transaction(|session| {
+        session.execute_candidate_source_root(&owner)?;
+        assert_eq!(state(session).bundles.len(), 1);
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert!(state(&session).source_bundles.is_empty());
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(|session| session.execute_candidate_source_root(&owner)).unwrap();
+    assert_eq!(state(&session).bundles.len(), 1);
+}
+
+#[test]
+fn negative_formal_written_empty_still_refuses_attachment_registration() {
+    let mut session = session_with_source("my answer (cb:int -> ['e] int) = cb");
+    let action = session.batch.candidate_source.schedules.values().flatten().find(|action|
+        matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+    let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+    let mut annotation = (*annotation).clone();
+    let yu_hir::shadow::SourceAnnotationValue::Function { result, .. } = &mut annotation.ty.value else { unreachable!() };
+    result.effects.as_mut().unwrap().variables.clear();
+    let before = state(&session).checkpoint();
+    assert_eq!(session.with_route_transaction(|session|
+        session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert!(state(&session).bundles.is_empty());
+}
+
+fn indexed_bundle_fixture() -> (State, AttachmentBundle) {
+    let mut session = session_with_source("my answer x:[] int -> int = x");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    (State::default(), state(&session).bundles[0].clone())
+}
+fn indexed_relation(context: &mut State, row: u32) -> RelationId {
+    context.relation(task_pair(task(row, row)), IDENTITY).unwrap()
+}
+
+#[test]
+fn indexed_bundle_provenance_closes_cycles_and_isolates_fresh_transports() {
+    let (mut context, template) = indexed_bundle_fixture();
+    let rows: Vec<_> = (0..5).map(|row| indexed_relation(&mut context, row)).collect();
+    context.dependency(Dependency::Derived { parent: rows[0], child: rows[1] }).unwrap();
+    context.dependency(Dependency::Transport { parent: rows[1], child: rows[2], use_origin: 0 }).unwrap();
+    context.dependency(Dependency::Transport { parent: rows[2], child: rows[3], use_origin: 1 }).unwrap();
+    assert!(context.bundle_transports.is_none(), "never-bundled sessions allocate no transport index");
+    assert!(!context.edges.contains_key(&rows[1]), "transport adds no diagnostic adjacency");
+    let first = context.retain_bundle(template.clone(), false).unwrap();
+    let second = context.retain_bundle(template, false).unwrap();
+    let before = context.checkpoint();
+    for _ in 0..2 {
+        context.bundle_link(rows[0], first).unwrap();
+        assert!(context.bundle_transports.is_some());
+        for &row in &rows[..3] { assert_eq!(context.relation_bundles(row).collect::<Vec<_>>(), [first]); }
+        assert_eq!(context.relation_bundles(rows[3]).count(), 0);
+        context.dependency(Dependency::Transport { parent: rows[2], child: rows[4], use_origin: 0 }).unwrap();
+        context.dependency(Dependency::Derived { parent: rows[4], child: rows[0] }).unwrap();
+        context.bundle_link(rows[2], second).unwrap();
+        for &row in &[rows[0], rows[1], rows[2], rows[4]] {
+            let bundles: HashSet<_> = context.relation_bundles(row).collect();
+            assert_eq!(bundles, HashSet::from([first, second]));
+        }
+        assert_eq!(context.relation_bundles(rows[3]).count(), 0);
+        assert_eq!(context.bundle_incidence_log.len(), 8);
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+        context.rollback(before);
+        assert_eq!(context.checkpoint(), before);
+        assert!(context.bundle_incidence_heads.is_empty());
+        assert!(context.bundle_transports.is_none(), "rollback restores lazy activation");
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    }
+    context.bundle_link(rows[0], first).unwrap();
+    let activated = context.checkpoint();
+    let original_heads = context.bundle_incidence_heads.clone();
+    let original_transport_heads = context.bundle_transports.as_ref().unwrap().heads.clone();
+    context.dependency(Dependency::Transport { parent: rows[2], child: rows[4], use_origin: 0 }).unwrap();
+    context.bundle_link(rows[0], second).unwrap();
+    context.rollback(activated);
+    assert_eq!(context.bundle_incidence_heads, original_heads);
+    assert_eq!(context.bundle_transports.as_ref().unwrap().heads, original_transport_heads);
+    assert_eq!(context.checkpoint(), activated);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn indexed_bundle_visits_ignore_unrelated_relations_and_incidences() {
+    fn visits(unrelated: u32) -> (usize, usize, usize) {
+        let (mut context, template) = indexed_bundle_fixture();
+        let first = context.retain_bundle(template.clone(), false).unwrap();
+        let second = context.retain_bundle(template, false).unwrap();
+        let root = indexed_relation(&mut context, 0);
+        let child = indexed_relation(&mut context, 1);
+        let late = indexed_relation(&mut context, 2);
+        context.bundle_link(root, first).unwrap(); // Activate once before adding sparse unrelated state.
+        for row in 10..10 + unrelated {
+            let parent = indexed_relation(&mut context, row * 2);
+            let child = indexed_relation(&mut context, row * 2 + 1);
+            context.dependency(Dependency::Transport { parent, child, use_origin: 0 }).unwrap();
+            context.bundle_link(parent, second).unwrap();
+        }
+        let before = context.bundle_visits;
+        context.dependency(Dependency::Derived { parent: root, child }).unwrap();
+        let edge_visits = context.bundle_visits - before;
+        let before = context.bundle_visits;
+        context.bundle_link(root, second).unwrap();
+        let incidence_visits = context.bundle_visits - before;
+        let before = context.bundle_visits;
+        context.dependency(Dependency::Transport { parent: child, child: late, use_origin: 0 }).unwrap();
+        let transport_visits = context.bundle_visits - before;
+        assert_eq!(context.relation_bundles(root).count(), 2);
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+        (edge_visits, incidence_visits, transport_visits)
+    }
+    assert_eq!(visits(0), (1, 1, 2));
+    assert_eq!(visits(128), (1, 1, 2));
+}
+
+#[test]
+fn captured_bundle_spans_are_sparse_and_shared_across_reconstruction() {
+    let mut session = session_with_source("my answer = { my local x:[] 'a -> 'a = x; 1 }");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let local = session.candidate_graph.as_ref().unwrap().locals.iter().flatten().next().unwrap();
+    let graph = session.capture_candidate_graph(local.root, local.boundary).unwrap();
+    assert!(!graph.attachment_spans.is_empty());
+    let mut referenced = HashSet::new();
+    for (&relation, &(start, length)) in &graph.attachment_spans {
+        assert!(length > 0);
+        let expected: HashSet<_> = state(&session).relation_bundles(relation).collect();
+        let actual: HashSet<_> = graph.attachment_bundles[start..start + length].iter().map(|&(owner, bundle)| {
+            assert_eq!(owner, relation);
+            assert!(referenced.insert((owner, bundle)), "capture resolves each relation once");
+            bundle
+        }).collect();
+        assert_eq!(actual, expected);
+    }
+    assert_eq!(referenced.len(), graph.attachment_bundles.len());
+    assert_eq!(graph.bytes().unwrap(), graph.nodes.capacity() * std::mem::size_of::<candidate_scheme::Node>()
+        + graph.rows.capacity() * std::mem::size_of::<candidate_scheme::Row>()
+        + graph.bounds.capacity() * std::mem::size_of::<candidate_scheme::Bound>()
+        + graph.attachment_bundles.capacity() * std::mem::size_of::<(RelationId, AttachmentBundleId)>()
+        + graph.attachment_spans.capacity() * std::mem::size_of::<(RelationId, (usize, usize))>());
+    let (occurrence, cause) = cause(&session, 93);
+    let bundles = state(&session).bundles.len();
+    session.with_route_transaction(|session| session.freshen_candidate_graph(&graph, 2, &occurrence, &cause)).unwrap();
+    assert_eq!(state(&session).bundles.len(), bundles + 1);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}

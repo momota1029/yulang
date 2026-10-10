@@ -7861,15 +7861,18 @@ member-handle construction/storage per closed view with a constant-factor
 increase on copied views; no timing decision depends on this slice. See the
 [payload checkpoint](../notes/progress/2026-10-10-closed-annotation-filter-payload.md).
 
-This remains a partial contextual gate. The attachment source-record
-checkpoint covers written closed and admitted covariant mixed-tail views;
-explicit negative empty rows still return their existing leaf before a view is
-formed. See the [source-record checkpoint](../notes/progress/2026-10-10-annotation-source-set-records.md).
+This remains a partial contextual gate. Written closed and admitted covariant
+mixed-tail annotations retain source sets; negative written `[]` rows now also
+retain inert source bundles while producing their existing leaves and no
+executable views. The bundle transport indexes close the initial global-scan
+cost finding. See the [source-set checkpoint](../notes/progress/2026-10-10-annotation-source-set-records.md)
+and [negative-empty provenance checkpoint](../notes/progress/2026-10-10-negative-empty-attachment-provenance.md).
 
-Next: retain source identity for negative explicit empty rows without creating
-an executable view or changing endpoints, then continue the coupled operation
-carrier, exact relation lifecycle and two-cycle certificate invalidation /
-rollback gate. Do not enable recursive nonempty contexts before that lifecycle
-gate closes. The separate ordinary-HIR carrier answer bundle remains rejected
-for exact-content mismatch in its uncommitted receipt. Complete Call, effect
-hygiene, soundness/principality and production/default/F5 cutover remain open.
+Next: implement the private finite operation evaluator while keeping nonempty
+contexts disconnected from source-derived tasks. Then integrate source
+construction, relation-sensitive completion, transport/freshening, and the
+approved two-cycle certificate invalidation, withdrawal, rollback, and retry
+gate before any recursive nonempty context can be admitted. The separate
+ordinary-HIR carrier answer bundle remains rejected for exact-content mismatch
+in its uncommitted receipt. Complete Call, full effect hygiene,
+soundness/principality and production/default/F5 cutover remain open.
