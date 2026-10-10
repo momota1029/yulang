@@ -8594,3 +8594,10 @@ cannot displace the S53/R47 fiber in this interval. This is a fixed-source
 route exclusion, not global Alternative B; other source constructors,
 diagnostic discharge, and the source-level A/B decision remain open. See the
 [third-owner route proof record](../notes/progress/2026-10-11-q113-third-owner-route-exclusion.md).
+
+A separate view/tail construction attempt also produced no qualified source
+candidate. Independent compiler-referee review confirmed that descriptor
+remapping only copies the supplied tail; captured physical bounds restore
+separately, and annotation tails come from scoped names rather than inferred
+expression endpoints. This blocks that specific proposed supplier, not all
+source constructors. See the [view-constructor obstruction](../notes/progress/2026-10-11-q113-view-constructor-obstruction.md).
