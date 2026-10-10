@@ -8217,10 +8217,25 @@ frontiers as its direct explanation, but finds no authentic within-use
 counterexample; independent review accepted these bounded claims. Neither
 artifact establishes an implementation defect or closes R. No tests/builds ran.
 
-Next: construct one authentic within-use Effect incidence trace with its row
-levels, parent records, restore order, before/after vectors, replay-frontier
-heads and diagnostic reachability; use it to prove merge-rescue coverage or to
-find a counterexample. Then freeze and independently review a complete
+The reviewed [mixed-annotation use trace](../notes/progress/2026-10-10-canonical-bound-fiber-within-use-trace.md)
+follows the authored `left` fixture through HIR actions, levels, capture,
+freshening, and restoration. All six captured rows remain level 1 and freshen
+per use; the only restore callback is `BottomEffect <: Allowance(v_use)`, which
+adds no bound. Equal-level extrusion produces no copies or parent records, so
+this fixture cannot realize the shared-owner/nested-merge condition. The
+compiler-referee delta review found no mismatch in this bounded derivation.
+Parser/HIR success and runtime behavior remain unverified; R remains open.
+The note is checkpointed as `dfeb75cca`.
+
+Next: search existing source fixtures and authored HIR schedules for the
+smallest program that combines a deeper level-0 capture boundary with the
+shared nonlocal Effect owner from the incidence audit. Require a normal source
+path that creates a qualifying parent/copy record; do not substitute
+API-injected endpoints. Trace its before/after opposite vectors and diagnostic
+reachability, then prove merge-rescue coverage or produce a source-generated
+counterexample. If no existing fixture reaches the prerequisite, identify the
+owning source constructor that must change before inventing a new test input.
+Then freeze and independently review a complete
 current-component generation contract covering every recognizer-input
 mutation, every dependent
 reuse/publication, and transaction withdrawal/rollback. Then implement that
