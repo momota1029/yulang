@@ -1482,6 +1482,61 @@ fn replay_queue_preflight_failure_preserves_transfer_cursor_before_retry() {
 }
 
 #[test]
+fn replay_completion_undo_failure_samples_transient_ack_buffer_before_drop() {
+    let mut session = session();
+    let (occurrence, cause) = cause(&session, 0);
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let lower = session.fresh_value_at_level(1).unwrap();
+    let upper = session.fresh_value_at_level(1).unwrap();
+    let lower_input = BoundKey(value(owner), Polarity::Positive, value(lower));
+    let upper_input = BoundKey(value(owner), Polarity::Negative, value(upper));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    for key in [lower_input, upper_input] {
+        let relation = context.relation(bound_pair(key), IDENTITY).unwrap();
+        context.attach(key, relation).unwrap();
+    }
+    let operation = session.with_route_transaction(|session|
+        session.candidate_context_begin_replay(lower_input, upper_input, task(lower, upper), true)).unwrap();
+    let checkpoint = state(&session).checkpoint();
+    let mut event_total = 0;
+    assert_eq!(session.with_route_transaction(|session| {
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.fail_replay_completion_undo_reserve = true;
+        let result = session.candidate_context_consume_replay_child(operation, Some((&occurrence, &cause)));
+        assert_eq!(result, Err(exhausted()));
+        let context = state(session);
+        let (event_context_bytes, ack_bytes) = context.failed_replay_completion_bytes.unwrap();
+        assert!(ack_bytes > 0, "the fresh drain buffer grew before the injected failure");
+        assert!(context.typed_drains.is_empty());
+        assert_eq!(context.enumerated_bytes() + ack_bytes, event_context_bytes);
+        let retained = &context.replay_operations[&operation];
+        assert_eq!((retained.queued, retained.consumed, retained.retired), (1, 0, false));
+        assert_eq!(session.typed_worklist.front().unwrap().replay_ack,
+            Some(ReplayChildAck { operation, index: 0 }));
+        event_total = session.resource_ledger.inference_session_retained_bytes;
+        assert!(session.resource_ledger.inference_session_peak_bytes >= event_total);
+        session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        assert_eq!(session.resource_ledger.inference_session_retained_bytes + ack_bytes, event_total,
+            "the event sample includes exactly the subsequently dropped acknowledgement buffer");
+        result.map(|_| ())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), checkpoint);
+    let retained = &state(&session).replay_operations[&operation];
+    assert_eq!((retained.queued, retained.consumed, retained.retired), (0, 0, false));
+    assert!(state(&session).typed_drains.is_empty());
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+    assert!(session.resource_ledger.inference_session_retained_bytes < event_total);
+    assert!(session.resource_ledger.inference_session_peak_bytes >= event_total);
+    session.with_route_transaction(|session| {
+        assert!(session.candidate_context_consume_replay_child(operation, Some((&occurrence, &cause)))?);
+        let retained = &state(session).replay_operations[&operation];
+        assert_eq!((retained.queued, retained.consumed, retained.retired), (1, 1, true));
+        Ok(())
+    }).unwrap();
+    assert!(!state(&session).replay_operations.contains_key(&operation));
+}
+
+#[test]
 fn operation_retirement_frontier_ignores_historical_capacity_and_untouched_pending_operations() {
     let mut session = session();
     let (occurrence, cause) = cause(&session, 0);
@@ -3878,5 +3933,75 @@ fn support_retention_identity_function_named_ports_rollback_retry() {
             assert_eq!(state(&session).checkpoint(), before);
             assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
         } else { result.unwrap(); }
+    }
+}
+
+#[test]
+fn owned_function_dispatch_retains_admitted_child_until_enqueue_and_rolls_back() {
+    let mut session = session();
+    let (occurrence, cause) = cause(&session, 0);
+    let value_task = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    });
+    let value_pair = task_pair(value_task);
+    let effect_pair = TypedPairKey::Effect {
+        lower: EffectEndpointKey::BottomPositive, upper: EffectEndpointKey::EmptyNegative,
+    };
+    let children = [
+        (FunctionField::Argument, value_pair),
+        (FunctionField::ArgumentEffect, effect_pair),
+        (FunctionField::ResultEffect, effect_pair),
+        (FunctionField::Result, value_pair),
+    ];
+    let before = state(&session).checkpoint();
+    let run = |session: &mut InferenceSession, fail: bool| -> Result<(), SolveAvailabilityError> {
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let parent = context.relation(value_pair, IDENTITY)?;
+        context.processing = Some(parent);
+        let index = context.begin_typed_drain(value_task, &occurrence, &cause, None, Some(parent))?;
+        context.typed_drains[index].current = Some(TypedWorkItem { task: value_task, relation: Some(parent), replay_ack: None });
+        context.typed_drains[index].function = Some(FunctionDispatch { children, next: 0, pending: None });
+        context.typed_drains[index].stage = TypedDrainStage::FunctionAdmission;
+        let mut admitted = Vec::new();
+        for next in 0..children.len() {
+            assert!(session.candidate_step_function_dispatch(index)?);
+            let frame = &state(session).typed_drains[index];
+            let dispatch = frame.function.as_ref().unwrap();
+            assert_eq!(dispatch.next, next, "admission alone cannot advance the port cursor");
+            assert_eq!(frame.stage, TypedDrainStage::FunctionEnqueue);
+            assert_eq!(frame.current.unwrap().relation, Some(parent));
+            assert_eq!((&frame.occurrence, &frame.cause), (&occurrence, &cause));
+            let pending = dispatch.pending.unwrap();
+            let relation = pending.relation.unwrap();
+            let (field, pair) = children[children.len() - 1 - next];
+            assert_eq!(task_pair(pending.task), pair);
+            assert!(state(session).dependency_keys.contains(&Dependency::FunctionPort {
+                parent, child: relation, field,
+                operation: if matches!(field, FunctionField::Argument | FunctionField::ArgumentEffect) {
+                    FunctionPortOperation::Swap
+                } else { FunctionPortOperation::Preserve },
+            }));
+            assert_eq!(session.typed_worklist.len(), next);
+            assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+            if fail { return Err(exhausted()); }
+            admitted.push(pending);
+            assert!(session.candidate_step_function_dispatch(index)?);
+            let dispatch = state(session).typed_drains[index].function.as_ref().unwrap();
+            assert_eq!(dispatch.next, next + 1);
+            assert!(dispatch.pending.is_none());
+            assert_eq!(session.typed_worklist.front(), Some(&pending));
+        }
+        assert!(!session.candidate_step_function_dispatch(index)?);
+        assert_eq!(session.typed_worklist.iter().copied().collect::<Vec<_>>(), admitted.into_iter().rev().collect::<Vec<_>>());
+        // This test exercises a private step seam, not a completed typed drain.
+        // Discard the whole synthetic route after inspecting its ownership.
+        Err(exhausted())
+    };
+    for fail in [true, false] {
+        assert_eq!(session.with_route_transaction(|session| run(session, fail)), Err(exhausted()));
+        assert_eq!(state(&session).checkpoint(), before);
+        assert!(state(&session).typed_drains.is_empty());
+        assert!(session.typed_worklist.is_empty());
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
     }
 }

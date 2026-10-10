@@ -8659,3 +8659,32 @@ suspension. The user's requested q113 source-state decision remains active:
 construct the exact source-owned original-Y route and unrescued omega, or
 prove exhaustive source-level impossibility. The latest bounded search and
 route-local exclusions remain insufficient for either result.
+
+The next implementation slice now adds an owned synchronous typed-drain frame
+and Function dispatch admission/enqueue cursors, with deferred replay
+acknowledgements, frame accounting, route rollback and focused failure/retry
+regressions. Its reviewed status and exact checks are recorded in the [owned
+typed-drain foundation](../notes/progress/2026-10-11-owned-typed-drain-foundation.md).
+The accepted event-time acknowledgement-buffer accounting finding was repaired
+and delta-reviewed; the spec review found no issue, and static performance
+review found Θ(D) accounting work per sample for D live drains, with D≤1 in
+the inspected synchronous paths. This is still only a synchronous foundation:
+no `Suspended` outcome, resumed source/freshening/extrusion/recomputation,
+lifecycle generation and observation withdrawal, prior-frame/graph rollback,
+or suspended SCC publication exists. Production certificates remain disabled.
+
+A complementary [suspension observation-owner audit](../notes/progress/2026-10-11-suspension-observation-owner-audit.md)
+is an unreviewed static inventory. It locates existing mutation and ordinary
+transaction owners and specifies six discriminating sequences; certificate
+support registration, selective withdrawal/recomputation and suspended
+publication owners remain absent. Its prior-frame and graph/frontier rollback
+examples are conditional on future suspended state, not current synchronous
+failures. The immediate implementation gate is the actual resume and lifecycle
+path, including exact rollback of mutations to pre-existing frames and prior
+publication state, followed by the authentic source-owned §7 regression.
+
+Separately, the q113 conditional proof note received an independent
+compiler-referee review. One minor hypothesis gap was repaired by explicitly
+seeding required-omega ownership at activation and excluding unscheduled
+required omegas at terminal publication. This strengthens only a conditional
+lemma; Alternative A/B and the source-level decision remain OPEN.

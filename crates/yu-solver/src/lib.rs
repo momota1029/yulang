@@ -11831,13 +11831,16 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         let initial = initial_item.task;
         #[cfg(feature = "shadow-apply-candidate")]
+        let drain = if let Some(graph) = &mut self.candidate_graph {
+            let previous_processing = graph.intrusion.effect_algebra.processing;
+            let previous_relation = graph.intrusion.effect_algebra.context.processing;
+            Some(graph.intrusion.effect_algebra.context.begin_typed_drain(
+                initial, occurrence, cause, previous_processing, previous_relation)?)
+        } else { None };
+        #[cfg(feature = "shadow-apply-candidate")]
         let previous_processing = self.candidate_processing(None);
         #[cfg(feature = "shadow-apply-candidate")]
         let previous_relation = self.candidate_graph.as_mut().and_then(|graph| graph.intrusion.effect_algebra.context.processing.take());
-        #[cfg(feature = "shadow-apply-candidate")]
-        let mut replay_acks = Vec::<candidate_context::ReplayChildAck>::new();
-        #[cfg(feature = "shadow-apply-candidate")]
-        let mut replay_ack_charge = 0;
         #[allow(unused_mut, reason = "candidate replay completion can fail identity validation")]
         let mut result = (|| {
         assert!(
@@ -11847,9 +11850,21 @@ impl InferenceSession {
         self.clear_diagnostic_scratch();
         let mut transitions = 0;
         #[cfg(feature = "shadow-apply-candidate")]
-        self.candidate_context_seed(initial, occurrence, inferred_entry)?;
+        {
+            if drain.is_some() { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+            self.candidate_context_seed(initial, occurrence, inferred_entry)?;
+        }
         self.enqueue_item(initial_item, false)?;
         loop {
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(index) = drain {
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                frame.current = None;
+                frame.function = None;
+                frame.transitions = transitions;
+                frame.stage = candidate_context::TypedDrainStage::Transport;
+                frame.context_consumed = None;
+            }
             #[cfg(feature = "shadow-apply-candidate")]
             if self.typed_worklist.is_empty() && self.candidate_graph.is_some() {
                 self.candidate_task_scope(initial);
@@ -11859,11 +11874,18 @@ impl InferenceSession {
             if let Some(ack) = self.typed_worklist.front().and_then(|item| item.replay_ack) {
                 // The queued item owns its acknowledgement until both the
                 // drain buffer and completion undo are reserved before pop.
-                let capacity = replay_acks.capacity();
-                replay_acks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                self.candidate_scratch_growth(&mut replay_ack_charge,
-                    (replay_acks.capacity() - capacity).checked_mul(std::mem::size_of::<candidate_context::ReplayChildAck>())
-                        .ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain.unwrap()];
+                let ack_capacity = frame.replay_acks.capacity();
+                frame.replay_acks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                if frame.replay_acks.capacity() != ack_capacity {
+                    // Preserve the transient frame peak before completion's
+                    // fallible undo reservation can fail and drop the frame.
+                    if self.incoming_route_accounting_active {
+                        self.observe_typed_route_capacity(true)?;
+                    } else {
+                        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                    }
+                }
                 let transactional = self.route_journal.is_some();
                 self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_child_completion(ack, transactional)?;
                 self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -11874,7 +11896,13 @@ impl InferenceSession {
                 break;
             };
             #[cfg(feature = "shadow-apply-candidate")]
-            if let Some(ack) = item.replay_ack.take() { replay_acks.push(ack); }
+            if let Some(index) = drain {
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                // Retain the exact popped work, including acknowledgement and
+                // provenance, before any fallible transport or dispatch.
+                frame.current = Some(item);
+                if let Some(ack) = item.replay_ack.take() { frame.replay_acks.push(ack); }
+            }
             #[cfg(not(feature = "shadow-apply-candidate"))]
             let _ = &mut item;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -11890,9 +11918,24 @@ impl InferenceSession {
             #[cfg(feature = "shadow-apply-candidate")]
             { item.relation = self.candidate_context_transport_task(item.task, item.relation)?; }
             #[cfg(feature = "shadow-apply-candidate")]
-            if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = item.relation; }
+            if let Some(graph) = &mut self.candidate_graph {
+                graph.intrusion.effect_algebra.context.processing = item.relation;
+                let frame = &mut graph.intrusion.effect_algebra.context.typed_drains[drain.unwrap()];
+                frame.current.as_mut().unwrap().relation = item.relation;
+                frame.stage = candidate_context::TypedDrainStage::Context;
+            }
             #[cfg(feature = "shadow-apply-candidate")]
             let context_consumed = self.candidate_context_execute(item.task, item.relation)?;
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(index) = drain {
+                let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                frame.context_consumed = Some(context_consumed);
+                frame.stage = candidate_context::TypedDrainStage::Dispatch;
+            }
+            #[cfg(feature = "shadow-apply-candidate")]
+            let context_consumed = drain.map(|index|
+                self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].context_consumed.unwrap()
+            ).unwrap_or(context_consumed);
             match item.task {
                 LiveConstraintTask::Effect(lower, upper) => {
                     let key = TypedPairKey::Effect { lower, upper };
@@ -12097,6 +12140,14 @@ impl InferenceSession {
                             self.record_diagnostic_edge(key, child, Some(field))?;
                         }
                     }
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if let Some(index) = drain {
+                        let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                        frame.function = Some(candidate_context::FunctionDispatch { children, next: 0, pending: None });
+                        frame.stage = candidate_context::TypedDrainStage::FunctionAdmission;
+                        self.candidate_drive_function_dispatch(index)?;
+                        continue;
+                    }
                     for (field, child) in children.into_iter().rev() {
                         let task = match child {
                             TypedPairKey::Value(value) => LiveConstraintTask::Value(value),
@@ -12104,20 +12155,25 @@ impl InferenceSession {
                                 LiveConstraintTask::Effect(lower, upper)
                             }
                         };
-                        #[cfg(feature = "shadow-apply-candidate")]
-                        let relation = self.candidate_function_port_admit(task, field)?;
-                        #[cfg(not(feature = "shadow-apply-candidate"))]
                         let _ = field;
                         self.enqueue_item(TypedWorkItem {
                             task,
                             #[cfg(feature = "shadow-apply-candidate")]
-                            relation,
+                            relation: None,
                             #[cfg(feature = "shadow-apply-candidate")]
                             replay_ack: None,
                         }, true)?;
                     }
                 }
             }
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(index) = drain {
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+            frame.current = None;
+            frame.function = None;
+            frame.transitions = transitions;
+            frame.stage = candidate_context::TypedDrainStage::Diagnostics;
         }
         #[cfg(feature = "shadow-apply-candidate")]
         { self.candidate_processing(None); self.candidate_replay_effect_conflicts(initial, occurrence, cause)?; }
@@ -12142,21 +12198,71 @@ impl InferenceSession {
         })();
         #[cfg(feature = "shadow-apply-candidate")]
         {
-            if result.is_ok() {
-                let transactional = self.route_journal.is_some();
-                for ack in &replay_acks {
-                    if let Err(error) = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.complete_replay_child(*ack, transactional) {
-                        result = Err(error);
-                        break;
+            if let Some(index) = drain {
+                if result.is_ok() {
+                    let transactional = self.route_journal.is_some();
+                    let count = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].replay_acks.len();
+                    for position in 0..count {
+                        let ack = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].replay_acks[position];
+                        if let Err(error) = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.complete_replay_child(ack, transactional) {
+                            result = Err(error);
+                            break;
+                        }
+                        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].completed_acks += 1;
                     }
                 }
+                // Complete/availability failure are the only outcomes of this
+                // foundation. A later Suspended outcome must retain this frame.
+                let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
+                debug_assert_eq!(frames.len(), index + 1);
+                let frame = frames.pop().unwrap();
+                debug_assert_eq!(frame.initial, initial);
+                debug_assert_eq!(&frame.occurrence, occurrence);
+                debug_assert_eq!(&frame.cause, cause);
+                debug_assert_eq!(frame.previous_processing, previous_processing);
+                debug_assert_eq!(frame.previous_relation, previous_relation);
+                if let Ok(transitions) = &result {
+                    debug_assert_eq!(frame.transitions, *transitions);
+                    debug_assert_eq!(frame.completed_acks, frame.replay_acks.len());
+                    debug_assert_eq!(frame.stage, candidate_context::TypedDrainStage::Diagnostics);
+                }
             }
-            drop(replay_acks);
-            if let Some(graph) = &mut self.candidate_graph { graph.scratch_bytes -= replay_ack_charge; }
             self.candidate_processing(previous_processing);
             if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
         }
         result
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_drive_function_dispatch(&mut self, drain: usize) -> Result<(), SolveAvailabilityError> {
+        while self.candidate_step_function_dispatch(drain)? {}
+        Ok(())
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_step_function_dispatch(&mut self, drain: usize) -> Result<bool, SolveAvailabilityError> {
+        let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+        let dispatch = frame.function.as_ref().unwrap();
+        if dispatch.next == dispatch.children.len() { return Ok(false); }
+        if let Some(item) = dispatch.pending {
+            self.enqueue_item(item, true)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            let dispatch = frame.function.as_mut().unwrap();
+            dispatch.pending = None;
+            dispatch.next += 1;
+            frame.stage = candidate_context::TypedDrainStage::FunctionAdmission;
+        } else {
+            let (field, child) = dispatch.children[dispatch.children.len() - 1 - dispatch.next];
+            let task = match child {
+                TypedPairKey::Value(value) => LiveConstraintTask::Value(value),
+                TypedPairKey::Effect { lower, upper } => LiveConstraintTask::Effect(lower, upper),
+            };
+            let relation = self.candidate_function_port_admit(task, field)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            frame.function.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
+            frame.stage = candidate_context::TypedDrainStage::FunctionEnqueue;
+        }
+        Ok(true)
     }
 
     fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
