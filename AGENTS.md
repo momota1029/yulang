@@ -107,6 +107,57 @@ subagent does not transfer those responsibilities.
 Do not select current roles from legacy Level numbers, Fable/Sonnet
 availability, or ad hoc model-tier prose.
 
+## Proof closure and implementation handoff
+
+**The objective of proof work is to discharge the original obligation, not to
+perform an activity called proving.** For each correctness or natural-inference
+obligation (classes A/B in `rules/compiler-engineering.md`), the primary keeps
+a stable parent gate with its original theorem, quantifiers, source domain,
+accepted semantics, required evidence and responsible owner. A delegated
+lemma, bounded search, conditional derivation, review, test run or research
+checkpoint may finish its own packet but does **not** finish that parent gate.
+
+A theorem is proved only when its actual conclusion follows for the original
+scope from premises independently established at their source/operational
+owners, with no unproved bridge, missing case or assumed implementation
+behavior hidden in the statement. A genuine source-qualified counterexample
+may instead refute the claim. Require fresh independent proof review before
+promoting a theorem's status. Keep abstract mathematics, source correspondence,
+compiler implementation and production/cutover gates distinct: success in one
+does not automatically close the others.
+
+For every open parent gate, consume each `prover` result rather than merely
+filing it: apply a completed lemma to the parent proof, dispatch its *specific*
+remaining premise to the responsible proof/source/implementation lane, or mark
+the parent explicitly OPEN/BLOCKED with the exact missing evidence and owner.
+A leaf's honest report of a reduced premise is a useful handoff, not a
+successful parent-goal outcome. Do not count a new note, alternative phrasing,
+higher probe count or independently reviewed *conditional* lemma as closure.
+When repeated attempts leave the same premise untouched, change the proof
+method or investigate the owning construction under the proof-obligation
+economy rules; do not automatically create another equivalent proof packet.
+
+**Bridge established proofs into the compiler.** For any proof relevant to
+implemented inference, require a concrete correspondence handoff identifying
+the original claim, owning source constructors, constraint generation and
+accumulation, propagation/transport, consumer/discharge sites, preserved
+invariant, exact evidence and test/assertion obligations. Check whether the
+current implementation enforces the necessary invariant on *all relevant
+paths*, including rollback, replay and diagnostics when applicable. If it
+does not, the primary assigns an authorized `implementer` packet and keeps
+the implementation gate OPEN until its code, focused verification and required
+review are integrated. A mathematical proof that needs no code change may
+close its own theorem gate; a test pass or code change alone never proves
+soundness, principality or another general theorem.
+
+Bounded proof workers may stop when their allocated budget or genuine
+obstruction is reached; do not fabricate a proof, silently strengthen its
+hypotheses, or keep a worker running indefinitely. The **parent** obligation
+nevertheless retains an owner and an honest OPEN/BLOCKED status until a valid
+proof, counterexample, authorized scope change or superseding decision
+resolves it. Keep independent implementation work moving where safe without
+mistaking that progress for completion of the proof.
+
 ## Primary-agent responsibilities
 
 The primary agent owns user interaction, task classification, authority
