@@ -141,15 +141,16 @@ full inference/F5 replacement objective.
 
 Delivery record: [policy/proof integration checkpoint](../progress/2026-10-10-annotation-effect-hygiene-integration.md).
 
-## 6. User-supplied callback scenario
+## 6. Callback scenario with retracted result
 
-Status note (2026-10-10): the user corrected the assistant's restatement that
-omitted the returned `int ->` function layer. The target is the exact scheme
-shown below, including that layer. The no-extra-arrow scheme recorded by some
-intermediate notes is a mistaken transcription and must not be used as the
-regression oracle.
+Status note (2026-10-10): after the source/result pair below was recorded as a
+target, the user corrected that claimed result as a mistake. Do not use the
+displayed scheme as an expected result, hygiene obligation or regression
+oracle. The intended correction remains unspecified. This correction withdraws
+only the example's claimed output; it does not revise the general polarity
+policy in §1 or prove any alternative scheme.
 
-The user supplied this source/result pair to clarify the selected boundary:
+The source/result pair was recorded as follows:
 
 ```yulang
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
@@ -159,21 +160,8 @@ my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 (int -> ['b, io] 'c) -> int -> ['b] 'c
 ```
 
-The intended locality is to subtract the attached `io` from the callback's
-effect in this body while preserving independent effect flow. The returned
-function layer is part of the user's stated target. Treating a
-variable as “not a concrete annotation atom” must not sever future concrete
-effects from its checks. This scheme is not a claim that
-the current successor accepts the source or that the whole type is already
-verified by a runtime test.
-
-The whole example is an end-to-end effect-hygiene obligation. Its expected
-scheme depends on `run_io: cb 1` consuming the locally permitted `io` while
-preserving independent `'b` flow, and on the `[io]` attachment retaining its
-local authority across shared rows, same-family contributions, callback uses,
-and returned-function use. These are distinct construction and proof owners,
-but treating handler residual behavior as outside the hygiene discussion is a
-mistake: the integration target is the exact source/result pair above. Existing
-conditional hygiene results may supply premises, but they do not establish
-that this source derives the exact scheme. The current paired formal constructor
-still rejects explicit effect rows, so the end-to-end target remains unverified.
+The source may remain useful for a future concrete inference test, but its
+result and the specific end-to-end obligation previously derived from that
+result are not established. Existing conditional hygiene results do not prove
+any output for this source. The current paired formal constructor still rejects
+explicit effect rows; behavior of this concrete source remains unresolved.

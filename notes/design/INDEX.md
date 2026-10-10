@@ -85,7 +85,9 @@ This index is a navigation aid. The listed source document remains authoritative
   concrete allowance. Variables are not concrete annotation atoms; their flow
   and later concrete checks remain. Reviewed conditional hygiene transport,
   owner/lifetime and exact-interface results are reused with their original
-  premises, without reopening them. Scoped conformance review passed. Actual
+  premises, without reopening them. The callback result formerly shown in §6
+  was later retracted by the user as a mistake; no replacement result is
+  selected. Scoped conformance review passed. Actual
   HIR annotation construction and executable concrete/filter algebra remain
   the implementation cut; no compiler-code or runtime integration is claimed.
   See the [delivery record](../progress/2026-10-10-annotation-effect-hygiene-integration.md).

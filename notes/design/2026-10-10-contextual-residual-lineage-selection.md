@@ -32,11 +32,10 @@ new reviewed design and renewed user approval.
 
 The selected annotation meanings remain unchanged: contravariant concrete
 `[E]` permits local subtraction at that annotation position, and covariant
-concrete `[E]` permits that effect. The callback target remains
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`; the full example remains an
-end-to-end hygiene obligation through annotation construction, `run_io`
-residual behavior, independent-effect preservation, and returned-function
-use. Complete Call remains required.
+concrete `[E]` permits that effect. The callback scheme previously recorded as
+an expected result was later corrected by the user as a mistake; the intended
+scheme and the example's exact output obligation remain unspecified. Complete
+Call remains required.
 
 This selection does not close authentic attachment construction; exact
 contextual task, memo, bound, filter, origin, and replay identity; current/future

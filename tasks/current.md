@@ -6884,7 +6884,7 @@ has no blocking findings; narrow file/link/diff checks pass. Zero compiler
 builds/tests or performance samples/processes for this record-only cleanup.
 
 
-### Explicit effect attachment: callback target and cycle-source audit (2026-10-10)
+### Explicit effect attachment: callback example and cycle-source audit (2026-10-10)
 
 The user mentioned this source example:
 
@@ -7139,7 +7139,9 @@ execution, a general recursively mixed observer, or production permission.
 The paired-`as` source route is distinct from the requested formal-lambda
 callback target and does not resolve same-row contextual self admission.
 
-Two research-only checkpoints were pushed after the callback target correction:
+Two research-only checkpoints were pushed after the earlier correction that
+restored the returned `int ->` layer in the transcription. The user later
+retracted that claimed result as a mistake, so it is not the current target:
 [`4d5991b37`](../notes/progress/2026-10-10-formal-effect-admission-construct.md)
 isolates an exact identity-context bound for the currently admitted
 effect-free formal subset and gives a conditional joint finite observer for
@@ -7344,8 +7346,9 @@ code SHA and exact verification envelopes are in the integration record.
 
 All three independent reviews had no blocking/major defect. Two source-only
 minor inventory/arithmetic wording corrections were applied and checked by
-the primary. Source/compiler tests, the target callback scheme and weighted
-successor lifecycle remain unexecuted; this environment had no Cargo/Rust or
+the primary. Source/compiler tests, the user's corrected result and weighted
+successor lifecycle remain unexecuted; that result is now retracted as a
+mistake. This environment had no Cargo/Rust or
 retained Oracle harness. No production source-owned attachment was enabled,
 no canonical proof-DAG status changed, and no `yulang3` cutover occurred.
 
@@ -7415,8 +7418,10 @@ the finite observer passed 72 assertions and 495 literal evaluations, with
 263 further independent code checks. These are bounded executable evidence,
 not general proofs or compiler regressions. No production constructor/filter
 consumer, source expected type, Rust transition, canonical proof-DAG CLOSED
-status or `yulang3` cutover was changed. The callback target and actual
-source-owned attachment/fresh-use/rollback tests remain unrun.
+status or `yulang3` cutover was changed. The previously claimed callback result
+was retracted by the user as a mistake; its intended replacement remains
+unspecified. Actual source-owned attachment/fresh-use/rollback tests remain
+unrun.
 
 **Next single mathematical bottleneck:** exact required observation of a
 positive-displacement mixed recursive component with independent binary replay
