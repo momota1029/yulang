@@ -8788,11 +8788,17 @@ falsification envelope, and source-owner map in the three
 The risk is not reachable from the pinned baseline: no retained nonterminal
 resume caller exists, route entry requires an empty worklist, and route
 rollback clears queue/diagnostic scratch instead of restoring a prior retained
-queue. The next gate is to establish owned nonterminal drain continuation and
-route/queue rollback under §§3 and 6, then wire full outstanding-prefix
-preflight before effects, pop, append, or direct Function admission. Preserve
-terminal one-ack behavior and repeated operation occurrences. q113, complete
-Simple-sub inference, soundness/principality, and F5 cutover remain open.
+queue. The owner-composition proof and bounded test contract are now recorded
+in [the continuation research notes](../notes/progress/2026-10-11-nonterminal-drain-owner-composition-proof.md).
+The next M2 gate is a retained nonterminal drain owner with per-mutation queue
+and diagnostic-frontier undo, exact parent completion receipts, and full
+outstanding-prefix preflight before effects, pop, append, or direct Function
+admission. Whole-workspace copying per resume is excluded by the structural
+cost audit. The selected implementation seam and stop conditions are in
+[the owner plan](../notes/progress/2026-10-11-nonterminal-drain-owner-seam.md).
+Preserve terminal one-ack behavior and repeated operation occurrences. q113,
+complete Simple-sub inference, soundness/principality, and F5 cutover remain
+open.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no
