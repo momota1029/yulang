@@ -7243,6 +7243,19 @@ public-cutover work. Concrete annotation construction, filters/use,
 generalization/freshening/rollback, public inference, full Call, hygiene and F5
 cutover remain open.
 
+### Catch source bridge audit (2026-10-10)
+
+The current syntax tree has Catch expression/arm nodes, but the Pattern parser
+does not admit the qualified operation-call arm shape needed by the proposed
+handler source, and LocalSource has no arm-owned binder/scope representation.
+Adding only a Catch carrier would preserve syntax without enabling inference.
+The read-only audit therefore made no syntax-only edit. A useful bridge must
+retain resolved operation patterns, resumption/payload binders and branch
+bodies, then connect them to the selected contextual effect consumer. See the
+[source bridge audit](../notes/progress/2026-10-10-catch-source-bridge-audit.md).
+The pending contextual-admission choice remains separate; this finding does
+not redefine or waive complete Call, public/default inference, or F5 cutover.
+
 ### Newly integrated mixed-context research (2026-10-10)
 
 Four upstream research artifacts were integrated at `9610f0c3e` through
