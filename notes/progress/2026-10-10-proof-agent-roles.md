@@ -54,12 +54,16 @@ Zero Cargo builds, benchmark processes or broad compiler tests ran: compiler
 behavior is unchanged. The project config now registers `[agents.prover]`
 through `config_file = "agents/prover.toml"`; the standalone role file by
 itself was not enough for discovery. Codex CLI accepted the project config in
-strict mode and launched a real `prover` subagent for a bounded PUSH-count
-lemma. The requested role/model/effort were `prover` / `gpt-6.1-sol` / `high`;
-effective runtime model/effort metadata was not exposed. The derivation
-establishes only the stated arithmetic lemma, not source reachability or
-compiler execution. This observed launch does not establish nested runtime
-capacity or hot reload.
+strict mode and launched real `prover` subagents for a bounded PUSH-count
+lemma and a fresh construction of the nested Function-polarity and exact
+contribution-subtraction lemmas in the conditional contravariant-effect note.
+The first requested `prover` / `gpt-6.1-sol` / `high`; the second used the
+registered defaults. Effective runtime model/effort metadata was not exposed.
+The effect derivation retains the source-formation, attachment, owner/view,
+consumer and fixed-valuation hypotheses; it establishes no source construction,
+runtime reachability/discharge, principality or production implementation. It
+does not change the reviewed conditional status. These observed launches do
+not establish nested runtime capacity or hot reload.
 
 Before publication, recheck the remote head and changed-path baselines, retain
 unrelated concurrent commits, and update only the intended branch by an
