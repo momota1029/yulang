@@ -18,6 +18,7 @@ pub(super) struct FormalRegistrationInput {
     pub lambda: usize,
     pub parameter: HirParameterId,
     pub recipe_position: usize,
+    pub native_root: Option<Term>,
 }
 #[derive(Clone, Debug)]
 pub(super) struct FormalNameInput {
@@ -176,6 +177,13 @@ impl<'a> CandidateSourceCall<'a> {
     pub fn formal_parameter_recipe_position(&self) -> Option<usize> {
         self.formal
             .map(|(registration, _, _)| registration.recipe_position)
+    }
+    /// The positive Value root retained once from the registration's authentic
+    /// parameter recipe at native row initialization. Wrapped and captured uses
+    /// borrow this same root; each Call keeps its own callee and demand.
+    pub fn native_registered_root(&self) -> Option<Term> {
+        self.formal
+            .and_then(|(registration, _, _)| registration.native_root)
     }
     pub fn native_argument_evaluation_effect(&self) -> Term {
         self.native.argument_effect
@@ -409,6 +417,10 @@ pub(super) fn observe<'a>(
             || !scope_owned(source, &name.scope)
             || !matches!(&name.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if id == &parameter.id)
         {
+            return Err(ArtifactMismatch);
+        }
+        let root = registration.native_root.ok_or(ArtifactMismatch)?;
+        if !native_port(store, root, ComponentKind::Value, Polarity::Positive) {
             return Err(ArtifactMismatch);
         }
         Some((registration, parameter, name))

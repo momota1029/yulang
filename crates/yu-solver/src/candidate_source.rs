@@ -163,7 +163,7 @@ impl ConstraintBatch {
                 let registration = self.candidate_calls.formals.len();
                 push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
                     owner: source.definition_root().clone(), lambda: index,
-                    parameter: parameter.id.clone(), recipe_position: position,
+                    parameter: parameter.id.clone(), recipe_position: position, native_root: None,
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
                 formal_registrations.insert(parameter.id.clone(), registration);
@@ -467,6 +467,23 @@ impl InferenceSession {
         }
         for (&parameter, &level) in &self.batch.candidate_source.parameter_levels {
             self.value_levels[self.parameter_live_base as usize + parameter] = level;
+        }
+        for index in 0..self.batch.candidate_calls.formals.len() {
+            let registration = &self.batch.candidate_calls.formals[index];
+            if self
+                .batch
+                .parameter_recipes
+                .get(registration.recipe_position)
+                != Some(&registration.parameter)
+                || registration.native_root.is_some()
+            {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let root = self.candidate_endpoint(
+                CandidateEndpoint::Parameter(registration.recipe_position),
+                Polarity::Positive,
+            )?;
+            self.batch.candidate_calls.formals[index].native_root = Some(root);
         }
         Ok(())
     }

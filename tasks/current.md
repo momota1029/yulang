@@ -7731,3 +7731,25 @@ extrusion, capture/freshening and intrusion. The certified-cycle invalidation
 and rollback/retry gate remains required before admitting those recursive
 contexts. Complete Call, effect hygiene, ordinary/default/public migration,
 soundness/principality and F5 retirement remain open.
+
+### Native registered formal root for pending Call construction (2026-10-10)
+
+An independent Call lane added retention of each formal registration's actual
+positive native Value root. Initialization checks the registration's parameter
+ID against its authentic source recipe position and retains that root once;
+borrowed observations validate its kind/polarity and expose it across direct,
+wrapped and nested captured uses. Each source Call keeps its own callee, demand
+and occurrence. A conflicting Call does not erase the registered input. The
+source-input delta review found no conformance finding; the focused source-call
+filter passed 3 tests. Exact evidence and limitations are in the
+[Call input record](../notes/progress/2026-10-10-call-source-inputs.md).
+
+This is retained construction input only. It supplies no original typing,
+formal introduction, checking/seed evidence, complete Gen-Call-0, argument
+carrier, receiver dispatch, or complete result/future interface, and it changes
+neither Call admission/solving nor `UNRESOLVED`. No measurements or broad tests
+ran. Next, continue a bounded Call supplier under the existing original
+formation definitions; independently, contextual attachment construction still
+waits on the pending attachment-member identity question. Full effect hygiene,
+ordinary/default/public migration, soundness/principality and F5 replacement
+remain open.

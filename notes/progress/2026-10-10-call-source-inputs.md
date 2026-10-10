@@ -75,3 +75,34 @@ these pending source inputs available, without making their absent complete
 suppliers a prerequisite for the already defined basic graph/SCC operation.
 Complete Call, structured effects, public source/scheme correspondence and
 target-branch F5 replacement remain open.
+
+## Later bounded extension: native registered formal root
+
+The retained formal registration now also owns its actual positive native
+Value root. Initialization validates that the source registration's parameter
+ID matches its authentic recipe position, then records that position's live
+endpoint once. Borrowed Call observations validate the endpoint's Value kind
+and positive polarity and expose the shared root alongside the registration.
+Direct, Group-wrapped and nested captured uses of one formal share this root;
+each Apply retains its own callee, demand and source occurrence. Conflicting
+Call constraints do not erase the registered input. This root is only retained
+source evidence: pending original typing suppliers, admission, solving, and
+`UNRESOLVED` are unchanged.
+
+Focused verification:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-solver --lib --features shadow-apply-candidate source_call_ -j 2 --offline
+```
+
+Three tests passed (546 filtered). The M1 spec-conformance delta review found
+no finding. `rustfmt --edition 2024 --check crates/yu-solver/src/candidate_call.rs`
+and `git diff --check` passed. No broad suite, runtime probe or measurement ran.
+The registration table remains capacity-accounted; the additional root is one
+fixed `Option<Term>` per formal registration, with no new allocation.
+
+This closes only shared native-root retention for pending Call construction.
+Whole original registration/interface typing, formal introduction and seed
+evidence, complete Gen-Call-0, argument reification/carrier, receiver dispatch,
+complete result/future interfaces, semantic Call correctness, public/default
+inference and F5 cutover remain open.

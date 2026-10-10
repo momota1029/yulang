@@ -1585,6 +1585,129 @@ mod tests {
         assert!(candidate.source_call(0).is_ok());
     }
     #[test]
+    fn source_call_retains_registered_root_across_wrapped_and_captured_uses() {
+        let hir = crate::candidate_lifecycle_retirement::hir(
+            "my apply f = { my first = f 1; my second = (f) 1; my step x = ({ f }) x; step }",
+        );
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        )
+        .unwrap();
+        let registration = &session.batch.candidate_calls.formals[0];
+        assert_eq!(
+            session.batch.parameter_recipes[registration.recipe_position],
+            registration.parameter,
+        );
+        let root = registration
+            .native_root
+            .expect("root retained at initialization");
+        assert!(
+            matches!(session.store.term_view(root), Ok(TermView::LiveVariable(row))
+            if row.kind() == ComponentKind::Value && row.polarity() == Polarity::Positive
+                && row.ordinal() == session.parameter_live_base + registration.recipe_position as u32)
+        );
+        session.execute().unwrap();
+        let candidate = CandidateInference {
+            solved: session.finish_candidate().unwrap(),
+        };
+        assert_eq!(candidate.source_call_count(), 3);
+        let calls: Vec<_> = (0..3).map(|i| candidate.source_call(i).unwrap()).collect();
+        assert!(
+            calls
+                .iter()
+                .all(|call| call.native_registered_root() == Some(root))
+        );
+        assert!(
+            calls
+                .iter()
+                .all(|call| call.formal_registration().unwrap().id
+                    == calls[0].formal_registration().unwrap().id)
+        );
+        assert!(calls.iter().all(|call| call.native_demand() != root));
+        assert!(calls.iter().any(|call| call.native_callee() == root));
+        assert!(calls.iter().any(|call| call.native_callee() != root));
+        for left in 0..calls.len() {
+            for right in left + 1..calls.len() {
+                assert_ne!(
+                    calls[left].source().occurrence,
+                    calls[right].source().occurrence
+                );
+                assert_ne!(
+                    calls[left].checking_occurrence(),
+                    calls[right].checking_occurrence()
+                );
+            }
+        }
+    }
+    #[test]
+    fn source_call_registered_root_survives_conflicting_apply() {
+        let candidate = CandidateInference::solve(crate::candidate_lifecycle_retirement::hir(
+            "my apply f = f 1; my bad = apply 1",
+        ))
+        .unwrap();
+        assert!(!candidate.candidate_conflicts().is_empty());
+        assert_eq!(candidate.source_call_count(), 2);
+        let calls: Vec<_> = (0..2)
+            .map(|index| candidate.source_call(index).unwrap())
+            .collect();
+        let formal_call = calls
+            .iter()
+            .find(|call| call.formal_registration().is_some())
+            .unwrap();
+        assert_eq!(
+            formal_call.native_registered_root(),
+            Some(formal_call.native_callee())
+        );
+        assert!(calls.iter().all(|call| call.unresolved() == UNRESOLVED));
+    }
+    #[test]
+    fn source_call_registered_root_rejects_invalid_registration_and_native_polarity() {
+        let hir = crate::candidate_lifecycle_retirement::hir("my apply f = f 1");
+        let mut batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        batch.candidate_calls.formals[0].recipe_position = batch.parameter_recipes.len();
+        assert!(InferenceSession::try_new_candidate(batch).is_err());
+        let candidate = CandidateInference::solve(hir).unwrap();
+        let call = candidate.source_call(0).unwrap();
+        let mut state = candidate.solved.data.candidate_calls.clone();
+        state.formals[0].native_root = Some(call.native_demand());
+        assert!(
+            crate::candidate_call::observe(
+                &candidate.solved.data.hir,
+                &candidate.solved.data.store,
+                &state,
+                0,
+            )
+            .is_err()
+        );
+        state.formals[0].native_root = Some(call.native_invocation_effect());
+        assert!(
+            crate::candidate_call::observe(
+                &candidate.solved.data.hir,
+                &candidate.solved.data.store,
+                &state,
+                0,
+            )
+            .is_err()
+        );
+        state.formals[0].native_root = None;
+        assert!(
+            crate::candidate_call::observe(
+                &candidate.solved.data.hir,
+                &candidate.solved.data.store,
+                &state,
+                0,
+            )
+            .is_err()
+        );
+        assert!(
+            candidate
+                .source_call(0)
+                .unwrap()
+                .native_registered_root()
+                .is_some()
+        );
+    }
+    #[test]
     fn candidate_apply_fact_observation_rejects_copied_call() {
         let candidate =
             CandidateValueObservation::solve(module("my id x = x; my first = id 1")).unwrap();
