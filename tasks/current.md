@@ -8715,10 +8715,28 @@ still lacks readiness/filter/dependent-observation witnesses, and the available
 six-product source route supplies no late Function/swap witness. These notes
 do not close source reachability, q113 A/B, or the suspension lifecycle.
 
-Immediate next gate: add the lifecycle-generation and exact observation-support
-owners that can gate source waits; defer only cross-component mutations whose
-owner/vector/fiber dependencies intersect a suspended continuation. Then retain
-the fresh-use restoration/typed-child handoff, withdraw and recompute dependent
-observations in order, and continue toward atomic SCC publication. Keep the
-authentic §7 source-owned late Function/swap regression and production
-certificate readiness as explicit later closure requirements.
+The first lifecycle-generation hook is now in place for genuinely new exact
+FunctionPort dependency admissions. Duplicate keys remain inert; exhaustion is
+checked before mutation; context rollback restores the generation; and retained
+accounting includes the owner and active checkpoint. One compiler-referee M1
+review and its delta review found no issue. The new lifecycle tests and the
+extended dependency-only rollback/retry regression passed. See the [FunctionPort
+lifecycle-generation record](../notes/progress/2026-10-11-function-port-lifecycle-generation.md).
+
+This is one producer hook only: lifecycle generation is not wired to source
+waits, complete mutation/observation registration, withdrawal/recomputation,
+lower-operation suspension, or resumable SCC publication. Incomplete readiness,
+filter, and dependent-observation witnesses still keep production certificates
+disabled. Next gate: add exact observation-support ownership and source-wait
+admission while preserving that incompleteness guard. Then retain the fresh-use
+restoration/typed-child handoff, ordered withdrawal/recomputation, and atomic
+SCC publication. The authentic §7 source-owned late Function/swap regression,
+q113 source-state decision, full Simple-sub inference, and F5 cutover remain
+open.
+
+Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
+pre-existing formatting drift across touched and untouched package files, so no
+formatting rewrite was applied. The three emitted `dead_code` warnings belong
+to `candidate_context.rs` retained-input certificate payloads whose production
+consumer remains disabled; they are intentionally left visible until that
+consumer gate is implemented.

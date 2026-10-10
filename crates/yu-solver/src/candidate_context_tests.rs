@@ -3168,6 +3168,7 @@ fn function_port_identity_incidence_changes_without_new_relations_or_intrusion_g
     algebra.processing = Some(task_pair(parent_task));
     algebra.context.processing = Some(parent);
     let before = state(&session).checkpoint();
+    let lifecycle_generation = state(&session).lifecycle_generation;
     let generation = session.candidate_graph.as_ref().unwrap().intrusion.generation;
     let port = Dependency::FunctionPort {
         parent, child, field: FunctionField::Argument, operation: FunctionPortOperation::Swap,
@@ -3183,9 +3184,12 @@ fn function_port_identity_incidence_changes_without_new_relations_or_intrusion_g
         assert!(!gaps.contains(&InputGap::InertOperation));
     }
     for rollback in [true, false] {
+        let mut route_checkpoint = None;
         let result = session.with_route_transaction(|session| {
+            route_checkpoint = Some(RouteCheckpoint::capture(session));
             assert_eq!(session.candidate_function_port_admit(child_task, FunctionField::Argument)?, Some(child));
             let context = state(session);
+            assert_eq!(context.lifecycle_generation, lifecycle_generation + 1);
             assert_eq!(context.relations.len(), before.relations);
             assert_eq!(context.contexts.len(), before.contexts);
             assert_eq!(context.edge_log.len(), before.edges);
@@ -3205,11 +3209,14 @@ fn function_port_identity_incidence_changes_without_new_relations_or_intrusion_g
             let after = state(session).checkpoint();
             assert_eq!(session.candidate_function_port_admit(child_task, FunctionField::Argument)?, Some(child));
             assert_eq!(state(session).checkpoint(), after, "duplicate admission retains the port once");
+            assert_eq!(state(session).lifecycle_generation, lifecycle_generation + 1, "exact duplicate does not advance lifecycle generation");
             Ok(())
         });
         if rollback {
             assert_eq!(result, Err(exhausted()));
+            route_checkpoint.unwrap().assert_restored(&session);
             assert_eq!(state(&session).checkpoint(), before);
+            assert_eq!(state(&session).lifecycle_generation, lifecycle_generation, "route failure restores the prior lifecycle generation");
             assert!(!state(&session).dependency_keys.contains(&port));
             assert_eq!(state(&session).dependencies, vec![Dependency::Derived { parent, child }]);
             assert!(state(&session).edge_keys.contains(&(parent, child)));
@@ -4088,4 +4095,67 @@ fn source_cursor_wait_after_completed_local_use_does_not_freshen_it_again() {
     assert_eq!(session.candidate_graph.as_ref().unwrap().local_routes.len(), uninterrupted.candidate_graph.as_ref().unwrap().local_routes.len());
     assert_eq!(session.store.facts.len(), uninterrupted.store.facts.len());
     assert_eq!(session.errors, uninterrupted.errors);
+}
+
+#[test]
+fn function_port_lifecycle_generation_exhaustion_precedes_mutation_and_duplicates_remain_inert() {
+    let mut context = State::default();
+    assert!(context.bytes().unwrap() >= std::mem::size_of::<u64>(), "the fixed lifecycle owner is included in retained bytes");
+    let parent_pair = task_pair(LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    }));
+    let child_pair = task_pair(LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::UnitPositive, upper: ValueEndpointKey::TopNegative,
+    }));
+    let parent = context.relation(parent_pair, IDENTITY).unwrap();
+    let child = context.relation(child_pair, IDENTITY).unwrap();
+    context.dependency(Dependency::Derived { parent, child }).unwrap();
+    assert_eq!(context.lifecycle_generation, 0, "Derived admission is outside this first producer hook");
+    let port = Dependency::FunctionPort { parent, child, field: FunctionField::Argument, operation: FunctionPortOperation::Swap };
+    context.lifecycle_generation = u64::MAX;
+    let before = context.checkpoint();
+    let bytes = context.bytes().unwrap();
+    assert_eq!(context.dependency(port), Err(exhausted()));
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(context.bytes().unwrap(), bytes, "generation exhaustion precedes even dependency reservation");
+    assert!(!context.dependency_keys.contains(&port));
+    context.lifecycle_generation = 0;
+    context.dependency(port).unwrap();
+    assert_eq!(context.lifecycle_generation, 1);
+    context.lifecycle_generation = u64::MAX;
+    let duplicate = context.checkpoint();
+    context.dependency(port).unwrap();
+    assert_eq!(context.checkpoint(), duplicate, "a duplicate does not require another generation");
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn function_port_lifecycle_identity_source_completes_without_certificate_or_suspension() {
+    let mut session = session_with_source("my answer x:int -> int = x");
+    let owner = empty_bundle_owner(&session);
+    let before = state(&session).lifecycle_generation;
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    let mut ports = 0;
+    for dependency in &context.dependencies {
+        if let Dependency::FunctionPort { parent, child, .. } = dependency {
+            ports += 1;
+            assert_eq!(context.relations[parent.0 as usize].key.context, IDENTITY);
+            assert_eq!(context.relations[child.0 as usize].key.context, IDENTITY);
+        }
+    }
+    assert!(ports > 0, "ordinary identity source exercises the real producer hook");
+    assert_eq!(context.lifecycle_generation, before + ports);
+    assert!(context.typed_drains.is_empty());
+    assert!(session.candidate_graph.as_ref().unwrap().source.is_none(), "generation changes alone do not suspend ordinary source");
+    assert!(session.errors.is_empty());
+    let roots: Vec<_> = context.dependencies.iter().filter_map(|dependency| match dependency {
+        Dependency::FunctionPort { parent, .. } => Some(*parent), _ => None,
+    }).collect();
+    let input = context.retained_input(&roots, &[], &[]).unwrap();
+    let InputCompleteness::Incomplete(gaps) = &input.completeness else { panic!("generation alone cannot mint a certificate"); };
+    assert!(gaps.contains(&InputGap::ProducerReadinessUnavailable));
+    assert!(gaps.contains(&InputGap::FilterObligationsUnavailable));
+    assert!(gaps.contains(&InputGap::DependentObservationsUnavailable));
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
 }

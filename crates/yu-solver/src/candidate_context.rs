@@ -602,6 +602,10 @@ impl BoundEvidence {
 }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    // This first producer hook covers exact FunctionPort admission only.
+    // It is independent of equality generation and cannot authorize a
+    // certificate until the remaining producers and observation owners exist.
+    pub(super) lifecycle_generation: u64,
     evidence: BoundEvidence,
     pub inferred_entries: Vec<InferredEntryOrigin>,
     pub bundles: Vec<AttachmentBundle>,
@@ -655,6 +659,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    lifecycle_generation: u64,
     evidence: EvidenceCheckpoint,
     inferred_entries: usize,
     bundles: usize,
@@ -1496,6 +1501,7 @@ impl State {
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            lifecycle_generation: self.lifecycle_generation,
             evidence: self.evidence.checkpoint(),
             inferred_entries: self.inferred_entries.len(),
             bundles: self.bundles.len(),
@@ -1580,6 +1586,7 @@ impl State {
         for dependency in self.dependencies.drain(checkpoint.dependencies..) {
             self.dependency_keys.remove(&dependency);
         }
+        self.lifecycle_generation = checkpoint.lifecycle_generation;
         for (bound, _, previous) in self.bound_keys.drain(checkpoint.bounds..).rev() {
             if let Some(previous) = previous { self.bounds.insert(bound, previous); }
             else { self.bounds.remove(&bound); }
@@ -1777,6 +1784,7 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            Some(std::mem::size_of::<u64>()),
             Some(self.replay_operation_bytes()?),
             Some(self.evidence.bytes()?),
             self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
@@ -1865,7 +1873,7 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.evidence.enumerated_bytes()
+        std::mem::size_of::<u64>() + self.evidence.enumerated_bytes()
             + self.replay_operations.capacity() * std::mem::size_of::<(ReplayOperationId, ReplayOperation)>()
             + self.replay_operation_undo.capacity() * std::mem::size_of::<ReplayOperationUndo>()
             + self.restorations.capacity() * std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()
@@ -2103,6 +2111,12 @@ impl State {
         if self.dependency_keys.contains(&dependency) {
             return Ok(());
         }
+        // Check identity exhaustion before any reservation or edge mutation.
+        // Exact incidence is already retained in `dependencies`; do not
+        // reconstruct a lifecycle mutation from diagnostic reachability.
+        let next_generation = if matches!(dependency, Dependency::FunctionPort { .. }) {
+            self.lifecycle_generation.checked_add(1).ok_or_else(exhausted)?
+        } else { self.lifecycle_generation };
         self.dependencies.try_reserve(1).map_err(|_| exhausted())?;
         self.dependency_keys
             .try_reserve(1)
@@ -2131,6 +2145,7 @@ impl State {
         }
         self.dependencies.push(dependency);
         self.dependency_keys.insert(dependency);
+        self.lifecycle_generation = next_generation;
         Ok(())
     }
     fn edge(
