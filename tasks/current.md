@@ -6886,25 +6886,21 @@ builds/tests or performance samples/processes for this record-only cleanup.
 
 ### Explicit effect attachment: callback target and cycle-source audit (2026-10-10)
 
-The user supplied this concrete example:
+The user mentioned this source example:
 
 ```yulang
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-The user's expected scheme is
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`. The whole source/result pair is an
-end-to-end effect-hygiene obligation: `run_io` must consume the locally
-permitted `io`, independent `'b` flow must survive, and the annotation's
-authority must remain local across shared rows, same-family contributions,
-callback uses and the returned-function use. These have distinct
-construction/proof owners, but the claim that handler residual behavior is
-outside the hygiene discussion was mistaken. Existing conditional hygiene
-results do not prove this exact source/result derivation. Intermediate notes
-omitting the returned `int ->` layer are also mistaken transcriptions. The
-current candidate supports singleton variable-only formal effect tails as
-ordinary rows, but still rejects concrete `[E]` attachments; the complete
-example remains unaccepted and unverified.
+The user initially gave the scheme
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`, then corrected it as a mistake on
+2026-10-10. Do not treat that scheme as an expected result, a hygiene
+obligation, or evidence about handler residual behavior. The intended
+correction has not yet been supplied, so this example establishes no particular
+source/result contract. Existing conditional hygiene results do not prove an
+end-to-end derivation for this example. The current candidate supports
+singleton variable-only formal effect tails as ordinary rows, but still
+rejects concrete `[E]` attachments; the corrected example remains unresolved.
 
 The conditional finite attachment model checkpoint `b54e03d97` passes 72
 valuations, 85 polarity paths and seven named shortcut checks. Frozen Oracle
@@ -6990,11 +6986,12 @@ earlier POP1 bound subsumes; it does not show POP2 suppressing POP1. At
 Pos4/TV5 → Neg69/TV50, right POP2 is inserted and later right POP3/POP4 are
 subsumed. The trace lacks the source-origin/freshening map needed to identify
 TV50 as the named source `E`, and records no admitted mixed PUSH/POP context.
-Do not use it as an `e/E` versus `h/E` proof. The user's exact callback target
-is `(int -> ['b, io] 'c) -> int -> ['b] 'c`; it remains unverified for concrete
-contravariant subtraction. Positive covariant annotations already have a
-private source/propagation implementation. Full hygiene, complete Call,
-soundness/principality and public/default F5 cutover remain open.
+Do not use it as an `e/E` versus `h/E` proof. The callback scheme previously
+called the user's exact target was later corrected by the user as a mistake;
+neither that scheme nor the earlier no-extra-arrow transcription is a verified
+result. The intended scheme remains unspecified. Positive covariant annotations
+already have a private source/propagation implementation. Full hygiene,
+complete Call, soundness/principality and public/default F5 cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)
 
@@ -7002,9 +6999,10 @@ The direct mathematical task started at remote `b69bb905` and incorporated
 upstream `2a7cc93c`'s inline colon source bridge. The
 [integrated result](../notes/progress/2026-10-10-contextual-effect-saturation-results.md)
 records a proved cyclic-algebra subsystem, not closure of the complete
-contravariant source attachment. Its result note preserves the mistaken
-no-extra-arrow transcription `(int -> ['b, io] 'c) -> ['b] 'c`; the corrected
-target is `(int -> ['b, io] 'c) -> int -> ['b] 'c`.
+contravariant source attachment. Its result note preserves two historical
+scheme transcriptions; the user later corrected the claimed target scheme as a
+mistake. Neither is a verified result, and the intended scheme remains
+unspecified.
 
 The independently reviewed
 [theorem](../notes/progress/2026-10-10-contextual-effect-path-theorem.md)
@@ -7119,7 +7117,8 @@ Exact residual-key gamma,
 source filter registration, authority-preserving extrusion/SCC intrusion,
 freshening and journal rollback remain implementation/semantic obligations.
 No production source-owned attachment or second solver was enabled; the scheme
-`(int -> ['b, io] 'c) -> int -> ['b] 'c` remains the unexecuted source target.
+previously called the unexecuted source target has been retracted by the user
+as a mistake, and the intended source target remains unspecified.
 No canonical DAG node was closed, no new semantic question was opened, and
 `yulang3` was not changed.
 
@@ -7531,8 +7530,8 @@ feature check passed. See the [implementation checkpoint](../notes/progress/2026
 The kernel sequence is copy → capture → freshen → lower; the source regression
 covers the later actual-argument lower before capture of the resulting
 component. These complementary tests do not assert the same operation order.
-This closes only the mixed covariant allowance lifecycle gap. The exact
-`run_io` callback scheme, contravariant subtraction, full effect hygiene, Call,
+This closes only the mixed covariant allowance lifecycle gap. The corrected
+`run_io` callback result, contravariant subtraction, full effect hygiene, Call,
 soundness/principality, public/default migration and F5 replacement remain
 open.
 
@@ -7633,8 +7632,9 @@ is an exact finite representation/consumer for the source-generated mixed
 Effect component and its count-indexed residual lineages, retaining both
 feedback directions and all current/future lowers. Contextual self checks,
 filters, scope, freshening, qualifying parent/copy intrusion and rollback must
-be preserved there. No old theorem is promoted to CLOSED; the exact callback
-`(int -> ['b, io] 'c) -> int -> ['b] 'c`, real run_io behavior, full negative
+be preserved there. No old theorem is promoted to CLOSED; the previously
+claimed callback scheme has been retracted by the user as a mistake, and the
+intended result remains unspecified. Real run_io behavior, full negative
 subtraction/hygiene, principality, complete Call and public/default F5 remain
 unverified. This patch adds no certificate/deferral implementation or new
 question. The incoming approved private carrier/two-cycle gate is preserved;
