@@ -1,7 +1,7 @@
 # One mixed-annotation incoming use: conditional source trace
 
 Date: 2026-10-10
-Status: unreviewed bounded source characterization; static conditional trace; no execution, supported-input certification, counterexample, or R closure
+Status: independently reviewed bounded source characterization; static conditional trace; no execution, supported-input certification, counterexample, or R closure
 Baseline supplied by primary: `d7ccbd6f7849d6b2b029fd2028383ebc938a9d09`
 Branch supplied by primary: `research/simple-sub-intrusion`
 Producer: `/root/restore_replay_source_witness`, leaf; no descendants
@@ -256,6 +256,18 @@ the claimed runtime sequence remain unverified without execution. No broader
 source-program search was attempted after this source failed the shared-owner
 condition. Only this new leased note was written.
 
+## Independent review
+
+The independent compiler-referee delta review found no BLOCKING or major
+mismatch. It accepted the six level-1 captured rows, capture order, single
+Bottom/Allowance restore comparison, and absence of extrusion copies/parent
+records as a bounded static derivation. It confirmed the note leaves R open.
+All eleven current dependency SHA-256 values match the frozen note. Review did
+not independently check Git membership or branch identity, and did not execute
+the authored fixture. Parser/HIR success, callback counts, supported-source
+certification, rollback/retry, arbitrary witnesses, nonidentity contexts, and
+general R/lifecycle closure remain unverified.
+
 Direct dependencies were hashed on first read and rechecked unchanged before
 writing:
 
@@ -278,11 +290,12 @@ writing:
 - Exact lease: `notes/progress/2026-10-10-canonical-bound-fiber-within-use-trace.md`.
 - Baseline: `d7ccbd6f7849d6b2b029fd2028383ebc938a9d09`.
 - Changed dependency hashes: none observed; no dependency edited by producer.
-- Review status: frozen unreviewed bounded source characterization; no R closure
+- Review status: independent compiler-referee review found no BLOCKING/major
+  mismatch; bounded source characterization only, with no R closure
   or supported-source certification.
 - Checks already run: static source/HIR/call-order reads and dependency hashes;
   no executable verification.
-- Proposed message: `research: trace flat mixed-annotation freshening and exclude nested intrusion`.
+- Commit: `dfeb75cca research: trace mixed effect capture without shared owner`.
 - Shared deltas left for primary/curator: the exact six-key trace, fresh checking
   owner, single Bottom/Allowance callback, absence of parent records, and the
   remaining source requirement for level separation/shared-owner capture.
