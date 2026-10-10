@@ -8,31 +8,29 @@ exact acceleration for the two reviewed paired-ascription cycle shapes
 Baseline: `c8da9dfff`
 Reviewed-by: independent compiler-referee and spec-auditor; compiler-referee
 delta review closed late-edge invalidation finding
-Approved-by: user, contextual-attachment-admission q1/a1, 2026-10-10
+Approved-by: user, contextual-attachment-admission q1/a1, 2026-10-10; contextual-attachment-member-identity q1/a1, 2026-10-10 (attachment grouping in §3.1 only)
 Initial design draft SHA-256 (before lifecycle repair): `8ea4d90843a10e55c52e5c5380a0fa2824c8127a66df827019753277a04a0a70`
 Authority: existing polarity-sensitive effect policy, selected residual
 constructor-lineage identity, Simple-sub levels/extrusion, and parent-copy SCC
 intrusion
-Supersedes: none
+Supersedes: none; §3.1 resolves the attachment-member grouping
 
 ## 1. Goal and boundary
 
-The exact user target remains:
+This source example was previously paired with a claimed result, but the user
+later corrected that result as a mistake. Do not treat the former scheme as an
+expected result or source contract; the intended result remains unspecified:
 
 ```yulang
 my f(cb: (int -> [io] 'c)): 'c = run_io: cb 1
 ```
 
-```text
-(int -> ['b, io] 'c) -> int -> ['b] 'c
-```
-
-Contravariant `[io]` supplies local subtraction authority at that annotation
-position; it does not erase an unrelated contribution with the same family.
-Covariant `[E]` continues to admit concrete `E`, while type variables remain
-connected to later checks. The entire callback/result pair includes handler
-residual behavior, independent effect flow, callback use, and the returned
-Function use.
+The general annotation policy remains unchanged: contravariant `[E]` supplies
+local subtraction authority at that annotation position; it does not erase an
+unrelated contribution with the same family. Covariant `[E]` continues to admit
+concrete `E`, while type variables remain connected to later checks. The
+retracted example result establishes no particular output for `run_io` or
+handler residual behavior.
 
 The current candidate has no concrete formal-row attachment consumer. It also
 has no `Catch` case in `LocalSourceForm`: `catch` falls through to structural
@@ -69,6 +67,7 @@ copy of Oracle's weights:
 
 ```text
 Attachment {
+    attachment_identity,
     annotation_owner,
     exact_occurrence,
     concrete_member_ordinal,
@@ -109,6 +108,18 @@ interning may share identical construction nodes; it does not assert semantic
 equivalence, discard counts, or terminate the relation worklist. Attachment
 identity remains distinct from nominal effect identity and from source
 spelling.
+
+### 3.1 Identity grouping within one annotation
+
+The user selected one attachment identity per concrete atom set belonging to
+one exact annotation occurrence. Every member keeps its own ordinal and
+resolved effect operand under that shared identity. A different annotation
+occurrence or fresh local annotation instance receives a distinct identity.
+This follows Oracle's set-wide subtraction identity; it does not merge effect
+families or grant cancellation authority to unrelated contributions with the
+same family. This decision selects only attachment grouping. Simple-sub levels,
+extrusion, qualifying parent-copy SCC intrusion, and the scoped propagation and
+rollback rules above remain unchanged.
 
 ## 4. Proposed transition contract
 
@@ -183,7 +194,7 @@ residual-family/gamma generation. The general mixed-component admission
 procedure is unresolved. The private deferral above protects transactional
 correctness; it is not an implementation of inference for the deferred source.
 Consequently this draft does **not** authorize admitting arbitrary concrete
-formal effect rows or claim completion of the user's callback target.
+formal effect rows or claim an output for the callback source example.
 
 ## 6. Approved implementation gate
 
@@ -197,16 +208,18 @@ The user selected option 1 in contextual-attachment-admission question q1,
 answer draft a1: implement this carrier and the exact two-circuit acceleration
 as the next internal gate. Preserve the complete unbounded contexts for both
 reviewed shapes. General concrete-formal admission, arbitrary mixed recursive
-components, the callback target, and public/default cutover remain behind their
-later gates, including exact mixed-component and Catch/Call work. This selection
-does not create a resource cap or source rejection rule.
+components, the callback example's still-unspecified output, and public/default
+cutover remain behind their later gates, including exact mixed-component and
+Catch/Call work. This selection does not create a resource cap or source
+rejection rule.
 
 This gate does not change the selected annotation policy, residual lineage,
 parent-copy intrusion, complete Call requirement, or F5 replacement objective.
 Implementation must add focused construction, future-lower, same-family,
 filter, fresh-use, extrusion, qualifying intrusion, reverse feedback, and
-rollback/retry regressions. The exact `run_io` source remains an end-to-end
-requirement once its ordinary handler carrier and inference route exist.
+rollback/retry regressions. The `run_io` source example has no established
+expected output; the broader effect-hygiene policy and actual handler/inference
+route remain required independently.
 Concrete-formal acceptance remains disabled until its later admission gate.
 
 ## 7. Review outcome

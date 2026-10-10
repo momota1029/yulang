@@ -114,7 +114,8 @@ This index is a navigation aid. The listed source document remains authoritative
   independent fresh uses and rollback. It corrects the historical paired
   Oracle/source-variance mapping. The nullary source sort theorem separates
   debt-only Value recursion from the still-open mixed Effect/residual consumer.
-  This does not admit concrete negative formals or prove the callback target.
+  This does not admit concrete negative formals or establish an output for the
+  previously discussed callback example.
   The [local-recursive source witness](../progress/2026-10-10-local-recursive-contextual-source-witness.md)
   derives an actual lower-copy topology and identifies the missing initial
   contextual replay event. Its infinite complete reference closure remains
@@ -123,10 +124,13 @@ This index is a navigation aid. The listed source document remains authoritative
   The [contextual attachment/admission design](2026-10-10-contextual-attachment-admission-design.md)
   is authoritative for the private contextual carrier, exact acceleration of
   two reviewed paired-ascription cycle shapes, certificate invalidation, and
-  rollback. The user's q1/a1 selects that bounded internal gate only. General
-  mixed-component admission, concrete formal-row enabling, the callback target,
-  Catch/complete Call, and public/default/F5 cutover remain open. Its validated
-  answer bundle is integrated at `7a6490172`.
+  rollback. The user's q1/a1 selects that bounded internal gate only; a later
+  approved q1/a1 selects one attachment identity per annotation atom set,
+  recorded in §3.1 and integrated at `d86d50dd2`. The user later retracted the
+  previously claimed callback result as a mistake; no replacement is selected.
+  General mixed-component admission, concrete formal-row enabling,
+  Catch/complete Call, and public/default/F5 cutover remain open. The original
+  carrier answer bundle is integrated at `7a6490172`.
 
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)

@@ -7136,8 +7136,8 @@ continuations to PVASS reachability; its mathematics remains unreviewed. The
 cover exact linear and nonlinear families with bounded deterministic checks,
 also pending independent review. None of these is Oracle parser/compiler
 execution, a general recursively mixed observer, or production permission.
-The paired-`as` source route is distinct from the requested formal-lambda
-callback target and does not resolve same-row contextual self admission.
+The paired-`as` source route is distinct from the callback source example and
+does not resolve same-row contextual self admission.
 
 Two research-only checkpoints were pushed after the earlier correction that
 restored the returned `int ->` layer in the transcription. The user later
@@ -7705,8 +7705,11 @@ residual recipes, the approved two-cycle acceleration and late-edge
 invalidation remain the next implementation gate. Concrete/closed-empty
 formal effect rows remain unsupported. Complete Call, full effect hygiene,
 soundness, principality, ordinary/default publication and F5 retirement remain
-open. The separate ordinary-HIR carrier question remains pending and is not
-approved by this checkpoint.
+open. The separate ordinary-HIR carrier question has a local q1/a1 answer, but
+its approved-answer text differs from the draft by `unstaged and uncommitted`
+versus `unstaged/uncommitted`. The questioning primary rejected that handoff
+for integration and recorded the mismatch in its uncommitted receipt; the
+ordinary carrier architecture remains unapproved.
 
 Next: implement contextual attachment/context operations and the two-cycle
 certificate lifecycle on this single relation authority, preserving the exact
@@ -7724,9 +7727,16 @@ conformance review found no finding. Production relation constructors remain
 identity-only, so this foundation does not yet propagate annotations or effects.
 See [the progress record](../notes/progress/2026-10-10-exact-context-expression-dag.md).
 
-Next: resolve the pending annotation-member attachment identity question, then
-construct authentic source-owned weight/filter payloads and carry contextual
-relation identity through worklist scheduling, bound insertion/replay,
+The annotation-member grouping decision is now integrated: members of one
+exact annotation occurrence share an attachment identity while retaining
+member ordinals and resolved operands; distinct occurrences and fresh local
+instances remain distinct. See the durable §3.1 selection in the
+[contextual attachment design](../notes/design/2026-10-10-contextual-attachment-admission-design.md).
+The user also asked that the work stay anchored in Simple-sub; this decision
+changes only attachment identity grouping.
+
+Next: construct authentic source-owned weight/filter payloads and carry
+contextual relation identity through worklist scheduling, bound insertion/replay,
 extrusion, capture/freshening and intrusion. The certified-cycle invalidation
 and rollback/retry gate remains required before admitting those recursive
 contexts. Complete Call, effect hygiene, ordinary/default/public migration,
@@ -7749,7 +7759,7 @@ formal introduction, checking/seed evidence, complete Gen-Call-0, argument
 carrier, receiver dispatch, or complete result/future interface, and it changes
 neither Call admission/solving nor `UNRESOLVED`. No measurements or broad tests
 ran. Next, continue a bounded Call supplier under the existing original
-formation definitions; independently, contextual attachment construction still
-waits on the pending attachment-member identity question. Full effect hygiene,
-ordinary/default/public migration, soundness/principality and F5 replacement
-remain open.
+formation definitions; independently, implement contextual attachment
+construction under the newly integrated member-grouping decision. Full effect
+hygiene, ordinary/default/public migration, soundness/principality and F5
+replacement remain open.
