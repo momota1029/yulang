@@ -8536,3 +8536,15 @@ that displaces a required old ordered pair from the saved-index loop without
 another actual replay covering it; otherwise an all-source constructor proof
 must rule that event out. Complete diagnostic discharge and rollback/retry
 remain unproved.
+
+The follow-up [source displacement search](../notes/progress/2026-10-11-source-displacement-search.md)
+did not find such an execution. It narrows the direct-append route: ordinary
+Effect callbacks on the reviewed level-1 S53 cannot append a row lower by
+level orientation, and lifting S to level2 still does not construct the needed
+row-to-row callback task absent SCC reconstruction. A concrete transport route
+remains conditional: R47 is a negative copy of R45, so merging them could
+transport S53's fiber without replay; the exact missing source edge is
+`q113 ->* R45`. This static route analysis ran no source execution and proves
+neither its reachability nor global impossibility. Alternative A and B remain
+open; prover execution is still unavailable in this runtime despite the
+repository's configured prover role.
