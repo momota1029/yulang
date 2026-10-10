@@ -1,11 +1,14 @@
 # Contextual annotation attachments and source-cycle admission
 
-Status: Reviewed proposal; user approval pending; no implementation authority
-Scope: private successor representation and exact admission gate for explicit
-concrete effect attachments on formal Function ports
+Status: Authoritative for the internal carrier and two reviewed source-cycle
+acceleration gate; not authority to admit arbitrary concrete formal effect rows
+or to publish deferred components
+Scope: private successor representation, contextual lifecycle/rollback, and
+exact acceleration for the two reviewed paired-ascription cycle shapes
 Baseline: `c8da9dfff`
 Reviewed-by: independent compiler-referee and spec-auditor; compiler-referee
 delta review closed late-edge invalidation finding
+Approved-by: user, contextual-attachment-admission q1/a1, 2026-10-10
 Initial design draft SHA-256 (before lifecycle repair): `8ea4d90843a10e55c52e5c5380a0fa2824c8127a66df827019753277a04a0a70`
 Authority: existing polarity-sensitive effect policy, selected residual
 constructor-lineage identity, Simple-sub levels/extrusion, and parent-copy SCC
@@ -48,19 +51,21 @@ remain required separate owners.
   future source lowers fan out to each recipe; qualifying recorded parent/copy
   pairs still become equal through SCC intrusion. See
   [`contextual-residual-lineage-selection.md`](2026-10-10-contextual-residual-lineage-selection.md).
-- Contextual recipe representation, transport, rollback, and admission are
-  still open in
-  [`contextual-residual-owner-design.md`](2026-10-10-contextual-residual-owner-design.md).
+- This design selects the private contextual recipe representation,
+  propagation/lifecycle, rollback, and exact two-cycle acceleration described
+  below. The broader residual-owner draft remains historical for this selected
+  slice; generic mixed-component admission and full concrete-formal enabling
+  remain open.
 - Existing Simple-sub extrusion and selected parent-copy intrusion remain the
   row identity and level authorities. Context must travel with those rows; it
   cannot replace their equality rules.
 - No raw context cap, source restriction, diagnostic, resource threshold, or
   annotation meaning change is selected here.
 
-## 3. Proposed source-owned records
+## 3. Selected private source-owned records
 
-These shapes are a proposal, not a selected API or a direct copy of Oracle's
-weights:
+These shapes define the selected private carrier, not a public API or a direct
+copy of Oracle's weights:
 
 ```text
 Attachment {
@@ -138,7 +143,7 @@ count pairs. A raw finite number-of-contexts cap cannot be the admission proof
 for that class. The reviewed effect policy also gives no permission to reject
 ordinary source solely because its exact contexts are inconvenient.
 
-For those two complete, source-reviewed circuit shapes, a proposed exact
+For those two complete, source-reviewed circuit shapes, the selected exact
 acceleration stores a symbolic count relation per contribution and origin:
 
 - PUSH-only identity cycles: `p = 0, n >= 0`.
@@ -180,35 +185,29 @@ correctness; it is not an implementation of inference for the deferred source.
 Consequently this draft does **not** authorize admitting arbitrary concrete
 formal effect rows or claim completion of the user's callback target.
 
-## 6. Review gate and alternatives
+## 6. Approved implementation gate
 
 This is M3 because it changes the private inference architecture and defines
 how effect authority crosses replay, extrusion, freshening, intrusion, and
-rollback. Independent review must cover operation semantics, source
-conformance, exactness of the two circuit relations, invalidation on late edges,
-and transactional behavior.
+rollback. The independent semantic and conformance reviews described in §7
+cover operation semantics, source conformance, exactness of the two circuit
+relations, invalidation on late edges, and transactional behavior.
 
-After review, the user must choose among:
+The user selected option 1 in contextual-attachment-admission question q1,
+answer draft a1: implement this carrier and the exact two-circuit acceleration
+as the next internal gate. Preserve the complete unbounded contexts for both
+reviewed shapes. General concrete-formal admission, arbitrary mixed recursive
+components, the callback target, and public/default cutover remain behind their
+later gates, including exact mixed-component and Catch/Call work. This selection
+does not create a resource cap or source rejection rule.
 
-1. Approve this carrier and the exact two-circuit acceleration as an internal
-   implementation gate, while keeping concrete-formal admission behind a
-   later exact mixed-component gate.
-2. Defer the carrier until an exact general mixed-component observer is
-   available; this delays authentic concrete formal attachment execution.
-3. Ask for a separately reviewed practical work/resource boundary. This would
-   need a measured structural dimension and explicit rejection behavior; it is
-   not implied by the current draft.
-
-None of these options changes the selected annotation policy, residual lineage,
+This gate does not change the selected annotation policy, residual lineage,
 parent-copy intrusion, complete Call requirement, or F5 replacement objective.
-Any selected implementation must add focused construction, future-lower,
-same-family, filter, fresh-use, extrusion, qualifying intrusion, reverse
-feedback, and rollback/retry regressions. The exact `run_io` source remains an
-end-to-end requirement once its ordinary handler carrier and inference route
-exist.
-
-No implementation authority is granted until the review findings converge
-and the user approves a specific option and scope.
+Implementation must add focused construction, future-lower, same-family,
+filter, fresh-use, extrusion, qualifying intrusion, reverse feedback, and
+rollback/retry regressions. The exact `run_io` source remains an end-to-end
+requirement once its ordinary handler carrier and inference route exist.
+Concrete-formal acceptance remains disabled until its later admission gate.
 
 ## 7. Review outcome
 
@@ -221,12 +220,11 @@ source rejection, defers the private candidate result, and journals the full
 certificate generation/dependency/observation state for rollback and retry.
 
 The fresh compiler-referee delta review closed that finding on the repaired
-§§4–6 artifact. The independent semantic review found no
-other polarity, residual-lineage, Function-port, or intrusion contradiction.
-The spec-auditor reviewed the base draft and found no conformance finding; the
-delta adds lifecycle safeguards without widening the approved source or
-annotation scope. The only changes since the reviewed snapshot are this
-provenance section and status metadata. Implementation correspondence,
-certificate-recognition code, execution, and general mixed-component
-termination remain unverified. The proposal therefore remains a reviewed
-draft, not an approved design or a completion claim.
+§§4–6 artifact. The independent semantic review found no other polarity,
+residual-lineage, Function-port, or intrusion contradiction. The spec-auditor
+reviewed the base draft and found no conformance finding; the delta adds
+lifecycle safeguards without widening the source or annotation scope. The user
+approved the bounded internal gate described in §6. Implementation
+correspondence, certificate-recognition code, execution, and general
+mixed-component termination remain unverified; approval is not a completion
+claim.

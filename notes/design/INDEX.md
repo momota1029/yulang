@@ -106,14 +106,13 @@ This index is a navigation aid. The listed source document remains authoritative
   regressions cover complementary event orders. This remains a bounded
   candidate result, not full hygiene, Call or public/default cutover.
 
-  The later [contextual attachment/admission proposal](2026-10-10-contextual-attachment-admission-design.md)
-  is independently M3-reviewed, with one compiler-referee delta repair, but
-  remains non-authoritative pending the user’s choice. It proposes an exact
-  carrier lifecycle and accelerators for two witnessed paired-ascription
-  cycles; general mixed-component admission, concrete formal enabling, the
-  callback target, Catch/complete Call, and public/default/F5 cutover remain
-  open. The matching pending question is in
-  `questions/2026-10-10-contextual-attachment-admission/`.
+  The [contextual attachment/admission design](2026-10-10-contextual-attachment-admission-design.md)
+  is authoritative for the private contextual carrier, exact acceleration of
+  two reviewed paired-ascription cycle shapes, certificate invalidation, and
+  rollback. The user's q1/a1 selects that bounded internal gate only. General
+  mixed-component admission, concrete formal-row enabling, the callback target,
+  Catch/complete Call, and public/default/F5 cutover remain open. Its validated
+  answer bundle is integrated at `7a6490172`.
 
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)
