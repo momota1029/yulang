@@ -2626,6 +2626,83 @@ fn inferred_entry_origin_route_rollback_restores_and_retry_retains_once() {
 
 
 #[test]
+fn function_port_context_uses_exact_post_check_parent_and_child_local_order() {
+    let mut session = session();
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let view = session.candidate_effect_view(empty_bundle_owner(&session), effect.declaration.clone(), vec![effect], None).unwrap();
+    let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
+    let parent_task = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    });
+    let effect_task = LiveConstraintTask::Effect(EffectEndpointKey::BottomPositive, EffectEndpointKey::Allowance(view));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let first_context = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+    let second_context = context.context(ContextExpr::WithoutLeftFilter { input: first_context }).unwrap();
+    let first = context.relation(task_pair(parent_task), first_context).unwrap();
+    let second = context.relation(task_pair(parent_task), second_context).unwrap();
+    let before = state(&session).checkpoint();
+    let mut attempts = Vec::new();
+    for rollback in [true, false] {
+        let result = session.with_route_transaction(|session| {
+            let mut children = Vec::new();
+            for (parent, inherited) in [(first, first_context), (second, second_context)] {
+                let algebra = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+                algebra.processing = Some(task_pair(parent_task));
+                algebra.context.processing = Some(parent);
+                for field in [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result] {
+                    let argument = matches!(field, FunctionField::Argument | FunctionField::ArgumentEffect);
+                    let operation = if argument { FunctionPortOperation::Swap } else { FunctionPortOperation::Preserve };
+                    for child_task in [parent_task, effect_task] {
+                        let child = session.candidate_function_port_admit(child_task, field)?.unwrap();
+                        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                        let expected = if argument { context.context(ContextExpr::Swap { input: inherited })? } else { inherited };
+                        let expected = if matches!(child_task, LiveConstraintTask::Effect(..)) {
+                            context.context(ContextExpr::PrefixLeft { weight, input: expected })?
+                        } else { expected };
+                        assert_eq!(context.relations[child.0 as usize].key.context, expected);
+                        assert!(context.dependency_keys.contains(&Dependency::Derived { child, parent }));
+                        assert!(context.dependency_keys.contains(&Dependency::FunctionPort { child, parent, field, operation }));
+                        children.push(child);
+                        assert_eq!(session.candidate_context_execute(child_task, Some(child)), Err(exhausted()));
+                    }
+                }
+            }
+            assert!(children[..8].iter().zip(&children[8..]).all(|(first, second)| first != second));
+            if rollback { attempts = children; Err(exhausted()) } else { assert_eq!(children, attempts); Ok(()) }
+        });
+        if rollback {
+            assert_eq!(result, Err(exhausted()));
+            assert_eq!(state(&session).checkpoint(), before);
+        } else { result.unwrap(); }
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
+fn function_port_context_simplifies_only_post_check_identity_and_keeps_incidence() {
+    let mut session = session();
+    let task = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    });
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let nonidentity = context.context(ContextExpr::WithoutLeftFilter { input: IDENTITY }).unwrap();
+    let parent = context.relation(task_pair(task), nonidentity).unwrap();
+    context.discharged.insert(parent);
+    context.processing = Some(parent);
+    let nodes = state(&session).contexts.len();
+    for field in [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result] {
+        let child = session.candidate_function_port_admit(task, field).unwrap().unwrap();
+        let operation = if matches!(field, FunctionField::Argument | FunctionField::ArgumentEffect) {
+            FunctionPortOperation::Swap
+        } else { FunctionPortOperation::Preserve };
+        assert_eq!(state(&session).relations[child.0 as usize].key.context, IDENTITY);
+        assert!(state(&session).dependency_keys.contains(&Dependency::FunctionPort { child, parent, field, operation }));
+    }
+    assert_eq!(state(&session).contexts.len(), nodes);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
 fn function_port_incidence_preserves_exact_relations_and_route_retry() {
     let mut session = session_with_source("my answer x:int -> int = x");
     let owner = empty_bundle_owner(&session);

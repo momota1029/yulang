@@ -1677,9 +1677,13 @@ impl InferenceSession {
         task: LiveConstraintTask,
         field: FunctionField,
     ) -> Result<Option<RelationId>, SolveAvailabilityError> {
-        let Some(child) = self.candidate_context_admit(task)? else {
+        let Some(graph) = &self.candidate_graph else {
             return Ok(None);
         };
+        let parent = graph.intrusion.effect_algebra.context.processing.ok_or_else(exhausted)?;
+        let derived = graph.intrusion.effect_algebra.processing.is_some();
+        let pair = self.candidate_context_pair(task_pair(task));
+        let local = self.candidate_context_source(pair)?;
         let state = &mut self
             .candidate_graph
             .as_mut()
@@ -1687,11 +1691,31 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let parent = state.processing.ok_or_else(exhausted)?;
         let operation = match field {
             FunctionField::Argument | FunctionField::ArgumentEffect => FunctionPortOperation::Swap,
             FunctionField::ResultEffect | FunctionField::Result => FunctionPortOperation::Preserve,
         };
+        // The retained parent owns the post-check context. Child-local wrapper
+        // authority prefixes the inherited Function operation in source order.
+        let inherited = state.post_check_context(parent);
+        let inherited = match operation {
+            FunctionPortOperation::Swap if inherited != IDENTITY =>
+                state.context(ContextExpr::Swap { input: inherited })?,
+            _ => inherited,
+        };
+        let context = if local == IDENTITY {
+            inherited
+        } else {
+            match state.contexts.get(local.0 as usize - 1).copied() {
+                Some(ContextExpr::PrefixLeft { weight, input: IDENTITY }) =>
+                    state.context(ContextExpr::PrefixLeft { weight, input: inherited })?,
+                _ => return Err(exhausted()),
+            }
+        };
+        let child = state.relation(pair, context)?;
+        if derived {
+            state.dependency(Dependency::Derived { child, parent })?;
+        }
         state.dependency(Dependency::FunctionPort {
             child,
             parent,

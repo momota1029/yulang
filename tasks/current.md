@@ -50,6 +50,16 @@ It produced the unreviewed conditional derivation in
 [`retained-input-indistinguishability-proof`](../notes/progress/2026-10-10-retained-input-indistinguishability-proof.md).
 The finite supplied-model check passed; source-reachable readiness separation
 and the readiness gate remain open.
+The current collaboration tool schema also omits `prover`. This turn used the
+same configured fallback and authenticated a fresh child
+`/root/function_port_proof` with `agent_type=prover` in the Codex session JSONL.
+The request was GPT-6.1 Sol/high; effective child settings were not observable.
+Its conditional Function-port effect-order derivation is recorded in
+[`function-argument-effect-contravariance-proof`](../notes/progress/2026-10-10-function-argument-effect-contravariance-proof.md).
+An independent compiler-referee review confirmed the algebra and source bridge;
+the reviewer’s minor frozen-source locator correction was repaired. This does
+not prove arbitrary effect hygiene, source reachability, full runtime
+consumption, or inference soundness.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
@@ -8065,9 +8075,18 @@ and fresh semantic and performance delta reviews passed. No context operation
 is executed or authorized by these records. See the
 [Function-port incidence checkpoint](../notes/progress/2026-10-10-function-port-incidence.md).
 
-Next: implement source-owned context operations and their consumers through
-bound insertion/replay, extrusion, capture/freshening and intrusion, then close
-the exact two-cycle certificate invalidation, deferral and rollback gate before
+The follow-up source-owned Function-port construction now derives each child
+from the exact processing parent’s post-check context: arguments Swap, results
+Preserve, and a child-local positive prefix remains outside that transform.
+Identity simplification retains provenance; unsupported context execution
+remains unavailable. The focused candidate-context suite passed 77/77.
+Independent spec review found no conformance finding; compiler-referee review
+accepted the conditional proof after a minor locator correction. See the
+[Function-port context operations checkpoint](../notes/progress/2026-10-10-function-port-context-operations.md).
+
+Next: implement and verify live nonidentity context consumption through bound
+insertion/replay, extrusion, capture/freshening and intrusion, then close the
+exact two-cycle certificate invalidation, deferral and rollback gate before
 admitting recursive nonempty contexts. Contravariant concrete effect
 attachments remain rejected until their source constructor and current/future
 consumer checks are implemented and tied to the conditional hygiene proof.
