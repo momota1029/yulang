@@ -7435,13 +7435,15 @@ choice.
 
 ### Whole-local covariant effect annotation gate (2026-10-10)
 
-The previous explicit refusals for local effect rows are temporary limits of
-the private candidate route, not a language-level rejection. The authoritative
-annotation policy permits concrete effects at composed covariant positions,
-and the existing paired local constructor already carries support, allowances,
-symbolic tails and lifecycle state. The next bounded slice extends local
-admission only to that supported covariant domain, including closed empty rows;
-root computation rows and composed negative concrete rows stay unavailable.
+At this checkpoint, the explicit refusals for local effect rows were temporary
+limits of the private candidate route, not language-level rejections. The
+authoritative annotation policy permits concrete effects at composed covariant
+positions, and the existing paired local constructor carried support,
+allowances, symbolic tails and lifecycle state. The bounded slice extended
+local admission only to that supported covariant domain, including closed
+empty rows; root computation rows and composed negative concrete rows stayed
+unavailable at that time. The subsequent root-computation gate below supersedes
+that temporary root-row limitation.
 Contextual subtraction and explicit concrete formal rows remain blocked on the
 pending residual-owner decision. The covariant local admission, support through
 fresh use, symbolic-tail flow, independent use freshening, initializer edge,
@@ -7451,6 +7453,23 @@ post-write semantic review closed within M2; see the
 This gate is not effect-hygiene completion: no concrete subtraction,
 source-operation execution, complete Call, public/default cutover, soundness/
 principality or F5 replacement is claimed.
+
+### Root computation effect annotations (2026-10-10)
+
+Whole-definition and whole-local annotations now check an explicit root row
+against the actual initializer computation effect under the selected covariant
+`[E]` allowance policy. Both action owners carry the actual effect endpoint and
+use the annotation's shared variable/view maps. The allowance creates no
+contribution; evaluation still flows once and local schemes remain value-only.
+Closed listed, unlisted and empty rows, boundary provenance, pure computation,
+and transaction rollback/retry are covered. The focused annotation, unit and
+primitive-formal tests passed; independent compiler review found no finding.
+See the [implementation record](../notes/progress/2026-10-10-root-computation-effect-annotations.md).
+
+This closes only root covariant row checking in the private candidate. Root
+symbolic-tail correlation/future lowers, Function-valued root initializers,
+contravariant subtraction, full hygiene and Call, public/default inference,
+soundness/principality and F5 cutover remain open.
 
 ### Recursive-definition external instantiation regression (2026-10-10)
 

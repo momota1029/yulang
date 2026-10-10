@@ -948,7 +948,7 @@ impl InferenceSession {
     pub(super) fn candidate_local_annotation(
         &mut self, annotation: &SourceAnnotation, slot: usize,
         endpoint: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
-        level: u32, boundary: u32,
+        level: u32, boundary: u32, computation_effect: usize,
     ) -> Result<(), SolveAvailabilityError> {
         if !candidate_source::preflight_local_annotation(&annotation.ty) { return Err(exhausted()); }
         let scope = AnnotationScope::Local(self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone());
@@ -983,6 +983,10 @@ impl InferenceSession {
             let root = self.fresh_value_at_level(level)?;
             let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
             self.admit_candidate_value_link(occurrence, 40, lower, negative)?;
+            self.candidate_annotation_computation_effect(
+                &context, annotation, computation_effect, occurrence, level,
+                &mut effect_variables, &mut views,
+            )?;
             #[cfg(test)]
             if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 4 { stage.set(0); true } else { false }) { return Err(exhausted()); }
             let upper = self.live_value_term(Polarity::Negative, root)?;
@@ -1002,10 +1006,8 @@ impl InferenceSession {
         target: usize,
         occurrence: &HirOccurrenceId,
         level: u32,
+        computation_effect: usize,
     ) -> Result<(), SolveAvailabilityError> {
-        if annotation.ty.effects.is_some() {
-            return Err(exhausted());
-        }
         let mut value_variables = HashMap::new();
         let mut effect_variables = HashMap::new();
         let mut views = HashMap::new();
@@ -1060,6 +1062,10 @@ impl InferenceSession {
             )?;
             let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
             self.admit_candidate_value_link(occurrence, 40, lower, upper)?;
+            self.candidate_annotation_computation_effect(
+                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
+                annotation, computation_effect, occurrence, level, &mut effect_variables, &mut views,
+            )?;
             self.admit_candidate_value_link(
                 occurrence,
                 41,
@@ -1070,6 +1076,36 @@ impl InferenceSession {
         drop((value_variables, effect_variables, views));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
+    }
+
+    fn candidate_annotation_computation_effect<'a>(
+        &mut self,
+        context: &SignatureContext<'_>,
+        annotation: &'a SourceAnnotation,
+        computation_effect: usize,
+        source: &HirOccurrenceId,
+        level: u32,
+        effects: &mut HashMap<&'a str, u32>,
+        views: &mut HashMap<SourceNodeKey, u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        // An explicit root row checks evaluation once; it never supplies a
+        // positive support operand to the initializer or the local value scheme.
+        let Some(row) = annotation.ty.effects.as_ref() else { return Ok(()); };
+        let upper = self.candidate_signature_effect(
+            context, Some(row), None, Polarity::Negative, Polarity::Positive,
+            level, effects, views,
+        )?;
+        let lower = self.batch.component_term_at(computation_effect);
+        let id = ConstraintOccurrenceId::new(source.clone(), 42);
+        let cause = CauseId::for_occurrence(id.clone());
+        self.store.admit_and_record_provenance(&ConstraintOccurrence {
+            id: id.clone(), cause: cause.clone(), lower, upper,
+        }).map_err(SolveAvailabilityError::from)?;
+        self.constrain_live_effect(
+            self.effect_endpoint(lower, Polarity::Positive),
+            self.effect_endpoint(upper, Polarity::Negative), &id, &cause,
+        )?;
+        Ok(())
     }
 
     fn candidate_signature_value<'a>(
@@ -1320,6 +1356,57 @@ mod tests {
         session
     }
     #[test]
+    fn root_computation_annotation_allowance_never_creates_contributions() {
+        for text in [
+            "act E\nmy answer:[E] int = 1",
+            "act E\nmy answer:[] int = { my local:[E] int = 1; my first = local; local }",
+        ] {
+            let mut session = make_session(text);
+            let owner = root(&session, "answer");
+            session.execute_candidate_source_root(&owner).unwrap();
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            assert!(state.contributions.is_empty(), "allowance is not an evaluation effect");
+            assert!(state.conflicts.is_empty());
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        }
+    }
+
+    #[test]
+    fn root_computation_annotation_rolls_back_storage_and_retries() {
+        for text in [
+            "act E\nmy answer:[E] int = 1",
+            "act E\nmy answer = { my local:[E] int = 1; local }",
+        ] {
+            let mut session = make_session(text);
+            let owner = root(&session, "answer");
+            let actions = session.batch.candidate_source.schedules[&owner].clone();
+            let action = actions.iter().find(|action| matches!(action,
+                candidate_source::Action::LocalAnnotation { .. } | candidate_source::Action::Annotation { .. })).unwrap();
+            let apply = |session: &mut InferenceSession| match action {
+                candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } =>
+                    session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect),
+                candidate_source::Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } =>
+                    session.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect),
+                _ => unreachable!(),
+            };
+            let before_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+            let mut checkpoint = None;
+            assert_eq!(session.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                apply(session)?;
+                assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len() > before_views);
+                assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            checkpoint.unwrap().assert_restored(&session);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), before_views);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+            session.with_route_transaction(apply).unwrap();
+            assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len() > before_views);
+        }
+    }
+
+    #[test]
     fn annotated_local_initializer_effect_has_one_block_edge_and_pure_lookups() {
         for annotation in ["int -> int", "'a"] {
             let session = make_session(&format!("act tick:\n    our next: () -> (int -> int)\n\nmy outer ignored = {{ my local:{annotation} = tick::next(); my first = local; local }}"));
@@ -1346,14 +1433,14 @@ mod tests {
             let mut session = make_session(&format!("my outer x = {{ my local:{ty} = x; local }}"));
             let owner = root(&session, "outer");
             let actions = session.batch.candidate_source.schedules[&owner].clone();
-            let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
+            let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
             let names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.clone();
             let effect_names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
             let mut checkpoint = None;
             FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
-                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)
+                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
@@ -1362,7 +1449,7 @@ mod tests {
             let mut checkpoint = None;
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
-                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
+                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?;
                 if matches!(ty, "'a" | "'a -> 'a" | "('a -> int) -> 'a") {
                     assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.len(), names.len() + 1);
                 }
@@ -1375,7 +1462,7 @@ mod tests {
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, effect_names);
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
-            session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
+            session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)).unwrap();
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());
         }
     }
@@ -1391,11 +1478,11 @@ mod tests {
                 candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } => {
                     session.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
                 }
-                candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } => {
+                candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => {
                     let scope = AnnotationScope::Local(session.batch.candidate_source.locals[*slot].clone());
                     let key = (scope, Box::<str>::from("'a"));
                     let before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values[&key];
-                    session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
+                    session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)).unwrap();
                     let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
                     assert_eq!(state.annotation_values[&key], before, "whole-local pair reuses its formal's named row");
                     rows.push(before);
@@ -1414,12 +1501,12 @@ mod tests {
         let owner = root(&session, "outer");
         let actions = session.batch.candidate_source.schedules[&owner].clone();
         let annotations: Vec<_> = actions.iter().filter_map(|action| match action {
-            candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } =>
-                Some((annotation, *slot, *endpoint, occurrence, *level, *boundary)),
+            candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } =>
+                Some((annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)),
             _ => None,
         }).collect();
         let (first, second) = (&annotations[0], &annotations[1]);
-        session.candidate_local_annotation(first.0, first.1, first.2, first.3, first.4, first.5).unwrap();
+        session.candidate_local_annotation(first.0, first.1, first.2, first.3, first.4, first.5, first.6).unwrap();
         let mut checkpoint = None;
         assert_eq!(session.with_route_transaction(|session| {
             checkpoint = Some(RouteCheckpoint::capture(session));
@@ -1554,11 +1641,11 @@ mod tests {
         session.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
         let names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
         assert_eq!(names.len(), 1);
-        let candidate_source::Action::Annotation { annotation, endpoint, target, occurrence, level } = actions.iter().find(|action| matches!(action, candidate_source::Action::Annotation { .. })).unwrap() else { unreachable!() };
+        let candidate_source::Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } = actions.iter().find(|action| matches!(action, candidate_source::Action::Annotation { .. })).unwrap() else { unreachable!() };
         let mut checkpoint = None;
         assert_eq!(session.with_route_transaction(|session| {
             checkpoint = Some(RouteCheckpoint::capture(session));
-            session.candidate_annotation(annotation, *endpoint, *target, occurrence, *level)?;
+            session.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?;
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, names);
             Err::<(), _>(exhausted())
         }), Err(exhausted()));

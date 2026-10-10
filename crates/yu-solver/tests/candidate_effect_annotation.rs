@@ -233,3 +233,46 @@ fn annotation_recursive_construction_depth_is_rejected_before_hir_publication() 
         .join()
         .unwrap();
 }
+
+
+#[test]
+fn root_computation_rows_check_definition_and_local_initializers() {
+    for body in [
+        "my answer:[tick] int = tick::next()",
+        "my answer = { my local:[tick] int = tick::next(); my alias = local; local }",
+    ] {
+        let hir = module(&format!("act tick:\n    our next: () -> int\n\n{body}")).unwrap();
+        let candidate = CandidateInference::solve(hir).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{body}");
+        assert_eq!(candidate.source_call_count(), 1);
+    }
+    for body in [
+        "my answer:[other] int = tick::next()",
+        "my answer:[] int = tick::next()",
+        "my answer = { my local:[other] int = tick::next(); local }",
+        "my answer = { my local:[] int = tick::next(); local }",
+    ] {
+        let hir = module(&format!("act other\nact tick:\n    our next: () -> int\n\n{body}")).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(!candidate.candidate_conflicts().is_empty(), "{body}");
+        let row = hir.local_source(binding(&hir, "answer").definition_root()).unwrap().unwrap();
+        let annotation = row.annotation().or_else(|| row.bindings().first().and_then(|local| local.annotation.as_ref())).unwrap();
+        let position = &annotation.ty.effects.as_ref().unwrap().position;
+        assert!(candidate.candidate_conflicts().iter().any(|error| {
+            candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
+                conflict.annotation.is_some_and(|boundary| boundary.position == position))
+        }), "conflict retains the actual root annotation position");
+    }
+}
+
+#[test]
+fn root_allowance_does_not_supply_effects_to_a_pure_computation() {
+    for text in [
+        "act E\nmy answer:[E] int = 1",
+        "act E\nmy answer:[] int = { my local:[E] int = 1; my first = local; local }",
+    ] {
+        let candidate = CandidateInference::solve(module(text).unwrap()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+        assert_eq!(candidate.source_call_count(), 0);
+    }
+}

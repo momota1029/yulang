@@ -194,7 +194,7 @@ fn local_and_multiple_formals_keep_their_actual_lambda_layers() {
 
 #[test]
 fn unfinished_formals_and_unsupported_whole_local_annotations_are_explicitly_refused() {
-    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:_ = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
+    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:_ = 1; local }"] {
         match module(text) {
             Err(_) => {},
             Ok(hir) => assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}"),
@@ -323,9 +323,8 @@ fn effectful_whole_local_function_initializer_runs_once_with_pure_lookups() {
 
 
 #[test]
-fn whole_local_effect_annotations_keep_root_and_negative_rows_unavailable() {
+fn whole_local_negative_concrete_effect_rows_remain_unavailable() {
     for text in [
-        "my outer = { my local:[] int = 1; local }",
         "act E\nmy outer = { my local:(int -> [E] int) -> int = 1; local }",
     ] {
         let hir = module(text).unwrap();
@@ -419,4 +418,22 @@ fn effectful_whole_local_named_initializer_runs_once() {
             && node.leaf().is_none() && node.row().is_none() && node.children().is_none()),
             "the function result effect retains initializer effect support");
     }
+}
+
+
+#[test]
+fn whole_local_root_effect_rows_check_the_initializer_without_adding_effects() {
+    for text in [
+        "my outer = { my local:[] int = 1; local }",
+        "act E\nmy outer = { my local:[E] int = 1; local }",
+        "act tick:\n    our next: () -> int\n\nmy outer = { my local:[tick] int = tick::next(); my first = local; local }",
+    ] {
+        let hir = module(text).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+        assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    }
+    let hir = module("act tick:\n    our next: () -> int\n\nmy outer = { my local:[] int = tick::next(); local }").unwrap();
+    let candidate = CandidateInference::solve(hir).unwrap();
+    assert!(!candidate.candidate_conflicts().is_empty());
 }

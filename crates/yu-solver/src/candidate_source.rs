@@ -15,7 +15,7 @@ pub(super) struct Plan {
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
-    LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
+    LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
@@ -25,7 +25,7 @@ pub(super) enum Action {
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
-    Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, target: usize, occurrence: HirOccurrenceId, level: u32 },
+    Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
 impl Plan {
     pub fn bytes(&self) -> usize {
@@ -54,7 +54,7 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
     Ok(())
 }
 pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
-    if source.annotation().is_some_and(|annotation| annotation.ty.effects.is_some() || !preflight_annotation(&annotation.ty, true)) {
+    if source.annotation().is_some_and(|annotation| !preflight_annotation(&annotation.ty, true)) {
         return Err(shadow_apply::CandidateError::Unsupported);
     }
     for binding in source.bindings() {
@@ -81,7 +81,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     Ok(())
 }
 pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
-    ty.effects.is_none() && preflight_annotation(ty, true)
+    preflight_annotation(ty, true)
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     ty.effects.as_ref().is_none_or(|row| row.concrete.is_empty() && row.variables.len() == 1) && match &ty.value {
@@ -260,9 +260,9 @@ impl ConstraintBatch {
                             self.term_for_leaf(Leaf::UnitPositive)?;
                             self.term_for_leaf(Leaf::UnitNegative)?;
                         }
-                        push(&mut actions, Action::LocalAnnotation { annotation: Arc::new(annotation.clone()), slot: local_slots[&binding.id], endpoint: endpoints[binding.initializer.ordinal() as usize], occurrence: occurrence.clone(), level: boundary.checked_add(1).ok_or_else(unavailable)?, boundary })?;
-                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
-                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                        push(&mut actions, Action::LocalAnnotation { annotation: Arc::new(annotation.clone()), slot: local_slots[&binding.id], endpoint: endpoints[binding.initializer.ordinal() as usize], computation_effect: init.effect, occurrence: occurrence.clone(), level: boundary.checked_add(1).ok_or_else(unavailable)?, boundary })?;
+                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
                     } else {
                         push(&mut actions, Action::Install { slot: local_slots[&binding.id], initializer: endpoints[binding.initializer.ordinal() as usize], boundary })?;
                     }
@@ -393,9 +393,9 @@ impl ConstraintBatch {
                 self.term_for_leaf(Leaf::UnitPositive)?;
                 self.term_for_leaf(Leaf::UnitNegative)?;
             }
-            push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
-            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
-            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+            push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
+            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
         } else {
             push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
@@ -480,11 +480,11 @@ impl InferenceSession {
                         else { self.route_incoming(&id)?; }
                     }
                 }
-                Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?,
+                Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
-                Action::Annotation { annotation, endpoint, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level)?,
+                Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
             }
         }
         Ok(())
