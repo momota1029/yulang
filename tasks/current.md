@@ -8532,7 +8532,15 @@ without freshening S53. The exact saved opposite vector has six slots and three
 unique ordered pairs; all six children emit and dequeue. A callback appends a
 duplicate Allowance upper but leaves the old opposite vector and fibers stable,
 so this source does not omit a required pair. Independent compiler-referee
-review passed the source bridge and callback-local enumeration.
+review passed the source bridge and callback-local enumeration. A separate
+[successful-drain closure proof](../notes/progress/2026-10-11-q113-successful-drain-closure-proof.md)
+uses append-only bound writers, immutable view tails, propagated merge errors,
+checked intrusion generation and the six successful `Ok(0)` drains to extend
+the q113 outgoing-closure result to every intermediate state within those six
+callbacks. A fresh compiler-referee review passed that argument. This excludes
+an intra-drain q113-to-R45/R47 physical path in this exact interval, but it
+still constructs no missing ordered fiber and says nothing about later
+restores or diagnostics.
 
 This closes the missing source-construction premise for an unchanged-owner
 Allowance restore with an old distinct lower. It does not construct an absent
