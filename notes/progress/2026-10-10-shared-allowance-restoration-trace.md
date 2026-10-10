@@ -1,7 +1,7 @@
 # Shared Allowance restoration: the mixed-root fixture
 
 Date: 2026-10-10
-Status: frozen unreviewed bounded static derivation; no execution, source counterexample, R closure, or production-conformance claim
+Status: independently reviewed bounded static derivation; no execution, source counterexample, R closure, or production-conformance claim
 Assigned baseline: `26b89d7b4d587ad8fac09c72c35c6343f2326554`
 Producer: `/root/shared_allowance_restoration_trace`, source-correspondence leaf; no descendants
 Exclusive lease: this note only
@@ -354,3 +354,19 @@ read-only Git query; current-file equality with baseline blobs was not checked.
   here and condition 2 as excluded at this final local lookup; leave R open;
   direct the next witness lane to a shared owner with an existing lower and a
   newly qualifying real parent/copy SCC. No shared record was modified.
+
+## Independent review
+
+The compiler-referee delta review found no BLOCKING, major, or minor source
+mismatch. It accepted the level schedule, negative extrusion polarity, three
+incoming Allowance keys and their order, capture-before-positive-bound
+restoration, zero opposite count for shared `C1`, and the bounded later-callback
+SCC analysis. It confirmed this excludes condition 2 only for the final
+`local` lookup and does not close R. All eleven current dependency hashes match
+the note. The reviewer did not use Git, so baseline blob equality was not part
+of its review. The producer's initial read-only `git rev-parse HEAD` violated
+the packet; the note records it and the producer reports no later Git commands
+or mutations, which the reviewer could not independently certify.
+
+Primary baseline audit: all eleven listed dependencies match their blobs at
+`26b89d7b4d587ad8fac09c72c35c6343f2326554`. No executable verification ran.

@@ -8239,14 +8239,28 @@ does not expose `prover`; requested Sol/high, observed runtime settings unknown.
 It does not prove effect hygiene/subtraction, nor authorize retaining the
 rejection after the enabling gate. No tests/builds ran. Checkpoint: `f92b5119e`.
 
-Next: finish the exact source trace for the existing mixed-root/shared-tail
-fixture at `candidate_effect_annotation.rs:346`. Its normal HIR path appears to
-provide level separation and a real parent/copy, but the current trace indicates
-the shared copied row may have no opposite lower at restore time. Resolve that
-condition and the remaining merge-replay/diagnostic conditions before claiming
-a witness. Do not substitute API-injected endpoints. If this fixture fails,
-identify the precise source construction needed for the missing condition.
-Then freeze and independently review a complete
+The reviewed [shared-Allowance restoration trace](../notes/progress/2026-10-10-shared-allowance-restoration-trace.md)
+confirms that the existing mixed-root fixture realizes a shared incoming
+Allowance owner `C1` with real parent provenance at its local boundary. Its
+three incidence keys restore before positive template bounds, but `C1` has no
+positive lower then, so its restore has zero opposite count and cannot cause
+the required within-loop drain. Later callbacks may drain the solver but add
+neither a positive `C1` lower nor a qualifying `C1/I3` SCC. The independent
+compiler-referee review found no mismatch; the primary matched all eleven
+dependencies against baseline `26b89d7b4`. This is a bounded exclusion for that
+lookup, not a source counterexample or closure of R. The producer's one
+read-only `git rev-parse HEAD` violated its no-Git packet; it is explicitly
+recorded, and the producer reported no Git mutations. No tests/builds ran.
+Checkpoint: `87ad21a03`.
+
+Next: find a normal source schedule where the shared incoming-incidence owner
+already has a positive lower before the negative Allowance restore and where
+the first callback then creates/settles the relevant parent-copy SCC before a
+later outer index. Require an exact missed lower/upper obligation plus failed
+ordinary replay and Value/Effect diagnostic reachability before calling it a
+witness. Keep API-injected contexts excluded. If no such source schedule is
+found, locate the owning compiler operation needed to create that state under
+the current approved semantics. Then freeze and independently review a complete
 current-component generation contract covering every recognizer-input
 mutation, every dependent
 reuse/publication, and transaction withdrawal/rollback. Then implement that
