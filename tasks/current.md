@@ -8636,3 +8636,16 @@ products and is not a failing-state witness. No changed source was compiled
 or run. The source-level A/B decision remains OPEN; the next evidence must
 construct the original-Y Function field and unrescued omega, or prove an
 exhaustive owner invariant ruling that route out.
+
+The [high-root route adjudication](../notes/progress/2026-10-11-q113-high-root-route-adjudication.md)
+adds independent reviewed obstructions for the paired-formal route, helper
+W/V ancestry merge, and selected Allowance-tail supplier. A completed-Lambda
+escape construction also fails to supply the original-Y lineage before the
+later published fresh use. The [ordered omega consumer map](/tmp/yulang-q113-omega-consumer-map-20261011.md)
+maps downstream consumers but does not prove universal discharge or
+non-discharge. These are route-local results: no authentic source reaches the
+full target and no all-source Alternative B theorem exists. A/B remains OPEN.
+The exact remaining join is a source prefix with original-Y/old-lower
+identities, qualifying restored-fiber mutation and omega, followed by either
+an uncovered mutation or a universal coverage proof and terminal consumer
+closure. No candidate met source prerequisites for parsing or execution.
