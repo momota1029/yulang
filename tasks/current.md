@@ -7432,3 +7432,22 @@ effect-row transport/hygiene, complete Call, public/default inference,
 soundness/principality and F5 cutover remain open. The contextual residual-owner
 question remains pending and blocks only work that depends on that identity
 choice.
+
+### Whole-local covariant effect annotation gate (2026-10-10)
+
+The previous explicit refusals for local effect rows are temporary limits of
+the private candidate route, not a language-level rejection. The authoritative
+annotation policy permits concrete effects at composed covariant positions,
+and the existing paired local constructor already carries support, allowances,
+symbolic tails and lifecycle state. The next bounded slice extends local
+admission only to that supported covariant domain, including closed empty rows;
+root computation rows and composed negative concrete rows stay unavailable.
+Contextual subtraction and explicit concrete formal rows remain blocked on the
+pending residual-owner decision. The covariant local admission, support through
+fresh use, symbolic-tail flow, independent use freshening, initializer edge,
+rollback and solver all-target checks now pass. The pre-write spec audit and
+post-write semantic review closed within M2; see the
+[implementation record](../notes/progress/2026-10-10-local-covariant-effect-annotations.md).
+This gate is not effect-hygiene completion: no concrete subtraction,
+source-operation execution, complete Call, public/default cutover, soundness/
+principality or F5 replacement is claimed.

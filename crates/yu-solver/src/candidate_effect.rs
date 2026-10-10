@@ -1342,12 +1342,13 @@ mod tests {
 
     #[test]
     fn local_annotation_first_edge_failure_rolls_back_and_retries() {
-        for ty in ["int", "int -> int", "(int -> int) -> int", "int -> () -> int", "'a", "'a -> 'a", "('a -> int) -> 'a"] {
+        for ty in ["int", "int -> int", "(int -> int) -> int", "int -> () -> int", "'a", "'a -> 'a", "('a -> int) -> 'a", "int -> ['a] int"] {
             let mut session = make_session(&format!("my outer x = {{ my local:{ty} = x; local }}"));
             let owner = root(&session, "outer");
             let actions = session.batch.candidate_source.schedules[&owner].clone();
             let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
             let names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.clone();
+            let effect_names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
             let mut checkpoint = None;
             FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
             assert_eq!(session.with_route_transaction(|session| {
@@ -1356,18 +1357,23 @@ mod tests {
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, effect_names);
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
             let mut checkpoint = None;
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
                 session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
-                if ty.contains("'a") {
+                if matches!(ty, "'a" | "'a -> 'a" | "('a -> int) -> 'a") {
                     assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.len(), names.len() + 1);
+                }
+                if ty.contains("['a") {
+                    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.len(), effect_names.len() + 1);
                 }
                 Err::<(), _>(exhausted())
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, effect_names);
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
             session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());

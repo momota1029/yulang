@@ -81,12 +81,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
     Ok(())
 }
 pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
-    ty.effects.is_none() && match &ty.value {
-        yu_hir::shadow::SourceAnnotationValue::Int | yu_hir::shadow::SourceAnnotationValue::Unit => true,
-        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
-            preflight_local_annotation(argument) && preflight_local_annotation(result),
-        yu_hir::shadow::SourceAnnotationValue::Variable(_) => true,
-    }
+    ty.effects.is_none() && preflight_annotation(ty, true)
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     ty.effects.as_ref().is_none_or(|row| row.concrete.is_empty() && row.variables.len() == 1) && match &ty.value {

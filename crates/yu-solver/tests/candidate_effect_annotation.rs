@@ -97,7 +97,6 @@ fn unresolved_ambiguous_and_unsupported_annotations_do_not_gain_permissions() {
         "act E(int)\nmy id x = x",
         "act E\nmy id x: Other -> [E] int = x",
         "act E\nmy higher f: (int -> [E] int) -> int = f 1",
-        "act E\nmy value = { my local x: int -> [E] int = x; local }",
     ] {
         match module(text) {
             Err(_) => {}
@@ -117,6 +116,52 @@ fn unresolved_ambiguous_and_unsupported_annotations_do_not_gain_permissions() {
         b.source_effect_declarations()[0].id,
         "declaration identity retains the actual source owner, not the spelling"
     );
+}
+
+#[test]
+fn local_covariant_effect_annotations_survive_use_and_reject_other_effects() {
+    let accepted = module("act E\nmy value = { my local x: int -> [E] int = x; local }; my accepts: int -> [E] int = value").unwrap();
+    let candidate = CandidateInference::solve(accepted).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+
+    let rejected = module("act E\nact F\nmy value = { my local x: int -> [E] int = x; local }; my rejects: int -> [F] int = value").unwrap();
+    let candidate = CandidateInference::solve(rejected).unwrap();
+    assert!(!candidate.candidate_conflicts().is_empty(), "local E support remains visible at a later F-only boundary");
+}
+
+#[test]
+fn local_symbolic_effect_tail_keeps_late_concrete_flow() {
+    let accepted = module("act E\nmy id x: int -> [E] int = x\nmy outer = { my local: int -> ['a] int = id; local }; my accepts: int -> [E] int = outer").unwrap();
+    let candidate = CandidateInference::solve(accepted).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty(), "{:?}", candidate.candidate_conflicts());
+
+    let rejected = module("act E\nact F\nmy id x: int -> [E] int = x\nmy outer = { my local: int -> ['a] int = id; local }; my rejects: int -> [F] int = outer").unwrap();
+    let candidate = CandidateInference::solve(rejected).unwrap();
+    assert!(!candidate.candidate_conflicts().is_empty(), "late E through the local symbolic tail remains checked");
+}
+
+#[test]
+fn local_symbolic_effect_tails_freshen_independently_per_use() {
+    let hir = module("act E\nmy id x: int -> [E] int = x\nmy outer = { my local: int -> ['a] int = id; my first = local; my second = local; first }").unwrap();
+    let source = hir.local_source(binding(&hir, "outer").definition_root()).unwrap().unwrap();
+    let local = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "local").unwrap();
+    let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form,
+        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &local.id)).collect();
+    assert_eq!(uses.len(), 2);
+
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let first = candidate.fresh_use(&uses[0].occurrence).unwrap();
+    let second = candidate.fresh_use(&uses[1].occurrence).unwrap();
+    let first_effects: Vec<_> = first.rows().filter(|row| row.source_row().is_local()
+        && row.source_row().kind() == yu_types::ComponentKind::Effect).collect();
+    let second_effects: Vec<_> = second.rows().filter(|row| row.source_row().is_local()
+        && row.source_row().kind() == yu_types::ComponentKind::Effect).collect();
+    assert_eq!(first_effects.len(), 2, "one annotation tail and its Function effect port");
+    assert_eq!(second_effects.len(), 2, "one annotation tail and its Function effect port");
+    for row in &first_effects {
+        assert!(second_effects.iter().all(|other| !row.same_identity(other)), "the symbolic tail and its port are fresh per use");
+    }
 }
 
 #[test]

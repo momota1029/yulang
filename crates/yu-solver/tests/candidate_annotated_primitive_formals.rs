@@ -323,16 +323,27 @@ fn effectful_whole_local_function_initializer_runs_once_with_pure_lookups() {
 
 
 #[test]
-fn whole_local_ground_function_admission_refuses_every_unsupported_subtree() {
+fn whole_local_effect_annotations_keep_root_and_negative_rows_unavailable() {
     for text in [
         "my outer = { my local:[] int = 1; local }",
-        "my outer = { my local:int -> [] int = 1; local }",
-        "my outer = { my local:([] int -> int) -> int = 1; local }",
         "act E\nmy outer = { my local:(int -> [E] int) -> int = 1; local }",
     ] {
         let hir = module(text).unwrap();
         assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}");
     }
+}
+
+#[test]
+fn whole_local_covariant_empty_effect_rows_are_checked_and_exposed() {
+    let hir = module("my id x = x; my outer = { my local:int -> [] int = id; local }").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert!(candidate.export(binding(&hir, "outer").definition_root()).is_ok());
+
+    let nested = module("my higher f = f 1; my outer = { my local:([] int -> int) -> int = higher; local }").unwrap();
+    let candidate = CandidateInference::solve(nested.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty(), "{:?}", candidate.candidate_conflicts());
+    assert!(candidate.export(binding(&nested, "outer").definition_root()).is_ok());
 }
 
 #[test]
