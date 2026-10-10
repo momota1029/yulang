@@ -106,6 +106,14 @@ This index is a navigation aid. The listed source document remains authoritative
   regressions cover complementary event orders. This remains a bounded
   candidate result, not full hygiene, Call or public/default cutover.
 
+  The [paired formal composed-covariance checkpoint](../progress/2026-10-10-selected-formal-contextual-integration.md)
+  now connects concrete/empty rows at composed positive formal positions to
+  the same executable Support/Allowance owner, with scoped tail sharing,
+  independent fresh uses and rollback. It corrects the historical paired
+  Oracle/source-variance mapping. The nullary source sort theorem separates
+  debt-only Value recursion from the still-open mixed Effect/residual consumer.
+  This does not admit concrete negative formals or prove the callback target.
+
   The [contextual attachment/admission design](2026-10-10-contextual-attachment-admission-design.md)
   is authoritative for the private contextual carrier, exact acceleration of
   two reviewed paired-ascription cycle shapes, certificate invalidation, and

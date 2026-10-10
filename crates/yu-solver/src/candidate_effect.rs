@@ -239,15 +239,16 @@ impl State {
     #[cfg(test)]
     fn formal_owned_bytes(&self) -> usize {
         let state = self;
-        // These formal-only witnesses have no operation or annotation views.
+        // Formal witnesses may own annotation views, but never operation payloads.
         assert!(state.contributions.is_empty());
-        assert!(state.views.is_empty());
+        assert!(state.views.iter().all(|view| matches!(view.provenance, ViewOrigin::Annotation)));
         let evidence_bytes = state.edges.values().chain(state.origins.values())
             .map(|entries| entries.capacity() * std::mem::size_of::<TypedPairKey>())
             .sum::<usize>();
         assert_eq!(state.evidence_bytes, evidence_bytes);
         let retained_names = state.annotation_values.keys().chain(state.annotation_effects.keys()).map(|(_, name)| name.len()).sum::<usize>();
-        assert_eq!(state.nested_bytes, retained_names);
+        let retained_views = state.views.iter().map(|view| view.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>();
+        assert_eq!(state.nested_bytes, retained_names + retained_views);
         state.contributions.capacity() * std::mem::size_of::<Contribution>()
             + state.views.capacity() * std::mem::size_of::<View>()
             + state.edges.capacity() * std::mem::size_of::<(TypedPairKey, Vec<TypedPairKey>)>()
@@ -261,7 +262,7 @@ impl State {
             + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
             + state.annotation_effects.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
-            + retained_names + evidence_bytes
+            + retained_names + retained_views + evidence_bytes
     }
     pub fn observe(
         &self,
@@ -974,8 +975,8 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn candidate_formal_pair(&mut self, ty: &SourceAnnotationType, scope: &AnnotationScope, level: u32) -> Result<(Term, Term), SolveAvailabilityError> {
-        if ty.effects.as_ref().is_some_and(|row| !row.concrete.is_empty() || row.variables.len() != 1) { return Err(exhausted()); }
+    fn candidate_formal_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
+        if ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1 || (variance == Polarity::Negative && (!row.concrete.is_empty() || row.variables.len() != 1))) { return Err(exhausted()); }
         match &ty.value {
             SourceAnnotationValue::Int => Ok((self.batch.collected_leaf_term(Leaf::IntPositive), self.batch.collected_leaf_term(Leaf::IntNegative))),
             SourceAnnotationValue::Unit => Ok((self.batch.collected_leaf_term(Leaf::UnitPositive), self.batch.collected_leaf_term(Leaf::UnitNegative))),
@@ -984,26 +985,33 @@ impl InferenceSession {
                 Ok((self.live_value_term(Polarity::Positive, row)?, self.live_value_term(Polarity::Negative, row)?))
             }
             SourceAnnotationValue::Function { argument, result } => {
-                let (ap, an) = self.candidate_formal_pair(argument, scope, level)?;
-                let (rp, rn) = self.candidate_formal_pair(result, scope, level)?;
-                let qa = self.candidate_formal_effect_port(argument.effects.as_ref(), scope, level)?;
-                let qr = self.candidate_formal_effect_port(result.effects.as_ref(), scope, level)?;
-                let qan = self.live_effect_term(Polarity::Negative, qa)?;
-                let qap = self.live_effect_term(Polarity::Positive, qa)?;
-                let qrn = self.live_effect_term(Polarity::Negative, qr)?;
-                let qrp = self.live_effect_term(Polarity::Positive, qr)?;
+                let reversed = if variance == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+                let (ap, an) = self.candidate_formal_pair(annotation, argument, scope, reversed, level, views)?;
+                let (rp, rn) = self.candidate_formal_pair(annotation, result, scope, variance, level, views)?;
+                let (qap, qan) = self.candidate_formal_effect_port(annotation, argument.effects.as_ref(), scope, reversed, level, views)?;
+                let (qrp, qrn) = self.candidate_formal_effect_port(annotation, result.effects.as_ref(), scope, variance, level, views)?;
                 Ok((self.positive_function_term(an, qan, qrp, rp)?, self.negative_function_term(ap, qap, qrn, rn)?))
             }
         }
     }
 
-    fn candidate_formal_effect_port(&mut self, effects: Option<&SourceEffectRow>, scope: &AnnotationScope, level: u32) -> Result<u32, SolveAvailabilityError> {
-        match effects {
-            None => self.fresh_effect_at_level(level),
+    fn candidate_formal_effect_port(&mut self, annotation: &SourceAnnotation, effects: Option<&SourceEffectRow>, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
+        let port = match effects {
+            None => self.fresh_effect_at_level(level)?,
             Some(row) if row.concrete.is_empty() && row.variables.len() == 1 =>
-                self.candidate_formal_effect_variable(scope, &row.variables[0], level),
-            Some(_) => Err(exhausted()),
-        }
+                self.candidate_formal_effect_variable(scope, &row.variables[0], level)?,
+            Some(row) if variance == Polarity::Positive && row.variables.len() <= 1 => {
+                // Explicit covariant rows use the same source-owned view on both
+                // sides; omitted and singleton symbolic ports stay shared rows.
+                let context = SignatureContext::Annotation(annotation, scope.clone());
+                let mut variables = HashMap::new();
+                let positive = self.candidate_signature_effect(&context, Some(row), None, Polarity::Positive, variance, level, &mut variables, views)?;
+                let negative = self.candidate_signature_effect(&context, Some(row), None, Polarity::Negative, variance, level, &mut variables, views)?;
+                return Ok((positive, negative));
+            }
+            Some(_) => return Err(exhausted()),
+        };
+        Ok((self.live_effect_term(Polarity::Positive, port)?, self.live_effect_term(Polarity::Negative, port)?))
     }
 
     pub(super) fn candidate_formal_annotation(
@@ -1015,13 +1023,17 @@ impl InferenceSession {
         if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
         // Reserve a linear upper bound for the paired recursive constructor's
         // temporary child ports; source admission already bounds its depth.
-        let scratch = bytes::<(Term, Term, Term, Term, u32, u32)>(annotation.ty.node_count())?;
+        let mut views = HashMap::new();
+        views.try_reserve(annotation.ty.node_count()).map_err(|_| exhausted())?;
+        let scratch = bytes::<(Term, Term, Term, Term, u32, u32)>(annotation.ty.node_count())?
+            .checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity())?).ok_or_else(exhausted)?;
         let graph = self.candidate_graph.as_mut().unwrap();
         graph.scratch_bytes = graph.scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
         let pair = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            self.candidate_formal_pair(&annotation.ty, scope, level)
+            self.candidate_formal_pair(annotation, &annotation.ty, scope, Polarity::Negative, level, &mut views)
         })();
+        drop(views);
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         let (positive, negative) = pair?;
         #[cfg(test)]
@@ -1670,6 +1682,162 @@ mod tests {
         assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
         assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions.is_empty());
     }
+    fn assert_formal_capture_incidence(
+        session: &InferenceSession, views: std::ops::Range<u32>, tail: u32,
+    ) -> HashSet<(u32, u32)> {
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        // Exact upper endpoints retain negative EffectRow(source) <: Allowance(view) bounds.
+        let affected_views = &views;
+        let expected: HashSet<_> = session.effect_bounds.iter().enumerate().flat_map(|(source, bounds)| {
+            bounds.exact_non_variable_uppers.iter().filter_map(move |endpoint| match *endpoint {
+                EffectEndpointKey::Allowance(view) if affected_views.contains(&view) => Some((source as u32, view)),
+                _ => None,
+            })
+        }).collect();
+        let records: Vec<_> = state.capture_records.iter().filter(|record| views.contains(&record.view))
+            .map(|record| (record.source, record.view)).collect();
+        let retained: HashSet<_> = records.iter().copied().collect();
+        assert_eq!(records.len(), retained.len(), "incidence deduplicates source/view pairs");
+        assert_eq!(retained, expected, "incidence has exactly the negative Allowance-bound provenance");
+        let mut next = Some(state.capture_incidence[&tail].head);
+        let mut visited = HashSet::new();
+        let mut bucket_pairs = HashSet::new();
+        while let Some(index) = next {
+            assert!(visited.insert(index), "capture bucket remains acyclic");
+            let record = state.capture_records[index];
+            if views.contains(&record.view) {
+                assert!(bucket_pairs.insert((record.source, record.view)), "each expected pair occurs once in its tail bucket");
+            }
+            next = record.next;
+        }
+        assert_eq!(bucket_pairs, expected, "tail bucket reaches every expected incidence");
+        expected
+    }
+
+    #[test]
+    fn covariant_formal_view_is_paired_and_rolls_back_at_publication_hooks() {
+        let text = "act io\nmy bridge (consume:(int -> [io, 'e] ()) -> ()) = consume";
+        for failure in 0..5 {
+            let mut session = make_session(text);
+            let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+                .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+            let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+            let before_incidence = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence.clone();
+            let before_records = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_records.clone();
+            let before_keys = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence_keys.clone();
+            let old_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+            let old_values = session.bounds.len();
+            let old_effects = session.effect_bounds.len();
+            let mut checkpoint = None;
+            if failure == 1 || failure == 2 { FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(failure)); }
+            if failure == 3 { FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|hook| hook.set(true)); }
+            if failure == 4 { session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.fail_after_view = true; }
+            let result = session.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+            });
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            if failure == 0 {
+                result.unwrap();
+                assert_eq!(state.views.len(), old_views + 1, "one paired view per explicit row occurrence");
+                let view = old_views as u32;
+                assert!(state.views[old_views].tail.is_some());
+                assert_eq!(state.annotation_effects.len(), 1);
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view))));
+            } else {
+                assert_eq!(result, Err(exhausted()));
+                checkpoint.unwrap().assert_restored(&session);
+                assert_eq!(state.views.len(), old_views);
+                assert!(state.annotation_effects.is_empty());
+                assert!(state.formal_domains.is_empty());
+                assert_eq!(session.bounds.len(), old_values);
+                assert_eq!(session.effect_bounds.len(), old_effects);
+                assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+                assert_eq!(state.capture_incidence, before_incidence);
+                assert_eq!(state.capture_records, before_records);
+                assert_eq!(state.capture_incidence_keys, before_keys);
+                session.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
+                let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                assert_eq!(state.views.len(), old_views + 1);
+                assert_eq!(state.annotation_effects.len(), 1);
+                assert_eq!(state.capture_records.len(), before_records.len() + 2);
+                let view = old_views as u32;
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view))));
+            }
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let view = old_views as u32;
+            let incidence = assert_formal_capture_incidence(&session, view..view + 1, state.views[old_views].tail.unwrap());
+            assert_eq!(incidence.len(), 2, "checking and exposed ports each retain the paired Allowance");
+            assert!(incidence.iter().any(|&(source, owner)| owner == view
+                && session.effect_bounds[source as usize].exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+            assert!(state.contributions.is_empty());
+        }
+    }
+
+    #[test]
+    fn distinct_covariant_formal_positions_share_only_the_scoped_tail_and_freshen_independently() {
+        let mut session = make_session("act io\nact other\nmy bridge (consume:(int -> [io, 'e] ()) -> (int -> [other, 'e] ()) -> ()) = consume");
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+        let parameter_row = session.parameter_live_base + parameter as u32;
+        session.value_levels[parameter_row as usize] = 2;
+        session.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert_eq!(state.views.len(), 2, "one paired view for each explicit row position");
+        assert_ne!(state.views[0].position, state.views[1].position);
+        assert_eq!(state.annotation_effects.len(), 1);
+        let tail = state.views[0].tail.unwrap();
+        assert_eq!(state.views[1].tail, Some(tail));
+        assert_ne!(state.views[0].allowed, state.views[1].allowed);
+        assert_eq!(state.capture_records.len(), 4);
+        let original_incidence = assert_formal_capture_incidence(&session, 0..2, tail);
+        for view in 0..2 {
+            assert_eq!(original_incidence.iter().filter(|&&(_, owner)| owner == view).count(), 2);
+            assert!(original_incidence.iter().any(|&(source, owner)| owner == view
+                && session.effect_bounds[source as usize].exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+            assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+            assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view))));
+        }
+        assert!(state.contributions.is_empty());
+        let graph = session.capture_candidate_graph(parameter_row, 1).unwrap();
+        let tail_index = graph.rows.iter().position(|row| row.key == RowKey::Effect(tail)).unwrap();
+        let (fresh_occurrence, fresh_cause) = cause(&session, "bridge", 40);
+        let entry_scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+        let mut fresh_tails = Vec::new();
+        for _ in 0..2 {
+            let before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+            let (_, rows) = session.freshen_candidate_graph(&graph, 1, &fresh_occurrence, &fresh_cause).unwrap();
+            session.candidate_graph.as_mut().unwrap().scratch_bytes = entry_scratch;
+            let RowKey::Effect(mapped_tail) = rows[tail_index] else { unreachable!() };
+            assert_ne!(mapped_tail, tail);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            assert_eq!(state.views.len(), before + 2);
+            assert!(state.views[before..].iter().all(|view| view.tail == Some(mapped_tail)));
+            assert_ne!(state.views[before].position, state.views[before + 1].position);
+            let fresh_incidence = assert_formal_capture_incidence(&session, before as u32..(before + 2) as u32, mapped_tail);
+            for &(source, original_view) in &original_incidence {
+                let source_index = graph.rows.iter().position(|row| row.key == RowKey::Effect(source)).unwrap();
+                let RowKey::Effect(mapped_source) = rows[source_index] else { unreachable!() };
+                let original = &state.views[original_view as usize];
+                let fresh_view = (before..before + 2).find(|&index| {
+                    let fresh = &state.views[index];
+                    fresh.owner == original.owner && fresh.position == original.position && fresh.allowed == original.allowed
+                }).unwrap() as u32;
+                assert!(fresh_incidence.contains(&(mapped_source, fresh_view)), "mapped source retains its mapped Allowance owner");
+            }
+            for view in before as u32..(before + 2) as u32 {
+                assert!(fresh_incidence.iter().any(|&(_, owner)| owner == view));
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_lowers.contains(&EffectEndpointKey::Support(view))));
+                assert!(session.effect_bounds.iter().any(|bounds| bounds.exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view))));
+            }
+            fresh_tails.push(mapped_tail);
+        }
+        assert_ne!(fresh_tails[0], fresh_tails[1], "independent formal uses must not share mapped tails");
+    }
+
     #[test]
     fn paired_formal_failure_samples_live_named_and_domain_storage() {
         let name = "a".repeat(4096);

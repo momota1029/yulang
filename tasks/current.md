@@ -7589,3 +7589,59 @@ Next: obtain the scoped carrier decision, then implement and verify the
 behavior-preserving HIR bridge before connecting ordinary collection and the
 public successor result. The full ordinary/public/F5 migration, exact callback
 effect hygiene, complete Call, soundness and principality remain open.
+
+
+### Paired formal composed-covariance integration (2026-10-10)
+
+Continued from remote `3b263e110074cb17a04cae0b1eb529d879595e0f`, including
+local self-recursion and the corrected historical callback trace. The private
+formal constructor now composes variance from a negative formal root through
+all four Function ports. Explicit concrete/empty rows at positive positions
+use the existing annotation-owned Support/Allowance pair and scoped tail.
+For example, `consume:(int -> [io, 'e] ()) -> ()` has a covariant inner row;
+its historical Oracle paired PUSH construction is not the selected successor
+meaning. Direct `cb:int -> [io] ()` remains contravariant and unavailable.
+
+One source row occurrence yields one view shared by its paired interfaces.
+Ordinary reciprocal formal replay gives the view two distinct incoming
+Allowance source relations. The new tests preserve both through capture and
+two independent fresh uses, and verify publication failure rollback plus retry.
+Two source positions remain distinct even with a shared symbolic tail. No
+contribution or subtraction authority is inferred from an allowance.
+
+Two independent M2 reviews covered selected source/semantics and lifecycle/
+resource ownership. The accepted formal-storage sampling defect was repaired;
+source-derived incidence assertions corrected the new test's one-record
+assumption without changing production ownership or pre-existing expectations.
+Root verification passed 66 distinct focused tests (73 executions with seven
+overlaps): formal kernel, effect-owner kernel, six new source cases, existing
+formal/effect source regressions and incoming local-recursion regressions.
+See the [proof and implementation record](../notes/progress/2026-10-10-selected-formal-contextual-integration.md)
+for definitions, proofs, reviewed scope, exact code hashes and test commands.
+
+The inspected nullary source has no Effect-to-Value propagation. Recursive
+Value contexts in a constructor-faithful negative extension remain debt-only;
+positive Effect recursion still needs phase-aware replay and indexed residual
+feedback. The corrected direct negative provider uses an actual named inner
+function's io operation. It parses/forms LocalSource; its symbolic control
+solves, while the negative fixture still reports Unsupported. Historical
+weighted gamma family mismatch is an owner-level falsifier, not an executed
+source counterexample or language undecidability result.
+
+The main user task remains incomplete. The single remaining construction seam
+is an exact finite representation/consumer for the source-generated mixed
+Effect component and its count-indexed residual lineages, retaining both
+feedback directions and all current/future lowers. Contextual self checks,
+filters, scope, freshening, qualifying parent/copy intrusion and rollback must
+be preserved there. No old theorem is promoted to CLOSED; the exact callback
+`(int -> ['b, io] 'c) -> int -> ['b] 'c`, real run_io behavior, full negative
+subtraction/hygiene, principality, complete Call and public/default F5 remain
+unverified. This patch adds no certificate/deferral implementation or new
+question. The incoming approved private carrier/two-cycle gate is preserved;
+it does not establish general negative-formal admission.
+
+Toolchain note: Rust 1.99.0 reports the pre-existing `AtomicU64::fetch_update`
+deprecation at `candidate_effect::State::initialize`. The new name would change
+older-compiler compatibility, while the workspace has no selected minimum
+compiler-version change. This patch retains the existing implementation and
+records that exact compatibility blocker; no warning-free build is claimed.

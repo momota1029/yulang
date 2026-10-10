@@ -423,3 +423,43 @@ attachment/filter production, compiler lifecycle, full Call/hygiene,
 principality and the requested callback test remain open. No Cargo/Rust/source
 execution, production change, new question, canonical CLOSED promotion or
 `yulang3` cutover was performed in this wave.
+
+
+### Selected source / paired formal integration (2026-10-10)
+
+This completed bounded implementation/review wave continued from remote
+`3b263e110074cb17a04cae0b1eb529d879595e0f`. The active goal remains full
+negative concrete contextual inference; this checkpoint completes only the
+required composed-covariant formal constructor/consumer subtransition.
+
+Source inspection corrected two earlier producer assumptions: a double
+Function-argument position is covariant under the selected policy, and a
+whole-binding root row checks lambda creation rather than its latent body.
+Unpublished false-bridge drafts were preserved outside the repository and are
+not checkpointed as proved source results. The consolidation gives the
+correct named-inner provider, nullary sort proof, conditional exact singleton
+closure and a scoped Oracle residual-owner family mismatch.
+
+Production uses the existing Support/Allowance graph with one view per exact
+source row occurrence, separate scoped tails between uses, ordinary bound
+propagation, and existing capture/extrusion/intrusion/rollback owners. Six new
+source tests and two owning unit tests pass. The focused final verification has
+66 distinct passing tests (73 executions including overlap), with one root
+Cargo owner, locked offline dependencies and one codegen unit. No benchmark
+samples, broad workspace run, new Oracle execution or negative compiler
+execution is claimed.
+
+The M2 artifact had two independent reviewers (source/semantics and lifecycle/
+resource), one batched accounting/test repair, and focused source-derived
+incidence assertion repair. Both reviewers' production/claim findings closed
+within their recorded scope; final minor prose and test assertions were checked
+by the primary. All repository writer leases are finished. Shared status,
+record and Git integration remain primary-owned. See the
+[consolidated proof/implementation record](../notes/progress/2026-10-10-selected-formal-contextual-integration.md).
+
+A separate bounded attack of authentic PUSH-self saturation obtained only
+local numeric orbits; it did not construct a finite exact indexed residual
+consumer and remains unreviewed scratch work. The next genuine bottleneck is
+that consumer for sorted mixed Effect replay, with lineage/current-future
+fan-out and reverse feedback. No additional conditional theorem or source
+restriction is used to mark full negative inference complete.
