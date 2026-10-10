@@ -8127,8 +8127,20 @@ soundness, principality or production gates. Keep negative-concrete admission
 guards in place until the later contextual-admission §§5–6 gate and any
 required approval.
 
-Next: resume Packet 1 retained-input/readiness closure, then finish the
-approved two-cycle certificate invalidation, private deferral, rollback and
-retry gate before connecting nonempty operation contexts. Keep negative
-concrete formal admission separately gated until its authentic paired
-formation, residual consumer and lifecycle bridge are reviewed and approved.
+Packet 1 source-readiness investigation now has a prover-derived and
+independently reviewed control-flow result. The literal “first capture” claim
+is false because `Action::Local` captures while its root schedule is still
+running. The narrower member-staging boundary follows successful return of all
+member schedules, but this proves neither full ProducerReadiness nor complete
+component/query/observation coverage. There is still no production
+`retained_input` consumer. See the [source-readiness proof](../notes/progress/2026-10-10-packet1-source-readiness-proof.md)
+and [complementary source audit](../notes/progress/2026-10-10-packet1-source-readiness-falsifier.md).
+
+Next: identify the exact certificate query owner and its source-owned
+frontier/observation contract before implementing any readiness witness; keep
+Packet 1 open until that contract has authenticated producer, dependency and
+dependent-observation evidence. Then finish the approved two-cycle certificate
+invalidation, private deferral, rollback and retry gate before connecting
+nonempty operation contexts. Keep negative concrete formal admission
+separately gated until its authentic paired formation, residual consumer and
+lifecycle bridge are reviewed and approved.
