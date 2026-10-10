@@ -892,6 +892,7 @@ impl State {
         self.uses = self.uses.checked_add(1).ok_or_else(exhausted)?;
         Ok(self.uses)
     }
+    #[cfg(test)]
     pub fn contains(&self, pair: TypedPairKey) -> bool {
         self.pair_heads.contains_key(&pair)
     }

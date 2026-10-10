@@ -11317,7 +11317,14 @@ impl InferenceSession {
 
     fn pair_is_current(&self, key: TypedPairKey) -> bool {
         #[cfg(feature = "shadow-apply-candidate")]
-        if let Some(state) = &self.candidate_graph { return state.intrusion.effect_algebra.context.contains(self.candidate_context_pair(key)) && state.intrusion.completed.get(&key) == Some(&state.intrusion.generation); }
+        if let Some(state) = &self.candidate_graph {
+            // Processing is the actual admitted work-item relation; endpoint
+            // pairs continue to own diagnostics independently. A canonical
+            // relation cannot suppress admission of a new raw diagnostic pair.
+            return self.typed_pairs.contains_key(&key)
+                && state.intrusion.effect_algebra.context.processing.is_some_and(|relation|
+                    state.intrusion.completed.get(&relation) == Some(&state.intrusion.generation));
+        }
         self.typed_pairs.contains_key(&key)
     }
 

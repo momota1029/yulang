@@ -202,3 +202,85 @@ fn natural_local_capture_keeps_live_late_integer_bounds_and_shared_older_images(
     }
     assert!(integer_reaches_answer, "an actual integer value bound reaches the answer root");
 }
+
+#[test]
+fn relation_completion_generation_rollback_and_supported_retry() {
+    for effect in [false, true] {
+        let mut session = session();
+        let parent = row(&mut session, effect, 2);
+        let task = match parent {
+            RowKey::Value(row) => LiveConstraintTask::Value(CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(row), upper: ValueEndpointKey::ValueRow(row),
+            }),
+            RowKey::Effect(row) => LiveConstraintTask::Effect(
+                EffectEndpointKey::EffectRow(row), EffectEndpointKey::EffectRow(row)),
+        };
+        let pair = candidate_context::task_pair(task);
+        let relation = session.candidate_context_admit(task).unwrap().unwrap();
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+        let (occurrence, cause) = cause(&session);
+        session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, &occurrence, &cause).unwrap();
+        let before = session.candidate_graph.as_ref().unwrap().intrusion.completed.clone();
+        let result: Result<(), SolveAvailabilityError> = session.with_route_transaction(|session| {
+            let copy = extrude(session, parent, Polarity::Positive);
+            close_cycle(session, parent, copy, Polarity::Positive);
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+            assert!(!session.pair_is_current(pair), "SCC representative changes invalidate completion");
+            session.mark_candidate_pair(pair)?;
+            assert!(session.pair_is_current(pair));
+            Err(SolveAvailabilityError::IdentityExhausted)
+        });
+        assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+        assert_eq!(state.generation, 0);
+        assert_eq!(state.completed, before, "rollback restores old entries and removes new ones");
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+        assert!(session.pair_is_current(pair));
+        let copy = extrude(&mut session, parent, Polarity::Positive);
+        close_cycle(&mut session, parent, copy, Polarity::Positive);
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+        assert!(!session.pair_is_current(pair));
+        session.mark_candidate_pair(pair).unwrap();
+        assert!(session.pair_is_current(pair));
+    }
+}
+
+#[test]
+fn raw_alias_diagnostic_admission_cannot_complete_invalidated_canonical_relation() {
+    let mut session = session();
+    let parent = row(&mut session, false, 2);
+    let RowKey::Value(parent_row) = parent else { unreachable!() };
+    let canonical = CanonicalValuePairKey {
+        lower: ValueEndpointKey::ValueRow(parent_row), upper: ValueEndpointKey::TopNegative,
+    };
+    let (occurrence, cause) = cause(&session);
+    session.constrain_live_value(canonical, &occurrence, &cause).unwrap();
+    let relation = session.candidate_context_admit(LiveConstraintTask::Value(canonical)).unwrap().unwrap();
+    let copy = extrude(&mut session, parent, Polarity::Positive);
+    close_cycle(&mut session, parent, copy, Polarity::Positive);
+    let RowKey::Value(copy_row) = copy else { unreachable!() };
+    let raw = CanonicalValuePairKey {
+        lower: ValueEndpointKey::ValueRow(copy_row), upper: ValueEndpointKey::TopNegative,
+    };
+    let intrusion = &session.candidate_graph.as_ref().unwrap().intrusion;
+    assert!(session.typed_pairs.contains_key(&TypedPairKey::Value(canonical)));
+    assert_ne!(intrusion.completed.get(&relation), Some(&intrusion.generation));
+    let before = intrusion.completed.clone();
+    let run = |session: &mut InferenceSession| {
+        let admissions = session.execution_counters.constraint_pair_admissions;
+        session.constrain_live_value(raw, &occurrence, &cause)?;
+        assert_eq!(session.execution_counters.constraint_pair_admissions - admissions, 2,
+            "raw diagnostic admission must leave canonical semantic replay pending");
+        let intrusion = &session.candidate_graph.as_ref().unwrap().intrusion;
+        assert_eq!(intrusion.completed.get(&relation), Some(&intrusion.generation));
+        assert!(session.typed_pairs.contains_key(&TypedPairKey::Value(raw)));
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        run(session)?;
+        Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+    }), Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.completed, before);
+    assert!(!session.typed_pairs.contains_key(&TypedPairKey::Value(raw)));
+    run(&mut session).unwrap();
+}

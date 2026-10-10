@@ -1766,3 +1766,46 @@ fn source_unit_push_preparation_excludes_empty_symbolic_operation_and_formal_row
     assert_eq!(state(&session).checkpoint(), before);
     assert!(state(&session).weights.is_empty());
 }
+
+#[test]
+fn exact_relation_completion_keeps_contexts_and_component_kinds_distinct() {
+    for task in [
+        LiveConstraintTask::Value(CanonicalValuePairKey {
+            lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+        }),
+        LiveConstraintTask::Effect(EffectEndpointKey::BottomPositive, EffectEndpointKey::EmptyNegative),
+    ] {
+        let mut session = session();
+        let pair = task_pair(task);
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let other = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+        let first = context.relation(pair, IDENTITY).unwrap();
+        let second = context.relation(pair, other).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(context.relation(pair, IDENTITY).unwrap(), first);
+        context.processing = Some(first);
+        let bytes_before = session.candidate_graph.as_ref().unwrap().intrusion.bytes().unwrap();
+        assert!(!session.pair_is_current(pair));
+        session.record_typed_pair_admission(pair, match task {
+            LiveConstraintTask::Value(_) => TypedPairMemo::Value {
+                children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending,
+            },
+            LiveConstraintTask::Effect(..) => TypedPairMemo::Effect,
+        }).unwrap();
+        assert!(session.pair_is_current(pair));
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(second);
+        assert!(!session.pair_is_current(pair), "the same endpoints cannot suppress a distinct context");
+        session.mark_candidate_pair(pair).unwrap();
+        assert!(session.pair_is_current(pair));
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(first);
+        assert!(session.pair_is_current(pair), "exact duplicate relations reuse completion");
+        let intrusion = &session.candidate_graph.as_ref().unwrap().intrusion;
+        assert_eq!(intrusion.completed.len(), 2);
+        assert_eq!(intrusion.bytes().unwrap() - bytes_before,
+            intrusion.completed.capacity() * std::mem::size_of::<(RelationId, u64)>(),
+            "retained completion capacity uses the relation key size");
+        assert_eq!(session.typed_pairs.len(), 1, "contexts share pair-owned diagnostic provenance");
+        // The nonidentity context above is a detached identity test, never a
+        // live operation task or authorization of nonempty source execution.
+    }
+}

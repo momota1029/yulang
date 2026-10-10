@@ -13,7 +13,7 @@ pub(super) struct State {
     effects: Vec<u32>,
     parents: Vec<Parent>,
     pub diagnostic_edges: HashSet<(CanonicalValuePairKey, DiagnosticEdge)>,
-    pub completed: HashMap<TypedPairKey, u64>,
+    pub completed: HashMap<candidate_context::RelationId, u64>,
     pub generation: u64,
     pub dirty: bool,
     pub active_roots: HashMap<DefinitionOrderId, u32>,
@@ -34,10 +34,10 @@ pub(super) struct Undo {
     generation: u64,
     dirty: bool,
     forests: Vec<(RowKey, u32)>,
-    completions: Vec<(TypedPairKey, Option<u64>)>,
+    completions: Vec<(candidate_context::RelationId, Option<u64>)>,
     memos: Vec<(TypedPairKey, TypedPairMemo)>,
     memo_children_bytes: usize,
-    completion_saved: HashSet<TypedPairKey>,
+    completion_saved: HashSet<candidate_context::RelationId>,
     memo_saved: HashSet<TypedPairKey>,
     new_pairs: HashSet<TypedPairKey>,
     diagnostic_edges: Vec<(CanonicalValuePairKey, DiagnosticEdge)>,
@@ -134,7 +134,7 @@ impl State {
             bytes::<u32>(self.effects.capacity())?,
             bytes::<Parent>(self.parents.capacity())?,
             bytes::<(CanonicalValuePairKey, DiagnosticEdge)>(self.diagnostic_edges.capacity())?,
-            bytes::<(TypedPairKey, u64)>(self.completed.capacity())?,
+            bytes::<(candidate_context::RelationId, u64)>(self.completed.capacity())?,
             bytes::<(DefinitionOrderId, u32)>(self.active_roots.capacity())?,
             bytes::<DefinitionUseId>(self.active_uses.capacity())?,
         ])
@@ -151,9 +151,9 @@ impl Undo {
         sum(&[
             self.effect_algebra.bytes()?,
             bytes::<(RowKey, u32)>(self.forests.capacity())?,
-            bytes::<(TypedPairKey, Option<u64>)>(self.completions.capacity())?,
+            bytes::<(candidate_context::RelationId, Option<u64>)>(self.completions.capacity())?,
             bytes::<(TypedPairKey, TypedPairMemo)>(self.memos.capacity())?,
-            bytes::<TypedPairKey>(self.completion_saved.capacity())?,
+            bytes::<candidate_context::RelationId>(self.completion_saved.capacity())?,
             bytes::<TypedPairKey>(self.memo_saved.capacity())?,
             bytes::<TypedPairKey>(self.new_pairs.capacity())?,
             bytes::<(CanonicalValuePairKey, DiagnosticEdge)>(self.diagnostic_edges.capacity())?,
@@ -224,28 +224,34 @@ impl InferenceSession {
         &mut self,
         key: TypedPairKey,
     ) -> Result<(), SolveAvailabilityError> {
+        // A raw alias owns diagnostic provenance, but its canonical work item
+        // still owns semantic processing and relation completion.
+        let canonical = self.candidate_context_pair(key);
         let state = &mut self
             .candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
             .intrusion;
-        state.completed.try_reserve(1).map_err(|_| exhausted())?;
+        let relation = state.effect_algebra.context.processing.filter(|_| key == canonical);
+        if relation.is_some() { state.completed.try_reserve(1).map_err(|_| exhausted())?; }
         if let Some(undo) = self
             .route_journal
             .as_mut()
             .and_then(|journal| journal.intrusion.as_mut())
         {
-            if !undo.completion_saved.contains(&key) {
-                undo.completion_saved.try_reserve(1).map_err(|_| exhausted())?;
-                push(&mut undo.completions, (key, state.completed.get(&key).copied()))?;
-                undo.completion_saved.insert(key);
+            if let Some(relation) = relation {
+                if !undo.completion_saved.contains(&relation) {
+                    undo.completion_saved.try_reserve(1).map_err(|_| exhausted())?;
+                    push(&mut undo.completions, (relation, state.completed.get(&relation).copied()))?;
+                    undo.completion_saved.insert(relation);
+                }
             }
             if !self.typed_pairs.contains_key(&key) {
                 undo.new_pairs.try_reserve(1).map_err(|_| exhausted())?;
                 undo.new_pairs.insert(key);
             }
         }
-        state.completed.insert(key, state.generation);
+        if let Some(relation) = relation { state.completed.insert(relation, state.generation); }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
     pub(super) fn journal_candidate_memo(

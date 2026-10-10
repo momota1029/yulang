@@ -7904,5 +7904,25 @@ through the detached evaluator. Existing source identity/freshening is reused;
 no live dispatch or zero-word filter behavior changed. M1 compiler-referee
 review passed, with 3 source-seed and 8 detached focused tests passing. See the
 [source PUSH seed checkpoint](../notes/progress/2026-10-10-context-source-push-seed.md).
-The next gate is relation-sensitive completion and contextual transport before
-any source-derived nonempty context can reach live propagation.
+Relation-sensitive candidate completion is now keyed by the admitted exact
+`RelationId` plus the existing SCC generation, while diagnostic memo ownership
+remains on endpoint pairs. Distinct contexts on one pair no longer suppress
+each other; raw aliases cannot mark their canonical semantic relation complete
+before canonical replay. A focused regression covers a preexisting canonical
+memo, actual parent/copy SCC invalidation, raw-alias retry, rollback, and
+supported retry. The initial M2 compiler-referee review found the raw-alias
+premature-completion defect; its repair passed fresh regression-auditor delta
+review. Focused context (45), intrusion (7), and effect (27) tests passed, as
+did the owning-package candidate-feature check and scoped diff check. One
+production check exposed an unused identity-relation helper after completion
+moved to RelationId; it is now test-only, and the repeated package check is
+warning-free. No source PUSH execution, changed filter discharge, or formal-row
+admission was added. See the [relation-completion checkpoint](../notes/progress/2026-10-10-context-relation-completion.md).
+
+Next: map and implement contextual transport/freshening across relation DAGs,
+weights, capture, extrusion, and qualifying intrusion while keeping nonempty
+source execution disconnected. Then complete the exact two-cycle certificate
+invalidation, withdrawal, rollback, and retry gate before recursive nonempty
+contexts can be admitted. Complete Call, full effect hygiene,
+soundness/principality, ordinary/default/public inference, and F5 retirement
+remain open.
