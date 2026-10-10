@@ -8507,3 +8507,16 @@ Swap/WithoutLeftFilter fragments are now accepted by the zero-word executor.
 The reviewed lifecycle contract remains unimplemented; its exact pre-existing
 identity FunctionPort regression and incremental-index/resource requirements
 are included in the next implementation packet.
+
+The later [boundary-zero source restoration probe](../notes/progress/2026-10-11-boundary-zero-source-restoration.md)
+adds an ordinary top-level `my later = left` reference. Unlike the earlier
+boundary1 local use, its genuine boundary0 capture contains the exact positive
+S50/R44 target bound and freshens/restores it as E96/E102. The justified
+ordered replay fiber `(452,453)` emits and dequeues child452. An independent
+compiler-referee review accepted this as a bounded capture/fresh-restoration
+control. It does not reproduce an absent or unrescued child, unchanged-owner
+restoration, or prove impossibility; no justified missing omega is known.
+The previous local-use capture limitation remains true. A second continuation
+was not run because no discriminating source variation was identified. Keep
+the exact failure-state and all-source impossibility questions open pending a
+source-owned unchanged-owner route or justified nontrivial fiber.
