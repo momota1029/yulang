@@ -7415,3 +7415,20 @@ source target and all-target/all-feature solver check pass; independent semantic
 review found no issue. See the [implementation record](../notes/progress/2026-10-10-whole-local-ground-functions.md).
 The default/public entrypoint still selects F5, so this does not complete the
 required production migration.
+
+### Whole-local named annotations (2026-10-10)
+
+The candidate now admits named value variables in whole-local annotations,
+shares their scope with annotations on that binding's formals, isolates equal
+names across distinct local identities, and freshens function schemes at each
+use. It still rejects effect rows (including `[]`) and unfinished formal
+annotations. Initializer evaluation remains one-shot and local lookups pure.
+Focused tests pass; the independent compiler review's minor effect-evidence
+finding was closed with a focused graph assertion. See the
+[implementation record](../notes/progress/2026-10-10-whole-local-named-annotations.md).
+
+This is a bounded local-annotation slice only. The `run_io` example, concrete
+effect-row transport/hygiene, complete Call, public/default inference,
+soundness/principality and F5 cutover remain open. The contextual residual-owner
+question remains pending and blocks only work that depends on that identity
+choice.

@@ -38,13 +38,17 @@ fn binding<'a>(hir: &'a HirModule, name: &str) -> &'a yu_hir::HirBinding {
 // Follow only incoming value bounds at this fiber. Function children are
 // separate ports, so an argument leaf cannot stand in for a result leaf.
 fn value_lowers<'a>(graph: &CandidateGraphExport<'a>, start: CandidateGraphNode<'a>) -> Vec<CandidateGraphNode<'a>> {
+    component_lowers(graph, start, yu_types::ComponentKind::Value)
+}
+
+fn component_lowers<'a>(graph: &CandidateGraphExport<'a>, start: CandidateGraphNode<'a>, kind: yu_types::ComponentKind) -> Vec<CandidateGraphNode<'a>> {
     let mut pending = vec![start];
     let mut visited: Vec<CandidateGraphNode<'a>> = Vec::new();
     while let Some(node) = pending.pop() {
         if visited.iter().any(|prior| prior.same_identity(node)) { continue; }
         visited.push(node);
         for bound in graph.bounds() {
-            if bound.kind() != yu_types::ComponentKind::Value { continue; }
+            if bound.kind() != kind { continue; }
             let upper = bound.upper();
             let same_row = node.row().is_some_and(|row|
                 upper.row().is_some_and(|other| row.same_identity(other)));
@@ -190,7 +194,7 @@ fn local_and_multiple_formals_keep_their_actual_lambda_layers() {
 
 #[test]
 fn unfinished_formals_and_unsupported_whole_local_annotations_are_explicitly_refused() {
-    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:'a = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
+    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:_ = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
         match module(text) {
             Err(_) => {},
             Ok(hir) => assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}"),
@@ -321,13 +325,87 @@ fn effectful_whole_local_function_initializer_runs_once_with_pure_lookups() {
 #[test]
 fn whole_local_ground_function_admission_refuses_every_unsupported_subtree() {
     for text in [
+        "my outer = { my local:[] int = 1; local }",
         "my outer = { my local:int -> [] int = 1; local }",
         "my outer = { my local:([] int -> int) -> int = 1; local }",
         "act E\nmy outer = { my local:(int -> [E] int) -> int = 1; local }",
-        "my outer = { my local:int -> 'a = 1; local }",
-        "my outer = { my local:('a -> int) -> int = 1; local }",
     ] {
         let hir = module(text).unwrap();
         assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}");
+    }
+}
+
+#[test]
+fn whole_local_named_values_infer_from_initializers_and_nested_functions() {
+    for text in [
+        "my outer = { my local:'a = 1; local }",
+        "my outer = { my local x:'a -> 'a = x; local 1 }",
+        "my outer = { my local f:('a -> 'a) -> 'a = f 1; local { my ident x = x; ident } }",
+        "my outer = { my local x y:'a -> () -> 'a = x; local 1 () }",
+        "my outer = { my local (x:'a):'a -> 'a = x; local 1 }",
+    ] {
+        let hir = module(text).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+        assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    }
+    for text in [
+        "my outer = { my local:int -> 'a = 1; local }",
+        "my outer = { my local:('a -> int) -> int = 1; local }",
+        "my outer = { my local (x:'a):'a -> () = x; local 1 }",
+    ] {
+        assert!(!CandidateInference::solve(module(text).unwrap()).unwrap().candidate_conflicts().is_empty(), "{text}");
+    }
+}
+
+#[test]
+fn whole_local_named_bindings_isolate_names_and_freshen_function_uses() {
+    let hir = module("my outer = { my local (x:'a):'a -> 'a = x; my first = local; my second = local; my nested = { my local (x:'a):'a -> 'a = x; local () }; my ignored = first (); second 1 }").unwrap();
+    let source = hir.local_source(binding(&hir, "outer").definition_root()).unwrap().unwrap();
+    let locals: Vec<_> = source.bindings().iter().filter(|binding| binding.spelling.as_ref() == "local").collect();
+    assert_eq!(locals.len(), 2);
+    assert_ne!(locals[0].id, locals[1].id);
+    let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form,
+        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &locals[0].id)).collect();
+    assert_eq!(uses.len(), 2);
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    let first_use = candidate.fresh_use(&uses[0].occurrence).unwrap();
+    let second_use = candidate.fresh_use(&uses[1].occurrence).unwrap();
+    let first: Vec<_> = first_use.rows().collect();
+    let second: Vec<_> = second_use.rows().collect();
+    assert!(first.iter().any(|row| row.source_row().is_local()));
+    for row in first.iter().filter(|row| row.source_row().is_local()) {
+        assert!(second.iter().all(|other| !row.same_identity(other)));
+    }
+}
+
+#[test]
+fn whole_local_named_values_preserve_captured_provider_constraints() {
+    let hir = module("my outer x = { my local:'a = x; my first = local; local }; my answer = outer 1").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_call_result(&candidate, &hir, "answer", CandidateGraphLeaf::IntPositive);
+}
+
+#[test]
+fn effectful_whole_local_named_initializer_runs_once() {
+    let hir = module("act tick:\n    our next: () -> int\n\nmy outer ignored = { my local:'a = tick::next(); my first = local; local }").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_function_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    let graph = candidate.export(binding(&hir, "outer").definition_root()).unwrap();
+    let functions: Vec<_> = value_lowers(&graph, graph.root()).into_iter()
+        .filter(|node| node.polarity() == yu_solver::Polarity::Positive)
+        .filter_map(|node| node.children()).collect();
+    assert!(!functions.is_empty());
+    for children in functions {
+        let effects = component_lowers(&graph, children[2], yu_types::ComponentKind::Effect);
+        // The public graph exposes operands by shape, but not their family.
+        // Leaf, Row and Function are the other three exhaustive node forms.
+        assert!(effects.iter().any(|node| node.polarity() == yu_solver::Polarity::Positive
+            && node.leaf().is_none() && node.row().is_none() && node.children().is_none()),
+            "the function result effect retains initializer effect support");
     }
 }

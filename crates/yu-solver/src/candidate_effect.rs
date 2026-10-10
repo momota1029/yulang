@@ -81,13 +81,13 @@ pub(super) enum ViewOrigin {
     Operation(OperationOrigin),
 }
 enum SignatureContext<'a> {
-    Annotation(&'a SourceAnnotation),
+    Annotation(&'a SourceAnnotation, AnnotationScope),
     Operation { declaration: &'a Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &'a DefinitionRootId, occurrence: &'a HirOccurrenceId, retained_bytes: usize },
 }
 impl SignatureContext<'_> {
-    fn owner(&self) -> &DefinitionRootId { match self { Self::Annotation(a) => &a.owner, Self::Operation { owner, .. } => owner } }
-    fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position } }
-    fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_) => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
+    fn owner(&self) -> &DefinitionRootId { match self { Self::Annotation(a, _) => &a.owner, Self::Operation { owner, .. } => owner } }
+    fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a, _) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position } }
+    fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_, _) => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
 }
 #[derive(Debug)]
 pub(super) struct View {
@@ -951,6 +951,8 @@ impl InferenceSession {
         level: u32, boundary: u32,
     ) -> Result<(), SolveAvailabilityError> {
         if !candidate_source::preflight_local_annotation(&annotation.ty) { return Err(exhausted()); }
+        let scope = AnnotationScope::Local(self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone());
+        let context = SignatureContext::Annotation(annotation, scope);
         let mut value_variables = HashMap::new();
         let mut effect_variables = HashMap::new();
         let mut views = HashMap::new();
@@ -967,12 +969,12 @@ impl InferenceSession {
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let negative = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation), &annotation.ty,
+                &context, &annotation.ty,
                 Polarity::Negative, Polarity::Positive, level,
                 &mut value_variables, &mut effect_variables, &mut views,
             )?;
             let positive = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation), &annotation.ty,
+                &context, &annotation.ty,
                 Polarity::Positive, Polarity::Positive, level,
                 &mut value_variables, &mut effect_variables, &mut views,
             )?;
@@ -1037,7 +1039,7 @@ impl InferenceSession {
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let upper = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation),
+                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
                 &annotation.ty,
                 Polarity::Negative,
                 Polarity::Positive,
@@ -1047,7 +1049,7 @@ impl InferenceSession {
                 &mut views,
             )?;
             let exposed = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation),
+                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
                 &annotation.ty,
                 Polarity::Positive,
                 Polarity::Positive,
@@ -1101,8 +1103,8 @@ impl InferenceSession {
                     }))
             }
             SourceAnnotationValue::Variable(name) => {
-                let row = if let SignatureContext::Annotation(annotation) = context {
-                    self.candidate_annotation_variable(&AnnotationScope::Definition(annotation.owner.clone()), name, level)?
+                let row = if let SignatureContext::Annotation(_, scope) = context {
+                    self.candidate_annotation_variable(scope, name, level)?
                 } else if let Some(&row) = values.get(name.as_ref()) {
                     row
                 } else {
@@ -1228,8 +1230,8 @@ impl InferenceSession {
             return Err(exhausted());
         }
         let tail = if let Some(name) = row.variables.first() {
-            Some(if let SignatureContext::Annotation(annotation) = context {
-                self.candidate_formal_effect_variable(&AnnotationScope::Definition(annotation.owner.clone()), name, level)?
+            Some(if let SignatureContext::Annotation(_, scope) = context {
+                self.candidate_formal_effect_variable(scope, name, level)?
             } else if let Some(&row) = variables.get(name.as_ref()) {
                 row
             } else {
@@ -1319,30 +1321,33 @@ mod tests {
     }
     #[test]
     fn annotated_local_initializer_effect_has_one_block_edge_and_pure_lookups() {
-        let session = make_session("act tick:\n    our next: () -> (int -> int)\n\nmy outer = { my local:int -> int = tick::next(); my first = local; local }");
-        let owner = root(&session, "outer");
-        let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
-        let local = &source.bindings()[0];
-        let initializer = source.expression(&local.initializer).unwrap();
-        let edges: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &initializer.occurrence && fact.id().local_slot() == 20).collect();
-        assert_eq!(edges.len(), 1, "one initializer evaluation edge to the enclosing block");
-        let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form, yu_hir::shadow::LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::Local(id), .. } if id == &local.id)).collect();
-        assert_eq!(uses.len(), 2);
-        for lookup in uses {
-            let facts: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &lookup.occurrence && matches!(fact.id().local_slot(), 1 | 2)).collect();
-            assert_eq!(facts.len(), 2);
-            assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.lower()), Ok(TermView::Leaf(Leaf::EffectBottomPositive)))));
-            assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
+        for annotation in ["int -> int", "'a"] {
+            let session = make_session(&format!("act tick:\n    our next: () -> (int -> int)\n\nmy outer ignored = {{ my local:{annotation} = tick::next(); my first = local; local }}"));
+            let owner = root(&session, "outer");
+            let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+            let local = &source.bindings()[0];
+            let initializer = source.expression(&local.initializer).unwrap();
+            let edges: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &initializer.occurrence && fact.id().local_slot() == 20).collect();
+            assert_eq!(edges.len(), 1, "one initializer evaluation edge to the enclosing block");
+            let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form, yu_hir::shadow::LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::Local(id), .. } if id == &local.id)).collect();
+            assert_eq!(uses.len(), 2);
+            for lookup in uses {
+                let facts: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &lookup.occurrence && matches!(fact.id().local_slot(), 1 | 2)).collect();
+                assert_eq!(facts.len(), 2);
+                assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.lower()), Ok(TermView::Leaf(Leaf::EffectBottomPositive)))));
+                assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
+            }
         }
     }
 
     #[test]
     fn local_annotation_first_edge_failure_rolls_back_and_retries() {
-        for ty in ["int", "int -> int", "(int -> int) -> int", "int -> () -> int"] {
+        for ty in ["int", "int -> int", "(int -> int) -> int", "int -> () -> int", "'a", "'a -> 'a", "('a -> int) -> 'a"] {
             let mut session = make_session(&format!("my outer x = {{ my local:{ty} = x; local }}"));
             let owner = root(&session, "outer");
             let actions = session.batch.candidate_source.schedules[&owner].clone();
             let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
+            let names = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.clone();
             let mut checkpoint = None;
             FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
             assert_eq!(session.with_route_transaction(|session| {
@@ -1350,18 +1355,51 @@ mod tests {
                 session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
             let mut checkpoint = None;
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
                 session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
+                if ty.contains("'a") {
+                    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.len(), names.len() + 1);
+                }
                 Err::<(), _>(exhausted())
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values, names);
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
             session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
             assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());
         }
+    }
+
+    #[test]
+    fn whole_local_named_scope_shares_formals_and_isolates_other_bindings() {
+        let mut session = make_session("my outer = { my first (x:'a):'a -> 'a = x; my second (x:'a):'a -> 'a = x; second }");
+        let owner = root(&session, "outer");
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let mut rows = Vec::new();
+        for action in &actions {
+            match action {
+                candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } => {
+                    session.with_route_transaction(|session| session.candidate_formal_annotation(annotation, *parameter, occurrence, scope)).unwrap();
+                }
+                candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } => {
+                    let scope = AnnotationScope::Local(session.batch.candidate_source.locals[*slot].clone());
+                    let key = (scope, Box::<str>::from("'a"));
+                    let before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values[&key];
+                    session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
+                    let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                    assert_eq!(state.annotation_values[&key], before, "whole-local pair reuses its formal's named row");
+                    rows.push(before);
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(rows.len(), 2);
+        assert_ne!(rows[0], rows[1], "actual local identities isolate equal names");
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_values.len(), 2);
     }
 
     #[test]

@@ -85,7 +85,7 @@ pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationTy
         yu_hir::shadow::SourceAnnotationValue::Int | yu_hir::shadow::SourceAnnotationValue::Unit => true,
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
             preflight_local_annotation(argument) && preflight_local_annotation(result),
-        yu_hir::shadow::SourceAnnotationValue::Variable(_) => false,
+        yu_hir::shadow::SourceAnnotationValue::Variable(_) => true,
     }
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
