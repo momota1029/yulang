@@ -8462,31 +8462,33 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: at the relation lifecycle owner, retain a checked `r -> c` ancestry
-bridge for stale work items without changing context, residual or fresh-use
-semantics, then continue the exact source root through inference. Keep the
-identity-lemma review and focused regression/retry evidence as closure gates.
-Separately,
-the primary has now constructed the missing distinct-tail Allowance route from
-ordinary parsed source: one pre-merge intrusion snapshot contains a positive
-owner/copy SCC and an unclosed copied-tail/original-tail pair. The exact source,
-rows, physical paths, schedule point, and bounded probe details are in the
-[constructive witness addendum](../notes/progress/2026-10-11-distinct-tail-source-constructor-search.md#ordinary-source-constructive-witness-primary-diagnostic-2026-10-11).
-Independent compiler-referee review conditionally passed the selective owner-
-SCC/tail-nonreachability interpretation; primary inspection matched the
-first-snapshot log to the recorded node identities and graph paths. Parser,
-scope and action provenance are primary-produced, not independently rerun.
-This resolves source constructibility only; it does not establish a lost
-restore obligation or failure of replay/diagnostic rescue. The next gate is a
-later same-owner restore trace through every product, mutation, replay and
-diagnostic consumer, identifying an absent required fiber or proving coverage.
-The restored-product proof remains separate: its uncovered mutation/transport
-invariant cannot be inferred from a source trace. The
-`source-hir-selective-scc-proof.md` prover artifact remains open and unreviewed;
-its requested Sol/high settings were not observable. The current-component
-inventory has passed focused spec review; implementation must first give
-mutation, observation withdrawal, private deferral and member
-publication/rollback explicit owners. Do not start two-cycle publication or
-acceleration until those owners and exact recognition are implemented and
-checked. Full Oracle hygiene transfer, ordinary Simple-sub inference, general
-residuals, Call/Catch, soundness/principality and F5 cutover remain open.
+The queued-relation ancestry bridge is implemented: task transport retains the
+exact post-check context on canonical `c` and records `Derived(r,c)` before
+execution. Its focused retry test passed 1/1; the recorded direct source root
+also completes after the repair. Do not repeat this code change. The separate
+Value diagnostic-parent issue remains conditional: `pair_is_current` can skip
+the raw alias diagnostic edge when its canonical processing relation is
+already current, but eleven bounded ordinary roots, including the known R
+witness, produced no Value merge or retained-child replay. No source witness or
+source impossibility proof exists for that diagnostic history.
+
+The distinct-tail Allowance route is now constructively reachable from ordinary
+parsed source: one pre-merge snapshot has a positive owner/copy SCC and an
+unclosed copied-tail/original-tail pair. Independent compiler-referee review
+conditionally passed its graph interpretation. The later same-source bridge
+use was traced through 52 restores and the tail merge, but its captured graph
+contains neither R43 nor the target S49/R43 bound; all observed relation
+contexts are identity. This does not identify a missing ordered restore fiber
+or prove all rescue paths. See the [constructive source witness](../notes/progress/2026-10-11-distinct-tail-source-constructor-search.md#ordinary-source-constructive-witness-primary-diagnostic-2026-10-11)
+and [later restore trace](../notes/progress/2026-10-11-distinct-tail-restore-source-trace.md).
+
+Immediate implementation gate: assign explicit mutation-generation,
+dependent-observation withdrawal, private deferral, member-publication and
+rollback ownership under contextual-admission §§4–6. The current-component
+inventory shows no production certificate caller and no undo owner for these
+dependent/publication states. Keep nonempty recursive-context admission and
+concrete negative formal rows disabled until that lifecycle and exact recognizer
+gate is implemented. The separate restored-fiber proof and Call/Catch/public
+scheme source audits can continue against the frozen baseline. Full Oracle
+hygiene transfer, ordinary Simple-sub inference, general residuals, complete
+Call/Catch, soundness/principality and F5 cutover remain open.
