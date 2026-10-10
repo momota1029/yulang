@@ -416,7 +416,130 @@ struct DetachedEvaluation {
     // Numeric equality never interns or rewrites construction records.
     nodes: Vec<(ContextId, Option<ContextExpr>)>,
 }
+fn reserve_rename_scratch<T>(
+    storage: &mut Vec<T>, additional: usize, scratch_bytes: &mut usize, charge: &mut usize,
+) -> Result<(), SolveAvailabilityError> {
+    let before = storage.capacity();
+    storage.try_reserve(additional).map_err(|_| exhausted())?;
+    let growth = (storage.capacity() - before).checked_mul(std::mem::size_of::<T>()).ok_or_else(exhausted)?;
+    let next_charge = charge.checked_add(growth).ok_or_else(exhausted)?;
+    let next_scratch = scratch_bytes.checked_add(growth).ok_or_else(exhausted)?;
+    *charge = next_charge;
+    *scratch_bytes = next_scratch;
+    Ok(())
+}
 impl State {
+    // Detached per-use construction rename. Substitutions and the reusable map
+    // belong to the caller's scratch lease; only traversal/journal storage is
+    // charged here. Reuse the map only with unchanged substitutions and retained
+    // nodes from this route/use; invalidate it when an outer route rolls back.
+    // Certificates are opaque tokens, never entry authorization.
+    #[cfg_attr(not(test), allow(dead_code, reason = "detached transport preparation has no live consumer"))]
+    fn rename_contexts(
+        &mut self,
+        roots: &[ContextId],
+        weights: &HashMap<LocalWeightId, LocalWeightId>,
+        certificates: &HashMap<EntryCertificateId, EntryCertificateId>,
+        remap: &mut HashMap<ContextId, ContextId>,
+        scratch_bytes: &mut usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let checkpoint = self.checkpoint();
+        let mut pending = Vec::<(ContextId, bool)>::new();
+        let mut inserted = Vec::<ContextId>::new();
+        let mut verified = HashSet::<ContextId>::new();
+        let mut charge = 0usize;
+        let result = (|| {
+            for &root in roots {
+                reserve_rename_scratch(&mut pending, 1, scratch_bytes, &mut charge)?;
+                pending.push((root, false));
+                while let Some((id, ready)) = pending.pop() {
+                    if verified.contains(&id) { continue; }
+                    // Newly interned outputs cannot make a malformed source
+                    // handle valid partway through this rename.
+                    if id.0 as usize > checkpoint.contexts { return Err(exhausted()); }
+                    let expression = if id == IDENTITY { None } else {
+                        Some(*self.contexts.get(id.0 as usize - 1).ok_or_else(exhausted)?)
+                    };
+                    let (children, count) = match expression {
+                        None => ([IDENTITY, IDENTITY], 0),
+                        Some(ContextExpr::Replay { lower, upper }) => ([lower, upper], 2),
+                        Some(ContextExpr::PrefixLeft { input, .. }
+                            | ContextExpr::SuffixRightPops { input, .. }
+                            | ContextExpr::Swap { input }
+                            | ContextExpr::BothFromRight { input, .. }
+                            | ContextExpr::WithoutLeftFilter { input }) => ([input, IDENTITY], 1),
+                    };
+                    if children[..count].iter().any(|child| child.0 >= id.0) {
+                        return Err(exhausted());
+                    }
+                    if !ready && count > 0 {
+                        reserve_rename_scratch(&mut pending, count + 1, scratch_bytes, &mut charge)?;
+                        pending.push((id, true));
+                        for &child in children[..count].iter().rev() {
+                            if !verified.contains(&child) { pending.push((child, false)); }
+                        }
+                        continue;
+                    }
+                    let child = |input| remap.get(&input).copied().ok_or_else(exhausted);
+                    let weight = |input: LocalWeightId| {
+                        self.weights.get(input.0 as usize).ok_or_else(exhausted)?;
+                        let copy = weights.get(&input).copied().ok_or_else(exhausted)?;
+                        self.weights.get(copy.0 as usize).ok_or_else(exhausted)?;
+                        Ok::<_, SolveAvailabilityError>(copy)
+                    };
+                    let renamed = match expression {
+                        None => None,
+                        Some(ContextExpr::PrefixLeft { weight: token, input }) =>
+                            Some(ContextExpr::PrefixLeft { weight: weight(token)?, input: child(input)? }),
+                        Some(ContextExpr::SuffixRightPops { input, weight: token }) =>
+                            Some(ContextExpr::SuffixRightPops { input: child(input)?, weight: weight(token)? }),
+                        Some(ContextExpr::Swap { input }) => Some(ContextExpr::Swap { input: child(input)? }),
+                        Some(ContextExpr::BothFromRight { input, certificate }) => Some(ContextExpr::BothFromRight {
+                            input: child(input)?, certificate: certificates.get(&certificate).copied().ok_or_else(exhausted)?,
+                        }),
+                        Some(ContextExpr::Replay { lower, upper }) =>
+                            Some(ContextExpr::Replay { lower: child(lower)?, upper: child(upper)? }),
+                        Some(ContextExpr::WithoutLeftFilter { input }) =>
+                            Some(ContextExpr::WithoutLeftFilter { input: child(input)? }),
+                    };
+                    let old_capacity = verified.capacity();
+                    verified.try_reserve(1).map_err(|_| exhausted())?;
+                    let growth = (verified.capacity() - old_capacity).checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?;
+                    let next_charge = charge.checked_add(growth).ok_or_else(exhausted)?;
+                    let next_scratch = scratch_bytes.checked_add(growth).ok_or_else(exhausted)?;
+                    charge = next_charge;
+                    *scratch_bytes = next_scratch;
+                    if let Some(&copy) = remap.get(&id) {
+                        // Caller-seeded mappings are suggestions. Validate the
+                        // exact reconstructed constructor before accepting one.
+                        let actual = if copy == IDENTITY { None } else {
+                            if copy.0 as usize > checkpoint.contexts { return Err(exhausted()); }
+                            Some(*self.contexts.get(copy.0 as usize - 1).ok_or_else(exhausted)?)
+                        };
+                        if actual != renamed { return Err(exhausted()); }
+                    } else {
+                        // Reserve rollback storage before interning/publication.
+                        reserve_rename_scratch(&mut inserted, 1, scratch_bytes, &mut charge)?;
+                        remap.try_reserve(1).map_err(|_| exhausted())?;
+                        let copy = match renamed { Some(node) => self.context(node)?, None => IDENTITY };
+                        remap.insert(id, copy);
+                        inserted.push(id);
+                    }
+                    verified.insert(id);
+                }
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            for &id in &inserted { remap.remove(&id); }
+            self.rollback(checkpoint);
+        }
+        drop(pending);
+        drop(inserted);
+        drop(verified);
+        *scratch_bytes -= charge;
+        result
+    }
     // Detached postorder fold: the callback sees the exact construction token
     // and ordered children. No relation, source task, or certificate is consumed.
     #[cfg_attr(not(test), allow(dead_code, reason = "detached contextual evaluation gate"))]

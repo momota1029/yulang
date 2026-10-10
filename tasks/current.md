@@ -7919,6 +7919,16 @@ moved to RelationId; it is now test-only, and the repeated package check is
 warning-free. No source PUSH execution, changed filter discharge, or formal-row
 admission was added. See the [relation-completion checkpoint](../notes/progress/2026-10-10-context-relation-completion.md).
 
+A detached context-DAG renamer now validates every cached suggestion against
+the exact postorder-renamed constructor and all reachable explicit weight and
+certificate substitutions. Malformed cached children fail through `Err`; the
+helper rolls back its context insertions and map additions and releases charged
+scratch. The initial compiler-referee review found a cache-bypass defect; the
+repair passed fresh compiler-referee delta review. Focused context tests passed
+(50), with scoped diff checks. This remains detached preparation with no live
+freshening or transport consumer. See the
+[context DAG renamer checkpoint](../notes/progress/2026-10-10-context-dag-renamer.md).
+
 Next: map and implement contextual transport/freshening across relation DAGs,
 weights, capture, extrusion, and qualifying intrusion while keeping nonempty
 source execution disconnected. Then complete the exact two-cycle certificate

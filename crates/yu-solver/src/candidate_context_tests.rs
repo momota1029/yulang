@@ -1,6 +1,169 @@
 use super::*;
 use yu_hir::shadow::lower_module_with_local_source;
 
+fn detached_rename_state() -> State {
+    let mut session = session_with_source("act E\nmy answer:[E] int = 1");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let payload = state(&session).weights.iter().find(|weight| !weight.allowed.is_empty()).unwrap();
+    let mut context = State::default();
+    for boundary in 0..6 {
+        context.source_weight(boundary, &payload.owner, &payload.position, &payload.allowed, None).unwrap();
+    }
+    context
+}
+
+#[test]
+fn detached_rename_preserves_all_constructors_sharing_order_and_per_use_identity() {
+    let mut context = detached_rename_state();
+    assert_eq!(context.weights[0].allowed, context.weights[1].allowed);
+    let a = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(0), input: IDENTITY }).unwrap();
+    let b = context.context(ContextExpr::SuffixRightPops { input: a, weight: LocalWeightId(1) }).unwrap();
+    let swap = context.context(ContextExpr::Swap { input: b }).unwrap();
+    let both = context.context(ContextExpr::BothFromRight { input: swap, certificate: EntryCertificateId(17) }).unwrap();
+    let filter = context.context(ContextExpr::WithoutLeftFilter { input: both }).unwrap();
+    let pair = context.context(ContextExpr::Replay { lower: a, upper: filter }).unwrap();
+    let root = context.context(ContextExpr::Replay { lower: pair, upper: a }).unwrap();
+    let certificates = HashMap::from([(EntryCertificateId(17), EntryCertificateId(999))]);
+    let mut first = HashMap::new();
+    let mut scratch = 13;
+    let weights = HashMap::from([(LocalWeightId(0), LocalWeightId(2)), (LocalWeightId(1), LocalWeightId(3))]);
+    let before = context.checkpoint();
+    context.rename_contexts(&[root, filter, IDENTITY], &weights, &certificates, &mut first, &mut scratch).unwrap();
+    assert_eq!(scratch, 13);
+    assert_eq!(first[&IDENTITY], IDENTITY);
+    assert_eq!(context.contexts[first[&a].0 as usize - 1], ContextExpr::PrefixLeft { weight: LocalWeightId(2), input: IDENTITY });
+    assert_eq!(context.contexts[first[&b].0 as usize - 1], ContextExpr::SuffixRightPops { input: first[&a], weight: LocalWeightId(3) });
+    assert_eq!(context.contexts[first[&swap].0 as usize - 1], ContextExpr::Swap { input: first[&b] });
+    assert_eq!(context.contexts[first[&both].0 as usize - 1], ContextExpr::BothFromRight { input: first[&swap], certificate: EntryCertificateId(999) });
+    assert_eq!(context.contexts[first[&filter].0 as usize - 1], ContextExpr::WithoutLeftFilter { input: first[&both] });
+    assert_eq!(context.contexts[first[&pair].0 as usize - 1], ContextExpr::Replay { lower: first[&a], upper: first[&filter] });
+    assert_eq!(context.contexts[first[&root].0 as usize - 1], ContextExpr::Replay { lower: first[&pair], upper: first[&a] });
+    let after = context.checkpoint();
+    context.rename_contexts(&[root, a], &weights, &certificates, &mut first, &mut scratch).unwrap();
+    assert_eq!(context.checkpoint(), after);
+    let mut second = HashMap::new();
+    let other_weights = HashMap::from([(LocalWeightId(0), LocalWeightId(4)), (LocalWeightId(1), LocalWeightId(5))]);
+    context.rename_contexts(&[root], &other_weights, &certificates, &mut second, &mut scratch).unwrap();
+    assert_ne!(first[&root], second[&root]);
+    assert_ne!(first[&a], second[&a]);
+    assert!(context.relations.is_empty());
+    assert!(context.discharged.is_empty(), "opaque certificate remapping grants no authorization");
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    context.rollback(before);
+    first.clear();
+    second.clear();
+    context.rename_contexts(&[root], &weights, &certificates, &mut first, &mut scratch).unwrap();
+    assert_eq!(context.checkpoint(), after);
+    assert_eq!(scratch, 13);
+}
+
+#[test]
+fn detached_rename_missing_substitutions_and_malformed_handles_rollback_and_retry() {
+    let mut context = detached_rename_state();
+    let a = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(0), input: IDENTITY }).unwrap();
+    let root = context.context(ContextExpr::BothFromRight { input: a, certificate: EntryCertificateId(17) }).unwrap();
+    let before = context.checkpoint();
+    let weights = HashMap::from([(LocalWeightId(0), LocalWeightId(2))]);
+    let certificates = HashMap::from([(EntryCertificateId(17), EntryCertificateId(999))]);
+    let mut map = HashMap::from([(IDENTITY, IDENTITY)]);
+    let mut scratch = 7;
+    for (roots, weights, certificates) in [
+        (vec![root], weights.clone(), HashMap::new()),
+        (vec![root], HashMap::new(), certificates.clone()),
+        (vec![root], HashMap::from([(LocalWeightId(0), LocalWeightId(u32::MAX))]), certificates.clone()),
+        (vec![root, ContextId(before.contexts as u32 + 1)], weights.clone(), certificates.clone()),
+        (vec![root, ContextId(u32::MAX)], weights.clone(), certificates.clone()),
+    ] {
+        assert_eq!(context.rename_contexts(&roots, &weights, &certificates, &mut map, &mut scratch), Err(exhausted()));
+        assert_eq!(context.checkpoint(), before);
+        assert_eq!(map, HashMap::from([(IDENTITY, IDENTITY)]));
+        assert_eq!(scratch, 7);
+    }
+    let malformed = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(u32::MAX), input: IDENTITY }).unwrap();
+    let malformed_before = context.checkpoint();
+    assert!(context.rename_contexts(&[malformed], &HashMap::from([(LocalWeightId(u32::MAX), LocalWeightId(0))]), &certificates, &mut map, &mut scratch).is_err());
+    assert_eq!(context.checkpoint(), malformed_before);
+    // Corrupt retained construction is rejected before descending or interning.
+    context.contexts[malformed.0 as usize - 1] = ContextExpr::Swap { input: malformed };
+    assert!(context.rename_contexts(&[malformed], &weights, &certificates, &mut map, &mut scratch).is_err());
+    assert_eq!(scratch, 7);
+    context.rename_contexts(&[root], &weights, &certificates, &mut map, &mut scratch).unwrap();
+    assert_eq!(scratch, 7);
+}
+
+#[test]
+fn detached_rename_validates_cached_roots_and_partial_child_suggestions() {
+    let mut context = detached_rename_state();
+    let a = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(0), input: IDENTITY }).unwrap();
+    let root = context.context(ContextExpr::BothFromRight { input: a, certificate: EntryCertificateId(17) }).unwrap();
+    let weights = HashMap::from([(LocalWeightId(0), LocalWeightId(2))]);
+    let certificates = HashMap::from([(EntryCertificateId(17), EntryCertificateId(999))]);
+    let mut scratch = 11;
+    let mut valid = HashMap::new();
+    context.rename_contexts(&[root], &weights, &certificates, &mut valid, &mut scratch).unwrap();
+    let before = context.checkpoint();
+    for (mut map, weights, certificates) in [
+        (valid.clone(), HashMap::new(), certificates.clone()),
+        (valid.clone(), weights.clone(), HashMap::new()),
+        (HashMap::from([(a, ContextId(u32::MAX))]), weights.clone(), certificates.clone()),
+        (HashMap::from([(a, root)]), weights.clone(), certificates.clone()),
+        (HashMap::from([(root, valid[&root])]), HashMap::new(), certificates.clone()),
+    ] {
+        let original = map.clone();
+        assert_eq!(context.rename_contexts(&[root], &weights, &certificates, &mut map, &mut scratch), Err(exhausted()));
+        assert_eq!(context.checkpoint(), before);
+        assert_eq!(map, original);
+        assert_eq!(scratch, 11);
+    }
+    context.rename_contexts(&[root, a], &weights, &certificates, &mut valid, &mut scratch).unwrap();
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(scratch, 11);
+    let mut partial = HashMap::from([(a, valid[&a])]);
+    context.rename_contexts(&[root], &weights, &certificates, &mut partial, &mut scratch).unwrap();
+    assert_eq!(partial, valid);
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(scratch, 11);
+}
+
+#[test]
+fn detached_rename_identity_and_scratch_overflow_are_atomic() {
+    let mut context = State::default();
+    let mut map = HashMap::new();
+    let before = context.checkpoint();
+    let mut scratch = usize::MAX;
+    assert!(context.rename_contexts(&[IDENTITY], &HashMap::new(), &HashMap::new(), &mut map, &mut scratch).is_err());
+    assert_eq!(scratch, usize::MAX);
+    assert!(map.is_empty());
+    assert_eq!(context.checkpoint(), before);
+    scratch = 0;
+    context.rename_contexts(&[IDENTITY], &HashMap::new(), &HashMap::new(), &mut map, &mut scratch).unwrap();
+    assert_eq!(map[&IDENTITY], IDENTITY);
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(scratch, 0);
+    // Identity cache validation needs no weight or certificate substitution.
+    context.rename_contexts(&[IDENTITY], &HashMap::new(), &HashMap::new(), &mut map, &mut scratch).unwrap();
+    assert_eq!(map, HashMap::from([(IDENTITY, IDENTITY)]));
+    assert_eq!(scratch, 0);
+}
+
+#[test]
+fn detached_rename_walks_deep_shared_dag_iteratively() {
+    let mut context = detached_rename_state();
+    let mut root = IDENTITY;
+    for _ in 0..4096 {
+        root = context.context(ContextExpr::Replay { lower: root, upper: root }).unwrap();
+    }
+    let before = context.checkpoint();
+    let mut map = HashMap::new();
+    let mut scratch = 0;
+    context.rename_contexts(&[root, root], &HashMap::new(), &HashMap::new(), &mut map, &mut scratch).unwrap();
+    assert_eq!(map.len(), 4097);
+    assert_eq!(map[&root], root);
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(scratch, 0);
+}
+
 #[test]
 fn detached_fold_retains_shared_nodes_order_bracketing_and_certificates() {
     let mut context = State::default();
