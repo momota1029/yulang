@@ -7753,9 +7753,10 @@ formal effect rows remain unsupported. Complete Call, full effect hygiene,
 soundness, principality, ordinary/default publication and F5 retirement remain
 open. The separate ordinary-HIR carrier question has a local q1/a1 answer, but
 its approved-answer text differs from the draft by `unstaged and uncommitted`
-versus `unstaged/uncommitted`. The questioning primary rejected that handoff
-for integration and recorded the mismatch in its uncommitted receipt; the
-ordinary carrier architecture remains unapproved.
+versus `unstaged/uncommitted`. At the user's explicit request, the questioning
+primary committed the question bundle as an archival record, while the receipt
+preserves the failed exact-content validation. The answer remains unconsumed,
+and the ordinary carrier architecture remains unapproved.
 
 Next: implement contextual attachment/context operations and the two-cycle
 certificate lifecycle on this single relation authority, preserving the exact
@@ -8179,8 +8180,23 @@ lack located route-journal undo. See the [Packet 1 readiness proof](../notes/pro
 [conditional lifecycle proof](../notes/progress/2026-10-10-certificate-generation-conditional-proof.md)
 and [origin mutation falsifier](../notes/progress/2026-10-10-certificate-generation-falsifier.md).
 
-Next: freeze and independently review a complete current-component
-generation contract covering every recognizer-input mutation, every dependent
+The independently reviewed [bound-fiber audit](../notes/progress/2026-10-10-canonical-bound-fiber-prover-audit.md)
+derives conditional storage coverage: successful bound insertion attaches its
+context fiber before publishing the physical bound, and SCC canonicalization
+transports retained fibers. Its proposed missing-fiber trace was rejected: the
+first nested comparison itself inserts the allegedly absent mixed key. The
+remaining question is whether a restore-loop iteration can omit any incoming-
+use obligation after a nested SCC drain changes the opposite-bound vector. A
+complementary static [reachability audit](../notes/progress/2026-10-10-canonical-bound-fiber-reachability-audit.md)
+finds that the exact two-parent Value setup is API-injected rather than
+reconstructed by the normal Value capture path; it leaves Effect and alternate
+source constructions open. Neither note establishes a compiler defect or
+source counterexample. No code/test/build result follows from these static
+characterizations.
+
+Next: resolve restoration replay coverage and its source correspondence, then
+freeze and independently review a complete current-component generation
+contract covering every recognizer-input mutation, every dependent
 reuse/publication, and transaction withdrawal/rollback. Then implement that
 contract under the approved two-cycle gate, followed by exact recognition,
 private deferral and rollback/retry evidence. In parallel, retain the
