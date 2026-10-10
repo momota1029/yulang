@@ -2,7 +2,7 @@ use super::*;
 use yu_hir::shadow::lower_module_with_local_source;
 
 fn session() -> InferenceSession {
-    let source: Arc<yu_syntax::SourceText> = Arc::from("my seed = 1");
+    let source: Arc<yu_syntax::SourceText> = Arc::from("act E\nmy seed = 1");
     let parsed = yu_syntax::parse_file(
         source.clone(),
         Arc::new(yu_syntax::scan_header(source)),
@@ -27,9 +27,16 @@ fn session() -> InferenceSession {
     session
 }
 fn cause(session: &InferenceSession, slot: u8) -> (ConstraintOccurrenceId, CauseId) {
-    let HirItem::Binding(binding) = &session.batch.hir.items()[0] else {
-        panic!("binding")
-    };
+    let binding = session
+        .batch
+        .hir
+        .items()
+        .iter()
+        .find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        })
+        .expect("binding");
     let occurrence = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), slot);
     let cause = CauseId::for_occurrence(occurrence.clone());
     (occurrence, cause)
@@ -182,21 +189,68 @@ fn real_extrusion_and_qualifying_intrusion_transport_identity_dependencies() {
         } else {
             value(session.fresh_value_at_level(2).unwrap())
         };
-        let lower = if effect {
-            ExtrusionEndpoint::Effect(EffectEndpointKey::BottomPositive)
+        let upper = if effect {
+            let binding = session
+                .batch
+                .hir
+                .items()
+                .iter()
+                .find_map(|item| match item {
+                    HirItem::Binding(binding) => Some(binding),
+                    _ => None,
+                })
+                .expect("binding");
+            let owner = binding.definition_root().clone();
+            let declaration = session.batch.hir.source_effect_declarations()[0].id.clone();
+            let tail = session.fresh_effect_at_level(2).unwrap();
+            let view = session
+                .candidate_effect_view(
+                    owner,
+                    declaration.declaration.clone(),
+                    vec![declaration],
+                    Some(tail),
+                )
+                .unwrap();
+            ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view))
         } else {
-            ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive)
+            ExtrusionEndpoint::Value(ValueEndpointKey::IntNegative)
         };
         session
-            .candidate_restore_bound(parent, Polarity::Positive, lower, &occurrence, &cause)
+            .candidate_restore_bound(parent, Polarity::Negative, upper, &occurrence, &cause)
             .unwrap();
         let source = state(&session)
-            .bound(BoundKey(parent, Polarity::Positive, lower))
+            .bound(BoundKey(parent, Polarity::Negative, upper))
             .unwrap();
         let copy = session
-            .candidate_extrude(parent, Polarity::Positive, 0)
+            .candidate_extrude(parent, Polarity::Negative, 0)
             .unwrap();
         assert_ne!(copy, parent);
+        if let (
+            ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(original_view)),
+            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copy_row)),
+        ) = (upper, copy)
+        {
+            let copied_view = session.effect_bounds[copy_row as usize]
+                .exact_non_variable_uppers
+                .iter()
+                .find_map(|endpoint| match endpoint {
+                    EffectEndpointKey::Allowance(view) => Some(*view),
+                    _ => None,
+                })
+                .expect("negative Allowance bound transfers through negative extrusion");
+            assert_ne!(copied_view, original_view);
+            assert!(
+                session
+                    .candidate_graph
+                    .as_ref()
+                    .unwrap()
+                    .intrusion
+                    .effect_algebra
+                    .views[copied_view as usize]
+                    .tail
+                    .is_some()
+            );
+        }
         assert!(
             state(&session)
                 .dependencies
@@ -205,7 +259,7 @@ fn real_extrusion_and_qualifying_intrusion_transport_identity_dependencies() {
             Dependency::Transport { parent, .. } if *parent == source))
         );
         session
-            .candidate_restore_bound(copy, Polarity::Negative, parent, &occurrence, &cause)
+            .candidate_restore_bound(copy, Polarity::Positive, parent, &occurrence, &cause)
             .unwrap();
         let self_task = match copy {
             ExtrusionEndpoint::Value(row) => LiveConstraintTask::Value(CanonicalValuePairKey {
@@ -226,8 +280,8 @@ fn real_extrusion_and_qualifying_intrusion_transport_identity_dependencies() {
             state(&session)
                 .bound(BoundKey(
                     session.canonical_extrusion(parent),
-                    Polarity::Positive,
-                    lower
+                    Polarity::Negative,
+                    upper
                 ))
                 .is_some()
         );
