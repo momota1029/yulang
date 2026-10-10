@@ -6970,23 +6970,30 @@ extrusion, freshening, intrusion and rollback. A fixed-witness source audit
 shows its existing `PUSH_i` belongs to outer owner `t` and is consumed at the
 outer callback call; the fixed witness alone does not provide the
 `PUSH_i²` continuation that distinguishes `POP_i²` from `POP_i³` at the mapped
-`h <: E` suffix. A paired symbolic row-tail annotation now supplies same-ID
-PUSH transport from `t` through `e` to `h`; see the
-[paired annotation bridge](../notes/progress/2026-10-10-paired-annotation-push-bridge.md).
-The exact `(loop x) x` candidate has now been parsed and executed in a pinned
-Oracle harness after replacing its inner wildcard row with a symbolic `[; 'h]`
-tail. That changed source lowers without errors, but is not equivalent to the
-original: the original wildcard source parses and then fails lowering with
-`WildcardEffectRowInTypePosition`. The ordered trace finds left POP1 at
-Pos33/TV20 → Neg69/TV50 before left POP2, which the earlier POP1 bounds
-subsume; it does not show POP2 suppressing POP1. At Pos4/TV5 → Neg69/TV50,
-right POP2 is inserted and later right POP3/POP4 are subsumed. The trace lacks
-the source-origin/freshening map needed to call TV50 the named source `E`, and
-records no admitted mixed PUSH/POP context. Preserve the distinct premises and
-do not use this as an `e/E` versus `h/E` proof. The user's exact callback target
-is `(int -> ['b, io] 'c) -> int -> ['b] 'c`; it remains an unexecuted target for
-concrete contravariant subtraction. Positive covariant annotations already
-have a private source/propagation implementation. Full hygiene, complete Call,
+`h <: E` suffix. The paired row-tail witness has two distinct HIR owners: its
+original annotated callback is a field of `x`, while local annotations `a` and
+`b` refer to the anonymous tuple parameter field `f`. The recursive use
+`(loop x) x` reconnects these owners through application and tuple projection,
+so owner distinction alone does not show the relation is absent. In the
+observed path, however, the original `PUSH_i` meets right `POP_i` and becomes
+identity at `Pos6/TV6 -> Neg33/TV20`; the subsequent inner comparison carries
+right `POP_i²`. The four-edge `t→e→h` table is therefore conditional, not the
+observed trace. See the
+[bridge correction](../notes/progress/2026-10-10-paired-annotation-push-bridge-correction.md)
+and [conditional construction](../notes/progress/2026-10-10-paired-annotation-push-bridge.md).
+
+The pinned instrumented harness parsed and lowered the symbolic-tail variant
+without errors; it did not execute the program. The original wildcard source
+parses but fails lowering with `WildcardEffectRowInTypePosition`. The ordered
+trace finds left POP1 at Pos33/TV20 → Neg69/TV50 before left POP2, which the
+earlier POP1 bound subsumes; it does not show POP2 suppressing POP1. At
+Pos4/TV5 → Neg69/TV50, right POP2 is inserted and later right POP3/POP4 are
+subsumed. The trace lacks the source-origin/freshening map needed to identify
+TV50 as the named source `E`, and records no admitted mixed PUSH/POP context.
+Do not use it as an `e/E` versus `h/E` proof. The user's exact callback target
+is `(int -> ['b, io] 'c) -> int -> ['b] 'c`; it remains unverified for concrete
+contravariant subtraction. Positive covariant annotations already have a
+private source/propagation implementation. Full hygiene, complete Call,
 soundness/principality and public/default F5 cutover remain open.
 
 ### Contextual effect cyclic algebra: exact partial solution (2026-10-10)

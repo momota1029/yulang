@@ -1,11 +1,33 @@
 # Paired annotation PUSH bridge into the nested callback effect
 
 Date: 2026-10-10
-Status: source bridge and bounded Oracle trace reviewed; source-owner map and
-successor correspondence open
+Status: conditional construction hypothesis; the source attribution for the
+shown witness is corrected by
+[`paired-annotation-push-bridge-correction.md`](2026-10-10-paired-annotation-push-bridge-correction.md)
 Successor baseline: `3bb355b56`
 Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Authority: user-selected polarity-sensitive effect-hygiene policy
+
+## Current source-attribution correction
+
+The table and PUSH path below are conditional on the original annotated
+callback and the reannotated callback inhabiting the same formal value
+coordinate. The displayed source does not establish that premise: its original
+`[io]` callback is a field of the tuple parameter `x`, while `a` and `b`
+annotate the separate `f` component of an anonymous lambda's tuple parameter.
+An independent compiler-referee trace found that recursive application
+reconnects these owners under right `POP_i`, which cancels the original
+`PUSH_i` at the observed outer effect comparison. The subsequent inner effect
+comparison carries right `POP_i²`; the four-edge table below is not the
+observed source derivation.
+
+The instrumented run has one normalized PUSH-bearing semantic enqueue: the
+original annotation's self-comparison. No PUSH-bearing bound disposition or
+replay offer is logged. Therefore this witness does not establish an admitted
+`PUSH_i²` predecessor, nor the conditional bridge into `h/E`. The exact
+source-coordinate trace, log lines, alias dispositions and provenance limits
+are recorded in the linked correction. This update preserves the conditional
+algebra below but withdraws its attribution to this source.
 
 ## Source-owner result
 
@@ -34,8 +56,10 @@ my loop(x: ((int -> [io] (int -> [_] 'c)), int)) =
   }
 ```
 
-For one local annotation, let `e` be its shared symbolic effect tail. The
-paired formal comparisons generate:
+**Conditional construction only:** if one original callback and one local
+reannotation share the same formal value coordinate, and `e` is the local
+annotation's shared symbolic effect tail, the paired formal comparisons
+generate:
 
 | Endpoints | Context | Origin |
 | --- | --- | --- |
@@ -53,9 +77,11 @@ The local name resolves to the same monomorphic formal value:
 `lowering/name_ref.rs:146–153`, `lowering/expr/tail.rs:855–858`, and
 `lowering/expr/block_local.rs:570–578,899–932`.
 
-The graph therefore carries same-ID PUSH evidence from `t` through `e` to
-`h`; this is not global separation of the two source owners. It does not by
-itself establish a distinguishing admitted context at `h <: E`.
+Under that conditional premise, the graph carries same-ID PUSH evidence from
+`t` through `e` to `h`; it does not by itself establish a distinguishing
+admitted context at `h <: E`. The displayed witness has distinct original and
+reannotated formal coordinates, so this conditional graph is not evidence that
+its source realizes the bridge.
 
 ## Replay and alias admission
 
@@ -112,13 +138,15 @@ guard soundness, successor portability or whole termination.
 
 ## Verification and provenance
 
-An independent compiler-referee confirmed the source bridge and reviewed the
-ordered trace, correcting the predicted suppression direction: at the first
-logged endpoint, POP1 survives and suppresses POP2. A bounded instrumented
-Oracle harness build and two source runs established parse/lower status and
-the endpoint events above. The harness was built with one Cargo job, a 3 GiB
-process-group RSS cap and 180-second wall cap; peak sampled build RSS was about
-2.27 GB. The original source parsed but failed lowering; the symbolic-row
-variant lowered with zero errors. No successor build/tests or performance
-study ran. This source-research checkpoint closes no effect-hygiene,
-complete-Call, termination, soundness/principality or cutover gate.
+The initial compiler-referee review confirmed the conditional construction but
+misattributed it to this source. A later independent compiler-referee review
+corrected that source-coordinate mapping and the observed POP path; see the
+[correction](2026-10-10-paired-annotation-push-bridge-correction.md). A
+bounded instrumented Oracle harness build and two source runs established
+parse/lower status and endpoint events. The harness was built with one Cargo
+job, a 3 GiB process-group RSS cap and 180-second wall cap; peak sampled build
+RSS was about 2.27 GB. The original wildcard source parsed but failed lowering;
+the symbolic-row variant lowered with zero errors. No successor build/tests or
+performance study ran. This source-research checkpoint closes no
+effect-hygiene, complete-Call, termination, soundness/principality or cutover
+gate.
