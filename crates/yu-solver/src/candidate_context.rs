@@ -2109,6 +2109,7 @@ impl InferenceSession {
         state.bundle_link(child, bundle)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
+    #[cfg(test)]
     pub(super) fn candidate_context_transport(
         &mut self,
         parent: RelationId,

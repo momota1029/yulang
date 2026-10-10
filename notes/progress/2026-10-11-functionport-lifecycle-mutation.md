@@ -64,6 +64,27 @@ every mutation. Static accounting and visit-count checks should establish cost;
 no timing result is needed yet. No implementation or measurement has been
 performed.
 
+## Focused regression and warning ownership follow-up
+
+The exact pre-existing-relation case now has a regression in
+`candidate_context_tests.rs::function_port_identity_incidence_changes_without_new_relations_or_intrusion_generation`.
+It observes dependency-only FunctionPort evidence without relation/context
+allocation or intrusion generation change, then checks route rollback,
+successful retry and duplicate-admission deduplication. Focused verification
+passed 1/1 under a single Cargo job, one CPU, 1.5 GiB address-space limit and
+120-second timeout; the build used reduced test debug info. A fresh
+compiler-referee review found no blocking, major or minor findings. This test
+exercises the producer but is not ordinary-source reachability or lifecycle
+certificate closure.
+
+The warning audit also marks the no-witness `candidate_context_transport`
+convenience wrapper `cfg(test)`, since its callers are tests; production uses
+the witness-bearing transport. `RetainedInput` fields, `CircuitEvidence.parents`
+and `owned_bytes` remain unused production evidence for the future certificate
+consumer. Removing them would weaken the approved provenance/accounting
+contract, and adopting them now belongs to the next lifecycle implementation
+gate. No blanket warning suppression was added.
+
 Next implementation gate remains the full lifecycle foundation under §§4–6:
 tracked input mutation, dependent-observation withdrawal, successful private
 deferral with exact input retained, member/publication blocking, and route

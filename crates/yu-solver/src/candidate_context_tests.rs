@@ -2721,6 +2721,76 @@ fn function_port_context_simplifies_only_post_check_identity_and_keeps_incidence
 }
 
 #[test]
+fn function_port_identity_incidence_changes_without_new_relations_or_intrusion_generation() {
+    let mut session = session();
+    let parent_task = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    });
+    let child_task = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::UnitPositive, upper: ValueEndpointKey::TopNegative,
+    });
+    let algebra = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+    let parent = algebra.context.relation(task_pair(parent_task), IDENTITY).unwrap();
+    let child = algebra.context.relation(task_pair(child_task), IDENTITY).unwrap();
+    assert_ne!(parent, child);
+    // Production Function dispatch retains Derived before FunctionPort. Its
+    // existing relation and diagnostic edge must not hide new typed incidence.
+    algebra.context.dependency(Dependency::Derived { parent, child }).unwrap();
+    algebra.processing = Some(task_pair(parent_task));
+    algebra.context.processing = Some(parent);
+    let before = state(&session).checkpoint();
+    let generation = session.candidate_graph.as_ref().unwrap().intrusion.generation;
+    let port = Dependency::FunctionPort {
+        parent, child, field: FunctionField::Argument, operation: FunctionPortOperation::Swap,
+    };
+    let roots = [parent];
+    {
+        let input = state(&session).retained_input(&roots, &[], &[]).unwrap();
+        assert_eq!(input.evidence.relations().count(), 2);
+        assert_eq!(input.evidence.dependencies().count(), 1);
+        let InputCompleteness::Incomplete(gaps) = &input.completeness else {
+            panic!("borrowed construction evidence cannot certify readiness");
+        };
+        assert!(!gaps.contains(&InputGap::InertOperation));
+    }
+    for rollback in [true, false] {
+        let result = session.with_route_transaction(|session| {
+            assert_eq!(session.candidate_function_port_admit(child_task, FunctionField::Argument)?, Some(child));
+            let context = state(session);
+            assert_eq!(context.relations.len(), before.relations);
+            assert_eq!(context.contexts.len(), before.contexts);
+            assert_eq!(context.edge_log.len(), before.edges);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.generation, generation);
+            assert_eq!(context.dependencies.len(), before.dependencies + 1);
+            assert_eq!(context.dependencies.last(), Some(&port));
+            assert!(context.dependency_keys.contains(&port));
+            let input = context.retained_input(&roots, &[], &[])?;
+            assert_eq!(input.evidence.relations().count(), 2);
+            assert_eq!(input.evidence.dependencies().count(), 2);
+            let InputCompleteness::Incomplete(gaps) = &input.completeness else {
+                panic!("Function-port incidence remains incomplete construction evidence");
+            };
+            assert!(gaps.contains(&InputGap::InertOperation));
+            drop(input);
+            if rollback { return Err(exhausted()); }
+            let after = state(session).checkpoint();
+            assert_eq!(session.candidate_function_port_admit(child_task, FunctionField::Argument)?, Some(child));
+            assert_eq!(state(session).checkpoint(), after, "duplicate admission retains the port once");
+            Ok(())
+        });
+        if rollback {
+            assert_eq!(result, Err(exhausted()));
+            assert_eq!(state(&session).checkpoint(), before);
+            assert!(!state(&session).dependency_keys.contains(&port));
+            assert_eq!(state(&session).dependencies, vec![Dependency::Derived { parent, child }]);
+            assert!(state(&session).edge_keys.contains(&(parent, child)));
+        } else { result.unwrap(); }
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.generation, generation);
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
 fn function_port_incidence_preserves_exact_relations_and_route_retry() {
     let mut session = session_with_source("my answer x:int -> int = x");
     let owner = empty_bundle_owner(&session);

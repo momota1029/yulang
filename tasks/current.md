@@ -8508,6 +8508,15 @@ The reviewed lifecycle contract remains unimplemented; its exact pre-existing
 identity FunctionPort regression and incremental-index/resource requirements
 are included in the next implementation packet.
 
+That exact pre-existing-relation case now has a focused regression covering
+dependency-only evidence mutation, unchanged relation/context counts and
+intrusion generation, rollback, retry and duplicate admission. It passed 1/1;
+a fresh compiler-referee review found no findings. The no-witness transport
+wrapper is now test-only. Three remaining unused evidence groups
+(`RetainedInput` fields, `CircuitEvidence.parents`, and `owned_bytes`) are
+required by the future certificate consumer and remain assigned to the
+lifecycle implementation gate; they were not removed or blanket-suppressed.
+
 The later [boundary-zero source restoration probe](../notes/progress/2026-10-11-boundary-zero-source-restoration.md)
 adds an ordinary top-level `my later = left` reference. Unlike the earlier
 boundary1 local use, its genuine boundary0 capture contains the exact positive
