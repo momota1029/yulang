@@ -1,8 +1,9 @@
 # Q113: conditional native replay bridge and the missing source invariant
 
 Date: 2026-10-11
-Status: frozen, unreviewed research-only conditional derivation and minimized
-source induction obstruction. Alternative A/B remain OPEN. No all-source
+Status: compiler-referee-reviewed research-only conditional derivation and
+minimized source induction obstruction; primary closed one minor proof-statement
+finding. Alternative A/B remain OPEN. No all-source
 impossibility, universal rescue, independent certification, or authority claim.
 Producer: `/root/q113_proof`, leaf; no delegation.
 Exclusive lease: this note only.
@@ -128,7 +129,11 @@ invariants:
 
 1. **Authentic requirement coverage.** Every required omega is represented at
    its actual generation/activation point by the correct source-owned bound
-   inputs or typed relation; capture/freshening does not silently omit it.
+   inputs or typed relation; capture/freshening does not silently omit it. At
+   that point, ownership is explicitly partitioned: omega is selected by a
+   guaranteed future restore, retained as a pending replay/typed consumer, or
+   already completed with valid dependencies and the incoming occurrence/cause.
+   Mere endpoint or relation representation does not seed this partition.
 2. **Mutation preservation.** At every actual mutation before consumption,
    each required omega either keeps a guaranteed future restore selection
    with the correct current keys and fibers, or an actual replay/typed child
@@ -141,10 +146,11 @@ invariants:
    old dependency requires this same-use diagnostic bridge; dependency
    existence or a reverse edge alone is insufficient.
 4. **Terminal and transaction closure.** A terminal completed source/use
-   result has no pending required selection, replay child, recomputation or
-   diagnostic. Publication observes that condition. Failure restores the
-   same requirement/selection/completion ownership; successful retry proves
-   its own coverage from the restored generation.
+   result has no unconsumed required omega, including one that was represented
+   but never selected or scheduled, and no pending required selection, replay
+   child, recomputation or diagnostic. Publication observes that condition.
+   Failure restores the same requirement/selection/completion ownership;
+   successful retry proves its own coverage from the restored generation.
 
 **Conditional theorem:** under 1–4, every required omega in every *completed*
 authentic source/use execution is checked/reported before affected publication.
@@ -221,6 +227,20 @@ actual saved index, both fiber witnesses/transforms and incoming diagnostic
 cause. Repeating an original-Y source route without that discriminating seam
 does not close this derivation.
 
+## Independent review and minor repair
+
+An independent compiler-referee review against the pinned source commit found
+no blocking or major issue in the conditional replay lemma, quantifiers, or
+missing third-owner bridge. It found one minor proof-statement gap: hypothesis
+1 named representation without explicitly seeding an ownership partition, and
+hypothesis 4 did not explicitly exclude an unscheduled required omega. The
+primary repaired those clauses above by requiring each omega to be selected,
+retained pending, or already validly completed at activation, and by excluding
+every unconsumed omega at terminal publication. This is a stronger conditional
+hypothesis only; it establishes no source correspondence or A/B result. The
+reviewer confirmed the stated pinned-source locators. No review of later
+worktree bytes or full source reachability is claimed.
+
 ## Checks, runtime and frozen commit packet
 
 Checks: narrow `cat`, `sed`, `rg` and `sha256sum` source/contract reads;
@@ -268,9 +288,10 @@ with the later working tree; no mixed-snapshot certification is claimed.
 Commit packet: exact lease
 `notes/progress/2026-10-11-q113-source-exhaustive-bridge-proof.md`; baseline
 `919864319bf216d9b8803dd1095941a571f78e78`; dependencies as above, none
-edited by this leaf. Review: pending fresh primary-assigned independent
-review; conditional research only, A/B OPEN. Checks already run: static native
-owner/consumer inspection and hashes; no execution. Proposed message:
+edited by this leaf. Review: independent compiler-referee review had no
+blocking/major finding; the minor proof-statement finding was closed by the
+primary's text-only repair; conditional research only, A/B OPEN. Checks already
+run: static native owner/consumer inspection and hashes; no execution. Proposed message:
 `research: isolate q113 source preservation bridge for exhaustive rescue`.
 Shared-record deltas left for primary/curator: retain A/B OPEN; record the
 unchanged-third-owner ordered-fiber/diagnostic premise; mark historical stale
