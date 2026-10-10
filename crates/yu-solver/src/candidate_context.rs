@@ -1773,14 +1773,15 @@ impl State {
     pub(super) fn restoration(&self, id: ReplayOperationId) -> Result<&BoundRestoration, SolveAvailabilityError> {
         self.restorations.get(&id).ok_or_else(exhausted)
     }
-    pub(super) fn prepare_restoration_update(&mut self, id: ReplayOperationId, transactional: bool) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn prepare_restoration_update(&mut self, id: ReplayOperationId, transactional: bool) -> Result<bool, SolveAvailabilityError> {
         let operation = self.restorations.get(&id).ok_or_else(exhausted)?;
+        let before = self.restoration_undo.capacity();
         if transactional {
             self.restoration_undo.try_reserve(1).map_err(|_| exhausted())?;
             self.restoration_undo.push(BoundRestorationUndo { id, next_opposite: operation.next_opposite,
                 replay: operation.replay, retired: operation.retired });
         }
-        Ok(())
+        Ok(self.restoration_undo.capacity() != before)
     }
     pub(super) fn set_restoration_replay(&mut self, id: ReplayOperationId, replay: ReplayOperationId) {
         self.replay_operations.get_mut(&replay).expect("new retained replay operation").restoration = Some(id);

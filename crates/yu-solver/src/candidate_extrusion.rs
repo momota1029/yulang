@@ -639,6 +639,7 @@ impl InferenceSession {
             candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
     }
 
+    #[cfg(test)]
     pub(super) fn candidate_restore_bound_with_evidence(
         &mut self,
         owner: ExtrusionEndpoint,
@@ -678,47 +679,62 @@ impl InferenceSession {
         &mut self, restoration: candidate_context::ReplayOperationId,
     ) -> Result<candidate_context::BoundEmissionId, SolveAvailabilityError> {
         loop {
-            let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.restoration(restoration)?;
-            let (owner, p, bound, n, count, active, emission) = (operation.owner, operation.polarity, operation.bound,
-                operation.next_opposite, operation.opposite_count, operation.replay, operation.emission);
-            let (occurrence, cause) = (operation.occurrence.clone(), operation.cause.clone());
-            let transactional = self.route_journal.is_some();
-            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_restoration_update(restoration, transactional)?;
-            if n == count {
-                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retire_restoration(restoration, transactional);
-                return Ok(emission);
-            }
-            if let Some(replay) = active {
-                self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?;
-                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.advance_restoration(restoration, transactional);
-                continue;
-            }
-            // Re-read the live canonical owner at the saved index; earlier
-            // children may append bounds or redirect its representative.
-            let owner = self.canonical_extrusion(owner);
-            let bound = self.canonical_extrusion(bound);
-            let other = self.canonical_extrusion(self.candidate_opposite_bound(owner, p, n));
-            let (lower, upper) = if p == Polarity::Positive {
-                (bound, other)
-            } else {
-                (other, bound)
-            };
-            let task = match (lower, upper) {
-                (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) => {
-                    LiveConstraintTask::Value(CanonicalValuePairKey { lower, upper })
-                }
-                (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)) => {
-                    LiveConstraintTask::Effect(lower, upper)
-                }
-                _ => unreachable!(),
-            };
-            let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
-            let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
-            let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
-            let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
-            let replay = self.candidate_context_begin_replay(lower_input, upper_input, task, true)?;
-            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.set_restoration_replay(restoration, replay);
+            if let Some(emission) = self.candidate_step_bound_restoration(restoration)? { return Ok(emission); }
         }
+    }
+    // One completed owner operation. Typed children and diagnostics remain
+    // atomic; a local parent may retain the handle between these operations.
+    pub(super) fn candidate_step_bound_restoration(
+        &mut self, restoration: candidate_context::ReplayOperationId,
+    ) -> Result<Option<candidate_context::BoundEmissionId>, SolveAvailabilityError> {
+
+        let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.restoration(restoration)?;
+        let (owner, p, bound, n, count, active, emission) = (operation.owner, operation.polarity, operation.bound,
+            operation.next_opposite, operation.opposite_count, operation.replay, operation.emission);
+        let (occurrence, cause) = (operation.occurrence.clone(), operation.cause.clone());
+        let transactional = self.route_journal.is_some();
+        let grew = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_restoration_update(restoration, transactional)?;
+        if grew {
+            // A cold resumed route can allocate undo even at a zero-product
+            // retirement. Account that retained peak before semantic mutation.
+            if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
+            else { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+        }
+        if n == count {
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retire_restoration(restoration, transactional);
+            return Ok(Some(emission));
+        }
+        if let Some(replay) = active {
+            self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?;
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.advance_restoration(restoration, transactional);
+            return Ok(None);
+        }
+        // Re-read the live canonical owner at the saved index; earlier
+        // children may append bounds or redirect its representative.
+        let owner = self.canonical_extrusion(owner);
+        let bound = self.canonical_extrusion(bound);
+        let other = self.canonical_extrusion(self.candidate_opposite_bound(owner, p, n));
+        let (lower, upper) = if p == Polarity::Positive {
+            (bound, other)
+        } else {
+            (other, bound)
+        };
+        let task = match (lower, upper) {
+            (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) => {
+                LiveConstraintTask::Value(CanonicalValuePairKey { lower, upper })
+            }
+            (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)) => {
+                LiveConstraintTask::Effect(lower, upper)
+            }
+            _ => unreachable!(),
+        };
+        let opposite = if p == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+        let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
+        let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
+        let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
+        let replay = self.candidate_context_begin_replay(lower_input, upper_input, task, true)?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.set_restoration_replay(restoration, replay);
+        Ok(None)
     }
 
     pub(super) fn candidate_replay_bound(

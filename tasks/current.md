@@ -8764,9 +8764,28 @@ restoration checks plus no-feature package check passed. This is still an
 internal synchronous foundation: no outward `Suspended` result, interruptible
 typed dispatch, freshening/restoration resume, observation withdrawal and
 recomputation, incidence deferral, or resumable SCC publication was added.
-Production certificates remain disabled. The next gate is the resumable
-local-use freshening/restoration chain joined to this typed-child driver, while
-preserving the existing saved live opposite-index behavior.
+Production certificates remain disabled.
+
+The [local-use restoration continuation slice](../notes/progress/2026-10-11-local-use-restoration-continuation.md)
+now retains the captured graph, one fresh-use identity/remap set, bound cursor,
+accepted restoration handle, and final route publication state. Production
+routing remains synchronous; a closed `cfg(test)` script exercises committed
+pause/resume and prior-frame rollback without Support/READY or external
+incidence mutation. Saved-count/live-index restoration behavior is preserved.
+The first review found publication-capacity retention on rollback; the repair
+journals the old vector allocation, and a fresh compiler-referee closed the
+finding. Parsed Local, multiple-product ownership, terminal handoff, existing
+restoration/source controls, and package checks passed. The test-only
+cross-session parity comparator validates each arena then compares structural
+terms; it does not assert provenance parity.
+
+This does not enable production suspension or close authentic §7 support,
+external incidence deferral, lifecycle withdrawal/recomputation, or SCC
+publication. Dispatch/Function remains atomic. Next gate: ensure nonterminal
+drain resume prepares the full outstanding acknowledgement prefix before any
+side effect, pop, or appended acknowledgement; then continue lifecycle/deferral
+ownership and the source-owned §7 regression. q113, complete Simple-sub
+inference, soundness/principality, and F5 cutover remain open.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no

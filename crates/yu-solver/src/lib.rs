@@ -8106,6 +8106,10 @@ struct RouteMutationJournal {
     candidate_routes_len: usize,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_local_routes_len: usize,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_local_routes_allocation: Option<Vec<candidate_scheme::LocalFreshRoute>>,
+    #[cfg(feature = "shadow-apply-candidate")]
+    candidate_local_use: Option<candidate_scheme::LocalUseCursor>,
     candidate_local_slots: Vec<usize>,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_source: Option<candidate_source::Frame>,
@@ -8983,6 +8987,10 @@ impl InferenceSession {
                 candidate_routes_len: 0,
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_local_routes_len: 0,
+                #[cfg(feature = "shadow-apply-candidate")]
+                candidate_local_routes_allocation: None,
+                #[cfg(feature = "shadow-apply-candidate")]
+                candidate_local_use: None,
                 candidate_local_slots: Vec::new(),
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_source: None,
@@ -9107,6 +9115,7 @@ impl InferenceSession {
         {
             journal.intrusion = self.candidate_graph.as_ref().map(|state| state.intrusion.begin());
             journal.candidate_source = self.candidate_graph.as_ref().and_then(|state| state.source);
+            journal.candidate_local_use = self.candidate_graph.as_ref().and_then(|state| state.local_use.last().map(|frame| frame.cursor));
             journal.candidate_local_routes_len = self.candidate_graph.as_ref().map(|state| state.local_routes.len()).unwrap_or(0);
             journal.candidate_routes_len = self.candidate_graph
                 .as_ref()
@@ -9177,6 +9186,16 @@ impl InferenceSession {
                         state.intrusion.effect_algebra.context.commit_replay_operations(undo.effect_algebra.context_checkpoint());
                     }
                     journal.intrusion = None;
+                    // A completed Local transfers its immutable graph/rows only
+                    // after the final fallible step succeeds. Publication storage
+                    // was reserved while the retained parent still owned them.
+                    if let Some(state) = &mut self.candidate_graph {
+                        if state.local_use.last().is_some_and(|frame| frame.cursor.complete) {
+                            state.commit_local_use();
+                        }
+                    }
+                    journal.candidate_local_routes_allocation = None;
+                    journal.candidate_local_use = None;
                     journal.candidate_source = None;
                 }
                 self.store.commit_route();
@@ -9325,10 +9344,18 @@ impl InferenceSession {
         if let Some(state) = &mut self.candidate_graph {
             if let Some(undo) = journal.intrusion.take() { state.intrusion.rollback(undo, &mut self.typed_pairs); }
             state.source = journal.candidate_source.take();
+            if let Some(cursor) = journal.candidate_local_use.take() {
+                state.local_use.last_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.cursor = cursor;
+            } else { state.local_use.clear(); }
+
             for slot in journal.candidate_local_slots.drain(..) {
                 state.locals[slot] = None;
             }
             state.local_routes.truncate(journal.candidate_local_routes_len);
+            if let Some(mut allocation) = journal.candidate_local_routes_allocation.take() {
+                allocation.append(&mut state.local_routes);
+                state.local_routes = allocation;
+            }
             state.routes.truncate(journal.candidate_routes_len);
             state.refresh_bytes()?;
             state.scratch_bytes = 0;
@@ -10544,8 +10571,16 @@ impl InferenceSession {
                             let intrusion_bytes = state.intrusion.bytes()?;
                             let source_bytes = state.source.map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);
                             let source_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.candidate_source).map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);
+                            let local_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.candidate_local_use).map(|_| std::mem::size_of::<candidate_scheme::LocalUseCursor>()).unwrap_or(0);
+                            let local_routes_undo_bytes = self.route_journal.as_ref()
+                                .and_then(|journal| journal.candidate_local_routes_allocation.as_ref())
+                                .map(|allocation| allocation.capacity().checked_mul(std::mem::size_of::<candidate_scheme::LocalFreshRoute>())
+                                    .ok_or(SolveAvailabilityError::IdentityExhausted))
+                                .transpose()?.unwrap_or(0);
                             state.retained_bytes
-                                .checked_add(source_bytes)
+                                .checked_add(local_routes_undo_bytes)
+                                .and_then(|bytes| bytes.checked_add(local_undo_bytes))
+                                .and_then(|bytes| bytes.checked_add(source_bytes))
                                 .and_then(|bytes| bytes.checked_add(source_undo_bytes))
                                 .and_then(|bytes| bytes.checked_add(intrusion_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.scratch_bytes))

@@ -4522,3 +4522,171 @@ fn typed_drain_terminal_cold_undo_samples_active_and_rollback_peak_before_cleanu
         assert!(session.resource_ledger.inference_session_peak_bytes >= sampled_peak);
     }
 }
+
+#[test]
+fn parsed_local_use_retains_one_fresh_parent_across_committed_pause_and_failed_resume() {
+    use crate::candidate_scheme::LocalScriptStep::{Complete, DriveOne, FailOne, Idle};
+    use crate::candidate_source::{Action, CandidateRun, Schedule, Support};
+    fn assert_same_term(left_session: &InferenceSession, left: Term, right_session: &InferenceSession, right: Term) {
+        // Validate each handle in its owning arena before ignoring its brand.
+        let left_view = left_session.store.term_view(left).unwrap();
+        let right_view = right_session.store.term_view(right).unwrap();
+        assert_eq!(left.test_index(), right.test_index());
+        match (left_view, right_view) {
+            (TermView::Leaf(left), TermView::Leaf(right)) => assert_eq!(left, right),
+            (TermView::Component(left), TermView::Component(right)) => match (left, right) {
+                (ComponentId::Occurrence { occurrence: left, kind: left_kind },
+                    ComponentId::Occurrence { occurrence: right, kind: right_kind }) => {
+                    assert_eq!(left.ordinal(), right.ordinal());
+                    assert_eq!(left_kind, right_kind);
+                }
+                (ComponentId::DefinitionValue { root: left },
+                    ComponentId::DefinitionValue { root: right }) => {
+                    let left_position = left_session.batch.definitions.iter()
+                        .position(|definition| &definition.root == left)
+                        .expect("left definition component belongs to its session");
+                    let right_position = right_session.batch.definitions.iter()
+                        .position(|definition| &definition.root == right)
+                        .expect("right definition component belongs to its session");
+                    assert_eq!(left_position, right_position);
+                }
+                (left, right) => panic!("different component variants: {left:?} and {right:?}"),
+            },
+            (TermView::LiveVariable(left), TermView::LiveVariable(right)) => {
+                assert_eq!(left.kind(), right.kind());
+                assert_eq!(left.polarity(), right.polarity());
+                assert_eq!(left.ordinal(), right.ordinal());
+            }
+            (TermView::PositiveBottom, TermView::PositiveBottom)
+            | (TermView::NegativeTop, TermView::NegativeTop)
+            | (TermView::NegativeBottom, TermView::NegativeBottom) => {}
+            (TermView::PositiveFunction {
+                argument: la, argument_effect: lae, result_effect: lre, result: lr,
+            }, TermView::PositiveFunction {
+                argument: ra, argument_effect: rae, result_effect: rre, result: rr,
+            })
+            | (TermView::NegativeFunction {
+                argument: la, argument_effect: lae, result_effect: lre, result: lr,
+            }, TermView::NegativeFunction {
+                argument: ra, argument_effect: rae, result_effect: rre, result: rr,
+            }) => {
+                for (left, right) in [(la, ra), (lae, rae), (lre, rre), (lr, rr)] {
+                    assert_same_term(left_session, left, right_session, right);
+                }
+            }
+            (left, right) => panic!("different term variants: {left:?} and {right:?}"),
+        }
+    }
+    let text = "my outer = { my local:int = 1; local }";
+    let mut session = session_with_source(text);
+    let root = session.batch.definitions[0].root.clone();
+    let local_position = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, Action::Local { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next < local_position {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    // Conditional enclosed test driver: no external incidence mutation, no
+    // authenticated support, and no production Suspended outcome. Each drive
+    // returns through the real route transaction and commits its retained parent.
+    let observations = session.candidate_test_local_script(&[
+        DriveOne, Idle, Idle, FailOne, DriveOne, FailOne, Complete,
+    ]).unwrap();
+    let paused = &observations[0];
+    assert_eq!(paused.source_next, local_position);
+    assert_eq!(paused.routes, 0, "unfinished Local does not publish a route");
+    assert!(paused.cursor.unwrap().restoration.is_some());
+    assert_eq!(paused.cursor.unwrap().next_bound, 0);
+    assert!(paused.use_origin.is_some());
+    assert_eq!(&observations[1], paused, "unchanged private pause performs no work");
+    assert_eq!(&observations[2], paused);
+    assert_eq!(&observations[3], paused, "failure restores the pre-existing parent and accepted handle");
+    assert_eq!(observations[4].use_origin, paused.use_origin, "resume preserves the original fresh use");
+    assert_eq!(observations[5], observations[4], "later owner-step failure restores the same cursor and accounting");
+    let completed = &observations[6];
+    assert_eq!(completed.source_next, local_position + 1);
+    assert_eq!(completed.routes, 1);
+    assert_eq!(completed.cursor, None);
+    assert_eq!(completed.typed_drains, 0);
+    assert_eq!(state(&session).uses, paused.use_origin.unwrap(), "one begin_use for this parsed Local");
+    assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
+    let mut uninterrupted = session_with_source(text);
+    let root = uninterrupted.batch.definitions[0].root.clone();
+    uninterrupted.execute_candidate_source_root(&root).unwrap();
+    // Separate parsed-source sessions have distinct arena brands. Compare the
+    // ordered facts and owned endpoint structures, without claiming provenance parity.
+    assert_eq!(session.store.facts.len(), uninterrupted.store.facts.len());
+    for (left, right) in session.store.facts.iter().zip(&uninterrupted.store.facts) {
+        assert_eq!(left.id(), right.id());
+        assert_same_term(&session, left.lower(), &uninterrupted, right.lower());
+        assert_same_term(&session, left.upper(), &uninterrupted, right.upper());
+    }
+    assert_eq!(session.errors, uninterrupted.errors);
+    assert_eq!(state(&session).uses, state(&uninterrupted).uses);
+    assert_eq!(state(&session).evidence.emissions.len(), state(&uninterrupted).evidence.emissions.len(), "accepted bound emission is not repeated");
+}
+
+#[test]
+fn internal_restoration_owner_steps_keep_multiple_live_products_and_return_ownership() {
+    // Internal adapter control only. This seeded row state is not source
+    // readiness or §7 evidence. One exclusive borrow encloses all committed
+    // pauses/resumes; incidence is constructed before the first pause.
+    fn run(session: &mut InferenceSession) {
+        let (occurrence, cause) = cause(session, 0);
+        let owner = session.fresh_value_at_level(1).unwrap();
+        let lower = session.fresh_value_at_level(1).unwrap();
+        let first = session.fresh_value_at_level(1).unwrap();
+        let second = session.fresh_value_at_level(1).unwrap();
+        session.candidate_insert_bound(value(owner), Polarity::Negative, value(first)).unwrap();
+        session.candidate_insert_bound(value(owner), Polarity::Negative, value(second)).unwrap();
+        session.candidate_insert_bound(value(owner), Polarity::Negative,
+            ExtrusionEndpoint::Value(ValueEndpointKey::IntNegative)).unwrap();
+        let restoration = session.with_route_transaction(|session| {
+            session.candidate_begin_bound_restoration(value(owner), Polarity::Positive, value(lower),
+                &occurrence, &cause, BoundAdmissionCause::OwnerEmission { processing: None })
+        }).unwrap();
+        let emission = state(session).restorations[&restoration].emission;
+        assert_eq!(state(session).restorations[&restoration].opposite_count, 3);
+        assert_eq!(state(session).restorations[&restoration].next_opposite, 0);
+        for index in 0..3 {
+            session.with_route_transaction(|session| {
+                assert_eq!(session.candidate_step_bound_restoration(restoration)?, None);
+                Ok(())
+            }).unwrap();
+            let before = state(session).restorations[&restoration].clone();
+            let replay = before.replay.unwrap();
+            let upper = [ValueEndpointKey::ValueRow(first), ValueEndpointKey::ValueRow(second), ValueEndpointKey::IntNegative][index];
+            assert_eq!(state(session).replay_operations[&replay].task,
+                LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(lower), upper }),
+                "saved index reads direct entries before the live exact lane");
+            assert_eq!(before.next_opposite, index);
+            assert!(state(session).replay_operations.contains_key(&replay));
+            let checkpoint = state(session).checkpoint();
+            let facts = session.store.facts.clone();
+            let errors = session.errors.clone();
+            assert_eq!(session.with_route_transaction(|session| {
+                assert_eq!(session.candidate_step_bound_restoration(restoration)?, None);
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            assert_eq!(state(session).checkpoint(), checkpoint);
+            assert_eq!(state(session).restorations[&restoration], before);
+            assert!(state(session).replay_operations.contains_key(&replay), "rollback retains the parent's exact child handle");
+            assert_eq!(session.store.facts, facts);
+            assert_eq!(session.errors, errors);
+            session.with_route_transaction(|session| {
+                assert_eq!(session.candidate_step_bound_restoration(restoration)?, None);
+                assert!(state(session).typed_drains.is_empty(), "typed completion and diagnostics precede parent advancement");
+                assert_eq!(state(session).restorations[&restoration].next_opposite, index + 1);
+                assert_eq!(state(session).restorations[&restoration].replay, None);
+                Ok(())
+            }).unwrap();
+            assert!(!state(session).replay_operations.contains_key(&replay), "parent consumption releases the completed child");
+        }
+        session.with_route_transaction(|session| {
+            assert_eq!(session.candidate_step_bound_restoration(restoration)?, Some(emission));
+            Ok(())
+        }).unwrap();
+        assert!(!state(session).restorations.contains_key(&restoration));
+    }
+    run(&mut session());
+}

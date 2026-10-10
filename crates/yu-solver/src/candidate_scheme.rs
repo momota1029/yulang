@@ -9,6 +9,7 @@ pub(super) struct GraphState {
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
+    pub local_use: Vec<LocalUse>,
     pub source: Option<candidate_source::Frame>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
@@ -125,6 +126,65 @@ pub(super) struct LocalFreshRoute {
     pub graph: Graph,
     pub rows: Vec<RowKey>,
 }
+// Construction is atomic. Only the ordered restoration frontier is mutable
+// after this fresh use is retained; resume never rebuilds these remaps.
+#[derive(Debug)]
+pub(super) struct FreshUse {
+    context_use: usize,
+    rows: Vec<RowKey>,
+    terms: Vec<Option<Term>>,
+    effect_operands: HashMap<usize, EffectEndpointKey>,
+    bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
+    context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
+    evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
+}
+impl FreshUse {
+    fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        sum(&[bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
+            bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
+            bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
+            bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
+            bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?])
+    }
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct LocalUseCursor {
+    pub next_bound: usize,
+    pub restoration: Option<candidate_context::ReplayOperationId>,
+    pub complete: bool,
+}
+#[derive(Debug)]
+pub(super) struct LocalUse {
+    slot: usize,
+    local: yu_hir::HirLocalId,
+    occurrence: HirOccurrenceId,
+    value: usize,
+    level: u32,
+    graph: Graph,
+    fresh: FreshUse,
+    pub cursor: LocalUseCursor,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum LocalRun { Complete, Paused }
+// This closed script holds one exclusive session borrow from the first pause
+// through resume/rollback. It has no callback or external mutation operation.
+// Idle is a conditional unchanged-wait control, not a readiness certificate.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(super) enum LocalScriptStep { DriveOne, Idle, FailOne, Complete }
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct LocalScriptObservation {
+    pub source_next: usize,
+    pub use_origin: Option<usize>,
+    pub cursor: Option<LocalUseCursor>,
+    pub restoration: Option<candidate_context::BoundRestoration>,
+    pub checkpoint: candidate_context::Checkpoint,
+    pub retained_bytes: usize,
+    pub routes: usize,
+    pub facts: usize,
+    pub typed_drains: usize,
+}
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 enum Endpoint {
     Value(ValueEndpointKey, Polarity),
@@ -165,12 +225,23 @@ impl Graph {
     }
 }
 impl GraphState {
+    pub(super) fn commit_local_use(&mut self) {
+        let frame = self.local_use.pop().expect("completed local parent");
+        // All capacities and arithmetic were preflighted by frame accounting and
+        // final route reservation. Only construction maps are released here.
+        let released = frame.fresh.bytes().expect("accounted fresh storage")
+            - bytes::<RowKey>(frame.fresh.rows.capacity()).expect("accounted rows");
+        self.local_routes.push(LocalFreshRoute { slot: frame.slot, local: frame.local,
+            occurrence: frame.occurrence, graph: frame.graph, rows: frame.fresh.rows });
+        self.retained_bytes -= released;
+    }
     pub fn refresh_bytes(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut total = sum(&[
             bytes::<Option<Graph>>(self.graphs.capacity())?,
             bytes::<FreshRoute>(self.routes.capacity())?,
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
+            bytes::<LocalUse>(self.local_use.capacity())?,
         ])?;
         for graph in self.graphs.iter().flatten() {
             total = total.checked_add(graph.bytes()?).ok_or_else(exhausted)?;
@@ -180,6 +251,9 @@ impl GraphState {
         }
         for route in &self.local_routes {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?])?;
+        }
+        for frame in &self.local_use {
+            total = sum(&[total, frame.graph.bytes()?, frame.fresh.bytes()?])?;
         }
         self.retained_bytes = total;
         Ok(())
@@ -893,14 +967,20 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
-        let result = self.freshen_candidate_graph_inner(graph, use_level, occurrence, cause);
+        let result = (|| {
+            let fresh = self.prepare_candidate_fresh_use(graph, use_level)?;
+            for index in 0..graph.bounds.len() {
+                let restoration = self.begin_candidate_fresh_bound(graph, &fresh, index, occurrence, cause)?;
+                self.candidate_drive_bound_restoration(restoration)?;
+            }
+            Ok((fresh.terms[graph.root].ok_or_else(exhausted)?, fresh.rows))
+        })();
         self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
         result
     }
-    fn freshen_candidate_graph_inner(
+    fn prepare_candidate_fresh_use(
         &mut self, graph: &Graph, use_level: u32,
-        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
-    ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
+    ) -> Result<FreshUse, SolveAvailabilityError> {
         let context_use = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.begin_use()?;
         let mut canonical_rows = HashMap::new();
         canonical_rows.try_reserve(graph.rows.len()).map_err(|_| exhausted())?;
@@ -1136,53 +1216,54 @@ impl InferenceSession {
             return Err(error);
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        // Replay preserves the captured owner side even when fresh rows
-        // share a level. Induced comparisons run on the ordinary worklist.
-        for bound in &graph.bounds {
-            let (lower, upper) = match bound.kind {
-                ComponentKind::Value => {
-                    let lower = terms[bound.lower].ok_or_else(exhausted)?;
-                    let upper = terms[bound.upper].ok_or_else(exhausted)?;
-                    (ExtrusionEndpoint::Value(self.value_endpoint(lower, Polarity::Positive)),
-                     ExtrusionEndpoint::Value(self.value_endpoint(upper, Polarity::Negative)))
-                }
-                ComponentKind::Effect => {
-                    let lower = if let Some(&operand) = effect_operands.get(&bound.lower) { operand }
-                        else { self.effect_endpoint(terms[bound.lower].ok_or_else(exhausted)?, Polarity::Positive) };
-                    let upper = if let Some(&operand) = effect_operands.get(&bound.upper) { operand }
-                        else { self.effect_endpoint(terms[bound.upper].ok_or_else(exhausted)?, Polarity::Negative) };
-                    (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper))
-                }
-            };
-            let (owner, item) = if bound.side == Polarity::Positive {
-                (upper, lower)
-            } else {
-                (lower, upper)
-            };
-            let mut mapped_relation = None;
-            if let Some(parent) = bound.relation {
-                // One reconstruction route shares all captured relation inputs.
-                // Independent uses retain independent transport origins even
-                // when an older, nongeneric coordinate is shared.
-                let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
-                let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
-                    context_use, *context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound)?;
-                mapped_relation = Some(child);
-                if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
-                    for &(_, old) in &graph.attachment_bundles[start..start + length] {
-                        self.candidate_context_fresh_bundle(child, bundle_remap[&old])?;
-                    }
+        Ok(FreshUse { context_use, rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap })
+    }
+    fn begin_candidate_fresh_bound(
+        &mut self, graph: &Graph, fresh: &FreshUse, index: usize,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<candidate_context::ReplayOperationId, SolveAvailabilityError> {
+        // Preserve captured owner orientation and construct transport only once,
+        // immediately before this bound's physical admission.
+        let bound = graph.bounds.get(index).ok_or_else(exhausted)?;
+        let (lower, upper) = match bound.kind {
+            ComponentKind::Value => {
+                let lower = fresh.terms[bound.lower].ok_or_else(exhausted)?;
+                let upper = fresh.terms[bound.upper].ok_or_else(exhausted)?;
+                (ExtrusionEndpoint::Value(self.value_endpoint(lower, Polarity::Positive)),
+                 ExtrusionEndpoint::Value(self.value_endpoint(upper, Polarity::Negative)))
+            }
+            ComponentKind::Effect => {
+                let lower = if let Some(&operand) = fresh.effect_operands.get(&bound.lower) { operand }
+                    else { self.effect_endpoint(fresh.terms[bound.lower].ok_or_else(exhausted)?, Polarity::Positive) };
+                let upper = if let Some(&operand) = fresh.effect_operands.get(&bound.upper) { operand }
+                    else { self.effect_endpoint(fresh.terms[bound.upper].ok_or_else(exhausted)?, Polarity::Negative) };
+                (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper))
+            }
+        };
+        let (owner, item) = if bound.side == Polarity::Positive {
+            (upper, lower)
+        } else {
+            (lower, upper)
+        };
+        let mut mapped_relation = None;
+        if let Some(parent) = bound.relation {
+            // One reconstruction route shares all captured relation inputs.
+            // Independent uses retain independent transport origins even
+            // when an older, nongeneric coordinate is shared.
+            let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
+            let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
+                fresh.context_use, *fresh.context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound)?;
+            mapped_relation = Some(child);
+            if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
+                for &(_, old) in &graph.attachment_bundles[start..start + length] {
+                    self.candidate_context_fresh_bundle(child, fresh.bundle_remap[&old])?;
                 }
             }
-            let antecedent = *evidence_remap.get(bound.evidence.0).ok_or_else(exhausted)?;
-            self.candidate_restore_bound_with_evidence(owner, bound.side, item, occurrence, cause,
-                candidate_context::BoundAdmissionCause::FreshUse { antecedent, use_origin: context_use,
-                    source_bound: bound.source_bound, mapped_relation })?;
         }
-        let lower = terms[graph.root].ok_or_else(exhausted)?;
-        drop(bundle_remap);
-        self.candidate_graph.as_mut().unwrap().scratch_bytes -= bundle_scratch;
-        Ok((lower, rows))
+        let antecedent = *fresh.evidence_remap.get(bound.evidence.0).ok_or_else(exhausted)?;
+        self.candidate_begin_bound_restoration(owner, bound.side, item, occurrence, cause,
+            candidate_context::BoundAdmissionCause::FreshUse { antecedent, use_origin: fresh.context_use,
+                source_bound: bound.source_bound, mapped_relation })
     }
     fn instantiate_candidate_graph(
         &mut self,
@@ -1263,37 +1344,62 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn route_candidate_local(&mut self, slot: usize, occurrence: &HirOccurrenceId, value: usize, level: u32) -> Result<(), SolveAvailabilityError> {
-        let (root, boundary, local) = {
-            let scheme = self.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
-            (scheme.root, scheme.boundary, scheme.id.clone())
-        };
+        match self.route_candidate_local_run(slot, occurrence, value, level, None)? {
+            LocalRun::Complete => Ok(()),
+            LocalRun::Paused => unreachable!("production local routing cannot inject a pause"),
+        }
+    }
+    // A pause budget is supplied only by the enclosed test script. This is not
+    // authenticated support, incidence deferral, or a production suspension API.
+    fn route_candidate_local_run(&mut self, slot: usize, occurrence: &HirOccurrenceId, value: usize, level: u32,
+        pause_after: Option<usize>) -> Result<LocalRun, SolveAvailabilityError> {
+        #[cfg(not(test))]
+        assert!(pause_after.is_none());
         self.incoming_route_accounting_active = true;
         self.route_attempt_physical_change = false;
         self.incoming_route_event_sample_failed = false;
         let result = self.with_route_transaction(|session| {
-            // This graph is a use-time observation of a live scheme, never the
-            // binding's authority or a promise that anchors are fully solved.
-            let graph = session.capture_candidate_graph(root, boundary)?;
-            let id = ConstraintOccurrenceId::new(occurrence.clone(), 0);
-            let cause = CauseId::for_occurrence(id.clone());
-            let (lower, rows) = session.freshen_candidate_graph(&graph, level, &id, &cause)?;
-            let upper = session.batch.component_term_at(value);
-            session.admit_candidate_value_link(occurrence, 0, lower, upper)?;
-            let state = session.candidate_graph.as_mut().ok_or_else(exhausted)?;
-            let old_capacity = state.local_routes.capacity();
-            state.local_routes.try_reserve(1).map_err(|_| exhausted())?;
-            let growth = bytes::<LocalFreshRoute>(state.local_routes.capacity() - old_capacity)?;
-            let retained = sum(&[state.retained_bytes, growth,
-                bytes::<RowKey>(rows.capacity())?, graph.bytes()?])?;
-            state.retained_bytes = state.retained_bytes.checked_add(growth).ok_or_else(exhausted)?;
-            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            let state = session.candidate_graph.as_mut().ok_or_else(exhausted)?;
-            state.local_routes.push(LocalFreshRoute { slot, local: local.clone(), occurrence: occurrence.clone(), graph, rows });
-            state.retained_bytes = retained;
-            state.scratch_bytes = 0;
-            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            if session.incoming_route_event_sample_failed { return Err(exhausted()); }
-            Ok(())
+            if session.candidate_graph.as_ref().ok_or_else(exhausted)?.local_use.is_empty() {
+                let (root, boundary, local) = {
+                    let scheme = session.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
+                    (scheme.root, scheme.boundary, scheme.id.clone())
+                };
+                let state = session.candidate_graph.as_mut().unwrap();
+                let old_capacity = state.local_use.capacity();
+                state.local_use.try_reserve(1).map_err(|_| exhausted())?;
+                state.retained_bytes = state.retained_bytes.checked_add(bytes::<LocalUse>(state.local_use.capacity() - old_capacity)?).ok_or_else(exhausted)?;
+                session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                // Capture and construction remain atomic; no child has started.
+                let graph = session.capture_candidate_graph(root, boundary)?;
+                let fresh = session.prepare_candidate_fresh_use(&graph, level)?;
+                let retained = sum(&[session.candidate_graph.as_ref().unwrap().retained_bytes, graph.bytes()?, fresh.bytes()?])?;
+                let state = session.candidate_graph.as_mut().unwrap();
+                state.local_use.push(LocalUse { slot, local, occurrence: occurrence.clone(), value, level,
+                    graph, fresh, cursor: LocalUseCursor::default() });
+                state.scratch_bytes = 0;
+                state.retained_bytes = retained;
+                session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            }
+            {
+                let frame = session.candidate_graph.as_ref().unwrap().local_use.last().ok_or_else(exhausted)?;
+                if frame.slot != slot || &frame.occurrence != occurrence || frame.value != value || frame.level != level {
+                    return Err(exhausted());
+                }
+            }
+            let mut steps = 0;
+            loop {
+                // Ownership is transferred temporarily during an atomic owner
+                // step and restored before every fallible return or pause.
+                let mut frame = session.candidate_graph.as_mut().unwrap().local_use.pop().unwrap();
+                let result = session.step_candidate_local_use(&mut frame);
+                let complete = frame.cursor.complete;
+                session.candidate_graph.as_mut().unwrap().local_use.push(frame);
+                result?;
+                if session.incoming_route_event_sample_failed { return Err(exhausted()); }
+                if complete { return Ok(LocalRun::Complete); }
+                steps += 1;
+                if pause_after == Some(steps) { return Ok(LocalRun::Paused); }
+            }
         });
         self.incoming_route_accounting_active = false;
         self.route_attempt_physical_change = false;
@@ -1301,5 +1407,100 @@ impl InferenceSession {
         if let Some(state) = &mut self.candidate_graph { state.scratch_bytes = 0; }
         result
     }
-
+    #[cfg(test)]
+    pub(super) fn candidate_test_local_script(&mut self, script: &[LocalScriptStep]) -> Result<Vec<LocalScriptObservation>, SolveAvailabilityError> {
+        let source = self.candidate_graph.as_ref().and_then(|state| state.source).ok_or_else(exhausted)?;
+        if source.stage != candidate_source::Stage::Execute { return Err(exhausted()); }
+        let actions = match source.schedule {
+            candidate_source::Schedule::Loose => &self.batch.candidate_source.loose,
+            candidate_source::Schedule::Root(index) => {
+                let root = &self.batch.definitions.get(index).ok_or_else(exhausted)?.root;
+                self.batch.candidate_source.schedules.get(root).ok_or_else(exhausted)?
+            }
+        };
+        let Some(candidate_source::Action::Local { slot, occurrence, value, level }) = actions.get(source.next).cloned() else { return Err(exhausted()); };
+        let mut observations = Vec::new();
+        observations.try_reserve_exact(script.len()).map_err(|_| exhausted())?;
+        for step in script {
+            match step {
+                LocalScriptStep::DriveOne => {
+                    if self.route_candidate_local_run(slot, &occurrence, value, level, Some(1))? != LocalRun::Paused { return Err(exhausted()); }
+                }
+                LocalScriptStep::Idle => {
+                    if self.candidate_graph.as_ref().unwrap().local_use.is_empty() { return Err(exhausted()); }
+                }
+                LocalScriptStep::FailOne => {
+                    let result = self.with_route_transaction(|session| {
+                        let mut frame = session.candidate_graph.as_mut().unwrap().local_use.pop().ok_or_else(exhausted)?;
+                        let result = session.step_candidate_local_use(&mut frame);
+                        session.candidate_graph.as_mut().unwrap().local_use.push(frame);
+                        result?;
+                        Err::<(), _>(exhausted())
+                    });
+                    if result != Err(exhausted()) { return Err(exhausted()); }
+                }
+                LocalScriptStep::Complete => {
+                    if self.route_candidate_local_run(slot, &occurrence, value, level, None)? != LocalRun::Complete { return Err(exhausted()); }
+                    self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().next += 1;
+                }
+            }
+            // Test-only enumeration checks incremental frame/publication charges
+            // after both commit and rollback; production has no route rescan.
+            let graph = self.candidate_graph.as_mut().unwrap();
+            let tracked = graph.retained_bytes;
+            graph.refresh_bytes()?;
+            assert_eq!(graph.retained_bytes, tracked, "local continuation retained accounting");
+            let context = &graph.intrusion.effect_algebra.context;
+            assert_eq!(context.bytes()?, context.enumerated_bytes(), "owner operation and undo accounting");
+            if !context.typed_drains.is_empty() || !self.typed_worklist.is_empty() { return Err(exhausted()); }
+            let frame = graph.local_use.last();
+            let restoration = frame.and_then(|frame| frame.cursor.restoration)
+                .map(|id| context.restoration(id).cloned()).transpose()?;
+            observations.push(LocalScriptObservation { source_next: graph.source.unwrap().next,
+                use_origin: frame.map(|frame| frame.fresh.context_use), cursor: frame.map(|frame| frame.cursor),
+                restoration, checkpoint: context.checkpoint(), retained_bytes: graph.retained_bytes,
+                routes: graph.local_routes.len(), facts: self.store.facts.len(), typed_drains: context.typed_drains.len() });
+        }
+        Ok(observations)
+    }
+    fn step_candidate_local_use(&mut self, frame: &mut LocalUse) -> Result<(), SolveAvailabilityError> {
+        if frame.cursor.complete { return Err(exhausted()); }
+        let id = ConstraintOccurrenceId::new(frame.occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(id.clone());
+        if let Some(restoration) = frame.cursor.restoration {
+            if self.candidate_step_bound_restoration(restoration)?.is_some() {
+                frame.cursor.restoration = None;
+                frame.cursor.next_bound += 1;
+            }
+            return Ok(());
+        }
+        if frame.cursor.next_bound < frame.graph.bounds.len() {
+            let restoration = self.begin_candidate_fresh_bound(&frame.graph, &frame.fresh, frame.cursor.next_bound, &id, &cause)?;
+            frame.cursor.restoration = Some(restoration);
+            return Ok(());
+        }
+        let lower = frame.fresh.terms[frame.graph.root].ok_or_else(exhausted)?;
+        let upper = self.batch.component_term_at(frame.value);
+        self.admit_candidate_value_link(&frame.occurrence, 0, lower, upper)?;
+        let state = self.candidate_graph.as_mut().unwrap();
+        let old = state.local_routes.capacity();
+        if state.local_routes.len() == old {
+            // Keep the original allocation in undo. Moving the existing entries
+            // avoids cloning their graphs/rows, and rollback can move them back
+            // without allocating. Geometric growth keeps publication amortized.
+            let capacity = old.checked_mul(2).ok_or_else(exhausted)?.max(4);
+            let mut replacement = Vec::new();
+            replacement.try_reserve_exact(capacity).map_err(|_| exhausted())?;
+            let retained_bytes = state.retained_bytes.checked_add(
+                bytes::<LocalFreshRoute>(replacement.capacity() - old)?).ok_or_else(exhausted)?;
+            let journal = self.route_journal.as_mut().ok_or_else(exhausted)?;
+            if journal.candidate_local_routes_allocation.is_some() { return Err(exhausted()); }
+            replacement.append(&mut state.local_routes);
+            journal.candidate_local_routes_allocation = Some(std::mem::replace(&mut state.local_routes, replacement));
+            state.retained_bytes = retained_bytes;
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        frame.cursor.complete = true;
+        Ok(())
+    }
 }
