@@ -8389,6 +8389,23 @@ roots and the constructor-level polarity/level facts do not quantify over all
 ordinary source schedules or intermediate snapshots, so source impossibility
 and R remain open. Checkpoint `8697c8dfa`.
 
+The [constructor audit](../notes/progress/2026-10-10-source-selective-scc-impossibility-audit.md)
+enumerates the current source owners and finds no permanent polarity barrier:
+replayed Support and Allowance can retain younger tails on reused older
+computation rows via ordinary Group/Install Effect links. Its proposed delayed
+Lambda/two-tail route remains unexecuted because its root effect ascription is
+rejected by the parser at byte 176; three bounded GDB observations of that one
+input show no lowering or actions. This is a localized residual, not an
+impossibility proof. A single follow-up replaces that spelling with an
+ordinary local computation annotation and preserves the intended schedule.
+The separate [restoration-product derivation](../notes/progress/2026-10-10-restore-product-rescue-proof.md)
+proves literal-head snapshot enumeration, fixed-frontier coverage, and
+ordinary/merged-owner replay coverage. Its Function mutation sketch is not an
+admitted capture state. Universal rescue remains open at displaced old exact
+entries, third-owner/key/fiber transport without owner replay, and diagnostic
+accessibility for suppressed dependencies. Neither note closes R. Checkpoints
+are `7984bd084` and `bed730d1b`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8397,14 +8414,14 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: close the surviving exact source premise or exclude it over the actual
-admission producers. The remaining distinct-tail route must register an
-Allowance on the exact original positive port before extrusion and produce a
-post-copy return independent of the incoming Allowance tail pair; the prior
-deeper-Function route does neither. If a real selective owner SCC appears,
-test both pair memberships at one snapshot, then trace a later same-owner
-restore through every product, mutation, replay and diagnostic consumer to
-identify an absent required fiber or prove coverage. The
+Next: test the one valid local-annotation spelling for the delayed-Lambda,
+two-tail route, then use the actual owner admission path to construct selective
+`(C,S)` qualification or close the exact residual producer. Keep the
+restore-products theorem separate: its uncovered mutation/transport invariant
+cannot be inferred from a finite source trace. If a real selective owner SCC
+appears, test both pair memberships at one snapshot, then trace a later
+same-owner restore through every product, mutation, replay and diagnostic
+consumer to identify an absent required fiber or prove coverage. The
 `source-hir-selective-scc-proof.md` prover artifact remains open and unreviewed;
 its requested Sol/high settings were not observable. The current-component
 inventory has passed focused spec review; implementation must first give
