@@ -8328,14 +8328,15 @@ hygiene or authority to widen inputs.
 The first finite live-operation slice is now present in
 `candidate_context.rs`: payload-free Swap, WithoutLeftFilter and ordered Replay
 contexts execute for Value and Effect tasks while preserving the exact retained
-context. Any operation combined with a PrefixLeft filter remains unavailable;
-Value never projects a filter to an Effect receiver, and the existing
-source-authenticated closed Effect-filter path is unchanged. The old replay
-expectation was updated because it described the prior missing evaluator, not
-the approved Function-port/replay contract. A fresh spec-auditor delta review
-found no conformance findings. No build or test was run in this turn, so compile
-and runtime behavior remain unverified. Weighted operation consumption, exact
-weighted post-check context, source reachability and full hygiene remain open.
+context. Authenticated zero-word Effect filters can discharge before a
+payload-free operation residual, while replay-only filter fragments retain
+their existing receiver checks. Filters buried under Swap/WithoutLeftFilter,
+nested prefixes under Replay, and Value-filter execution remain unavailable.
+The stale Function result-port expectation was updated only for the
+authenticated Result/ResultEffect case under design §4. Spec review passed and
+the focused `function_port_context_uses_exact_post_check_parent_and_child_local_order`
+test passed (1/1). Weighted operation consumption, exact weighted post-check
+context, source reachability and full hygiene remain open.
 
 The registered `prover` role ran through `tools/codex-prover.sh` as
 `/root/function_port_path_proof` (requested Sol/high; effective settings
@@ -8349,8 +8350,18 @@ and complete execution are not established.
 The [ordinary HIR owner-return search](../notes/progress/2026-10-10-hir-owner-scc-return-path.md)
 found no selective source path from copied owner C back to S while keeping the
 tail pair outside the SCC. Its conditional graph derivation shows that a
-tail-based return can close both recorded pairs. No concrete witness or
-universal exclusion was established; this source route remains open.
+tail-based return can close both recorded pairs. The nested Function audit
+adds a polarity-specific obstruction: direct structural exposure of a fresh
+negative checking port uses a different polarity map from its positive
+incoming-incidence copy. It leaves open a positive exposed port that later
+receives an Allowance through admitted replay; no source schedule was proved.
+The [custom prover's inherited-lower derivation](../notes/progress/2026-10-10-source-hir-selective-scc-proof.md)
+also gives a conditional return through an older positive lower and its live
+Allowance bounds, so positive exposure of C is not universally necessary.
+Neither route has an authentic source witness. Both remain open before the
+selective SCC tests, and an SCC witness would still need a named missed fiber
+and failure of every replay/diagnostic rescue. No global impossibility was
+proved.
 
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
@@ -8360,12 +8371,15 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: advance from payload-free operations to the next source-owned context
-operation/receiver seam, retaining exact context and keeping composed-negative
-concrete rows rejected. This slice has not been compiled or executed in this
-turn. Continue tracing any exact source-owned `C -> ... -> S` path; even a
-witness still needs the dynamic omitted fiber pair and failed ordinary/
-diagnostic rescue. The current-component inventory has passed focused spec
+Next: construct the exact four-key inherited-lower prefix from ordinary parsed
+source and run its normal schedule, then test both SCC memberships at one
+snapshot. If that prefix is unreachable, prove the exclusion over the actual
+constructors rather than extending the bounded root audit. Only after a
+selective source SCC exists, trace a later same-owner restore through all
+products, mutations, replays and diagnostic consumers to either name a missing
+required fiber or prove coverage. The `source-hir-selective-scc-proof.md`
+prover artifact is open and unreviewed; its requested Sol/high settings were
+not observable. The current-component inventory has passed focused spec
 review; implementation must first give mutation, observation withdrawal,
 private deferral and member publication/rollback explicit owners. Do not start
 two-cycle publication or acceleration until those owners and exact recognition

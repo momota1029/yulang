@@ -1163,6 +1163,8 @@ fn zero_word_replay_preserves_unequal_receiver_flow_and_distinct_equal_filters()
     context.contexts.push(ContextExpr::PrefixLeft { weight: weights[0], input: IDENTITY });
     let repeated = ContextId(context.contexts.len() as u32);
     let b = context.context(ContextExpr::PrefixLeft { weight: weights[1], input: IDENTITY }).unwrap();
+    // A zero-word prefix remains executable when replayed against identity.
+    let a = context.context(ContextExpr::Replay { lower: a, upper: IDENTITY }).unwrap();
     let shared = context.context(ContextExpr::Replay { lower: a, upper: repeated }).unwrap();
     let root = context.context(ContextExpr::Replay { lower: shared, upper: b }).unwrap();
     let relation = context.relation(task_pair(task), root).unwrap();
@@ -1192,11 +1194,13 @@ fn zero_word_validation_scope_restores_outer_scratch_on_nested_failure() {
     let filter = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
     let outer = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::EffectRow(receiver), upper: EffectEndpointKey::Allowance(view) }, filter).unwrap();
     let inner = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::EffectRow(receiver), upper: EffectEndpointKey::EffectRow(receiver) }, filter).unwrap();
-    assert_eq!(session.candidate_zero_word_filters(outer, filter, |session, filters| {
+    assert_eq!(session.candidate_zero_word_filters(outer, filter, |session, filters, residual| {
+        assert_eq!(residual, IDENTITY);
         assert_eq!(filters, &[weight]);
         let outer_scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
         assert!(outer_scratch > 0);
-        assert_eq!(session.candidate_zero_word_filters(inner, filter, |session, nested| {
+        assert_eq!(session.candidate_zero_word_filters(inner, filter, |session, nested, residual| {
+            assert_eq!(residual, IDENTITY);
             assert_eq!(nested, &[weight]);
             assert_eq!(state(session).checking_filters.as_ref().unwrap().0, inner);
             assert!(session.candidate_graph.as_ref().unwrap().scratch_bytes > outer_scratch);
@@ -2664,7 +2668,20 @@ fn function_port_context_uses_exact_post_check_parent_and_child_local_order() {
                         assert!(context.dependency_keys.contains(&Dependency::Derived { child, parent }));
                         assert!(context.dependency_keys.contains(&Dependency::FunctionPort { child, parent, field, operation }));
                         children.push(child);
-                        assert_eq!(session.candidate_context_execute(child_task, Some(child)), Err(exhausted()));
+                        if parent == first && !argument && child_task == effect_task {
+                            // Result ports preserve the parent's zero-word filter;
+                            // the local allowance checks it and discharges both prefixes.
+                            assert_eq!(session.candidate_context_execute(child_task, Some(child)), Ok(true));
+                            let context = state(session);
+                            assert_eq!(context.relations[child.0 as usize].key.context, expected);
+                            assert!(context.discharged.contains(&child));
+                            assert!(context.discharge_log.contains(&child));
+                            assert_eq!(context.post_check_context(child), IDENTITY);
+                            assert!(!context.discharge_residuals.contains_key(&child));
+                            assert!(!context.discharged.contains(&parent));
+                        } else {
+                            assert_eq!(session.candidate_context_execute(child_task, Some(child)), Err(exhausted()));
+                        }
                     }
                 }
             }

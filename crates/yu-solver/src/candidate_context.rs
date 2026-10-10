@@ -235,6 +235,7 @@ pub(super) struct State {
     edge_bytes: usize,
     pub processing: Option<RelationId>,
     discharged: HashSet<RelationId>,
+    discharge_residuals: HashMap<RelationId, ContextId>,
     discharge_log: Vec<RelationId>,
     // Synchronous validation scratch only; never captured or checkpointed.
     checking_filters: Option<(RelationId, HashSet<LocalWeightId>)>,
@@ -1101,6 +1102,7 @@ impl State {
         }
         for relation in self.discharge_log.drain(checkpoint.discharges..) {
             self.discharged.remove(&relation);
+            self.discharge_residuals.remove(&relation);
         }
         for context in self.contexts.drain(checkpoint.contexts..) {
             self.context_keys.remove(&context);
@@ -1149,6 +1151,7 @@ impl State {
             self.replay_heads.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()),
             self.replay_log.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()),
             self.discharged.capacity().checked_mul(std::mem::size_of::<RelationId>()),
+            self.discharge_residuals.capacity().checked_mul(std::mem::size_of::<(RelationId, ContextId)>()),
             self.discharge_log.capacity().checked_mul(std::mem::size_of::<RelationId>()),
             self.contexts
                 .capacity()
@@ -1233,6 +1236,7 @@ impl State {
             + self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
             + self.replay_log.capacity() * std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()
             + self.discharged.capacity() * std::mem::size_of::<RelationId>()
+            + self.discharge_residuals.capacity() * std::mem::size_of::<(RelationId, ContextId)>()
             + self.discharge_log.capacity() * std::mem::size_of::<RelationId>()
             + self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
             + self.context_keys.capacity() * std::mem::size_of::<(ContextExpr, ContextId)>()
@@ -1559,7 +1563,9 @@ impl State {
     }
     fn post_check_context(&self, relation: RelationId) -> ContextId {
         let context = self.relations[relation.0 as usize].key.context;
-        if self.discharged.contains(&relation) { IDENTITY } else { context }
+        if self.discharged.contains(&relation) {
+            self.discharge_residuals.get(&relation).copied().unwrap_or(IDENTITY)
+        } else { context }
     }
 
 }
@@ -1730,31 +1736,40 @@ impl InferenceSession {
     // nested consumers restore the enclosing scope on both success and error.
     fn candidate_zero_word_filters<T>(
         &mut self, relation: RelationId, root: ContextId,
-        consume: impl FnOnce(&mut Self, &[LocalWeightId]) -> Result<T, SolveAvailabilityError>,
+        consume: impl FnOnce(&mut Self, &[LocalWeightId], ContextId) -> Result<T, SolveAvailabilityError>,
     ) -> Result<T, SolveAvailabilityError> {
         let mut pending = Vec::new();
         let mut visited = HashSet::new();
         let mut filters = Vec::new();
         let mut weights = HashSet::new();
-        let mut unrestricted_operations = false;
+        let mut replay_filters = false;
+        let mut directed_residual = false;
+        let mut replay_residual = false;
+        let mut residual = root;
         let mut charge = 0;
         let result = (|| {
             let before = pending.capacity();
             pending.try_reserve(1).map_err(|_| exhausted())?;
             self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
-                .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
-            pending.push(root);
-            while let Some(id) = pending.pop() {
-                if id == IDENTITY || visited.contains(&id) { continue; }
+                .checked_mul(std::mem::size_of::<(ContextId, u8)>()).ok_or_else(exhausted)?)?;
+            // 0: outer prefix spine; 1: replay-only filter fragment;
+            // 2: payload-free directed residual.
+            pending.push((root, 0_u8));
+            while let Some((id, mode)) = pending.pop() {
+                if id == IDENTITY || visited.contains(&(id, mode)) { continue; }
                 let before = visited.capacity();
                 visited.try_reserve(1).map_err(|_| exhausted())?;
                 self.candidate_scratch_growth(&mut charge, (visited.capacity() - before)
-                    .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
-                visited.insert(id);
+                    .checked_mul(std::mem::size_of::<(ContextId, u8)>()).ok_or_else(exhausted)?)?;
+                visited.insert((id, mode));
                 let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
                 let node = *state.context.contexts.get(id.0 as usize - 1).ok_or_else(exhausted)?;
                 match node {
-                    ContextExpr::PrefixLeft { weight, input: IDENTITY } => {
+                    ContextExpr::PrefixLeft { weight, input } if mode == 0 || (mode == 1 && input == IDENTITY) => {
+                        if input.0 >= id.0 { return Err(exhausted()); }
+                        if mode == 0 { residual = input; } else { replay_filters = true; }
+                        // The spine is linear; its popped slot is reusable.
+                        pending.push((input, mode));
                         let payload = state.context.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
                         let boundary = state.views.get(payload.boundary as usize).ok_or_else(exhausted)?;
                         if !payload.left_word.is_empty() || !payload.right_pops.is_empty()
@@ -1775,33 +1790,36 @@ impl InferenceSession {
                         filters.push(weight);
                     }
                     ContextExpr::Replay { lower, upper } => {
+                        if mode == 0 { replay_residual = true; }
+                        let child_mode = if mode == 2 { 2 } else { 1 };
                         if lower.0 >= id.0 || upper.0 >= id.0 { return Err(exhausted()); }
                         let before = pending.capacity();
                         pending.try_reserve(2).map_err(|_| exhausted())?;
                         self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
-                            .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
-                        pending.push(upper);
-                        pending.push(lower);
+                            .checked_mul(std::mem::size_of::<(ContextId, u8)>()).ok_or_else(exhausted)?)?;
+                        pending.push((upper, child_mode));
+                        pending.push((lower, child_mode));
                     }
                     ContextExpr::Swap { input } | ContextExpr::WithoutLeftFilter { input } => {
                         if input.0 >= id.0 { return Err(exhausted()); }
-                        unrestricted_operations = true;
+                        directed_residual = true;
                         let before = pending.capacity();
                         pending.try_reserve(1).map_err(|_| exhausted())?;
                         self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
-                            .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
-                        pending.push(input);
+                            .checked_mul(std::mem::size_of::<(ContextId, u8)>()).ok_or_else(exhausted)?)?;
+                        pending.push((input, 2));
                     }
                     _ => return Err(exhausted()),
                 }
             }
-            // This slice executes unary operations only on payload-free input.
-            // Weighted inversion/removal still needs its own checked-filter owner.
-            if unrestricted_operations && !filters.is_empty() { return Err(exhausted()); }
+            // Replay-only zero-word filters discharge together. Directed residuals
+            // retain their exact operations and cannot contain buried filters.
+            if replay_filters && directed_residual { return Err(exhausted()); }
+            if replay_residual && !directed_residual { residual = IDENTITY; }
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let prior = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context
                 .checking_filters.replace((relation, std::mem::take(&mut weights)));
-            let consumed = consume(self, &filters);
+            let consumed = consume(self, &filters, residual);
             let active = std::mem::replace(&mut self.candidate_graph.as_mut().unwrap()
                 .intrusion.effect_algebra.context.checking_filters, prior);
             drop(active);
@@ -1827,7 +1845,7 @@ impl InferenceSession {
         let key = state.relations[relation.0 as usize].key;
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
         if key.context == IDENTITY { return Ok(false); }
-        self.candidate_zero_word_filters(relation, key.context, |session, filters| {
+        self.candidate_zero_word_filters(relation, key.context, |session, filters, residual| {
             // Unrestricted operations have no receiver check to discharge. Keep
             // their exact construction for Function ports, bounds and replay.
             if filters.is_empty() { return Ok(false); }
@@ -1875,8 +1893,13 @@ impl InferenceSession {
                 }
             }
             let state = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            // Reserve all retained discharge state before publishing any entry.
             state.discharged.try_reserve(1).map_err(|_| exhausted())?;
             state.discharge_log.try_reserve(1).map_err(|_| exhausted())?;
+            if residual != IDENTITY {
+                state.discharge_residuals.try_reserve(1).map_err(|_| exhausted())?;
+                state.discharge_residuals.insert(relation, residual);
+            }
             state.discharged.insert(relation);
             state.discharge_log.push(relation);
             session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
