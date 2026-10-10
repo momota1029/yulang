@@ -8416,6 +8416,17 @@ cannot be substituted for the copied X return. The annotation's same-spelled
 `'x` is independently scoped row54. This is the closest authentic source
 state so far, not R. Checkpoint `56a7e48dd`.
 
+The [whole Function result-row probe](../notes/progress/2026-10-10-bridge-result-type-route.md)
+uses an explicit Lambda Function annotation and verifies actual sharing of
+bridge tail X27. At the same first physical snapshot, owner pair `(C62,S25)` is
+outside one SCC while tail pair `(T'61,T23)` is inside; `R30-Allowance(X27)` is
+still absent. The source schedule then reaches a debug assertion at
+`candidate_context.rs:1846` because retained relation endpoints `(27,58)`
+disagree with task endpoints `(27,44)`. Normal root completion, full AST
+inventory and restoration/rescue were not observed. This is an exact route
+obstruction and possible owner-invariant lead, not an R witness, global
+impossibility proof or diagnosed compiler defect. Checkpoint `88eee6ef4`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8424,10 +8435,13 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: use the successful delayed-Lambda source trace to construct the exact
-missing distinct-tail Allowance on R31 and connect the retained positive copy
-C73 back to S26 without closing `(T'72,T24)`, or derive a constructor-complete
-exclusion for that continuation. The restored-product proof remains separate:
+Next: first audit the exact relation/task endpoint disagreement from the
+whole-Function route across canonicalization, intrusion and replay; classify
+whether it exposes a violated invariant or expected stale/current endpoint
+representation. Then continue from the successful delayed-Lambda traces to
+construct the exact missing distinct-tail Allowance on R31 and connect the
+retained positive copy C73 back to S26 without closing `(T'72,T24)`, or derive
+a constructor-complete exclusion for that continuation. The restored-product proof remains separate:
 its uncovered mutation/transport invariant cannot be inferred from a source
 trace. If a real selective owner SCC appears, test both pair memberships at
 one snapshot, then trace a later same-owner restore through every product,
