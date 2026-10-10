@@ -8325,6 +8325,33 @@ negative concrete admission remains guarded at preflight and construction.
 This artifact is bounded source characterization, not proof of complete
 hygiene or authority to widen inputs.
 
+The first finite live-operation slice is now present in
+`candidate_context.rs`: payload-free Swap, WithoutLeftFilter and ordered Replay
+contexts execute for Value and Effect tasks while preserving the exact retained
+context. Any operation combined with a PrefixLeft filter remains unavailable;
+Value never projects a filter to an Effect receiver, and the existing
+source-authenticated closed Effect-filter path is unchanged. The old replay
+expectation was updated because it described the prior missing evaluator, not
+the approved Function-port/replay contract. A fresh spec-auditor delta review
+found no conformance findings. No build or test was run in this turn, so compile
+and runtime behavior remain unverified. Weighted operation consumption, exact
+weighted post-check context, source reachability and full hygiene remain open.
+
+The registered `prover` role ran through `tools/codex-prover.sh` as
+`/root/function_port_path_proof` (requested Sol/high; effective settings
+unknown). Its [finite Function-port path derivation](../notes/progress/2026-10-10-function-port-context-composition-proof.md)
+extends the one-edge algebra by induction while keeping the exact nested
+operation order, shared input and attachment identities. A fresh
+compiler-referee review found no findings. This remains a conditional algebraic
+claim: child-wrapper scheduling, discharge/reset absence, source reachability,
+and complete execution are not established.
+
+The [ordinary HIR owner-return search](../notes/progress/2026-10-10-hir-owner-scc-return-path.md)
+found no selective source path from copied owner C back to S while keeping the
+tail pair outside the SCC. Its conditional graph derivation shows that a
+tail-based return can close both recorded pairs. No concrete witness or
+universal exclusion was established; this source route remains open.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8333,14 +8360,15 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: trace the exact source-owned `C -> ... -> S` construction while keeping
-the tail pair outside the SCC; any witness still needs the dynamic omitted
-fiber pair and failed ordinary/diagnostic rescue. Begin the approved private
-source-to-live context operation implementation, keeping negative concrete
-rows rejected, and review each coherent slice before integration. Separately,
-the current-component inventory has passed focused spec review; implementation
-must first give mutation, observation withdrawal, private deferral and member
-publication/rollback explicit owners. Do not start two-cycle publication or
-acceleration until those owners and exact recognition are implemented and
-checked. Full Oracle hygiene transfer, ordinary Simple-sub inference, general
-residuals, Call/Catch, soundness/principality and F5 cutover remain open.
+Next: finish integration of the reviewed finite live-operation slice and its
+records, preserving the unverified test/build status. Then implement the next
+source-owned context operation/receiver seam without enabling composed-negative
+concrete rows. Continue tracing any exact source-owned `C -> ... -> S` path;
+even a witness still needs the dynamic omitted fiber pair and failed
+ordinary/diagnostic rescue. The current-component inventory has passed focused
+spec review; implementation must first give mutation, observation withdrawal,
+private deferral and member publication/rollback explicit owners. Do not start
+two-cycle publication or acceleration until those owners and exact recognition
+are implemented and checked. Full Oracle hygiene transfer, ordinary Simple-sub
+inference, general residuals, Call/Catch, soundness/principality and F5 cutover
+remain open.
