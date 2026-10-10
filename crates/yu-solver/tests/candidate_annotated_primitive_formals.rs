@@ -189,8 +189,8 @@ fn local_and_multiple_formals_keep_their_actual_lambda_layers() {
 }
 
 #[test]
-fn unfinished_formals_and_whole_local_annotations_are_explicitly_refused() {
-    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:int -> int = 1; local }", "my outer = { my local:'a = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
+fn unfinished_formals_and_unsupported_whole_local_annotations_are_explicitly_refused() {
+    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:'a = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
         match module(text) {
             Err(_) => {},
             Ok(hir) => assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}"),
@@ -260,4 +260,74 @@ fn effectful_whole_local_initializer_keeps_a_primitive_value_interface() {
     assert!(candidate.candidate_conflicts().is_empty());
     assert_eq!(candidate.source_call_count(), 1);
     assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+}
+
+#[test]
+fn whole_local_ground_functions_check_composed_argument_and_result_polarity() {
+    for text in [
+        "my outer = { my local x:int -> int = x; local 1 }",
+        "my outer = { my local f:(int -> int) -> int = f 1; local { my ident x = x; ident } }",
+        "my outer = { my local x y:int -> () -> int = x; local 1 () }",
+    ] {
+        let hir = module(text).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+        assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    }
+    for text in [
+        "my outer = { my local:int -> int = 1; local }",
+        "my outer = { my local x:int -> int = (); local }",
+        "my outer = { my local f:(int -> int) -> int = f (); local }",
+        "my outer = { my local x y:int -> () -> int = y; local }",
+        "my outer = { my local x:int -> int = x; local () }",
+    ] {
+        assert!(!CandidateInference::solve(module(text).unwrap()).unwrap().candidate_conflicts().is_empty(), "{text}");
+    }
+}
+
+#[test]
+fn whole_local_ground_functions_freshen_uses_and_preserve_nested_shadowing() {
+    let hir = module("my outer = { my local x:int -> int = x; my first = local; my second = local; my nested = { my local x:() -> () = x; local () }; second 1 }").unwrap();
+    let source = hir.local_source(binding(&hir, "outer").definition_root()).unwrap().unwrap();
+    let locals: Vec<_> = source.bindings().iter().filter(|binding| binding.spelling.as_ref() == "local").collect();
+    assert_eq!(locals.len(), 2);
+    assert_ne!(locals[0].id, locals[1].id);
+    let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form,
+        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &locals[0].id)).collect();
+    assert_eq!(uses.len(), 2);
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+    let first = candidate.fresh_use(&uses[0].occurrence).unwrap();
+    let second = candidate.fresh_use(&uses[1].occurrence).unwrap();
+    let a: Vec<_> = first.rows().collect();
+    let b: Vec<_> = second.rows().collect();
+    assert!(a.iter().any(|row| row.source_row().is_local()));
+    for row in a.iter().filter(|row| row.source_row().is_local()) {
+        assert!(b.iter().all(|other| !row.same_identity(other)));
+    }
+}
+
+#[test]
+fn effectful_whole_local_function_initializer_runs_once_with_pure_lookups() {
+    let hir = module("act tick:\n    our next: () -> (int -> int)\n\nmy outer = { my local:int -> int = tick::next(); my first = local; local }").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.source_call_count(), 1);
+    assert_function_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+}
+
+
+#[test]
+fn whole_local_ground_function_admission_refuses_every_unsupported_subtree() {
+    for text in [
+        "my outer = { my local:int -> [] int = 1; local }",
+        "my outer = { my local:([] int -> int) -> int = 1; local }",
+        "act E\nmy outer = { my local:(int -> [E] int) -> int = 1; local }",
+        "my outer = { my local:int -> 'a = 1; local }",
+        "my outer = { my local:('a -> int) -> int = 1; local }",
+    ] {
+        let hir = module(text).unwrap();
+        assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}");
+    }
 }

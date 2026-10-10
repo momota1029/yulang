@@ -950,23 +950,47 @@ impl InferenceSession {
         endpoint: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
         level: u32, boundary: u32,
     ) -> Result<(), SolveAvailabilityError> {
-        if annotation.ty.effects.is_some() { return Err(exhausted()); }
-        let (positive_leaf, negative_leaf) = match annotation.ty.value {
-            SourceAnnotationValue::Int => (Leaf::IntPositive, Leaf::IntNegative),
-            SourceAnnotationValue::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
-            _ => return Err(exhausted()),
-        };
-        // Check the whole synthesized initializer, then install a distinct live
-        // exposed value root. Initializer effects remain on the block edge.
-        let root = self.fresh_value_at_level(level)?;
-        let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
-        self.admit_candidate_value_link(occurrence, 40, lower, self.batch.collected_leaf_term(negative_leaf))?;
-        #[cfg(test)]
-        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 4 { stage.set(0); true } else { false }) { return Err(exhausted()); }
-        let upper = self.live_value_term(Polarity::Negative, root)?;
-        self.admit_candidate_value_link(occurrence, 41, self.batch.collected_leaf_term(positive_leaf), upper)?;
-        let exposed = self.live_value_term(Polarity::Positive, root)?;
-        self.install_candidate_local_term(slot, exposed, boundary)
+        if !candidate_source::preflight_local_annotation(&annotation.ty) { return Err(exhausted()); }
+        let mut value_variables = HashMap::new();
+        let mut effect_variables = HashMap::new();
+        let mut views = HashMap::new();
+        let count = annotation.ty.node_count();
+        value_variables.try_reserve(count).map_err(|_| exhausted())?;
+        effect_variables.try_reserve(count).map_err(|_| exhausted())?;
+        views.try_reserve(count).map_err(|_| exhausted())?;
+        let scratch = value_variables.capacity().checked_add(effect_variables.capacity())
+            .and_then(|n| n.checked_mul(std::mem::size_of::<(&str, u32)>()))
+            .and_then(|n| n.checked_add(views.capacity().checked_mul(std::mem::size_of::<(SourceNodeKey, u32)>())?))
+            .ok_or_else(exhausted)?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap()
+            .scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        let result = (|| {
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            let negative = self.candidate_signature_value(
+                &SignatureContext::Annotation(annotation), &annotation.ty,
+                Polarity::Negative, Polarity::Positive, level,
+                &mut value_variables, &mut effect_variables, &mut views,
+            )?;
+            let positive = self.candidate_signature_value(
+                &SignatureContext::Annotation(annotation), &annotation.ty,
+                Polarity::Positive, Polarity::Positive, level,
+                &mut value_variables, &mut effect_variables, &mut views,
+            )?;
+            // Check the whole initializer; its evaluation effects remain on the
+            // block edge. Only the paired annotation enters the local scheme.
+            let root = self.fresh_value_at_level(level)?;
+            let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
+            self.admit_candidate_value_link(occurrence, 40, lower, negative)?;
+            #[cfg(test)]
+            if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 4 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+            let upper = self.live_value_term(Polarity::Negative, root)?;
+            self.admit_candidate_value_link(occurrence, 41, positive, upper)?;
+            let exposed = self.live_value_term(Polarity::Positive, root)?;
+            self.install_candidate_local_term(slot, exposed, boundary)
+        })();
+        drop((value_variables, effect_variables, views));
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
+        result
     }
 
     pub(super) fn candidate_annotation(
@@ -1295,7 +1319,7 @@ mod tests {
     }
     #[test]
     fn annotated_local_initializer_effect_has_one_block_edge_and_pure_lookups() {
-        let session = make_session("act tick:\n    our next: () -> int\n\nmy outer = { my local:int = tick::next(); my first = local; local }");
+        let session = make_session("act tick:\n    our next: () -> (int -> int)\n\nmy outer = { my local:int -> int = tick::next(); my first = local; local }");
         let owner = root(&session, "outer");
         let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
         let local = &source.bindings()[0];
@@ -1314,28 +1338,30 @@ mod tests {
 
     #[test]
     fn local_annotation_first_edge_failure_rolls_back_and_retries() {
-        let mut session = make_session("my outer x = { my local:int = x; local }");
-        let owner = root(&session, "outer");
-        let actions = session.batch.candidate_source.schedules[&owner].clone();
-        let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
-        let mut checkpoint = None;
-        FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
-        assert_eq!(session.with_route_transaction(|session| {
-            checkpoint = Some(RouteCheckpoint::capture(session));
-            session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)
-        }), Err(exhausted()));
-        checkpoint.unwrap().assert_restored(&session);
-        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
-        let mut checkpoint = None;
-        assert_eq!(session.with_route_transaction(|session| {
-            checkpoint = Some(RouteCheckpoint::capture(session));
-            session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
-            Err::<(), _>(exhausted())
-        }), Err(exhausted()));
-        checkpoint.unwrap().assert_restored(&session);
-        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
-        session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
-        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());
+        for ty in ["int", "int -> int", "(int -> int) -> int", "int -> () -> int"] {
+            let mut session = make_session(&format!("my outer x = {{ my local:{ty} = x; local }}"));
+            let owner = root(&session, "outer");
+            let actions = session.batch.candidate_source.schedules[&owner].clone();
+            let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
+            let mut checkpoint = None;
+            FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
+            assert_eq!(session.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)
+            }), Err(exhausted()));
+            checkpoint.unwrap().assert_restored(&session);
+            assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
+            let mut checkpoint = None;
+            assert_eq!(session.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            checkpoint.unwrap().assert_restored(&session);
+            assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
+            session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
+            assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());
+        }
     }
 
     #[test]

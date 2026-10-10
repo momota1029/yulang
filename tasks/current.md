@@ -7403,3 +7403,15 @@ delta review. Other local annotation forms, complete Call, effect hygiene,
 public/default inference and F5 cutover remain open; the [contextual
 residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md)
 still blocks contextual residual and formal-row work.
+
+### Whole-local ground Function annotations (2026-10-10)
+
+The candidate path now also admits pure whole-local Function trees over
+`Int`/`Unit` leaves. It uses the paired annotation constructor for whole-value
+checking and positive-root exposure, while preserving one-shot initializer
+effects and pure lookups. Nested effect rows (including explicit empty rows),
+variables, and unfinished formal forms remain unsupported. The updated 15-test
+source target and all-target/all-feature solver check pass; independent semantic
+review found no issue. See the [implementation record](../notes/progress/2026-10-10-whole-local-ground-functions.md).
+The default/public entrypoint still selects F5, so this does not complete the
+required production migration.
