@@ -276,3 +276,77 @@ fn root_allowance_does_not_supply_effects_to_a_pure_computation() {
         assert_eq!(candidate.source_call_count(), 0);
     }
 }
+
+
+#[test]
+fn root_symbolic_tail_carries_computation_effect_into_a_nested_function_port() {
+    for allowed in [true, false] {
+        let target = if allowed { "tick" } else { "other" };
+        let hir = module(&format!(
+            "act other\nact tick:\n    our next: () -> int\n\nmy value:['e] (int -> ['e] int) = {{ my ignored = tick::next(); my ident x = x; ident }}\nmy checked:int -> [{target}] int = value"
+        )).unwrap();
+        let source = hir.local_source(binding(&hir, "value").definition_root()).unwrap().unwrap();
+        let annotation = source.annotation().unwrap();
+        let SourceAnnotationValue::Function { result, .. } = &annotation.ty.value else { panic!("annotated Function"); };
+        assert_eq!(annotation.ty.effects.as_ref().unwrap().variables, result.effects.as_ref().unwrap().variables);
+        assert_eq!(annotation.ty.effects.as_ref().unwrap().variables.len(), 1);
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert_eq!(candidate.source_call_count(), 1);
+        if allowed {
+            assert!(candidate.candidate_conflicts().is_empty());
+        } else {
+            let checked = hir.local_source(binding(&hir, "checked").definition_root()).unwrap().unwrap();
+            let SourceAnnotationValue::Function { result, .. } = &checked.annotation().unwrap().ty.value else { panic!("checking Function"); };
+            let position = &result.effects.as_ref().unwrap().position;
+            assert!(candidate.candidate_conflicts().iter().any(|error| {
+                candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
+                    conflict.annotation.is_some_and(|boundary|
+                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+            }), "root computation tick remains visible at the later other-only Function boundary");
+        }
+    }
+}
+
+#[test]
+fn local_root_symbolic_tail_preserves_a_future_lower_from_an_actual_argument() {
+    for allowed in [true, false] {
+        let target = if allowed { "tick" } else { "other" };
+        let hir = module(&format!(
+            "act other\nact tick:\n    our next: () -> int\n\nmy maker f = {{ my local:['e] (int -> ['e] int) = {{ my ignored = f (); my ident x = x; ident }}; local }}\nmy late = maker tick::next\nmy checked:int -> [{target}] int = late"
+        )).unwrap();
+        let source = hir.local_source(binding(&hir, "maker").definition_root()).unwrap().unwrap();
+        let local = source.bindings().iter().find(|local| local.spelling.as_ref() == "local").unwrap();
+        let annotation = local.annotation.as_ref().unwrap();
+        let SourceAnnotationValue::Function { result, .. } = &annotation.ty.value else { panic!("annotated Function"); };
+        assert_eq!(annotation.ty.effects.as_ref().unwrap().variables, result.effects.as_ref().unwrap().variables);
+        assert_eq!(annotation.ty.effects.as_ref().unwrap().variables.len(), 1);
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert_eq!(candidate.source_call_count(), 2);
+        if allowed {
+            assert!(candidate.candidate_conflicts().is_empty());
+        } else {
+            assert!(!candidate.candidate_conflicts().is_empty(), "future tick lower must reject other-only consumer");
+            let checked = hir.local_source(binding(&hir, "checked").definition_root()).unwrap().unwrap();
+            let SourceAnnotationValue::Function { result, .. } = &checked.annotation().unwrap().ty.value else { panic!("checking Function"); };
+            let position = &result.effects.as_ref().unwrap().position;
+            assert!(candidate.candidate_conflicts().iter().any(|error| {
+                candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
+                    conflict.annotation.is_some_and(|boundary|
+                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+            }), "future tick lower through maker's actual argument reaches the retained nested port check");
+        }
+    }
+}
+
+
+#[test]
+fn concrete_root_member_stays_local_when_the_row_also_has_a_shared_tail() {
+    for body in [
+        "my value:[tick, 'e] (int -> ['e] int) = { my ignored = tick::next(); my ident x = x; ident }; my checked:int -> [] int = value",
+        "my maker f = { my local:[tick, 'e] (int -> ['e] int) = { my ignored = f (); my ident x = x; ident }; local }; my late = maker tick::next; my checked:int -> [] int = late",
+    ] {
+        let hir = module(&format!("act tick:\n    our next: () -> int\n\n{body}")).unwrap();
+        let candidate = CandidateInference::solve(hir).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "listed tick is consumed by the root allowance and must not enter its shared tail: {body}");
+    }
+}

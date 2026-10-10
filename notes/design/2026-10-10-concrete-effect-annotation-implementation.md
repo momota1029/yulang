@@ -5,7 +5,7 @@ Scope: Private executable representation and the first source/consumer slice
 Authority: user-authorized integration; annotation-effect-hygiene-integration §1, §4
 Reviewed-by: architect and independent compiler-referee, 2026-10-10
 Supersedes: no language contract or theorem
-Implementation: private covariant concrete checks now cover nested Function ports and explicit whole-binding computation rows; source subtraction, full hygiene and public cutover remain open
+Implementation: private covariant concrete checks cover nested Function ports and explicit whole-binding computation rows; variable-only root tails retain direct flow through capture/freshening; source subtraction, full hygiene and public cutover remain open
 
 This implements the [selected policy](2026-10-10-annotation-effect-hygiene-integration.md),
 not a new interpretation. The first coupled slice forms actual nullary `act E;`

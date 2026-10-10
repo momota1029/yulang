@@ -1091,10 +1091,19 @@ impl InferenceSession {
         // An explicit root row checks evaluation once; it never supplies a
         // positive support operand to the initializer or the local value scheme.
         let Some(row) = annotation.ty.effects.as_ref() else { return Ok(()); };
-        let upper = self.candidate_signature_effect(
-            context, Some(row), None, Polarity::Negative, Polarity::Positive,
-            level, effects, views,
-        )?;
+        let upper = if row.concrete.is_empty() && row.variables.len() == 1 {
+            // A variable-only allowance is the scoped tail itself. Retain this
+            // ordinary bound so a later lower remains reachable from exposed
+            // Function support; an empty allowance wrapper would hide the edge.
+            let SignatureContext::Annotation(_, scope) = context else { return Err(exhausted()); };
+            let tail = self.candidate_formal_effect_variable(scope, &row.variables[0], level)?;
+            self.live_effect_term(Polarity::Negative, tail)?
+        } else {
+            self.candidate_signature_effect(
+                context, Some(row), None, Polarity::Negative, Polarity::Positive,
+                level, effects, views,
+            )?
+        };
         let lower = self.batch.component_term_at(computation_effect);
         let id = ConstraintOccurrenceId::new(source.clone(), 42);
         let cause = CauseId::for_occurrence(id.clone());
@@ -1373,9 +1382,11 @@ mod tests {
 
     #[test]
     fn root_computation_annotation_rolls_back_storage_and_retries() {
-        for text in [
-            "act E\nmy answer:[E] int = 1",
-            "act E\nmy answer = { my local:[E] int = 1; local }",
+        for (text, direct_tail) in [
+            ("act E\nmy answer:[E] int = 1", false),
+            ("act E\nmy answer = { my local:[E] int = 1; local }", false),
+            ("my answer:['e] int = 1", true),
+            ("my answer = { my local:['e] int = 1; local }", true),
         ] {
             let mut session = make_session(text);
             let owner = root(&session, "answer");
@@ -1390,19 +1401,33 @@ mod tests {
                 _ => unreachable!(),
             };
             let before_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+            let before_tails = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
             let mut checkpoint = None;
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
                 apply(session)?;
-                assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len() > before_views);
+                let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                if direct_tail {
+                    assert_eq!(state.views.len(), before_views, "variable-only root checks have no allowance wrapper");
+                    assert_eq!(state.annotation_effects.len(), before_tails.len() + 1);
+                } else {
+                    assert!(state.views.len() > before_views);
+                }
                 assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
                 Err::<(), _>(exhausted())
             }), Err(exhausted()));
             checkpoint.unwrap().assert_restored(&session);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), before_views);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, before_tails);
             assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
             session.with_route_transaction(apply).unwrap();
-            assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len() > before_views);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            if direct_tail {
+                assert_eq!(state.views.len(), before_views);
+                assert_eq!(state.annotation_effects.len(), before_tails.len() + 1);
+            } else {
+                assert!(state.views.len() > before_views);
+            }
         }
     }
 

@@ -16,23 +16,34 @@ root row preserves prior behavior. Closed listed rows accept matching concrete
 effects; closed empty or unlisted rows reject them with annotation-position
 provenance.
 
+For a root row with no concrete members and exactly one symbolic tail, the
+computation check now uses the scoped effect variable directly. Wrapping that
+case in an empty `Allowance` failed to retain an incoming dependency reachable
+from the exposed Function port before a future lower arrived. An actual local
+future-lower fixture reproduced the lost effect; the direct row relation fixes
+it through ordinary capture/extrusion/freshening. Closed `[]` and concrete
+plus-tail rows retain their allowance behavior, so an explicitly listed
+concrete member stays local instead of entering the shared tail.
+
 ## Review and verification
 
 Independent compiler review found no blocking, major or minor finding. It
 checked both action owners, composed annotation context, allowance direction,
 one-shot flow, absence of manufactured support, counters, provenance and
-transactional rollback/retry. It did not certify root symbolic-tail/future-lower
-correlation, Function-valued root initializers, complete Call, public/default
-inference or full effect hygiene.
+transactional rollback/retry. The symbolic-tail repair also received an
+independent no-finding review of its direct-row condition, concrete-plus-tail
+boundary, ownership and rollback. Neither review certifies Function-valued root
+initializers, complete Call, public/default inference or full effect hygiene.
 
-Focused checks:
+Focused checks after the repair:
 
-- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --test candidate_effect_annotation -- --test-threads=1` — 11 passed.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --test candidate_effect_annotation -- --test-threads=1` — 14 passed, including definition correlation and a later actual-argument lower through a local shared tail.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_effect::tests::root_computation_annotation -- --test-threads=1` — 2 passed, including storage/scratch rollback and retry.
-- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --test candidate_annotated_primitive_formals -- --test-threads=1` — 21 passed.
 - Scoped `git diff --check` passed.
 
-No broad suite or performance measurement ran. Contravariant concrete
-subtraction, contextual residual identity, complete Call, full hygiene,
-soundness/principality and public/default F5 cutover remain open. The pending
-contextual residual-owner question continues to block only dependent work.
+No broad suite or performance measurement ran. Rows with both concrete members
+and a symbolic tail retain the existing per-member allowance consumer; general
+contextual residual identity and contravariant concrete subtraction remain
+open. Complete Call, full hygiene, soundness/principality and public/default F5
+cutover remain open. The pending contextual residual-owner question continues
+to block only dependent work.

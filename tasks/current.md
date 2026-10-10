@@ -7462,13 +7462,18 @@ against the actual initializer computation effect under the selected covariant
 use the annotation's shared variable/view maps. The allowance creates no
 contribution; evaluation still flows once and local schemes remain value-only.
 Closed listed, unlisted and empty rows, boundary provenance, pure computation,
-and transaction rollback/retry are covered. The focused annotation, unit and
-primitive-formal tests passed; independent compiler review found no finding.
+and transaction rollback/retry are covered. A variable-only root row now uses
+its shared scoped effect variable directly, retaining dependencies for future
+lowers through local capture/extrusion/freshening. A later actual-argument
+lower now reaches the nested Function port; concrete-plus-tail rows keep listed
+members local. The focused source and rollback tests pass, and independent
+review found no issue.
 See the [implementation record](../notes/progress/2026-10-10-root-computation-effect-annotations.md).
 
-This closes only root covariant row checking in the private candidate. Root
-symbolic-tail correlation/future lowers, Function-valued root initializers,
-contravariant subtraction, full hygiene and Call, public/default inference,
+This closes only root covariant row checking and the tested variable-only
+future-lower path in the private candidate. Broader rows with both concrete
+members and symbolic tails, Function-valued root initializers, contravariant
+subtraction, full hygiene and Call, public/default inference,
 soundness/principality and F5 cutover remain open.
 
 ### Recursive-definition external instantiation regression (2026-10-10)
