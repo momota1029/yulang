@@ -8432,6 +8432,16 @@ This exposes a source-reachable endpoint-lifecycle failure, not an R witness,
 global impossibility proof or completed root-cause repair. Checkpoints are
 `88eee6ef4` and `c2f7851d8`.
 
+The [identity-context transport derivation](../notes/progress/2026-10-10-identity-context-stale-relation-lemma.md)
+shows that identity means no local filter work, but is not by itself proof that
+the stale relation's origins/replay/diagnostic ancestry reaches the canonical
+relation. Changed attached bounds already add that bridge during bound
+canonicalization; arbitrary queued relations lack an established equivalent.
+The conditional gap is `r=(P,I)`, `P != Q=rep(P)`, with no changed-bound
+incidence/path: admission may intern/select `c=(Q,I)` without adding `r -> c`.
+This is not yet shown to be RelationId270's actual parent history. The note is
+unreviewed and does not close the R obligation. Checkpoint `63ac38a7a`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8440,9 +8450,11 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: trace the exact producer/enqueue chronology for stale RelationId270
-through intrusion and relation replay, then determine the owning fix and a
-successful-source continuation without changing semantics. Separately,
+Next: at the relation lifecycle owner, retain a checked `r -> c` ancestry
+bridge for stale work items without changing context, residual or fresh-use
+semantics, then continue the exact source root through inference. Keep the
+identity-lemma review and focused regression/retry evidence as closure gates.
+Separately,
 continue from the successful delayed-Lambda traces to construct the exact
 missing distinct-tail Allowance on R31 and connect the retained positive copy
 C73 back to S26 without closing `(T'72,T24)`, or derive a
