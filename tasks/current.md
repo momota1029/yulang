@@ -8363,6 +8363,21 @@ selective SCC tests, and an SCC witness would still need a named missed fiber
 and failure of every replay/diagnostic rescue. No global impossibility was
 proved.
 
+The authentic [source/HIR selective-SCC search](../notes/progress/2026-10-10-source-hir-selective-scc-witness.md)
+now executes three valid focused parsed/lowered programs through their normal
+root schedules. It realizes the first three inherited-lower keys and `C + R`,
+but none produces the required `X -> S` return: the owner pair does not qualify
+and the tail pair remains outside at the same snapshot. The final repeated-call
+variant adds real continuation edges without changing that result. The note
+also inventories 38 actual restore calls / 19 literal Cartesian products and
+does not identify a lost obligation or rescue failure. This is a strong
+near-witness, not a counterexample or impossibility result. The independently
+reviewed [nested Function polarity search](../notes/progress/2026-10-10-function-port-source-return-search.md)
+narrows direct structural exposure of a fresh negative checking port to
+different positive/negative copy keys; later Allowance registration on an
+already-positive exposed port remains open. Checkpoint commits are
+`09ea300c3` and `3bda4d9d8`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8371,18 +8386,18 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: construct the exact four-key inherited-lower prefix from ordinary parsed
-source and run its normal schedule, then test both SCC memberships at one
-snapshot. If that prefix is unreachable, prove the exclusion over the actual
-constructors rather than extending the bounded root audit. Only after a
-selective source SCC exists, trace a later same-owner restore through all
-products, mutations, replays and diagnostic consumers to either name a missing
-required fiber or prove coverage. The `source-hir-selective-scc-proof.md`
-prover artifact is open and unreviewed; its requested Sol/high settings were
-not observable. The current-component inventory has passed focused spec
-review; implementation must first give mutation, observation withdrawal,
-private deferral and member publication/rollback explicit owners. Do not start
-two-cycle publication or acceleration until those owners and exact recognition
-are implemented and checked. Full Oracle hygiene transfer, ordinary Simple-sub
-inference, general residuals, Call/Catch, soundness/principality and F5 cutover
-remain open.
+Next: pursue the alternate already-positive Function-port route for an actual
+Allowance registration and `C -> ... -> S` source path; the active bounded
+source search owns that question. If no route closes the owner pair, the
+remaining task is a constructor-complete source exclusion, not another finite
+sample. If it does close, test both SCC memberships at the same snapshot and
+then trace one later same-owner restore through every product, mutation, replay
+and diagnostic consumer to either identify an absent required fiber or prove
+coverage. The `source-hir-selective-scc-proof.md` prover artifact remains open
+and unreviewed; its requested Sol/high settings were not observable. The
+current-component inventory has passed focused spec review; implementation
+must first give mutation, observation withdrawal, private deferral and member
+publication/rollback explicit owners. Do not start two-cycle publication or
+acceleration until those owners and exact recognition are implemented and
+checked. Full Oracle hygiene transfer, ordinary Simple-sub inference, general
+residuals, Call/Catch, soundness/principality and F5 cutover remain open.
