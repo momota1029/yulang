@@ -152,14 +152,24 @@ The current owners expose why a general proof stops here:
 
 A smallest **local obstruction**, not a demonstrated source program, consists
 of two relation keys `r=(P,I)` and `c=(Q,I)`, `P!=Q=rho(P)`, processing `r`, and
-no retained changed-bound incidence or other path connecting `r` to `c`.
+no retained changed-bound incidence or other path connecting `r` to `c`. For
+the exact self-parent branch below, also assume ordinary algebra processing
+`p` is present with `rho(p)=Q`, while retained contextual processing is `r`.
 Calling the admission owner on the canonical task selects `c` as its own
 canonical parent and records `Derived(c,c)`; it supplies no missing `r→c`.
-This is an exact branch derivation, with no model checker or oracle assumptions.
-Additional original Replay/FunctionPort parents may provide alternate paths in
-an actual source state; their presence and adequacy are deliberately unresolved.
-The prior audit does not establish them for270. This obstruction refutes only
-the inference that the admission call automatically establishes queue transport.
+This is an exact conditional branch derivation, with no model checker or oracle
+assumptions. If ordinary processing is absent, that call records no Derived
+edge. Additional original Replay/FunctionPort parents may provide alternate
+paths in an actual source state; their presence and adequacy are deliberately
+unresolved. The prior audit does not establish them for270. This obstruction
+refutes only the inference that the admission call automatically establishes
+queue transport.
+
+Diagnostic qualification: conflict traversal is seeded with both the raw
+initial pair and its canonical pair (`candidate_effect.rs:544–546`). Therefore
+the missing `r→c` edge alone does not prove loss of a diagnostic for an initial
+source relation. It still leaves general dependency and completion ancestry
+unestablished for arbitrary queued relations.
 
 The missing fact is lifecycle evidence already available where raw task,
 RelationId and representative change meet. Under the compiler-engineering
