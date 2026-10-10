@@ -1616,7 +1616,7 @@ fn restoration_previous_replay_pointer_controls_reclamation_and_rollback_bytes()
     let advance = |session: &mut InferenceSession| {
         let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
         context.prepare_restoration_update(restoration, true)?;
-        context.advance_restoration(restoration);
+        context.advance_restoration(restoration, true);
         Ok(())
     };
     assert_eq!(session.with_route_transaction(|session| {
@@ -4300,4 +4300,225 @@ fn exact_source_support_registration_and_dependency_failures_restore_frame_and_v
     assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
     assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+fn terminal_drain_fixture(session: &mut InferenceSession, empty: bool) -> (usize, ReplayOperationId, ReplayOperationId) {
+    let (occurrence, cause) = cause(session, 0);
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let lower = session.fresh_value_at_level(1).unwrap();
+    let upper = session.fresh_value_at_level(1).unwrap();
+    session.candidate_insert_bound(value(owner), Polarity::Negative, value(upper)).unwrap();
+    let restoration = session.candidate_begin_bound_restoration(value(owner), Polarity::Positive, value(lower),
+        &occurrence, &cause, BoundAdmissionCause::OwnerEmission { processing: None }).unwrap();
+    let lower_input = BoundKey(value(owner), Polarity::Positive, value(lower));
+    let upper_input = BoundKey(value(owner), Polarity::Negative, value(upper));
+    let replay = session.candidate_context_begin_replay(lower_input, upper_input, task(lower, upper), true).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    // Terminal-only fixture: preserve two exact ordered occurrences of the
+    // generated child without invoking diagnostic or constraint dispatch again.
+    if empty {
+        let operation = context.replay_operations.get_mut(&replay).unwrap();
+        context.replay_child_bytes -= operation.children.capacity() * std::mem::size_of::<RelationId>();
+        operation.children = Vec::new();
+    } else {
+        let operation = context.replay_operations.get_mut(&replay).unwrap();
+        let relation = operation.children[0];
+        let old_capacity = operation.children.capacity();
+        operation.children.push(relation);
+        context.replay_child_bytes += (operation.children.capacity() - old_capacity) * std::mem::size_of::<RelationId>();
+        operation.queued = operation.children.len();
+    }
+    context.set_restoration_replay(restoration, replay);
+    let index = context.begin_typed_drain(task(lower, upper), &occurrence, &cause,
+        Some(task_pair(task(lower, upper))), context.replay_operations[&replay].children.first().copied()).unwrap();
+    let frame = &mut context.typed_drains[index];
+    frame.stage = TypedDrainStage::Acknowledgements;
+    frame.transitions = 19;
+    frame.replay_acks = (0..context.replay_operations[&replay].children.len())
+        .map(|index| ReplayChildAck { operation: replay, index }).collect();
+    // Warm only journal storage, so exact retained-byte equality after rollback
+    // is independent of the allocator's first capacity growth.
+    context.typed_drain_undo.try_reserve(1).unwrap();
+    context.replay_operation_undo.try_reserve(8).unwrap();
+    context.restoration_undo.try_reserve(4).unwrap();
+    (index, restoration, replay)
+}
+
+#[test]
+fn typed_drain_terminal_partial_ack_failure_resume_and_exact_rollback() {
+    let mut session = session();
+    let (index, restoration, replay) = terminal_drain_fixture(&mut session, false);
+    session.with_route_transaction(|session| {
+        assert_eq!(session.candidate_step_typed_drain_terminal(index)?, None);
+        Ok(())
+    }).unwrap();
+    assert_eq!(state(&session).typed_drains[index].completed_acks, 1);
+    assert_eq!(state(&session).typed_drains[index].prepared_acks, 1, "commit releases the remaining children's preflight ownership");
+    assert!(!state(&session).typed_drains[index].terminal_prepared);
+    let original_frame = state(&session).typed_drains[index].clone();
+    let original_capacity = state(&session).typed_drains[index].replay_acks.capacity();
+    let original_replay = state(&session).replay_operations[&replay].clone();
+    let original_restoration = state(&session).restorations[&restoration].clone();
+    let checkpoint = state(&session).checkpoint();
+    let bytes = state(&session).bytes().unwrap();
+    let errors = session.errors.clone();
+    let processing = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.processing;
+    assert_eq!(session.with_route_transaction(|session| {
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.fail_replay_completion_undo_reserve = true;
+        assert_eq!(session.candidate_step_typed_drain_terminal(index), Err(exhausted()));
+        assert_eq!(state(session).typed_drains[index], original_frame);
+        assert_eq!(state(session).replay_operations[&replay], original_replay);
+        assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), checkpoint);
+    assert_eq!(state(&session).typed_drains[index], original_frame);
+    assert_eq!(state(&session).typed_drains[index].replay_acks.capacity(), original_capacity);
+    assert_eq!(state(&session).bytes().unwrap(), bytes);
+    assert_eq!(session.with_route_transaction(|session| {
+        assert_eq!(session.candidate_step_typed_drain_terminal(index)?, None);
+        assert_eq!(state(session).typed_drains[index].stage, TypedDrainStage::ReturnReady);
+        assert_eq!(state(session).typed_drains[index].completed_acks, 2);
+        assert_eq!(state(session).replay_operations[&replay].consumed, 2);
+        assert_eq!(session.candidate_step_typed_drain_terminal(index)?, Some(19));
+        assert!(state(session).typed_drains.is_empty());
+        assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), checkpoint);
+    assert_eq!(state(&session).typed_drains[index], original_frame);
+    assert_eq!(state(&session).typed_drains[index].replay_acks.capacity(), original_capacity);
+    assert_eq!(state(&session).replay_operations[&replay], original_replay);
+    assert_eq!(state(&session).restorations[&restoration], original_restoration);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.processing, processing);
+    assert_eq!(state(&session).bytes().unwrap(), bytes);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(|session| {
+        assert_eq!(session.candidate_finish_typed_drain(index)?, 19);
+        Ok(())
+    }).unwrap();
+    assert!(state(&session).typed_drains.is_empty());
+    assert_eq!(state(&session).replay_operations[&replay].consumed, 2);
+    assert_eq!(session.errors, errors, "terminal resume never repeats successful diagnostics");
+    session.candidate_drive_bound_restoration(restoration).unwrap();
+    assert!(!state(&session).replay_operations.contains_key(&replay));
+    assert!(!state(&session).restorations.contains_key(&restoration));
+}
+
+#[test]
+fn typed_drain_terminal_final_child_handoff_and_empty_batch_keep_parent_handle_usable() {
+    for transactional in [false, true] { for empty in [false, true] {
+        let mut session = session();
+        let (index, restoration, replay) = terminal_drain_fixture(&mut session, empty);
+        let run = |session: &mut InferenceSession| -> Result<(), SolveAvailabilityError> {
+            if empty {
+                // Empty replay completion has the same parent handoff boundary.
+                assert!(!session.candidate_context_consume_replay_child(replay, None)?);
+            }
+            assert_eq!(session.candidate_finish_typed_drain(index)?, 19);
+            let context = state(session);
+            assert_eq!(context.restorations[&restoration].replay, Some(replay));
+            assert!(context.replay_operations[&replay].retired);
+            assert_eq!(context.replay_operations[&replay].consumed, context.replay_operations[&replay].children.len());
+            assert_eq!(context.bytes()?, context.enumerated_bytes());
+            // Resuming the waiting parent observes the completed handle and
+            // advances the physical product exactly once before reclaiming it.
+            session.candidate_drive_bound_restoration(restoration)?;
+            assert!(!state(session).restorations.contains_key(&restoration) || transactional);
+            Ok(())
+        };
+        if transactional {
+            let checkpoint = state(&session).checkpoint();
+            let original_frame = state(&session).typed_drains[index].clone();
+            let original_replay = state(&session).replay_operations[&replay].clone();
+            let original_restoration = state(&session).restorations[&restoration].clone();
+            let bytes = state(&session).bytes().unwrap();
+            assert_eq!(session.with_route_transaction(|session| {
+                run(session)?;
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            assert_eq!(state(&session).checkpoint(), checkpoint);
+            assert_eq!(state(&session).typed_drains[index], original_frame);
+            assert_eq!(state(&session).replay_operations[&replay], original_replay);
+            assert_eq!(state(&session).restorations[&restoration], original_restoration);
+            assert_eq!(state(&session).bytes().unwrap(), bytes);
+            assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+            session.with_route_transaction(run).unwrap();
+        } else { run(&mut session).unwrap(); }
+        assert!(!state(&session).replay_operations.contains_key(&replay));
+        assert!(!state(&session).restorations.contains_key(&restoration));
+        assert!(state(&session).typed_drains.is_empty());
+        assert_eq!(state(&session).replay_child_bytes, 0);
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    } }
+}
+
+#[test]
+fn typed_drain_terminal_cold_undo_samples_active_and_rollback_peak_before_cleanup() {
+    for fail_preflight in [false, true] {
+        let mut session = session();
+        let (index, restoration, replay) = terminal_drain_fixture(&mut session, false);
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        // This witness intentionally starts with cold terminal journal storage.
+        context.typed_drain_undo = Vec::new();
+        context.replay_operation_undo = Vec::new();
+        let original_frame = context.typed_drains[index].clone();
+        let original_replay = context.replay_operations[&replay].clone();
+        let original_restoration = context.restorations[&restoration].clone();
+        let mut sampled_peak = 0;
+        assert_eq!(session.with_route_transaction(|session| {
+            let attempts = session.incoming_route_sample_attempts;
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.fail_replay_completion_undo_reserve = fail_preflight;
+            let result = session.candidate_step_typed_drain_terminal(index);
+            assert_eq!(result, if fail_preflight { Err(exhausted()) } else { Ok(None) });
+            assert!(session.incoming_route_sample_attempts > attempts);
+            let context = state(session);
+            assert_eq!(context.typed_drain_undo.len(), 1);
+            assert!(context.typed_drain_undo.capacity() > 0);
+            let active_ack_bytes = context.typed_drains[index].replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>();
+            let undo_ack_bytes = context.typed_drain_undo[0].frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>();
+            assert!(active_ack_bytes > 0 && undo_ack_bytes > 0);
+            assert_eq!(context.bytes()?, context.enumerated_bytes());
+            sampled_peak = session.resource_ledger.inference_session_retained_bytes;
+            assert!(session.resource_ledger.inference_session_peak_bytes >= sampled_peak);
+            if fail_preflight {
+                assert!(context.replay_operation_undo.is_empty());
+                assert_eq!(context.typed_drains[index], original_frame);
+            } else {
+                assert_eq!(context.replay_operation_undo.len(), 1, "direct terminal preflight retains one applicable completion undo");
+                // Model the existing pre-pop owner for the remaining child:
+                // reserve once, then hand its prepared cursor to terminal.
+                let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                let ack = context.typed_drains[index].replay_acks[1];
+                context.prepare_replay_child_completion(ack, true)?;
+                context.typed_drains[index].prepared_acks = 2;
+                context.fail_replay_completion_undo_reserve = true;
+                let attempts = session.incoming_route_sample_attempts;
+                assert_eq!(session.candidate_step_typed_drain_terminal(index)?, None);
+                assert_eq!(session.incoming_route_sample_attempts, attempts, "unchanged acknowledgement storage needs no full sample");
+                assert!(state(session).fail_replay_completion_undo_reserve, "prepared completion has no second fallible reservation");
+                assert_eq!(state(session).replay_operation_undo.len(), 2, "each child has one applicable preflight");
+                sampled_peak = session.resource_ledger.inference_session_retained_bytes;
+                let event_context_bytes = state(session).bytes()?;
+                assert_eq!(session.candidate_step_typed_drain_terminal(index)?, Some(19));
+                assert_eq!(session.incoming_route_sample_attempts, attempts, "ReturnReady removal reuses the sampled peak");
+                assert_eq!(state(session).bytes()? + active_ack_bytes, event_context_bytes);
+                // The terminal sampler ran before pop. A subsequent sample
+                // drops exactly the active acknowledgement allocation.
+                assert_eq!(session.resource_ledger.inference_session_retained_bytes, sampled_peak);
+                session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                assert_eq!(session.resource_ledger.inference_session_retained_bytes + active_ack_bytes, sampled_peak);
+            }
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(state(&session).typed_drains[index], original_frame);
+        assert_eq!(state(&session).replay_operations[&replay], original_replay);
+        assert_eq!(state(&session).restorations[&restoration], original_restoration);
+        assert!(state(&session).typed_drain_undo.is_empty());
+        assert!(state(&session).replay_operation_undo.is_empty());
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+        session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+        assert!(session.resource_ledger.inference_session_retained_bytes < sampled_peak);
+        assert!(session.resource_ledger.inference_session_peak_bytes >= sampled_peak);
+    }
 }

@@ -8753,6 +8753,21 @@ sites. The three dormant retained-input `dead_code` warnings remain tied to the
 disabled production certificate consumer. `cargo fmt --check -p yu-solver`
 reports broad pre-existing formatting drift; no formatter rewrite was applied.
 
+The reviewed [typed-drain terminal handoff foundation](../notes/progress/2026-10-11-typed-drain-terminal-handoff.md)
+now retains acknowledgement progress, reuses pre-pop completion undo,
+preserves final replay ownership through restoration advancement, and restores
+pre-existing drain frames on route rollback. Cold resource-ledger coverage
+includes active and undo frame storage before cleanup; unchanged terminal steps
+avoid repeated full sampling. Compiler-referee, spec-auditor and performance
+reviews closed after one batched repair, and the focused terminal, replay and
+restoration checks plus no-feature package check passed. This is still an
+internal synchronous foundation: no outward `Suspended` result, interruptible
+typed dispatch, freshening/restoration resume, observation withdrawal and
+recomputation, incidence deferral, or resumable SCC publication was added.
+Production certificates remain disabled. The next gate is the resumable
+local-use freshening/restoration chain joined to this typed-child driver, while
+preserving the existing saved live opposite-index behavior.
+
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no
 formatting rewrite was applied. The three emitted `dead_code` warnings belong

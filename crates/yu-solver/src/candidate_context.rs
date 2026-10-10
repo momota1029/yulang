@@ -17,14 +17,14 @@ pub(super) struct ReplayChildAck {
 // This stack owns the inner synchronous driver's continuation data. Lifecycle
 // suspension and the source/extrusion frames are separate, still-disabled gates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum TypedDrainStage { Transport, Context, Dispatch, FunctionAdmission, FunctionEnqueue, Diagnostics }
-#[derive(Debug)]
+pub(super) enum TypedDrainStage { Transport, Context, Dispatch, FunctionAdmission, FunctionEnqueue, Diagnostics, Acknowledgements, ReturnReady }
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct FunctionDispatch {
     pub children: [(FunctionField, TypedPairKey); 4],
     pub next: usize,
     pub pending: Option<TypedWorkItem>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct TypedDrainFrame {
     pub initial: LiveConstraintTask,
     pub occurrence: ConstraintOccurrenceId,
@@ -37,9 +37,16 @@ pub(super) struct TypedDrainFrame {
     pub transitions: usize,
     pub replay_acks: Vec<ReplayChildAck>,
     pub completed_acks: usize,
+    pub prepared_acks: usize,
+    pub terminal_prepared: bool,
     pub function: Option<FunctionDispatch>,
 }
 #[derive(Debug)]
+struct TypedDrainUndo {
+    index: usize,
+    frame: TypedDrainFrame,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct ReplayOperation {
     task: LiveConstraintTask,
     // Generation and child completion are deliberately separate frontiers.
@@ -64,7 +71,7 @@ struct ReplayOperationUndo {
     consumed: usize,
     retired: bool,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct BoundRestoration {
     pub owner: ExtrusionEndpoint,
     pub polarity: Polarity,
@@ -657,6 +664,7 @@ pub(super) struct State {
     replay_operation_undo: Vec<ReplayOperationUndo>,
     replay_child_bytes: usize,
     pub(super) typed_drains: Vec<TypedDrainFrame>,
+    typed_drain_undo: Vec<TypedDrainUndo>,
     #[cfg(test)]
     fail_replay_completion_undo_reserve: bool,
     #[cfg(test)]
@@ -700,6 +708,7 @@ pub(super) struct Checkpoint {
     replay_operation_undo: usize,
     restoration_undo: usize,
     typed_drains: usize,
+    typed_drain_undo: usize,
     edges: usize,
     processing: Option<RelationId>,
     discharges: usize,
@@ -1544,6 +1553,7 @@ impl State {
             replay_operation_undo: self.replay_operation_undo.len(),
             restoration_undo: self.restoration_undo.len(),
             typed_drains: self.typed_drains.len(),
+            typed_drain_undo: self.typed_drain_undo.len(),
             edges: self.edge_log.len(),
             processing: self.processing,
             discharges: self.discharge_log.len(),
@@ -1555,6 +1565,15 @@ impl State {
         }
         for id in self.source_support_log.drain(checkpoint.source_support..) {
             self.source_support.remove(&id);
+        }
+        for undo in self.typed_drain_undo.drain(checkpoint.typed_drain_undo..).rev() {
+            if undo.index >= checkpoint.typed_drains { continue; }
+            if undo.index < self.typed_drains.len() { self.typed_drains[undo.index] = undo.frame; }
+            else {
+                assert_eq!(undo.index, self.typed_drains.len());
+                // Removal never shrinks the stack's already reserved capacity.
+                self.typed_drains.push(undo.frame);
+            }
         }
         self.typed_drains.truncate(checkpoint.typed_drains);
         for undo in self.restoration_undo.drain(checkpoint.restoration_undo..).rev() {
@@ -1654,6 +1673,13 @@ impl State {
     }
     pub(super) fn commit_replay_operations(&mut self, checkpoint: Checkpoint) {
         self.source_support_undo.truncate(checkpoint.source_support_undo);
+        self.typed_drain_undo.truncate(checkpoint.typed_drain_undo);
+        for frame in &mut self.typed_drains {
+            // A committed continuation must preflight its remaining children
+            // against the next route's journal before terminal consumption.
+            frame.prepared_acks = frame.completed_acks;
+            frame.terminal_prepared = false;
+        }
         // Candidate visits depend on this route's creations and mutations,
         // never on historical map capacity. Repeated IDs need no dedup storage.
         for index in checkpoint.next_replay_operation..self.next_replay_operation {
@@ -1693,8 +1719,26 @@ impl State {
         let index = self.typed_drains.len();
         self.typed_drains.push(TypedDrainFrame { initial, occurrence: occurrence.clone(), cause: cause.clone(),
             previous_processing, previous_relation, current: None, stage: TypedDrainStage::Transport,
-            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, function: None });
+            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None });
         Ok(index)
+    }
+    // Keep the original allocation owned by undo, so rollback restores the
+    // exact frame and acknowledgement capacity even after terminal removal.
+    pub(super) fn prepare_typed_drain_update(&mut self, index: usize, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        if !transactional || self.typed_drain_undo.iter().any(|undo| undo.index == index) { return Ok(()); }
+        self.typed_drain_undo.try_reserve(1).map_err(|_| exhausted())?;
+        let frame = self.typed_drains.get(index).ok_or_else(exhausted)?;
+        let mut replay_acks = Vec::new();
+        replay_acks.try_reserve_exact(frame.replay_acks.capacity()).map_err(|_| exhausted())?;
+        replay_acks.extend_from_slice(&frame.replay_acks);
+        let replacement = TypedDrainFrame { initial: frame.initial, occurrence: frame.occurrence.clone(), cause: frame.cause.clone(),
+            previous_processing: frame.previous_processing, previous_relation: frame.previous_relation,
+            current: frame.current, stage: frame.stage, context_consumed: frame.context_consumed,
+            transitions: frame.transitions, replay_acks, completed_acks: frame.completed_acks,
+            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone() };
+        let frame = std::mem::replace(&mut self.typed_drains[index], replacement);
+        self.typed_drain_undo.push(TypedDrainUndo { index, frame });
+        Ok(())
     }
     pub(super) fn replay_operation_bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let mut bytes = self.replay_operations.capacity().checked_mul(std::mem::size_of::<(ReplayOperationId, ReplayOperation)>())
@@ -1703,7 +1747,8 @@ impl State {
         bytes = bytes.checked_add(self.replay_child_bytes).ok_or_else(exhausted)?;
         bytes = bytes.checked_add(self.typed_drains.capacity().checked_mul(std::mem::size_of::<TypedDrainFrame>()).ok_or_else(exhausted)?)
             .ok_or_else(exhausted)?;
-        for frame in &self.typed_drains {
+        bytes = bytes.checked_add(self.typed_drain_undo.capacity().checked_mul(std::mem::size_of::<TypedDrainUndo>()).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
+        for frame in self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame)) {
             bytes = bytes.checked_add(frame.replay_acks.capacity().checked_mul(std::mem::size_of::<ReplayChildAck>()).ok_or_else(exhausted)?)
                 .ok_or_else(exhausted)?;
         }
@@ -1741,10 +1786,13 @@ impl State {
         self.replay_operations.get_mut(&replay).expect("new retained replay operation").restoration = Some(id);
         self.restorations.get_mut(&id).expect("prepared restoration update").replay = Some(replay);
     }
-    pub(super) fn advance_restoration(&mut self, id: ReplayOperationId) {
+    pub(super) fn advance_restoration(&mut self, id: ReplayOperationId, transactional: bool) {
         let operation = self.restorations.get_mut(&id).expect("prepared restoration update");
-        operation.replay = None;
+        let replay = operation.replay.take();
         operation.next_opposite += 1;
+        if !transactional {
+            if let Some(replay) = replay { self.retire_replay_candidate(replay); }
+        }
     }
     pub(super) fn retire_restoration(&mut self, id: ReplayOperationId, transactional: bool) {
         self.restorations.get_mut(&id).expect("prepared restoration retirement").retired = true;
@@ -1790,9 +1838,7 @@ impl State {
         if operation.consumed < operation.children.len() { operation.consumed += 1; }
         if operation.consumed == operation.children.len() {
             operation.retired = true;
-            if !transactional {
-                self.remove_replay_operation(id);
-            }
+            if !transactional { self.retire_replay_candidate(id); }
         }
     }
     pub(super) fn prepare_replay_child_completion(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
@@ -1806,6 +1852,9 @@ impl State {
             return Err(exhausted());
         }
         self.prepare_replay_ack(ack.operation, transactional)
+    }
+    pub(super) fn terminal_storage(&self) -> (usize, usize, usize) {
+        (self.typed_drain_undo.capacity(), self.replay_operation_undo.capacity(), self.typed_drain_undo.len())
     }
     pub(super) fn complete_replay_child(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
         let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
@@ -1922,7 +1971,9 @@ impl State {
             + self.restoration_undo.capacity() * std::mem::size_of::<BoundRestorationUndo>()
             + replay_children
             + self.typed_drains.capacity() * std::mem::size_of::<TypedDrainFrame>()
-            + self.typed_drains.iter().map(|frame| frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>()).sum::<usize>()
+            + self.typed_drain_undo.capacity() * std::mem::size_of::<TypedDrainUndo>()
+            + self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame))
+                .map(|frame| frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>()).sum::<usize>()
             + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
             + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()

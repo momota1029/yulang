@@ -11917,7 +11917,11 @@ impl InferenceSession {
                 // Retain the exact popped work, including acknowledgement and
                 // provenance, before any fallible transport or dispatch.
                 frame.current = Some(item);
-                if let Some(ack) = item.replay_ack.take() { frame.replay_acks.push(ack); }
+                if let Some(ack) = item.replay_ack.take() {
+                    debug_assert_eq!(frame.prepared_acks, frame.replay_acks.len());
+                    frame.replay_acks.push(ack);
+                    frame.prepared_acks += 1;
+                }
             }
             #[cfg(not(feature = "shadow-apply-candidate"))]
             let _ = &mut item;
@@ -12216,37 +12220,90 @@ impl InferenceSession {
         {
             if let Some(index) = drain {
                 if result.is_ok() {
-                    let transactional = self.route_journal.is_some();
-                    let count = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].replay_acks.len();
-                    for position in 0..count {
-                        let ack = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].replay_acks[position];
-                        if let Err(error) = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.complete_replay_child(ack, transactional) {
-                            result = Err(error);
-                            break;
-                        }
-                        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].completed_acks += 1;
-                    }
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index].stage =
+                        candidate_context::TypedDrainStage::Acknowledgements;
+                    result = self.candidate_finish_typed_drain(index);
                 }
-                // Complete/availability failure are the only outcomes of this
-                // foundation. A later Suspended outcome must retain this frame.
-                let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
-                debug_assert_eq!(frames.len(), index + 1);
-                let frame = frames.pop().unwrap();
-                debug_assert_eq!(frame.initial, initial);
-                debug_assert_eq!(&frame.occurrence, occurrence);
-                debug_assert_eq!(&frame.cause, cause);
-                debug_assert_eq!(frame.previous_processing, previous_processing);
-                debug_assert_eq!(frame.previous_relation, previous_relation);
-                if let Ok(transitions) = &result {
-                    debug_assert_eq!(frame.transitions, *transitions);
-                    debug_assert_eq!(frame.completed_acks, frame.replay_acks.len());
-                    debug_assert_eq!(frame.stage, candidate_context::TypedDrainStage::Diagnostics);
+                if result.is_err() {
+                    // Availability failure still unwinds a newly created synchronous
+                    // drain; retained terminal callers leave their frame owned.
+                    let frames = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains;
+                    debug_assert_eq!(frames.len(), index + 1);
+                    let frame = frames.pop().unwrap();
+                    debug_assert_eq!(frame.initial, initial);
+                    debug_assert_eq!(&frame.occurrence, occurrence);
+                    debug_assert_eq!(&frame.cause, cause);
+                    debug_assert_eq!(frame.previous_processing, previous_processing);
+                    debug_assert_eq!(frame.previous_relation, previous_relation);
                 }
             }
             self.candidate_processing(previous_processing);
             if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
         }
         result
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_finish_typed_drain(&mut self, index: usize) -> Result<usize, SolveAvailabilityError> {
+        loop {
+            if let Some(transitions) = self.candidate_step_typed_drain_terminal(index)? { return Ok(transitions); }
+        }
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_step_typed_drain_terminal(&mut self, index: usize) -> Result<Option<usize>, SolveAvailabilityError> {
+        let transactional = self.route_journal.is_some();
+        let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let frame = context.typed_drains.get(index).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if index + 1 != context.typed_drains.len()
+            || !matches!(frame.stage, candidate_context::TypedDrainStage::Acknowledgements | candidate_context::TypedDrainStage::ReturnReady)
+            || frame.completed_acks > frame.prepared_acks
+            || frame.prepared_acks > frame.replay_acks.len()
+            || (frame.stage == candidate_context::TypedDrainStage::ReturnReady && frame.completed_acks != frame.replay_acks.len()) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let before = context.terminal_storage();
+        let ack_capacity = frame.replay_acks.capacity();
+        let preparation: Result<(), SolveAvailabilityError> = (|| {
+            if !context.typed_drains[index].terminal_prepared {
+                context.prepare_typed_drain_update(index, transactional)?;
+            }
+            let frame = &context.typed_drains[index];
+            if frame.completed_acks == frame.prepared_acks {
+                if let Some(ack) = frame.replay_acks.get(frame.completed_acks).copied() {
+                    context.prepare_replay_child_completion(ack, transactional)?;
+                    context.typed_drains[index].prepared_acks += 1;
+                }
+            }
+            context.typed_drains[index].terminal_prepared = transactional;
+            Ok(())
+        })();
+        let after = context.terminal_storage();
+        let grew = after.0 > before.0 || after.1 > before.1 || (after.2 > before.2 && ack_capacity != 0);
+        // Only newly retained allocations need an event sample. Unchanged
+        // acknowledgement cursors and ReturnReady removal reuse that peak.
+        if grew {
+            if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
+            else { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+        }
+        preparation?;
+        let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        // Diagnostics completed before this stage. A retained partial terminal
+        // drain resumes at the first acknowledgement it still owns.
+        let frame = &context.typed_drains[index];
+        if frame.stage == candidate_context::TypedDrainStage::Acknowledgements {
+            if let Some(ack) = frame.replay_acks.get(frame.completed_acks).copied() {
+                context.complete_replay_child(ack, transactional)?;
+                context.typed_drains[index].completed_acks += 1;
+            }
+            let frame = &mut context.typed_drains[index];
+            if frame.completed_acks == frame.replay_acks.len() { frame.stage = candidate_context::TypedDrainStage::ReturnReady; }
+            return Ok(None);
+        }
+        let frame = context.typed_drains.pop().unwrap();
+        self.candidate_processing(frame.previous_processing);
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = frame.previous_relation;
+        Ok(Some(frame.transitions))
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
