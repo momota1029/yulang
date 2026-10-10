@@ -8798,14 +8798,27 @@ operation occurrences remain intact. Compiler-referee and spec-auditor reviews
 found no issue; the focused owner, terminal, Function, replay, and restoration
 checks passed. See the [retained owner record](../notes/progress/2026-10-11-nonterminal-retained-drain-owner.md).
 
-The production adapter remains synchronous and the retained resume driver is
-private test scaffolding. The parent constructive proof remains OPEN until the
-original source paths and proof invariant have a complete correspondence.
+The [current source bridge](../notes/progress/2026-10-11-nonterminal-drain-owner-source-bridge.md)
+confirms that the private retained route now owns Q/D/frame/replay rollback and
+that the synchronous production chain checks Complete before parent cursor
+advancement. The original parent theorem remains OPEN. Its exact missing source
+premise is a retained provenance-child destination above its blocked
+replay/restoration/Local parents: an unfinished step must leave
+`next_opposite` and `next_bound` unchanged, and the same child's committed
+Complete receipt must reach those parents before either cursor advances. The
+private retained driver currently returns to a generic test closure and is not
+wired to that parent chain. The owners are
+`candidate_context_consume_replay_child`, `candidate_step_bound_restoration`,
+and `step_candidate_local_use`; rollback-success arithmetic and inherited
+replay/incidence premises also remain explicit. Next gate: design and implement
+that bounded parent handoff, then bridge the original theorem against its
+source. The owner plan remains at
+[the implementation seam](../notes/progress/2026-10-11-nonterminal-drain-owner-seam.md).
+
 Authentic source suspension, lifecycle invalidation and ordered observation
 withdrawal/recomputation, external incidence deferral, resumable SCC
 publication, q113, complete Simple-sub inference, soundness/principality, and
-F5 cutover remain open. The [owner plan](../notes/progress/2026-10-11-nonterminal-drain-owner-seam.md)
-records the implementation boundary and stop conditions.
+F5 cutover remain open.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no

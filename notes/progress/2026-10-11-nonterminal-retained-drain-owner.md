@@ -60,9 +60,13 @@ separate open gate.
 ## Remaining gates
 
 The retained driver is private test scaffolding, not an authentic source
-continuation. Production suspension, all continuation classes, lifecycle
-invalidation and ordered observation withdrawal/recomputation, external
-incidence deferral, resumable SCC publication, complete Simple-sub inference,
-soundness/principality, and F5 cutover remain open. The parent constructive
-proof remains OPEN pending a proof-to-source bridge for actual source paths;
-the implementation and focused regressions do not prove that parent theorem.
+continuation. The later [current-source bridge](2026-10-11-nonterminal-drain-owner-source-bridge.md)
+confirms that the parent constructive proof remains OPEN: no retained
+provenance-child destination is wired above its blocked replay/restoration/Local
+parents, so a committed Complete receipt cannot yet return through that chain
+after a pause. The production chain is synchronous and checks completion before
+cursor advancement. Production suspension, all continuation classes,
+lifecycle invalidation and ordered observation withdrawal/recomputation,
+external incidence deferral, resumable SCC publication, complete Simple-sub
+inference, soundness/principality, and F5 cutover remain open. The
+implementation and focused regressions do not prove the parent theorem.
