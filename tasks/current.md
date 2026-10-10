@@ -7980,7 +7980,12 @@ each artifact. See the [conditional derivation](../notes/progress/2026-10-10-con
 [falsifiers](../notes/progress/2026-10-10-contravariant-effect-falsifiers.md),
 and [source bridge audit](../notes/progress/2026-10-10-contravariant-source-bridge-audit.md).
 These close no source-hygiene, soundness, principality, or production gate.
-They ran no Cargo/Oracle execution or measurements.
+They ran no Cargo/Oracle execution or measurements. The bridge producer's
+workflow minor is explicitly recorded in its §7: read-only Git queries violated
+the packet's no-Git rule and are not counted as compliant verification. The
+conditional proof handoff now explicitly retains the negative-row admission
+guard and reserves enabling for the approved lifecycle/source bridge gate; its
+delta review passed.
 
 Contextual fresh-use capture and transport is now integrated across relation
 DAGs and per-use payload/view identities. Context-only views and generic tails

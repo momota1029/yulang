@@ -316,6 +316,9 @@ action: inspect and specify the actual negative annotation formation/consumer
 seam so it emits canonical source attachment evidence and the retained lower
 check by construction; return that concrete lemma to the primary for assignment.
 Do not add another support-only proof or a prerequisite Call registry.
+This remains preparatory construction: retain the current negative-concrete
+formal-row admission guard. Enabling that admission belongs to the later
+approved lifecycle and source-correspondence gate.
 
 ## 9. Checks, independence, and frozen dependency packet
 
