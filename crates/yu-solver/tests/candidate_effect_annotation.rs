@@ -350,3 +350,48 @@ fn concrete_root_member_stays_local_when_the_row_also_has_a_shared_tail() {
         assert!(candidate.candidate_conflicts().is_empty(), "listed tick is consumed by the root allowance and must not enter its shared tail: {body}");
     }
 }
+
+
+#[test]
+fn function_valued_initializer_checks_its_root_computation_row_separately() {
+    for local in [false, true] {
+        for allowance in ["tick", "", "other"] {
+            let body = if local {
+                format!("my answer = {{ my value:[{allowance}] (int -> [] int) = tick::make(); value }}")
+            } else {
+                format!("my answer:[{allowance}] (int -> [] int) = tick::make()")
+            };
+            let hir = module(&format!(
+                "act other\nact tick:\n    our make: () -> (int -> int)\n\n{body}\nmy checked:int -> [] int = answer"
+            )).unwrap();
+            let source = hir.local_source(binding(&hir, "answer").definition_root()).unwrap().unwrap();
+            let annotation = if local {
+                source.bindings().iter().find(|binding| binding.spelling.as_ref() == "value").unwrap().annotation.as_ref().unwrap()
+            } else {
+                source.annotation().unwrap()
+            };
+            let root_row = annotation.ty.effects.as_ref().unwrap();
+            let SourceAnnotationValue::Function { result, .. } = &annotation.ty.value else { panic!("Function-valued initializer annotation"); };
+            let function_row = result.effects.as_ref().unwrap();
+            assert!(function_row.concrete.is_empty() && function_row.variables.is_empty());
+            assert_ne!(root_row.position, function_row.position);
+            let candidate = CandidateInference::solve(hir.clone()).unwrap();
+            assert_eq!(candidate.source_call_count(), 1);
+            if allowance == "tick" {
+                assert!(candidate.candidate_conflicts().is_empty(), "root tick evaluation must not pollute the returned Function's empty effect port: {body}");
+            } else {
+                let mut effect_conflicts = 0;
+                for error in candidate.candidate_conflicts() {
+                    if let Ok(conflict) = candidate.effect_conflict(error.kind()) {
+                        let boundary = conflict.annotation.expect("explicit root annotation owns the conflict");
+                        assert_eq!(boundary.owner, &annotation.owner);
+                        assert_eq!(boundary.position, &root_row.position);
+                        assert_ne!(boundary.position, &function_row.position);
+                        effect_conflicts += 1;
+                    }
+                }
+                assert!(effect_conflicts > 0, "the Function-valued initializer's tick evaluation violates its root row: {body}");
+            }
+        }
+    }
+}

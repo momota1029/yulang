@@ -32,18 +32,21 @@ checked both action owners, composed annotation context, allowance direction,
 one-shot flow, absence of manufactured support, counters, provenance and
 transactional rollback/retry. The symbolic-tail repair also received an
 independent no-finding review of its direct-row condition, concrete-plus-tail
-boundary, ownership and rollback. Neither review certifies Function-valued root
-initializers, complete Call, public/default inference or full effect hygiene.
+boundary, ownership and rollback. A third focused review confirmed that
+Function-valued initializers keep their root evaluation row separate from the
+returned Function effect port. Full Call, public/default inference and full
+effect hygiene remain uncertified.
 
 Focused checks after the repair:
 
-- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --test candidate_effect_annotation -- --test-threads=1` — 14 passed, including definition correlation and a later actual-argument lower through a local shared tail.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --test candidate_effect_annotation -- --test-threads=1` — 15 passed, including definition correlation, a later actual-argument lower through a local shared tail, and Function-valued initializer/root-port separation.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_effect::tests::root_computation_annotation -- --test-threads=1` — 2 passed, including storage/scratch rollback and retry.
 - Scoped `git diff --check` passed.
 
 No broad suite or performance measurement ran. Rows with both concrete members
 and a symbolic tail retain the existing per-member allowance consumer; general
 contextual residual identity and contravariant concrete subtraction remain
-open. Complete Call, full hygiene, soundness/principality and public/default F5
+open. General function/effect shapes, complete Call, full hygiene,
+soundness/principality and public/default F5
 cutover remain open. The pending contextual residual-owner question continues
 to block only dependent work.

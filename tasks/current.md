@@ -7466,14 +7466,15 @@ and transaction rollback/retry are covered. A variable-only root row now uses
 its shared scoped effect variable directly, retaining dependencies for future
 lowers through local capture/extrusion/freshening. A later actual-argument
 lower now reaches the nested Function port; concrete-plus-tail rows keep listed
-members local. The focused source and rollback tests pass, and independent
-review found no issue.
+members local. A source test also distinguishes the evaluation effect of a
+Function-valued initializer from the returned Function's own effect port.
+Focused source and rollback tests pass, and independent reviews found no issue.
 See the [implementation record](../notes/progress/2026-10-10-root-computation-effect-annotations.md).
 
 This closes only root covariant row checking and the tested variable-only
-future-lower path in the private candidate. Broader rows with both concrete
-members and symbolic tails, Function-valued root initializers, contravariant
-subtraction, full hygiene and Call, public/default inference,
+future-lower path and the tested Function-valued initializer shape in the
+private candidate. Broader rows with both concrete members and symbolic tails,
+contravariant subtraction, full hygiene and Call, public/default inference,
 soundness/principality and F5 cutover remain open.
 
 ### Recursive-definition external instantiation regression (2026-10-10)
