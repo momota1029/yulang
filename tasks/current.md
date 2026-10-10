@@ -8517,15 +8517,22 @@ wrapper is now test-only. Three remaining unused evidence groups
 required by the future certificate consumer and remain assigned to the
 lifecycle implementation gate; they were not removed or blanket-suppressed.
 
-The later [boundary-zero source restoration probe](../notes/progress/2026-10-11-boundary-zero-source-restoration.md)
-adds an ordinary top-level `my later = left` reference. Unlike the earlier
-boundary1 local use, its genuine boundary0 capture contains the exact positive
-S50/R44 target bound and freshens/restores it as E96/E102. The justified
-ordered replay fiber `(452,453)` emits and dequeues child452. An independent
-compiler-referee review accepted this as a bounded capture/fresh-restoration
-control. It does not reproduce an absent or unrescued child, unchanged-owner
-restoration, or prove impossibility; no justified missing omega is known.
-The previous local-use capture limitation remains true. A second continuation
-was not run because no discriminating source variation was identified. Keep
-the exact failure-state and all-source impossibility questions open pending a
-source-owned unchanged-owner route or justified nontrivial fiber.
+The [boundary-zero source restoration probe](../notes/progress/2026-10-11-boundary-zero-source-restoration.md)
+remains a reviewed capture/fresh-use control. A later
+[Function-ascription source route](../notes/progress/2026-10-11-selected-owner-restore-callback-coverage.md)
+now constructs the selected unchanged owner S53 with distinct old positive
+lower R47, captures its incoming Allowance bound at boundary1, and restores it
+without freshening S53. The exact saved opposite vector has six slots and three
+unique ordered pairs; all six children emit and dequeue. A callback appends a
+duplicate Allowance upper but leaves the old opposite vector and fibers stable,
+so this source does not omit a required pair. Independent compiler-referee
+review passed the source bridge and callback-local enumeration.
+
+This closes the missing source-construction premise for an unchanged-owner
+Allowance restore with an old distinct lower. It does not construct an absent
+child or prove universal rescue/impossibility. Alternative A and Alternative B
+remain open. The next decisive evidence is a source-owned callback mutation
+that displaces a required old ordered pair from the saved-index loop without
+another actual replay covering it; otherwise an all-source constructor proof
+must rule that event out. Complete diagnostic discharge and rollback/retry
+remain unproved.
