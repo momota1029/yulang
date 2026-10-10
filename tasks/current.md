@@ -8601,3 +8601,18 @@ remapping only copies the supplied tail; captured physical bounds restore
 separately, and annotation tails come from scoped names rather than inferred
 expression endpoints. This blocks that specific proposed supplier, not all
 source constructors. See the [view-constructor obstruction](../notes/progress/2026-10-11-q113-view-constructor-obstruction.md).
+
+The distinct earlier third-owner `X/+q` route now has a reviewed capture-
+identity obstruction. Capture emits q's incidence before q's direct upper
+bounds, so finding q earlier does not move its own return ahead of the selected
+Allowance restore. An earlier X restore would replay `q_U <: Y_U`; capture
+freshens generic Y with q and X, so it does not reach original R45 without an
+independently sourced sharing or transport edge. The authentic historical
+capture has boundary1, local q95 at level2, shared S53/R47 at level1, use level1,
+and no R45 in the captured row map; R45 is level3. The level-only sharing
+condition `3 <= boundary < 2` is unsatisfiable for that fixed capture. This
+rejects that candidate mapping, not all source constructions. No compile or
+source execution was warranted because no grammar-valid candidate preserved
+the old R45 identity and a source/use-rooted omega. See the [old-parent capture
+obstruction](../notes/progress/2026-10-11-q113-old-parent-capture-obstruction.md).
+Alternative A/B, required-omega absence, and diagnostic rescue remain open.
