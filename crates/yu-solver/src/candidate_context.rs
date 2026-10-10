@@ -600,12 +600,32 @@ impl BoundEvidence {
         Ok(())
     }
 }
+// Private synthetic source support only; this is never an entry certificate.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct SourceSupportId(usize);
+#[derive(Debug)]
+struct SourceSupportRegistration {
+    watched: Vec<RelationId>,
+    generation: u64,
+    valid: bool,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SourceSupportFailure { Registration, DependencyPublication, AfterInvalidation }
 #[derive(Debug, Default)]
 pub(super) struct State {
     // This first producer hook covers exact FunctionPort admission only.
     // It is independent of equality generation and cannot authorize a
     // certificate until the remaining producers and observation owners exist.
     pub(super) lifecycle_generation: u64,
+    source_support: HashMap<SourceSupportId, SourceSupportRegistration>,
+    source_support_log: Vec<SourceSupportId>,
+    source_support_undo: Vec<SourceSupportId>,
+    // Deliberately not rewound: a rolled-back ID must never name a retry.
+    #[cfg_attr(not(test), allow(dead_code, reason = "only the synthetic test supplier allocates support IDs"))]
+    next_source_support: usize,
+    #[cfg(test)]
+    source_support_failure: Option<SourceSupportFailure>,
     evidence: BoundEvidence,
     pub inferred_entries: Vec<InferredEntryOrigin>,
     pub bundles: Vec<AttachmentBundle>,
@@ -660,6 +680,8 @@ pub(super) struct State {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
     lifecycle_generation: u64,
+    source_support: usize,
+    source_support_undo: usize,
     evidence: EvidenceCheckpoint,
     inferred_entries: usize,
     bundles: usize,
@@ -1502,6 +1524,8 @@ impl State {
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
             lifecycle_generation: self.lifecycle_generation,
+            source_support: self.source_support_log.len(),
+            source_support_undo: self.source_support_undo.len(),
             evidence: self.evidence.checkpoint(),
             inferred_entries: self.inferred_entries.len(),
             bundles: self.bundles.len(),
@@ -1526,6 +1550,12 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for id in self.source_support_undo.drain(checkpoint.source_support_undo..).rev() {
+            self.source_support.get_mut(&id).expect("registered support retained until rollback").valid = true;
+        }
+        for id in self.source_support_log.drain(checkpoint.source_support..) {
+            self.source_support.remove(&id);
+        }
         self.typed_drains.truncate(checkpoint.typed_drains);
         for undo in self.restoration_undo.drain(checkpoint.restoration_undo..).rev() {
             let operation = self.restorations.get_mut(&undo.id).expect("restoration retirement waits for route commit");
@@ -1623,6 +1653,7 @@ impl State {
         if self.restorations.get(&id).is_some_and(|operation| operation.retired) { self.restorations.remove(&id); }
     }
     pub(super) fn commit_replay_operations(&mut self, checkpoint: Checkpoint) {
+        self.source_support_undo.truncate(checkpoint.source_support_undo);
         // Candidate visits depend on this route's creations and mutations,
         // never on historical map capacity. Repeated IDs need no dedup storage.
         for index in checkpoint.next_replay_operation..self.next_replay_operation {
@@ -1784,7 +1815,13 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
-            Some(std::mem::size_of::<u64>()),
+            Some(std::mem::size_of::<u64>() + std::mem::size_of::<usize>()),
+            self.source_support.capacity().checked_mul(std::mem::size_of::<(SourceSupportId, SourceSupportRegistration)>()),
+            self.source_support_log.capacity().checked_mul(std::mem::size_of::<SourceSupportId>()),
+            self.source_support_undo.capacity().checked_mul(std::mem::size_of::<SourceSupportId>()),
+            Some(self.source_support.values().try_fold(0usize, |bytes, registration| {
+                bytes.checked_add(registration.watched.capacity().checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?).ok_or_else(exhausted)
+            })?),
             Some(self.replay_operation_bytes()?),
             Some(self.evidence.bytes()?),
             self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
@@ -1873,7 +1910,12 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        std::mem::size_of::<u64>() + self.evidence.enumerated_bytes()
+        std::mem::size_of::<u64>() + std::mem::size_of::<usize>()
+            + self.source_support.capacity() * std::mem::size_of::<(SourceSupportId, SourceSupportRegistration)>()
+            + self.source_support_log.capacity() * std::mem::size_of::<SourceSupportId>()
+            + self.source_support_undo.capacity() * std::mem::size_of::<SourceSupportId>()
+            + self.source_support.values().map(|registration| registration.watched.capacity() * std::mem::size_of::<RelationId>()).sum::<usize>()
+            + self.evidence.enumerated_bytes()
             + self.replay_operations.capacity() * std::mem::size_of::<(ReplayOperationId, ReplayOperation)>()
             + self.replay_operation_undo.capacity() * std::mem::size_of::<ReplayOperationUndo>()
             + self.restorations.capacity() * std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()
@@ -2107,6 +2149,31 @@ impl State {
     pub fn contains(&self, pair: TypedPairKey) -> bool {
         self.pair_heads.contains_key(&pair)
     }
+    #[cfg(test)]
+    pub(super) fn synthetic_source_support(&mut self, watched: &[RelationId]) -> Result<SourceSupportId, SolveAvailabilityError> {
+        if watched.iter().any(|id| self.relations.get(id.0 as usize).is_none()) { return Err(exhausted()); }
+        let next = self.next_source_support.checked_add(1).ok_or_else(exhausted)?;
+        let mut footprint = Vec::new();
+        footprint.try_reserve(watched.len()).map_err(|_| exhausted())?;
+        self.source_support.try_reserve(1).map_err(|_| exhausted())?;
+        self.source_support_log.try_reserve(1).map_err(|_| exhausted())?;
+        self.source_support_fail(SourceSupportFailure::Registration)?;
+        footprint.extend_from_slice(watched);
+        let id = SourceSupportId(self.next_source_support);
+        self.source_support.insert(id, SourceSupportRegistration { watched: footprint, generation: self.lifecycle_generation, valid: true });
+        self.source_support_log.push(id);
+        self.next_source_support = next;
+        Ok(id)
+    }
+    pub(super) fn source_support_wait(&self, id: SourceSupportId) -> Result<Option<candidate_source::Wait>, SolveAvailabilityError> {
+        let registration = self.source_support.get(&id).ok_or_else(exhausted)?;
+        Ok((!registration.valid).then_some(candidate_source::Wait { generation: registration.generation, dependency: id.0 }))
+    }
+    #[cfg(test)]
+    fn source_support_fail(&mut self, point: SourceSupportFailure) -> Result<(), SolveAvailabilityError> {
+        if self.source_support_failure == Some(point) { self.source_support_failure = None; return Err(exhausted()); }
+        Ok(())
+    }
     fn dependency(&mut self, dependency: Dependency) -> Result<(), SolveAvailabilityError> {
         if self.dependency_keys.contains(&dependency) {
             return Ok(());
@@ -2117,10 +2184,17 @@ impl State {
         let next_generation = if matches!(dependency, Dependency::FunctionPort { .. }) {
             self.lifecycle_generation.checked_add(1).ok_or_else(exhausted)?
         } else { self.lifecycle_generation };
+        let invalidations = if let Dependency::FunctionPort { parent, child, .. } = dependency {
+            self.source_support.values().filter(|registration| registration.valid
+                && (registration.watched.contains(&parent) || registration.watched.contains(&child))).count()
+        } else { 0 };
+        self.source_support_undo.try_reserve(invalidations).map_err(|_| exhausted())?;
         self.dependencies.try_reserve(1).map_err(|_| exhausted())?;
         self.dependency_keys
             .try_reserve(1)
             .map_err(|_| exhausted())?;
+        #[cfg(test)]
+        self.source_support_fail(SourceSupportFailure::DependencyPublication)?;
         match dependency {
             Dependency::Derived { child, parent } | Dependency::FunctionPort { child, parent, .. } => self.edge(parent, child)?,
             // Transport retains provenance across instantiation and row
@@ -2143,6 +2217,16 @@ impl State {
                 self.bundle_edge(parent, child)?;
             }
         }
+        if let Dependency::FunctionPort { parent, child, .. } = dependency {
+            for (&id, registration) in &mut self.source_support {
+                if registration.valid && (registration.watched.contains(&parent) || registration.watched.contains(&child)) {
+                    self.source_support_undo.push(id);
+                    registration.valid = false;
+                }
+            }
+        }
+        #[cfg(test)]
+        self.source_support_fail(SourceSupportFailure::AfterInvalidation)?;
         self.dependencies.push(dependency);
         self.dependency_keys.insert(dependency);
         self.lifecycle_generation = next_generation;

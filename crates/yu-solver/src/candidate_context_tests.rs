@@ -4159,3 +4159,145 @@ fn function_port_lifecycle_identity_source_completes_without_certificate_or_susp
     assert!(gaps.contains(&InputGap::DependentObservationsUnavailable));
     assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
 }
+
+fn retained_source_publication() -> (InferenceSession, RelationId, RelationId) {
+    use crate::candidate_source::{CandidateRun, Schedule, Stage, Support};
+    let mut session = session_with_source("my outer = { my local:int = 1; local }");
+    let root = session.batch.definitions[0].root.clone();
+    let position = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, crate::candidate_source::Action::LocalAnnotation { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next < position {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    assert!(matches!(session.candidate_graph.as_ref().unwrap().source.unwrap().stage, Stage::PublishLocal { .. }));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let parent = context.relation(TypedPairKey::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::TopNegative,
+    }), IDENTITY).unwrap();
+    let child = context.relation(TypedPairKey::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::UnitPositive, upper: ValueEndpointKey::TopNegative,
+    }), IDENTITY).unwrap();
+    context.dependency(Dependency::Derived { parent, child }).unwrap();
+    (session, parent, child)
+}
+
+#[test]
+fn exact_source_support_endpoint_invalidation_withholds_constructed_publication_and_ready_is_inert() {
+    use crate::candidate_source::{CandidateRun, Stage, Support, Wait};
+    for watch_child in [false, true] {
+        let (mut session, parent, child) = retained_source_publication();
+        let id = session.supply_synthetic_source_support(&[if watch_child { child } else { parent }]).unwrap();
+        let original = session.candidate_graph.as_ref().unwrap().source.unwrap();
+        let Stage::PublishLocal { slot, exposed, .. } = original.stage else { unreachable!() };
+        let before = state(&session).checkpoint();
+        let equality = session.candidate_graph.as_ref().unwrap().intrusion.generation;
+        let port = Dependency::FunctionPort { parent, child, field: FunctionField::Argument, operation: FunctionPortOperation::Swap };
+        session.with_route_transaction(|session| {
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.dependency(port)?;
+            assert_eq!(state(session).relations.len(), before.relations);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.generation, equality);
+            let wait = state(session).source_support_wait(id)?.unwrap();
+            assert_eq!(session.step_candidate_source(Support::READY)?, CandidateRun::Suspended(wait));
+            Ok(())
+        }).unwrap();
+        let waiting = session.candidate_graph.as_ref().unwrap().source.unwrap();
+        let wait = waiting.wait.unwrap();
+        assert_eq!(waiting.stage, original.stage);
+        assert_eq!(waiting.next, original.next);
+        assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_none());
+        let samples = session.resource_boundary_samples;
+        let facts = session.store.facts.len();
+        for support in [Support::READY, Support { wait: Some(Wait { generation: u64::MAX, dependency: usize::MAX }) }, Support::READY] {
+            assert_eq!(session.drive_candidate_source(support).unwrap(), CandidateRun::Suspended(wait));
+            assert_eq!(session.candidate_graph.as_ref().unwrap().source, Some(waiting));
+            assert_eq!(session.resource_boundary_samples, samples);
+        }
+        let snapshot = state(&session).checkpoint();
+        session.with_route_transaction(|session| {
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.dependency(port)?;
+            assert_eq!(state(session).checkpoint(), snapshot, "exact duplicate is inert");
+            Ok(())
+        }).unwrap();
+        assert_eq!(session.with_route_transaction(|session| {
+            session.supply_synthetic_source_support(&[parent, child])?;
+            assert_eq!(session.step_candidate_source(Support::READY)?, CandidateRun::Complete(false));
+            assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_some());
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().source, Some(waiting));
+        assert!(session.candidate_graph.as_ref().unwrap().locals[slot].is_none());
+        assert_eq!(state(&session).source_support_wait(id).unwrap(), Some(wait));
+        session.supply_synthetic_source_support(&[parent, child]).unwrap();
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+        let scheme = session.candidate_graph.as_ref().unwrap().locals[slot].as_ref().unwrap();
+        assert_eq!(ValueEndpointKey::ValueRow(scheme.root), session.value_endpoint(exposed, Polarity::Positive));
+        assert_eq!(session.store.facts.len(), facts, "supported replacement publishes the retained construction once");
+        assert!(session.candidate_graph.as_ref().unwrap().source.unwrap().registration.is_none());
+        assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+#[test]
+fn exact_source_support_unrelated_incidence_and_duplicate_do_not_invalidate() {
+    let mut context = State::default();
+    let mut ids = Vec::new();
+    for lower in [ValueEndpointKey::IntPositive, ValueEndpointKey::UnitPositive, ValueEndpointKey::BottomPositive] {
+        ids.push(context.relation(TypedPairKey::Value(CanonicalValuePairKey { lower, upper: ValueEndpointKey::TopNegative }), IDENTITY).unwrap());
+    }
+    let port = Dependency::FunctionPort { parent: ids[1], child: ids[2], field: FunctionField::Argument, operation: FunctionPortOperation::Swap };
+    context.dependency(port).unwrap();
+    let watched_duplicate = context.synthetic_source_support(&[ids[1]]).unwrap();
+    let unrelated = context.synthetic_source_support(&[ids[0]]).unwrap();
+    let before = context.checkpoint();
+    context.dependency(port).unwrap();
+    assert_eq!(context.checkpoint(), before);
+    assert_eq!(context.source_support_wait(watched_duplicate).unwrap(), None);
+    context.dependency(Dependency::FunctionPort { parent: ids[1], child: ids[2], field: FunctionField::Result, operation: FunctionPortOperation::Preserve }).unwrap();
+    assert!(context.source_support_wait(watched_duplicate).unwrap().is_some());
+    assert_eq!(context.source_support_wait(unrelated).unwrap(), None);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn exact_source_support_registration_and_dependency_failures_restore_frame_and_validity() {
+    use crate::candidate_source::{CandidateRun, Support};
+    let (mut session, parent, child) = retained_source_publication();
+    let id = session.supply_synthetic_source_support(&[parent]).unwrap();
+    let frame = session.candidate_graph.as_ref().unwrap().source;
+    let before = state(&session).checkpoint();
+    let port = Dependency::FunctionPort { parent, child, field: FunctionField::Argument, operation: FunctionPortOperation::Swap };
+    for failure in [SourceSupportFailure::Registration, SourceSupportFailure::DependencyPublication, SourceSupportFailure::AfterInvalidation] {
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.source_support_failure = Some(failure);
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            if failure == SourceSupportFailure::Registration { session.supply_synthetic_source_support(&[child])?; }
+            else { session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.dependency(port)?; }
+            Ok(())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert_eq!(state(&session).checkpoint(), before);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().source, frame);
+        assert_eq!(state(&session).source_support_wait(id).unwrap(), None);
+        assert!(!state(&session).dependency_keys.contains(&port));
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+    let mut stale = None;
+    assert_eq!(session.with_route_transaction(|session| {
+        stale = Some(session.supply_synthetic_source_support(&[child])?);
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.dependency(port)?;
+        assert!(matches!(session.step_candidate_source(Support::READY)?, CandidateRun::Suspended(_)));
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(session.candidate_graph.as_ref().unwrap().source, frame);
+    assert_eq!(state(&session).source_support_wait(id).unwrap(), None);
+    assert_eq!(state(&session).source_support_wait(stale.unwrap()), Err(exhausted()));
+    let replacement = session.supply_synthetic_source_support(&[parent]).unwrap();
+    assert_ne!(Some(replacement), stale, "rolled-back IDs are never recycled");
+    assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    assert_eq!(session.drive_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(()));
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}

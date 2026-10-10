@@ -43,6 +43,7 @@ pub(super) struct Frame {
     pub next: usize,
     pub stage: Stage,
     pub wait: Option<Wait>,
+    pub registration: Option<candidate_context::SourceSupportId>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CandidateRun<T> { Complete(T), Suspended(Wait) }
@@ -567,6 +568,8 @@ impl InferenceSession {
     }
     fn execute_candidate_source_schedule(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
         self.begin_candidate_source(schedule)?;
+        // Completed-result callers never attach invalidatable synthetic support.
+        debug_assert!(self.candidate_graph.as_ref().unwrap().source.unwrap().registration.is_none());
         let result = self.drive_candidate_source(Support::READY);
         if result.is_err() { self.candidate_graph.as_mut().unwrap().source = None; }
         match result? {
@@ -577,7 +580,7 @@ impl InferenceSession {
     pub(super) fn begin_candidate_source(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
         let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
         if state.source.is_some() { return Err(SolveAvailabilityError::IdentityExhausted); }
-        state.source = Some(Frame { schedule, next: 0, stage: Stage::Execute, wait: None });
+        state.source = Some(Frame { schedule, next: 0, stage: Stage::Execute, wait: None, registration: None });
         if let Err(error) = self.sample_f4_resources(ResourceBoundary::SourceDrafts) {
             self.candidate_graph.as_mut().unwrap().source = None;
             return Err(error);
@@ -587,6 +590,15 @@ impl InferenceSession {
     // This private driver retains the session in `self`. Until inner operations
     // have retained outcomes, support may only change at completed action or
     // construction boundaries. Production certificate creation remains disabled.
+    #[cfg(test)]
+    pub(super) fn supply_synthetic_source_support(&mut self, watched: &[candidate_context::RelationId]) -> Result<candidate_context::SourceSupportId, SolveAvailabilityError> {
+        let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if !graph.source.is_some_and(|frame| matches!(frame.stage, Stage::PublishLocal { .. })) { return Err(SolveAvailabilityError::IdentityExhausted); }
+        let id = graph.intrusion.effect_algebra.context.synthetic_source_support(watched)?;
+        graph.source.as_mut().unwrap().registration = Some(id);
+        graph.source.as_mut().unwrap().wait = None;
+        Ok(id)
+    }
     pub(super) fn drive_candidate_source(&mut self, support: Support) -> Result<CandidateRun<()>, SolveAvailabilityError> {
         loop {
             match self.step_candidate_source(support)? {
@@ -598,6 +610,12 @@ impl InferenceSession {
     }
     pub(super) fn step_candidate_source(&mut self, support: Support) -> Result<CandidateRun<bool>, SolveAvailabilityError> {
         let frame = self.candidate_graph.as_ref().and_then(|state| state.source).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if let Some(registration) = frame.registration {
+            if let Some(wait) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.source_support_wait(registration)? {
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = Some(wait);
+                return Ok(CandidateRun::Suspended(wait));
+            }
+        }
         if let Some(wait) = support.wait {
             self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = Some(wait);
             return Ok(CandidateRun::Suspended(wait));
@@ -607,6 +625,7 @@ impl InferenceSession {
             self.install_candidate_local_term(slot, exposed, boundary)?;
             let current = self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap();
             current.stage = Stage::Execute;
+            current.registration = None;
             current.next += 1;
             return Ok(CandidateRun::Complete(false));
         }

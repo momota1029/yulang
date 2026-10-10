@@ -10538,9 +10538,9 @@ impl InferenceSession {
                         .as_ref()
                         .map(|state| {
                             let intrusion_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.intrusion.as_ref()).map(|undo| undo.bytes()).transpose()?.unwrap_or(0);
-                            // The context checkpoint retains one fixed lifecycle
-                            // generation alongside its existing dynamic undo.
-                            let lifecycle_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.intrusion.as_ref()).map(|_| std::mem::size_of::<u64>()).unwrap_or(0);
+                            // The context checkpoint retains the lifecycle generation
+                            // and both source-support journal frontiers.
+                            let lifecycle_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.intrusion.as_ref()).map(|_| std::mem::size_of::<u64>() + 2 * std::mem::size_of::<usize>()).unwrap_or(0);
                             let intrusion_bytes = state.intrusion.bytes()?;
                             let source_bytes = state.source.map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);
                             let source_undo_bytes = self.route_journal.as_ref().and_then(|journal| journal.candidate_source).map(|_| std::mem::size_of::<candidate_source::Frame>()).unwrap_or(0);

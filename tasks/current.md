@@ -8723,16 +8723,35 @@ review and its delta review found no issue. The new lifecycle tests and the
 extended dependency-only rollback/retry regression passed. See the [FunctionPort
 lifecycle-generation record](../notes/progress/2026-10-11-function-port-lifecycle-generation.md).
 
-This is one producer hook only: lifecycle generation is not wired to source
-waits, complete mutation/observation registration, withdrawal/recomputation,
-lower-operation suspension, or resumable SCC publication. Incomplete readiness,
-filter, and dependent-observation witnesses still keep production certificates
-disabled. Next gate: add exact observation-support ownership and source-wait
-admission while preserving that incompleteness guard. Then retain the fresh-use
-restoration/typed-child handoff, ordered withdrawal/recomputation, and atomic
-SCC publication. The authentic §7 source-owned late Function/swap regression,
-q113 source-state decision, full Simple-sub inference, and F5 cutover remain
-open.
+The [source-boundary support slice](../notes/progress/2026-10-11-source-boundary-support-ownership.md)
+now connects an exact synthetic FunctionPort support registration to a retained
+`PublishLocal` frame. An incident new endpoint invalidates that permission;
+duplicates and unrelated incidence do not. The invalid frame retains its
+constructed term and cursor, rejects READY/raw-generation bypass, and resumes
+only after explicit replacement support. Route rollback restores prior support
+validity and frame attachment; rolled-back IDs are not reused. M2
+compiler-referee/spec-auditor reviews found no issue, and all three new support
+tests plus both existing source-cursor tests passed.
+
+This remains test-only boundary permission. It does not authenticate production
+support or register memo, replay, bound, graph-slot or SCC consumers; lower
+freshening/restoration/replay/typed-drain/Function/extrusion suspension,
+ordered observation withdrawal/recomputation and resumable SCC publication are
+still open. Readiness, filter and dependent-observation gaps keep production
+certificates disabled. Next gate: retain the lower fresh-use/restoration/typed
+child continuation and make the replay-acknowledgement/parent-advance handoff
+atomic. Defer cross-component incidence changes until their footprints prove
+disjointness. Then continue toward authentic §7 source recognition and
+late Function/swap evidence. q113, complete Simple-sub inference,
+soundness/principality and F5 cutover remain open.
+
+The `f4_distinct_use_routes_share_one_source_scheme_scale_matrix_is_linear`
+resource-sampling test fails on the pinned baseline `f13dbb7ab540c0d566cd03ae4e06bfc6666c8371`
+and on this worktree with the same `6021` versus `6017` sample-count mismatch.
+No expected value was changed; the current support delta adds no sampler call
+sites. The three dormant retained-input `dead_code` warnings remain tied to the
+disabled production certificate consumer. `cargo fmt --check -p yu-solver`
+reports broad pre-existing formatting drift; no formatter rewrite was applied.
 
 Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no
