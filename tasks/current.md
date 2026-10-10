@@ -8624,3 +8624,15 @@ source execution was warranted because no grammar-valid candidate preserved
 the old R45 identity and a source/use-rooted omega. See the [old-parent capture
 obstruction](../notes/progress/2026-10-11-q113-old-parent-capture-obstruction.md).
 Alternative A/B, required-omega absence, and diagnostic rescue remain open.
+
+The [bounded source-state decision](../notes/progress/2026-10-11-q113-source-state-decision.md)
+adds a reviewed all-false `non_generic` production invariant and a reviewed
+prover derivation: a native Lambda's body capture precedes that Lambda's own
+native Effect ports, while local helper capture is live at later Name use.
+Neither result constructs the exact old-parent Function field and both
+`q <: X` / `X <: Y` tasks in the necessary order, nor excludes every other
+source constructor. The historical q113 execution emits all six selected
+products and is not a failing-state witness. No changed source was compiled
+or run. The source-level A/B decision remains OPEN; the next evidence must
+construct the original-Y Function field and unrescued omega, or prove an
+exhaustive owner invariant ruling that route out.
