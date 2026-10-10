@@ -916,11 +916,21 @@ impl InferenceSession {
     }
     pub(super) fn install_candidate_local(&mut self, slot: usize, endpoint: shadow_apply::CandidateEndpoint, boundary: u32) -> Result<(), SolveAvailabilityError> {
         let term = self.candidate_endpoint(endpoint, Polarity::Positive)?;
+        self.install_candidate_local_term(slot, term, boundary)
+    }
+    pub(super) fn install_candidate_local_term(&mut self, slot: usize, term: Term, boundary: u32) -> Result<(), SolveAvailabilityError> {
         let ValueEndpointKey::ValueRow(root) = self.value_endpoint(term, Polarity::Positive) else { return Err(exhausted()); };
         let id = self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone();
+        if self.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).is_none_or(Option::is_some) {
+            return Err(exhausted());
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(journal) = &mut self.route_journal {
+            journal.candidate_local_slots.try_reserve(1).map_err(|_| exhausted())?;
+            journal.candidate_local_slots.push(slot);
+        }
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
         let destination = state.locals.get_mut(slot).ok_or_else(exhausted)?;
-        if destination.is_some() { return Err(exhausted()); }
         *destination = Some(LocalScheme { id, root, boundary });
         self.sample_f4_resources(ResourceBoundary::SourceDrafts)?;
         Ok(())

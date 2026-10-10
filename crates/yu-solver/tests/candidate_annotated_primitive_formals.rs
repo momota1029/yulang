@@ -189,11 +189,75 @@ fn local_and_multiple_formals_keep_their_actual_lambda_layers() {
 }
 
 #[test]
-fn unsupported_formals_and_whole_local_annotations_are_explicitly_refused() {
-    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:int = 1; local }"] {
+fn unfinished_formals_and_whole_local_annotations_are_explicitly_refused() {
+    for text in ["act E\nmy f (x:[E] int) = x", "my f (x,y) = x", "my outer = { my local:int -> int = 1; local }", "my outer = { my local:'a = 1; local }", "act E\nmy outer = { my local:[E] int = 1; local }"] {
         match module(text) {
             Err(_) => {},
             Ok(hir) => assert!(matches!(CandidateInference::solve(hir), Err(CandidateError::Unsupported)), "{text}"),
         }
     }
+}
+
+#[test]
+fn whole_local_primitives_check_the_whole_initializer_and_expose_the_annotation() {
+    for (ty, value, leaf) in [("int", "1", CandidateGraphLeaf::IntPositive), ("()", "()", CandidateGraphLeaf::UnitPositive)] {
+        let hir = module(&format!("my outer = {{ my local:{ty} = {{ {value} }}; local }}")).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        assert_call_result(&candidate, &hir, "outer", leaf);
+    }
+    for text in [
+        "my outer = { my local:int = (); local }",
+        "my outer = { my local:() = 1; local }",
+        "my outer = { my local x:int = x; local }",
+        "my outer = { my local x:() = x; local }",
+    ] {
+        assert!(!CandidateInference::solve(module(text).unwrap()).unwrap().candidate_conflicts().is_empty(), "{text}");
+    }
+}
+
+#[test]
+fn whole_local_annotation_alone_supplies_results_and_freshens_each_use() {
+    for (ty, leaf) in [("int", CandidateGraphLeaf::IntPositive), ("()", CandidateGraphLeaf::UnitPositive)] {
+        let hir = module(&format!("my outer x = {{ my local:{ty} = x; my first = local; my second = local; second }}")).unwrap();
+        let source = hir.local_source(binding(&hir, "outer").definition_root()).unwrap().unwrap();
+        assert!(source.expressions().iter().all(|expr| !matches!(expr.form, LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Apply { .. })));
+        let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form, LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Local(_) } if spelling.as_ref() == "local")).collect();
+        assert_eq!(uses.len(), 2);
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        assert_function_result(&candidate, &hir, "outer", leaf);
+        let first = candidate.fresh_use(&uses[0].occurrence).unwrap();
+        let second = candidate.fresh_use(&uses[1].occurrence).unwrap();
+        let a: Vec<_> = first.rows().collect();
+        let b: Vec<_> = second.rows().collect();
+        assert!(a.iter().any(|row| row.source_row().is_local()));
+        for row in a.iter().filter(|row| row.source_row().is_local()) {
+            assert!(b.iter().all(|other| !row.same_identity(other)));
+        }
+    }
+}
+
+#[test]
+fn nested_annotated_locals_preserve_shadowed_binding_identity() {
+    let hir = module("my outer = { my local:int = 1; my nested:() = { my local:() = (); local }; local }").unwrap();
+    let source = hir.local_source(binding(&hir, "outer").definition_root()).unwrap().unwrap();
+    let locals: Vec<_> = source.bindings().iter().filter(|binding| binding.spelling.as_ref() == "local").collect();
+    assert_eq!(locals.len(), 2);
+    assert_ne!(locals[0].id, locals[1].id);
+    for local in locals {
+        assert!(source.expressions().iter().any(|expr| matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &local.id)));
+    }
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
+}
+
+#[test]
+fn effectful_whole_local_initializer_keeps_a_primitive_value_interface() {
+    let hir = module("act tick:\n    our next: () -> int\n\nmy outer = { my local:int = tick::next(); my first = local; local }").unwrap();
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.source_call_count(), 1);
+    assert_call_result(&candidate, &hir, "outer", CandidateGraphLeaf::IntPositive);
 }

@@ -7306,3 +7306,18 @@ PUSH-bearing Effect component. The solved source instances and arbitrary
 left-word theorem are a real direct advance; they do not certify that every
 source reduces to that class. Preserve the existing source filter/orientation,
 authority, residual-key, intrusion/freshening/rollback and full hygiene gates.
+
+### Whole-local primitive annotations (2026-10-10)
+
+The live candidate path now accepts whole-local `Int`/`Unit` annotations,
+checks the whole synthesized initializer, and installs a distinct positive
+annotation root at the child level. One-shot initializer effects and pure
+lookups remain intact. The shared local installer now journals slot
+publication so failed route transactions restore newly installed schemes while
+preserving prior ones. Focused HIR, solver, rollback/retry and solver package
+checks passed; see the [implementation record](../notes/progress/2026-10-10-whole-local-primitive-annotations.md).
+The accepted rollback repair and its resource accounting passed independent
+delta review. Other local
+annotation forms, complete Call, effect hygiene, public/default inference and
+F5 cutover remain open; the [contextual residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md)
+still blocks contextual residual and formal-row work.

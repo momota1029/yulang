@@ -8100,6 +8100,7 @@ struct RouteMutationJournal {
     candidate_routes_len: usize,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_local_routes_len: usize,
+    candidate_local_slots: Vec<usize>,
     #[cfg(feature = "shadow-apply-candidate")]
     intrusion: Option<candidate_intrusion::Undo>,
     store: RouteStoreJournal,
@@ -8132,17 +8133,19 @@ impl RouteMutationJournal {
             self.effect_rows.capacity(),
             self.value_row_seen.capacity(),
             self.effect_row_seen.capacity(),
+            self.candidate_local_slots.capacity(),
             self.typed_pair_keys.capacity(),
             self.reported_error_keys.capacity(),
         ])
     }
 
-    fn checked_capacity_bytes(capacities: [usize; 6]) -> Result<usize, SolveAvailabilityError> {
+    fn checked_capacity_bytes(capacities: [usize; 7]) -> Result<usize, SolveAvailabilityError> {
         checked_fixed_capacity_bytes(capacities.into_iter().zip([
             std::mem::size_of::<ValueRowUndo>(),
             std::mem::size_of::<EffectRowUndo>(),
             std::mem::size_of::<u32>(),
             std::mem::size_of::<u32>(),
+            std::mem::size_of::<usize>(),
             std::mem::size_of::<TypedPairKey>(),
             std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
         ]))
@@ -8168,6 +8171,10 @@ impl RouteMutationJournal {
                     self.effect_row_seen.capacity(),
                     "F5c route effect-row generations",
                 ),
+                checked_capacity_bytes::<usize>(
+                    self.candidate_local_slots.capacity(),
+                    "F5c route candidate local-slot undo",
+                ),
                 checked_capacity_bytes::<TypedPairKey>(
                     self.typed_pair_keys.capacity(),
                     "F5c route typed-pair undo",
@@ -8188,6 +8195,7 @@ impl RouteMutationJournal {
             self.effect_rows.capacity(),
             self.value_row_seen.capacity(),
             self.effect_row_seen.capacity(),
+            self.candidate_local_slots.capacity(),
             self.typed_pair_keys.capacity(),
             self.reported_error_keys.capacity(),
         ])
@@ -8195,13 +8203,14 @@ impl RouteMutationJournal {
 
     #[cfg(test)]
     fn checked_independent_capacity_bytes(
-        capacities: [usize; 6],
+        capacities: [usize; 7],
     ) -> Result<usize, SolveAvailabilityError> {
         let sizes = [
             std::mem::size_of::<ValueRowUndo>(),
             std::mem::size_of::<EffectRowUndo>(),
             std::mem::size_of::<u32>(),
             std::mem::size_of::<u32>(),
+            std::mem::size_of::<usize>(),
             std::mem::size_of::<TypedPairKey>(),
             std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
         ];
@@ -8966,6 +8975,7 @@ impl InferenceSession {
                 candidate_routes_len: 0,
                 #[cfg(feature = "shadow-apply-candidate")]
                 candidate_local_routes_len: 0,
+                candidate_local_slots: Vec::new(),
                 #[cfg(feature = "shadow-apply-candidate")]
                 intrusion: None,
                 store: RouteStoreJournal {
@@ -9092,6 +9102,7 @@ impl InferenceSession {
                 .map(|state| state.routes.len())
                 .unwrap_or(0);
         }
+        journal.candidate_local_slots.clear();
         journal.value_rows_len = self.bounds.len();
         journal.effect_rows_len = self.effect_bounds.len();
         journal.value_rows.clear();
@@ -9296,6 +9307,9 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &mut self.candidate_graph {
             if let Some(undo) = journal.intrusion.take() { state.intrusion.rollback(undo, &mut self.typed_pairs); }
+            for slot in journal.candidate_local_slots.drain(..) {
+                state.locals[slot] = None;
+            }
             state.local_routes.truncate(journal.candidate_local_routes_len);
             state.routes.truncate(journal.candidate_routes_len);
             state.refresh_bytes()?;
@@ -10421,6 +10435,7 @@ impl InferenceSession {
                         0,
                         0,
                         0,
+                        0,
                     ]);
                 }
                 journal.checked_retained_bytes()
@@ -10439,6 +10454,7 @@ impl InferenceSession {
                 ) {
                     RouteMutationJournal::checked_independent_capacity_bytes([
                         usize::MAX,
+                        0,
                         0,
                         0,
                         0,

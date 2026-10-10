@@ -945,6 +945,30 @@ impl InferenceSession {
         Ok(())
     }
 
+    pub(super) fn candidate_local_annotation(
+        &mut self, annotation: &SourceAnnotation, slot: usize,
+        endpoint: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
+        level: u32, boundary: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        if annotation.ty.effects.is_some() { return Err(exhausted()); }
+        let (positive_leaf, negative_leaf) = match annotation.ty.value {
+            SourceAnnotationValue::Int => (Leaf::IntPositive, Leaf::IntNegative),
+            SourceAnnotationValue::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
+            _ => return Err(exhausted()),
+        };
+        // Check the whole synthesized initializer, then install a distinct live
+        // exposed value root. Initializer effects remain on the block edge.
+        let root = self.fresh_value_at_level(level)?;
+        let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
+        self.admit_candidate_value_link(occurrence, 40, lower, self.batch.collected_leaf_term(negative_leaf))?;
+        #[cfg(test)]
+        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 4 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        let upper = self.live_value_term(Polarity::Negative, root)?;
+        self.admit_candidate_value_link(occurrence, 41, self.batch.collected_leaf_term(positive_leaf), upper)?;
+        let exposed = self.live_value_term(Polarity::Positive, root)?;
+        self.install_candidate_local_term(slot, exposed, boundary)
+    }
+
     pub(super) fn candidate_annotation(
         &mut self,
         annotation: &SourceAnnotation,
@@ -1269,6 +1293,77 @@ mod tests {
         session.start_candidate_graph().unwrap();
         session
     }
+    #[test]
+    fn annotated_local_initializer_effect_has_one_block_edge_and_pure_lookups() {
+        let session = make_session("act tick:\n    our next: () -> int\n\nmy outer = { my local:int = tick::next(); my first = local; local }");
+        let owner = root(&session, "outer");
+        let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+        let local = &source.bindings()[0];
+        let initializer = source.expression(&local.initializer).unwrap();
+        let edges: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &initializer.occurrence && fact.id().local_slot() == 20).collect();
+        assert_eq!(edges.len(), 1, "one initializer evaluation edge to the enclosing block");
+        let uses: Vec<_> = source.expressions().iter().filter(|expr| matches!(&expr.form, yu_hir::shadow::LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::Local(id), .. } if id == &local.id)).collect();
+        assert_eq!(uses.len(), 2);
+        for lookup in uses {
+            let facts: Vec<_> = session.batch.occurrences.iter().filter(|fact| fact.id().occurrence() == &lookup.occurrence && matches!(fact.id().local_slot(), 1 | 2)).collect();
+            assert_eq!(facts.len(), 2);
+            assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.lower()), Ok(TermView::Leaf(Leaf::EffectBottomPositive)))));
+            assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
+        }
+    }
+
+    #[test]
+    fn local_annotation_first_edge_failure_rolls_back_and_retries() {
+        let mut session = make_session("my outer x = { my local:int = x; local }");
+        let owner = root(&session, "outer");
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } = actions.iter().find(|action| matches!(action, candidate_source::Action::LocalAnnotation { .. })).unwrap() else { unreachable!() };
+        let mut checkpoint = None;
+        FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| stage.set(4));
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_none());
+        session.with_route_transaction(|session| session.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)).unwrap();
+        assert!(session.candidate_graph.as_ref().unwrap().locals[*slot].is_some());
+    }
+
+    #[test]
+    fn local_scheme_publication_rollback_preserves_prior_slots_and_retries() {
+        let mut session = make_session("my outer x = { my first:int = x; my second:int = x; second }");
+        let owner = root(&session, "outer");
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let annotations: Vec<_> = actions.iter().filter_map(|action| match action {
+            candidate_source::Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } =>
+                Some((annotation, *slot, *endpoint, occurrence, *level, *boundary)),
+            _ => None,
+        }).collect();
+        let (first, second) = (&annotations[0], &annotations[1]);
+        session.candidate_local_annotation(first.0, first.1, first.2, first.3, first.4, first.5).unwrap();
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.install_candidate_local(second.1, second.2, second.5)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        let locals = &session.candidate_graph.as_ref().unwrap().locals;
+        assert!(locals[first.1].is_some());
+        assert!(locals[second.1].is_none());
+        session.with_route_transaction(|session| session.install_candidate_local(second.1, second.2, second.5)).unwrap();
+        assert!(session.candidate_graph.as_ref().unwrap().locals[second.1].is_some());
+    }
+
     #[test]
     fn operation_lookup_evaluation_has_only_ordinary_exact_pure_facts() {
         let session = make_session("act tick:\n    our next: () -> int\n\nmy lookup = tick::next");

@@ -74,6 +74,7 @@ impl LocalSource {
                 .iter()
                 .map(|binding| {
                     binding.spelling.len()
+                        + binding.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes())
                         + binding.parameters.capacity()
                             * std::mem::size_of::<LocalSourceParameter>()
                         + binding
@@ -153,6 +154,7 @@ pub struct LocalSourceParameter {
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceBinding {
+    pub annotation: Option<source_annotation::SourceAnnotation>,
     pub id: HirLocalId,
     pub binder_source: SourceNodeKey,
     pub range: Range<usize>,
@@ -694,9 +696,7 @@ impl Builder<'_> {
             if statement.kind() != SyntaxKind::BindingStatement || has_recovery(&statement) {
                 return Err(invalid());
             }
-            if source_annotation::form(&statement, &self.owner, self.counters)?.is_some() {
-                return Err(invalid());
-            }
+            let annotation = source_annotation::form(&statement, &self.owner, self.counters)?;
             let (visibility, name, parameters) =
                 plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
             if visibility != HirVisibility::Private || depth + parameters.len() + 1 > 128 {
@@ -762,6 +762,7 @@ impl Builder<'_> {
             push(
                 &mut self.bindings,
                 LocalSourceBinding {
+                    annotation,
                     id,
                     binder_source,
                     range: name.range,

@@ -15,6 +15,7 @@ pub(super) struct Plan {
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
+    LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
@@ -33,7 +34,7 @@ impl Plan {
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
-                if let Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+                if let Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -55,6 +56,11 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
 pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
     if source.annotation().is_some_and(|annotation| annotation.ty.effects.is_some() || !preflight_annotation(&annotation.ty, true)) {
         return Err(shadow_apply::CandidateError::Unsupported);
+    }
+    for binding in source.bindings() {
+        if binding.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !matches!(a.ty.value, yu_hir::shadow::SourceAnnotationValue::Int | yu_hir::shadow::SourceAnnotationValue::Unit)) {
+            return Err(shadow_apply::CandidateError::Unsupported);
+        }
     }
     for expr in source.expressions() {
         if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
@@ -245,7 +251,18 @@ impl ConstraintBatch {
                     let start = self.occurrences.len();
                     self.emit(occurrence.clone(), 20, self.component_term_at(init.effect), self.component_term_at(positions[block].effect))?;
                     self.append_source_facts(start, &mut actions)?;
-                    push(&mut actions, Action::Install { slot: local_slots[&binding.id], initializer: endpoints[binding.initializer.ordinal() as usize], boundary })?;
+                    if let Some(annotation) = &binding.annotation {
+                        for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                        if annotation_contains_unit(&annotation.ty) {
+                            self.term_for_leaf(Leaf::UnitPositive)?;
+                            self.term_for_leaf(Leaf::UnitNegative)?;
+                        }
+                        push(&mut actions, Action::LocalAnnotation { annotation: Arc::new(annotation.clone()), slot: local_slots[&binding.id], endpoint: endpoints[binding.initializer.ordinal() as usize], occurrence: occurrence.clone(), level: boundary.checked_add(1).ok_or_else(unavailable)?, boundary })?;
+                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                    } else {
+                        push(&mut actions, Action::Install { slot: local_slots[&binding.id], initializer: endpoints[binding.initializer.ordinal() as usize], boundary })?;
+                    }
                 }
                 Work::Finish(index, level) => {
                     let expr = &source.expressions()[index];
@@ -460,6 +477,7 @@ impl InferenceSession {
                         else { self.route_incoming(&id)?; }
                     }
                 }
+                Action::LocalAnnotation { annotation, slot, endpoint, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary)?,
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
