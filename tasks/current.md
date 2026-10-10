@@ -7929,6 +7929,24 @@ repair passed fresh compiler-referee delta review. Focused context tests passed
 freshening or transport consumer. See the
 [context DAG renamer checkpoint](../notes/progress/2026-10-10-context-dag-renamer.md).
 
+The contravariant effect lane now has three reviewed research artifacts: a
+conditional derivation for composed Function polarity and exact attached
+contribution subtraction; minimized conditional witnesses against support-wide
+deletion, variable-as-empty/future-check bypass, and nearest-port polarity; and
+a source-to-proof audit mapping retained premises to the still-missing negative
+annotation constructor, consumer, and lifecycle correspondence. The
+constructive derivation assumes source attachments, typed correspondences,
+owner/profile witnesses and a consumer that checks current/future lowers; it
+does not prove those inputs are currently source-generated. The falsifiers are
+detached algebraic cases, not source counterexamples. The audit confirms the
+existing covariant source-set work and RelationId completion while keeping
+concrete negative rows rejected. Independent compiler-referee review passed
+each artifact. See the [conditional derivation](../notes/progress/2026-10-10-contravariant-effect-conditional-proof.md),
+[falsifiers](../notes/progress/2026-10-10-contravariant-effect-falsifiers.md),
+and [source bridge audit](../notes/progress/2026-10-10-contravariant-source-bridge-audit.md).
+These close no source-hygiene, soundness, principality, or production gate.
+They ran no Cargo/Oracle execution or measurements.
+
 Next: map and implement contextual transport/freshening across relation DAGs,
 weights, capture, extrusion, and qualifying intrusion while keeping nonempty
 source execution disconnected. Then complete the exact two-cycle certificate
