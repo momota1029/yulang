@@ -7839,9 +7839,11 @@ The former special `ClosedAllowance` context now uses an immutable, source-owned
 zero-word `LocalWeight` payload for closed covariant annotation views. The
 payload keeps its allowed members and boundary/owner/position identity, while
 the negative-wrapper path still installs or replays the actual allowance
-before discharge and memoization. Mixed-tail and operation views receive no
-payload. Copying creates independent local payload identities; payload storage
-and member capacity participate in rollback/accounting. No concrete
+before discharge and memoization. The follow-up source-record slice also
+retains metadata for admitted covariant mixed-tail views while keeping them
+outside closed-filter execution; operation views receive no source payload.
+Copying creates independent local payload identities; payload storage and
+member capacity participate in rollback/accounting. No concrete
 contravariant row, nonempty operation, recursive context, or source admission
 was enabled.
 
@@ -7859,10 +7861,15 @@ member-handle construction/storage per closed view with a constant-factor
 increase on copied views; no timing decision depends on this slice. See the
 [payload checkpoint](../notes/progress/2026-10-10-closed-annotation-filter-payload.md).
 
-This remains a partial contextual gate. Next: construct and execute approved
-nonempty directed transforms through memoization, Function ports, ordered
-replay, extrusion, capture/freshening and intrusion. Then implement and review
-the two-cycle certificate invalidation/rollback gate before admitting recursive
-contexts. The separate ordinary-HIR carrier answer bundle remains rejected for
-exact-content mismatch in its uncommitted receipt. Complete Call, effect
+This remains a partial contextual gate. The attachment source-record
+checkpoint covers written closed and admitted covariant mixed-tail views;
+explicit negative empty rows still return their existing leaf before a view is
+formed. See the [source-record checkpoint](../notes/progress/2026-10-10-annotation-source-set-records.md).
+
+Next: retain source identity for negative explicit empty rows without creating
+an executable view or changing endpoints, then continue the coupled operation
+carrier, exact relation lifecycle and two-cycle certificate invalidation /
+rollback gate. Do not enable recursive nonempty contexts before that lifecycle
+gate closes. The separate ordinary-HIR carrier answer bundle remains rejected
+for exact-content mismatch in its uncommitted receipt. Complete Call, effect
 hygiene, soundness/principality and production/default/F5 cutover remain open.

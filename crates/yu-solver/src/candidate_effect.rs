@@ -99,6 +99,7 @@ impl SignatureContext<'_> {
 #[derive(Debug)]
 pub(super) struct View {
     pub closed_weight: Option<candidate_context::LocalWeightId>,
+    pub source_weight: Option<candidate_context::LocalWeightId>,
     pub provenance: ViewOrigin,
     pub owner: DefinitionRootId,
     pub position: SourceNodeKey,
@@ -591,7 +592,7 @@ impl InferenceSession {
         allowed: Vec<SourceEffectId>,
         tail: Option<u32>,
     ) -> Result<u32, SolveAvailabilityError> {
-        self.candidate_signature_view(owner, position, allowed, tail, None)
+        self.candidate_signature_view(owner, position, allowed, tail, None, None)
     }
     fn candidate_signature_view(
         &mut self,
@@ -600,6 +601,7 @@ impl InferenceSession {
         allowed: Vec<SourceEffectId>,
         tail: Option<u32>,
         operation: Option<OperationOrigin>,
+        attachment_source: Option<candidate_context::AttachmentSource>,
     ) -> Result<u32, SolveAvailabilityError> {
         let payload = operation.as_ref().map_or(0, |origin| origin.retained_bytes);
         let state = &mut self
@@ -616,11 +618,15 @@ impl InferenceSession {
             .and_then(|n| n.checked_add(state.nested_bytes))
             .ok_or_else(exhausted)?;
         state.views.try_reserve(1).map_err(|_| exhausted())?;
-        let closed_weight = if tail.is_none() && operation.is_none() {
-            Some(state.context.closed_weight(id, &owner, &position, &allowed)?)
+        // Source attachment identity survives symbolic tails; only closed
+        // annotation views expose an executable zero-word filter.
+        let source_weight = if operation.is_none() && (tail.is_none() || attachment_source.is_some()) {
+            Some(state.context.source_weight(id, &owner, &position, &allowed, attachment_source)?)
         } else { None };
+        let closed_weight = if tail.is_none() { source_weight } else { None };
         state.views.push(View {
             closed_weight,
+            source_weight,
             provenance: operation.map_or(ViewOrigin::Annotation, ViewOrigin::Operation),
             owner,
             position,
@@ -673,6 +679,7 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .views[id as usize];
+        let attachment_source = view.source_weight.and_then(|weight| self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.attachment_source(weight));
         let (owner, position) = (view.owner.clone(), view.position.clone());
         let operation = match &view.provenance { ViewOrigin::Annotation => None, ViewOrigin::Operation(origin) => Some(origin.clone()) };
         let mut allowed = Vec::new();
@@ -680,7 +687,7 @@ impl InferenceSession {
             .try_reserve_exact(view.allowed.len())
             .map_err(|_| exhausted())?;
         allowed.extend(view.allowed.iter().cloned());
-        self.candidate_signature_view(owner, position, allowed, tail, operation)
+        self.candidate_signature_view(owner, position, allowed, tail, operation, attachment_source)
     }
     // The caller reserves and charges this operation-local map before copying.
     pub(super) fn candidate_remapped_effect_view(
@@ -1248,7 +1255,7 @@ impl InferenceSession {
                 let mut allowed = Vec::new();
                 allowed.try_reserve_exact(1).map_err(|_| exhausted())?;
                 allowed.push(family.clone());
-                let view = self.candidate_signature_view(context.owner().clone(), context.position().clone(), allowed, None, context.operation())?;
+                let view = self.candidate_signature_view(context.owner().clone(), context.position().clone(), allowed, None, context.operation(), None)?;
                 let port = self.fresh_effect_at_level(level)?;
                 self.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(port)), polarity, ExtrusionEndpoint::Effect(EffectEndpointKey::Support(view)))?;
                 return self.live_effect_term(polarity, port);
@@ -1275,6 +1282,7 @@ impl InferenceSession {
                     Vec::new(),
                     None,
                     context.operation(),
+                    None,
                 )?;
                 views.insert(context.position().clone(), view);
                 view
@@ -1339,6 +1347,13 @@ impl InferenceSession {
                 allowed,
                 tail,
                 context.operation(),
+                match context {
+                    SignatureContext::Annotation(_, scope) => Some(candidate_context::AttachmentSource {
+                        composed_polarity: variance,
+                        lexical_scope: scope.clone(),
+                    }),
+                    SignatureContext::Operation { .. } => None,
+                },
             )?;
             views.insert(row.position.clone(), view);
             view

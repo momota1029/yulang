@@ -21,6 +21,19 @@ struct LocalWeight {
     boundary: u32,
     owner: DefinitionRootId,
     position: SourceNodeKey,
+    attachment: Option<AttachmentSet>,
+}
+// The payload ID is the set identity; ordinals index its resolved allowed operands.
+#[derive(Debug)]
+struct AttachmentSet {
+    composed_polarity: Polarity,
+    lexical_scope: candidate_effect::AnnotationScope,
+    member_ordinals: Vec<usize>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct AttachmentSource {
+    pub composed_polarity: Polarity,
+    pub lexical_scope: candidate_effect::AnnotationScope,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct EntryCertificateId(u32);
@@ -155,7 +168,8 @@ impl State {
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
         for weight in self.weights.drain(checkpoint.weights..) {
-            self.weight_bytes -= weight.allowed.capacity() * std::mem::size_of::<SourceEffectId>();
+            self.weight_bytes -= weight.allowed.capacity() * std::mem::size_of::<SourceEffectId>()
+                + weight.attachment.as_ref().map_or(0, |set| set.member_ordinals.capacity() * std::mem::size_of::<usize>());
         }
         for (key, previous) in self.replay_log.drain(checkpoint.replay_log..).rev() {
             if let Some(previous) = previous { self.replay_heads.insert(key, previous); }
@@ -271,7 +285,8 @@ impl State {
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
         self.weights.capacity() * std::mem::size_of::<LocalWeight>()
-            + self.weights.iter().map(|w| w.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>()
+            + self.weights.iter().map(|w| w.allowed.capacity() * std::mem::size_of::<SourceEffectId>()
+                + w.attachment.as_ref().map_or(0, |set| set.member_ordinals.capacity() * std::mem::size_of::<usize>())).sum::<usize>()
             + self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
             + self.replay_log.capacity() * std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()
             + self.discharged.capacity() * std::mem::size_of::<RelationId>()
@@ -322,16 +337,33 @@ impl State {
         self.context_keys.insert(expression, id);
         Ok(id)
     }
-    pub fn closed_weight(&mut self, boundary: u32, owner: &DefinitionRootId, position: &SourceNodeKey, allowed: &[SourceEffectId]) -> Result<LocalWeightId, SolveAvailabilityError> {
+    pub fn source_weight(&mut self, boundary: u32, owner: &DefinitionRootId, position: &SourceNodeKey, allowed: &[SourceEffectId], source: Option<AttachmentSource>) -> Result<LocalWeightId, SolveAvailabilityError> {
         let id = LocalWeightId(u32::try_from(self.weights.len()).map_err(|_| exhausted())?);
         let mut members = Vec::new();
         members.try_reserve_exact(allowed.len()).map_err(|_| exhausted())?;
         members.extend_from_slice(allowed);
-        let weight_bytes = self.weight_bytes.checked_add(members.capacity().checked_mul(std::mem::size_of::<SourceEffectId>()).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
+        let attachment = source.map(|source| {
+            let mut member_ordinals = Vec::new();
+            member_ordinals.try_reserve_exact(allowed.len()).map_err(|_| exhausted())?;
+            member_ordinals.extend(0..allowed.len());
+            Ok::<_, SolveAvailabilityError>(AttachmentSet {
+                composed_polarity: source.composed_polarity,
+                lexical_scope: source.lexical_scope,
+                member_ordinals,
+            })
+        }).transpose()?;
+        let ordinal_bytes = attachment.as_ref().map_or(Some(0), |set| set.member_ordinals.capacity().checked_mul(std::mem::size_of::<usize>())).ok_or_else(exhausted)?;
+        let weight_bytes = self.weight_bytes.checked_add(ordinal_bytes).and_then(|n| n.checked_add(members.capacity().checked_mul(std::mem::size_of::<SourceEffectId>())?)).ok_or_else(exhausted)?;
         self.weights.try_reserve(1).map_err(|_| exhausted())?;
-        self.weights.push(LocalWeight { left_word: [], allowed: members, right_pops: [], boundary, owner: owner.clone(), position: position.clone() });
+        self.weights.push(LocalWeight { left_word: [], allowed: members, right_pops: [], boundary, owner: owner.clone(), position: position.clone(), attachment });
         self.weight_bytes = weight_bytes;
         Ok(id)
+    }
+    pub fn attachment_source(&self, weight: LocalWeightId) -> Option<AttachmentSource> {
+        self.weights[weight.0 as usize].attachment.as_ref().map(|set| AttachmentSource {
+            composed_polarity: set.composed_polarity,
+            lexical_scope: set.lexical_scope.clone(),
+        })
     }
     pub fn allowed(&self, weight: LocalWeightId) -> &[SourceEffectId] {
         &self.weights[weight.0 as usize].allowed

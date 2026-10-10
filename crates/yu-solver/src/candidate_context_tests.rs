@@ -1048,3 +1048,169 @@ fn closed_payloads_keep_boundary_authority_and_fresh_copy_sharing_with_rollback(
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
     session.with_route_transaction(copy_and_check).unwrap();
 }
+
+
+#[test]
+fn written_attachment_sets_retain_members_source_and_fresh_instance_identity() {
+    let mut session = session_with_source("act E\nact F\nmy answer:[F, E, F] int = 1");
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    let annotation = session.batch.candidate_source.schedules.values().flatten().find_map(|action| match action {
+        candidate_source::Action::Annotation { annotation, .. } => Some(annotation.clone()),
+        _ => None,
+    }).unwrap();
+    let exact_position = annotation.ty.effects.as_ref().unwrap().position.clone();
+    session.execute_candidate_source_root(&owner).unwrap();
+    let view = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.iter()
+        .position(|view| view.allowed.len() == 3).unwrap() as u32;
+    let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
+    let payload = &state(&session).weights[weight.0 as usize];
+    let source = payload.attachment.as_ref().unwrap();
+    assert_eq!(payload.position, exact_position);
+    assert_eq!(payload.owner, annotation.owner);
+    assert_eq!(source.member_ordinals, [0, 1, 2]);
+    assert_eq!(source.composed_polarity, Polarity::Positive);
+    assert_eq!(source.lexical_scope, candidate_effect::AnnotationScope::Definition(owner.clone()));
+    let families = session.batch.hir.source_effect_declarations();
+    assert_eq!(payload.allowed, [families[1].id.clone(), families[0].id.clone(), families[1].id.clone()]);
+    assert!(payload.left_word.is_empty() && payload.right_pops.is_empty());
+    let before = state(&session).checkpoint();
+    let copy_and_check = |session: &mut InferenceSession| {
+        let first = session.candidate_copy_effect_view(view, None)?;
+        let second = session.candidate_copy_effect_view(view, None)?;
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let first_weight = algebra.views[first as usize].closed_weight.unwrap();
+        let second_weight = algebra.views[second as usize].closed_weight.unwrap();
+        assert_ne!(first_weight, weight);
+        assert_ne!(first_weight, second_weight);
+        let original = &algebra.context.weights[weight.0 as usize];
+        for copy in [first_weight, second_weight] {
+            let copied = &algebra.context.weights[copy.0 as usize];
+            assert_eq!((&copied.owner, &copied.position), (&original.owner, &original.position));
+            assert_eq!(copied.allowed, original.allowed);
+            assert_eq!(copied.attachment.as_ref().unwrap().member_ordinals, original.attachment.as_ref().unwrap().member_ordinals);
+            assert_eq!(algebra.context.attachment_source(copy), algebra.context.attachment_source(weight));
+            assert!(copied.left_word.is_empty() && copied.right_pops.is_empty());
+        }
+        assert_eq!(algebra.context.bytes()?, algebra.context.enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        copy_and_check(session)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(copy_and_check).unwrap();
+}
+
+#[test]
+fn written_empty_rows_own_sets_and_omitted_rows_keep_only_closed_filters() {
+    for (text, written) in [("my answer:[] int = 1", true), ("my answer x:int -> int = x", false)] {
+        let mut session = session_with_source(text);
+        let owner = session.batch.hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        session.execute_candidate_source_root(&owner).unwrap();
+        assert!(!state(&session).weights.is_empty());
+        for payload in &state(&session).weights {
+            assert_eq!(payload.attachment.is_some(), written);
+            assert!(payload.allowed.is_empty());
+            if let Some(set) = &payload.attachment { assert!(set.member_ordinals.is_empty()); }
+        }
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    }
+}
+
+
+#[test]
+fn separate_local_written_occurrences_keep_same_family_authority_independent() {
+    let mut session = session_with_source("act E\nmy answer = { my first:[E] int = 1; my second:[E] int = 2; second }");
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    let written: Vec<_> = context.weights.iter().enumerate().filter(|(_, payload)| payload.attachment.is_some()).collect();
+    assert_eq!(written.len(), 2);
+    let (first_id, first) = written[0];
+    let (second_id, second) = written[1];
+    assert_ne!(first_id, second_id);
+    assert_ne!(first.position, second.position);
+    assert_eq!(first.allowed, second.allowed);
+    let first_source = first.attachment.as_ref().unwrap();
+    let second_source = second.attachment.as_ref().unwrap();
+    assert!(matches!(first_source.lexical_scope, candidate_effect::AnnotationScope::Local(_)));
+    assert!(matches!(second_source.lexical_scope, candidate_effect::AnnotationScope::Local(_)));
+    assert_ne!(first_source.lexical_scope, second_source.lexical_scope);
+    assert_eq!(first_source.member_ordinals, [0]);
+    assert_eq!(second_source.member_ordinals, [0]);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+
+#[test]
+fn mixed_written_attachment_sets_survive_fresh_copy_and_rollback_without_closed_filters() {
+    let mut session = session_with_source("act E\nact F\nmy answer x:'a -> [F, E, 'e] 'a = x");
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    session.execute_candidate_source_root(&owner).unwrap();
+    let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+    let view = algebra.views.iter().position(|view| view.tail.is_some() && view.allowed.len() == 2).unwrap() as u32;
+    let original = &algebra.views[view as usize];
+    assert!(original.closed_weight.is_none());
+    let weight = original.source_weight.unwrap();
+    let payload = &algebra.context.weights[weight.0 as usize];
+    assert_eq!(payload.attachment.as_ref().unwrap().member_ordinals, [0, 1]);
+    assert_eq!(payload.attachment.as_ref().unwrap().composed_polarity, Polarity::Positive);
+    let families = session.batch.hir.source_effect_declarations();
+    assert_eq!(payload.allowed, [families[1].id.clone(), families[0].id.clone()]);
+    let tail = original.tail;
+    let before = state(&session).checkpoint();
+    let copy_and_check = |session: &mut InferenceSession| {
+        let mut remap = HashMap::new();
+        remap.try_reserve(1).map_err(|_| exhausted())?;
+        let mut charge = 0;
+        session.candidate_scratch_growth(&mut charge,
+            remap.capacity() * std::mem::size_of::<((u32, Option<u32>), u32)>())?;
+        let first = session.candidate_remapped_effect_view(view, tail, &mut remap)?;
+        assert_eq!(session.candidate_remapped_effect_view(view, tail, &mut remap)?, first,
+            "members share one attachment identity within a fresh use");
+        drop(remap);
+        session.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        let second = session.candidate_copy_effect_view(view, tail)?;
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let first_weight = algebra.views[first as usize].source_weight.unwrap();
+        let second_weight = algebra.views[second as usize].source_weight.unwrap();
+        assert_ne!(first_weight, weight);
+        assert_ne!(first_weight, second_weight);
+        for copy in [first, second] {
+            let copied_view = &algebra.views[copy as usize];
+            assert!(copied_view.closed_weight.is_none());
+            assert_eq!(copied_view.tail, tail);
+            let copied_weight = copied_view.source_weight.unwrap();
+            let copied = &algebra.context.weights[copied_weight.0 as usize];
+            let original = &algebra.context.weights[weight.0 as usize];
+            assert_eq!((&copied.owner, &copied.position), (&original.owner, &original.position));
+            assert_eq!(copied.allowed, original.allowed);
+            assert_eq!(copied.attachment.as_ref().unwrap().member_ordinals, original.attachment.as_ref().unwrap().member_ordinals);
+            assert_eq!(algebra.context.attachment_source(copied_weight), algebra.context.attachment_source(weight));
+            assert!(copied.left_word.is_empty() && copied.right_pops.is_empty());
+        }
+        assert_eq!(algebra.context.bytes()?, algebra.context.enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        copy_and_check(session)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(copy_and_check).unwrap();
+}
