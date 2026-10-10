@@ -63,6 +63,9 @@ impl LocalSource {
                                 .as_ref()
                                 .map_or(0, |annotation| annotation.retained_arena_bytes())
                     }
+                    LocalSourceForm::Ascription { annotation, .. } => {
+                        annotation.retained_arena_bytes()
+                    }
                     LocalSourceForm::Block { bindings, .. } => {
                         bindings.capacity() * std::mem::size_of::<u32>()
                     }
@@ -118,6 +121,10 @@ pub enum LocalSourceForm {
     },
     Group {
         inner: LocalSourceIndex,
+    },
+    Ascription {
+        inner: LocalSourceIndex,
+        annotation: source_annotation::SourceAnnotation,
     },
     Lambda {
         parameter: LocalSourceParameter,
@@ -497,6 +504,25 @@ impl Builder<'_> {
                 }
                 let mut current = index;
                 for (ordinal, tail) in tails.iter().enumerate().rev() {
+                    if tail.kind() == SyntaxKind::TypeAnnotationTail {
+                        let annotation = source_annotation::parse_expression_ascription(
+                            tail,
+                            self.owner,
+                            self.counters,
+                        )?;
+                        let inner = self.slot()?;
+                        self.set(
+                            current,
+                            tail,
+                            scope.clone(),
+                            LocalSourceForm::Ascription {
+                                inner: inner.clone(),
+                                annotation,
+                            },
+                        )?;
+                        current = inner;
+                        continue;
+                    }
                     if !matches!(
                         tail.kind(),
                         SyntaxKind::MlArgument
@@ -821,6 +847,77 @@ mod tests {
             &parsed,
             SemanticImports::empty(),
         )
+    }
+
+    #[test]
+    fn single_ascription_retains_tail_annotation_and_child() {
+        let module = lower("my value = 1 as 'a").unwrap();
+        let source = module.local_sources.values().next().unwrap();
+        let expr = source.expression(source.body()).unwrap();
+        let LocalSourceForm::Ascription { inner, annotation } = &expr.form else {
+            panic!("expected expression ascription");
+        };
+        assert_eq!(expr.range, 13..18);
+        assert_eq!(expr.source, annotation.position);
+        assert_eq!(annotation.owner, *source.definition_root());
+        assert!(matches!(expr.scope, LocalSourceScope::Definition(_)));
+        assert!(matches!(&annotation.ty.value,
+            source_annotation::SourceAnnotationValue::Variable(name) if name.as_ref() == "'a"));
+        let child = source.expression(inner).unwrap();
+        assert!(matches!(&child.form, LocalSourceForm::Integer(text) if text.as_ref() == "1"));
+        assert_eq!(child.range, 11..12);
+        assert_ne!(expr.source, child.source);
+        assert_ne!(expr.occurrence, child.occurrence);
+        assert!(source.bindings().is_empty());
+        assert_eq!(source.expressions().len(), 2);
+        assert_eq!(source.retained_arena_bytes(),
+            source.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>() + 3);
+    }
+
+    #[test]
+    fn chained_ascriptions_retain_distinct_tails_in_source_order() {
+        let module = lower("my value = (1 as 'a) as 'b").unwrap();
+        let source = module.local_sources.values().next().unwrap();
+        let outer = source.expression(source.body()).unwrap();
+        let LocalSourceForm::Ascription { inner, annotation } = &outer.form else {
+            panic!("expected outer expression ascription");
+        };
+        assert_eq!(outer.range, 21..26);
+        assert_eq!(annotation.position, outer.source);
+        assert!(matches!(&annotation.ty.value,
+            source_annotation::SourceAnnotationValue::Variable(name) if name.as_ref() == "'b"));
+        let group = source.expression(inner).unwrap();
+        let LocalSourceForm::Group { inner } = &group.form else {
+            panic!("expected preserved parenthesized child");
+        };
+        let first = source.expression(inner).unwrap();
+        let LocalSourceForm::Ascription { inner, annotation } = &first.form else {
+            panic!("expected first expression ascription");
+        };
+        assert_eq!(first.range, 14..19);
+        assert_eq!(annotation.position, first.source);
+        assert!(matches!(&annotation.ty.value,
+            source_annotation::SourceAnnotationValue::Variable(name) if name.as_ref() == "'a"));
+        let child = source.expression(inner).unwrap();
+        assert!(matches!(child.form, LocalSourceForm::Integer(_)));
+        assert_eq!(child.range, 12..13);
+        assert_ne!(outer.source, first.source);
+        assert_ne!(outer.occurrence, first.occurrence);
+        assert_ne!(first.source, child.source);
+        assert_ne!(first.occurrence, child.occurrence);
+        assert_ne!(outer.occurrence, child.occurrence);
+        assert!(source.bindings().is_empty());
+        assert_eq!(source.expressions().len(), 4);
+        assert_eq!(source.retained_arena_bytes(),
+            source.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>() + 5);
+    }
+
+    #[test]
+    fn ascriptions_reject_malformed_and_recovery_types() {
+        for text in ["my value = 1 as", "my value = 1 as (", "my value = 1 as (int,)",
+            "my value = 1 as int as"] {
+            assert!(matches!(lower(text), Err(HirAvailabilityError::StructuralProjection)), "{text}");
+        }
     }
 
     #[test]

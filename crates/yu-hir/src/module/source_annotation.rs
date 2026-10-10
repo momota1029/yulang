@@ -334,6 +334,24 @@ pub(super) fn parse_annotation(
     owner: &DefinitionRootId,
     counters: &LoweringCounters,
 ) -> Result<SourceAnnotation, HirAvailabilityError> {
+    parse_annotation_with_marker(annotation, SyntaxKind::Colon, owner, counters)
+}
+pub(super) fn parse_expression_ascription(
+    annotation: &SyntaxNode,
+    owner: &DefinitionRootId,
+    counters: &LoweringCounters,
+) -> Result<SourceAnnotation, HirAvailabilityError> {
+    if annotation.kind() != SyntaxKind::TypeAnnotationTail {
+        return Err(unavailable());
+    }
+    parse_annotation_with_marker(annotation, SyntaxKind::AsKw, owner, counters)
+}
+fn parse_annotation_with_marker(
+    annotation: &SyntaxNode,
+    marker: SyntaxKind,
+    owner: &DefinitionRootId,
+    counters: &LoweringCounters,
+) -> Result<SourceAnnotation, HirAvailabilityError> {
     if has_recovery(annotation) {
         return Err(unavailable());
     }
@@ -341,7 +359,7 @@ pub(super) fn parse_annotation(
     let [colon, ty] = children.as_slice() else {
         return Err(unavailable());
     };
-    if colon.kind() != SyntaxKind::Colon || ty.kind() != SyntaxKind::TypeExpression {
+    if colon.kind() != marker || ty.kind() != SyntaxKind::TypeExpression {
         return Err(unavailable());
     }
     let ty = ty.as_node().ok_or_else(unavailable)?;

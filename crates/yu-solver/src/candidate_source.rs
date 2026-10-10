@@ -15,6 +15,7 @@ pub(super) struct Plan {
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
+    Ascription { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, scope: candidate_effect::AnnotationScope },
     LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     Fact(usize),
@@ -34,7 +35,7 @@ impl Plan {
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
-                if let Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -63,6 +64,11 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
         }
     }
     for expr in source.expressions() {
+        if let LocalSourceForm::Ascription { annotation, .. } = &expr.form {
+            if !preflight_local_annotation(&annotation.ty) {
+                return Err(shadow_apply::CandidateError::Unsupported);
+            }
+        }
         if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
             if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !preflight_formal(&a.ty, false)) {
                 return Err(shadow_apply::CandidateError::Unsupported);
@@ -185,6 +191,22 @@ impl ConstraintBatch {
             };
             endpoints.push(endpoint);
         }
+        // Resolve aliases before recursive initializer links capture endpoints.
+        // Group facades stay intact; only an ascription peels parentheses.
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Ascription { inner, .. } = &expr.form {
+                let mut child = inner.ordinal() as usize;
+                loop {
+                    match &source.expressions()[child].form {
+                        LocalSourceForm::Ascription { inner, .. } | LocalSourceForm::Group { inner } => child = inner.ordinal() as usize,
+                        _ => break,
+                    }
+                }
+                positions[index] = positions[child];
+                *self.occurrence_component_positions.get_mut(&expr.occurrence).ok_or_else(invalid)? = positions[child];
+                endpoints[index] = endpoints[child];
+            }
+        }
         let mut formal_names = Vec::new();
         formal_names.try_reserve_exact(positions.len()).map_err(|_| unavailable())?;
         formal_names.resize(positions.len(), None);
@@ -219,7 +241,7 @@ impl ConstraintBatch {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level))?;
                         }
-                        LocalSourceForm::Group { inner } => push(&mut work, Work::Visit(inner.ordinal() as usize, level))?,
+                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level))?,
                         LocalSourceForm::Lambda { parameter, body } => {
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
                             self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
@@ -363,6 +385,31 @@ impl ConstraintBatch {
                             self.candidate_recipes[recipe].source_input = Some(source_input);
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
+                        LocalSourceForm::Ascription { inner, annotation } => {
+                            formal_names[index] = formal_names[inner.ordinal() as usize];
+                            let scope = match &expr.scope {
+                                yu_hir::shadow::LocalSourceScope::Definition(owner) => candidate_effect::AnnotationScope::Definition(owner.clone()),
+                                yu_hir::shadow::LocalSourceScope::LocalInitializer(local) => candidate_effect::AnnotationScope::Local(local.clone()),
+                                yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                                yu_hir::shadow::LocalSourceScope::Expression(expression) => candidate_effect::AnnotationScope::Expression(expression.clone()),
+                            };
+                            // An expression annotation constrains the child's
+                            // computation directly, without a fresh facade.
+                            for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
+                                self.term_for_leaf(leaf)?;
+                            }
+                            if annotation_contains_unit(&annotation.ty) {
+                                self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.term_for_leaf(Leaf::UnitNegative)?;
+                            }
+                            push(&mut actions, Action::Ascription {
+                                annotation: Arc::new(annotation.clone()), endpoint: endpoints[index],
+                                computation_effect: pos.effect, occurrence: occurrence.clone(), level, scope,
+                            })?;
+                            let count = 2 + usize::from(annotation.ty.effects.is_some());
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                        }
                         LocalSourceForm::Group { inner } => {
                             formal_names[index] = formal_names[inner.ordinal() as usize];
                             let child = positions[inner.ordinal() as usize];
@@ -502,6 +549,7 @@ impl InferenceSession {
     fn execute_candidate_actions(&mut self, actions: &[Action]) -> Result<(), SolveAvailabilityError> {
         for action in actions {
             match action {
+                Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
                 Action::Fact(index) => self.admit_collected_fact(*index)?,
                 Action::Link { occurrence, endpoint, target } => {

@@ -1570,6 +1570,214 @@ fn empty_bundle_owner(session: &InferenceSession) -> DefinitionRootId {
 }
 
 #[test]
+fn expression_ascription_parenthesized_pairs_share_child_computation_and_keep_occurrences() {
+    let mut session = session_with_source("my answer = (1 as int) as int");
+    let owner = empty_bundle_owner(&session);
+    let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+    let child = source.expressions().iter().find(|expr| matches!(expr.form,
+        yu_hir::shadow::LocalSourceForm::Integer(_))).unwrap();
+    let child_positions = session.batch.occurrence_component_positions[&child.occurrence];
+    let actions = session.batch.candidate_source.schedules[&owner].clone();
+    let pairs: Vec<_> = actions.iter().filter_map(|action| match action {
+        candidate_source::Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } =>
+            Some((annotation, *endpoint, *computation_effect, occurrence, *level, scope)),
+        _ => None,
+    }).collect();
+    assert_eq!(pairs.len(), 2);
+    assert_ne!(pairs[0].0.position, pairs[1].0.position);
+    assert_ne!(pairs[0].3, pairs[1].3);
+    let child_row = session.live_components[child_positions.value].ordinal;
+    for (annotation, endpoint, effect, occurrence, level, scope) in pairs {
+        assert!(matches!(endpoint, shadow_apply::CandidateEndpoint::Component(value) if value == child_positions.value));
+        assert_eq!(effect, child_positions.effect);
+        let occurrence_positions = session.batch.occurrence_component_positions[occurrence];
+        assert_eq!(occurrence_positions.value, child_positions.value);
+        assert_eq!(occurrence_positions.effect, child_positions.effect);
+        session.candidate_expression_ascription(annotation, endpoint, occurrence, level, effect, scope).unwrap();
+        for slot in [45, 46] {
+            let origin = state(&session).origins.iter().find(|origin|
+                origin.occurrence == ConstraintOccurrenceId::new(occurrence.clone(), slot)).unwrap();
+            let TypedPairKey::Value(pair) = state(&session).relations[origin.relation.0 as usize].key.pair else { panic!("value pair"); };
+            if slot == 45 {
+                assert_eq!(pair.lower, ValueEndpointKey::ValueRow(child_row));
+            } else {
+                assert_eq!(pair.upper, ValueEndpointKey::ValueRow(child_row));
+            }
+        }
+    }
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn expression_ascription_binding_annotation_keeps_separate_source_bundles() {
+    for (text, local) in [
+        ("my answer:[] int -> int = 1 as ([] int -> int)", false),
+        ("my answer = { my local:[] int -> int = 1 as ([] int -> int); 1 }", true),
+    ] {
+        let mut session = session_with_source(text);
+        let owner = empty_bundle_owner(&session);
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let ascription = actions.iter().find_map(|action| match action {
+            candidate_source::Action::Ascription { occurrence, .. } => Some(occurrence.clone()), _ => None,
+        }).unwrap();
+        let binding = actions.iter().find_map(|action| match action {
+            candidate_source::Action::Annotation { occurrence, .. } if !local => Some(occurrence.clone()),
+            candidate_source::Action::LocalAnnotation { occurrence, .. } if local => Some(occurrence.clone()), _ => None,
+        }).unwrap();
+        assert_eq!(ascription, binding);
+        session.execute_candidate_source_root(&owner).unwrap();
+        let context = state(&session);
+        assert_eq!(context.bundles.len(), 2);
+        for (slots, anchor) in [([40, 41], 41), ([45, 46], 46)] {
+            let bundle = context.bundles.iter().position(|bundle|
+                bundle.occurrence == ConstraintOccurrenceId::new(binding.clone(), anchor)).unwrap();
+            for slot in slots {
+                let origins: Vec<_> = context.origins.iter().filter(|origin|
+                    origin.occurrence == ConstraintOccurrenceId::new(binding.clone(), slot)).collect();
+                assert_eq!(origins.len(), 1);
+                assert!(context.relation_bundles(origins[0].relation)
+                    .any(|id| id == AttachmentBundleId(bundle)));
+            }
+        }
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    }
+}
+
+#[test]
+fn expression_ascription_binding_annotation_keeps_separate_computation_effect_origins() {
+    for text in [
+        "my answer:[] int = 1 as [] int",
+        "my answer = { my local:[] int = 1 as [] int; local }",
+    ] {
+        let mut session = session_with_source(text);
+        let owner = empty_bundle_owner(&session);
+        let occurrence = session.batch.candidate_source.schedules[&owner].iter().find_map(|action| match action {
+            candidate_source::Action::Ascription { occurrence, .. } => Some(occurrence.clone()), _ => None,
+        }).unwrap();
+        session.execute_candidate_source_root(&owner).unwrap();
+        let context = state(&session);
+        for slot in [42, 47] {
+            let origins: Vec<_> = context.origins.iter().filter(|origin|
+                origin.occurrence == ConstraintOccurrenceId::new(occurrence.clone(), slot)).collect();
+            assert_eq!(origins.len(), 1);
+            assert!(matches!(context.relations[origins[0].relation.0 as usize].key.pair, TypedPairKey::Effect { .. }));
+        }
+    }
+}
+
+#[test]
+fn expression_ascription_parameter_pair_preserves_parameter_endpoint() {
+    let mut session = session_with_source("my answer x = x as int");
+    let owner = empty_bundle_owner(&session);
+    let action = session.batch.candidate_source.schedules[&owner].iter().find(|action|
+        matches!(action, candidate_source::Action::Ascription { .. })).unwrap().clone();
+    let candidate_source::Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } = action else { unreachable!() };
+    assert!(matches!(endpoint, shadow_apply::CandidateEndpoint::Parameter(_)));
+    session.candidate_expression_ascription(&annotation, endpoint, &occurrence, level, computation_effect, &scope).unwrap();
+    session.execute_candidate_source_root(&owner).unwrap();
+    assert!(session.errors.is_empty());
+}
+
+#[test]
+fn expression_ascription_concrete_occurrences_keep_distinct_attachment_identity() {
+    let mut session = session_with_source("act E\nmy answer = (1 as [E] int) as [E] int");
+    let owner = empty_bundle_owner(&session);
+    let actions = session.batch.candidate_source.schedules[&owner].clone();
+    let positions: Vec<_> = actions.iter().filter_map(|action| match action {
+        candidate_source::Action::Ascription { annotation, .. } => annotation.ty.effects.as_ref().map(|row| row.position.clone()),
+        _ => None,
+    }).collect();
+    assert_eq!(positions.len(), 2);
+    assert_ne!(positions[0], positions[1]);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    let weights: Vec<_> = positions.iter().map(|position| context.weights.iter().enumerate()
+        .find(|(_, weight)| &weight.position == position && !weight.allowed.is_empty()).unwrap()).collect();
+    assert_ne!(weights[0].0, weights[1].0);
+    assert_eq!(weights[0].1.allowed, weights[1].1.allowed);
+    assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions.is_empty());
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn expression_ascription_local_scopes_isolate_named_values_and_effect_attachments() {
+    let mut session = session_with_source("act E\nmy answer = { my first = 1 as 'a; my second = 1 as 'a; my third = 1 as [E] int; my fourth = 1 as [E] int; fourth }");
+    let owner = empty_bundle_owner(&session);
+    let actions = session.batch.candidate_source.schedules[&owner].clone();
+    let scopes: Vec<_> = actions.iter().filter_map(|action| match action {
+        candidate_source::Action::Ascription { scope, .. } => Some(scope.clone()),
+        _ => None,
+    }).collect();
+    assert_eq!(scopes.len(), 4);
+    assert!(scopes.iter().all(|scope| matches!(scope, candidate_effect::AnnotationScope::Local(_))));
+    assert_ne!(scopes[0], scopes[1]);
+    assert_ne!(scopes[2], scopes[3]);
+    for action in &actions {
+        if let candidate_source::Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } = action {
+            session.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope).unwrap();
+        }
+    }
+    let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+    let rows: Vec<_> = scopes[..2].iter().map(|scope| algebra.annotation_values[&(scope.clone(), Box::<str>::from("'a"))]).collect();
+    assert_ne!(rows[0], rows[1]);
+    let views: Vec<_> = algebra.views.iter().filter(|view| !view.allowed.is_empty()).collect();
+    assert_eq!(views.len(), 2);
+    assert!(views.iter().all(|view| view.tail.is_none()));
+    assert_ne!(views[0].position, views[1].position);
+    let weights: Vec<_> = state(&session).weights.iter().enumerate().filter(|(_, weight)| !weight.allowed.is_empty()).collect();
+    assert_eq!(weights.len(), 2);
+    assert_eq!(state(&session).attachment_source(candidate_context::LocalWeightId(weights[0].0 as u32)).unwrap().lexical_scope, scopes[2]);
+    assert_eq!(state(&session).attachment_source(candidate_context::LocalWeightId(weights[1].0 as u32)).unwrap().lexical_scope, scopes[3]);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn expression_ascription_local_formal_shares_its_named_annotation_row() {
+    let mut session = session_with_source("my answer = { my local (x:'a) = x as 'a; local }");
+    let owner = empty_bundle_owner(&session);
+    let actions = session.batch.candidate_source.schedules[&owner].clone();
+    let formal_scope = actions.iter().find_map(|action| match action {
+        candidate_source::Action::FormalAnnotation { scope, .. } => Some(scope.clone()), _ => None,
+    }).unwrap();
+    let expression_scope = actions.iter().find_map(|action| match action {
+        candidate_source::Action::Ascription { scope, .. } => Some(scope.clone()), _ => None,
+    }).unwrap();
+    assert_eq!(formal_scope, expression_scope);
+    assert!(matches!(formal_scope, candidate_effect::AnnotationScope::Local(_)));
+    session.execute_candidate_source_root(&owner).unwrap();
+    let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+    assert_eq!(algebra.annotation_values.len(), 1);
+    assert!(algebra.annotation_values.contains_key(&(formal_scope, Box::<str>::from("'a"))));
+}
+
+#[test]
+fn expression_ascription_call_preserves_original_formal_name_and_registration() {
+    for text in ["my answer cb = cb 1", "my answer cb = (cb as (int -> int)) 1"] {
+        let mut session = session_with_source(text);
+        let owner = empty_bundle_owner(&session);
+        session.execute_candidate_source_root(&owner).unwrap();
+        let input = &session.batch.candidate_calls.calls[0];
+        let name = &session.batch.candidate_calls.names[input.formal_name.unwrap()];
+        let registration = &session.batch.candidate_calls.formals[name.registration];
+        let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+        let lexical_name = &source.expressions()[name.expression];
+        assert!(matches!(&lexical_name.form, yu_hir::shadow::LocalSourceForm::Name {
+            resolution: yu_hir::shadow::LocalSourceResolution::Parameter(parameter), ..
+        } if parameter == &registration.parameter));
+        let call = candidate_call::observe(&session.batch.hir, &session.store, &session.batch.candidate_calls, 0).unwrap();
+        assert_eq!(call.formal_registration().unwrap().id, registration.parameter);
+        assert_eq!(call.lexical_formal_use().unwrap().occurrence, lexical_name.occurrence);
+        assert_ne!(input.checking.occurrence(), &lexical_name.occurrence);
+        for expression in source.expressions().iter().filter(|expression| matches!(expression.form,
+            yu_hir::shadow::LocalSourceForm::Ascription { .. })) {
+            assert_ne!(expression.occurrence, lexical_name.occurrence);
+            assert_ne!(&expression.occurrence, input.checking.occurrence());
+        }
+    }
+}
+
+#[test]
 fn negative_written_empty_bundles_preserve_leaf_ports_and_executable_graph() {
     for (written, omitted, local) in [
         ("my answer x:[] int -> int = x", "my answer x:int -> int = x", false),

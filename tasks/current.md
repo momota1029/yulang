@@ -7983,3 +7983,18 @@ reuse/publication, and restore the complete pre-route certificate/dependency/
 observation/publication state on failure before a supported retry. Complete
 Call, full effect hygiene, soundness/principality, ordinary/default/public
 inference, and F5 retirement remain open.
+
+The private HIR source carrier now retains expression ascriptions with their
+exact annotation tail, occurrence, range, and lexical scope. Candidate source
+construction evaluates the child first, aliases the ascription's canonical
+component mapping to that child, and emits both annotation value directions on
+the child's actual Value endpoint plus the annotation computation-effect check
+on its actual Effect endpoint. Expression-ascription provenance uses distinct
+45/46/47 slots so it can coexist with a binding annotation at the same HIR
+occurrence; its empty-source bundle anchor is 46. Local annotation scope and
+formal-name Call registration survive the adapter. This is a source-to-solver
+construction bridge only: no cycle recognition, lifecycle certification,
+recursive nonempty-context admission, complete Call semantics, or ordinary
+inference enablement follows. The focused HIR (5) and solver (8) tests passed;
+independent semantic and spec delta reviews passed. See the
+[expression-ascription source bridge](../notes/progress/2026-10-10-expression-ascription-source-bridge.md).

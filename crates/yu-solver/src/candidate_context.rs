@@ -1286,8 +1286,13 @@ impl InferenceSession {
             .effect_algebra
             .context;
         let relation = state.relation(pair, context)?;
-        if matches!(occurrence.local_slot(), 40 | 41) {
-            let anchor = ConstraintOccurrenceId::new(occurrence.occurrence().clone(), 41);
+        let bundle_slot = match occurrence.local_slot() {
+            40 | 41 => Some(41),
+            45 | 46 => Some(46),
+            _ => None,
+        };
+        if let Some(slot) = bundle_slot {
+            let anchor = ConstraintOccurrenceId::new(occurrence.occurrence().clone(), slot);
             if let Some(&bundle) = state.source_bundles.get(&anchor) { state.bundle_link(relation, bundle)?; }
         }
         state.origins.try_reserve(1).map_err(|_| exhausted())?;

@@ -394,7 +394,7 @@ pub(super) fn observe<'a>(
                 break;
             }
             routed = match &child.form {
-                LocalSourceForm::Group { inner } => inner,
+                LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => inner,
                 LocalSourceForm::Block {
                     final_expression, ..
                 } => final_expression,

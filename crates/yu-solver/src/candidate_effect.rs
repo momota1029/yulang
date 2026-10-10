@@ -38,7 +38,7 @@ struct Conflict {
     annotation: Option<EffectAnnotationHandle>,
 }
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId) }
+pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId), Expression(yu_hir::shadow::LocalSourceIndex) }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1000,7 +1000,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap()
             .scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
         let result = (|| {
-            self.candidate_negative_empty_bundle(annotation, occurrence, &context)?;
+            self.candidate_negative_empty_bundle(annotation, occurrence, &context, 41)?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let negative = self.candidate_signature_value(
                 &context, &annotation.ty,
@@ -1018,7 +1018,7 @@ impl InferenceSession {
             let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
             self.admit_candidate_value_link(occurrence, 40, lower, negative)?;
             self.candidate_annotation_computation_effect(
-                &context, annotation, computation_effect, occurrence, level,
+                &context, annotation, computation_effect, occurrence, level, 42,
                 &mut effect_variables, &mut views,
             )?;
             #[cfg(test)]
@@ -1041,6 +1041,24 @@ impl InferenceSession {
         occurrence: &HirOccurrenceId,
         level: u32,
         computation_effect: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.candidate_annotation_pair(annotation, endpoint,
+            shadow_apply::CandidateEndpoint::Component(target), occurrence, level, computation_effect,
+            &AnnotationScope::Definition(annotation.owner.clone()), [40, 41, 42])
+    }
+
+    pub(super) fn candidate_expression_ascription(
+        &mut self, annotation: &SourceAnnotation, endpoint: shadow_apply::CandidateEndpoint,
+        occurrence: &HirOccurrenceId, level: u32, computation_effect: usize, scope: &AnnotationScope,
+    ) -> Result<(), SolveAvailabilityError> {
+        // Ascriptions can share their HIR occurrence with a binding annotation.
+        self.candidate_annotation_pair(annotation, endpoint, endpoint, occurrence, level, computation_effect, scope, [45, 46, 47])
+    }
+
+    fn candidate_annotation_pair(
+        &mut self, annotation: &SourceAnnotation, endpoint: shadow_apply::CandidateEndpoint,
+        target: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
+        level: u32, computation_effect: usize, scope: &AnnotationScope, slots: [u8; 3],
     ) -> Result<(), SolveAvailabilityError> {
         let mut value_variables = HashMap::new();
         let mut effect_variables = HashMap::new();
@@ -1074,10 +1092,10 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         let result = (|| {
             self.candidate_negative_empty_bundle(annotation, occurrence,
-                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())))?;
+                &SignatureContext::Annotation(annotation, scope.clone()), slots[1])?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             let upper = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
+                &SignatureContext::Annotation(annotation, scope.clone()),
                 &annotation.ty,
                 Polarity::Negative,
                 Polarity::Positive,
@@ -1087,7 +1105,7 @@ impl InferenceSession {
                 &mut views,
             )?;
             let exposed = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
+                &SignatureContext::Annotation(annotation, scope.clone()),
                 &annotation.ty,
                 Polarity::Positive,
                 Polarity::Positive,
@@ -1097,16 +1115,17 @@ impl InferenceSession {
                 &mut views,
             )?;
             let lower = self.candidate_endpoint(endpoint, Polarity::Positive)?;
-            self.admit_candidate_value_link(occurrence, 40, lower, upper)?;
+            self.admit_candidate_value_link(occurrence, slots[0], lower, upper)?;
             self.candidate_annotation_computation_effect(
-                &SignatureContext::Annotation(annotation, AnnotationScope::Definition(annotation.owner.clone())),
-                annotation, computation_effect, occurrence, level, &mut effect_variables, &mut views,
+                &SignatureContext::Annotation(annotation, scope.clone()),
+                annotation, computation_effect, occurrence, level, slots[2], &mut effect_variables, &mut views,
             )?;
+            let target = self.candidate_endpoint(target, Polarity::Negative)?;
             self.admit_candidate_value_link(
                 occurrence,
-                41,
+                slots[1],
                 exposed,
-                self.batch.component_term_at(target),
+                target,
             )
         })();
         drop((value_variables, effect_variables, views));
@@ -1116,7 +1135,7 @@ impl InferenceSession {
 
     fn candidate_negative_empty_bundle(
         &mut self, annotation: &SourceAnnotation, occurrence: &HirOccurrenceId,
-        context: &SignatureContext<'_>,
+        context: &SignatureContext<'_>, slot: u8,
     ) -> Result<(), SolveAvailabilityError> {
         fn collect(ty: &SourceAnnotationType, variance: Polarity, annotation: &SourceAnnotation,
             scope: &AnnotationScope, sets: &mut Vec<candidate_context::EmptyAttachmentSet>) -> Result<(), SolveAvailabilityError> {
@@ -1143,7 +1162,7 @@ impl InferenceSession {
         collect(&annotation.ty, Polarity::Positive, annotation, scope, &mut sets)?;
         if !sets.is_empty() {
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retain_bundle(
-                candidate_context::AttachmentBundle { occurrence: ConstraintOccurrenceId::new(occurrence.clone(), 41), sets }, true)?;
+                candidate_context::AttachmentBundle { occurrence: ConstraintOccurrenceId::new(occurrence.clone(), slot), sets }, true)?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         }
         Ok(())
@@ -1156,6 +1175,7 @@ impl InferenceSession {
         computation_effect: usize,
         source: &HirOccurrenceId,
         level: u32,
+        slot: u8,
         effects: &mut HashMap<&'a str, u32>,
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -1176,7 +1196,7 @@ impl InferenceSession {
             )?
         };
         let lower = self.batch.component_term_at(computation_effect);
-        let id = ConstraintOccurrenceId::new(source.clone(), 42);
+        let id = ConstraintOccurrenceId::new(source.clone(), slot);
         let cause = CauseId::for_occurrence(id.clone());
         self.store.admit_and_record_provenance(&ConstraintOccurrence {
             id: id.clone(), cause: cause.clone(), lower, upper,
