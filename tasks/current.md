@@ -8004,8 +8004,9 @@ finds a minimal order-sensitive filter witness in its supplied finite algebra,
 and the [conditional Function-port origin derivation](../notes/progress/2026-10-10-function-port-origin-closure-proof.md)
 separates Lambda entry/return rows from negative Function ports under explicit
 source and transport premises. The first is unreviewed model evidence; the
-second awaits independent proof review. Neither establishes source reachability
-or a production defect.
+second passed independent compiler-referee review as a conditional derivation,
+with source polarity and transported-flow qualification premises still open.
+Neither establishes universal source reachability or a production defect.
 
 Next: close the exact Packet 1 retained-input/readiness obligations, then
 recognize the two approved complete components and implement transactional
