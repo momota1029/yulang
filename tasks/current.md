@@ -8014,3 +8014,24 @@ first-edge rollback/retry test. The record is not an `EntryCertificateId`,
 cannot mint `BothFromRight`, and does not certify a recursive circuit or its
 lifecycle.
 See the [inferred-entry origin checkpoint](../notes/progress/2026-10-10-inferred-entry-origin.md).
+
+Function decomposition now retains inert, field-specific operation incidence
+with the exact parent and admitted child relations: argument Value/Effect record
+Swap; result Value/Effect record Preserve. Lambda slot-3 entry provenance is
+bound by passing the exact retained origin ID from its source owner, while all
+other seeds use the no-handle path. This avoids endpoint reconstruction and
+keeps current child-local context execution unchanged. The first M2 review
+found a quadratic miss scan for unrelated slot-3 sources; direct ID plumbing
+closed it. Focused solver tests passed (3 inferred-entry, 2 Function-port),
+and fresh semantic and performance delta reviews passed. No context operation
+is executed or authorized by these records. See the
+[Function-port incidence checkpoint](../notes/progress/2026-10-10-function-port-incidence.md).
+
+Next: implement source-owned context operations and their consumers through
+bound insertion/replay, extrusion, capture/freshening and intrusion, then close
+the exact two-cycle certificate invalidation, deferral and rollback gate before
+admitting recursive nonempty contexts. Contravariant concrete effect
+attachments remain rejected until their source constructor and current/future
+consumer checks are implemented and tied to the conditional hygiene proof.
+Complete Call, ordinary/default/public inference, soundness/principality and
+F5 retirement remain open.

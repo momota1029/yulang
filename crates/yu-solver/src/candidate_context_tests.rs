@@ -2347,12 +2347,51 @@ fn inferred_entry_origin_distinguishes_written_function_interface() {
     assert_eq!(origin.occurrence, ConstraintOccurrenceId::new(recipe.occurrence.clone(), 3));
     assert_eq!(origin.cause, CauseId::for_occurrence(origin.occurrence.clone()));
     assert_ne!(origin.entry, origin.returned);
+    let bindings: Vec<_> = state(&session).origins.iter()
+        .filter(|binding| binding.inferred_entry == Some(origin.id)).collect();
+    assert_eq!(bindings.len(), 1);
+    assert_eq!(bindings[0].occurrence, origin.occurrence);
+    assert_eq!(state(&session).relations[bindings[0].relation.0 as usize].key.pair,
+        TypedPairKey::Effect { lower: origin.entry, upper: origin.returned });
+    assert!(state(&session).origins.iter().filter(|binding| binding.occurrence.local_slot() == 4)
+        .all(|binding| binding.inferred_entry.is_none()));
     let edge = session.store.provenance().iter()
         .find(|edge| edge.cause() == &origin.cause).unwrap();
     let fact = session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap();
     assert_eq!(session.effect_endpoint(fact.lower(), Polarity::Positive), origin.entry);
     assert_eq!(session.effect_endpoint(fact.upper(), Polarity::Negative), origin.returned);
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn inferred_entry_origin_unrelated_slot_three_uses_no_handle() {
+    let mut session = session_with_source("my ignore x = ()\nmy literal = 1");
+    let recipe = session.batch.lambda_recipes[0].clone();
+    session
+        .with_route_transaction(|session| session.admit_lambda_fact(&recipe))
+        .unwrap();
+    let index = session
+        .batch
+        .occurrences()
+        .iter()
+        .position(|occurrence| {
+            occurrence.id.local_slot() == 3 && occurrence.id.occurrence() != &recipe.occurrence
+        })
+        .expect("unrelated literal slot-three constraint");
+    let occurrence = session.batch.occurrences()[index].id.clone();
+    let before = state(&session).origins.len();
+    session
+        .with_route_transaction(|session| session.admit_collected_fact(index))
+        .unwrap();
+    let bindings = &state(&session).origins[before..];
+    assert_eq!(bindings.len(), 1);
+    assert_eq!(bindings[0].occurrence, occurrence);
+    assert!(bindings[0].inferred_entry.is_none());
+    assert_eq!(state(&session).inferred_entries.len(), 1);
+    assert_eq!(
+        state(&session).bytes().unwrap(),
+        state(&session).enumerated_bytes()
+    );
 }
 
 #[test]
@@ -2372,5 +2411,153 @@ fn inferred_entry_origin_route_rollback_restores_and_retry_retains_once() {
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
     session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
     assert_eq!(state(&session).inferred_entries.as_slice(), &[attempted.unwrap()]);
+    let origin = &state(&session).inferred_entries[0];
+    let bindings: Vec<_> = state(&session)
+        .origins
+        .iter()
+        .filter(|binding| binding.inferred_entry == Some(origin.id))
+        .collect();
+    assert_eq!(bindings.len(), 1);
+    assert_eq!(bindings[0].occurrence, origin.occurrence);
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+
+#[test]
+fn function_port_incidence_preserves_exact_relations_and_route_retry() {
+    let mut session = session_with_source("my answer x:int -> int = x");
+    let owner = empty_bundle_owner(&session);
+    let before = state(&session).checkpoint();
+    let mut attempted = Vec::new();
+    assert_eq!(
+        session.with_route_transaction(|session| {
+            session.execute_candidate_source_root(&owner)?;
+            attempted = state(session)
+                .dependencies
+                .iter()
+                .copied()
+                .filter(|dependency| matches!(dependency, Dependency::FunctionPort { .. }))
+                .collect();
+            assert!(!attempted.is_empty());
+            assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+            Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+        }),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(state(&session).checkpoint(), before);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    let retained: Vec<_> = context
+        .dependencies
+        .iter()
+        .copied()
+        .filter(|dependency| matches!(dependency, Dependency::FunctionPort { .. }))
+        .collect();
+    assert_eq!(retained, attempted);
+    for ports in retained.chunks_exact(4) {
+        // Front insertion reverses construction order; execution order is the
+        // established Argument, ArgumentEffect, ResultEffect, Result order.
+        let mut parent_id = None;
+        for (dependency, field, operation) in [
+            (
+                ports[0],
+                FunctionField::Result,
+                FunctionPortOperation::Preserve,
+            ),
+            (
+                ports[1],
+                FunctionField::ResultEffect,
+                FunctionPortOperation::Preserve,
+            ),
+            (
+                ports[2],
+                FunctionField::ArgumentEffect,
+                FunctionPortOperation::Swap,
+            ),
+            (
+                ports[3],
+                FunctionField::Argument,
+                FunctionPortOperation::Swap,
+            ),
+        ] {
+            let Dependency::FunctionPort {
+                child,
+                parent,
+                field: actual_field,
+                operation: actual_operation,
+            } = dependency
+            else {
+                unreachable!()
+            };
+            assert_eq!((actual_field, actual_operation), (field, operation));
+            assert_eq!(*parent_id.get_or_insert(parent), parent);
+            assert!(
+                context
+                    .dependency_keys
+                    .contains(&Dependency::Derived { child, parent })
+            );
+            let TypedPairKey::Value(pair) = context.relations[parent.0 as usize].key.pair else {
+                unreachable!()
+            };
+            let lower =
+                InferenceSession::positive_function_children(&session.store, pair.lower).unwrap();
+            let upper =
+                InferenceSession::negative_function_children(&session.store, pair.upper).unwrap();
+            let expected = match field {
+                FunctionField::Argument => TypedPairKey::Value(CanonicalValuePairKey {
+                    lower: session.value_endpoint(upper.0, Polarity::Positive),
+                    upper: session.value_endpoint(lower.0, Polarity::Negative),
+                }),
+                FunctionField::ArgumentEffect => TypedPairKey::Effect {
+                    lower: session.effect_endpoint(upper.1, Polarity::Positive),
+                    upper: session.effect_endpoint(lower.1, Polarity::Negative),
+                },
+                FunctionField::ResultEffect => TypedPairKey::Effect {
+                    lower: session.effect_endpoint(lower.2, Polarity::Positive),
+                    upper: session.effect_endpoint(upper.2, Polarity::Negative),
+                },
+                FunctionField::Result => TypedPairKey::Value(CanonicalValuePairKey {
+                    lower: session.value_endpoint(lower.3, Polarity::Positive),
+                    upper: session.value_endpoint(upper.3, Polarity::Negative),
+                }),
+            };
+            let admitted = context.relations[child.0 as usize].key;
+            assert_eq!(admitted.pair, session.candidate_context_pair(expected));
+            assert_eq!(admitted.context, IDENTITY);
+        }
+    }
+    assert_eq!(retained.len() % 4, 0);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn function_port_incidence_keeps_written_argument_filter_child_local() {
+    let mut session = session_with_source("act io\nmy bridge (consume:([io] int) -> ()) = consume");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    assert!(context.dependencies.iter().any(|dependency| matches!(
+        dependency,
+        Dependency::FunctionPort {
+            field: FunctionField::ArgumentEffect,
+            operation: FunctionPortOperation::Swap,
+            ..
+        }
+    )));
+    for dependency in &context.dependencies {
+        if let Dependency::FunctionPort { child, .. } = *dependency {
+            assert_eq!(context.relations[child.0 as usize].key.context, IDENTITY);
+        }
+    }
+    assert!(
+        context
+            .contexts
+            .iter()
+            .any(|expr| matches!(expr, ContextExpr::PrefixLeft { .. }))
+    );
+    assert!(!context.contexts.iter().any(|expr| matches!(
+        expr,
+        ContextExpr::Swap { .. } | ContextExpr::BothFromRight { .. }
+    )));
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
 }

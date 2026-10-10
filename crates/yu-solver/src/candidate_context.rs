@@ -111,11 +111,24 @@ struct Relation {
     key: RelationKey,
     previous_on_pair: Option<RelationId>,
 }
+// Operation incidence is inert: child admission still reconstructs its own
+// executable context. In particular this never constructs a structural Swap(I).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum FunctionPortOperation {
+    Swap,
+    Preserve,
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Dependency {
     Derived {
         child: RelationId,
         parent: RelationId,
+    },
+    FunctionPort {
+        child: RelationId,
+        parent: RelationId,
+        field: FunctionField,
+        operation: FunctionPortOperation,
     },
     // Parent order is lower then upper, independently of insertion direction.
     Replay {
@@ -142,6 +155,7 @@ enum Dependency {
 struct Origin {
     relation: RelationId,
     occurrence: ConstraintOccurrenceId,
+    inferred_entry: Option<InferredEntryOriginId>,
 }
 #[derive(Clone, Copy, Debug)]
 struct BundleIncidence {
@@ -1137,7 +1151,7 @@ impl State {
             .try_reserve(1)
             .map_err(|_| exhausted())?;
         match dependency {
-            Dependency::Derived { child, parent } => self.edge(parent, child)?,
+            Dependency::Derived { child, parent } | Dependency::FunctionPort { child, parent, .. } => self.edge(parent, child)?,
             // Transport retains provenance across instantiation and row
             // lifecycle changes; it is not a constraint from the template to
             // a fresh use and must not replay that use's conflicts upstream.
@@ -1306,6 +1320,7 @@ impl InferenceSession {
         &mut self,
         task: LiveConstraintTask,
         occurrence: &ConstraintOccurrenceId,
+        inferred_entry: Option<InferredEntryOriginId>,
     ) -> Result<(), SolveAvailabilityError> {
         if self.candidate_graph.is_none() {
             return Ok(());
@@ -1330,9 +1345,12 @@ impl InferenceSession {
             if let Some(&bundle) = state.source_bundles.get(&anchor) { state.bundle_link(relation, bundle)?; }
         }
         state.origins.try_reserve(1).map_err(|_| exhausted())?;
+        // The Lambda owner supplies its exact retained handle directly. All
+        // other source admissions take the bounded no-handle path.
         state.origins.push(Origin {
             relation,
             occurrence: occurrence.clone(),
+            inferred_entry,
         });
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
@@ -1356,6 +1374,35 @@ impl InferenceSession {
             };
             state.dependency(Dependency::Derived { child, parent })?;
         }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(child))
+    }
+    pub(super) fn candidate_function_port_admit(
+        &mut self,
+        task: LiveConstraintTask,
+        field: FunctionField,
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let Some(child) = self.candidate_context_admit(task)? else {
+            return Ok(None);
+        };
+        let state = &mut self
+            .candidate_graph
+            .as_mut()
+            .unwrap()
+            .intrusion
+            .effect_algebra
+            .context;
+        let parent = state.processing.ok_or_else(exhausted)?;
+        let operation = match field {
+            FunctionField::Argument | FunctionField::ArgumentEffect => FunctionPortOperation::Swap,
+            FunctionField::ResultEffect | FunctionField::Result => FunctionPortOperation::Preserve,
+        };
+        state.dependency(Dependency::FunctionPort {
+            child,
+            parent,
+            field,
+            operation,
+        })?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
     }

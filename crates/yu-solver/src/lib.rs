@@ -11171,12 +11171,41 @@ impl InferenceSession {
                 self.store.admit_and_record_provenance(&occurrence)
                     .map_err(SolveAvailabilityError::from)?;
                 #[cfg(feature = "shadow-apply-candidate")]
-                if slot == 3 {
+                let inferred_entry = if slot == 3 {
                     // Retain the fact at its Lambda owner, before later row
                     // canonicalization can erase its construction endpoints.
-                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context
-                        .retain_inferred_entry(&recipe.occurrence, entry, returned, &occurrence.id, &occurrence.cause)?;
-                }
+                    Some(
+                        self.candidate_graph
+                            .as_mut()
+                            .unwrap()
+                            .intrusion
+                            .effect_algebra
+                            .context
+                            .retain_inferred_entry(
+                                &recipe.occurrence,
+                                entry,
+                                returned,
+                                &occurrence.id,
+                                &occurrence.cause,
+                            )?,
+                    )
+                } else {
+                    None
+                };
+                #[cfg(feature = "shadow-apply-candidate")]
+                let transitions = self.constrain_live_item_with_inferred_entry(
+                    TypedWorkItem {
+                        task: LiveConstraintTask::Effect(
+                            self.effect_endpoint(lower, Polarity::Positive),
+                            self.effect_endpoint(return_negative, Polarity::Negative),
+                        ),
+                        relation: None,
+                    },
+                    &occurrence.id,
+                    &occurrence.cause,
+                    inferred_entry,
+                )?;
+                #[cfg(not(feature = "shadow-apply-candidate"))]
                 let transitions = self.constrain_live_effect(
                     self.effect_endpoint(lower, Polarity::Positive),
                     self.effect_endpoint(return_negative, Polarity::Negative),
@@ -11773,6 +11802,23 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId,
         cause: &CauseId,
     ) -> Result<usize, SolveAvailabilityError> {
+        self.constrain_live_item_with_inferred_entry(
+            initial_item,
+            occurrence,
+            cause,
+            #[cfg(feature = "shadow-apply-candidate")]
+            None,
+        )
+    }
+
+    fn constrain_live_item_with_inferred_entry(
+        &mut self,
+        initial_item: TypedWorkItem,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+        #[cfg(feature = "shadow-apply-candidate")]
+        inferred_entry: Option<candidate_context::InferredEntryOriginId>,
+    ) -> Result<usize, SolveAvailabilityError> {
         let initial = initial_item.task;
         #[cfg(feature = "shadow-apply-candidate")]
         let previous_processing = self.candidate_processing(None);
@@ -11786,7 +11832,7 @@ impl InferenceSession {
         self.clear_diagnostic_scratch();
         let mut transitions = 0;
         #[cfg(feature = "shadow-apply-candidate")]
-        self.candidate_context_seed(initial, occurrence)?;
+        self.candidate_context_seed(initial, occurrence, inferred_entry)?;
         self.enqueue_item(initial_item, false)?;
         loop {
             #[cfg(feature = "shadow-apply-candidate")]
@@ -12017,13 +12063,22 @@ impl InferenceSession {
                             self.record_diagnostic_edge(key, child, Some(field))?;
                         }
                     }
-                    for (_, child) in children.into_iter().rev() {
-                        self.enqueue_front(match child {
+                    for (field, child) in children.into_iter().rev() {
+                        let task = match child {
                             TypedPairKey::Value(value) => LiveConstraintTask::Value(value),
                             TypedPairKey::Effect { lower, upper } => {
                                 LiveConstraintTask::Effect(lower, upper)
                             }
-                        })?;
+                        };
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        let relation = self.candidate_function_port_admit(task, field)?;
+                        #[cfg(not(feature = "shadow-apply-candidate"))]
+                        let _ = field;
+                        self.enqueue_item(TypedWorkItem {
+                            task,
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            relation,
+                        }, true)?;
                     }
                 }
             }
@@ -12063,14 +12118,6 @@ impl InferenceSession {
             #[cfg(feature = "shadow-apply-candidate")]
             relation: None,
         }, false)
-    }
-
-    fn enqueue_front(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
-        self.enqueue_item(TypedWorkItem {
-            task,
-            #[cfg(feature = "shadow-apply-candidate")]
-            relation: None,
-        }, true)
     }
 
     fn enqueue_item(&mut self, mut item: TypedWorkItem, front: bool) -> Result<(), SolveAvailabilityError> {
