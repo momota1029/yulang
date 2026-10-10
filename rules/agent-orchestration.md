@@ -15,8 +15,10 @@ The primary identifies the target branch, authorized outcome, governing source,
 and lightest sufficient M0–M3 mode. It selects bounded assignments, keeps reviewer
 reports isolated, adjudicates evidence, batches accepted repairs, and owns user
 questions, progress-record synchronization, staging, commits, PRs, and pushes.
-Only the primary spawns or contacts subagents. Children execute their assigned
-role and recommend handoffs; they do not inherit orchestration or Git duties.
+The primary owns delegation. A `prover` may dispatch/contact its own leaf workers
+only under the proof-coordinator exception below. Other children execute their
+assigned role and recommend handoffs; no child inherits authority, independent
+review assignment, user approval, or Git duties.
 The primary normally keeps independent ready research packets running rather
 than executing every investigation itself. Maintain a small ready/running/
 review/blocked queue and refill useful capacity after a result arrives. A
@@ -35,7 +37,9 @@ The primary's reread and a producer's self-review do not count as independent re
 | built-in `explorer` | read-only | map files, symbols, entrypoints, call paths, and current state |
 | `architect` | read-only | unresolved design, invariants, gates, rollback and decisions |
 | `implementer` | workspace-write | implement confirmed design or accepted findings on leased files |
-| `researcher` | workspace-write | construct proofs, counterexamples, checkers and bounded prototypes on leased research-only paths; no semantic adoption or self-certification |
+| `task_decomposer` | read-only | locate the critical path and return a small dependency-ordered set of executable packets; no scheduling or status changes |
+| `prover` | workspace-write | construct proofs and exact source-to-proof bridges on leased research paths; bounded proof coordination only when assigned; no self-certification |
+| `researcher` | workspace-write | complementary counterexamples, checkers, bounded prototypes and source/artifact evidence on leased research-only paths; no semantic adoption or self-certification |
 | `theory_curator` | workspace-write | synchronize leased theory maps after meaningful adjudicated changes; no new proofs or semantic decisions |
 | `compiler_referee` | read-only | adversarial semantics, root cause, soundness and invariant review |
 | `spec_auditor` | read-only | exact design/spec/test-contract conformance |
@@ -51,6 +55,12 @@ table in prose. The current primary is Luna/high; the inspected `implementer`
 pin is Sol/low and `architect` pin is Sol/medium. Preserve those intentional
 settings rather than replacing them to match old Terra/Sol descriptions.
 
+`prover` deliberately omits both model and effort pins: ordinary proof work
+inherits the configured GPT-6.1 Sol/high defaults, while an eligible explicit
+Astra spawn can actually override them. `task_decomposer` pins GPT-6.1
+Sol/medium for bounded read-only planning. The two roles do not replace the
+primary, `architect`, or the independent `compiler_referee`.
+
 Choose the role by its deliverable and concrete risk. Sol specialist work does
 not make the specialist a second primary. Use the normal configured model first;
 length, multiple files, architectural vocabulary, or model rank alone is not an
@@ -65,8 +75,9 @@ report requested versus observed settings separately. Do not claim that a live
 session reloaded changed files or that a requested override actually ran.
 
 Astra remains an exceptional, bounded reasoning escalation only after Sol has
-localized a concrete bottleneck with material silent-failure or blast-radius
-risk, and a cheaper exact lookup, deterministic check, focused measurement, or
+localized a concrete critical proof obstruction or a semantic bottleneck with
+material silent-failure or blast-radius risk, and a cheaper exact lookup,
+deterministic check, focused measurement, or
 bounded Sol check cannot close it. The new assignment must be narrower and name
 the decisive question, evidence, and stop condition. It is not an implementation
 worker or an automatic stage of every panel.
@@ -84,6 +95,83 @@ request or evidence from a prior bounded attempt. Allow at most one Astra
 assignment per decision point by default; another requires materially new
 bounded evidence/question or explicit user instruction. Return to the configured
 normal roles after adjudication. Never increase cost merely for reassurance.
+
+## Proof delegation and decomposition
+
+Authority: the user's 2026-10-10 request for Sol proof/task-decomposition roles,
+including proof parallelism and Sol-to-Astra escalation. This is the only
+exception to the ordinary child-delegation prohibition. It does not transfer
+semantic decisions, primary-owned records, Git, or independent certification.
+
+Use `task_decomposer` when several open obligations, a changed premise, or a
+stalled critical path need concrete separation. Its read-only result contains
+two to four useful packets, the real dependency order and the next decisive
+evidence. Each packet fixes the claim, source/baseline, hypotheses, method,
+falsifier, proposed output lease, verification/resource budget and stop condition.
+Distinguish necessary premises from optional sufficient routes. The primary
+validates leases and dispatches ready packets without making another planning
+pass a prerequisite. Repeat decomposition only after material evidence,
+authority, or critical-path changes; renaming/reclassifying gates is not proof
+progress. Small already-specified tasks do not need this role.
+
+Use `prover` for a named constructive obligation; use `researcher` for a
+complementary falsification, executable experiment or source audit. Preserve
+Simple-sub's ordinary generation, accumulation, propagation, levels, extrusion,
+intrusion and generalization. Do not require each constraint to be solved at
+generation time, collapse distinct residual lineages, assume the missing
+source correspondence, or weaken the theorem to make an unresolved gate close.
+Return a derivation with original quantifiers and explicit hypotheses, a genuine
+counterexample, or the exact reduced premise with failed routes and next evidence.
+Tests of a supplied finite model do not prove its source assumptions.
+
+A `prover` is a leaf unless the primary explicitly assigns a **proof-coordinator
+packet**. The primary may grant this packet under the current user authorization
+without asking for approval again. It must specify:
+
+- one fixed theorem/gate and governing baseline, allowed reads and exclusions;
+- the coordinator's own outputs and preallocated, disjoint leaf-output leases;
+- allowed leaf roles (`prover` or `researcher`), model/effort choices, aggregate
+  agent/process/CPU/RAM/time limits, and stop/reclaim conditions;
+- a child limit of at most **two active leaf workers**, with no further
+  delegation, and the evidence required for any Astra leaf.
+
+The coordinator may start complementary methods or genuinely independent
+lemmas as soon as their inputs are stable. It may not create a new lease,
+expand a theorem's assumptions, appoint reviewers, alter another lane, or give
+a leaf coordinator rights. It contacts only its own leaves and the primary.
+Leaves receive the original authority plus their narrower task, explicitly
+`leaf-only` delegation, and `fork_turns: "none"`; they cannot spawn workers.
+The coordinator itself remains a producer and cannot certify its team's work.
+
+Count the coordinator and every descendant in the primary's existing lab
+budget. The usual four-to-six useful assignments and configured ceiling of
+12 remain unchanged; the observed runtime ceiling takes precedence. A nested
+team does not receive another full quota. Preserve room for integration and
+fresh closure review. Do not duplicate an existing lane's proof or experiment.
+
+Normal proof leaves explicitly request `gpt-6.1-sol` / `high`, including when
+their parent happens to run Astra. For Astra, use the unpinned `prover` role
+with a real native `model = "gpt-6-astra"` and explicit effort, normally `low`.
+Include the localized Sol argument, precise remaining obstruction, decisive
+question and stop bound. At most one Astra leaf is active per coordinator;
+it consumes one of the two leaf slots and obeys the per-decision budget above.
+A changed model starts a new bounded assignment; it does not mutate the model
+of an already-running Sol worker. Record requested and observed settings.
+
+If custom roles, nested spawning or native model overrides are unavailable,
+return the same bounded packets to the primary for supported sibling dispatch.
+Do not bypass runtime limits, change a pin, invent configuration keys, claim
+Astra ran, or repeatedly retry an unavailable route. Continue feasible work
+under the actual configured model and report the specific remaining limit.
+
+Report each child's identity, role, effective settings when observable, lease,
+dependency and state to the primary's queue. Release a leaf's outputs only
+after its writes have stopped. Before handing the assembled proof to review or
+Git integration, freeze all contributing outputs and stop or reclaim every
+contributing leaf lease. A blocked/cancelled coordinator returns its live leaf
+identities and leases to the primary. A subtree is not finished while a leaf
+may still write. The primary assigns a fresh `compiler_referee` to the frozen
+proof; coauthors and their proof coordinator are ineligible for that review.
 
 ## Task classification
 
@@ -108,7 +196,8 @@ whole-goal concurrency limits. The expected-output pre-write gate is retained.
 |---|---|---|---|
 | file/symbol/current-state lookup | primary or built-in `explorer` | — | none |
 | read-only root cause | focused exploration; `architect` only for unresolved design | — | `compiler_referee` for difficult semantics |
-| open proof/conjecture or production bridge | freeze statement, source assumptions and exclusions | parallel `researcher` packets with different methods; `explorer`/`architect` for read-only source work | fresh `compiler_referee` for closure; add `spec_auditor` only for a distinct conformance risk |
+| multi-gate research or unclear critical path | `task_decomposer` only when concrete separation is needed | primary dispatches ready packets; no automatic repeated planning | no proof/status promotion from a plan |
+| open proof/conjecture or production bridge | freeze statement, source assumptions and exclusions | `prover` for construction; complementary `researcher` packets and read-only source work; bounded proof coordination when assigned | fresh `compiler_referee` for closure; add `spec_auditor` only for a distinct conformance risk |
 | exhaustive/differential/mutation experiment | named hypothesis, independent oracle scope and resource envelope | `researcher` on unique research paths | review the model's assumptions and independence, not only green counts |
 | theory status/supersession/dependency change | adjudicated result and exact evidence | `theory_curator` on leased maps | M0 synchronization; disputed mathematical implication returns to review |
 | typo/format/fully specified rename or internal records | — | primary or one producer | M0 deterministic checks; optional integrity review only for a named risk |
@@ -134,8 +223,9 @@ chat histories and raw logs; retain all necessary semantic assumptions.
 
 Every native spawn explicitly uses `fork_turns: "none"` when the schema supports
 it. If the runtime cannot isolate history, report that boundary instead of
-claiming independence. No child may spawn another child, change model policy,
-ask the user to approve its packet again, or perform Git integration.
+claiming independence. Child spawning is limited to the proof-coordinator
+exception above. No child may change model policy, ask the user to approve its
+packet again, or perform Git integration.
 
 `implementer` and `docs_writer` receive confirmed scope, accepted findings, and
 direct dependencies. They neither settle unspecified durable choices nor certify
@@ -160,8 +250,11 @@ reviewer of a result they helped construct. Preserve role permissions regardless
 of model. The question-board workflow remains primary-only; research children
 neither edit its answer bundles nor acquire Git rights.
 
-`researcher` may explore an explicitly labeled candidate or added hypothesis
-without adopting it. Production code remains the `implementer`'s confirmed-scope
+`task_decomposer` proposes packets, not new semantics, leases or live workers.
+`prover` follows the proof contract above; all leaf reports return through their
+delegator for primary adjudication. `researcher` may explore an explicitly
+labeled candidate or added hypothesis without adopting it. Production code
+remains the `implementer`'s confirmed-scope
 work; a research packet does not authorize bypassing existing inference gates.
 `theory_curator` receives accepted conclusions and locators, never authority to
 promote a bounded probe to a theorem. Neither role edits another worker's files,
@@ -207,7 +300,8 @@ an automatic extra review. Do not broaden experiments merely for reassurance.
 Report role/mode; objective and inspected scope/revision; authority; findings or
 changed paths; exact checks and results; uncertainty/unread scope; blocker or
 user decision; and one recommended next action. A handoff recommendation goes to
-the primary, not directly to another specialist. No raw transcript is required.
+the primary, through the assigned proof coordinator for a leaf in that subtree;
+other cross-role contact remains primary-owned. No raw transcript is required.
 
 ## Design workflow
 

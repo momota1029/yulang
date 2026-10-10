@@ -17,9 +17,15 @@ Do not reopen a closed gate merely because it appears in this seed.
 Keep the useful queue in the primary's runtime plan or a compact checkpoint.
 Choose four to six ready assignments in total, including any review/curation;
 do not create six heavyweight goals each recursively spawning another team.
-Only the primary delegates. For the current critical Function/effect bridge,
-prefer a constructive attack, a falsification/experiment attack and an
-existing-source/legacy audit in parallel. Fill remaining capacity with genuinely
+The primary delegates except for a bounded `prover` coordinator with an explicit
+primary-issued packet under
+[the proof policy](../rules/agent-orchestration.md#proof-delegation-and-decomposition).
+Count that coordinator and its leaves in the same global budget. Use
+`task_decomposer` only when the current critical path needs concrete separation;
+its packets do not launch workers or delay already-ready work. For the current
+critical bridge, prefer `prover` construction, `researcher`
+falsification/experiments and an existing-source/legacy audit in parallel.
+Fill remaining capacity with genuinely
 independent source-shape or residual work. Review a ready result without waiting
 for the whole wave.
 

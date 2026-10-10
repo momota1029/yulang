@@ -92,6 +92,12 @@ A primary must not edit a child's leased path until the worker acknowledges
 handoff/completion or its writes have actually stopped. Unrelated work remains
 untouched. Scope/lease changes are explicit and invalidate only affected results.
 
+The bounded proof-coordinator exception in `agent-orchestration.md` uses these
+same primary-granted leases. A coordinator may pass a preallocated path set to
+one leaf, but cannot add paths, write a live leaf's files, or transfer Git/shared
+record ownership. All descendants remain visible to the primary; a coordinator's
+completion or interruption does not release a still-writing leaf's lease.
+
 ### Isolated mode and shared builds
 
 Use a separate worktree/branch or frozen scratch copy for alternative edits to

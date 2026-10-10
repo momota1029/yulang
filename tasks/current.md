@@ -20,6 +20,18 @@ the large branch range and all Gate E / semantic / production approval
 requirements must be treated as explicit integration work, not as completed
 cutover.
 
+## Proof and task-decomposition dispatch (2026-10-10)
+
+Use the [Sol proof/task-decomposition roles](../notes/design/2026-10-10-proof-and-task-decomposition-roles.md)
+under the [bounded delegation policy](../rules/agent-orchestration.md#proof-delegation-and-decomposition).
+`task_decomposer` proposes concrete dependency-aware packets when needed;
+`prover` owns constructive proofs, with complementary `researcher` methods.
+The selected primary keeps scheduling, authority, independent review and Git.
+Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
+may use at most two preallocated leaf workers, including a justified native
+Astra escalation, within the existing global lab budget. This workflow change
+does not close or reclassify any inference/semantic/production gate below.
+
 ## Objective and canonical obligation ledger
 
 This continues the global natural-compiler/proof-economy objective while

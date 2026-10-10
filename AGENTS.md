@@ -59,9 +59,11 @@ older rules describe eligible specialists, not an automatic panel.
 
 Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 Keep the user-selected primary (normally Luna); actual model/effort settings
-come from `.codex/`, not historical tier names. Only the primary spawns or
-contacts subagents. Children return evidence and recommended handoffs; they do
-not inherit primary orchestration, approval, or Git duties.
+come from `.codex/`, not historical tier names. The primary owns delegation;
+only a `prover` with an explicit proof-coordinator packet may dispatch/contact
+its own bounded leaf workers under `rules/agent-orchestration.md`. Other
+children return evidence and recommended handoffs. No child inherits primary
+authority, independent-review assignment, approval, or Git duties.
 
 Use `rules/research-lab.md` for proactive parallel research. When two useful
 assignments have independent inputs and safe ownership, dispatch them in
@@ -90,7 +92,9 @@ subagent does not transfer those responsibilities.
 - Use built-in `explorer` for read-heavy repository mapping.
 - Use `architect` for unresolved decisions or behavior, including cross-layer questions not already settled by an Authoritative gate.
 - Use `implementer` for confirmed code changes.
-- Use `researcher` for bounded proof, counterexample, and executable-model production on leased research paths.
+- Use `task_decomposer` for a small set of dependency-aware, executable research packets when the critical path is unclear; the primary schedules them.
+- Use `prover` for constructive proofs and exact source-to-proof bridges on leased research paths, with bounded Sol parallelism or Astra escalation when justified.
+- Use `researcher` for complementary counterexample, executable-model, and source-correspondence work on leased research paths.
 - Use `theory_curator` for meaningful theory-status/dependency synchronization, not new proofs or per-probe bookkeeping.
 - Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.
 - Use `spec_auditor` for exact design/spec/test-contract conformance.
@@ -181,11 +185,12 @@ work, makes safe integration impossible, or requires a genuine user decision.
   under `rules/git-concurrency.md`; otherwise use separate worktrees or serialize
   the overlapping seam. Children never mutate the Git index or branch refs.
   Keep the question-board's separate primary-only approval/integration duties.
-- The primary must explicitly set `fork_turns: "none"` on every
-  supported `spawn_agent` call. Children do not re-delegate. Do not inherit parent
-  conversation history. Supply the required task scope, governing sources,
-  constraints, and file locators in the task message, respecting
-  `rules/agent-orchestration.md` information boundaries.
+- Every spawner must explicitly set `fork_turns: "none"` on every supported
+  `spawn_agent` call. Only the bounded proof-coordinator exception in
+  `rules/agent-orchestration.md` permits child delegation; its leaf workers
+  cannot delegate again. Do not inherit parent conversation history. Supply
+  the required task scope, governing sources, constraints, and file locators
+  in the task message, respecting the same information boundaries.
 - Do not call work complete while required task/progress/design records remain silently stale.
 - During policy, skill, or configuration maintenance, do not edit compiler code unless the same task explicitly authorizes it. This is not a ban on ordinary authorized compiler implementation.
 

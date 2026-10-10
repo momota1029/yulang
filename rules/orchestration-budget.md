@@ -33,6 +33,11 @@ falsification, and source/implementation-conformance attacks before another
 serial round of similar probes. This does not require a larger review panel,
 more expensive models, or parallel heavyweight builds.
 
+`task_decomposer` supplies a bounded ready-packet proposal only when needed;
+it is not a reviewer or an automatic planning stage. `prover` construction and
+all leaves of a proof coordinator consume the same research budget, not a new
+quota. Use the bounded delegation rules in `agent-orchestration.md`.
+
 ## Operating modes
 
 ### M0 — mechanical / records
@@ -171,7 +176,8 @@ review honest without paying for a complete reread.
 
 - For the same frozen artifact, wait for its assigned reviewers, adjudicate
   their findings, then send one repair bundle to one fresh producer. Use
-  `implementer` for confirmed code and `researcher` for research-only artifacts.
+  `implementer` for confirmed code, `prover` for proof artifacts, and
+  `researcher` for complementary research experiments/source evidence.
   This barrier is artifact-local: do not wait for unrelated lanes, experiments,
   or reviews before starting their next safe work or integrating a ready slice.
 - Do not start one implementer session per finding.

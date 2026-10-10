@@ -21,6 +21,7 @@ Do not split trivial M0 work merely to fill seats.
 
 For a sustained multi-gate research goal, normally keep **four to six useful
 assignments active in total**, counting producers, reviewers and curation.
+Count a proof coordinator and all its leaf workers in that same total.
 Prefer three or four substantive producer/method lanes plus the specific
 review or reconciliation that can unblock them. A critical conjecture or
 bridge normally gets complementary attacks in the same wave:
@@ -56,6 +57,14 @@ actual worker/resource capacity. Use the runtime plan or a short primary-owned
 queue, not a new scheduling framework. Each job needs only:
 
 `id | gate/method | baseline | owner | write lease | dependency | state | next evidence`
+
+Use `task_decomposer` for a bounded packet proposal when the critical path needs
+clarification; dispatch already-ready work while it runs. Route constructive
+proofs to `prover` and complementary falsification/experiments/source audits to
+`researcher`. A primary-assigned proof coordinator may dispatch its own leaves
+only under [the bounded exception](agent-orchestration.md#proof-delegation-and-decomposition).
+Keep descendant identities, leases and resource use visible in the same queue;
+task decomposition and proof coordination do not create a second primary.
 
 Use `ready / running / review / commit-ready / blocked / done / superseded`. These are observed
 states: a proposed lane is not running until a launch actually succeeds.
@@ -167,8 +176,11 @@ Commit packet: exact leased paths, baseline SHA and changed dependency hashes,
 ```
 
 Use `fork_turns: "none"` whenever the actual spawn schema supports it.
-Children never re-delegate, mutate Git, change model configuration, or ask the
-user for decisions. They report through the primary. Do not pass producers'
+Only an explicitly assigned proof coordinator may re-delegate within the
+bounded exception; all its leaves and other children cannot re-delegate.
+Children never mutate Git, change model configuration, or ask the user for
+decisions. Leaf evidence returns through its coordinator to the primary.
+Do not pass producers'
 defenses or other reviewers' verdicts to an independent closure reviewer.
 
 ## Writes, artifacts and review snapshots

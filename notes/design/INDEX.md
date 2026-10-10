@@ -2,7 +2,14 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
-## Active workflow navigation (2026-10-04)
+## Active workflow navigation (2026-10-10)
+
+- [Sol proof and task-decomposition roles](2026-10-10-proof-and-task-decomposition-roles.md)
+  — Authoritative under the user's explicit 2026-10-10 workflow request;
+  independent conformance/lifecycle review passed. Adds constructive `prover` and
+  read-only `task_decomposer`, bounded two-leaf proof coordination and genuine
+  native Astra escalation. The primary retains authority, reviewer assignment,
+  shared records and Git; existing global budgets and proof statuses remain.
 
 - [Questioner-integrated question board](2026-10-04-questioner-integrated-answer-handoff.md)
   — Authoritative; current explicit user change, independently scope-reviewed.
