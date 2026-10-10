@@ -7469,6 +7469,8 @@ minor naming findings were narrowed and reverified. See the
 [regression record](../notes/progress/2026-10-10-recursive-definition-external-instantiation.md).
 
 The next implementation gates remain unchanged: contextual residual identity
-and concrete negative formal rows await the pending decision; authentic
-operation execution/Force, complete Call, public/default cutover,
+and concrete negative formal rows await the existing residual-owner decision.
+The question of local self-recursive binding scope now has its own pending
+question; module-level recursive SCC coverage and all nondependent work continue.
+Authentic operation execution/Force, complete Call, public/default cutover,
 soundness/principality and F5 replacement remain open.

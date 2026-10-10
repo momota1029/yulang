@@ -43,7 +43,9 @@ blocking or major finding remains.
 - `RUSTC_WRAPPER= timeout 120s cargo test -p yu-solver --features shadow-f5,shadow-apply-candidate --test simple_sub_local_source_retirement mutually_recursive_definitions_accept_external_uses_at_distinct_shapes -j 2 --offline -- --exact` — passed (1 test).
 - `git diff --check -- crates/yu-solver/tests/simple_sub_local_source_retirement.rs` — passed.
 
-No benchmark or timing sample ran. The contextual residual-owner decision and
-concrete negative formal rows remain pending; authentic operation execution,
-complete Call, public/default migration, soundness/principality and target F5
-replacement remain open.
+No benchmark or timing sample ran. A separate question now records whether
+single local self-recursive bindings belong to the source scope; its pending
+answer blocks only that HIR/solver seam. The contextual residual-owner decision
+and concrete negative formal rows also remain pending. Authentic operation
+execution, complete Call, public/default migration, soundness/principality and
+target F5 replacement remain open.
