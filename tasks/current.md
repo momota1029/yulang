@@ -32,14 +32,16 @@ a real child with `agent_role=prover`, `model=gpt-6.1-sol`, and `effort=high`.
 That leaf derived a conditional Function-path polarity and exact-witness
 residual result; attachment, typed transport, owner, and consumer construction
 remain premises, so it did not prove source construction or close effect
-hygiene. The current collaboration schema omits the `prover` role. Under the
-fail-open dispatch policy, an active team uses one named-role attempt when the
-schema supports it, then immediately falls back to a supported generic worker
-with the proof contract; it does not launch a nested Codex CLI process.
-`tools/codex-prover.sh` is an optional fresh standalone-session entry point,
-not an active-team workaround. Apply the `yulang-proofs` skill to proof work,
-record the actual worker identity and observed settings, and never describe a
-generic fallback as a custom `prover` launch.
+hygiene. The current collaboration schema omits the `prover` role. For proof
+work in a configured checkout, use `tools/codex-prover.sh` as the fallback
+launch surface even while another team is active; its nested Codex session must
+dispatch the registered `prover` role, and the primary must verify the JSON
+event stream or child session. If that launch surface cannot start a real role,
+immediately fall back to a supported generic worker with the full proof
+contract and report that identity honestly. The helper also works for fresh
+standalone sessions. Apply the `yulang-proofs` skill, record requested and
+observed settings separately, and never describe a generic fallback as a
+custom `prover` launch.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
@@ -8063,3 +8065,37 @@ attachments remain rejected until their source constructor and current/future
 consumer checks are implemented and tied to the conditional hygiene proof.
 Complete Call, ordinary/default/public inference, soundness/principality and
 F5 retirement remain open.
+
+### Zero-word filter consumer and proof bridge (2026-10-10)
+
+The live consumer now validates finite `Identity` / closed zero-word
+`PrefixLeft` / ordered `Replay` contexts, registers every distinct boundary on
+the same canonical receiver, retains the complete relation derivation, and
+discharges only after checks are recorded. It skips ordinary endpoint
+propagation only when the exact task upper is one of those authenticated
+Allowances; unequal endpoints still follow the normal solver path. Validation
+scratch is synchronous, capacity-accounted, and restored on nested Result
+failures. Focused candidate-context tests pass 75/75, and a fresh
+compiler-referee delta review found no BLOCKING, major, or minor findings.
+Expected diagnostics were not changed. Static cost is one DAG traversal plus
+boundary registration/authentication, `O(N+E+B)` expected work and `O(N+B)`
+temporary storage, excluding ordinary bound checks/replay; no timing
+measurements or broad tests ran.
+
+The conditional zero-word discharge derivation has an independent spec-auditor
+PASS under its explicit closed-view, same-receiver, retained-check, provenance
+and atomic-lifetime hypotheses. A real custom `prover` child also produced a
+source-to-consumer bridge characterization: source-authentic composed-negative
+concrete formal rows cannot reach this candidate consumer because preflight
+and paired/signature construction independently reject them. A negative
+`Allowance` endpoint from an admitted composed-positive annotation is a
+different case and does not prove local subtraction. Independent review found
+no BLOCKING or major theorem finding; its minor handoff wording was repaired.
+The prover worker exceeded its no-Git assignment by running read-only Git
+queries; this is recorded as workflow nonconformance, not counted as
+verification. The reviewed conditional contravariant subtraction theorem and
+this bounded unreachability characterization do not enable negative rows or
+close source formation, exact attachment, residual, lifecycle, full hygiene,
+soundness, principality or production gates. Keep negative-concrete admission
+guards in place until the later contextual-admission §§5–6 gate and any
+required approval.

@@ -236,6 +236,8 @@ pub(super) struct State {
     pub processing: Option<RelationId>,
     discharged: HashSet<RelationId>,
     discharge_log: Vec<RelationId>,
+    // Synchronous validation scratch only; never captured or checkpointed.
+    checking_filters: Option<(RelationId, HashSet<LocalWeightId>)>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
@@ -1557,12 +1559,7 @@ impl State {
     }
     fn post_check_context(&self, relation: RelationId) -> ContextId {
         let context = self.relations[relation.0 as usize].key.context;
-        if context != IDENTITY && matches!(self.contexts[context.0 as usize - 1],
-            ContextExpr::PrefixLeft { input: IDENTITY, .. }) {
-            // This executable filter is consumed at insertion; its bound and
-            // derivation retain the current/future obligations.
-            IDENTITY
-        } else { context }
+        if self.discharged.contains(&relation) { IDENTITY } else { context }
     }
 
 }
@@ -1704,9 +1701,85 @@ impl InferenceSession {
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
     }
-    // Admission checks run before endpoint memoization and equality handling.
-    // Once consumed, the normal Allowance bound retains current/future-lower
-    // obligations. Children use the discharged context, not a repeated filter.
+    // Validate the whole live fragment before publishing any of its checks.
+    // Keep the validated ID set live through synchronous bound callbacks;
+    // nested consumers restore the enclosing scope on both success and error.
+    fn candidate_zero_word_filters<T>(
+        &mut self, relation: RelationId, root: ContextId,
+        consume: impl FnOnce(&mut Self, &[LocalWeightId]) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        let mut pending = Vec::new();
+        let mut visited = HashSet::new();
+        let mut filters = Vec::new();
+        let mut weights = HashSet::new();
+        let mut charge = 0;
+        let result = (|| {
+            let before = pending.capacity();
+            pending.try_reserve(1).map_err(|_| exhausted())?;
+            self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
+                .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
+            pending.push(root);
+            while let Some(id) = pending.pop() {
+                if id == IDENTITY || visited.contains(&id) { continue; }
+                let before = visited.capacity();
+                visited.try_reserve(1).map_err(|_| exhausted())?;
+                self.candidate_scratch_growth(&mut charge, (visited.capacity() - before)
+                    .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
+                visited.insert(id);
+                let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                let node = *state.context.contexts.get(id.0 as usize - 1).ok_or_else(exhausted)?;
+                match node {
+                    ContextExpr::PrefixLeft { weight, input: IDENTITY } => {
+                        let payload = state.context.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+                        let boundary = state.views.get(payload.boundary as usize).ok_or_else(exhausted)?;
+                        if !payload.left_word.is_empty() || !payload.right_pops.is_empty()
+                            || payload.owner != boundary.owner || payload.position != boundary.position
+                            || boundary.closed_weight != Some(weight) {
+                            return Err(exhausted());
+                        }
+                        if weights.contains(&weight) { continue; }
+                        let before = weights.capacity();
+                        weights.try_reserve(1).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge, (weights.capacity() - before)
+                            .checked_mul(std::mem::size_of::<LocalWeightId>()).ok_or_else(exhausted)?)?;
+                        weights.insert(weight);
+                        let before = filters.capacity();
+                        filters.try_reserve(1).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge, (filters.capacity() - before)
+                            .checked_mul(std::mem::size_of::<LocalWeightId>()).ok_or_else(exhausted)?)?;
+                        filters.push(weight);
+                    }
+                    ContextExpr::Replay { lower, upper } => {
+                        if lower.0 >= id.0 || upper.0 >= id.0 { return Err(exhausted()); }
+                        let before = pending.capacity();
+                        pending.try_reserve(2).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge, (pending.capacity() - before)
+                            .checked_mul(std::mem::size_of::<ContextId>()).ok_or_else(exhausted)?)?;
+                        pending.push(upper);
+                        pending.push(lower);
+                    }
+                    _ => return Err(exhausted()),
+                }
+            }
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            let prior = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context
+                .checking_filters.replace((relation, std::mem::take(&mut weights)));
+            let consumed = consume(self, &filters);
+            let active = std::mem::replace(&mut self.candidate_graph.as_mut().unwrap()
+                .intrusion.effect_algebra.context.checking_filters, prior);
+            drop(active);
+            consumed
+        })();
+        drop(weights);
+        drop(pending);
+        drop(visited);
+        drop(filters);
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        result
+    }
+    // Admission checks precede endpoint memoization and equality handling.
+    // Exact Allowance endpoints are handled by their retained registrations;
+    // other endpoint pairs still propagate normally after filter discharge.
     pub(super) fn candidate_context_execute(
         &mut self,
         task: LiveConstraintTask,
@@ -1717,56 +1790,58 @@ impl InferenceSession {
         let key = state.relations[relation.0 as usize].key;
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
         if key.context == IDENTITY { return Ok(false); }
-        if state.discharged.contains(&relation) { return Ok(true); }
-        let ContextExpr::PrefixLeft { weight, input: IDENTITY } = state.contexts[key.context.0 as usize - 1] else {
-            // Only closed source filters have an executable consumer in this
-            // slice. Other ContextExpr constructors are not admitted here.
-            return Err(exhausted());
-        };
-        let payload = state.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
-        let view = payload.boundary;
-        let boundary = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize];
-        assert_eq!((&payload.owner, &payload.position), (&boundary.owner, &boundary.position));
-        assert!(payload.left_word.is_empty() && payload.right_pops.is_empty());
         let lower = match task {
             LiveConstraintTask::Effect(lower, _) => lower,
             LiveConstraintTask::Value(_) => return Err(exhausted()),
         };
-        let upper = EffectEndpointKey::Allowance(view);
-        let registered = match self.canonical_effect(lower) {
-            EffectEndpointKey::EffectRow(row) => self.effect_bounds[row as usize].exact_non_variable_uppers.contains(&upper),
-            _ => false,
-        };
-        if registered {
-            // The allowance already owns its executable bound, but this
-            // source occurrence still needs an edge to that bound. Otherwise
-            // a conflict recorded before this relation was admitted cannot
-            // be replayed at this occurrence.
-            let EffectEndpointKey::EffectRow(row) = self.canonical_effect(lower) else { unreachable!() };
-            self.candidate_bound_origin(
-                BoundKey(
-                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
-                    Polarity::Negative,
-                    ExtrusionEndpoint::Effect(upper),
-                ),
-                Some(task_pair(task)),
-            )?;
-            self.candidate_replay_bound(
-                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
-                Polarity::Negative,
-                ExtrusionEndpoint::Effect(upper),
-                None,
-            )?;
-        } else {
-            self.candidate_apply_effect(lower, upper)?;
-        }
-        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        state.discharged.try_reserve(1).map_err(|_| exhausted())?;
-        state.discharge_log.try_reserve(1).map_err(|_| exhausted())?;
-        state.discharged.insert(relation);
-        state.discharge_log.push(relation);
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        Ok(true)
+        self.candidate_zero_word_filters(relation, key.context, |session, filters| {
+            let consumed_endpoint = match key.pair {
+                TypedPairKey::Effect { upper: EffectEndpointKey::Allowance(view), .. } =>
+                    filters.iter().any(|weight| session.candidate_graph.as_ref().unwrap()
+                        .intrusion.effect_algebra.context.weights[weight.0 as usize].boundary == view),
+                _ => false,
+            };
+            if session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context
+                .discharged.contains(&relation) { return Ok(consumed_endpoint); }
+            for &weight in filters {
+                let view = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.weights[weight.0 as usize].boundary;
+                let upper = EffectEndpointKey::Allowance(view);
+                let registered = match session.canonical_effect(lower) {
+                    EffectEndpointKey::EffectRow(row) => session.effect_bounds[row as usize].exact_non_variable_uppers.contains(&upper),
+                    _ => false,
+                };
+                if registered {
+                    // The allowance already owns its executable bound, but this
+                    // source occurrence still needs an edge to that bound. Otherwise
+                    // a conflict recorded before this relation was admitted cannot
+                    // be replayed at this occurrence.
+                    let EffectEndpointKey::EffectRow(row) = session.canonical_effect(lower) else { unreachable!() };
+                    session.candidate_bound_origin(
+                        BoundKey(
+                            ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                            Polarity::Negative,
+                            ExtrusionEndpoint::Effect(upper),
+                        ),
+                        Some(task_pair(task)),
+                    )?;
+                    session.candidate_replay_bound(
+                        ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                        Polarity::Negative,
+                        ExtrusionEndpoint::Effect(upper),
+                        None,
+                    )?;
+                } else {
+                    session.candidate_apply_effect(lower, upper)?;
+                }
+            }
+            let state = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            state.discharged.try_reserve(1).map_err(|_| exhausted())?;
+            state.discharge_log.try_reserve(1).map_err(|_| exhausted())?;
+            state.discharged.insert(relation);
+            state.discharge_log.push(relation);
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            Ok(consumed_endpoint)
+        })
     }
     pub(super) fn candidate_context_bound(
         &mut self,
@@ -1777,6 +1852,21 @@ impl InferenceSession {
         let origin = self.candidate_context_pair(origin);
         let origin_context = self.candidate_context_source(origin)?;
         let retained_parent = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.processing;
+        let algebra = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let checked_boundary = match (bound, retained_parent, &algebra.context.checking_filters) {
+            (BoundKey(ExtrusionEndpoint::Effect(owner), Polarity::Negative,
+                ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view))),
+                Some(parent), Some((checked_parent, weights)))
+                if parent == *checked_parent
+                    && algebra.context.relations[parent.0 as usize].key.pair == origin
+                    && matches!(origin, TypedPairKey::Effect { lower, .. }
+                        if self.canonical_effect(lower) == self.canonical_effect(owner)) => {
+                algebra.views.get(view as usize).and_then(|view| view.closed_weight)
+                    .is_some_and(|weight| weights.contains(&weight)
+                        && algebra.context.weights[weight.0 as usize].boundary == view)
+            }
+            _ => false,
+        };
         let state = &mut self
             .candidate_graph
             .as_mut()
@@ -1788,7 +1878,10 @@ impl InferenceSession {
             Some(id) if state.relations[id.0 as usize].key.pair == origin => id,
             _ => state.relation(origin, origin_context)?,
         };
-        let child = state.relation(pair, state.post_check_context(parent))?;
+        // The exact allowance bound retains this boundary's executable check;
+        // its derivation still points to the complete, undischarged parent DAG.
+        let context = if checked_boundary { IDENTITY } else { state.post_check_context(parent) };
+        let child = state.relation(pair, context)?;
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)
     }

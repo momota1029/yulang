@@ -3,7 +3,7 @@
 Date: 2026-10-10
 Branch: `research/simple-sub-intrusion`
 Inspected remote baseline: `6bb5c314af7cb62da762a0198417629fb4273e17`
-Status: role policy independently reviewed; prover registration and a live custom-role launch verified; effective runtime model/effort unobserved
+Status: role policy independently reviewed; prover registration and live custom-role launches verified, including observed Sol/high runtime metadata
 
 ## Scope and authority
 
@@ -69,3 +69,24 @@ Before publication, recheck the remote head and changed-path baselines, retain
 unrelated concurrent commits, and update only the intended branch by an
 expected-head fast-forward. Record the actual publication outcome in the final
 report; no hypothetical worker or runtime launch is a completed action.
+
+## Active-team CLI fallback verification (2026-10-10)
+
+The native collaboration schema used by the primary did not expose `prover`.
+The primary therefore invoked `tools/codex-prover.sh` with a bounded source-to-
+proof bridge packet. Its Codex CLI session spawned `/root/bridge_proof`; the
+child JSONL records `agent_role=prover`, `model=gpt-6.1-sol`, and `effort=high`.
+The child wrote only
+[the negative-formal live-bridge characterization](2026-10-10-contravariant-effect-live-bridge-proof.md)
+and found that the frozen candidate route rejects concrete composed-negative
+formal rows before they can reach the closed-filter consumer. This is a bounded
+implementation reachability result, not language-level rejection or closure
+of effect hygiene. A fresh compiler-referee review found no blocking/major
+theorem issue and one minor handoff ambiguity; the primary repaired the wording.
+
+The proof assignment prohibited Git commands, but the child ran read-only
+`git rev-parse` and `git diff` queries. No mutation occurred; this is recorded
+as workflow nonconformance and those queries are not counted as compliant
+verification. The observed session demonstrates that the configured nested
+CLI fallback launched a real role in this checkout; it does not promise that
+future runtime environments expose the same launch surface.

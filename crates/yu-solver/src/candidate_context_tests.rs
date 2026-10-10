@@ -938,15 +938,26 @@ fn source_closed_annotation_filters_execute_and_keep_resolved_members() {
         assert!(!context.discharge_log.is_empty(), "actual annotation filters have an executable consumer");
         for &id in &context.discharge_log {
             let relation = context.relations[id.0 as usize].key;
-            let ContextExpr::PrefixLeft { weight, input: IDENTITY } = context.contexts[relation.context.0 as usize - 1] else { panic!("closed source filter"); };
-            let payload = &context.weights[weight.0 as usize];
-            let view = payload.boundary;
-            let view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize];
-            assert!(matches!(view.provenance, candidate_effect::ViewOrigin::Annotation));
-            assert!(view.tail.is_none());
-            if !allowed.is_empty() {
-                assert_eq!(view.allowed, vec![session.batch.hir.source_effect_declarations()[0].id.clone()]);
+            let mut represented = HashSet::new();
+            context.fold_context(relation.context, |_, expression, _: &[&()]| {
+                match expression {
+                    None | Some(ContextExpr::Replay { .. }) => {},
+                    Some(ContextExpr::PrefixLeft { weight, input: IDENTITY }) => { represented.insert(weight); },
+                    _ => panic!("closed source filter fragment"),
+                }
+                Ok(())
+            }).unwrap();
+            for weight in represented {
+                let payload = &context.weights[weight.0 as usize];
+                let view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[payload.boundary as usize];
+                assert!(matches!(view.provenance, candidate_effect::ViewOrigin::Annotation));
+                assert!(view.tail.is_none());
+                assert_eq!(view.closed_weight, Some(weight));
+                if !allowed.is_empty() {
+                    assert_eq!(view.allowed, vec![session.batch.hir.source_effect_declarations()[0].id.clone()]);
+                }
             }
+            assert_eq!(context.relation_context(id).unwrap(), IDENTITY);
         }
         assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
     }
@@ -1054,6 +1065,177 @@ fn pre_registered_filter_replays_current_conflict_at_new_relation_and_rolls_back
     session.with_route_transaction(admit).unwrap();
     assert_eq!(session.errors.len(), prior_errors + 1, "the new relation replays the current conflict");
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn zero_word_replay_registers_distinct_boundaries_with_shared_children_and_replays_origins() {
+    let mut session = session();
+    let receiver = session.fresh_effect_at_level(1).unwrap();
+    let row = EffectEndpointKey::EffectRow(receiver);
+    let task = LiveConstraintTask::Effect(row, row);
+    let owner = empty_bundle_owner(&session);
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let first = session.candidate_effect_view(owner.clone(), effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    let second = session.candidate_effect_view(owner, effect.declaration.clone(), Vec::new(), None).unwrap();
+    // A rejecting bound and its conflict predate the new Replay occurrence.
+    session.candidate_apply_effect(row, EffectEndpointKey::Allowance(second)).unwrap();
+    let (prior_occurrence, prior_cause) = cause(&session, 0);
+    let contribution = session.candidate_effect_contribution(effect.clone(), effect.declaration.clone()).unwrap();
+    session.constrain_live(LiveConstraintTask::Effect(contribution, row), &prior_occurrence, &prior_cause).unwrap();
+    let errors = session.errors.len();
+    assert!(errors > 0);
+    let (occurrence, cause) = cause(&session, 1);
+    let lower_input = BoundKey(ExtrusionEndpoint::Effect(row), Polarity::Positive, ExtrusionEndpoint::Effect(row));
+    let upper_input = BoundKey(ExtrusionEndpoint::Effect(row), Polarity::Negative, ExtrusionEndpoint::Effect(row));
+    let before = state(&session).checkpoint();
+    let run = |session: &mut InferenceSession| {
+        let weights = [first, second].map(|view| session.candidate_graph.as_ref().unwrap()
+            .intrusion.effect_algebra.views[view as usize].closed_weight.unwrap());
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let a = context.context(ContextExpr::PrefixLeft { weight: weights[0], input: IDENTITY })?;
+        let b = context.context(ContextExpr::PrefixLeft { weight: weights[1], input: IDENTITY })?;
+        context.contexts.push(ContextExpr::PrefixLeft { weight: weights[1], input: IDENTITY });
+        let repeated = ContextId(context.contexts.len() as u32);
+        let b = context.context(ContextExpr::Replay { lower: b, upper: repeated })?;
+        // Exponential unfolding would revisit the same filter 2^64 times.
+        let mut shared = a;
+        for _ in 0..64 { shared = context.context(ContextExpr::Replay { lower: shared, upper: shared })?; }
+        let lower = context.relation(task_pair(task), shared)?;
+        let upper = context.relation(task_pair(task), b)?;
+        context.attach(lower_input, lower)?;
+        context.attach(upper_input, upper)?;
+        session.candidate_context_replay(lower_input, upper_input, task, |session, replay| {
+            assert_eq!(replay.len(), 1);
+            let root = replay[0];
+            let key = state(session).relations[root.0 as usize].key;
+            assert_eq!(state(session).contexts[key.context.0 as usize - 1], ContextExpr::Replay { lower: shared, upper: b });
+            assert_eq!(state(session).post_check_context(root), key.context);
+            session.constrain_live_item(TypedWorkItem { task, relation: Some(root) }, &occurrence, &cause)?;
+            assert_eq!(state(session).relations[root.0 as usize].key, key);
+            assert_eq!(state(session).post_check_context(root), IDENTITY);
+            assert!(state(session).dependency_keys.contains(&Dependency::Replay { child: root, lower, upper, lower_input, upper_input }));
+            for view in [first, second] {
+                let allowance = EffectEndpointKey::Allowance(view);
+                assert!(session.effect_bounds[receiver as usize].exact_non_variable_uppers.contains(&allowance));
+                let bound = BoundKey(ExtrusionEndpoint::Effect(row), Polarity::Negative, ExtrusionEndpoint::Effect(allowance));
+                assert!(state(session).bound_relations(bound).any(|child| {
+                    state(session).relations[child.0 as usize].key.context == IDENTITY
+                        && state(session).dependency_keys.contains(&Dependency::Derived { child, parent: root })
+                }));
+            }
+            Ok(())
+        })?;
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| { run(session)?; Err::<(), _>(exhausted()) }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(session.errors.len(), errors);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+    session.with_route_transaction(run).unwrap();
+    assert_eq!(session.errors.len(), errors + 1, "one rejecting distinct boundary is replayed once despite shared children");
+    assert!(session.errors[errors..].iter().all(|error| error.occurrence == occurrence && error.cause == cause));
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn zero_word_replay_preserves_unequal_receiver_flow_and_distinct_equal_filters() {
+    let mut session = session();
+    let lower = session.fresh_effect_at_level(1).unwrap();
+    let upper = session.fresh_effect_at_level(1).unwrap();
+    let lower_row = EffectEndpointKey::EffectRow(lower);
+    let upper_row = EffectEndpointKey::EffectRow(upper);
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let owner = empty_bundle_owner(&session);
+    let first = session.candidate_effect_view(owner.clone(), effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    let second = session.candidate_effect_view(owner, effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    assert_ne!(first, second);
+    let contribution = session.candidate_effect_contribution(effect.clone(), effect.declaration.clone()).unwrap();
+    let (occurrence, cause) = cause(&session, 0);
+    session.constrain_live(LiveConstraintTask::Effect(contribution, lower_row), &occurrence, &cause).unwrap();
+    let task = LiveConstraintTask::Effect(lower_row, upper_row);
+    let weights = [first, second].map(|view| session.candidate_graph.as_ref().unwrap()
+        .intrusion.effect_algebra.views[view as usize].closed_weight.unwrap());
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let a = context.context(ContextExpr::PrefixLeft { weight: weights[0], input: IDENTITY }).unwrap();
+    // A retained noncanonical construction fixture repeats one payload ID in
+    // distinct nodes; execution must dedup payloads as well as shared nodes.
+    context.contexts.push(ContextExpr::PrefixLeft { weight: weights[0], input: IDENTITY });
+    let repeated = ContextId(context.contexts.len() as u32);
+    let b = context.context(ContextExpr::PrefixLeft { weight: weights[1], input: IDENTITY }).unwrap();
+    let shared = context.context(ContextExpr::Replay { lower: a, upper: repeated }).unwrap();
+    let root = context.context(ContextExpr::Replay { lower: shared, upper: b }).unwrap();
+    let relation = context.relation(task_pair(task), root).unwrap();
+    session.with_route_transaction(|session| {
+        session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, &occurrence, &cause)?;
+        assert!(session.effect_bounds[upper as usize].exact_non_variable_lowers.contains(&contribution));
+        for view in [first, second] {
+            assert!(session.effect_bounds[lower as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view)));
+        }
+        assert_eq!(state(session).relations[relation.0 as usize].key.context, root);
+        assert_eq!(state(session).post_check_context(relation), IDENTITY);
+        assert!(state(session).checking_filters.is_none());
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        Ok(())
+    }).unwrap();
+    assert!(session.errors.is_empty());
+}
+
+#[test]
+fn zero_word_validation_scope_restores_outer_scratch_on_nested_failure() {
+    let mut session = session();
+    let receiver = session.fresh_effect_at_level(1).unwrap();
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let view = session.candidate_effect_view(empty_bundle_owner(&session), effect.declaration.clone(), vec![effect], None).unwrap();
+    let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let filter = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+    let outer = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::EffectRow(receiver), upper: EffectEndpointKey::Allowance(view) }, filter).unwrap();
+    let inner = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::EffectRow(receiver), upper: EffectEndpointKey::EffectRow(receiver) }, filter).unwrap();
+    assert_eq!(session.candidate_zero_word_filters(outer, filter, |session, filters| {
+        assert_eq!(filters, &[weight]);
+        let outer_scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+        assert!(outer_scratch > 0);
+        assert_eq!(session.candidate_zero_word_filters(inner, filter, |session, nested| {
+            assert_eq!(nested, &[weight]);
+            assert_eq!(state(session).checking_filters.as_ref().unwrap().0, inner);
+            assert!(session.candidate_graph.as_ref().unwrap().scratch_bytes > outer_scratch);
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        assert_eq!(state(session).checking_filters.as_ref().unwrap().0, outer);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, outer_scratch);
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert!(state(&session).checking_filters.is_none());
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+}
+
+#[test]
+fn zero_word_consumer_rejects_unsupported_operations_before_registration() {
+    for kind in 0..5 {
+        let mut session = session();
+        let receiver = session.fresh_effect_at_level(1).unwrap();
+        let row = EffectEndpointKey::EffectRow(receiver);
+        let task = LiveConstraintTask::Effect(row, row);
+        let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+        let view = session.candidate_effect_view(empty_bundle_owner(&session), effect.declaration.clone(), vec![effect], None).unwrap();
+        let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let filter = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+        let unsupported = context.context(match kind {
+            0 => ContextExpr::Swap { input: filter },
+            1 => ContextExpr::BothFromRight { input: filter, certificate: EntryCertificateId(0) },
+            2 => ContextExpr::WithoutLeftFilter { input: filter },
+            3 => ContextExpr::SuffixRightPops { input: IDENTITY, weight },
+            _ => ContextExpr::PrefixLeft { input: filter, weight },
+        }).unwrap();
+        let root = context.context(ContextExpr::Replay { lower: filter, upper: unsupported }).unwrap();
+        let relation = context.relation(task_pair(task), root).unwrap();
+        assert_eq!(session.candidate_context_execute(task, Some(relation)), Err(exhausted()));
+        assert_eq!(state(&session).post_check_context(relation), root);
+        assert!(!session.effect_bounds[receiver as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(view)));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+    }
 }
 
 #[test]
@@ -2292,6 +2474,11 @@ fn fresh_use_keeps_filter_discharge_and_rejects_unowned_certificates() {
     let prefix = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
     let parent = context.relation(bound_pair(key), prefix).unwrap();
     context.attach(key, parent).unwrap();
+    assert_eq!(context.relation_context(parent).unwrap(), prefix);
+    // This fixture marks consumption explicitly; merely attaching an unchecked
+    // filter to a Value bound supplies no authority to erase it.
+    context.discharged.insert(parent);
+    context.discharge_log.push(parent);
     assert_eq!(context.relation_context(parent).unwrap(), IDENTITY);
     let graph = session.capture_candidate_graph(row, 0).unwrap();
     assert!(graph.context_views.is_empty());
