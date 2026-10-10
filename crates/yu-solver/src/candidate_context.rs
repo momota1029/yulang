@@ -56,6 +56,20 @@ pub(super) struct AttachmentBundle {
     pub occurrence: ConstraintOccurrenceId,
     pub sets: Vec<EmptyAttachmentSet>,
 }
+// Inert construction evidence, deliberately distinct from EntryCertificateId.
+// Only admit_lambda_fact retains these records; they authorize no context operation.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct InferredEntryOriginId(usize);
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(not(test), allow(dead_code, reason = "inferred-entry evidence has no authorization consumer yet"))]
+pub(super) struct InferredEntryOrigin {
+    pub id: InferredEntryOriginId,
+    pub lambda: HirOccurrenceId,
+    pub entry: EffectEndpointKey,
+    pub returned: EffectEndpointKey,
+    pub occurrence: ConstraintOccurrenceId,
+    pub cause: CauseId,
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct EntryCertificateId(u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -161,6 +175,7 @@ impl BundleTransports {
 }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub inferred_entries: Vec<InferredEntryOrigin>,
     pub bundles: Vec<AttachmentBundle>,
     bundle_bytes: usize,
     source_bundles: HashMap<ConstraintOccurrenceId, AttachmentBundleId>,
@@ -196,6 +211,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    inferred_entries: usize,
     bundles: usize,
     source_bundles: usize,
     bundle_incidence: usize,
@@ -429,6 +445,20 @@ fn reserve_rename_scratch<T>(
     Ok(())
 }
 impl State {
+    pub(super) fn retain_inferred_entry(
+        &mut self, lambda: &HirOccurrenceId, entry: u32, returned: u32,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<InferredEntryOriginId, SolveAvailabilityError> {
+        let id = InferredEntryOriginId(self.inferred_entries.len());
+        self.inferred_entries.try_reserve(1).map_err(|_| exhausted())?;
+        self.inferred_entries.push(InferredEntryOrigin {
+            id, lambda: lambda.clone(), entry: EffectEndpointKey::EffectRow(entry),
+            returned: EffectEndpointKey::EffectRow(returned),
+            occurrence: occurrence.clone(), cause: cause.clone(),
+        });
+        Ok(id)
+    }
+
     // Detached per-use construction rename. Substitutions and the reusable map
     // belong to the caller's scratch lease; only traversal/journal storage is
     // charged here. Reuse the map only with unchanged substitutions and retained
@@ -716,6 +746,7 @@ impl State {
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            inferred_entries: self.inferred_entries.len(),
             bundles: self.bundles.len(),
             source_bundles: self.source_bundle_log.len(),
             bundle_incidence: self.bundle_incidence_log.len(),
@@ -734,6 +765,7 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        self.inferred_entries.truncate(checkpoint.inferred_entries);
         for bundle in self.bundles.drain(checkpoint.bundles..) {
             self.bundle_bytes -= bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>();
         }
@@ -789,6 +821,7 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
             Some(self.bundle_bytes),
             self.bundles.capacity().checked_mul(std::mem::size_of::<AttachmentBundle>()),
             self.source_bundles.capacity().checked_mul(std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()),
@@ -870,7 +903,8 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
+        self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
+            + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
             + self.source_bundles.capacity() * std::mem::size_of::<(ConstraintOccurrenceId, AttachmentBundleId)>()
             + self.source_bundle_log.capacity() * std::mem::size_of::<ConstraintOccurrenceId>()

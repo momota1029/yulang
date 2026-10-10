@@ -30,6 +30,10 @@ The custom `prover` role is registered through `.codex/config.toml` and was
 launched for a bounded constructive lemma and a conditional contravariant-effect
 derivation; effective runtime model/effort remains unobserved. Apply the
 `yulang-proofs` skill on future proof obligations.
+The current API collaboration schema still omits the `prover` role. This turn
+tried the configured CLI fallback once, but its JSON stream showed no prover
+child dispatch; that attempt is not counted as a prover run. The earlier
+verified prover dispatches and their committed outputs remain valid evidence.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
@@ -7998,3 +8002,15 @@ recursive nonempty-context admission, complete Call semantics, or ordinary
 inference enablement follows. The focused HIR (5) and solver (8) tests passed;
 independent semantic and spec delta reviews passed. See the
 [expression-ascription source bridge](../notes/progress/2026-10-10-expression-ascription-source-bridge.md).
+
+The next source-owned sub-slice now retains inert inferred-entry origin
+evidence exactly where `admit_lambda_fact` creates the fresh entry-to-return
+Effect constraint at slot 3. Each record binds the source Lambda occurrence,
+fresh entry/return rows, constraint occurrence, and cause; written Function
+annotation construction creates no such record. The origin state participates
+in capacity accounting and route checkpoint/rollback/retry. M3 semantic and
+conformance reviews passed, as did two new origin tests and the existing
+first-edge rollback/retry test. The record is not an `EntryCertificateId`,
+cannot mint `BothFromRight`, and does not certify a recursive circuit or its
+lifecycle.
+See the [inferred-entry origin checkpoint](../notes/progress/2026-10-10-inferred-entry-origin.md).

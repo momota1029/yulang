@@ -2324,3 +2324,53 @@ fn fresh_rename_ledger_counts_map_and_traversal_together_on_failure_and_retry() 
     scratch -= retained_map;
     assert_eq!(scratch, entry);
 }
+
+
+#[test]
+fn inferred_entry_origin_distinguishes_written_function_interface() {
+    let mut session = session_with_source("my apply (f:int -> int) = f 1");
+    let action = session.batch.candidate_source.schedules.values()
+        .flat_map(|actions| actions.iter())
+        .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. }))
+        .unwrap().clone();
+    let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+    session.with_route_transaction(|session|
+        session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+    ).unwrap();
+    assert!(state(&session).inferred_entries.is_empty(), "written Function ports grant no inferred-entry origin");
+    let recipe = session.batch.lambda_recipes[0].clone();
+    session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
+    let origins = &state(&session).inferred_entries;
+    assert_eq!(origins.len(), 1);
+    let origin = &origins[0];
+    assert_eq!(origin.lambda, recipe.occurrence);
+    assert_eq!(origin.occurrence, ConstraintOccurrenceId::new(recipe.occurrence.clone(), 3));
+    assert_eq!(origin.cause, CauseId::for_occurrence(origin.occurrence.clone()));
+    assert_ne!(origin.entry, origin.returned);
+    let edge = session.store.provenance().iter()
+        .find(|edge| edge.cause() == &origin.cause).unwrap();
+    let fact = session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap();
+    assert_eq!(session.effect_endpoint(fact.lower(), Polarity::Positive), origin.entry);
+    assert_eq!(session.effect_endpoint(fact.upper(), Polarity::Negative), origin.returned);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn inferred_entry_origin_route_rollback_restores_and_retry_retains_once() {
+    let mut session = session_with_source("my ignore x = ()");
+    let recipe = session.batch.lambda_recipes[0].clone();
+    let before = state(&session).checkpoint();
+    let mut attempted = None;
+    assert_eq!(session.with_route_transaction(|session| {
+        session.admit_lambda_fact(&recipe)?;
+        attempted = Some(state(session).inferred_entries.last().unwrap().clone());
+        assert_eq!(state(session).bytes()?, state(session).enumerated_bytes());
+        Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+    }), Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert!(state(&session).inferred_entries.is_empty());
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
+    assert_eq!(state(&session).inferred_entries.as_slice(), &[attempted.unwrap()]);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}

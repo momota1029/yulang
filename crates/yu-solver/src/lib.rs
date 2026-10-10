@@ -11170,6 +11170,13 @@ impl InferenceSession {
                 };
                 self.store.admit_and_record_provenance(&occurrence)
                     .map_err(SolveAvailabilityError::from)?;
+                #[cfg(feature = "shadow-apply-candidate")]
+                if slot == 3 {
+                    // Retain the fact at its Lambda owner, before later row
+                    // canonicalization can erase its construction endpoints.
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context
+                        .retain_inferred_entry(&recipe.occurrence, entry, returned, &occurrence.id, &occurrence.cause)?;
+                }
                 let transitions = self.constrain_live_effect(
                     self.effect_endpoint(lower, Polarity::Positive),
                     self.effect_endpoint(return_negative, Polarity::Negative),
@@ -32315,7 +32322,9 @@ mod value_entry_effect_tests {
         assert_eq!(session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)),
             Err(SolveAvailabilityError::IdentityExhausted));
         before.assert_restored(&session);
+        assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.inferred_entries.is_empty());
         session.with_route_transaction(|session| session.admit_lambda_fact(&recipe)).unwrap();
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.inferred_entries.len(), 1);
         assert_eq!(session.effect_bounds.len(), before.effect_bounds.len() + 2);
         assert_eq!(session.store.facts().len(), before.store.facts.len() + 3);
     }
