@@ -678,8 +678,11 @@ impl InferenceSession {
             .ok_or_else(exhausted)?
             .intrusion
             .effect_algebra
-            .views[id as usize];
-        let attachment_source = view.source_weight.and_then(|weight| self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.attachment_source(weight));
+            .views.get(id as usize).ok_or_else(exhausted)?;
+        let context = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        if let Some(weight) = view.source_weight { context.validate_payload_view(weight, id, view)?; }
+        else if view.closed_weight.is_some() { return Err(exhausted()); }
+        let attachment_source = view.source_weight.and_then(|weight| context.attachment_source(weight));
         let (owner, position) = (view.owner.clone(), view.position.clone());
         let operation = match &view.provenance { ViewOrigin::Annotation => None, ViewOrigin::Operation(origin) => Some(origin.clone()) };
         let mut allowed = Vec::new();

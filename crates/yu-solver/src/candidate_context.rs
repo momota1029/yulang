@@ -8,7 +8,7 @@ use yu_hir::shadow::{SourceEffectId, SourceNodeKey};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct RelationId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct ContextId(u32);
+pub(super) struct ContextId(u32);
 const IDENTITY: ContextId = ContextId(0);
 // A payload handle is independent of nominal members and boundary identities.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -443,7 +443,16 @@ impl State {
         remap: &mut HashMap<ContextId, ContextId>,
         scratch_bytes: &mut usize,
     ) -> Result<(), SolveAvailabilityError> {
+        self.rename_contexts_impl(roots, weights, certificates, remap, scratch_bytes, false, &mut 0)
+    }
+    fn rename_contexts_impl(
+        &mut self, roots: &[ContextId], weights: &HashMap<LocalWeightId, LocalWeightId>,
+        certificates: &HashMap<EntryCertificateId, EntryCertificateId>,
+        remap: &mut HashMap<ContextId, ContextId>, scratch_bytes: &mut usize,
+        charge_map: bool, peak_bytes: &mut usize,
+    ) -> Result<(), SolveAvailabilityError> {
         let checkpoint = self.checkpoint();
+        let map_was_empty = remap.is_empty();
         let mut pending = Vec::<(ContextId, bool)>::new();
         let mut inserted = Vec::<ContextId>::new();
         let mut verified = HashSet::<ContextId>::new();
@@ -451,6 +460,7 @@ impl State {
         let result = (|| {
             for &root in roots {
                 reserve_rename_scratch(&mut pending, 1, scratch_bytes, &mut charge)?;
+                *peak_bytes = (*peak_bytes).max(*scratch_bytes);
                 pending.push((root, false));
                 while let Some((id, ready)) = pending.pop() {
                     if verified.contains(&id) { continue; }
@@ -474,6 +484,7 @@ impl State {
                     }
                     if !ready && count > 0 {
                         reserve_rename_scratch(&mut pending, count + 1, scratch_bytes, &mut charge)?;
+                        *peak_bytes = (*peak_bytes).max(*scratch_bytes);
                         pending.push((id, true));
                         for &child in children[..count].iter().rev() {
                             if !verified.contains(&child) { pending.push((child, false)); }
@@ -509,6 +520,7 @@ impl State {
                     let next_scratch = scratch_bytes.checked_add(growth).ok_or_else(exhausted)?;
                     charge = next_charge;
                     *scratch_bytes = next_scratch;
+                    *peak_bytes = (*peak_bytes).max(*scratch_bytes);
                     if let Some(&copy) = remap.get(&id) {
                         // Caller-seeded mappings are suggestions. Validate the
                         // exact reconstructed constructor before accepting one.
@@ -520,7 +532,15 @@ impl State {
                     } else {
                         // Reserve rollback storage before interning/publication.
                         reserve_rename_scratch(&mut inserted, 1, scratch_bytes, &mut charge)?;
+                        let before = remap.capacity();
                         remap.try_reserve(1).map_err(|_| exhausted())?;
+                        if charge_map {
+                            // The caller retains this charge until its map drops,
+                            // including a failed rename with retained capacity.
+                            let growth = (remap.capacity() - before).checked_mul(std::mem::size_of::<(ContextId, ContextId)>()).ok_or_else(exhausted)?;
+                            *scratch_bytes = scratch_bytes.checked_add(growth).ok_or_else(exhausted)?;
+                        }
+                        *peak_bytes = (*peak_bytes).max(*scratch_bytes);
                         let copy = match renamed { Some(node) => self.context(node)?, None => IDENTITY };
                         remap.insert(id, copy);
                         inserted.push(id);
@@ -531,7 +551,10 @@ impl State {
             Ok(())
         })();
         if result.is_err() {
-            for &id in &inserted { remap.remove(&id); }
+            // A fresh-use map starts empty. Clear its deletion markers while
+            // retaining the charged allocation for a supported retry.
+            if charge_map && map_was_empty { remap.clear(); }
+            else { for &id in &inserted { remap.remove(&id); } }
             self.rollback(checkpoint);
         }
         drop(pending);
@@ -539,6 +562,58 @@ impl State {
         drop(verified);
         *scratch_bytes -= charge;
         result
+    }
+    pub(super) fn rename_fresh_contexts(
+        &mut self, roots: &[ContextId], weights: &HashMap<LocalWeightId, LocalWeightId>,
+        remap: &mut HashMap<ContextId, ContextId>, scratch_bytes: &mut usize,
+        peak_bytes: &mut usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.rename_contexts_impl(roots, weights, &HashMap::new(), remap, scratch_bytes, true, peak_bytes)
+    }
+    pub(super) fn relation_context(&self, relation: RelationId) -> Result<ContextId, SolveAvailabilityError> {
+        self.relations.get(relation.0 as usize).ok_or_else(exhausted)?;
+        Ok(self.post_check_context(relation))
+    }
+    // Discovery follows construction edges once across all captured fibers.
+    pub(super) fn context_payloads(
+        &self, root: ContextId, visited: &mut HashSet<ContextId>,
+        pending: &mut Vec<ContextId>, weights: &mut Vec<LocalWeightId>,
+    ) -> Result<(), SolveAvailabilityError> {
+        pending.try_reserve(1).map_err(|_| exhausted())?;
+        pending.push(root);
+        while let Some(id) = pending.pop() {
+            if visited.contains(&id) { continue; }
+            visited.try_reserve(1).map_err(|_| exhausted())?;
+            visited.insert(id);
+            if id == IDENTITY { continue; }
+            let expression = *self.contexts.get(id.0 as usize - 1).ok_or_else(exhausted)?;
+            let (children, count, weight) = match expression {
+                ContextExpr::PrefixLeft { input, weight } | ContextExpr::SuffixRightPops { input, weight } => ([input, IDENTITY], 1, Some(weight)),
+                ContextExpr::Replay { lower, upper } => ([lower, upper], 2, None),
+                ContextExpr::Swap { input } | ContextExpr::WithoutLeftFilter { input } => ([input, IDENTITY], 1, None),
+                // Fresh-use certificates require an authentic retained owner.
+                ContextExpr::BothFromRight { .. } => return Err(exhausted()),
+            };
+            if children[..count].iter().any(|child| child.0 >= id.0) { return Err(exhausted()); }
+            pending.try_reserve(count).map_err(|_| exhausted())?;
+            pending.extend_from_slice(&children[..count]);
+            if let Some(weight) = weight {
+                self.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+                weights.try_reserve(1).map_err(|_| exhausted())?;
+                weights.push(weight);
+            }
+        }
+        Ok(())
+    }
+    pub(super) fn payload_view(&self, weight: LocalWeightId) -> Result<u32, SolveAvailabilityError> {
+        Ok(self.weights.get(weight.0 as usize).ok_or_else(exhausted)?.boundary)
+    }
+    pub(super) fn validate_payload_view(&self, weight: LocalWeightId, id: u32, view: &candidate_effect::View) -> Result<(), SolveAvailabilityError> {
+        let payload = self.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+        if payload.boundary != id || payload.owner != view.owner || payload.position != view.position
+            || payload.allowed != view.allowed || view.source_weight != Some(weight)
+            || view.closed_weight != view.tail.is_none().then_some(weight) { return Err(exhausted()); }
+        Ok(())
     }
     // Detached postorder fold: the callback sees the exact construction token
     // and ordered children. No relation, source task, or certificate is consumed.
@@ -1437,6 +1512,25 @@ impl InferenceSession {
         }
         Ok(())
     }
+    pub(super) fn candidate_context_fresh_transport(
+        &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
+        context: ContextId,
+    ) -> Result<RelationId, SolveAvailabilityError> {
+        let pair = self.candidate_context_pair(bound_pair(to));
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let child = state.relation(pair, context)?;
+        state.dependency(Dependency::Transport { child, parent, use_origin })?;
+        state.attach(to, child)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(child)
+    }
+    pub(super) fn candidate_context_fresh_bundle(
+        &mut self, child: RelationId, bundle: AttachmentBundleId,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.bundle_link(child, bundle)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+    #[allow(dead_code, reason = "equality bundle transport is distinct from fresh-use reconstruction")]
     pub(super) fn candidate_context_transport_bundle(
         &mut self, parent: RelationId, to: BoundKey, bundle: AttachmentBundleId,
     ) -> Result<(), SolveAvailabilityError> {

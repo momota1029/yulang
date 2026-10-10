@@ -7947,10 +7947,20 @@ and [source bridge audit](../notes/progress/2026-10-10-contravariant-source-brid
 These close no source-hygiene, soundness, principality, or production gate.
 They ran no Cargo/Oracle execution or measurements.
 
-Next: map and implement contextual transport/freshening across relation DAGs,
-weights, capture, extrusion, and qualifying intrusion while keeping nonempty
-source execution disconnected. Then complete the exact two-cycle certificate
-invalidation, withdrawal, rollback, and retry gate before recursive nonempty
-contexts can be admitted. Complete Call, full effect hygiene,
-soundness/principality, ordinary/default/public inference, and F5 retirement
-remain open.
+Contextual fresh-use capture and transport is now integrated across relation
+DAGs and per-use payload/view identities. Context-only views and generic tails
+are captured; shared context inputs are renamed once per use; copied attachment
+bundles follow the actual renamed child relation. The existing `post_check_context`
+discharge rule and equality/zero-use path remain separate. Focused context (53)
+and effect (27) tests passed. M2 compiler-referee and regression-auditor review
+passed after a resource-ledger repair for simultaneous context-map/traversal
+capacity. A 130-node shared-DAG regression covers rollback, retry, peak
+accounting, and capacity release. No broad checks, allocator-failure injection,
+or measurements ran. Certificate-bearing `BothFromRight` remains unavailable
+without an authentic owner, and source operation execution remains disconnected.
+See the [context freshening checkpoint](../notes/progress/2026-10-10-context-freshening.md).
+
+Next: complete the exact two-cycle certificate invalidation, withdrawal,
+rollback, and retry gate before recursively admitting nonempty contexts.
+Complete Call, full effect hygiene, soundness/principality,
+ordinary/default/public inference, and F5 retirement remain open.

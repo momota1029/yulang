@@ -1972,3 +1972,147 @@ fn exact_relation_completion_keeps_contexts_and_component_kinds_distinct() {
         // live operation task or authorization of nonempty source execution.
     }
 }
+
+#[test]
+fn fresh_use_captures_context_only_views_and_preserves_shared_payloads() {
+    let mut session = session_with_source("act E\nmy answer:[E] int = 1");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let original = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.iter()
+        .position(|view| view.source_weight.is_some() && !view.allowed.is_empty()).unwrap() as u32;
+    let tail = session.fresh_effect_at_level(2).unwrap();
+    let view = session.candidate_copy_effect_view(original, Some(tail)).unwrap();
+    let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].source_weight.unwrap();
+    let row = session.fresh_value_at_level(2).unwrap();
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let key = BoundKey(value(row), Polarity::Positive, lower);
+    let (occurrence, cause) = cause(&session, 0);
+    session.candidate_restore_bound(value(row), Polarity::Positive, lower, &occurrence, &cause).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let prefix = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+    let shared = context.context(ContextExpr::Replay { lower: prefix, upper: prefix }).unwrap();
+    let root = context.context(ContextExpr::Swap { input: shared }).unwrap();
+    let parent = context.relation(bound_pair(key), shared).unwrap();
+    context.attach(key, parent).unwrap();
+    let second = context.relation(bound_pair(key), root).unwrap();
+    context.attach(key, second).unwrap();
+    let bundle = context.retain_bundle(AttachmentBundle { occurrence: occurrence.clone(), sets: Vec::new() }, false).unwrap();
+    context.bundle_link(parent, bundle).unwrap();
+    let graph = session.capture_candidate_graph(row, 0).unwrap();
+    assert_eq!(graph.context_views.len(), 1);
+    assert_eq!(graph.context_views[0].0, weight);
+    assert!(graph.nodes.iter().all(|node| !matches!(node, candidate_scheme::Node::EffectOperand { .. })));
+    assert!(graph.rows.iter().any(|row| row.key == candidate_scheme::RowKey::Effect(tail) && row.local));
+    // This fixture keeps the captured graph outside the route. Release its
+    // capture charge before starting an independent transaction, whose rollback
+    // resets route scratch to zero.
+    session.candidate_graph.as_mut().unwrap().scratch_bytes -= graph.bytes().unwrap();
+    let template_bundles = state(&session).relation_bundles(parent).collect::<Vec<_>>();
+    let before = state(&session).checkpoint();
+    let before_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+    let before_rows = (session.value_levels.len(), session.effect_levels.len());
+    let before_scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+    let failed: Result<(), SolveAvailabilityError> = session.with_route_transaction(|session| {
+        session.freshen_candidate_graph(&graph, 3, &occurrence, &cause)?;
+        Err(exhausted())
+    });
+    assert!(failed.is_err());
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), before_views);
+    assert_eq!((session.value_levels.len(), session.effect_levels.len()), before_rows);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, before_scratch);
+    let mut copied_weights = Vec::new();
+    for _ in 0..2 {
+        let before_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
+        let entry_scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+        session.with_route_transaction(|session| {
+            session.freshen_candidate_graph(&graph, 3, &occurrence, &cause)?;
+            Ok(())
+        }).unwrap();
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, entry_scratch);
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert_eq!(algebra.views.len(), before_views + 1);
+        let copied_view = algebra.views.last().unwrap();
+        assert_ne!(copied_view.tail, Some(tail));
+        assert_eq!(copied_view.allowed, algebra.views[view as usize].allowed);
+        let copied_weight = copied_view.source_weight.unwrap();
+        assert_ne!(copied_weight, weight);
+        copied_weights.push(copied_weight);
+        let context = &algebra.context;
+        let child = context.dependencies.iter().rev().find_map(|dependency| match dependency {
+            Dependency::Transport { parent: p, child, use_origin } if *p == parent && *use_origin != 0 => Some(*child),
+            _ => None,
+        }).unwrap();
+        let renamed = context.relations[child.0 as usize].key.context;
+        let ContextExpr::Replay { lower, upper } = context.contexts[renamed.0 as usize - 1] else { panic!("replay root") };
+        assert_eq!(lower, upper);
+        assert_eq!(context.contexts[lower.0 as usize - 1], ContextExpr::PrefixLeft { weight: copied_weight, input: IDENTITY });
+        assert_eq!(context.relation_bundles(child).count(), 1);
+        assert_ne!(context.relation_bundles(child).next().unwrap(), bundle);
+        assert_eq!(context.relation_bundles(parent).collect::<Vec<_>>(), template_bundles);
+    }
+    assert_ne!(copied_weights[0], copied_weights[1]);
+}
+
+#[test]
+fn fresh_use_keeps_filter_discharge_and_rejects_unowned_certificates() {
+    let mut session = session_with_source("act E\nmy answer:[E] int = 1");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let weight = state(&session).weights.iter().position(|weight| !weight.allowed.is_empty()).map(|id| LocalWeightId(id as u32)).unwrap();
+    let row = session.fresh_value_at_level(2).unwrap();
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let key = BoundKey(value(row), Polarity::Positive, lower);
+    let (occurrence, cause) = cause(&session, 0);
+    session.candidate_restore_bound(value(row), Polarity::Positive, lower, &occurrence, &cause).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let prefix = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+    let parent = context.relation(bound_pair(key), prefix).unwrap();
+    context.attach(key, parent).unwrap();
+    assert_eq!(context.relation_context(parent).unwrap(), IDENTITY);
+    let graph = session.capture_candidate_graph(row, 0).unwrap();
+    assert!(graph.context_views.is_empty());
+    session.with_route_transaction(|session| session.freshen_candidate_graph(&graph, 3, &occurrence, &cause).map(|_| ())).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let both = context.context(ContextExpr::BothFromRight { input: IDENTITY, certificate: EntryCertificateId(17) }).unwrap();
+    let parent = context.relation(bound_pair(key), both).unwrap();
+    context.attach(key, parent).unwrap();
+    let before = context.checkpoint();
+    let scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+    assert!(session.capture_candidate_graph(row, 0).is_err());
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, scratch);
+}
+
+#[test]
+fn fresh_rename_ledger_counts_map_and_traversal_together_on_failure_and_retry() {
+    let mut context = detached_rename_state();
+    let leaf = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(0), input: IDENTITY }).unwrap();
+    let mut root = leaf;
+    for _ in 0..128 {
+        root = context.context(ContextExpr::Replay { lower: root, upper: leaf }).unwrap();
+    }
+    let unsupported = context.context(ContextExpr::BothFromRight { input: root, certificate: EntryCertificateId(17) }).unwrap();
+    let weights = HashMap::from([(LocalWeightId(0), LocalWeightId(1))]);
+    let checkpoint = context.checkpoint();
+    let entry = 19;
+    let mut scratch = entry;
+    let mut peak = entry;
+    let mut remap = HashMap::new();
+    assert!(context.rename_fresh_contexts(&[unsupported], &weights, &mut remap, &mut scratch, &mut peak).is_err());
+    assert_eq!(context.checkpoint(), checkpoint);
+    assert!(remap.is_empty());
+    let retained_map = remap.capacity() * std::mem::size_of::<(ContextId, ContextId)>();
+    assert_eq!(scratch, entry + retained_map);
+    // Verified nodes and the map coexist at their largest capacities before
+    // the unsupported certificate aborts this postorder walk.
+    assert!(peak >= scratch + 130 * std::mem::size_of::<ContextId>());
+    context.rename_fresh_contexts(&[root], &weights, &mut remap, &mut scratch, &mut peak).unwrap();
+    assert_eq!(remap.len(), 130);
+    let retained_map = remap.capacity() * std::mem::size_of::<(ContextId, ContextId)>();
+    assert_eq!(scratch, entry + retained_map);
+    assert!(peak >= scratch + remap.len() * std::mem::size_of::<ContextId>());
+    drop(remap);
+    scratch -= retained_map;
+    assert_eq!(scratch, entry);
+}

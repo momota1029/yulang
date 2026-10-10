@@ -23,6 +23,7 @@ pub(super) struct Graph {
     pub bounds: Vec<Bound>,
     pub attachment_bundles: Vec<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>,
     pub attachment_spans: HashMap<candidate_context::RelationId, (usize, usize)>,
+    pub context_views: Vec<(candidate_context::LocalWeightId, u32, Option<usize>)>,
     pub root: usize,
     pub live_root: u32,
     pub boundary: u32,
@@ -132,6 +133,7 @@ fn sum(parts: &[usize]) -> Result<usize, SolveAvailabilityError> {
 impl Graph {
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[
+            bytes::<(candidate_context::LocalWeightId, u32, Option<usize>)>(self.context_views.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<Bound>(self.bounds.capacity())?,
@@ -556,6 +558,12 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
+        let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
+        let result = self.capture_candidate_graph_inner(row, boundary);
+        if result.is_err() { self.candidate_graph.as_mut().unwrap().scratch_bytes = entry; }
+        result
+    }
+    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         let mut capture = Capture {
             session: self,
             graph: Graph {
@@ -564,6 +572,7 @@ impl InferenceSession {
                 bounds: Vec::new(),
                 attachment_bundles: Vec::new(),
                 attachment_spans: HashMap::new(),
+                context_views: Vec::new(),
                 root: 0,
                 live_root: row,
                 boundary,
@@ -579,14 +588,40 @@ impl InferenceSession {
             Polarity::Positive,
         ))?;
         let mut row_cursor = 0;
-        while !capture.pending.is_empty() || row_cursor < capture.graph.rows.len() {
-            while let Some(endpoint) = capture.pending.pop() {
-                capture.expand_node(endpoint)?;
+        let mut bound_cursor = 0;
+        let mut context_seen = HashSet::new();
+        let mut payload_seen = HashSet::new();
+        let mut context_pending = Vec::new();
+        let mut payloads = Vec::new();
+        loop {
+            while !capture.pending.is_empty() || row_cursor < capture.graph.rows.len() {
+                while let Some(endpoint) = capture.pending.pop() { capture.expand_node(endpoint)?; }
+                if row_cursor < capture.graph.rows.len() {
+                    capture.expand_row(row_cursor)?;
+                    row_cursor += 1;
+                }
             }
-            if row_cursor < capture.graph.rows.len() {
-                capture.expand_row(row_cursor)?;
-                row_cursor += 1;
+            while bound_cursor < capture.graph.bounds.len() {
+                let bound = capture.graph.bounds[bound_cursor];
+                bound_cursor += 1;
+                if let Some(relation) = bound.relation {
+                    let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+                    context.context_payloads(context.relation_context(relation)?, &mut context_seen, &mut context_pending, &mut payloads)?;
+                }
             }
+            while let Some(weight) = payloads.pop() {
+                if payload_seen.contains(&weight) { continue; }
+                payload_seen.try_reserve(1).map_err(|_| exhausted())?;
+                payload_seen.insert(weight);
+                let algebra = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                let id = algebra.context.payload_view(weight)?;
+                let view = algebra.views.get(id as usize).ok_or_else(exhausted)?;
+                algebra.context.validate_payload_view(weight, id, view)?;
+                let tail = view.tail;
+                let tail = tail.map(|tail| capture.intern(Endpoint::Effect(EffectEndpointKey::EffectRow(tail), Polarity::Positive))).transpose()?;
+                push(&mut capture.graph.context_views, (weight, id, tail))?;
+            }
+            if capture.pending.is_empty() && row_cursor == capture.graph.rows.len() { break; }
         }
         let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let mut attachment_resolved = HashSet::new();
@@ -607,6 +642,10 @@ impl InferenceSession {
             }
         }
         let scratch = sum(&[
+            bytes::<candidate_context::ContextId>(context_seen.capacity())?,
+            bytes::<candidate_context::LocalWeightId>(payload_seen.capacity())?,
+            bytes::<candidate_context::ContextId>(context_pending.capacity())?,
+            bytes::<candidate_context::LocalWeightId>(payloads.capacity())?,
             bytes::<candidate_context::RelationId>(attachment_resolved.capacity())?,
             bytes::<(Endpoint, usize)>(capture.endpoints.capacity())?,
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
@@ -630,7 +669,7 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
         let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
-        drop((endpoints, rows, pending, bound_keys, attachment_resolved));
+        drop((endpoints, rows, pending, bound_keys, attachment_resolved, context_seen, payload_seen, context_pending, payloads));
         self.candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
@@ -765,6 +804,15 @@ impl InferenceSession {
         &mut self, graph: &Graph, use_level: u32,
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
+        let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
+        let result = self.freshen_candidate_graph_inner(graph, use_level, occurrence, cause);
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
+        result
+    }
+    fn freshen_candidate_graph_inner(
+        &mut self, graph: &Graph, use_level: u32,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
         let context_use = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.begin_use()?;
         let mut canonical_rows = HashMap::new();
         canonical_rows.try_reserve(graph.rows.len()).map_err(|_| exhausted())?;
@@ -819,7 +867,7 @@ impl InferenceSession {
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         let mut view_remap = HashMap::new();
-        view_remap.try_reserve(graph.nodes.len()).map_err(|_| exhausted())?;
+        view_remap.try_reserve(graph.nodes.len().checked_add(graph.context_views.len()).ok_or_else(exhausted)?).map_err(|_| exhausted())?;
         let view_scratch = bytes::<((u32, Option<u32>), u32)>(view_remap.capacity())?;
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(view_scratch).ok_or_else(exhausted)?;
         let mut effect_operands = HashMap::new();
@@ -855,6 +903,41 @@ impl InferenceSession {
                 effect_operands.insert(index, endpoint);
             }
         }
+        let mut weight_remap = HashMap::new();
+        weight_remap.try_reserve(graph.context_views.len()).map_err(|_| exhausted())?;
+        let mut roots = Vec::new();
+        roots.try_reserve_exact(graph.bounds.len()).map_err(|_| exhausted())?;
+        for bound in &graph.bounds {
+            if let Some(parent) = bound.relation {
+                roots.push(self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?);
+            }
+        }
+        let mut context_remap = HashMap::new();
+        let extra = sum(&[
+            bytes::<(candidate_context::LocalWeightId, candidate_context::LocalWeightId)>(weight_remap.capacity())?,
+            bytes::<candidate_context::ContextId>(roots.capacity())?,
+        ])?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(extra).ok_or_else(exhausted)?;
+        for &(weight, id, tail) in &graph.context_views {
+            let tail = tail.map(|index| match graph.nodes.get(index) {
+                Some(Node::Row { row, .. }) => match rows[*row] { RowKey::Effect(row) => Ok(row), _ => Err(exhausted()) },
+                _ => Err(exhausted()),
+            }).transpose()?;
+            let algebra = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let source = algebra.views.get(id as usize).ok_or_else(exhausted)?;
+            algebra.context.validate_payload_view(weight, id, source)?;
+            let copy = self.candidate_remapped_effect_view(id, tail, &mut view_remap)?;
+            let algebra = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let view = algebra.views.get(copy as usize).ok_or_else(exhausted)?;
+            let mapped = view.source_weight.ok_or_else(exhausted)?;
+            algebra.context.validate_payload_view(mapped, copy, view)?;
+            weight_remap.insert(weight, mapped);
+        }
+        {
+            let state = self.candidate_graph.as_mut().unwrap();
+            state.intrusion.effect_algebra.context.rename_fresh_contexts(&roots, &weight_remap, &mut context_remap, &mut state.scratch_bytes, &mut state.use_peak_bytes)?;
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         // Structural Function nodes form a DAG. Cycles run through rows,
         // whose preallocated identities terminate structural reconstruction.
         for root in 0..graph.nodes.len() {
@@ -936,11 +1019,12 @@ impl InferenceSession {
                 // One reconstruction route shares all captured relation inputs.
                 // Independent uses retain independent transport origins even
                 // when an older, nongeneric coordinate is shared.
-                self.candidate_context_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
-                    context_use)?;
+                let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
+                let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
+                    context_use, *context_remap.get(&root).ok_or_else(exhausted)?)?;
                 if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
                     for &(_, old) in &graph.attachment_bundles[start..start + length] {
-                        self.candidate_context_transport_bundle(parent, candidate_effect::BoundKey(owner, bound.side, item), bundle_remap[&old])?;
+                        self.candidate_context_fresh_bundle(child, bundle_remap[&old])?;
                     }
                 }
             }
