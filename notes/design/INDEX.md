@@ -72,6 +72,12 @@ This index is a navigation aid. The listed source document remains authoritative
   closes those bounded repairs with independent delta review, 43 focused passing
   tests and warning-free owning checks. Default-parser deep-input stack safety
   remains a separate recorded gap; source subtraction/public cutover remain open.
+  The [mixed covariant allowance capture checkpoint](../progress/2026-10-10-mixed-covariant-allowance-capture.md)
+  then closes a live-scheme lifecycle gap for rows combining a concrete
+  allowance and symbolic tail: incidence survives positive extrusion, capture,
+  freshening, intrusion bucket splicing and rollback. Its kernel and source
+  regressions cover complementary event orders. This remains a bounded
+  candidate result, not full hygiene, Call or public/default cutover.
 
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)

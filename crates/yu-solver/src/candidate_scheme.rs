@@ -162,6 +162,7 @@ struct Capture<'a> {
     endpoints: HashMap<Endpoint, usize>,
     rows: HashMap<RowKey, usize>,
     pending: Vec<Endpoint>,
+    bound_keys: HashSet<(ComponentKind, Polarity, usize, usize)>,
     boundary: u32,
 }
 impl<'a> Capture<'a> {
@@ -405,10 +406,12 @@ impl<'a> Capture<'a> {
     ) -> Result<(), SolveAvailabilityError> {
         let lower = self.intern(lower)?;
         let upper = self.intern(upper)?;
-        push(
-            &mut self.graph.bounds,
-            Bound { kind, side, lower, upper },
-        )
+        let key = (kind, side, lower, upper);
+        if self.bound_keys.contains(&key) { return Ok(()); }
+        self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
+        push(&mut self.graph.bounds, Bound { kind, side, lower, upper })?;
+        self.bound_keys.insert(key);
+        Ok(())
     }
     fn expand_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
         let Row { key, local } = self.graph.rows[index];
@@ -461,6 +464,15 @@ impl<'a> Capture<'a> {
                 }
             }
             RowKey::Effect(i) => {
+                let state = &session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra;
+                let mut record = state.capture_incidence.get(&i).map(|bucket| bucket.head);
+                while let Some(index) = record {
+                    let incidence = state.capture_records[index];
+                    record = incidence.next;
+                    self.bound(ComponentKind::Effect, n,
+                        Endpoint::Effect(EffectEndpointKey::EffectRow(incidence.source), p),
+                        Endpoint::Effect(EffectEndpointKey::Allowance(incidence.view), n))?;
+                }
                 let row = session
                     .effect_bounds
                     .get(i as usize)
@@ -539,6 +551,7 @@ impl InferenceSession {
             endpoints: HashMap::new(),
             rows: HashMap::new(),
             pending: Vec::new(),
+            bound_keys: HashSet::new(),
             boundary,
         };
         capture.graph.root = capture.intern(Endpoint::Value(
@@ -559,6 +572,7 @@ impl InferenceSession {
             bytes::<(Endpoint, usize)>(capture.endpoints.capacity())?,
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
             bytes::<Endpoint>(capture.pending.capacity())?,
+            bytes::<(ComponentKind, Polarity, usize, usize)>(capture.bound_keys.capacity())?,
         ])?;
         let graph_bytes = capture.graph.bytes()?;
         let Capture {
@@ -566,6 +580,7 @@ impl InferenceSession {
             endpoints,
             rows,
             pending,
+            bound_keys,
             ..
         } = capture;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
@@ -576,7 +591,7 @@ impl InferenceSession {
             .ok_or_else(exhausted)?;
         state.capture_peak_bytes = state.capture_peak_bytes.max(state.scratch_bytes);
         let sampled = self.sample_f4_resources(ResourceBoundary::SourceDrafts);
-        drop((endpoints, rows, pending));
+        drop((endpoints, rows, pending, bound_keys));
         self.candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?

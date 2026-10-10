@@ -7479,6 +7479,24 @@ private candidate. Broader rows with both concrete members and symbolic tails,
 contravariant subtraction, full hygiene and Call, public/default inference,
 soundness/principality and F5 cutover remain open.
 
+### Mixed covariant allowance capture through extrusion (2026-10-10)
+
+The live candidate now preserves incoming bounds for a covariant effect row
+combining a concrete allowance and symbolic tail across capture, positive
+extrusion, freshening, intrusion bucket splicing, later concrete lowers and
+rollback. Listed effects stay local while unmatched effects reach the tail.
+Independent semantic and performance delta reviews found no blocking, major or
+minor findings. Focused source/kernel tests and the solver all-target/all-
+feature check passed. See the [implementation checkpoint](../notes/progress/2026-10-10-mixed-covariant-allowance-capture.md).
+
+The kernel sequence is copy → capture → freshen → lower; the source regression
+covers the later actual-argument lower before capture of the resulting
+component. These complementary tests do not assert the same operation order.
+This closes only the mixed covariant allowance lifecycle gap. The exact
+`run_io` callback scheme, contravariant subtraction, full effect hygiene, Call,
+soundness/principality, public/default migration and F5 replacement remain
+open.
+
 ### Recursive-definition external instantiation regression (2026-10-10)
 
 The live candidate now has source regressions for a self-recursive definition

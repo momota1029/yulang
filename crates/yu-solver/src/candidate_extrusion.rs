@@ -9,6 +9,7 @@ enum Work {
     Function(Key, [Key; 4], [Term; 4]),
     EffectView(Key, u32, Key),
     Bound(ExtrusionEndpoint, Polarity, Key, crate::candidate_effect::BoundKey),
+    IncomingAllowance(u32, u32, Key, crate::candidate_effect::BoundKey),
 }
 fn opposite(p: Polarity) -> Polarity {
     match p {
@@ -160,6 +161,20 @@ impl InferenceSession {
                                 )?;
                                 work_push!(pending_bounds, Work::Visit(child))?;
                             }
+                            if effect && p == Polarity::Positive {
+                                let ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copied_tail)) = copy else { unreachable!() };
+                                let mut record = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra
+                                    .capture_incidence.get(&ordinal).map(|bucket| bucket.head);
+                                while let Some(index) = record {
+                                    let incidence = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_records[index];
+                                    record = incidence.next;
+                                    let source = self.canonical_extrusion(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(incidence.source)));
+                                    let source_key = Key(source, Polarity::Positive, target);
+                                    work_push!(pending_bounds, Work::IncomingAllowance(copied_tail, incidence.view, source_key,
+                                        crate::candidate_effect::BoundKey(source, Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(incidence.view)))))?;
+                                    work_push!(pending_bounds, Work::Visit(source_key))?;
+                                }
+                            }
                             continue;
                         }
                         if let ExtrusionEndpoint::Effect(
@@ -275,6 +290,20 @@ impl InferenceSession {
                         };
                         map_insert!(structure, key, ExtrusionEndpoint::Effect(copied))?;
                     }
+                    Work::IncomingAllowance(tail, view, source_key, original) => {
+                        let source = rows.get(&source_key).or_else(|| structure.get(&source_key)).copied()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let old = view_remap.capacity();
+                        view_remap.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        self.candidate_scratch_growth(&mut charge, (view_remap.capacity() - old)
+                            .checked_mul(std::mem::size_of::<((u32, Option<u32>), u32)>())
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                        let mapped = self.candidate_remapped_effect_view(view, Some(tail), &mut view_remap)?;
+                        let allowance = ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(mapped));
+                        self.candidate_insert_bound(source, Polarity::Negative, allowance)?;
+                        self.candidate_transfer_bound_origins(original,
+                            crate::candidate_effect::BoundKey(source, Polarity::Negative, allowance))?;
+                    }
                     Work::Bound(owner, p, key, source) => {
                         let copied = rows
                             .get(&key)
@@ -360,6 +389,16 @@ impl InferenceSession {
         owner: ExtrusionEndpoint,
         p: Polarity,
         bound: ExtrusionEndpoint,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.candidate_insert_bound_impl(owner, p, bound, true)
+    }
+    pub(super) fn candidate_insert_bound_without_capture(
+        &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.candidate_insert_bound_impl(owner, p, bound, false)
+    }
+    fn candidate_insert_bound_impl(
+        &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint, capture: bool,
     ) -> Result<(), SolveAvailabilityError> {
         macro_rules! insert_bound {
             ($rows:ident, $index:expr, $field:ident, $item:expr, $lane:expr, $effect:expr) => {{
@@ -485,6 +524,7 @@ impl InferenceSession {
             }
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         }
+        if capture { self.candidate_register_capture_bound(crate::candidate_effect::BoundKey(owner, p, bound))?; }
         self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.dirty = true;
         Ok(())
     }

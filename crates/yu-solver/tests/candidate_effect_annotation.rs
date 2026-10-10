@@ -157,10 +157,10 @@ fn local_symbolic_effect_tails_freshen_independently_per_use() {
         && row.source_row().kind() == yu_types::ComponentKind::Effect).collect();
     let second_effects: Vec<_> = second.rows().filter(|row| row.source_row().is_local()
         && row.source_row().kind() == yu_types::ComponentKind::Effect).collect();
-    assert_eq!(first_effects.len(), 2, "one annotation tail and its Function effect port");
-    assert_eq!(second_effects.len(), 2, "one annotation tail and its Function effect port");
+    assert!(first_effects.len() >= 2, "capture includes the annotation tail and exposed Function port; retained checking coordinates may also be local");
+    assert!(second_effects.len() >= 2, "capture includes the annotation tail and exposed Function port; retained checking coordinates may also be local");
     for row in &first_effects {
-        assert!(second_effects.iter().all(|other| !row.same_identity(other)), "the symbolic tail and its port are fresh per use");
+        assert!(second_effects.iter().all(|other| !row.same_identity(other)), "every captured local effect coordinate is fresh per use");
     }
 }
 
@@ -394,4 +394,37 @@ fn function_valued_initializer_checks_its_root_computation_row_separately() {
             }
         }
     }
+}
+
+#[test]
+fn mixed_root_tail_preserves_unmatched_future_lowers_after_local_capture() {
+    for effect in ["tick", "other"] {
+        let hir = module(&format!(
+            "act tick:\n    our next: () -> int\nact other:\n    our next: () -> int\n\nmy maker f = {{ my local:[tick, 'e] (int -> ['e] int) = {{ my ignored = f (); my ident x = x; ident }}; local }}\nmy late = maker {effect}::next\nmy checked:int -> [] int = late"
+        )).unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert_eq!(candidate.source_call_count(), 2);
+        if effect == "tick" {
+            assert!(candidate.candidate_conflicts().is_empty(), "listed tick stays local to its allowance");
+        } else {
+            let checked = hir.local_source(binding(&hir, "checked").definition_root()).unwrap().unwrap();
+            let SourceAnnotationValue::Function { result, .. } = &checked.annotation().unwrap().ty.value else { panic!("checking Function"); };
+            let position = &result.effects.as_ref().unwrap().position;
+            assert!(candidate.candidate_conflicts().iter().any(|error| {
+                candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
+                    conflict.annotation.is_some_and(|boundary|
+                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+            }), "unmatched future other lower reaches the later empty Function boundary");
+        }
+    }
+}
+
+#[test]
+fn mixed_root_tail_keeps_independent_fresh_uses_separate() {
+    let hir = module(
+        "act tick:\n    our next: () -> int\nact other:\n    our next: () -> int\n\nmy maker f = { my local:[tick, 'e] (int -> ['e] int) = { my ignored = f (); my ident x = x; ident }; local }\nmy listed = maker tick::next\nmy residual = maker other::next\nmy checked_listed:int -> [] int = listed\nmy checked_residual:int -> [other] int = residual"
+    ).unwrap();
+    let candidate = CandidateInference::solve(hir).unwrap();
+    assert_eq!(candidate.source_call_count(), 3);
+    assert!(candidate.candidate_conflicts().is_empty(), "the unmatched lower from a separate fresh use must not enter the listed use's tail");
 }

@@ -559,13 +559,15 @@ impl InferenceSession {
                     },
                     n,
                 );
-                self.candidate_insert_bound(row_endpoint(parent), side, item)?;
+                self.candidate_insert_bound_without_capture(row_endpoint(parent), side, item)?;
                 self.candidate_transfer_bound_origins(
                     candidate_effect::BoundKey(row_endpoint(copy), side, item),
                     candidate_effect::BoundKey(row_endpoint(parent), side, self.canonical_extrusion(item)))?;
             }
         }
         if effect {
+            // Equality moves capture metadata without creating a solver/SCC edge.
+            self.candidate_splice_capture_incidence(from as u32, to as u32)?;
             let level = self.effect_levels[to].min(self.effect_levels[from]);
             let non_generic =
                 self.effect_metadata[to].non_generic | self.effect_metadata[from].non_generic;

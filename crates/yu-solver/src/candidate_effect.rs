@@ -39,6 +39,10 @@ struct Conflict {
 }
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId) }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct CaptureIncidence { pub source: u32, pub view: u32, pub next: Option<usize> }
 #[derive(Debug, Default)]
 pub(super) struct State {
     pub formal_domains: HashMap<usize, Term>,
@@ -53,6 +57,10 @@ pub(super) struct State {
     edge_keys: HashSet<(TypedPairKey, TypedPairKey)>,
     origins: HashMap<BoundKey, Vec<TypedPairKey>>,
     origin_keys: HashSet<(BoundKey, TypedPairKey)>,
+    // Capture incidence only: these are ordinary bounds, never row edges.
+    pub(super) capture_incidence: HashMap<u32, CaptureBucket>,
+    pub(super) capture_records: Vec<CaptureIncidence>,
+    capture_incidence_keys: HashSet<(u32, u32)>,
     conflicts: HashMap<TypedPairKey, Conflict>,
     nested_bytes: usize,
     evidence_bytes: usize,
@@ -104,6 +112,10 @@ pub(super) struct Checkpoint {
     processing: Option<TypedPairKey>,
     edges: Vec<(TypedPairKey, TypedPairKey, bool)>,
     origins: Vec<(BoundKey, TypedPairKey, bool)>,
+    capture_incidence: Vec<(u32, Option<CaptureBucket>)>,
+    capture_links: Vec<(usize, Option<usize>)>,
+    capture_keys: Vec<(u32, u32)>,
+    capture_records: usize,
     conflicts: Vec<TypedPairKey>,
     formal_domains: Vec<usize>,
     annotation_values: Vec<(AnnotationScope, Box<str>)>,
@@ -124,6 +136,9 @@ impl Checkpoint {
             .checked_add(bytes::<(BoundKey, TypedPairKey, bool)>(
                 self.origins.capacity(),
             )?)
+            .and_then(|n| n.checked_add(bytes::<(u32, Option<CaptureBucket>)>(self.capture_incidence.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<(usize, Option<usize>)>(self.capture_links.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<(u32, u32)>(self.capture_keys.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<TypedPairKey>(self.conflicts.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<usize>(self.formal_domains.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_values.capacity()).ok()?))
@@ -151,6 +166,10 @@ impl State {
             processing: self.processing,
             edges: Vec::new(),
             origins: Vec::new(),
+            capture_incidence: Vec::new(),
+            capture_links: Vec::new(),
+            capture_keys: Vec::new(),
+            capture_records: self.capture_records.len(),
             conflicts: Vec::new(),
             formal_domains: Vec::new(),
             annotation_values: Vec::new(),
@@ -181,6 +200,15 @@ impl State {
                 self.evidence_bytes -= entries.capacity() * std::mem::size_of::<TypedPairKey>();
             }
         }
+        for (index, next) in checkpoint.capture_links.into_iter().rev() {
+            self.capture_records[index].next = next;
+        }
+        for (row, bucket) in checkpoint.capture_incidence.into_iter().rev() {
+            if let Some(bucket) = bucket { self.capture_incidence.insert(row, bucket); }
+            else { self.capture_incidence.remove(&row); }
+        }
+        for key in checkpoint.capture_keys { self.capture_incidence_keys.remove(&key); }
+        self.capture_records.truncate(checkpoint.capture_records);
         self.contributions.truncate(checkpoint.contributions);
         self.views.truncate(checkpoint.views);
         self.nested_bytes = checkpoint.nested_bytes;
@@ -194,6 +222,9 @@ impl State {
             bytes::<(TypedPairKey, TypedPairKey)>(self.edge_keys.capacity())?,
             bytes::<(BoundKey, Vec<TypedPairKey>)>(self.origins.capacity())?,
             bytes::<(BoundKey, TypedPairKey)>(self.origin_keys.capacity())?,
+            bytes::<(u32, CaptureBucket)>(self.capture_incidence.capacity())?,
+            bytes::<(u32, u32)>(self.capture_incidence_keys.capacity())?,
+            bytes::<CaptureIncidence>(self.capture_records.capacity())?,
             bytes::<(TypedPairKey, Conflict)>(self.conflicts.capacity())?,
             bytes::<(usize, Term)>(self.formal_domains.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
@@ -223,6 +254,9 @@ impl State {
             + state.edge_keys.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey)>()
             + state.origins.capacity() * std::mem::size_of::<(BoundKey, Vec<TypedPairKey>)>()
             + state.origin_keys.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey)>()
+            + state.capture_incidence.capacity() * std::mem::size_of::<(u32, CaptureBucket)>()
+            + state.capture_incidence_keys.capacity() * std::mem::size_of::<(u32, u32)>()
+            + state.capture_records.capacity() * std::mem::size_of::<CaptureIncidence>()
             + state.conflicts.capacity() * std::mem::size_of::<(TypedPairKey, Conflict)>()
             + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
@@ -402,6 +436,70 @@ impl InferenceSession {
             undo.origins.push((bound, origin, new));
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+    pub(super) fn candidate_capture_incidence(
+        &mut self, tail: u32, source: u32, view: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
+        if state.capture_incidence_keys.contains(&(source, view)) { return Ok(()); }
+        let bucket = state.capture_incidence.get(&tail).copied();
+        let mut undo = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut())
+            .map(|undo| &mut undo.effect_algebra);
+        if let Some(undo) = &mut undo {
+            undo.capture_incidence.try_reserve(1).map_err(|_| exhausted())?;
+            undo.capture_keys.try_reserve(1).map_err(|_| exhausted())?;
+            undo.capture_links.try_reserve(usize::from(bucket.is_some())).map_err(|_| exhausted())?;
+        }
+        state.capture_incidence_keys.try_reserve(1).map_err(|_| exhausted())?;
+        state.capture_incidence.try_reserve(1).map_err(|_| exhausted())?;
+        state.capture_records.try_reserve(1).map_err(|_| exhausted())?;
+        let index = state.capture_records.len();
+        if let Some(undo) = &mut undo {
+            undo.capture_incidence.push((tail, bucket));
+            undo.capture_keys.push((source, view));
+        }
+        if let Some(bucket) = bucket {
+            if let Some(undo) = &mut undo { undo.capture_links.push((bucket.tail, state.capture_records[bucket.tail].next)); }
+            state.capture_records[bucket.tail].next = Some(index);
+        }
+        state.capture_records.push(CaptureIncidence { source, view, next: None });
+        state.capture_incidence.insert(tail, CaptureBucket { head: bucket.map_or(index, |bucket| bucket.head), tail: index });
+        state.capture_incidence_keys.insert((source, view));
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+    pub(super) fn candidate_splice_capture_incidence(&mut self, from: u32, to: u32) -> Result<(), SolveAvailabilityError> {
+        if from == to { return Ok(()); }
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
+        let Some(source) = state.capture_incidence.get(&from).copied() else { return Ok(()); };
+        let destination = state.capture_incidence.get(&to).copied();
+        let mut undo = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut())
+            .map(|undo| &mut undo.effect_algebra);
+        if let Some(undo) = &mut undo {
+            undo.capture_incidence.try_reserve(2).map_err(|_| exhausted())?;
+            undo.capture_links.try_reserve(usize::from(destination.is_some())).map_err(|_| exhausted())?;
+        }
+        state.capture_incidence.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = &mut undo {
+            undo.capture_incidence.push((from, Some(source)));
+            undo.capture_incidence.push((to, destination));
+        }
+        if let Some(destination) = destination {
+            if let Some(undo) = &mut undo { undo.capture_links.push((destination.tail, state.capture_records[destination.tail].next)); }
+            state.capture_records[destination.tail].next = Some(source.head);
+        }
+        state.capture_incidence.remove(&from);
+        state.capture_incidence.insert(to, CaptureBucket { head: destination.map_or(source.head, |bucket| bucket.head), tail: source.tail });
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+    pub(super) fn candidate_register_capture_bound(&mut self, bound: BoundKey) -> Result<(), SolveAvailabilityError> {
+        if let BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source)), Polarity::Negative,
+            ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view))) = bound {
+            if let Some(tail) = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.views[view as usize].tail {
+                let EffectEndpointKey::EffectRow(tail) = self.canonical_effect(EffectEndpointKey::EffectRow(tail)) else { unreachable!() };
+                self.candidate_capture_incidence(tail, source, view)?;
+            }
+        }
+        Ok(())
     }
     pub(super) fn candidate_bound_dependencies(
         &mut self,
@@ -856,7 +954,10 @@ impl InferenceSession {
                 assert!(undo.formal_domains.iter().all(|key| state.formal_domains.contains_key(key)));
             }
             let owned = state.formal_owned_bytes();
-            let undo_owned = undo.edges.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey, bool)>()
+            let undo_owned = undo.capture_incidence.capacity() * std::mem::size_of::<(u32, Option<CaptureBucket>)>()
+                + undo.capture_links.capacity() * std::mem::size_of::<(usize, Option<usize>)>()
+                + undo.capture_keys.capacity() * std::mem::size_of::<(u32, u32)>()
+                + undo.edges.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairKey, bool)>()
                 + undo.origins.capacity() * std::mem::size_of::<(BoundKey, TypedPairKey, bool)>()
                 + undo.conflicts.capacity() * std::mem::size_of::<TypedPairKey>()
                 + undo.formal_domains.capacity() * std::mem::size_of::<usize>()
@@ -1385,6 +1486,8 @@ mod tests {
         for (text, direct_tail) in [
             ("act E\nmy answer:[E] int = 1", false),
             ("act E\nmy answer = { my local:[E] int = 1; local }", false),
+            ("act E\nmy answer:[E, 'e] int = 1", false),
+            ("act E\nmy answer = { my local:[E, 'e] int = 1; local }", false),
             ("my answer:['e] int = 1", true),
             ("my answer = { my local:['e] int = 1; local }", true),
         ] {
@@ -1402,6 +1505,9 @@ mod tests {
             };
             let before_views = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len();
             let before_tails = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.clone();
+            let before_incidence = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence.clone();
+            let before_records = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_records.clone();
+            let before_keys = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence_keys.clone();
             let mut checkpoint = None;
             assert_eq!(session.with_route_transaction(|session| {
                 checkpoint = Some(RouteCheckpoint::capture(session));
@@ -1420,8 +1526,14 @@ mod tests {
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.len(), before_views);
             assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects, before_tails);
             assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence, before_incidence);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_records, before_records);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.capture_incidence_keys, before_keys);
             session.with_route_transaction(apply).unwrap();
             let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            if text.contains("E, 'e") {
+                assert!(!state.capture_incidence.is_empty(), "mixed allowance retains its tail capture incidence after retry");
+            }
             if direct_tail {
                 assert_eq!(state.views.len(), before_views);
                 assert_eq!(state.annotation_effects.len(), before_tails.len() + 1);
@@ -1815,6 +1927,88 @@ mod tests {
         session
             .constrain_live_effect(lower, upper, &occurrence, &cause)
             .unwrap();
+    }
+    #[test]
+    fn positive_extrusion_retains_mixed_allowance_before_capture_and_late_lower() {
+        for listed in [true, false] {
+            let mut session = make_session("act E\nact F\nmy left x = x");
+            let owner = root(&session, "left");
+            let declaration = session.batch.hir.source_effect_declarations().iter()
+                .find(|declaration| declaration.spelling.as_ref() == "E").unwrap().id.clone();
+            let tail = session.fresh_effect_at_level(2).unwrap();
+            let checking = session.fresh_effect_at_level(2).unwrap();
+            let annotation = session.candidate_effect_view(owner, declaration.declaration.clone(), vec![declaration], Some(tail)).unwrap();
+            session.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(checking)),
+                Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(annotation))).unwrap();
+            let effect = session.live_effect_term(Polarity::Positive, tail).unwrap();
+            let function = session.positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative), effect,
+                session.batch.collected_leaf_term(Leaf::IntPositive)).unwrap();
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(copied_function)) = session.candidate_extrude(
+                ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(function)), Polarity::Positive, 1).unwrap() else { panic!("positive Function copy"); };
+            let (_, _, effect, _) = InferenceSession::positive_function_children(&session.store,
+                ValueEndpointKey::PositiveFunction(copied_function)).unwrap();
+            let EffectEndpointKey::EffectRow(copied_tail) = session.effect_endpoint(effect, Polarity::Positive) else { panic!("copied tail"); };
+            assert_ne!(copied_tail, tail);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let incidence = state.capture_records[state.capture_incidence[&copied_tail].head];
+            assert_ne!(incidence.source, checking);
+            assert_eq!(state.views[incidence.view as usize].tail, Some(copied_tail));
+            let value = session.fresh_value_at_level(1).unwrap();
+            session.candidate_insert_bound(ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(value)),
+                Polarity::Positive, ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(copied_function))).unwrap();
+            let graph = session.capture_candidate_graph(value, 0).unwrap();
+            let source_index = graph.rows.iter().position(|row| row.key == RowKey::Effect(incidence.source)).unwrap();
+            let tail_index = graph.rows.iter().position(|row| row.key == RowKey::Effect(copied_tail)).unwrap();
+            let (occurrence, origin) = cause(&session, "left", 60);
+            let (_, rows) = session.freshen_candidate_graph(&graph, 1, &occurrence, &origin).unwrap();
+            let (RowKey::Effect(fresh_source), RowKey::Effect(fresh_tail)) = (rows[source_index], rows[tail_index]) else { panic!("fresh effect rows"); };
+            solve_effect(&mut session, EffectEndpointKey::EffectRow(fresh_tail), EffectEndpointKey::EmptyNegative, 61);
+            let lower = atom(&mut session, if listed { "E" } else { "F" });
+            solve_effect(&mut session, lower, EffectEndpointKey::EffectRow(fresh_source), 62);
+            assert_eq!(session.errors.is_empty(), listed, "listed E stays local; late F reaches the fresh empty tail boundary");
+        }
+    }
+
+    #[test]
+    fn capture_incidence_merge_chain_keeps_one_record_per_relation_and_rolls_back_splices() {
+        let mut session = make_session("act E\nmy left x = x");
+        let owner = root(&session, "left");
+        let declaration = session.batch.hir.source_effect_declarations()[0].id.clone();
+        let mut tails = Vec::new();
+        for _ in 0..64 {
+            let tail = session.fresh_effect_at_level(2).unwrap();
+            let source = session.fresh_effect_at_level(2).unwrap();
+            let view = session.candidate_effect_view(owner.clone(), declaration.declaration.clone(),
+                vec![declaration.clone()], Some(tail)).unwrap();
+            session.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source)),
+                Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view))).unwrap();
+            tails.push(tail);
+        }
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let before_buckets = state.capture_incidence.clone();
+        let before_records = state.capture_records.clone();
+        let before_keys = state.capture_incidence_keys.clone();
+        let result = session.with_route_transaction(|session| {
+            for pair in tails.windows(2) { session.candidate_splice_capture_incidence(pair[0], pair[1])?; }
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            assert_eq!(state.capture_records.len(), before_records.len(), "equality does not duplicate retained incidence");
+            assert_eq!(state.capture_incidence.len(), 1);
+            let mut next = Some(state.capture_incidence[tails.last().unwrap()].head);
+            let mut visited = HashSet::new();
+            while let Some(index) = next {
+                assert!(visited.insert(index), "bucket remains acyclic");
+                next = state.capture_records[index].next;
+            }
+            assert_eq!(visited.len(), before_records.len());
+            Err::<(), _>(exhausted())
+        });
+        assert_eq!(result, Err(exhausted()));
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert_eq!(state.capture_incidence, before_buckets);
+        assert_eq!(state.capture_records, before_records);
+        assert_eq!(state.capture_incidence_keys, before_keys);
     }
     #[test]
     fn covariant_allowance_is_not_production_and_conflicts_keep_actual_boundary_and_cause() {
