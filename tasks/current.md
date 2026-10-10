@@ -8378,6 +8378,17 @@ different positive/negative copy keys; later Allowance registration on an
 already-positive exposed port remains open. Checkpoint commits are
 `09ea300c3` and `3bda4d9d8`.
 
+The separate [positive Function-port source search](../notes/progress/2026-10-10-positive-port-source-route-search.md)
+ran eight more valid source roots against the same frozen binary/source set.
+It found two concrete route failures: a symbolic positive port can receive its
+own-tail Allowance, but its owner and tail parent pairs are identical; a
+deeper distinct-tail checking port is negatively extruded to a copy before
+replay, leaving the original positive callback result bare. No final snapshot
+contains a returning positive Effect parent/copy pair. These eleven source
+roots and the constructor-level polarity/level facts do not quantify over all
+ordinary source schedules or intermediate snapshots, so source impossibility
+and R remain open. Checkpoint `8697c8dfa`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8386,17 +8397,18 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: pursue the alternate already-positive Function-port route for an actual
-Allowance registration and `C -> ... -> S` source path; the active bounded
-source search owns that question. If no route closes the owner pair, the
-remaining task is a constructor-complete source exclusion, not another finite
-sample. If it does close, test both SCC memberships at the same snapshot and
-then trace one later same-owner restore through every product, mutation, replay
-and diagnostic consumer to either identify an absent required fiber or prove
-coverage. The `source-hir-selective-scc-proof.md` prover artifact remains open
-and unreviewed; its requested Sol/high settings were not observable. The
-current-component inventory has passed focused spec review; implementation
-must first give mutation, observation withdrawal, private deferral and member
+Next: close the surviving exact source premise or exclude it over the actual
+admission producers. The remaining distinct-tail route must register an
+Allowance on the exact original positive port before extrusion and produce a
+post-copy return independent of the incoming Allowance tail pair; the prior
+deeper-Function route does neither. If a real selective owner SCC appears,
+test both pair memberships at one snapshot, then trace a later same-owner
+restore through every product, mutation, replay and diagnostic consumer to
+identify an absent required fiber or prove coverage. The
+`source-hir-selective-scc-proof.md` prover artifact remains open and unreviewed;
+its requested Sol/high settings were not observable. The current-component
+inventory has passed focused spec review; implementation must first give
+mutation, observation withdrawal, private deferral and member
 publication/rollback explicit owners. Do not start two-cycle publication or
 acceleration until those owners and exact recognition are implemented and
 checked. Full Oracle hygiene transfer, ordinary Simple-sub inference, general
