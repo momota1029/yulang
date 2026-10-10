@@ -8492,3 +8492,18 @@ gate is implemented. The separate restored-fiber proof and Call/Catch/public
 scheme source audits can continue against the frozen baseline. Full Oracle
 hygiene transfer, ordinary Simple-sub inference, general residuals, complete
 Call/Catch, soundness/principality and F5 cutover remain open.
+
+The [FunctionPort lifecycle mutation bridge](../notes/progress/2026-10-11-functionport-lifecycle-mutation.md)
+identifies a mutation class that an allocation/equality-generation hook alone
+misses: a new FunctionPort dependency can change retained recognizer evidence
+while reusing existing identity relations and leaving intrusion generation
+unchanged. Relation-mask growth has an extra premise and is not established on
+an ordinary source route; actual Function dispatch may already retain a
+connecting Derived edge. Existing route rollback does undo the dependency
+append, but future certificate-dependent observations and publication still
+lack owners. The `current-component-generation-bridge` note's earlier claim
+that all nonidentity Swap contexts are unexecutable is stale: payload-free
+Swap/WithoutLeftFilter fragments are now accepted by the zero-word executor.
+The reviewed lifecycle contract remains unimplemented; its exact pre-existing
+identity FunctionPort regression and incremental-index/resource requirements
+are included in the next implementation packet.
