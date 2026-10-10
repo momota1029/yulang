@@ -52,6 +52,25 @@ This index is a navigation aid. The listed source document remains authoritative
   recursion and live captures. Broader semantic correctness and complete
   Call/public cutover remain open.
 
+- **Current single local self-recursive function scope (2026-10-10):**
+  [local self-recursive binding](2026-10-10-local-self-recursive-binding.md)
+  is Authoritative: the binding is visible during its own initializer and all
+  recursive occurrences share one open monomorphic root. It is published
+  through the existing sequential local boundary afterward, so later siblings
+  can refer to it. Local mutual groups, polymorphic recursion and general
+  value self-initialization are not selected. The proposed source-to-solver
+  seam passed semantic and conformance review; implementation and focused
+  source/lifecycle regressions remain open.
+
+- **Current contextual residual identity (2026-10-10):**
+  [constructor-lineage selection](2026-10-10-contextual-residual-lineage-selection.md)
+  is Authoritative only for residual-recipe identity. Distinct recipes remain
+  distinct across source/key equality, and each applicable current/future
+  lower reaches every retained recipe. Qualifying actual parent/copy SCC
+  equality still equates rows and transports all recipe obligations. Exact
+  source admission, contextual lifecycle, soundness, principality and complete
+  Call remain open.
+
 - **Current annotation effect hygiene policy (2026-10-10):**
   [selected polarity policy and existing-proof integration](2026-10-10-annotation-effect-hygiene-integration.md)
   records contravariant function-local concrete subtraction and covariant

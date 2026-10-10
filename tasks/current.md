@@ -7198,23 +7198,24 @@ not implement concrete `[E]` subtraction, contextual payload transport or
 filter/replay semantics.
 
 The authentic explicit-formal constructor and contextual payload transport
-remain the next implementation slice, but a new reviewed representation choice
-must be recorded first. The [contextual residual-owner design](../design/2026-10-10-contextual-residual-owner-design.md)
+remain the next implementation slice. The [contextual residual-owner design](../design/2026-10-10-contextual-residual-owner-design.md)
 now covers annotation identity, filters, contextual task/memo/bound/replay
 identity, both residual directions, all Function-port transforms,
 level-selected extrusion, capture/freshening, same-SCC parent-copy intrusion,
 and rollback. Independent semantic and spec reviews closed their findings at
-the recorded hash. It remains non-authoritative pending the user's choice of
-residual lineage policy. The corresponding [question](../questions/2026-10-10-contextual-residual-owner/question.md)
-blocks only residual representation and dependent explicit-concrete-formal
-implementation; it does not pause independent inference work.
+the recorded hash. The user's approved q1/a1 choice now selects constructor
+lineage in the [narrow authoritative decision](../design/2026-10-10-contextual-residual-lineage-selection.md).
+This closes only the residual-identity choice; contextual construction,
+fan-out, reverse feedback, exact admission and dependent explicit-concrete-
+formal implementation remain open. The integrated question receipt records
+the approval and design freshness validation.
 
 The reviewed evidence does not establish a source-reachable independent gamma
 ingress, and does not prove that no such source exists. It must not become a
 source restriction. The unbounded paired-`as` left-PUSH family also rules out a
 raw finite context-entry cap as the entire admission argument. No numeric
-resource threshold, diagnostic, or source rejection is selected. After the
-lineage choice, continue with the source-grounded admission trace, then
+resource threshold, diagnostic, or source rejection is selected. With lineage
+identity now selected, continue with the source-grounded admission trace, then
 implement and verify the complete contextual slice. Concrete annotation
 construction, filters/use, generalization/freshening/rollback, public inference,
 full Call, hygiene and F5 cutover remain open.
@@ -7402,9 +7403,12 @@ preserving prior ones. Focused HIR, solver, rollback/retry and solver package
 checks passed; see the [implementation record](../notes/progress/2026-10-10-whole-local-primitive-annotations.md).
 The accepted rollback repair and its resource accounting passed independent
 delta review. Other local annotation forms, complete Call, effect hygiene,
-public/default inference and F5 cutover remain open; the [contextual
-residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md)
-still blocks contextual residual and formal-row work.
+public/default inference and F5 cutover remain open. At this local-annotation
+checkpoint the residual-owner question was pending; its later approved answer
+selects constructor lineage in the
+[authoritative selection](../design/2026-10-10-contextual-residual-lineage-selection.md).
+The separate contextual lifecycle/admission obligations still gate formal-row
+work.
 
 ### Whole-local ground Function annotations (2026-10-10)
 
@@ -7432,8 +7436,8 @@ finding was closed with a focused graph assertion. See the
 This is a bounded local-annotation slice only. The `run_io` example, concrete
 effect-row transport/hygiene, complete Call, public/default inference,
 soundness/principality and F5 cutover remain open. The contextual residual-owner
-question remains pending and blocks only work that depends on that identity
-choice.
+identity has since been selected; its exact lifecycle and admission obligations
+remain open for dependent formal-row work.
 
 ### Whole-local covariant effect annotation gate (2026-10-10)
 
@@ -7513,9 +7517,15 @@ tests pass and independent compiler review found no blocking or major finding;
 minor naming findings were narrowed and reverified. See the
 [regression record](../notes/progress/2026-10-10-recursive-definition-external-instantiation.md).
 
-The next implementation gates remain unchanged: contextual residual identity
-and concrete negative formal rows await the existing residual-owner decision.
-The question of local self-recursive binding scope now has its own pending
-question; module-level recursive SCC coverage and all nondependent work continue.
+The approved q1/a1 local-recursion decision now has a narrow authoritative
+record in [local self-recursive binding](../design/2026-10-10-local-self-recursive-binding.md).
+The single local binding must use one open monomorphic initializer root, then
+publish through ordinary sequential visibility; the proposed direct-link seam
+passed semantic and conformance review. HIR identity, source scheduling,
+solver lifecycle, and focused rollback/fresh-use regressions remain the next
+implementation gate. Local mutual groups and polymorphic recursion remain out
+of scope. Module-level recursive SCC coverage and independent work continue.
+Contextual residual identity is selected, but concrete negative formal rows
+remain gated on the source admission and full residual lifecycle obligations.
 Authentic operation execution/Force, complete Call, public/default cutover,
 soundness/principality and F5 replacement remain open.
