@@ -8406,6 +8406,16 @@ entries, third-owner/key/fiber transport without owner replay, and diagnostic
 accessibility for suppressed dependencies. Neither note closes R. Checkpoints
 are `7984bd084` and `bed730d1b`.
 
+The valid [local-annotation source probe](../notes/progress/2026-10-10-local-annotation-selective-route-probe.md)
+now executes the delayed-Lambda route normally. It realizes original
+`X28 -> S26` through callback checking and the positive owner/tail parents
+`(C73,S26)` and `(T'72,T24)`, but both positive pairs remain outside an SCC;
+the exact distinct-tail `R31 - Allowance(X28)` key is absent. Negative
+extrusion creates `X61` with `X61 -> S26` absent, so the original X return
+cannot be substituted for the copied X return. The annotation's same-spelled
+`'x` is independently scoped row54. This is the closest authentic source
+state so far, not R. Checkpoint `56a7e48dd`.
+
 The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
 has an independent spec-auditor review with no conformance findings. Every
 successful current `retained_input` is marked Incomplete and has no production
@@ -8414,14 +8424,15 @@ dependent withdrawal, private deferral and publication rollback have no
 current owner. This is a reviewed source inventory only, not a certificate
 proof or implementation closure. Its checkpoint is `ad1d048e5`.
 
-Next: test the one valid local-annotation spelling for the delayed-Lambda,
-two-tail route, then use the actual owner admission path to construct selective
-`(C,S)` qualification or close the exact residual producer. Keep the
-restore-products theorem separate: its uncovered mutation/transport invariant
-cannot be inferred from a finite source trace. If a real selective owner SCC
-appears, test both pair memberships at one snapshot, then trace a later
-same-owner restore through every product, mutation, replay and diagnostic
-consumer to identify an absent required fiber or prove coverage. The
+Next: use the successful delayed-Lambda source trace to construct the exact
+missing distinct-tail Allowance on R31 and connect the retained positive copy
+C73 back to S26 without closing `(T'72,T24)`, or derive a constructor-complete
+exclusion for that continuation. The restored-product proof remains separate:
+its uncovered mutation/transport invariant cannot be inferred from a source
+trace. If a real selective owner SCC appears, test both pair memberships at
+one snapshot, then trace a later same-owner restore through every product,
+mutation, replay and diagnostic consumer to identify an absent required fiber
+or prove coverage. The
 `source-hir-selective-scc-proof.md` prover artifact remains open and unreviewed;
 its requested Sol/high settings were not observable. The current-component
 inventory has passed focused spec review; implementation must first give
