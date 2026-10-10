@@ -8127,20 +8127,63 @@ soundness, principality or production gates. Keep negative-concrete admission
 guards in place until the later contextual-admission §§5–6 gate and any
 required approval.
 
-Packet 1 source-readiness investigation now has a prover-derived and
-independently reviewed control-flow result. The literal “first capture” claim
-is false because `Action::Local` captures while its root schedule is still
-running. The narrower member-staging boundary follows successful return of all
-member schedules, but this proves neither full ProducerReadiness nor complete
-component/query/observation coverage. There is still no production
-`retained_input` consumer. See the [source-readiness proof](../notes/progress/2026-10-10-packet1-source-readiness-proof.md)
-and [complementary source audit](../notes/progress/2026-10-10-packet1-source-readiness-falsifier.md).
+### Nested Function effect variance and hygiene bridge (2026-10-10)
 
-Next: identify the exact certificate query owner and its source-owned
-frontier/observation contract before implementing any readiness witness; keep
-Packet 1 open until that contract has authenticated producer, dependency and
-dependent-observation evidence. Then finish the approved two-cycle certificate
-invalidation, private deferral, rollback and retry gate before connecting
-nonempty operation contexts. Keep negative concrete formal admission
-separately gated until its authentic paired formation, residual consumer and
-lifecycle bridge are reviewed and approved.
+A real custom `prover` child derived the finite-path variance rule and exact
+Function-port operation order. Counting only Argument Effect edges is
+insufficient for nested signatures: Argument Value edges also reverse
+annotation variance and introduce Swap. The correct sign count uses all
+Argument Value and Argument Effect descents; result ports preserve. The exact
+operation word retains each Swap in source order without assuming involution or
+moving it across a child prefix. Its contribution-local hygiene conclusion
+remains conditional on the existing source-formation, exact-attachment,
+transport, receiver and current/future-consumer hypotheses.
+
+The candidate constructor applies Swap to the exact parent's post-check context
+before a supported child prefix. Its live consumer still rejects nonidentity
+Swap and nested prefixes; PUSH/POP words remain empty, and composed-negative
+concrete rows remain preflight-disabled. Identity Swap is retained as field
+incidence when its structural node is elided. Thus the inverse-position
+derivation is reviewed, while source attachment construction and executable
+effect hygiene remain open. A separate bounded falsifier found no violation of
+the conditional order theorem and exhibited a one-PUSH witness against the
+reverse-order mutation. See the [nested variance proof](../notes/progress/2026-10-10-nested-function-effect-variance-bridge-proof.md),
+[source bridge audit](../notes/progress/2026-10-10-argument-effect-source-bridge-audit.md),
+and [minimal order witness](../notes/progress/2026-10-10-effect-variance-counterexample-audit.md).
+
+### Current-component certificate lifecycle (2026-10-10)
+
+Architecture review interprets Authoritative §5 as allowing certification of
+the complete current generated SCC before all source schedules finish, provided
+every later premise-changing event invalidates the generation and withdraws
+dependents before reuse. A schedule-completion token is not required by itself
+and cannot replace snapshot completeness or mutation coverage. A conditional
+prover theorem now states the guarded reuse, invalidation and full rollback
+obligations. Independent compiler-referee and spec-auditor reviews passed
+after separating the H1–H4 core induction from the H5 route extension. This is
+not evidence that the candidate implements those transitions.
+
+Source mapping found relation/dependency insertion alone cannot own the
+generation: a repeated seed appends a new exact Origin to an existing relation
+without a new relation or dependency ID. Other mutation sites include bundle
+incidence, bound fibers, view/attachment data, discharge, replay cursors,
+representative forests, memos, diagnostics and graph publication. Existing
+intrusion generation tracks equality merges; there is no circuit-certificate
+generation, complete dependent-observation index or dirty-before-reuse path.
+The earlier Packet 1 control-flow result remains valid: first capture may
+occur inside `Action::Local` before its root schedule finishes; member-staging
+capture follows all member schedules, but establishes neither full readiness
+nor complete query/observation coverage. `retained_input` still has no
+production caller. Member graph publication and active-frontier changes also
+lack located route-journal undo. See the [Packet 1 readiness proof](../notes/progress/2026-10-10-packet1-source-readiness-proof.md),
+[conditional lifecycle proof](../notes/progress/2026-10-10-certificate-generation-conditional-proof.md)
+and [origin mutation falsifier](../notes/progress/2026-10-10-certificate-generation-falsifier.md).
+
+Next: freeze and independently review a complete current-component
+generation contract covering every recognizer-input mutation, every dependent
+reuse/publication, and transaction withdrawal/rollback. Then implement that
+contract under the approved two-cycle gate, followed by exact recognition,
+private deferral and rollback/retry evidence. In parallel, retain the
+source-owned PUSH/POP construction and inverse-context consumer as prerequisites
+for concrete contravariant effect admission. Keep negative-concrete admission
+disabled until the full approved lifecycle bridge is reviewed.

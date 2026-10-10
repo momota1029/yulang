@@ -1,7 +1,7 @@
 # Conditional certificate generation and route rollback
 
 Date: 2026-10-10
-Status: unreviewed conditional mathematical derivation; research only
+Status: independently reviewed conditional mathematical derivation; research only
 Frozen baseline: `b92f965e7d8c2035b0456e882673e8cc8852dff9`
 Producer: `/root/conditional_snapshot_proof`, one prover leaf, no delegation
 Exclusive output lease: this file only
@@ -195,24 +195,28 @@ of a transition checker.
 
 ## Induction invariant and derivation
 
-For every observation-boundary state `S`, let `I(S)` assert:
+For every observation-boundary state `S`, let `I12(S)` assert:
 
 1. Every installed `Valid(g,q,F,c)` has `G[q]=g`,
    `F=F_q(X,D)` and `Exact(q,F,c)` with exact identity/scope labels.
 2. Every usable dependent result/publication has complete recorded support,
    and every tag satisfies `Guard`; dirty/deferred/absent bindings support no
    usable dependent result.
+For route-extended traces, additionally let `I3(S)` assert:
+
 3. Every open route frame has an exact saved entry validity footprint that
    satisfied (1)–(2), and its restoration discards all aborted-route handles.
    Saved snapshots are immutable, including recognizer inputs and payload
    records; a pointer to a later-mutated record is not an exact snapshot.
 
 The initial state may have no certificates and no certificate-dependent
-usable results, satisfying (1)–(2) vacuously. Alternatively any exact already
-certified initial state satisfying these clauses is allowed. No particular
-compiler initialization is assumed.
+usable results, satisfying `I12` vacuously. Alternatively any exact already
+certified initial state satisfying (1)–(2) is allowed. No particular compiler
+initialization is assumed. An open route frame additionally requires `I3` and
+H5.
 
-**Induction step.** Assume `I(S)` and consider one admissible transition.
+**Core induction step.** Assume `I12(S)` and consider one admissible
+non-route transition under H1–H4.
 
 - `Certify` installs precisely the current footprint and exact judgment by
   H1, so (1) holds for that binding. It changes no existing support to a
@@ -228,28 +232,37 @@ compiler initialization is assumed.
   (1)–(2) are vacuous. Every remaining valid binding has an identical footprint
   by H2; the preceding invariant carries its exactness forward. Remaining
   usable results have no affected support tag by H3. These facts reestablish
-  (1)–(2). H5 preserves route entry snapshots independently of mutable state.
+  (1)–(2). Any existing route snapshots are outside this core induction; a
+  route-extended trace uses the additional H5 argument below.
 - `Recertify` is the `Certify` case followed, on success, by guarded creation
   of recomputed results. On unsupported recognition no valid binding is
   installed; the new edge remains, but no old dependent visibility is
   enabled. The same invariant holds without a termination assumption.
 - `Unrelated` preserves footprints and validity by its explicit premise;
   `Withdraw` only reduces usable results. Both preserve (1)–(2).
-- `BeginRoute` copies a state satisfying (1)–(2), giving (3). `CommitRoute`
-  removes one frame without changing current validity. `AbortRoute` restores
-  the exact saved entry state, so (1)–(2) hold by that frame's saved invariant.
-  The remaining outer frames are unchanged; H5 discards abort-created usable
-  handles and ensures (3). This also covers properly nested route aborts.
 
-All transition cases preserve `I`. Induction on trace length proves it at
-every covered observation boundary. No source transition coverage follows
-from this mathematical induction.
+Thus the listed non-route transitions preserve `I12`; induction on their
+trace length proves clauses (1)–(2) at every covered observation boundary
+under H1–H4.
+
+**Route extension under H5.** For a trace that includes `BeginRoute`,
+`CommitRoute` or `AbortRoute`, assume H5 for every route. `BeginRoute` copies
+an `I12` state into an exact immutable entry snapshot, establishing `I3`.
+`CommitRoute` removes one frame without changing current validity.
+`AbortRoute` restores the exact saved entry state, so `I12` holds by that
+frame's saved invariant; H5 discards abort-created usable handles and ensures
+`I3`. Remaining outer frames are unchanged, covering nested aborts. Therefore
+the full `I12 ∧ I3` invariant is preserved for route-extended traces under
+H1–H5. No source transition coverage follows from either mathematical
+induction.
 
 ## Conditional snapshot theorem
 
-For every identity universe `U`, exact query family `Q`, initial invariant
-state and trace satisfying H1–H4, and for every query `q`, generation binding
-`g`, result and trace position:
+For every identity universe `U`, exact query family `Q`, initial `I12` state,
+and non-route trace satisfying H1–H4, conclusions (1)–(2) hold for every query
+`q`, generation binding `g`, result and trace position. For traces containing
+route transitions, H5 additionally applies; under H1–H5, conclusions (1)–(3)
+hold:
 
 **(1) Unchanged-generation reuse.** If a result with exact tag `(q,g)` is
 reused under the guard while `g` remains the current valid binding, then
@@ -398,15 +411,18 @@ reload, nested dispatch or independent certification is claimed.
 
 ## Handoff and commit packet
 
-Writing stops on delivery. The derivation is unreviewed; its producer cannot
-certify it. Unverified scope: H1–H5 satisfaction by actual source constructors
+Writing stops on delivery. The derivation received independent spec-auditor
+and compiler-referee review. The referee's minor scope finding was repaired by
+separating the H1–H4 `I12` induction from the H5-dependent `I3` route extension;
+the repaired delta had no new correctness finding. The producer cannot certify
+the derivation. Unverified scope: H1–H5 satisfaction by actual source constructors
 and consumers, full recognizer exactness, observation payload correctness,
 current generated SCC completeness and readiness, complete Call/effect hygiene,
 soundness, required principality, termination and gate/default-route closure.
 
-One next action: primary assigns fresh independent review of this frozen
-conditional theorem, preserving the explicit guard and full rollback premise.
-The source bridge remains a separate owning-constructor obligation.
+One next action: freeze and independently review the complete current-component
+generation contract; the source bridge remains a separate owning-constructor
+obligation.
 
 Commit packet:
 
@@ -416,8 +432,8 @@ Commit packet:
 - Changed direct dependency hashes: none; the three baseline hashes above
   match their live bytes at the recorded check. Primary revalidates before
   integration if dependencies move.
-- Claim/review status: unreviewed conditional mathematical derivation;
-  no implementation satisfaction, source theorem, readiness or gate closure.
+- Claim/review status: independently reviewed conditional mathematical
+  derivation; no implementation satisfaction, source theorem, readiness or gate closure.
 - Checks already run: static reads and baseline hashing/comparison; final
   artifact-integrity check reported in the leaf handoff.
 - Proposed one-line checkpoint message:
