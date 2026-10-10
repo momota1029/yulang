@@ -8227,14 +8227,25 @@ compiler-referee delta review found no mismatch in this bounded derivation.
 Parser/HIR success and runtime behavior remain unverified; R remains open.
 The note is checkpointed as `dfeb75cca`.
 
-Next: search existing source fixtures and authored HIR schedules for the
-smallest program that combines a deeper level-0 capture boundary with the
-shared nonlocal Effect owner from the incidence audit. Require a normal source
-path that creates a qualifying parent/copy record; do not substitute
-API-injected endpoints. Trace its before/after opposite vectors and diagnostic
-reachability, then prove merge-rescue coverage or produce a source-generated
-counterexample. If no existing fixture reaches the prerequisite, identify the
-owning source constructor that must change before inventing a new test input.
+The reviewed [negative-row preflight proof](../notes/progress/2026-10-10-negative-effect-preflight-invariant-proof.md)
+establishes the current successor entrypoint's rejection-safety invariant: the
+recursive whole/formal preflights reject explicit concrete rows at every
+composed-negative annotation occurrence, and the row constructor repeats that
+guard before allocation, view lookup, bound insertion, or live-term return.
+The independent compiler-referee review found no finding; the primary also
+matched every listed dependency hash to baseline `26b89d7b4`. This was a
+prover-equivalent generic fallback because the current collaboration schema
+does not expose `prover`; requested Sol/high, observed runtime settings unknown.
+It does not prove effect hygiene/subtraction, nor authorize retaining the
+rejection after the enabling gate. No tests/builds ran. Checkpoint: `f92b5119e`.
+
+Next: finish the exact source trace for the existing mixed-root/shared-tail
+fixture at `candidate_effect_annotation.rs:346`. Its normal HIR path appears to
+provide level separation and a real parent/copy, but the current trace indicates
+the shared copied row may have no opposite lower at restore time. Resolve that
+condition and the remaining merge-replay/diagnostic conditions before claiming
+a witness. Do not substitute API-injected endpoints. If this fixture fails,
+identify the precise source construction needed for the missing condition.
 Then freeze and independently review a complete
 current-component generation contract covering every recognizer-input
 mutation, every dependent
