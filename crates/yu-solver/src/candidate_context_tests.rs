@@ -588,7 +588,9 @@ fn source_closed_annotation_filters_execute_and_keep_resolved_members() {
         assert!(!context.discharge_log.is_empty(), "actual annotation filters have an executable consumer");
         for &id in &context.discharge_log {
             let relation = context.relations[id.0 as usize].key;
-            let ContextExpr::ClosedAllowance { view, input: IDENTITY } = context.contexts[relation.context.0 as usize - 1] else { panic!("closed source filter"); };
+            let ContextExpr::PrefixLeft { weight, input: IDENTITY } = context.contexts[relation.context.0 as usize - 1] else { panic!("closed source filter"); };
+            let payload = &context.weights[weight.0 as usize];
+            let view = payload.boundary;
             let view = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize];
             assert!(matches!(view.provenance, candidate_effect::ViewOrigin::Annotation));
             assert!(view.tail.is_none());
@@ -619,8 +621,9 @@ fn equal_endpoint_filters_register_both_obligations_before_memo_and_self_omissio
     let before = state(&session).checkpoint();
     let run = |session: &mut InferenceSession| {
         for view in [first, second] {
+            let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
             let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-            let filter = context.context(ContextExpr::ClosedAllowance { view, input: IDENTITY })?;
+            let filter = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY })?;
             let relation = context.relation(task_pair(task), filter)?;
             session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, &occurrence, &cause)?;
             assert!(state(session).discharged.contains(&relation));
@@ -681,8 +684,9 @@ fn pre_registered_filter_replays_current_conflict_at_new_relation_and_rolls_back
     let (occurrence, cause) = cause(&session, 1);
     let before = state(&session).checkpoint();
     let admit = |session: &mut InferenceSession| {
+        let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize].closed_weight.unwrap();
         let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let filtered = context.context(ContextExpr::ClosedAllowance { view, input: IDENTITY })?;
+        let filtered = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY })?;
         let relation = context.relation(task_pair(task), filtered)?;
         session.constrain_live_item(
             TypedWorkItem { task, relation: Some(relation) },
@@ -1000,4 +1004,47 @@ fn repeated_bound_restoration_replays_diagnostics_with_each_use_cause_and_rolls_
         assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
         session.with_route_transaction(replay).unwrap();
     }
+}
+
+#[test]
+fn closed_payloads_keep_boundary_authority_and_fresh_copy_sharing_with_rollback() {
+    let mut session = session();
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        HirItem::Binding(binding) => Some(binding.definition_root().clone()),
+        _ => None,
+    }).unwrap();
+    let effect = session.batch.hir.source_effect_declarations()[0].id.clone();
+    let original = session.candidate_effect_view(owner.clone(), effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    let other = session.candidate_effect_view(owner.clone(), effect.declaration.clone(), vec![effect.clone()], None).unwrap();
+    let tail = session.fresh_effect_at_level(1).unwrap();
+    let mixed = session.candidate_effect_view(owner, effect.declaration.clone(), vec![effect.clone()], Some(tail)).unwrap();
+    let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+    let original_weight = algebra.views[original as usize].closed_weight.unwrap();
+    let other_weight = algebra.views[other as usize].closed_weight.unwrap();
+    assert_ne!(original_weight, other_weight, "same resolved family at separate boundaries has separate authority");
+    assert!(algebra.views[mixed as usize].closed_weight.is_none(), "mixed tail rows remain outside closed-filter evaluation");
+    assert_eq!(algebra.context.allowed(original_weight), &[effect]);
+    let before = state(&session).checkpoint();
+    let copy_and_check = |session: &mut InferenceSession| {
+        let first = session.candidate_copy_effect_view(original, None)?;
+        let second = session.candidate_copy_effect_view(original, None)?;
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let first_weight = algebra.views[first as usize].closed_weight.unwrap();
+        let second_weight = algebra.views[second as usize].closed_weight.unwrap();
+        assert_ne!(first_weight, original_weight);
+        assert_ne!(first_weight, second_weight, "independent local views own independent filters");
+        assert_eq!(algebra.context.allowed(first_weight), algebra.context.allowed(original_weight));
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let expression = ContextExpr::PrefixLeft { weight: first_weight, input: IDENTITY };
+        assert_eq!(context.context(expression)?, context.context(expression)?, "one view retains shared context identity");
+        assert_eq!(context.bytes()?, context.enumerated_bytes());
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| {
+        copy_and_check(session)?;
+        Err::<(), _>(exhausted())
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    session.with_route_transaction(copy_and_check).unwrap();
 }

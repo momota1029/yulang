@@ -7832,3 +7832,37 @@ directed transforms through relations, bounds, extrusion, capture/freshening
 and intrusion. Then complete the exact two-cycle certificate invalidation and
 rollback/retry gate before admitting those recursive contexts. Keep ordinary
 HIR approval and public/default/F5 migration as separate gates.
+
+### Closed annotation filter payload checkpoint (2026-10-10)
+
+The former special `ClosedAllowance` context now uses an immutable, source-owned
+zero-word `LocalWeight` payload for closed covariant annotation views. The
+payload keeps its allowed members and boundary/owner/position identity, while
+the negative-wrapper path still installs or replays the actual allowance
+before discharge and memoization. Mixed-tail and operation views receive no
+payload. Copying creates independent local payload identities; payload storage
+and member capacity participate in rollback/accounting. No concrete
+contravariant row, nonempty operation, recursive context, or source admission
+was enabled.
+
+The frozen three-file delta passed independent compiler-referee, spec-auditor,
+and performance-auditor review. Focused checks passed:
+
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_context::tests --offline --jobs=1 -- --test-threads=1` (23).
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_effect::tests --offline --jobs=1 -- --test-threads=1` (27).
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_intrusion::tests --offline --jobs=1 -- --test-threads=1` (5).
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --test candidate_effect_annotation --offline --jobs=1 -- --test-threads=1` (17).
+- `git diff --check` passed.
+
+No benchmarks or broad suites ran. Static performance review found O(k) extra
+member-handle construction/storage per closed view with a constant-factor
+increase on copied views; no timing decision depends on this slice. See the
+[payload checkpoint](../notes/progress/2026-10-10-closed-annotation-filter-payload.md).
+
+This remains a partial contextual gate. Next: construct and execute approved
+nonempty directed transforms through memoization, Function ports, ordered
+replay, extrusion, capture/freshening and intrusion. Then implement and review
+the two-cycle certificate invalidation/rollback gate before admitting recursive
+contexts. The separate ordinary-HIR carrier answer bundle remains rejected for
+exact-content mismatch in its uncommitted receipt. Complete Call, effect
+hygiene, soundness/principality and production/default/F5 cutover remain open.

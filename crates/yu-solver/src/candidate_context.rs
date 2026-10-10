@@ -3,20 +3,25 @@
 //! another semantic task or unfold a recursive identity derivation.
 use crate::candidate_effect::BoundKey;
 use crate::*;
+use yu_hir::shadow::{SourceEffectId, SourceNodeKey};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct RelationId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ContextId(u32);
 const IDENTITY: ContextId = ContextId(0);
-// This handle names a complete immutable operation payload. Its source-owned
-// constructor is a later seam; nominal effect or attachment IDs are not weights.
+// A payload handle is independent of nominal members and boundary identities.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "operation payload construction is a later gate")
-)]
-struct LocalWeightId(u32);
+pub(super) struct LocalWeightId(u32);
+#[derive(Debug)]
+struct LocalWeight {
+    left_word: [(); 0],
+    allowed: Vec<SourceEffectId>,
+    right_pops: [(); 0],
+    boundary: u32,
+    owner: DefinitionRootId,
+    position: SourceNodeKey,
+}
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct EntryCertificateId(u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -25,9 +30,6 @@ struct EntryCertificateId(u32);
     allow(dead_code, reason = "context propagation is a later gate")
 )]
 enum ContextExpr {
-    // A covariant closed annotation check. The view owns the resolved atom
-    // set and exact source occurrence; its index is not nominal effect identity.
-    ClosedAllowance { view: u32, input: ContextId },
     PrefixLeft {
         weight: LocalWeightId,
         input: ContextId,
@@ -95,6 +97,8 @@ struct Origin {
 }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    weights: Vec<LocalWeight>,
+    weight_bytes: usize,
     contexts: Vec<ContextExpr>,
     context_keys: HashMap<ContextExpr, ContextId>,
     relations: Vec<Relation>,
@@ -118,6 +122,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    weights: usize,
     contexts: usize,
     relations: usize,
     dependencies: usize,
@@ -135,6 +140,7 @@ fn exhausted() -> SolveAvailabilityError {
 impl State {
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            weights: self.weights.len(),
             contexts: self.contexts.len(),
             relations: self.relations.len(),
             dependencies: self.dependencies.len(),
@@ -148,6 +154,9 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for weight in self.weights.drain(checkpoint.weights..) {
+            self.weight_bytes -= weight.allowed.capacity() * std::mem::size_of::<SourceEffectId>();
+        }
         for (key, previous) in self.replay_log.drain(checkpoint.replay_log..).rev() {
             if let Some(previous) = previous { self.replay_heads.insert(key, previous); }
             else { self.replay_heads.remove(&key); }
@@ -188,6 +197,8 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            Some(self.weight_bytes),
+            self.weights.capacity().checked_mul(std::mem::size_of::<LocalWeight>()),
             self.replay_heads.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()),
             self.replay_log.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()),
             self.discharged.capacity().checked_mul(std::mem::size_of::<RelationId>()),
@@ -259,7 +270,9 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
+        self.weights.capacity() * std::mem::size_of::<LocalWeight>()
+            + self.weights.iter().map(|w| w.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>()
+            + self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
             + self.replay_log.capacity() * std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()
             + self.discharged.capacity() * std::mem::size_of::<RelationId>()
             + self.discharge_log.capacity() * std::mem::size_of::<RelationId>()
@@ -284,8 +297,7 @@ impl State {
     )]
     fn context(&mut self, expression: ContextExpr) -> Result<ContextId, SolveAvailabilityError> {
         match expression {
-            ContextExpr::ClosedAllowance { input, .. }
-            | ContextExpr::PrefixLeft { input, .. }
+            ContextExpr::PrefixLeft { input, .. }
             | ContextExpr::SuffixRightPops { input, .. }
             | ContextExpr::Swap { input }
             | ContextExpr::BothFromRight { input, .. }
@@ -309,6 +321,20 @@ impl State {
         self.contexts.push(expression);
         self.context_keys.insert(expression, id);
         Ok(id)
+    }
+    pub fn closed_weight(&mut self, boundary: u32, owner: &DefinitionRootId, position: &SourceNodeKey, allowed: &[SourceEffectId]) -> Result<LocalWeightId, SolveAvailabilityError> {
+        let id = LocalWeightId(u32::try_from(self.weights.len()).map_err(|_| exhausted())?);
+        let mut members = Vec::new();
+        members.try_reserve_exact(allowed.len()).map_err(|_| exhausted())?;
+        members.extend_from_slice(allowed);
+        let weight_bytes = self.weight_bytes.checked_add(members.capacity().checked_mul(std::mem::size_of::<SourceEffectId>()).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
+        self.weights.try_reserve(1).map_err(|_| exhausted())?;
+        self.weights.push(LocalWeight { left_word: [], allowed: members, right_pops: [], boundary, owner: owner.clone(), position: position.clone() });
+        self.weight_bytes = weight_bytes;
+        Ok(id)
+    }
+    pub fn allowed(&self, weight: LocalWeightId) -> &[SourceEffectId] {
+        &self.weights[weight.0 as usize].allowed
     }
     fn assert_context(&self, context: ContextId) {
         assert!(
@@ -454,7 +480,7 @@ impl State {
     fn post_check_context(&self, relation: RelationId) -> ContextId {
         let context = self.relations[relation.0 as usize].key.context;
         if context != IDENTITY && matches!(self.contexts[context.0 as usize - 1],
-            ContextExpr::ClosedAllowance { input: IDENTITY, .. }) {
+            ContextExpr::PrefixLeft { input: IDENTITY, .. }) {
             // This executable filter is consumed at insertion; its bound and
             // derivation retain the current/future obligations.
             IDENTITY
@@ -497,16 +523,16 @@ impl InferenceSession {
             },
         }
     }
-    fn candidate_closed_allowance(&self, pair: TypedPairKey) -> Option<u32> {
+    fn candidate_closed_allowance(&self, pair: TypedPairKey) -> Option<LocalWeightId> {
         let TypedPairKey::Effect { upper: EffectEndpointKey::Allowance(view), .. } = pair else { return None; };
         let view_data = &self.candidate_graph.as_ref()?.intrusion.effect_algebra.views[view as usize];
-        (view_data.tail.is_none() && matches!(view_data.provenance, candidate_effect::ViewOrigin::Annotation)).then_some(view)
+        view_data.closed_weight
     }
     fn candidate_context_source(&mut self, pair: TypedPairKey) -> Result<ContextId, SolveAvailabilityError> {
-        let view = self.candidate_closed_allowance(pair);
+        let weight = self.candidate_closed_allowance(pair);
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        match view {
-            Some(view) => state.context(ContextExpr::ClosedAllowance { view, input: IDENTITY }),
+        match weight {
+            Some(weight) => state.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }),
             None => Ok(IDENTITY),
         }
     }
@@ -572,12 +598,20 @@ impl InferenceSession {
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
         if key.context == IDENTITY { return Ok(false); }
         if state.discharged.contains(&relation) { return Ok(true); }
-        let ContextExpr::ClosedAllowance { view, input: IDENTITY } = state.contexts[key.context.0 as usize - 1] else {
+        let ContextExpr::PrefixLeft { weight, input: IDENTITY } = state.contexts[key.context.0 as usize - 1] else {
             // Only closed source filters have an executable consumer in this
             // slice. Other ContextExpr constructors are not admitted here.
             return Err(exhausted());
         };
-        let LiveConstraintTask::Effect(lower, _) = task else { return Err(exhausted()); };
+        let payload = state.weights.get(weight.0 as usize).ok_or_else(exhausted)?;
+        let view = payload.boundary;
+        let boundary = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[view as usize];
+        assert_eq!((&payload.owner, &payload.position), (&boundary.owner, &boundary.position));
+        assert!(payload.left_word.is_empty() && payload.right_pops.is_empty());
+        let lower = match task {
+            LiveConstraintTask::Effect(lower, _) => lower,
+            LiveConstraintTask::Value(_) => return Err(exhausted()),
+        };
         let upper = EffectEndpointKey::Allowance(view);
         let registered = match self.canonical_effect(lower) {
             EffectEndpointKey::EffectRow(row) => self.effect_bounds[row as usize].exact_non_variable_uppers.contains(&upper),

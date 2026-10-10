@@ -98,6 +98,7 @@ impl SignatureContext<'_> {
 }
 #[derive(Debug)]
 pub(super) struct View {
+    pub closed_weight: Option<candidate_context::LocalWeightId>,
     pub provenance: ViewOrigin,
     pub owner: DefinitionRootId,
     pub position: SourceNodeKey,
@@ -615,7 +616,11 @@ impl InferenceSession {
             .and_then(|n| n.checked_add(state.nested_bytes))
             .ok_or_else(exhausted)?;
         state.views.try_reserve(1).map_err(|_| exhausted())?;
+        let closed_weight = if tail.is_none() && operation.is_none() {
+            Some(state.context.closed_weight(id, &owner, &position, &allowed)?)
+        } else { None };
         state.views.push(View {
+            closed_weight,
             provenance: operation.map_or(ViewOrigin::Annotation, ViewOrigin::Operation),
             owner,
             position,
@@ -785,7 +790,8 @@ impl InferenceSession {
                     _ => unreachable!(),
                 };
                 let view = &state.views[id as usize];
-                if view.allowed.contains(effect) {
+                let allowed = view.closed_weight.map_or(view.allowed.as_slice(), |weight| state.context.allowed(weight));
+                if allowed.contains(effect) {
                     return Ok(());
                 }
                 if let Some(tail) = view.tail {
