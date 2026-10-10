@@ -7876,3 +7876,17 @@ gate before any recursive nonempty context can be admitted. The separate
 ordinary-HIR carrier answer bundle remains rejected for exact-content mismatch
 in its uncommitted receipt. Complete Call, full effect hygiene,
 soundness/principality and production/default/F5 cutover remain open.
+
+The first evaluator sub-slice now adds a detached iterative structural fold over
+the retained context DAG. It preserves exact node/weight/certificate tokens,
+replay order and bracketing, evaluates shared children once, and rejects
+malformed handles through the existing internal availability result. It has no
+source-task, weight-execution, certificate-authorization, relation-admission,
+or `candidate_context_execute` call path. The M1 compiler-referee review passed;
+three focused fold tests and scoped `git diff --check` passed. Numeric operation
+evaluation remains the immediate next sub-slice. The approved contract requires
+exact unbounded natural counts, so legacy Oracle `u32` saturation cannot be
+copied; the detached finite atom-set fragment may use explicit `All` filters
+and finite resolved families, without claiming parameterized-family or
+residual/gamma support. See the
+[structural-fold checkpoint](../notes/progress/2026-10-10-context-structural-fold.md).

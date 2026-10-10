@@ -1,6 +1,70 @@
 use super::*;
 use yu_hir::shadow::lower_module_with_local_source;
 
+#[test]
+fn detached_fold_retains_shared_nodes_order_bracketing_and_certificates() {
+    let mut context = State::default();
+    let shared = context.context(ContextExpr::BothFromRight {
+        input: IDENTITY, certificate: EntryCertificateId(17),
+    }).unwrap();
+    let other = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let pair = context.context(ContextExpr::Replay { lower: shared, upper: other }).unwrap();
+    let root = context.context(ContextExpr::Replay { lower: pair, upper: shared }).unwrap();
+    let before = context.checkpoint();
+    let mut visits = HashMap::new();
+    let result = context.fold_context(root, |id, expression, children: &[&String]| {
+        *visits.entry(id).or_insert(0) += 1;
+        Ok(match expression {
+            None => "I".to_owned(),
+            Some(ContextExpr::BothFromRight { certificate, .. }) => {
+                assert_eq!(certificate, EntryCertificateId(17));
+                format!("B17({})", children[0])
+            }
+            Some(ContextExpr::Swap { .. }) => format!("S({})", children[0]),
+            Some(ContextExpr::Replay { .. }) => format!("({};{})", children[0], children[1]),
+            _ => unreachable!(),
+        })
+    }).unwrap();
+    assert_eq!(result, "((B17(I);S(I));B17(I))");
+    assert_eq!(visits.len(), 5);
+    assert!(visits.values().all(|&count| count == 1));
+    assert_eq!(context.checkpoint(), before);
+    assert!(context.relations.is_empty());
+    assert!(context.weights.is_empty(), "fold does not resolve or execute source weights");
+    assert!(context.discharged.is_empty());
+}
+
+#[test]
+fn detached_fold_terminates_iteratively_and_preserves_weight_tokens() {
+    let mut context = State::default();
+    let mut root = IDENTITY;
+    for _ in 0..4096 {
+        root = context.context(ContextExpr::PrefixLeft { weight: LocalWeightId(123), input: root }).unwrap();
+    }
+    root = context.context(ContextExpr::SuffixRightPops { input: root, weight: LocalWeightId(456) }).unwrap();
+    root = context.context(ContextExpr::WithoutLeftFilter { input: root }).unwrap();
+    let depth = context.fold_context(root, |_, expression, children: &[&usize]| {
+        match expression {
+            Some(ContextExpr::PrefixLeft { weight, .. }) => assert_eq!(weight, LocalWeightId(123)),
+            Some(ContextExpr::SuffixRightPops { weight, .. }) => assert_eq!(weight, LocalWeightId(456)),
+            _ => {},
+        }
+        Ok(children.first().map_or(0, |depth| **depth + 1))
+    }).unwrap();
+    assert_eq!(depth, 4098);
+}
+
+#[test]
+fn detached_fold_invalid_handles_use_internal_availability() {
+    let mut context = State::default();
+    assert_eq!(context.fold_context(ContextId(1), |_, _, _: &[&()]| Ok(())), Err(exhausted()));
+    // Invalid forward/self inputs violate the append-only construction DAG.
+    context.contexts.push(ContextExpr::Swap { input: ContextId(1) });
+    assert_eq!(context.fold_context(ContextId(1), |_, _, _: &[&()]| Ok(())), Err(exhausted()));
+    context.contexts[0] = ContextExpr::Swap { input: ContextId(99) };
+    assert_eq!(context.fold_context(ContextId(1), |_, _, _: &[&()]| Ok(())), Err(exhausted()));
+}
+
 fn session() -> InferenceSession {
     session_with_source("act E\nmy seed = 1")
 }

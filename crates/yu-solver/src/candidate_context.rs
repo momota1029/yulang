@@ -211,6 +211,56 @@ fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
 }
 impl State {
+    // Detached postorder fold: the callback sees the exact construction token
+    // and ordered children. No relation, source task, or certificate is consumed.
+    #[cfg_attr(not(test), allow(dead_code, reason = "detached contextual evaluation gate"))]
+    fn fold_context<T>(
+        &self,
+        root: ContextId,
+        mut evaluate: impl FnMut(ContextId, Option<ContextExpr>, &[&T]) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        let mut pending = Vec::new();
+        pending.try_reserve(1).map_err(|_| exhausted())?;
+        pending.push((root, false));
+        let mut results = HashMap::new();
+        while let Some((id, ready)) = pending.pop() {
+            if results.contains_key(&id) { continue; }
+            let expression = if id == IDENTITY { None } else {
+                Some(*self.contexts.get(id.0 as usize - 1).ok_or_else(exhausted)?)
+            };
+            let (children, count) = match expression {
+                None => ([IDENTITY, IDENTITY], 0),
+                Some(ContextExpr::Replay { lower, upper }) => ([lower, upper], 2),
+                Some(ContextExpr::PrefixLeft { input, .. }
+                    | ContextExpr::SuffixRightPops { input, .. }
+                    | ContextExpr::Swap { input }
+                    | ContextExpr::BothFromRight { input, .. }
+                    | ContextExpr::WithoutLeftFilter { input }) => ([input, IDENTITY], 1),
+            };
+            // Construction only references already retained nodes. Validate
+            // this invariant before descending, including malformed handles.
+            if children[..count].iter().any(|child| child.0 >= id.0) {
+                return Err(exhausted());
+            }
+            if !ready && count > 0 {
+                pending.try_reserve(count + 1).map_err(|_| exhausted())?;
+                pending.push((id, true));
+                for &child in children[..count].iter().rev() {
+                    if !results.contains_key(&child) { pending.push((child, false)); }
+                }
+                continue;
+            }
+            let result = match count {
+                0 => evaluate(id, expression, &[])?,
+                1 => evaluate(id, expression, &[&results[&children[0]]])?,
+                2 => evaluate(id, expression, &[&results[&children[0]], &results[&children[1]]])?,
+                _ => unreachable!(),
+            };
+            results.try_reserve(1).map_err(|_| exhausted())?;
+            results.insert(id, result);
+        }
+        results.remove(&root).ok_or_else(exhausted)
+    }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
             bundles: self.bundles.len(),
