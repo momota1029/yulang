@@ -65,6 +65,11 @@ Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
 Astra escalation, within the existing global lab budget. This workflow change
 does not close or reclassify any inference/semantic/production gate below.
+For restoration replay, direct collaboration dispatch with
+`agent_type=prover` returned `unknown agent_type`; the primary immediately used
+a prover-equivalent generic leaf with the exact proof packet. Requested
+Sol/high; observed model/effort unknown. Its bounded snapshot derivation is
+recorded below and does not claim that a custom `prover` ran.
 
 ## Objective and canonical obligation ledger
 
@@ -8199,9 +8204,25 @@ source constructions open. Neither note establishes a compiler defect or
 source counterexample. No code/test/build result follows from these static
 characterizations.
 
-Next: resolve restoration replay coverage and its source correspondence, then
-freeze and independently review a complete current-component generation
-contract covering every recognizer-input mutation, every dependent
+The new [restoration snapshot proof](../notes/progress/2026-10-10-canonical-bound-fiber-restoration-proof.md)
+proves the literal incoming-use Cartesian snapshot and its fixed-frontier
+corollary under explicit stability hypotheses. Independent compiler review
+found no mismatch in those bounded claims. Its source/operational coverage R
+remains open: nested canonicalization may grow a third-owner fiber that the
+outer loop still addresses by a historical key, while ordinary merge replay
+and Value/Effect diagnostic reachability provide possible rescue paths whose
+universal coverage is unproved. The complementary [Effect incidence audit](../notes/progress/2026-10-10-canonical-bound-fiber-source-witness.md)
+identifies a source producer route to a shared owner and excludes pre-use
+frontiers as its direct explanation, but finds no authentic within-use
+counterexample; independent review accepted these bounded claims. Neither
+artifact establishes an implementation defect or closes R. No tests/builds ran.
+
+Next: construct one authentic within-use Effect incidence trace with its row
+levels, parent records, restore order, before/after vectors, replay-frontier
+heads and diagnostic reachability; use it to prove merge-rescue coverage or to
+find a counterexample. Then freeze and independently review a complete
+current-component generation contract covering every recognizer-input
+mutation, every dependent
 reuse/publication, and transaction withdrawal/rollback. Then implement that
 contract under the approved two-cycle gate, followed by exact recognition,
 private deferral and rollback/retry evidence. In parallel, retain the
