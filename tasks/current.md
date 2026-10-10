@@ -7645,3 +7645,33 @@ deprecation at `candidate_effect::State::initialize`. The new name would change
 older-compiler compatibility, while the workspace has no selected minimum
 compiler-version change. This patch retains the existing implementation and
 records that exact compatibility blocker; no warning-free build is claimed.
+
+
+### Local-recursive contextual source/scheduling checkpoint (2026-10-10)
+
+The [reviewed source witness](../notes/progress/2026-10-10-local-recursive-contextual-source-witness.md)
+uses local self recursion and an outer unknown sink to force a genuine
+level-2 formal Effect row's negative copy at level 1. Its stored lower-copy
+link defeats the earlier premise that a weighted upper self could never meet
+a Var lower. The exact source and symbolic-formal control parse and form
+LocalSource; the control solves with no conflicts and one source call. The
+negative source remains Unsupported. These two public inventory probes add
+no negative execution or test-suite pass to the existing 66-test checkpoint.
+
+An independent source review and a focused delta review closed the record's
+claim boundaries. Primary inspection found the accepted major scheduling
+distinction: extrusion's direct bound insertion does not enqueue replay with
+pre-existing uppers. No later activation of this initial pair was established
+in the exact fixture. Complete reference saturation under the required
+weighted constructors yields all PUSH_i^k consumer histories, but the current
+worklist is not shown to execute or diverge on them. Distinct histories do not
+prove distinct allocated gamma recipes. No complete negative theorem is CLOSED.
+
+The minimum unresolved consumer is the Var-to-Allowance relation carrying that
+unbounded PUSH family: retain authentic attachment and constructor-lineage
+identity, activate the copied lower, and deliver current/future lowers through
+each residual's two feedback directions using an exact finite representation.
+The approved private carrier/two-circuit gate remains selected; generic
+negative-formal admission, mixed residual completion, exact run_io callback,
+full hygiene/principality/Call and public/default F5 remain open. No production
+change or additional broad test was made for this record.

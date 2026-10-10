@@ -113,6 +113,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Oracle/source-variance mapping. The nullary source sort theorem separates
   debt-only Value recursion from the still-open mixed Effect/residual consumer.
   This does not admit concrete negative formals or prove the callback target.
+  The [local-recursive source witness](../progress/2026-10-10-local-recursive-contextual-source-witness.md)
+  derives an actual lower-copy topology and identifies the missing initial
+  contextual replay event. Its infinite complete reference closure remains
+  conditional; it proves neither weighted execution nor gamma allocation.
 
   The [contextual attachment/admission design](2026-10-10-contextual-attachment-admission-design.md)
   is authoritative for the private contextual carrier, exact acceleration of

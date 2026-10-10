@@ -457,9 +457,21 @@ by the primary. All repository writer leases are finished. Shared status,
 record and Git integration remain primary-owned. See the
 [consolidated proof/implementation record](../notes/progress/2026-10-10-selected-formal-contextual-integration.md).
 
-A separate bounded attack of authentic PUSH-self saturation obtained only
-local numeric orbits; it did not construct a finite exact indexed residual
-consumer and remains unreviewed scratch work. The next genuine bottleneck is
-that consumer for sorted mixed Effect replay, with lineage/current-future
-fan-out and reverse feedback. No additional conditional theorem or source
-restriction is used to mark full negative inference complete.
+The final bounded source attack now has a [reviewed repaired witness](../notes/progress/2026-10-10-local-recursive-contextual-source-witness.md).
+Local self recursion supplies a real level-decreasing negative copy and a
+stored lower at the original Effect row. The exact source/control parse; the
+control solves, while the negative source remains Unsupported. A primary-found
+major scheduling correction is closed by independent delta review: direct
+extrusion insertion does not enqueue the initial contextual replay. Infinite
+PUSH histories are proved only for the defined complete reference closure;
+current worklist execution/divergence and gamma allocation are not established.
+The new coherent source artifact supersedes its unreviewed scratch attempt;
+withdrawn earlier attempts remain unpublished. No extra Cargo build or test
+suite ran, and all source-artifact write leases are finished.
+
+The finite exact indexed residual consumer remains unconstructed. It must
+preserve attachment/lineage, activate current/future lowers, and retain both
+feedback directions at the Var-to-Allowance seam. The main task remains open;
+no conditional result, input restriction, new Q&A, or CLOSED promotion is used
+to call full negative inference complete. Git and shared synchronization are
+primary-owned.
