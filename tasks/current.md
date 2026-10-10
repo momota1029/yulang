@@ -8099,3 +8099,9 @@ close source formation, exact attachment, residual, lifecycle, full hygiene,
 soundness, principality or production gates. Keep negative-concrete admission
 guards in place until the later contextual-admission §§5–6 gate and any
 required approval.
+
+Next: resume Packet 1 retained-input/readiness closure, then finish the
+approved two-cycle certificate invalidation, private deferral, rollback and
+retry gate before connecting nonempty operation contexts. Keep negative
+concrete formal admission separately gated until its authentic paired
+formation, residual consumer and lifecycle bridge are reviewed and approved.
