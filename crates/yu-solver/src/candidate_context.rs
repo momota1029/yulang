@@ -8,6 +8,58 @@ use yu_hir::shadow::{SourceEffectId, SourceNodeKey};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct RelationId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct ReplayOperationId(usize);
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ReplayChildAck {
+    pub operation: ReplayOperationId,
+    pub index: usize,
+}
+#[derive(Debug)]
+struct ReplayOperation {
+    task: LiveConstraintTask,
+    // Generation and child completion are deliberately separate frontiers.
+    #[allow(dead_code, reason = "retained frozen generation evidence for the private continuation")]
+    inputs: (BoundKey, BoundKey),
+    #[allow(dead_code, reason = "retained frozen generation evidence for the private continuation")]
+    heads: (Option<usize>, Option<usize>),
+    #[allow(dead_code, reason = "retained frozen generation evidence for the private continuation")]
+    prior: (Option<usize>, Option<usize>),
+    #[allow(dead_code, reason = "retained incoming-use replay ownership for the private continuation")]
+    incoming_use: bool,
+    children: Vec<RelationId>,
+    queued: usize,
+    consumed: usize,
+    retired: bool,
+    restoration: Option<ReplayOperationId>,
+}
+#[derive(Clone, Copy, Debug)]
+struct ReplayOperationUndo {
+    id: ReplayOperationId,
+    queued: usize,
+    consumed: usize,
+    retired: bool,
+}
+#[derive(Debug)]
+pub(super) struct BoundRestoration {
+    pub owner: ExtrusionEndpoint,
+    pub polarity: Polarity,
+    pub bound: ExtrusionEndpoint,
+    pub emission: BoundEmissionId,
+    pub opposite_count: usize,
+    pub next_opposite: usize,
+    pub replay: Option<ReplayOperationId>,
+    pub occurrence: ConstraintOccurrenceId,
+    pub cause: CauseId,
+    retired: bool,
+}
+#[derive(Clone, Copy, Debug)]
+struct BoundRestorationUndo {
+    id: ReplayOperationId,
+    next_opposite: usize,
+    replay: Option<ReplayOperationId>,
+    retired: bool,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct ContextId(u32);
 const IDENTITY: ContextId = ContextId(0);
 // A payload handle is independent of nominal members and boundary identities.
@@ -551,6 +603,14 @@ pub(super) struct State {
     bound_keys: Vec<(BoundKey, RelationId, Option<usize>)>,
     replay_heads: HashMap<(BoundKey, BoundKey), (Option<usize>, Option<usize>)>,
     replay_log: Vec<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>,
+    replay_operations: HashMap<ReplayOperationId, ReplayOperation>,
+    next_replay_operation: usize,
+    replay_operation_undo: Vec<ReplayOperationUndo>,
+    replay_child_bytes: usize,
+    #[cfg(test)]
+    operation_frontier_visits: usize,
+    restorations: HashMap<ReplayOperationId, BoundRestoration>,
+    restoration_undo: Vec<BoundRestorationUndo>,
     uses: usize,
     edges: HashMap<RelationId, Vec<RelationId>>,
     edge_keys: HashSet<(RelationId, RelationId)>,
@@ -579,6 +639,9 @@ pub(super) struct Checkpoint {
     bounds: usize,
     uses: usize,
     replay_log: usize,
+    next_replay_operation: usize,
+    replay_operation_undo: usize,
+    restoration_undo: usize,
     edges: usize,
     processing: Option<RelationId>,
     discharges: usize,
@@ -1416,12 +1479,35 @@ impl State {
             bounds: self.bound_keys.len(),
             uses: self.uses,
             replay_log: self.replay_log.len(),
+            next_replay_operation: self.next_replay_operation,
+            replay_operation_undo: self.replay_operation_undo.len(),
+            restoration_undo: self.restoration_undo.len(),
             edges: self.edge_log.len(),
             processing: self.processing,
             discharges: self.discharge_log.len(),
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for undo in self.restoration_undo.drain(checkpoint.restoration_undo..).rev() {
+            let operation = self.restorations.get_mut(&undo.id).expect("restoration retirement waits for route commit");
+            operation.next_opposite = undo.next_opposite;
+            operation.replay = undo.replay;
+            operation.retired = undo.retired;
+        }
+        for undo in self.replay_operation_undo.drain(checkpoint.replay_operation_undo..).rev() {
+            let operation = self.replay_operations.get_mut(&undo.id).expect("retirement waits for route commit");
+            operation.queued = undo.queued;
+            operation.consumed = undo.consumed;
+            operation.retired = undo.retired;
+        }
+        for index in checkpoint.next_replay_operation..self.next_replay_operation {
+            #[cfg(test)]
+            { self.operation_frontier_visits += 1; }
+            let id = ReplayOperationId(index);
+            self.remove_replay_operation(id);
+            self.restorations.remove(&id);
+        }
+        self.next_replay_operation = checkpoint.next_replay_operation;
         self.evidence.rollback(checkpoint.evidence);
         self.inferred_entries.truncate(checkpoint.inferred_entries);
         for bundle in self.bundles.drain(checkpoint.bundles..) {
@@ -1478,8 +1564,163 @@ impl State {
             }
         }
     }
+    fn remove_replay_operation(&mut self, id: ReplayOperationId) {
+        if let Some(operation) = self.replay_operations.remove(&id) {
+            self.replay_child_bytes -= operation.children.capacity() * std::mem::size_of::<RelationId>();
+        }
+    }
+    fn retire_replay_candidate(&mut self, id: ReplayOperationId) {
+        #[cfg(test)]
+        { self.operation_frontier_visits += 1; }
+        let reclaim = self.replay_operations.get(&id).is_some_and(|operation| operation.retired
+            && !operation.restoration.is_some_and(|parent| self.restorations.get(&parent)
+                .is_some_and(|restoration| !restoration.retired && restoration.replay == Some(id))));
+        if reclaim { self.remove_replay_operation(id); }
+    }
+    fn retire_restoration_candidate(&mut self, id: ReplayOperationId) {
+        #[cfg(test)]
+        { self.operation_frontier_visits += 1; }
+        if self.restorations.get(&id).is_some_and(|operation| operation.retired) { self.restorations.remove(&id); }
+    }
+    pub(super) fn commit_replay_operations(&mut self, checkpoint: Checkpoint) {
+        // Candidate visits depend on this route's creations and mutations,
+        // never on historical map capacity. Repeated IDs need no dedup storage.
+        for index in checkpoint.next_replay_operation..self.next_replay_operation {
+            let id = ReplayOperationId(index);
+            self.retire_replay_candidate(id);
+            if let Some(replay) = self.restorations.get(&id).and_then(|operation| operation.replay) {
+                self.retire_replay_candidate(replay);
+            }
+        }
+        for index in checkpoint.replay_operation_undo..self.replay_operation_undo.len() {
+            self.retire_replay_candidate(self.replay_operation_undo[index].id);
+        }
+        for index in checkpoint.restoration_undo..self.restoration_undo.len() {
+            let undo = self.restoration_undo[index];
+            // A previous route can have retained a completed replay through
+            // this pointer. Advancing the restoration releases that ownership.
+            if let Some(replay) = undo.replay { self.retire_replay_candidate(replay); }
+            if let Some(replay) = self.restorations.get(&undo.id).and_then(|operation| operation.replay) {
+                self.retire_replay_candidate(replay);
+            }
+        }
+        // Replays read their owner's final state before owners are reclaimed.
+        for index in checkpoint.next_replay_operation..self.next_replay_operation {
+            self.retire_restoration_candidate(ReplayOperationId(index));
+        }
+        for index in checkpoint.restoration_undo..self.restoration_undo.len() {
+            self.retire_restoration_candidate(self.restoration_undo[index].id);
+        }
+        self.replay_operation_undo.truncate(checkpoint.replay_operation_undo);
+        self.restoration_undo.truncate(checkpoint.restoration_undo);
+    }
+    pub(super) fn replay_operation_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        let mut bytes = self.replay_operations.capacity().checked_mul(std::mem::size_of::<(ReplayOperationId, ReplayOperation)>())
+            .and_then(|bytes| self.replay_operation_undo.capacity().checked_mul(std::mem::size_of::<ReplayOperationUndo>())
+                .and_then(|undo| bytes.checked_add(undo))).ok_or_else(exhausted)?;
+        bytes = bytes.checked_add(self.replay_child_bytes).ok_or_else(exhausted)?;
+        bytes = bytes.checked_add(self.restorations.capacity().checked_mul(std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()).ok_or_else(exhausted)?)
+            .and_then(|bytes| self.restoration_undo.capacity().checked_mul(std::mem::size_of::<BoundRestorationUndo>()).and_then(|undo| bytes.checked_add(undo)))
+            .ok_or_else(exhausted)?;
+        Ok(bytes)
+    }
+    pub(super) fn reserve_restoration(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.next_replay_operation.checked_add(1).ok_or_else(exhausted)?;
+        self.restorations.try_reserve(1).map_err(|_| exhausted())
+    }
+    pub(super) fn retain_restoration(&mut self, owner: ExtrusionEndpoint, polarity: Polarity, bound: ExtrusionEndpoint,
+        emission: BoundEmissionId, opposite_count: usize, occurrence: ConstraintOccurrenceId, cause: CauseId,
+    ) -> ReplayOperationId {
+        let id = ReplayOperationId(self.next_replay_operation);
+        self.next_replay_operation += 1;
+        self.restorations.insert(id, BoundRestoration { owner, polarity, bound, emission, opposite_count,
+            next_opposite: 0, replay: None, occurrence, cause, retired: false });
+        id
+    }
+    pub(super) fn restoration(&self, id: ReplayOperationId) -> Result<&BoundRestoration, SolveAvailabilityError> {
+        self.restorations.get(&id).ok_or_else(exhausted)
+    }
+    pub(super) fn prepare_restoration_update(&mut self, id: ReplayOperationId, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.restorations.get(&id).ok_or_else(exhausted)?;
+        if transactional {
+            self.restoration_undo.try_reserve(1).map_err(|_| exhausted())?;
+            self.restoration_undo.push(BoundRestorationUndo { id, next_opposite: operation.next_opposite,
+                replay: operation.replay, retired: operation.retired });
+        }
+        Ok(())
+    }
+    pub(super) fn set_restoration_replay(&mut self, id: ReplayOperationId, replay: ReplayOperationId) {
+        self.replay_operations.get_mut(&replay).expect("new retained replay operation").restoration = Some(id);
+        self.restorations.get_mut(&id).expect("prepared restoration update").replay = Some(replay);
+    }
+    pub(super) fn advance_restoration(&mut self, id: ReplayOperationId) {
+        let operation = self.restorations.get_mut(&id).expect("prepared restoration update");
+        operation.replay = None;
+        operation.next_opposite += 1;
+    }
+    pub(super) fn retire_restoration(&mut self, id: ReplayOperationId, transactional: bool) {
+        self.restorations.get_mut(&id).expect("prepared restoration retirement").retired = true;
+        if !transactional { self.restorations.remove(&id); }
+    }
+    #[cfg(test)]
+    pub(super) fn replay_operation_next(&self, id: ReplayOperationId) -> Result<Option<TypedWorkItem>, SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&id).ok_or_else(exhausted)?;
+        if operation.retired { return Ok(None); }
+        Ok(operation.children.get(operation.consumed).copied().map(|relation|
+            TypedWorkItem { task: operation.task, relation: Some(relation), replay_ack: Some(ReplayChildAck { operation: id, index: operation.consumed }) }))
+    }
+    fn replay_operation_queue_next(&self, id: ReplayOperationId) -> Result<Option<TypedWorkItem>, SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&id).ok_or_else(exhausted)?;
+        if operation.retired { return Ok(None); }
+        Ok(operation.children.get(operation.queued).copied().map(|relation|
+            TypedWorkItem { task: operation.task, relation: Some(relation), replay_ack: Some(ReplayChildAck { operation: id, index: operation.queued }) }))
+    }
+    // Reserve the acknowledgement before running a child with side effects.
+    fn prepare_replay_ack(&mut self, id: ReplayOperationId, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&id).ok_or_else(exhausted)?;
+        if transactional {
+            self.replay_operation_undo.try_reserve(1).map_err(|_| exhausted())?;
+            self.replay_operation_undo.push(ReplayOperationUndo { id, queued: operation.queued, consumed: operation.consumed, retired: operation.retired });
+        }
+        Ok(())
+    }
+    pub(super) fn transfer_replay_child(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
+        if operation.retired || ack.index >= operation.children.len() || ack.index < operation.consumed || ack.index > operation.queued {
+            return Err(exhausted());
+        }
+        if ack.index == operation.queued {
+            self.prepare_replay_ack(ack.operation, transactional)?;
+            self.replay_operations.get_mut(&ack.operation).unwrap().queued += 1;
+        }
+        // An already queued item can enter a synchronous drain as its initial
+        // item without recording a second transfer.
+        Ok(())
+    }
+    fn acknowledge_replay(&mut self, id: ReplayOperationId, transactional: bool) {
+        let operation = self.replay_operations.get_mut(&id).expect("prepared replay acknowledgement");
+        if operation.consumed < operation.children.len() { operation.consumed += 1; }
+        if operation.consumed == operation.children.len() {
+            operation.retired = true;
+            if !transactional {
+                self.remove_replay_operation(id);
+            }
+        }
+    }
+    pub(super) fn prepare_replay_child_completion(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
+        if ack.index >= operation.queued || ack.index < operation.consumed { return Err(exhausted()); }
+        self.prepare_replay_ack(ack.operation, transactional)
+    }
+    pub(super) fn complete_replay_child(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
+        if operation.consumed != ack.index { return Err(exhausted()); }
+        self.acknowledge_replay(ack.operation, transactional);
+        Ok(())
+    }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            Some(self.replay_operation_bytes()?),
             Some(self.evidence.bytes()?),
             self.inferred_entries.capacity().checked_mul(std::mem::size_of::<InferredEntryOrigin>()),
             Some(self.bundle_bytes),
@@ -1558,6 +1799,9 @@ impl State {
     }
     #[cfg(test)]
     pub fn enumerated_bytes(&self) -> usize {
+        let replay_children = self.replay_operations.values().map(|operation|
+            operation.children.capacity() * std::mem::size_of::<RelationId>()).sum::<usize>();
+        assert_eq!(self.replay_child_bytes, replay_children);
         let adjacency_bytes = self
             .edges
             .values()
@@ -1565,6 +1809,11 @@ impl State {
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
         self.evidence.enumerated_bytes()
+            + self.replay_operations.capacity() * std::mem::size_of::<(ReplayOperationId, ReplayOperation)>()
+            + self.replay_operation_undo.capacity() * std::mem::size_of::<ReplayOperationUndo>()
+            + self.restorations.capacity() * std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()
+            + self.restoration_undo.capacity() * std::mem::size_of::<BoundRestorationUndo>()
+            + replay_children
             + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
             + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
@@ -2340,6 +2589,7 @@ impl InferenceSession {
         state.attach(bound, child)?;
         Ok(child)
     }
+    #[cfg(test)]
     pub(super) fn candidate_context_replay<T>(
         &mut self,
         lower_input: BoundKey,
@@ -2349,6 +2599,7 @@ impl InferenceSession {
     ) -> Result<T, SolveAvailabilityError> {
         self.candidate_context_replay_impl(lower_input, upper_input, task, false, publish)
     }
+    #[cfg(test)]
     pub(super) fn candidate_context_restore_replay<T>(
         &mut self,
         lower_input: BoundKey,
@@ -2358,6 +2609,7 @@ impl InferenceSession {
     ) -> Result<T, SolveAvailabilityError> {
         self.candidate_context_replay_impl(lower_input, upper_input, task, true, publish)
     }
+    #[cfg(test)]
     fn candidate_context_replay_impl<T>(
         &mut self,
         lower_input: BoundKey,
@@ -2366,6 +2618,43 @@ impl InferenceSession {
         incoming_use: bool,
         publish: impl FnOnce(&mut Self, &[RelationId]) -> Result<T, SolveAvailabilityError>,
     ) -> Result<T, SolveAvailabilityError> {
+        let id = self.candidate_context_begin_replay(lower_input, upper_input, task, incoming_use)?;
+        // Compatibility harness only: production consumes the owned batch by
+        // operation identity without lending a local vector to a closure.
+        let children = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations[&id].children;
+        let mut replay = Vec::new();
+        replay.try_reserve(children.len()).map_err(|_| exhausted())?;
+        replay.extend_from_slice(children);
+        let mut charge = 0;
+        self.candidate_scratch_growth(&mut charge, replay.capacity().checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?)?;
+        let result = publish(self, &replay);
+        drop(replay);
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        if result.is_ok() {
+            loop {
+                let pending = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operation_next(id)?.is_some();
+                let transactional = self.route_journal.is_some();
+                let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                state.prepare_replay_ack(id, transactional)?;
+                if pending { state.replay_operations.get_mut(&id).unwrap().queued += 1; }
+                state.acknowledge_replay(id, transactional);
+                if !pending || state.replay_operations.get(&id).is_none_or(|operation| operation.retired) { break; }
+            }
+        }
+        result
+    }
+    pub(super) fn candidate_context_begin_replay(
+        &mut self,
+        lower_input: BoundKey,
+        upper_input: BoundKey,
+        task: LiveConstraintTask,
+        incoming_use: bool,
+    ) -> Result<ReplayOperationId, SolveAvailabilityError> {
+        {
+            let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            state.next_replay_operation.checked_add(1).ok_or_else(exhausted)?;
+            state.replay_operations.try_reserve(1).map_err(|_| exhausted())?;
+        }
         let pair = self.candidate_context_pair(task_pair(task));
         let mut replay = Vec::new();
         let mut charge = 0;
@@ -2376,7 +2665,6 @@ impl InferenceSession {
             // Every incoming scheme use owns diagnostic replay, even when
             // ordinary propagation already admitted these exact dependencies.
             let old = if incoming_use { (None, None) } else { recorded };
-            if !incoming_use && heads == old { return publish(self, &replay); }
             // Each newly retained fiber meets the opposite fibers once. Older
             // lower fibers meet only new uppers; the new/new quadrant is owned
             // by the first loop.
@@ -2395,6 +2683,10 @@ impl InferenceSession {
                         let Some(index) = upper_cursor else { break; };
                         let (upper, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
                         upper_cursor = next;
+                        let old_capacity = replay.capacity();
+                        replay.try_reserve(1).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge,
+                            (replay.capacity() - old_capacity).checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?)?;
                         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
                         let lower_context = state.relations[lower.0 as usize].key.context;
                         let upper_context = state.relations[upper.0 as usize].key.context;
@@ -2410,10 +2702,6 @@ impl InferenceSession {
                         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
                         if !incoming_use && state.dependency_keys.contains(&dependency) { continue; }
                         state.dependency(dependency)?;
-                        let old_capacity = replay.capacity();
-                        replay.try_reserve(1).map_err(|_| exhausted())?;
-                        self.candidate_scratch_growth(&mut charge,
-                            (replay.capacity() - old_capacity).checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?)?;
                         replay.push(child);
                     }
                 }
@@ -2421,12 +2709,56 @@ impl InferenceSession {
             if heads != recorded {
                 self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.replay_progress((lower_input, upper_input), heads)?;
             }
+            let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+            let child_bytes = state.replay_child_bytes.checked_add(charge).ok_or_else(exhausted)?;
+            let id = ReplayOperationId(state.next_replay_operation);
+            state.next_replay_operation += 1;
+            state.replay_operations.insert(id, ReplayOperation { task, inputs: (lower_input, upper_input), heads,
+                prior: old, incoming_use, children: std::mem::take(&mut replay), queued: 0, consumed: 0, retired: false, restoration: None });
+            state.replay_child_bytes = child_bytes;
+            // Ownership moved from generation scratch to retained operation storage.
+            self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+            charge = 0;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            publish(self, &replay)
+            Ok(id)
         })();
         drop(replay);
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
+    }
+    pub(super) fn candidate_context_consume_replay_child(
+        &mut self, id: ReplayOperationId,
+        provenance: Option<(&ConstraintOccurrenceId, &CauseId)>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let operation = state.replay_operations.get(&id).ok_or_else(exhausted)?;
+        if provenance.is_some() && operation.queued != operation.consumed { return Err(exhausted()); }
+        let item = state.replay_operation_queue_next(id)?;
+        let transactional = self.route_journal.is_some();
+        if item.is_none() && operation.consumed < operation.children.len() {
+            // Every child is queued, but its typed drain still owns completion.
+            return Ok(false);
+        }
+        if let Some(item) = item {
+            match provenance {
+                Some((occurrence, cause)) => { self.constrain_live_item(item, occurrence, cause)?; }
+                None => self.enqueue_item(item, false)?,
+            }
+        } else {
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_ack(id, transactional)?;
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.acknowledge_replay(id, transactional);
+        }
+        Ok(item.is_some())
+    }
+    pub(super) fn candidate_context_drive_replay(
+        &mut self, id: ReplayOperationId,
+        provenance: Option<(&ConstraintOccurrenceId, &CauseId)>,
+    ) -> Result<(), SolveAvailabilityError> {
+        loop {
+            let transferred = self.candidate_context_consume_replay_child(id, provenance)?;
+            if !transferred || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id).is_none_or(|operation| operation.retired) { break; }
+        }
+        Ok(())
     }
     pub(super) fn candidate_context_canonicalize_bounds(&mut self) -> Result<(), SolveAvailabilityError> {
         // Representative changes affect third-owner incidence as well as the

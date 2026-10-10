@@ -219,7 +219,7 @@ fn relation_completion_generation_rollback_and_supported_retry() {
         let relation = session.candidate_context_admit(task).unwrap().unwrap();
         session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
         let (occurrence, cause) = cause(&session);
-        session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, &occurrence, &cause).unwrap();
+        session.constrain_live_item(TypedWorkItem { task, relation: Some(relation), replay_ack: None }, &occurrence, &cause).unwrap();
         let before = session.candidate_graph.as_ref().unwrap().intrusion.completed.clone();
         let result: Result<(), SolveAvailabilityError> = session.with_route_transaction(|session| {
             let copy = extrude(session, parent, Polarity::Positive);

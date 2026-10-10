@@ -132,6 +132,9 @@ fn bytes<T>(capacity: usize) -> Result<usize, SolveAvailabilityError> {
         .ok_or_else(exhausted)
 }
 impl Checkpoint {
+    pub(super) fn context_checkpoint(&self) -> candidate_context::Checkpoint {
+        self.context
+    }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         bytes::<(BoundKey, TypedPairKey, bool)>(self.origins.capacity())?
             .checked_add(bytes::<(u32, Option<CaptureBucket>)>(self.capture_incidence.capacity())?)

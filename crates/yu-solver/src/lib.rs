@@ -3998,6 +3998,8 @@ struct TypedWorkItem {
     task: LiveConstraintTask,
     #[cfg(feature = "shadow-apply-candidate")]
     relation: Option<candidate_context::RelationId>,
+    #[cfg(feature = "shadow-apply-candidate")]
+    replay_ack: Option<candidate_context::ReplayChildAck>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -9165,7 +9167,12 @@ impl InferenceSession {
                     .take()
                     .expect("route transaction is active");
                 #[cfg(feature = "shadow-apply-candidate")]
-                { journal.intrusion = None; }
+                {
+                    if let (Some(state), Some(undo)) = (&mut self.candidate_graph, &journal.intrusion) {
+                        state.intrusion.effect_algebra.context.commit_replay_operations(undo.effect_algebra.context_checkpoint());
+                    }
+                    journal.intrusion = None;
+                }
                 self.store.commit_route();
                 self.route_journal_spare = Some(journal);
                 Ok(value)
@@ -11200,6 +11207,7 @@ impl InferenceSession {
                             self.effect_endpoint(return_negative, Polarity::Negative),
                         ),
                         relation: None,
+                        replay_ack: None,
                     },
                     &occurrence.id,
                     &occurrence.cause,
@@ -11793,6 +11801,8 @@ impl InferenceSession {
             task: initial,
             #[cfg(feature = "shadow-apply-candidate")]
             relation: None,
+            #[cfg(feature = "shadow-apply-candidate")]
+            replay_ack: None,
         }, occurrence, cause)
     }
 
@@ -11824,7 +11834,12 @@ impl InferenceSession {
         let previous_processing = self.candidate_processing(None);
         #[cfg(feature = "shadow-apply-candidate")]
         let previous_relation = self.candidate_graph.as_mut().and_then(|graph| graph.intrusion.effect_algebra.context.processing.take());
-        let result = (|| {
+        #[cfg(feature = "shadow-apply-candidate")]
+        let mut replay_acks = Vec::<candidate_context::ReplayChildAck>::new();
+        #[cfg(feature = "shadow-apply-candidate")]
+        let mut replay_ack_charge = 0;
+        #[allow(unused_mut, reason = "candidate replay completion can fail identity validation")]
+        let mut result = (|| {
         assert!(
             self.typed_worklist.is_empty(),
             "constrain begins with an empty worklist"
@@ -11840,11 +11855,26 @@ impl InferenceSession {
                 self.candidate_task_scope(initial);
                 self.settle_candidate_intrusion(match initial { LiveConstraintTask::Value(root) => Some(root), _ => None })?;
             }
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(ack) = self.typed_worklist.front().and_then(|item| item.replay_ack) {
+                // The queued item owns its acknowledgement until both the
+                // drain buffer and completion undo are reserved before pop.
+                let capacity = replay_acks.capacity();
+                replay_acks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                self.candidate_scratch_growth(&mut replay_ack_charge,
+                    (replay_acks.capacity() - capacity).checked_mul(std::mem::size_of::<candidate_context::ReplayChildAck>())
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                let transactional = self.route_journal.is_some();
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_child_completion(ack, transactional)?;
+                self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            }
             let Some(mut item) = self.typed_worklist.pop_front() else {
                 #[cfg(feature = "shadow-apply-candidate")]
                 if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.dirty) { continue; }
                 break;
             };
+            #[cfg(feature = "shadow-apply-candidate")]
+            if let Some(ack) = item.replay_ack.take() { replay_acks.push(ack); }
             #[cfg(not(feature = "shadow-apply-candidate"))]
             let _ = &mut item;
             #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -11892,7 +11922,7 @@ impl InferenceSession {
                         if canonical != key {
                             self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
                             self.record_diagnostic_edge(key, canonical, None)?;
-                            self.enqueue_item(TypedWorkItem { task: LiveConstraintTask::Value(canonical), relation: item.relation }, false)?;
+                            self.enqueue_item(TypedWorkItem { task: LiveConstraintTask::Value(canonical), relation: item.relation, replay_ack: None }, false)?;
                             continue;
                         }
                         // A previously extruded structural bound retains its transformed
@@ -12082,6 +12112,8 @@ impl InferenceSession {
                             task,
                             #[cfg(feature = "shadow-apply-candidate")]
                             relation,
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            replay_ack: None,
                         }, true)?;
                     }
                 }
@@ -12110,6 +12142,17 @@ impl InferenceSession {
         })();
         #[cfg(feature = "shadow-apply-candidate")]
         {
+            if result.is_ok() {
+                let transactional = self.route_journal.is_some();
+                for ack in &replay_acks {
+                    if let Err(error) = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.complete_replay_child(*ack, transactional) {
+                        result = Err(error);
+                        break;
+                    }
+                }
+            }
+            drop(replay_acks);
+            if let Some(graph) = &mut self.candidate_graph { graph.scratch_bytes -= replay_ack_charge; }
             self.candidate_processing(previous_processing);
             if let Some(graph) = &mut self.candidate_graph { graph.intrusion.effect_algebra.context.processing = previous_relation; }
         }
@@ -12121,6 +12164,8 @@ impl InferenceSession {
             task,
             #[cfg(feature = "shadow-apply-candidate")]
             relation: None,
+            #[cfg(feature = "shadow-apply-candidate")]
+            replay_ack: None,
         }, false)
     }
 
@@ -12133,6 +12178,13 @@ impl InferenceSession {
         let _ = &mut item;
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
+        #[cfg(feature = "shadow-apply-candidate")]
+        if let Some(ack) = item.replay_ack {
+            // Evidence, queue capacity, and undo storage precede transfer;
+            // only infallible queue insertion follows the cursor mutation.
+            let transactional = self.route_journal.is_some();
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.transfer_replay_child(ack, transactional)?;
+        }
         if front { self.typed_worklist.push_front(item); }
         else { self.typed_worklist.push_back(item); }
         #[cfg(all(test, feature = "f5c_resource_probe"))]

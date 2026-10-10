@@ -8649,3 +8649,13 @@ The exact remaining join is a source prefix with original-Y/old-lower
 identities, qualifying restored-fiber mutation and omega, followed by either
 an uncovered mutation or a universal coverage proof and terminal consumer
 closure. No candidate met source prerequisites for parsing or execution.
+
+The [transactional retained replay foundation](../notes/progress/2026-10-11-transactional-retained-replay-foundation.md)
+now preserves queued versus consumed child progress, bound-restoration
+continuations, and transactional retry at the private context layer. M3
+compiler/spec/performance reviews found no blocking issue; package check and
+focused implementation tests passed. This does not provide end-to-end source
+suspension. The user's requested q113 source-state decision remains active:
+construct the exact source-owned original-Y route and unrescued omega, or
+prove exhaustive source-level impossibility. The latest bounded search and
+route-local exclusions remain insufficient for either result.

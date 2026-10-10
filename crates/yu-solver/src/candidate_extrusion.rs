@@ -648,15 +648,55 @@ impl InferenceSession {
         cause: &CauseId,
         evidence: candidate_context::BoundAdmissionCause,
     ) -> Result<candidate_context::BoundEmissionId, SolveAvailabilityError> {
+        let restoration = self.candidate_begin_bound_restoration(owner, p, bound, occurrence, cause, evidence)?;
+        self.candidate_drive_bound_restoration(restoration)
+    }
+
+    pub(super) fn candidate_begin_bound_restoration(
+        &mut self,
+        owner: ExtrusionEndpoint,
+        p: Polarity,
+        bound: ExtrusionEndpoint,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+        evidence: candidate_context::BoundAdmissionCause,
+    ) -> Result<candidate_context::ReplayOperationId, SolveAvailabilityError> {
         assert!(
             self.typed_worklist.is_empty(),
             "scheme initialization owns an idle worklist"
         );
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.reserve_restoration()?;
         let emission = self.candidate_insert_bound_with_evidence(owner, p, bound, true, evidence)?;
         let owner = self.canonical_extrusion(owner);
         let bound = self.canonical_extrusion(bound);
         let count = self.candidate_opposite_count(owner, p)?;
-        for n in 0..count {
+        Ok(self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retain_restoration(
+            owner, p, bound, emission, count, occurrence.clone(), cause.clone()))
+    }
+
+    pub(super) fn candidate_drive_bound_restoration(
+        &mut self, restoration: candidate_context::ReplayOperationId,
+    ) -> Result<candidate_context::BoundEmissionId, SolveAvailabilityError> {
+        loop {
+            let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.restoration(restoration)?;
+            let (owner, p, bound, n, count, active, emission) = (operation.owner, operation.polarity, operation.bound,
+                operation.next_opposite, operation.opposite_count, operation.replay, operation.emission);
+            let (occurrence, cause) = (operation.occurrence.clone(), operation.cause.clone());
+            let transactional = self.route_journal.is_some();
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_restoration_update(restoration, transactional)?;
+            if n == count {
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retire_restoration(restoration, transactional);
+                return Ok(emission);
+            }
+            if let Some(replay) = active {
+                self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?;
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.advance_restoration(restoration);
+                continue;
+            }
+            // Re-read the live canonical owner at the saved index; earlier
+            // children may append bounds or redirect its representative.
+            let owner = self.canonical_extrusion(owner);
+            let bound = self.canonical_extrusion(bound);
             let other = self.canonical_extrusion(self.candidate_opposite_bound(owner, p, n));
             let (lower, upper) = if p == Polarity::Positive {
                 (bound, other)
@@ -676,14 +716,9 @@ impl InferenceSession {
             let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
             let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
             let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
-            self.candidate_context_restore_replay(lower_input, upper_input, task, |session, relations| {
-                for &relation in relations {
-                    session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, occurrence, cause)?;
-                }
-                Ok(())
-            })?;
+            let replay = self.candidate_context_begin_replay(lower_input, upper_input, task, true)?;
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.set_restoration_replay(restoration, replay);
         }
-        Ok(emission)
     }
 
     pub(super) fn candidate_replay_bound(
@@ -725,12 +760,8 @@ impl InferenceSession {
             let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
             let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
             let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
-            self.candidate_context_replay(lower_input, upper_input, task, |session, relations| {
-                for &relation in relations {
-                    session.enqueue_item(TypedWorkItem { task, relation: Some(relation) }, false)?;
-                }
-                Ok(())
-            })?;
+            let replay = self.candidate_context_begin_replay(lower_input, upper_input, task, false)?;
+            self.candidate_context_drive_replay(replay, None)?;
         }
         Ok(())
     }
