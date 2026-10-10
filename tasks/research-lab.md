@@ -377,3 +377,49 @@ assumed. Existing lifecycle, residual-key, filter orientation and complete
 source semantics obligations remain. No Cargo/Rust/harness was available, so
 new source acceptance and target-scheme compiler tests are unrun. No new
 question, production enabling, canonical DAG closure or `yulang3` cutover.
+
+### Complete mixed cycles and raw self normalization (2026-10-10)
+
+The newest user request required complete mixed Effect decision and correct
+contextual self omission. This completed wave used the actual four-slot limit,
+separate producer leases, and independent frozen-artifact reviews. The
+[integration record](../notes/progress/2026-10-10-complete-mixed-self-edge-results.md)
+contains the current claim status, exact reviewed/final hashes and verification
+envelopes. The six coherent research checkpoints were published as ready;
+shared records follow here. No worker performed Git operations or delegation.
+
+| Producer / reviewer | Artifact and result | Disposition |
+| --- | --- | --- |
+| `mixed_total_construct` / `mixed_limit_referee` | Unguarded two-ID shared-child PCP support reduction | Complete, `9610f0c3`; clean scoped proof review; not authentic source undecidability |
+| `self_edge_source` / `self_edge_referee` | Universal constant self-unit criterion and actual raw-phase/source-owner boundary | Complete, `4976fde9`; clean algebra/conditional source review |
+| `mixed_total_attack` / `mixed_finite_referee` | Nonpositive-displacement recursive mixed congruence and finite future observer | Complete, `98d21e1b`; clean mathematical review; no source-class invariant asserted |
+| `mixed_finite_implementation` / `mixed_finite_code_referee` | Immutable joint finite saturation and exact finite observer traces | Complete, `c2674ba5`; main 72 assertions/495 literal evaluations, independent 263 further assertions; clean code review |
+| `mixed_independent_bridge` / `mixed_source_rule_referee` | Authentic independent replay, atomic both, cancellation and residual interface | Complete, `de5c400d`; no blocking/major; one minor arithmetic description corrected by primary |
+| `self_normalizer_construct` / `raw_identity_factor_referee` | Exact raw identity-self factoring, lifecycle mutations and active-presence separation | Complete, `65557b27`; 4,534 assertions/99 finite fixture comparisons/4,032 separation pairs; no blocking/major; one minor complexity qualification corrected by primary |
+| Primary | Remote dependency checks, minor prose repairs, record synchronization and expected-head Git publication | Complete integration ownership; no pending worker or accepted semantic repair |
+
+The constructive self theorem is unconditional over the stated finite pure
+grammar: arbitrary raw and PUSH-bearing recursive values are permitted.
+An original identity self performs idempotent mix, so the transform retains
+zero/one mix at each nonunit incoming producer. It removes bare unit loops
+without solving other recursion or relying on normal stored facts. Future
+additions and supplied row quotients refactor the original snapshot; fresh
+injective naming and immutable-pair recovery preserve the reference contract.
+Actual source filter registrations and lower-self events are retained duties.
+
+The positive finite observer proof derives n<=N and a true congruence on
+(min(p-n,K),n,min(r,K)), for its nonpositive-displacement supplier class.
+Future fixed mixed observers compute K from their actual syntax and requested
+thresholds; exact original grammar remains available. This is no permanent
+support key, semantic count cap, second production solver or new source rule.
+
+The unrestricted shared grammar has a genuine unguarded undecidability theorem,
+but ordinary source replay is independent. The remaining single mathematical
+bottleneck is exact positive-displacement mixed recursion with that independent
+binary interface and atomic both, including maximal internal cancellation.
+No source reduction to the finite class or shared PCP grammar is assumed.
+Full source-generated decision, residual endpoint creation, authentic
+attachment/filter production, compiler lifecycle, full Call/hygiene,
+principality and the requested callback test remain open. No Cargo/Rust/source
+execution, production change, new question, canonical CLOSED promotion or
+`yulang3` cutover was performed in this wave.
