@@ -436,7 +436,10 @@ impl InferenceSession {
         from: BoundKey,
         to: BoundKey,
     ) -> Result<(), SolveAvailabilityError> {
-        if let Some(parent) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound(from) {
+        let mut cursor = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_cursor(from);
+        while let Some(index) = cursor {
+            let (parent, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
+            cursor = next;
             self.candidate_context_transport(parent, to, 0)?;
         }
         let count = self

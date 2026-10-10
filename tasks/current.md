@@ -7794,3 +7794,41 @@ lineage, two-cycle invalidation, full effect hygiene, complete Call,
 public/default inference, soundness/principality and F5 retirement remain open.
 Continue through the same Simple-sub relation authority; do not infer any
 callback result scheme from the user-retracted example.
+
+### Contextual bound fibers and replay scheduling (2026-10-10)
+
+The private contextual store now retains multiple exact relation fibers per
+bound and captures/transports all fibers. Opposite replay keeps ordered lower
+and upper parents, schedules the corresponding context relation, and advances
+incrementally for ordinary propagation. Scheme restoration deliberately
+replays the complete applicable fiber product for each incoming use so errors
+retain that use's occurrence and cause. Temporary replay output is charged
+through publication and rollback. SCC representative changes migrate
+third-owner incoming fibers to canonical keys, and later restoration through a
+stale copy canonicalizes both sides before replay.
+
+The initial independent review found an incoming-fiber loss and replay scratch
+and duplicate-work issues. One batched repair closed them; a fresh delta exposed
+stale-key restoration and per-use diagnostic loss, also repaired. Fresh
+compiler-referee, spec-auditor and performance-auditor reviews then passed.
+Focused checks passed:
+
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_context::tests --offline --jobs=1 -- --test-threads=1` (22).
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_effect::tests --offline --jobs=1 -- --test-threads=1` (27).
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-apply-candidate --lib candidate_intrusion::tests --offline --jobs=1 -- --test-threads=1` (5).
+- `git diff --check` passed.
+
+No benchmark or broad suite ran.
+
+This is a partial gate checkpoint. General operation evaluation, source
+operation payloads, operation-payload freshening, certified-cycle invalidation,
+arbitrary formal-row admission, complete Call, full effect hygiene,
+soundness/principality and production/F5 cutover remain open. The ordinary-HIR
+carrier answer bundle remains rejected for exact-content mismatch in its
+uncommitted receipt; its implementation remains independently gated.
+
+Next: add source-owned operation payload construction and execute the approved
+directed transforms through relations, bounds, extrusion, capture/freshening
+and intrusion. Then complete the exact two-cycle certificate invalidation and
+rollback/retry gate before admitting those recursive contexts. Keep ordinary
+HIR approval and public/default/F5 migration as separate gates.

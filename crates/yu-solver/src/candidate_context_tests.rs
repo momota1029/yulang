@@ -701,3 +701,303 @@ fn pre_registered_filter_replays_current_conflict_at_new_relation_and_rolls_back
     assert_eq!(session.errors.len(), prior_errors + 1, "the new relation replays the current conflict");
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
 }
+
+#[test]
+fn exact_bound_fibers_rollback_and_retry_account_retained_capacity() {
+    let mut context = State::default();
+    let key = BoundKey(value(0), Polarity::Positive, value(1));
+    let first = context.relation(bound_pair(key), IDENTITY).unwrap();
+    context.attach(key, first).unwrap();
+    let checkpoint = context.checkpoint();
+    let bytes = context.bytes().unwrap();
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let second = context.relation(bound_pair(key), operation).unwrap();
+    context.attach(key, second).unwrap();
+    context.attach(key, second).unwrap();
+    assert_eq!(context.bound_relations(key).collect::<Vec<_>>(), vec![second, first]);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    context.rollback(checkpoint);
+    assert_eq!(context.checkpoint(), checkpoint);
+    assert_eq!(context.bound_relations(key).collect::<Vec<_>>(), vec![first]);
+    assert!(context.bytes().unwrap() >= bytes);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let second = context.relation(bound_pair(key), operation).unwrap();
+    context.attach(key, second).unwrap();
+    assert_eq!(context.bound_relations(key).count(), 2);
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn replay_retains_order_shared_context_and_explicit_queue_identity() {
+    for reverse in [false, true] {
+        let mut session = session();
+        let owner = session.fresh_value_at_level(1).unwrap();
+        let lower = session.fresh_value_at_level(1).unwrap();
+        let upper = session.fresh_value_at_level(1).unwrap();
+        let lower_input = BoundKey(value(owner), Polarity::Positive, value(lower));
+        let upper_input = BoundKey(value(owner), Polarity::Negative, value(upper));
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let shared = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+        let lower_relation = context.relation(bound_pair(lower_input), shared).unwrap();
+        let upper_relation = context.relation(bound_pair(upper_input), shared).unwrap();
+        let entries = if reverse { [(upper_input, upper_relation), (lower_input, lower_relation)] }
+            else { [(lower_input, lower_relation), (upper_input, upper_relation)] };
+        for (key, relation) in entries { context.attach(key, relation).unwrap(); }
+        let replay_task = task(lower, upper);
+        session.candidate_context_replay(lower_input, upper_input, replay_task, |session, replay| {
+        assert_eq!(replay.len(), 1);
+        let context = state(session);
+        let child = replay[0];
+        let retained = context.relations[child.0 as usize].key.context;
+        assert_eq!(context.contexts[retained.0 as usize - 1], ContextExpr::Replay { lower: shared, upper: shared });
+        assert!(context.dependency_keys.contains(&Dependency::Replay {
+            child, lower: lower_relation, upper: upper_relation, lower_input, upper_input,
+        }));
+        session.enqueue_item(TypedWorkItem { task: replay_task, relation: Some(child) }, false).unwrap();
+        assert_eq!(session.typed_worklist.pop_front(), Some(TypedWorkItem { task: replay_task, relation: Some(child) }));
+        // Carrier construction does not admit the later operation evaluator.
+        assert_eq!(session.candidate_context_execute(replay_task, Some(child)), Err(exhausted()));
+        assert_eq!(state(session).bytes().unwrap(), state(session).enumerated_bytes());
+        Ok(())
+        }).unwrap();
+    }
+}
+
+#[test]
+fn capture_and_transport_preserve_every_exact_bound_fiber_without_upstream_edges() {
+    let mut session = session();
+    let row = session.fresh_value_at_level(2).unwrap();
+    let copy = session.fresh_value_at_level(2).unwrap();
+    let lower = ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive);
+    let key = BoundKey(value(row), Polarity::Positive, lower);
+    let (occurrence, cause) = cause(&session, 0);
+    session.candidate_restore_bound(value(row), Polarity::Positive, lower, &occurrence, &cause).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let identity = context.bound(key).unwrap();
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let second = context.relation(bound_pair(key), operation).unwrap();
+    context.attach(key, second).unwrap();
+    let graph = session.capture_candidate_graph(row, 0).unwrap();
+    for parent in [identity, second] {
+        assert!(graph.bounds.iter().any(|bound| bound.relation == Some(parent)));
+    }
+    let copied = BoundKey(value(copy), Polarity::Positive, lower);
+    for parent in [identity, second] {
+        session.candidate_context_transport(parent, copied, 1).unwrap();
+    }
+    let context = state(&session);
+    assert_eq!(context.bound_relations(copied).count(), 2);
+    for parent in [identity, second] {
+        assert!(context.dependencies.iter().any(|dependency| matches!(dependency,
+            Dependency::Transport { parent: retained, .. } if *retained == parent)));
+        assert!(!context.children(bound_pair(key)).any(|pair| pair == bound_pair(copied)),
+            "transport does not replay fresh-use conflicts upstream");
+    }
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn opposite_replay_schedules_the_cartesian_product_of_exact_bound_contexts() {
+    let mut session = session();
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let lower = session.fresh_value_at_level(1).unwrap();
+    let upper = session.fresh_value_at_level(1).unwrap();
+    let lower_input = BoundKey(value(owner), Polarity::Positive, value(lower));
+    let upper_input = BoundKey(value(owner), Polarity::Negative, value(upper));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    for key in [lower_input, upper_input] {
+        for input in [IDENTITY, operation] {
+            let relation = context.relation(bound_pair(key), input).unwrap();
+            context.attach(key, relation).unwrap();
+        }
+    }
+    session.candidate_context_replay(lower_input, upper_input, task(lower, upper), |session, replay| {
+    assert_eq!(replay.len(), 4);
+    assert_eq!(replay.iter().copied().collect::<HashSet<_>>().len(), 4);
+    let context = state(session);
+    assert_eq!(context.dependencies.iter().filter(|dependency| matches!(dependency,
+        Dependency::Replay { lower_input: l, upper_input: u, .. } if *l == lower_input && *u == upper_input)).count(), 4);
+    assert!(replay.iter().any(|id| context.relations[id.0 as usize].key.context == IDENTITY));
+    assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    Ok(())
+    }).unwrap();
+}
+
+#[test]
+fn third_owner_incoming_bound_survives_parent_copy_intrusion_and_rollback_retry() {
+    for effect in [false, true] {
+      for restore_after_merge in [false, true] {
+        let mut session = session();
+        let (occurrence, cause) = cause(&session, 0);
+        let (parent, owner, terminal, contribution) = if effect {
+            let parent = ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap()));
+            let owner = ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(3).unwrap()));
+            let declaration = session.batch.hir.source_effect_declarations()[0].id.clone();
+            let binding = session.batch.hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding.definition_root().clone()), _ => None,
+            }).unwrap();
+            let allowance = session.candidate_effect_view(binding, declaration.declaration.clone(), Vec::new(), None).unwrap();
+            let contribution = session.candidate_effect_contribution(declaration.clone(), declaration.declaration).unwrap();
+            (parent, owner, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(allowance)), ExtrusionEndpoint::Effect(contribution))
+        } else {
+            (value(session.fresh_value_at_level(2).unwrap()), value(session.fresh_value_at_level(3).unwrap()),
+                ExtrusionEndpoint::Value(ValueEndpointKey::UnitNegative), ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive))
+        };
+        session.candidate_restore_bound(parent, Polarity::Negative, terminal, &occurrence, &cause).unwrap();
+        let copy = session.candidate_extrude(parent, Polarity::Positive, 0).unwrap();
+        if !restore_after_merge {
+            session.candidate_restore_bound(owner, Polarity::Negative, copy, &occurrence, &cause).unwrap();
+        }
+        let original_key = BoundKey(owner, Polarity::Negative, copy);
+        let original = state(&session).bound(original_key);
+        let before = state(&session).checkpoint();
+        let errors = session.errors.len();
+        let run = |session: &mut InferenceSession| {
+            session.candidate_restore_bound(copy, Polarity::Negative, parent, &occurrence, &cause)?;
+            let self_task = match copy {
+                ExtrusionEndpoint::Value(row) => LiveConstraintTask::Value(CanonicalValuePairKey { lower: row, upper: row }),
+                ExtrusionEndpoint::Effect(row) => LiveConstraintTask::Effect(row, row),
+            };
+            session.constrain_live(self_task, &occurrence, &cause)?;
+            assert_eq!(session.canonical_extrusion(copy), parent);
+            let canonical_key = BoundKey(owner, Polarity::Negative, parent);
+            if !restore_after_merge { assert!(state(session).bound(canonical_key).is_some()); }
+            assert_eq!(state(session).bound(original_key), original);
+            let task = match (contribution, owner) {
+                (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) => LiveConstraintTask::Value(CanonicalValuePairKey { lower, upper }),
+                (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)) => LiveConstraintTask::Effect(lower, upper),
+                _ => unreachable!(),
+            };
+            if restore_after_merge {
+                session.candidate_restore_bound(owner, Polarity::Positive, contribution, &occurrence, &cause)?;
+                session.candidate_restore_bound(owner, Polarity::Negative, copy, &occurrence, &cause)?;
+                assert!(state(session).bound(canonical_key).is_some());
+            } else {
+                session.constrain_live(task, &occurrence, &cause)?;
+            }
+            assert!(session.errors.len() > errors, "third-owner lower reaches the retained terminal conflict");
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+            Ok::<_, SolveAvailabilityError>(())
+        };
+        assert_eq!(session.with_route_transaction(|session| { run(session)?; Err::<(), _>(exhausted()) }), Err(exhausted()));
+        assert_eq!(state(&session).checkpoint(), before);
+        assert_eq!(session.errors.len(), errors);
+        assert_eq!(session.canonical_extrusion(copy), copy);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        session.with_route_transaction(run).unwrap();
+      }
+    }
+}
+
+#[test]
+fn replay_frontier_schedules_only_new_pairs_and_charges_live_output_through_failure() {
+    let mut session = session();
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let lower = session.fresh_value_at_level(1).unwrap();
+    let upper = session.fresh_value_at_level(1).unwrap();
+    let lower_input = BoundKey(value(owner), Polarity::Positive, value(lower));
+    let upper_input = BoundKey(value(owner), Polarity::Negative, value(upper));
+    let replay_task = task(lower, upper);
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    for key in [lower_input, upper_input] {
+        let relation = context.relation(bound_pair(key), IDENTITY).unwrap();
+        context.attach(key, relation).unwrap();
+    }
+    let before = state(&session).checkpoint();
+    let execute = |session: &mut InferenceSession| {
+        session.candidate_context_replay(lower_input, upper_input, replay_task, |session, replay| {
+            assert_eq!(replay.len(), 1);
+            assert!(session.candidate_graph.as_ref().unwrap().scratch_bytes >= std::mem::size_of::<RelationId>());
+            session.enqueue_item(TypedWorkItem { task: replay_task, relation: Some(replay[0]) }, false)?;
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            assert!(!session.typed_worklist.is_empty());
+            session.typed_worklist.pop_front();
+            Err::<(), _>(exhausted())
+        })
+    };
+    assert_eq!(session.with_route_transaction(execute), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before);
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert_eq!(replay.len(), 1); Ok(())
+    }).unwrap();
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert!(replay.is_empty()); Ok(())
+    }).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let operation = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let relation = context.relation(bound_pair(lower_input), operation).unwrap();
+    context.attach(lower_input, relation).unwrap();
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert_eq!(replay.len(), 1); Ok(())
+    }).unwrap();
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert!(replay.is_empty()); Ok(())
+    }).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    let relation = context.relation(bound_pair(upper_input), operation).unwrap();
+    context.attach(upper_input, relation).unwrap();
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert_eq!(replay.len(), 2); Ok(())
+    }).unwrap();
+    session.candidate_context_replay(lower_input, upper_input, replay_task, |_, replay| {
+        assert!(replay.is_empty()); Ok(())
+    }).unwrap();
+    let before_use = state(&session).checkpoint();
+    assert_eq!(session.with_route_transaction(|session| {
+        session.candidate_context_restore_replay(lower_input, upper_input, replay_task, |session, replay| {
+            assert_eq!(replay.len(), 4);
+            assert!(session.candidate_graph.as_ref().unwrap().scratch_bytes >= replay.len() * std::mem::size_of::<RelationId>());
+            session.enqueue_item(TypedWorkItem { task: replay_task, relation: Some(replay[0]) }, false)?;
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            session.typed_worklist.pop_front();
+            Err::<(), _>(exhausted())
+        })
+    }), Err(exhausted()));
+    assert_eq!(state(&session).checkpoint(), before_use);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+    assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+}
+
+#[test]
+fn repeated_bound_restoration_replays_diagnostics_with_each_use_cause_and_rolls_back() {
+    for effect in [false, true] {
+        let mut session = session();
+        let (first_occurrence, first_cause) = cause(&session, 0);
+        let (second_occurrence, second_cause) = cause(&session, 1);
+        let (owner, lower, upper) = if effect {
+            let owner = ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(1).unwrap()));
+            let declaration = session.batch.hir.source_effect_declarations()[0].id.clone();
+            let binding = session.batch.hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding.definition_root().clone()), _ => None,
+            }).unwrap();
+            let view = session.candidate_effect_view(binding, declaration.declaration.clone(), Vec::new(), None).unwrap();
+            let lower = session.candidate_effect_contribution(declaration.clone(), declaration.declaration).unwrap();
+            (owner, ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view)))
+        } else {
+            (value(session.fresh_value_at_level(1).unwrap()), ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive),
+                ExtrusionEndpoint::Value(ValueEndpointKey::UnitNegative))
+        };
+        session.candidate_restore_bound(owner, Polarity::Positive, lower, &first_occurrence, &first_cause).unwrap();
+        session.candidate_restore_bound(owner, Polarity::Negative, upper, &first_occurrence, &first_cause).unwrap();
+        assert!(session.errors.iter().any(|error| error.cause == first_cause));
+        let before = state(&session).checkpoint();
+        let dependencies = state(&session).dependencies.len();
+        let errors = session.errors.len();
+        let replay = |session: &mut InferenceSession| {
+            session.candidate_restore_bound(owner, Polarity::Negative, upper, &second_occurrence, &second_cause)?;
+            assert_eq!(state(session).dependencies.len(), dependencies, "per-use replay does not duplicate persistent certificates");
+            assert!(session.errors.len() > errors);
+            assert!(session.errors[errors..].iter().all(|error| error.occurrence == second_occurrence && error.cause == second_cause));
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+            Ok::<_, SolveAvailabilityError>(())
+        };
+        assert_eq!(session.with_route_transaction(|session| { replay(session)?; Err::<(), _>(exhausted()) }), Err(exhausted()));
+        assert_eq!(state(&session).checkpoint(), before);
+        assert_eq!(session.errors.len(), errors);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        session.with_route_transaction(replay).unwrap();
+    }
+}

@@ -607,9 +607,11 @@ impl InferenceSession {
             "scheme initialization owns an idle worklist"
         );
         self.candidate_insert_bound(owner, p, bound)?;
+        let owner = self.canonical_extrusion(owner);
+        let bound = self.canonical_extrusion(bound);
         let count = self.candidate_opposite_count(owner, p)?;
         for n in 0..count {
-            let other = self.candidate_opposite_bound(owner, p, n);
+            let other = self.canonical_extrusion(self.candidate_opposite_bound(owner, p, n));
             let (lower, upper) = if p == Polarity::Positive {
                 (bound, other)
             } else {
@@ -628,8 +630,12 @@ impl InferenceSession {
             let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
             let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
             let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
-            self.candidate_context_replay(lower_input, upper_input, task)?;
-            self.constrain_live(task, occurrence, cause)?;
+            self.candidate_context_restore_replay(lower_input, upper_input, task, |session, relations| {
+                for &relation in relations {
+                    session.constrain_live_item(TypedWorkItem { task, relation: Some(relation) }, occurrence, cause)?;
+                }
+                Ok(())
+            })?;
         }
         Ok(())
     }
@@ -641,9 +647,11 @@ impl InferenceSession {
         bound: ExtrusionEndpoint,
         parent: Option<CanonicalValuePairKey>,
     ) -> Result<(), SolveAvailabilityError> {
+        let owner = self.canonical_extrusion(owner);
+        let bound = self.canonical_extrusion(bound);
         let count = self.candidate_opposite_count(owner, p)?;
         for n in 0..count {
-            let other = self.candidate_opposite_bound(owner, p, n);
+            let other = self.canonical_extrusion(self.candidate_opposite_bound(owner, p, n));
             let (lower, upper) = if p == Polarity::Positive {
                 (bound, other)
             } else {
@@ -671,8 +679,12 @@ impl InferenceSession {
             let inserted = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), p, bound);
             let existing = crate::candidate_effect::BoundKey(self.canonical_extrusion(owner), opposite, other);
             let (lower_input, upper_input) = if p == Polarity::Positive { (inserted, existing) } else { (existing, inserted) };
-            self.candidate_context_replay(lower_input, upper_input, task)?;
-            self.enqueue_task(task)?;
+            self.candidate_context_replay(lower_input, upper_input, task, |session, relations| {
+                for &relation in relations {
+                    session.enqueue_item(TypedWorkItem { task, relation: Some(relation) }, false)?;
+                }
+                Ok(())
+            })?;
         }
         Ok(())
     }

@@ -582,6 +582,7 @@ impl InferenceSession {
             self.value_metadata[to].non_generic = non_generic;
             self.candidate_graph.as_mut().unwrap().intrusion.values[from] = to as u32;
         }
+        self.candidate_context_canonicalize_bounds()?;
         self.candidate_graph.as_mut().unwrap().intrusion.generation = generation;
         self.candidate_graph.as_mut().unwrap().intrusion.dirty = true;
         if let Some(root) = root {

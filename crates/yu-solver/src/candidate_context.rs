@@ -103,8 +103,10 @@ pub(super) struct State {
     dependencies: Vec<Dependency>,
     dependency_keys: HashSet<Dependency>,
     origins: Vec<Origin>,
-    bounds: HashMap<BoundKey, RelationId>,
-    bound_keys: Vec<BoundKey>,
+    bounds: HashMap<BoundKey, usize>,
+    bound_keys: Vec<(BoundKey, RelationId, Option<usize>)>,
+    replay_heads: HashMap<(BoundKey, BoundKey), (Option<usize>, Option<usize>)>,
+    replay_log: Vec<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>,
     uses: usize,
     edges: HashMap<RelationId, Vec<RelationId>>,
     edge_keys: HashSet<(RelationId, RelationId)>,
@@ -122,6 +124,7 @@ pub(super) struct Checkpoint {
     origins: usize,
     bounds: usize,
     uses: usize,
+    replay_log: usize,
     edges: usize,
     processing: Option<RelationId>,
     discharges: usize,
@@ -138,12 +141,17 @@ impl State {
             origins: self.origins.len(),
             bounds: self.bound_keys.len(),
             uses: self.uses,
+            replay_log: self.replay_log.len(),
             edges: self.edge_log.len(),
             processing: self.processing,
             discharges: self.discharge_log.len(),
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for (key, previous) in self.replay_log.drain(checkpoint.replay_log..).rev() {
+            if let Some(previous) = previous { self.replay_heads.insert(key, previous); }
+            else { self.replay_heads.remove(&key); }
+        }
         for relation in self.discharge_log.drain(checkpoint.discharges..) {
             self.discharged.remove(&relation);
         }
@@ -161,8 +169,9 @@ impl State {
         for dependency in self.dependencies.drain(checkpoint.dependencies..) {
             self.dependency_keys.remove(&dependency);
         }
-        for bound in self.bound_keys.drain(checkpoint.bounds..) {
-            self.bounds.remove(&bound);
+        for (bound, _, previous) in self.bound_keys.drain(checkpoint.bounds..).rev() {
+            if let Some(previous) = previous { self.bounds.insert(bound, previous); }
+            else { self.bounds.remove(&bound); }
         }
         self.origins.truncate(checkpoint.origins);
         self.uses = checkpoint.uses;
@@ -179,6 +188,8 @@ impl State {
     }
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         let parts = [
+            self.replay_heads.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()),
+            self.replay_log.capacity().checked_mul(std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()),
             self.discharged.capacity().checked_mul(std::mem::size_of::<RelationId>()),
             self.discharge_log.capacity().checked_mul(std::mem::size_of::<RelationId>()),
             self.contexts
@@ -207,10 +218,10 @@ impl State {
                 .checked_mul(std::mem::size_of::<Origin>()),
             self.bounds
                 .capacity()
-                .checked_mul(std::mem::size_of::<(BoundKey, RelationId)>()),
+                .checked_mul(std::mem::size_of::<(BoundKey, usize)>()),
             self.bound_keys
                 .capacity()
-                .checked_mul(std::mem::size_of::<BoundKey>()),
+                .checked_mul(std::mem::size_of::<(BoundKey, RelationId, Option<usize>)>()),
         ];
         let owned = parts.into_iter().try_fold(0usize, |n, part| {
             n.checked_add(part.ok_or_else(exhausted)?)
@@ -248,7 +259,9 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        self.discharged.capacity() * std::mem::size_of::<RelationId>()
+        self.replay_heads.capacity() * std::mem::size_of::<((BoundKey, BoundKey), (Option<usize>, Option<usize>))>()
+            + self.replay_log.capacity() * std::mem::size_of::<((BoundKey, BoundKey), Option<(Option<usize>, Option<usize>)>)>()
+            + self.discharged.capacity() * std::mem::size_of::<RelationId>()
             + self.discharge_log.capacity() * std::mem::size_of::<RelationId>()
             + self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
             + self.context_keys.capacity() * std::mem::size_of::<(ContextExpr, ContextId)>()
@@ -258,8 +271,8 @@ impl State {
             + self.dependencies.capacity() * std::mem::size_of::<Dependency>()
             + self.dependency_keys.capacity() * std::mem::size_of::<Dependency>()
             + self.origins.capacity() * std::mem::size_of::<Origin>()
-            + self.bounds.capacity() * std::mem::size_of::<(BoundKey, RelationId)>()
-            + self.bound_keys.capacity() * std::mem::size_of::<BoundKey>()
+            + self.bounds.capacity() * std::mem::size_of::<(BoundKey, usize)>()
+            + self.bound_keys.capacity() * std::mem::size_of::<(BoundKey, RelationId, Option<usize>)>()
             + self.edges.capacity() * std::mem::size_of::<(RelationId, Vec<RelationId>)>()
             + self.edge_keys.capacity() * std::mem::size_of::<(RelationId, RelationId)>()
             + self.edge_log.capacity() * std::mem::size_of::<(RelationId, RelationId)>()
@@ -401,23 +414,53 @@ impl State {
         .flatten()
         .map(|id| self.relations[id.0 as usize].key.pair)
     }
+    #[cfg(test)]
     pub fn bound(&self, key: BoundKey) -> Option<RelationId> {
+        self.bound_relations(key).next()
+    }
+    pub fn bound_relations(&self, key: BoundKey) -> impl Iterator<Item = RelationId> + '_ {
+        std::iter::successors(self.bounds.get(&key).copied(), |&index| {
+            self.bound_keys[index].2
+        }).map(|index| self.bound_keys[index].1)
+    }
+    pub fn bound_cursor(&self, key: BoundKey) -> Option<usize> {
         self.bounds.get(&key).copied()
+    }
+    pub fn bound_entry(&self, index: usize) -> (RelationId, Option<usize>) {
+        let (_, relation, next) = self.bound_keys[index];
+        (relation, next)
+    }
+    fn replay_progress(&mut self, key: (BoundKey, BoundKey), heads: (Option<usize>, Option<usize>)) -> Result<(), SolveAvailabilityError> {
+        self.replay_heads.try_reserve(1).map_err(|_| exhausted())?;
+        self.replay_log.try_reserve(1).map_err(|_| exhausted())?;
+        let previous = self.replay_heads.insert(key, heads);
+        self.replay_log.push((key, previous));
+        Ok(())
     }
     fn attach(
         &mut self,
         key: BoundKey,
         relation: RelationId,
     ) -> Result<(), SolveAvailabilityError> {
-        if self.bounds.contains_key(&key) {
+        if self.bound_relations(key).any(|existing| existing == relation) {
             return Ok(());
         }
         self.bounds.try_reserve(1).map_err(|_| exhausted())?;
         self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
-        self.bounds.insert(key, relation);
-        self.bound_keys.push(key);
+        let previous = self.bounds.insert(key, self.bound_keys.len());
+        self.bound_keys.push((key, relation, previous));
         Ok(())
     }
+    fn post_check_context(&self, relation: RelationId) -> ContextId {
+        let context = self.relations[relation.0 as usize].key.context;
+        if context != IDENTITY && matches!(self.contexts[context.0 as usize - 1],
+            ContextExpr::ClosedAllowance { input: IDENTITY, .. }) {
+            // This executable filter is consumed at insertion; its bound and
+            // derivation retain the current/future obligations.
+            IDENTITY
+        } else { context }
+    }
+
 }
 pub(super) fn task_pair(task: LiveConstraintTask) -> TypedPairKey {
     match task {
@@ -554,6 +597,12 @@ impl InferenceSession {
                 ),
                 Some(task_pair(task)),
             )?;
+            self.candidate_replay_bound(
+                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+                Polarity::Negative,
+                ExtrusionEndpoint::Effect(upper),
+                None,
+            )?;
         } else {
             self.candidate_apply_effect(lower, upper)?;
         }
@@ -581,39 +630,117 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let child = state.relation(pair, IDENTITY)?;
         let parent = match retained_parent {
             Some(id) if state.relations[id.0 as usize].key.pair == origin => id,
             _ => state.relation(origin, origin_context)?,
         };
+        let child = state.relation(pair, state.post_check_context(parent))?;
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)
     }
-    pub(super) fn candidate_context_replay(
+    pub(super) fn candidate_context_replay<T>(
         &mut self,
         lower_input: BoundKey,
         upper_input: BoundKey,
         task: LiveConstraintTask,
-    ) -> Result<(), SolveAvailabilityError> {
+        publish: impl FnOnce(&mut Self, &[RelationId]) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        self.candidate_context_replay_impl(lower_input, upper_input, task, false, publish)
+    }
+    pub(super) fn candidate_context_restore_replay<T>(
+        &mut self,
+        lower_input: BoundKey,
+        upper_input: BoundKey,
+        task: LiveConstraintTask,
+        publish: impl FnOnce(&mut Self, &[RelationId]) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        self.candidate_context_replay_impl(lower_input, upper_input, task, true, publish)
+    }
+    fn candidate_context_replay_impl<T>(
+        &mut self,
+        lower_input: BoundKey,
+        upper_input: BoundKey,
+        task: LiveConstraintTask,
+        incoming_use: bool,
+        publish: impl FnOnce(&mut Self, &[RelationId]) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
         let pair = self.candidate_context_pair(task_pair(task));
-        let state = &mut self
-            .candidate_graph
-            .as_mut()
-            .unwrap()
-            .intrusion
-            .effect_algebra
-            .context;
-        let child = state.relation(pair, IDENTITY)?;
-        if let (Some(lower), Some(upper)) = (state.bound(lower_input), state.bound(upper_input)) {
-            state.dependency(Dependency::Replay {
-                child,
-                lower,
-                upper,
-                lower_input,
-                upper_input,
-            })?;
+        let mut replay = Vec::new();
+        let mut charge = 0;
+        let result = (|| {
+            let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+            let heads = (state.bound_cursor(lower_input), state.bound_cursor(upper_input));
+            let recorded = state.replay_heads.get(&(lower_input, upper_input)).copied().unwrap_or((None, None));
+            // Every incoming scheme use owns diagnostic replay, even when
+            // ordinary propagation already admitted these exact dependencies.
+            let old = if incoming_use { (None, None) } else { recorded };
+            if !incoming_use && heads == old { return publish(self, &replay); }
+            // Each newly retained fiber meets the opposite fibers once. Older
+            // lower fibers meet only new uppers; the new/new quadrant is owned
+            // by the first loop.
+            for (start, stop, upper_start, upper_stop) in [
+                (heads.0, old.0, heads.1, None),
+                (old.0, None, heads.1, old.1),
+            ] {
+                if upper_start == upper_stop { continue; }
+                let mut lower_cursor = start;
+                while lower_cursor != stop {
+                    let Some(index) = lower_cursor else { break; };
+                    let (lower, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
+                    lower_cursor = next;
+                    let mut upper_cursor = upper_start;
+                    while upper_cursor != upper_stop {
+                        let Some(index) = upper_cursor else { break; };
+                        let (upper, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
+                        upper_cursor = next;
+                        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                        let lower_context = state.relations[lower.0 as usize].key.context;
+                        let upper_context = state.relations[upper.0 as usize].key.context;
+                        // Empty-weight directed mix is identity; its ordered
+                        // derivation remains in the dependency certificate.
+                        let context = if lower_context == IDENTITY && upper_context == IDENTITY { IDENTITY }
+                            else { state.context(ContextExpr::Replay { lower: lower_context, upper: upper_context })? };
+                        let child = state.relation(pair, context)?;
+                        let dependency = Dependency::Replay { child, lower, upper, lower_input, upper_input };
+                        if !incoming_use && state.dependency_keys.contains(&dependency) { continue; }
+                        state.dependency(dependency)?;
+                        let old_capacity = replay.capacity();
+                        replay.try_reserve(1).map_err(|_| exhausted())?;
+                        self.candidate_scratch_growth(&mut charge,
+                            (replay.capacity() - old_capacity).checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?)?;
+                        replay.push(child);
+                    }
+                }
+            }
+            if heads != recorded {
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.replay_progress((lower_input, upper_input), heads)?;
+            }
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            publish(self, &replay)
+        })();
+        drop(replay);
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
+        result
+    }
+    pub(super) fn candidate_context_canonicalize_bounds(&mut self) -> Result<(), SolveAvailabilityError> {
+        // Representative changes affect third-owner incidence as well as the
+        // merged row's outgoing bounds. Preserve the original fiber/provenance
+        // and transport it to the canonical bound key before any replay.
+        let count = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_keys.len();
+        for index in 0..count {
+            let (from, parent, _) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_keys[index];
+            let to = BoundKey(self.canonical_extrusion(from.0), from.1, self.canonical_extrusion(from.2));
+            if to != from {
+                self.candidate_context_transport(parent, to, 0)?;
+                let pair = self.candidate_context_pair(bound_pair(to));
+                let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                let child = state.relation(pair, state.post_check_context(parent))?;
+                // Equality transport remains within this owner, unlike fresh
+                // scheme uses: conflicts must retain the original derivation.
+                state.dependency(Dependency::Derived { child, parent })?;
+            }
         }
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        Ok(())
     }
     pub(super) fn candidate_context_transport(
         &mut self,
@@ -629,7 +756,7 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let child = state.relation(pair, IDENTITY)?;
+        let child = state.relation(pair, state.post_check_context(parent))?;
         state.dependency(Dependency::Transport {
             child,
             parent,

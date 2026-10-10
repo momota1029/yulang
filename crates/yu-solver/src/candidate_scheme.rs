@@ -163,7 +163,7 @@ struct Capture<'a> {
     endpoints: HashMap<Endpoint, usize>,
     rows: HashMap<RowKey, usize>,
     pending: Vec<Endpoint>,
-    bound_keys: HashSet<(ComponentKind, Polarity, usize, usize)>,
+    bound_keys: HashSet<(ComponentKind, Polarity, usize, usize, Option<candidate_context::RelationId>)>,
     boundary: u32,
 }
 impl<'a> Capture<'a> {
@@ -407,14 +407,24 @@ impl<'a> Capture<'a> {
     ) -> Result<(), SolveAvailabilityError> {
         let endpoint = |endpoint| match endpoint { Endpoint::Value(v, _) => ExtrusionEndpoint::Value(v), Endpoint::Effect(e, _) => ExtrusionEndpoint::Effect(e) };
         let (owner, item) = if side == Polarity::Positive { (endpoint(upper), endpoint(lower)) } else { (endpoint(lower), endpoint(upper)) };
-        let relation = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound(candidate_effect::BoundKey(owner, side, item));
+        let context = &self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let mut cursor = context.bound_cursor(candidate_effect::BoundKey(owner, side, item));
+        let absent = cursor.is_none();
         let lower = self.intern(lower)?;
         let upper = self.intern(upper)?;
-        let key = (kind, side, lower, upper);
-        if self.bound_keys.contains(&key) { return Ok(()); }
-        self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
-        push(&mut self.graph.bounds, Bound { relation, kind, side, lower, upper })?;
-        self.bound_keys.insert(key);
+        let mut absent = absent;
+        while cursor.is_some() || absent {
+            let relation = if let Some(index) = cursor {
+                let (relation, next) = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
+                cursor = next;
+                Some(relation)
+            } else { absent = false; None };
+            let key = (kind, side, lower, upper, relation);
+            if self.bound_keys.contains(&key) { continue; }
+            self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
+            push(&mut self.graph.bounds, Bound { relation, kind, side, lower, upper })?;
+            self.bound_keys.insert(key);
+        }
         Ok(())
     }
     fn expand_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
@@ -576,7 +586,7 @@ impl InferenceSession {
             bytes::<(Endpoint, usize)>(capture.endpoints.capacity())?,
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
             bytes::<Endpoint>(capture.pending.capacity())?,
-            bytes::<(ComponentKind, Polarity, usize, usize)>(capture.bound_keys.capacity())?,
+            bytes::<(ComponentKind, Polarity, usize, usize, Option<candidate_context::RelationId>)>(capture.bound_keys.capacity())?,
         ])?;
         let graph_bytes = capture.graph.bytes()?;
         let Capture {
