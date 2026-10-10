@@ -7521,11 +7521,17 @@ The approved q1/a1 local-recursion decision now has a narrow authoritative
 record in [local self-recursive binding](../design/2026-10-10-local-self-recursive-binding.md).
 The single local binding must use one open monomorphic initializer root, then
 publish through ordinary sequential visibility; the proposed direct-link seam
-passed semantic and conformance review. HIR identity, source scheduling,
-solver lifecycle, and focused rollback/fresh-use regressions remain the next
-implementation gate. Local mutual groups and polymorphic recursion remain out
-of scope. Module-level recursive SCC coverage and independent work continue.
-Contextual residual identity is selected, but concrete negative formal rows
-remain gated on the source admission and full residual lifecycle obligations.
-Authentic operation execution/Force, complete Call, public/default cutover,
-soundness/principality and F5 replacement remain open.
+passed semantic and conformance review. The parameterized local-function slice
+is now implemented in HIR and the private candidate route: recursive
+occurrences, including nested-helper references, link to the same open root;
+ordinary installation and later capture/freshening remain in place. The
+conformance review's same-root test gap was repaired and delta-reviewed. Focused
+HIR, solver, rollback, capture, independent-use and module-recursion checks pass;
+the `yu-hir`/`yu-solver` all-target/all-feature check passes. See the
+[implementation checkpoint](../notes/progress/2026-10-10-local-self-recursive-binding-implementation.md).
+This does not change default/public inference or close broader recursion,
+soundness or principality. Local mutual groups and polymorphic recursion remain
+out of scope. Contextual residual identity is selected, but concrete negative
+formal rows remain gated on source admission and full residual lifecycle
+obligations. Authentic operation execution/Force, complete Call, effect hygiene,
+public/default cutover and F5 replacement remain open.

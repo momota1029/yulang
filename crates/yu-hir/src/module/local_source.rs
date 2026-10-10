@@ -325,6 +325,12 @@ pub(super) fn form(
                 let mut scope = LocalSourceScope::LocalInitializer(data.id.clone());
                 let mut index = data.initializer.clone();
                 let count = data.parameters.len();
+                let self_binding = (count != 0).then(|| (data.spelling.clone(), data.id.clone()));
+                // The temporary self identity belongs to the initializer scope;
+                // parameters may shadow it, and Publish restores then installs it.
+                if let Some((spelling, id)) = self_binding {
+                    builder.push_binding(spelling, LocalSourceResolution::Local(id))?;
+                }
                 push(&mut builder.work, Work::Publish(binding, guard))?;
                 for ordinal in 0..count {
                     let parameter = builder.bindings[binding as usize].parameters[ordinal].clone();

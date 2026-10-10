@@ -131,6 +131,7 @@ enum Work {
     Visit(usize, u32),
     Finish(usize, u32),
     Install(usize, usize, u32),
+    Initializer(usize, u32),
 }
 impl ConstraintBatch {
     pub(super) fn emit_candidate_source<'a>(
@@ -199,6 +200,10 @@ impl ConstraintBatch {
         }
         let mut actions = Vec::new();
         let mut work = Vec::new();
+        // Only currently forming function initializers use an open monomorphic
+        // root. Published locals continue through the ordinary scheme route.
+        let mut active_initializers = HashMap::new();
+        active_initializers.try_reserve(source.bindings().len()).map_err(|_| unavailable())?;
         push(&mut work, Work::Visit(source.body().ordinal() as usize, 1))?;
         while let Some(next) = work.pop() {
             match next {
@@ -237,16 +242,24 @@ impl ConstraintBatch {
                             push(&mut work, Work::Visit(final_expression.ordinal() as usize, level))?;
                             let child = level.checked_add(1).ok_or_else(unavailable)?;
                             for &binding in bindings.iter().rev() {
-                                let data = source.bindings().get(binding as usize).ok_or_else(invalid)?;
+                                source.bindings().get(binding as usize).ok_or_else(invalid)?;
                                 push(&mut work, Work::Install(binding as usize, index, level))?;
-                                push(&mut work, Work::Visit(data.initializer.ordinal() as usize, child))?;
+                                push(&mut work, Work::Initializer(binding as usize, child))?;
                             }
                         }
                         _ => {}
                     }
                 }
+                Work::Initializer(binding, level) => {
+                    let binding = &source.bindings()[binding];
+                    if !binding.parameters.is_empty() {
+                        active_initializers.insert(binding.id.clone(), endpoints[binding.initializer.ordinal() as usize]);
+                    }
+                    push(&mut work, Work::Visit(binding.initializer.ordinal() as usize, level))?;
+                }
                 Work::Install(binding, block, boundary) => {
                     let binding = &source.bindings()[binding];
+                    active_initializers.remove(&binding.id);
                     let init = positions[binding.initializer.ordinal() as usize];
                     let occurrence = &source.expressions()[binding.initializer.ordinal() as usize].occurrence;
                     // Initialization effects are one-shot computation, outside
@@ -318,7 +331,15 @@ impl ConstraintBatch {
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
                                 LocalSourceResolution::Parameter(_) => {}
-                                LocalSourceResolution::Local(local) => push(&mut actions, Action::Local { slot: *local_slots.get(local).ok_or_else(invalid)?, occurrence: occurrence.clone(), value: pos.value, level })?,
+                                LocalSourceResolution::Local(local) => {
+                                    if let Some(&endpoint) = active_initializers.get(local) {
+                                        push(&mut actions, Action::Link { occurrence: occurrence.clone(), endpoint, target: pos.value })?;
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                                    } else {
+                                        push(&mut actions, Action::Local { slot: *local_slots.get(local).ok_or_else(invalid)?, occurrence: occurrence.clone(), value: pos.value, level })?;
+                                    }
+                                }
                                 _ => return Err(invalid()),
                             }
                             continue;
@@ -488,5 +509,80 @@ impl InferenceSession {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod local_self_recursion_tests {
+    use super::*;
+
+    fn hir() -> Arc<yu_hir::HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(
+            "my outer = { my loop x = { my direct = loop x; my helper y = loop y; helper x }; loop }",
+        );
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "local-self-recursion-kernel", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap())
+    }
+
+    #[test]
+    fn nested_recursive_link_targets_the_outer_initializer_before_installation() {
+        let hir = hir();
+        let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let local = source.bindings().iter().find(|local| local.spelling.as_ref() == "loop").unwrap();
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let slot = batch.candidate_source.locals.iter().position(|id| id == &local.id).unwrap();
+        let actions = &batch.candidate_source.schedules[binding.definition_root()];
+        let (install, initializer) = actions.iter().enumerate().find_map(|(index, action)| match action {
+            Action::Install { slot: target, initializer, .. } if *target == slot => Some((index, initializer)),
+            _ => None,
+        }).unwrap();
+        let occurrences: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &local.id))
+            .map(|expression| &expression.occurrence).collect();
+        assert_eq!(occurrences.len(), 3);
+        let mut links = 0;
+        let mut fresh_uses = 0;
+        for occurrence in occurrences {
+            for (index, action) in actions.iter().enumerate() {
+                match action {
+                    Action::Link { occurrence: actual, endpoint, .. } if actual == occurrence => {
+                        assert!(index < install);
+                        assert!(matches!((endpoint, initializer),
+                            (CandidateEndpoint::Component(a), CandidateEndpoint::Component(b)) if a == b));
+                        links += 1;
+                    }
+                    Action::Local { occurrence: actual, slot: target, .. } if actual == occurrence => {
+                        assert_eq!(*target, slot);
+                        assert!(index > install);
+                        fresh_uses += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(links, 2, "direct and nested recursive occurrences both link to the installed initializer endpoint");
+        assert_eq!(fresh_uses, 1);
+    }
+
+    #[test]
+    fn failed_recursive_publication_drops_session_and_rebuilds_from_same_hir() {
+        let hir = hir();
+        let mut batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let actions = batch.candidate_source.schedules.values_mut().next().unwrap();
+        let position = actions.iter().rposition(|action| matches!(action, Action::Install { .. })).unwrap();
+        assert!(actions[..position].iter().any(|action| matches!(action, Action::Link { .. })));
+        assert!(actions[..position].iter().any(|action| matches!(action, Action::Candidate(_))));
+        let Action::Install { slot, .. } = &mut actions[position] else { unreachable!(); };
+        *slot = usize::MAX; // Exercise a failed destination after recursive intrinsic actions.
+        let session = InferenceSession::try_new_candidate(batch).unwrap();
+        assert!(matches!(session.run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
+        let candidate = crate::shadow_apply::CandidateInference::solve(hir).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
     }
 }

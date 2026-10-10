@@ -101,5 +101,27 @@ The user's q1/a1 answer selects this source behavior, and the proposed
 direct-link scheduling seam has passed independent semantic and conformance
 review. The source carrier's explicit lambda-valued zero-header-parameter
 forms were not part of the reviewed feasibility trace; this packet changes no
-admission behavior for them. Implementation and focused regressions remain
-open.
+admission behavior for them.
+
+## Implementation checkpoint (2026-10-10)
+
+The parameterized local function form now temporarily binds its own `HirLocalId`
+while forming the initializer. Candidate scheduling tracks active initializer
+roots and emits ordinary `Link` actions for recursive occurrences, including
+references from nested helper initializers. Installation remains after the
+initializer actions; later uses retain ordinary local capture and freshening.
+No source admission rule or public/default inference route changed.
+
+Focused HIR and solver tests cover lexical identity and shadowing, sequential
+visibility, direct and nested same-root recursive links, monomorphic
+recursive constraints, later independent uses, annotation/effect boundaries,
+and failed-session discard/reconstruction. Existing rollback, live captured
+lower-bound, independent local-use and module-recursion tests were also run.
+The implementation delta passed independent semantic and conformance review;
+the conformance review's same-root evidence gap was repaired and delta-reviewed.
+The all-target/all-feature check for `yu-hir` and `yu-solver` passed.
+
+This closes only the reviewed parameterized local self-recursion slice in the
+private candidate route. Zero-header lambda-valued initializers, local mutual
+recursion, complete Call, effect hygiene, soundness/principality, public/default
+migration and F5 replacement remain open.
