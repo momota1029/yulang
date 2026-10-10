@@ -196,9 +196,12 @@ for incoming uses (`candidate_context.rs:1938`).
 
 A failure witness must therefore name a callback mutation and an exact later
 comparison/fiber lost because of that mutation. Neither a vector-size change
-nor canonical-owner change alone proves loss: ordinary insertion calls
-`candidate_replay_bound` (`candidate_extrusion.rs:645`), and qualifying merging
-replays all parent positive lowers. Those may admit the missing comparison.
+nor canonical-owner change alone proves loss: ordinary admission through
+`candidate_apply_effect` invokes `candidate_replay_bound`
+(`candidate_extrusion.rs:726–751`), and qualifying merging replays all parent
+positive lowers. Direct physical insertion by `candidate_insert_bound` does not
+itself replay opposites. The applicable consumer may admit the missing
+comparison.
 
 Effect diagnostic replay starts at both original and current canonical initial
 pairs, traversing children for *all* retained relation contexts of a pair

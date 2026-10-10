@@ -236,10 +236,12 @@ A source witness must trace all of these before asserting loss.
 
 A successful owner merge enumerates every merged-owner lower against every
 current upper after transferring fibers and canonicalizing retained keys
-(`candidate_intrusion.rs:593–603`). Ordinary insertion also replays its
-opposites. Their contextual replay uses frontier/dependency suppression; a
-suppressed callback is not by itself evidence that its semantic obligation or
-incoming diagnostic was lost.
+(`candidate_intrusion.rs:593–603`). Ordinary admission through
+`candidate_apply_effect` replays opposites (`candidate_extrusion.rs:726–751`);
+direct physical insertion by `candidate_insert_bound` does not replay by
+itself. These consumer-specific contextual replays use frontier/dependency
+suppression; a suppressed callback is not by itself evidence that its semantic
+obligation or incoming diagnostic was lost.
 
 Value replay records a root-to-child diagnostic edge before contextual
 suppression (`candidate_extrusion.rs:666–675`). Effect reporting traverses the

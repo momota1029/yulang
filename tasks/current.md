@@ -8293,18 +8293,54 @@ authored schedule composes positive input bounds, positive extrusion to a lower
 annotated boundary, and later nongeneric capture/use on the same canonical
 owner. This is an exclusion over the inspected paths, not proof of impossibility.
 
-Next: trace one ordinary HIR action sequence that composes those three steps
-and record the exact occurrence, scopes, levels, parent/copy provenance,
-canonical positive owner, incoming negative Allowance and pre-restore snapshot.
-If the sequence exists, continue through the required within-loop owner/vector
-change, exact missed obligation, ordinary replay, and Value/Effect diagnostic
-rescue checks before calling it a witness. If it does not, identify the owning
-source constructor/consumer and keep the semantic gate open. In parallel, freeze
-and independently review a complete current-component generation contract
-covering every recognizer-input mutation, dependent reuse/publication, and
-transaction withdrawal/rollback; then implement the approved two-cycle gate
-with exact recognition, private deferral and rollback/retry evidence. Preserve
-the source-owned PUSH/POP construction and inverse-context consumer as
-prerequisites for concrete contravariant effect admission, and keep
-negative-concrete admission disabled until the full approved lifecycle bridge
-is reviewed.
+### Successor source and lifecycle bridges (2026-10-10)
+
+The frozen [ordinary-HIR composition search](../notes/progress/2026-10-10-ordinary-hir-successor-composition-search.md)
+derives a level obstruction for a fresh incoming owner and its scoped tail
+copied together by positive extrusion. It does not establish a source witness
+or universal exclusion. The [prover-equivalent conditional bridge](../notes/progress/2026-10-10-positive-tail-source-composition-proof.md)
+shows that a qualifying owner-only parent/copy merge can leave the tail generic
+and restore an Allowance on the unchanged owner. The missing source premise is
+an actual HIR path `C -> ... -> S` that closes the owner pair without closing
+the tail pair. A later witness must also show a mutation inside the saved
+restore loop that omits a required fiber pair and survives ordinary replay and
+Value/Effect diagnostic rescue. The Allowance view ID remains stable through
+row canonicalization, so this seam does not establish the historical-key
+failure route. An independent compiler-referee review found no blocking or
+major issue and one minor imprecision: ordinary admission via
+`candidate_apply_effect` replays opposites, while direct physical insertion
+does not; both notes now state this distinction. No tests, builds or probes
+ran. The custom `prover` spawn was unavailable in this
+session; a generic prover-equivalent Sol/high-requested leaf ran with observed
+runtime settings unknown. The earlier actual prover run recorded above remains
+separate evidence.
+
+The frozen [finite-operation source bridge](../notes/progress/2026-10-10-finite-context-operation-source-bridge.md)
+traces the supported closed-filter path and the missing source-to-live
+operation owners. `SourceUnitPush` currently prepares only detached algebra;
+nonidentity Swap/nested-prefix/Both/Suffix contexts fail live validation;
+inferred-entry incidence has no authorization consumer; residual construction
+does not yet retain lineage and both feedback directions. Existing composed-
+negative concrete admission remains guarded at preflight and construction.
+This artifact is bounded source characterization, not proof of complete
+hygiene or authority to widen inputs.
+
+The [current-component lifecycle inventory](../notes/progress/2026-10-10-current-component-generation-bridge.md)
+has an independent spec-auditor review with no conformance findings. Every
+successful current `retained_input` is marked Incomplete and has no production
+caller. SCC equality generation is not a certificate mutation generation;
+dependent withdrawal, private deferral and publication rollback have no
+current owner. This is a reviewed source inventory only, not a certificate
+proof or implementation closure. Its checkpoint is `ad1d048e5`.
+
+Next: trace the exact source-owned `C -> ... -> S` construction while keeping
+the tail pair outside the SCC; any witness still needs the dynamic omitted
+fiber pair and failed ordinary/diagnostic rescue. Begin the approved private
+source-to-live context operation implementation, keeping negative concrete
+rows rejected, and review each coherent slice before integration. Separately,
+the current-component inventory has passed focused spec review; implementation
+must first give mutation, observation withdrawal, private deferral and member
+publication/rollback explicit owners. Do not start two-cycle publication or
+acceleration until those owners and exact recognition are implemented and
+checked. Full Oracle hygiene transfer, ordinary Simple-sub inference, general
+residuals, Call/Catch, soundness/principality and F5 cutover remain open.
