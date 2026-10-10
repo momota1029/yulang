@@ -29,8 +29,11 @@ runtime and aggregate compute/integration capacity.
 
 ## Executable configuration
 
-Add `.codex/agents/prover.toml` and `.codex/agents/task-decomposer.toml` using
-the existing standalone role-file format. The proof role deliberately omits
+Define each custom role in `.codex/config.toml` with an `agents.<name>.config_file`
+entry pointing to its standalone `.codex/agents/<name>.toml` file; a role file
+without this registration is not discoverable. Add `.codex/agents/prover.toml`
+and `.codex/agents/task-decomposer.toml` using the existing standalone role-file
+format. The proof role deliberately omits
 both `model` and `model_reasoning_effort`. Its ordinary defaults are exactly
 `gpt-6.1-sol` / `high` from `.codex/config.toml`; an eligible native spawn can
 therefore request `gpt-6-astra` / `low` without changing a role pin. Decomposition

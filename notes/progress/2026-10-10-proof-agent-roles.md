@@ -3,7 +3,7 @@
 Date: 2026-10-10
 Branch: `research/simple-sub-intrusion`
 Inspected remote baseline: `6bb5c314af7cb62da762a0198417629fb4273e17`
-Status: configuration/policy verified and independently reviewed; live runtime adoption unobserved
+Status: role policy independently reviewed; prover registration and a live custom-role launch verified; effective runtime model/effort unobserved
 
 ## Scope and authority
 
@@ -51,8 +51,15 @@ reviewer separately parsed the 12 TOML files. Subsequent changes only filled
 review/status records; no functional repair was required.
 
 Zero Cargo builds, benchmark processes or broad compiler tests ran: compiler
-behavior is unchanged. Static checks do not establish local Codex role discovery, live model routing,
-nested runtime capacity, or hot reload; those remain unobserved in this task.
+behavior is unchanged. The project config now registers `[agents.prover]`
+through `config_file = "agents/prover.toml"`; the standalone role file by
+itself was not enough for discovery. Codex CLI accepted the project config in
+strict mode and launched a real `prover` subagent for a bounded PUSH-count
+lemma. The requested role/model/effort were `prover` / `gpt-6.1-sol` / `high`;
+effective runtime model/effort metadata was not exposed. The derivation
+establishes only the stated arithmetic lemma, not source reachability or
+compiler execution. This observed launch does not establish nested runtime
+capacity or hot reload.
 
 Before publication, recheck the remote head and changed-path baselines, retain
 unrelated concurrent commits, and update only the intended branch by an

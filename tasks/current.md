@@ -26,6 +26,9 @@ Use the [Sol proof/task-decomposition roles](../notes/design/2026-10-10-proof-an
 under the [bounded delegation policy](../rules/agent-orchestration.md#proof-delegation-and-decomposition).
 `task_decomposer` proposes concrete dependency-aware packets when needed;
 `prover` owns constructive proofs, with complementary `researcher` methods.
+The custom `prover` role is registered through `.codex/config.toml` and was
+launched once for a bounded constructive lemma; effective runtime model/effort
+remains unobserved. Apply the `yulang-proofs` skill on future proof obligations.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native

@@ -94,6 +94,7 @@ subagent does not transfer those responsibilities.
 - Use `implementer` for confirmed code changes.
 - Use `task_decomposer` for a small set of dependency-aware, executable research packets when the critical path is unclear; the primary schedules them.
 - Use `prover` for constructive proofs and exact source-to-proof bridges on leased research paths, with bounded Sol parallelism or Astra escalation when justified.
+- For any constructive proof obligation or source-to-proof bridge, apply the `yulang-proofs` skill first; verify the custom role is registered in `.codex/config.toml` as well as defined in `.codex/agents/prover.toml` before dispatch.
 - Use `researcher` for complementary counterexample, executable-model, and source-correspondence work on leased research paths.
 - Use `theory_curator` for meaningful theory-status/dependency synchronization, not new proofs or per-probe bookkeeping.
 - Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.

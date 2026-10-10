@@ -9,3 +9,7 @@ max_concurrent_threads_per_session = 12
 default_subagent_model = "gpt-6.1-sol"
 default_subagent_reasoning_effort = "high"
 interrupt_message = true
+
+[agents.prover]
+config_file = "agents/prover.toml"
+description = "Construct bounded constructive proofs and exact source-to-proof bridges for Yulang."
