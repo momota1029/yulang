@@ -79,6 +79,7 @@ pub(super) enum Atom {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Bound {
     pub relation: Option<candidate_context::RelationId>,
+    pub source_bound: candidate_effect::BoundKey,
     pub kind: ComponentKind,
     pub side: Polarity,
     pub lower: usize,
@@ -428,7 +429,7 @@ impl<'a> Capture<'a> {
             let key = (kind, side, lower, upper, relation);
             if self.bound_keys.contains(&key) { continue; }
             self.bound_keys.try_reserve(1).map_err(|_| exhausted())?;
-            push(&mut self.graph.bounds, Bound { relation, kind, side, lower, upper })?;
+            push(&mut self.graph.bounds, Bound { relation, source_bound: candidate_effect::BoundKey(owner, side, item), kind, side, lower, upper })?;
             self.bound_keys.insert(key);
         }
         Ok(())
@@ -1021,7 +1022,7 @@ impl InferenceSession {
                 // when an older, nongeneric coordinate is shared.
                 let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
                 let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
-                    context_use, *context_remap.get(&root).ok_or_else(exhausted)?)?;
+                    context_use, *context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound)?;
                 if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
                     for &(_, old) in &graph.attachment_bundles[start..start + length] {
                         self.candidate_context_fresh_bundle(child, bundle_remap[&old])?;

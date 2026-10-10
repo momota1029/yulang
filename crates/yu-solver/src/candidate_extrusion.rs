@@ -302,7 +302,8 @@ impl InferenceSession {
                         let allowance = ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(mapped));
                         self.candidate_insert_bound(source, Polarity::Negative, allowance)?;
                         self.candidate_transfer_bound_origins(original,
-                            crate::candidate_effect::BoundKey(source, Polarity::Negative, allowance))?;
+                            crate::candidate_effect::BoundKey(source, Polarity::Negative, allowance),
+                            candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level })?;
                     }
                     Work::Bound(owner, p, key, source) => {
                         let copied = rows
@@ -318,6 +319,7 @@ impl InferenceSession {
                                 p,
                                 self.canonical_extrusion(copied),
                             ),
+                            candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level },
                         )?;
                     }
                     Work::Function(key @ Key(original, p, _), children, originals) => {

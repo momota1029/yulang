@@ -14,27 +14,27 @@ const IDENTITY: ContextId = ContextId(0);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct LocalWeightId(u32);
 #[derive(Debug)]
-struct LocalWeight {
-    left_word: [(); 0],
-    allowed: Vec<SourceEffectId>,
-    right_pops: [(); 0],
-    boundary: u32,
-    owner: DefinitionRootId,
-    position: SourceNodeKey,
-    attachment: Option<AttachmentSet>,
+pub(super) struct LocalWeight {
+    pub(super) left_word: [(); 0],
+    pub(super) allowed: Vec<SourceEffectId>,
+    pub(super) right_pops: [(); 0],
+    pub(super) boundary: u32,
+    pub(super) owner: DefinitionRootId,
+    pub(super) position: SourceNodeKey,
+    pub(super) attachment: Option<AttachmentSet>,
 }
 // The payload ID is the set identity; ordinals index its resolved allowed operands.
 #[derive(Debug)]
-struct AttachmentSet {
-    composed_polarity: Polarity,
-    lexical_scope: candidate_effect::AnnotationScope,
-    member_ordinals: Vec<usize>,
+pub(super) struct AttachmentSet {
+    pub(super) composed_polarity: Polarity,
+    pub(super) lexical_scope: candidate_effect::AnnotationScope,
+    pub(super) member_ordinals: Vec<usize>,
     // Dormant source preparation only. The owning weight already retains the
     // exact resolved members; live zero-word/filter execution never reads this.
-    unit_push: Option<SourceUnitPush>,
+    pub(super) unit_push: Option<SourceUnitPush>,
 }
 #[derive(Debug)]
-struct SourceUnitPush;
+pub(super) struct SourceUnitPush;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct AttachmentSource {
     pub composed_polarity: Polarity,
@@ -71,13 +71,13 @@ pub(super) struct InferredEntryOrigin {
     pub cause: CauseId,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct EntryCertificateId(u32);
+pub(super) struct EntryCertificateId(u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(
     not(test),
     allow(dead_code, reason = "context propagation is a later gate")
 )]
-enum ContextExpr {
+pub(super) enum ContextExpr {
     PrefixLeft {
         weight: LocalWeightId,
         input: ContextId,
@@ -102,24 +102,37 @@ enum ContextExpr {
     },
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct RelationKey {
-    pair: TypedPairKey,
-    context: ContextId,
+pub(super) struct RelationKey {
+    pub(super) pair: TypedPairKey,
+    pub(super) context: ContextId,
 }
 #[derive(Clone, Copy, Debug)]
-struct Relation {
-    key: RelationKey,
-    previous_on_pair: Option<RelationId>,
+pub(super) struct Relation {
+    pub(super) key: RelationKey,
+    pub(super) previous_on_pair: Option<RelationId>,
 }
 // Operation incidence is inert: child admission still reconstructs its own
 // executable context. In particular this never constructs a structural Swap(I).
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum FunctionPortOperation {
+pub(super) enum FunctionPortOperation {
     Swap,
     Preserve,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Dependency {
+pub(super) enum TransportReason {
+    Extrusion { operation: ExtrusionEndpoint, polarity: Polarity, target_level: u32 },
+    ParentCopy { parent_index: usize },
+    EqualityCanonicalization,
+    FreshUse,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct TransportWitness {
+    pub from: BoundKey,
+    pub to: BoundKey,
+    pub reason: TransportReason,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) enum Dependency {
     Derived {
         child: RelationId,
         parent: RelationId,
@@ -142,6 +155,7 @@ enum Dependency {
         child: RelationId,
         parent: RelationId,
         use_origin: usize,
+        witness: Option<TransportWitness>,
     },
 }
 #[derive(Debug)]
@@ -152,16 +166,16 @@ enum Dependency {
         reason = "source origin certificates are retained independently of semantic conflict traversal"
     )
 )]
-struct Origin {
-    relation: RelationId,
-    occurrence: ConstraintOccurrenceId,
-    inferred_entry: Option<InferredEntryOriginId>,
+pub(super) struct Origin {
+    pub(super) relation: RelationId,
+    pub(super) occurrence: ConstraintOccurrenceId,
+    pub(super) inferred_entry: Option<InferredEntryOriginId>,
 }
 #[derive(Clone, Copy, Debug)]
-struct BundleIncidence {
-    relation: RelationId,
-    bundle: AttachmentBundleId,
-    previous_on_relation: Option<usize>,
+pub(super) struct BundleIncidence {
+    pub(super) relation: RelationId,
+    pub(super) bundle: AttachmentBundleId,
+    pub(super) previous_on_relation: Option<usize>,
 }
 #[derive(Debug, Default)]
 struct BundleTransports {
@@ -241,6 +255,290 @@ pub(super) struct Checkpoint {
     edges: usize,
     processing: Option<RelationId>,
     discharges: usize,
+}
+
+/// Borrowed construction evidence. This never authorizes a context operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum InputGap {
+    MissingReference,
+    InconsistentReference,
+    MissingTransportWitness,
+    TransportAuthenticationUnavailable,
+    InertOperation,
+    FilterObligationsUnavailable,
+    ProducerReadinessUnavailable,
+    DependentObservationsUnavailable,
+}
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum InputCompleteness {
+    Incomplete(Vec<InputGap>),
+    #[allow(dead_code, reason = "Packet 1 has no producer readiness or observation witness") ]
+    Complete,
+}
+pub(super) struct RetainedInput<'a> {
+    pub roots: &'a [RelationId],
+    pub evidence: CircuitEvidence<'a>,
+    pub completeness: InputCompleteness,
+}
+pub(super) struct CircuitEvidence<'a> {
+    state: &'a State,
+    pub views: &'a [candidate_effect::View],
+    pub parents: &'a [candidate_intrusion::Parent],
+    relations: Vec<u8>,
+    contexts: Vec<u8>,
+    weights: Vec<u8>,
+    selected_views: Vec<u8>,
+}
+#[allow(dead_code, reason = "borrowed evidence accessors are consumed by Packet 2")]
+impl CircuitEvidence<'_> {
+    pub fn relations(&self) -> impl Iterator<Item = (RelationId, &Relation)> {
+        self.state.relations.iter().enumerate().filter(|(i, _)| self.relations[*i] != 0)
+            .map(|(i, r)| (RelationId(i as u32), r))
+    }
+    pub fn dependencies(&self) -> impl Iterator<Item = &Dependency> {
+        self.state.dependencies.iter().filter(|d| dependency_relations(**d).into_iter().flatten()
+            .any(|id| self.includes(id)))
+    }
+    pub fn origins(&self) -> impl Iterator<Item = &Origin> {
+        self.state.origins.iter().filter(|o| self.includes(o.relation))
+    }
+    pub fn inferred_entries(&self) -> impl Iterator<Item = &InferredEntryOrigin> {
+        self.state.inferred_entries.iter().filter(|e| self.origins().any(|o| o.inferred_entry == Some(e.id)))
+    }
+    pub fn bounds(&self) -> impl Iterator<Item = (BoundKey, RelationId)> + '_ {
+        self.state.bound_keys.iter().filter(|(_, r, _)| self.includes(*r)).map(|(k, r, _)| (*k, *r))
+    }
+    pub fn bundles(&self) -> impl Iterator<Item = (AttachmentBundleId, &AttachmentBundle)> {
+        self.state.bundles.iter().enumerate().filter(|(i, _)| self.bundle_incidences().any(|b| b.bundle.0 == *i))
+            .map(|(i, b)| (AttachmentBundleId(i), b))
+    }
+    pub fn bundle_incidences(&self) -> impl Iterator<Item = &BundleIncidence> {
+        self.state.bundle_incidence_log.iter().filter(|b| self.includes(b.relation))
+    }
+    pub fn contexts(&self) -> impl Iterator<Item = (ContextId, &ContextExpr)> {
+        self.state.contexts.iter().enumerate().filter(|(i, _)| self.contexts[*i] != 0)
+            .map(|(i, c)| (ContextId(i as u32 + 1), c))
+    }
+    pub fn weights(&self) -> impl Iterator<Item = (LocalWeightId, &LocalWeight)> {
+        self.state.weights.iter().enumerate().filter(|(i, _)| self.weights[*i] != 0)
+            .map(|(i, w)| (LocalWeightId(i as u32), w))
+    }
+    pub fn filter_views(&self) -> impl Iterator<Item = (u32, &candidate_effect::View)> {
+        self.views.iter().enumerate().filter(|(i, _)| self.selected_views[*i] != 0).map(|(i, v)| (i as u32, v))
+    }
+    pub fn includes(&self, id: RelationId) -> bool { self.relations.get(id.0 as usize) == Some(&1) }
+}
+impl RetainedInput<'_> {
+    /// Input-owned masks and gap storage; canonical retained payloads stay borrowed.
+    pub fn owned_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        let e = &self.evidence;
+        [e.relations.capacity(), e.contexts.capacity(), e.weights.capacity(), e.selected_views.capacity(),
+            match &self.completeness { InputCompleteness::Incomplete(gaps) => gaps.capacity().checked_mul(std::mem::size_of::<InputGap>()).ok_or_else(exhausted)?, InputCompleteness::Complete => 0 }]
+            .into_iter().try_fold(0usize, |n, part| n.checked_add(part).ok_or_else(exhausted))
+    }
+}
+fn dependency_relations(d: Dependency) -> [Option<RelationId>; 3] {
+    match d {
+        Dependency::Derived { parent, child } | Dependency::FunctionPort { parent, child, .. }
+        | Dependency::Transport { parent, child, .. } => [Some(parent), Some(child), None],
+        Dependency::Replay { lower, upper, child, .. } => [Some(lower), Some(upper), Some(child)],
+    }
+}
+fn input_mask(length: usize) -> Result<Vec<u8>, SolveAvailabilityError> {
+    let mut mask = Vec::new();
+    mask.try_reserve_exact(length).map_err(|_| exhausted())?;
+    mask.resize(length, 0);
+    Ok(mask)
+}
+fn select(mask: &mut [u8], index: usize, missing: &mut bool) -> bool {
+    match mask.get_mut(index) {
+        Some(slot) => { let changed = *slot == 0; *slot = 1; changed }
+        None => { *missing = true; false }
+    }
+}
+fn endpoint_view(endpoint: ExtrusionEndpoint) -> Option<usize> {
+    match endpoint {
+        ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(v) | EffectEndpointKey::Support(v) | EffectEndpointKey::AnnotationMember(v, _)) => Some(v as usize),
+        _ => None,
+    }
+}
+fn pair_endpoints(pair: TypedPairKey) -> [ExtrusionEndpoint; 2] {
+    match pair {
+        TypedPairKey::Value(pair) => [ExtrusionEndpoint::Value(pair.lower), ExtrusionEndpoint::Value(pair.upper)],
+        TypedPairKey::Effect { lower, upper } => [ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)],
+    }
+}
+fn row_endpoint(row: candidate_scheme::RowKey) -> ExtrusionEndpoint {
+    match row {
+        candidate_scheme::RowKey::Value(id) => ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(id)),
+        candidate_scheme::RowKey::Effect(id) => ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(id)),
+    }
+}
+fn select_endpoint(endpoint: ExtrusionEndpoint, selected: &mut [u8], views: &[candidate_effect::View],
+    missing: &mut bool, inconsistent: &mut bool,
+) -> bool {
+    let Some(view) = endpoint_view(endpoint) else { return false; };
+    if let ExtrusionEndpoint::Effect(EffectEndpointKey::AnnotationMember(_, ordinal)) = endpoint {
+        match views.get(view) {
+            Some(view) => *inconsistent |= ordinal as usize >= view.allowed.len(),
+            None => *missing = true,
+        }
+    }
+    select(selected, view, missing)
+}
+impl State {
+    #[cfg_attr(not(test), allow(dead_code, reason = "certificate input consumer is a later packet"))]
+    pub(super) fn retained_input<'a>(
+        &'a self, roots: &'a [RelationId], views: &'a [candidate_effect::View],
+        parents: &'a [candidate_intrusion::Parent],
+    ) -> Result<RetainedInput<'a>, SolveAvailabilityError> {
+        let mut evidence = CircuitEvidence { state: self, views, parents,
+            relations: input_mask(self.relations.len())?, contexts: input_mask(self.contexts.len())?,
+            weights: input_mask(self.weights.len())?, selected_views: input_mask(views.len())? };
+        let mut missing = false;
+        let mut inconsistent = false;
+        let mut missing_transport = false;
+        let mut inert = false;
+        let mut transport_authentication = false;
+        for root in roots { select(&mut evidence.relations, root.0 as usize, &mut missing); }
+        // Relations, bound registrations, source operands and shared context
+        // children form one evidence closure, independent of solver/SCC edges.
+        loop {
+            let mut changed = false;
+            for (index, relation) in self.relations.iter().enumerate() {
+                if evidence.relations[index] == 0 { continue; }
+                let context = relation.key.context;
+                if context != IDENTITY { changed |= select(&mut evidence.contexts, context.0 as usize - 1, &mut missing); }
+                for endpoint in pair_endpoints(relation.key.pair) {
+                    changed |= select_endpoint(endpoint, &mut evidence.selected_views, views, &mut missing, &mut inconsistent);
+                }
+            }
+            // Children precede parents in the canonical DAG. Reverse traversal
+            // visits every shared child once in this expansion pass.
+            for index in (0..self.contexts.len()).rev() {
+                if evidence.contexts[index] == 0 { continue; }
+                let (children, weight) = match self.contexts[index] {
+                    ContextExpr::PrefixLeft { input, weight } => ([Some(input), None], Some(weight)),
+                    ContextExpr::SuffixRightPops { input, weight } => { inert = true; ([Some(input), None], Some(weight)) },
+                    ContextExpr::Replay { lower, upper } => { inert = true; ([Some(lower), Some(upper)], None) },
+                    ContextExpr::Swap { input } | ContextExpr::BothFromRight { input, .. } | ContextExpr::WithoutLeftFilter { input } => { inert = true; ([Some(input), None], None) },
+                };
+                for child in children.into_iter().flatten() {
+                    if child == IDENTITY { continue; }
+                    if child.0 as usize > index { inconsistent = true; }
+                    changed |= select(&mut evidence.contexts, child.0 as usize - 1, &mut missing);
+                }
+                if let Some(weight) = weight { changed |= select(&mut evidence.weights, weight.0 as usize, &mut missing); }
+            }
+            for i in 0..self.weights.len() {
+                if evidence.weights[i] != 0 { changed |= select(&mut evidence.selected_views, self.weights[i].boundary as usize, &mut missing); }
+            }
+            for i in 0..views.len() {
+                if evidence.selected_views[i] == 0 { continue; }
+                for weight in [views[i].source_weight, views[i].closed_weight].into_iter().flatten() {
+                    changed |= select(&mut evidence.weights, weight.0 as usize, &mut missing);
+                }
+            }
+            for dependency in &self.dependencies {
+                let ids = dependency_relations(*dependency);
+                if !ids.into_iter().flatten().any(|id| evidence.includes(id)) { continue; }
+                for id in ids.into_iter().flatten() { changed |= select(&mut evidence.relations, id.0 as usize, &mut missing); }
+                let keys = match dependency {
+                    Dependency::Replay { lower_input, upper_input, .. } => [Some(*lower_input), Some(*upper_input)],
+                    Dependency::Transport { witness: Some(w), .. } => [Some(w.from), Some(w.to)],
+                    _ => [None, None],
+                };
+                for key in keys.into_iter().flatten() {
+                    missing |= !self.bounds.contains_key(&key);
+                    for endpoint in [key.0, key.2] {
+                        changed |= select_endpoint(endpoint, &mut evidence.selected_views, views, &mut missing, &mut inconsistent);
+                    }
+                    for id in self.bound_relations(key) { changed |= select(&mut evidence.relations, id.0 as usize, &mut missing); }
+                }
+            }
+            for (key, id, _) in &self.bound_keys {
+                let touches_view = [key.0, key.2].into_iter().filter_map(endpoint_view)
+                    .any(|view| evidence.selected_views.get(view) == Some(&1));
+                if !evidence.includes(*id) && !touches_view { continue; }
+                for relation in self.bound_relations(*key) { changed |= select(&mut evidence.relations, relation.0 as usize, &mut missing); }
+                for endpoint in [key.0, key.2] {
+                    changed |= select_endpoint(endpoint, &mut evidence.selected_views, views, &mut missing, &mut inconsistent);
+                }
+            }
+            if !changed { break; }
+        }
+        for (_, weight) in evidence.weights() {
+            if let Some(set) = &weight.attachment {
+                inert |= set.unit_push.is_some();
+                inconsistent |= set.member_ordinals.len() != weight.allowed.len()
+                    || set.member_ordinals.iter().any(|ordinal| *ordinal >= weight.allowed.len());
+            }
+            match views.get(weight.boundary as usize) {
+                Some(view) => inconsistent |= view.owner != weight.owner || view.position != weight.position || view.allowed != weight.allowed,
+                None => missing = true,
+            }
+        }
+        for origin in evidence.origins() {
+            if let Some(id) = origin.inferred_entry {
+                match self.inferred_entries.get(id.0) {
+                    Some(entry) => inconsistent |= entry.id != id || entry.occurrence != origin.occurrence,
+                    None => missing = true,
+                }
+            }
+        }
+        for bundle in evidence.bundle_incidences() { missing |= self.bundles.get(bundle.bundle.0).is_none(); }
+        for dependency in evidence.dependencies() {
+            match dependency {
+                Dependency::FunctionPort { .. } => inert = true,
+                Dependency::Replay { lower, upper, lower_input, upper_input, .. } => {
+                    inconsistent |= !self.bound_relations(*lower_input).any(|id| id == *lower)
+                        || !self.bound_relations(*upper_input).any(|id| id == *upper);
+                }
+                Dependency::Transport { parent, child, witness, use_origin } => match witness {
+                    None => missing_transport = true,
+                    Some(w) => {
+                        inconsistent |= !self.bound_relations(w.from).any(|id| id == *parent)
+                            || !self.bound_relations(w.to).any(|id| id == *child);
+                        for (key, id) in [(w.from, *parent), (w.to, *child)] {
+                            match self.relations.get(id.0 as usize) {
+                                Some(relation) => transport_authentication |= relation.key.pair != bound_pair(key),
+                                None => missing = true,
+                            }
+                        }
+                        match w.reason {
+                            TransportReason::ParentCopy { parent_index } => match parents.get(parent_index) {
+                                None => missing = true,
+                                Some(record) => {
+                                    let copy = row_endpoint(record.copy);
+                                    let original = row_endpoint(record.parent);
+                                    // Recorded original rows remain authentic after representative
+                                    // changes; authenticating aliases needs the row-map owner.
+                                    transport_authentication |= w.from.0 != copy || w.to.0 != original;
+                                    inconsistent |= record.copy.kind() != record.parent.kind() || w.from.1 != w.to.1;
+                                }
+                            },
+                            TransportReason::FreshUse => inconsistent |= *use_origin == 0,
+                            // Exact keys are retained here; row-map/equality qualification
+                            // remains evidence from its lifecycle owner, not endpoint inference.
+                            TransportReason::Extrusion { .. } | TransportReason::EqualityCanonicalization => transport_authentication = true,
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
+        let mut reasons = Vec::new();
+        reasons.try_reserve_exact(8).map_err(|_| exhausted())?;
+        if missing { reasons.push(InputGap::MissingReference); }
+        if inconsistent { reasons.push(InputGap::InconsistentReference); }
+        if missing_transport { reasons.push(InputGap::MissingTransportWitness); }
+        if transport_authentication { reasons.push(InputGap::TransportAuthenticationUnavailable); }
+        if inert { reasons.push(InputGap::InertOperation); }
+        reasons.push(InputGap::FilterObligationsUnavailable);
+        reasons.push(InputGap::ProducerReadinessUnavailable);
+        reasons.push(InputGap::DependentObservationsUnavailable);
+        Ok(RetainedInput { roots, evidence, completeness: InputCompleteness::Incomplete(reasons) })
+    }
 }
 fn exhausted() -> SolveAvailabilityError {
     SolveAvailabilityError::IdentityExhausted
@@ -1006,7 +1304,7 @@ impl State {
         // This one scan is paid only by sessions using bundle provenance.
         let mut index = BundleTransports::default();
         for dependency in &self.dependencies {
-            if let Dependency::Transport { parent, child, use_origin: 0 } = *dependency { index.insert(parent, child)?; }
+            if let Dependency::Transport { parent, child, witness: Some(TransportWitness { reason: TransportReason::Extrusion { .. } | TransportReason::ParentCopy { .. } | TransportReason::EqualityCanonicalization, .. }), .. } = *dependency { index.insert(parent, child)?; }
         }
         self.bundle_transports = Some(index);
         Ok(())
@@ -1166,7 +1464,7 @@ impl State {
                 self.edge(upper, child)?;
             }
         }
-        if let Dependency::Transport { child, parent, use_origin: 0 } = dependency {
+        if let Dependency::Transport { child, parent, witness: Some(TransportWitness { reason: TransportReason::Extrusion { .. } | TransportReason::ParentCopy { .. } | TransportReason::EqualityCanonicalization, .. }), .. } = dependency {
             if let Some(index) = &mut self.bundle_transports {
                 index.insert(parent, child)?;
                 self.bundle_edge(parent, child)?;
@@ -1587,7 +1885,7 @@ impl InferenceSession {
             let (from, parent, _) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_keys[index];
             let to = BoundKey(self.canonical_extrusion(from.0), from.1, self.canonical_extrusion(from.2));
             if to != from {
-                self.candidate_context_transport(parent, to, 0)?;
+                self.candidate_context_transport_witness(parent, to, 0, Some(TransportWitness { from, to, reason: TransportReason::EqualityCanonicalization }))?;
                 let pair = self.candidate_context_pair(bound_pair(to));
                 let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
                 let child = state.relation(pair, state.post_check_context(parent))?;
@@ -1600,12 +1898,12 @@ impl InferenceSession {
     }
     pub(super) fn candidate_context_fresh_transport(
         &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
-        context: ContextId,
+        context: ContextId, from: BoundKey,
     ) -> Result<RelationId, SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
         let child = state.relation(pair, context)?;
-        state.dependency(Dependency::Transport { child, parent, use_origin })?;
+        state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) })?;
         state.attach(to, child)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(child)
@@ -1632,6 +1930,12 @@ impl InferenceSession {
         to: BoundKey,
         use_origin: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        self.candidate_context_transport_witness(parent, to, use_origin, None)
+    }
+    pub(super) fn candidate_context_transport_witness(
+        &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
+        witness: Option<TransportWitness>,
+    ) -> Result<(), SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self
             .candidate_graph
@@ -1645,6 +1949,7 @@ impl InferenceSession {
             child,
             parent,
             use_origin,
+            witness,
         })?;
         state.attach(to, child)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)

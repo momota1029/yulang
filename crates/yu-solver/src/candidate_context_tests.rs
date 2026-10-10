@@ -519,6 +519,7 @@ fn captured_relation_inputs_survive_independent_fresh_uses() {
                 child,
                 parent,
                 use_origin,
+                ..
             } if *parent == source && *use_origin != 0 => Some((*child, *use_origin)),
             _ => None,
         })
@@ -708,6 +709,7 @@ fn transport_provenance_is_retained_without_a_conflict_replay_edge() {
         child: fresh,
         parent: template,
         use_origin: 1,
+        witness: None,
     };
     context.dependency(transport).unwrap();
     context.dependency(transport).unwrap();
@@ -1906,13 +1908,26 @@ fn indexed_relation(context: &mut State, row: u32) -> RelationId {
     context.relation(task_pair(task(row, row)), IDENTITY).unwrap()
 }
 
+fn synthetic_transport(context: &State, parent: RelationId, child: RelationId, use_origin: usize) -> Dependency {
+    fn key(context: &State, relation: RelationId) -> BoundKey {
+        match context.relations[relation.0 as usize].key.pair {
+            TypedPairKey::Effect { lower, upper } => BoundKey(ExtrusionEndpoint::Effect(lower), Polarity::Negative, ExtrusionEndpoint::Effect(upper)),
+            TypedPairKey::Value(pair) => BoundKey(ExtrusionEndpoint::Value(pair.lower), Polarity::Negative, ExtrusionEndpoint::Value(pair.upper)),
+        }
+    }
+    Dependency::Transport { parent, child, use_origin, witness: Some(TransportWitness {
+        from: key(context, parent), to: key(context, child),
+        reason: if use_origin == 0 { TransportReason::EqualityCanonicalization } else { TransportReason::FreshUse },
+    }) }
+}
+
 #[test]
 fn indexed_bundle_provenance_closes_cycles_and_isolates_fresh_transports() {
     let (mut context, template) = indexed_bundle_fixture();
     let rows: Vec<_> = (0..5).map(|row| indexed_relation(&mut context, row)).collect();
     context.dependency(Dependency::Derived { parent: rows[0], child: rows[1] }).unwrap();
-    context.dependency(Dependency::Transport { parent: rows[1], child: rows[2], use_origin: 0 }).unwrap();
-    context.dependency(Dependency::Transport { parent: rows[2], child: rows[3], use_origin: 1 }).unwrap();
+    context.dependency(synthetic_transport(&context, rows[1], rows[2], 0)).unwrap();
+    context.dependency(synthetic_transport(&context, rows[2], rows[3], 1)).unwrap();
     assert!(context.bundle_transports.is_none(), "never-bundled sessions allocate no transport index");
     assert!(!context.edges.contains_key(&rows[1]), "transport adds no diagnostic adjacency");
     let first = context.retain_bundle(template.clone(), false).unwrap();
@@ -1923,7 +1938,7 @@ fn indexed_bundle_provenance_closes_cycles_and_isolates_fresh_transports() {
         assert!(context.bundle_transports.is_some());
         for &row in &rows[..3] { assert_eq!(context.relation_bundles(row).collect::<Vec<_>>(), [first]); }
         assert_eq!(context.relation_bundles(rows[3]).count(), 0);
-        context.dependency(Dependency::Transport { parent: rows[2], child: rows[4], use_origin: 0 }).unwrap();
+        context.dependency(synthetic_transport(&context, rows[2], rows[4], 0)).unwrap();
         context.dependency(Dependency::Derived { parent: rows[4], child: rows[0] }).unwrap();
         context.bundle_link(rows[2], second).unwrap();
         for &row in &[rows[0], rows[1], rows[2], rows[4]] {
@@ -1943,7 +1958,7 @@ fn indexed_bundle_provenance_closes_cycles_and_isolates_fresh_transports() {
     let activated = context.checkpoint();
     let original_heads = context.bundle_incidence_heads.clone();
     let original_transport_heads = context.bundle_transports.as_ref().unwrap().heads.clone();
-    context.dependency(Dependency::Transport { parent: rows[2], child: rows[4], use_origin: 0 }).unwrap();
+    context.dependency(synthetic_transport(&context, rows[2], rows[4], 0)).unwrap();
     context.bundle_link(rows[0], second).unwrap();
     context.rollback(activated);
     assert_eq!(context.bundle_incidence_heads, original_heads);
@@ -1965,7 +1980,7 @@ fn indexed_bundle_visits_ignore_unrelated_relations_and_incidences() {
         for row in 10..10 + unrelated {
             let parent = indexed_relation(&mut context, row * 2);
             let child = indexed_relation(&mut context, row * 2 + 1);
-            context.dependency(Dependency::Transport { parent, child, use_origin: 0 }).unwrap();
+            context.dependency(synthetic_transport(&context, parent, child, 0)).unwrap();
             context.bundle_link(parent, second).unwrap();
         }
         let before = context.bundle_visits;
@@ -1975,7 +1990,7 @@ fn indexed_bundle_visits_ignore_unrelated_relations_and_incidences() {
         context.bundle_link(root, second).unwrap();
         let incidence_visits = context.bundle_visits - before;
         let before = context.bundle_visits;
-        context.dependency(Dependency::Transport { parent: child, child: late, use_origin: 0 }).unwrap();
+        context.dependency(synthetic_transport(&context, child, late, 0)).unwrap();
         let transport_visits = context.bundle_visits - before;
         assert_eq!(context.relation_bundles(root).count(), 2);
         assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
@@ -2248,7 +2263,7 @@ fn fresh_use_captures_context_only_views_and_preserves_shared_payloads() {
         copied_weights.push(copied_weight);
         let context = &algebra.context;
         let child = context.dependencies.iter().rev().find_map(|dependency| match dependency {
-            Dependency::Transport { parent: p, child, use_origin } if *p == parent && *use_origin != 0 => Some(*child),
+            Dependency::Transport { parent: p, child, use_origin, .. } if *p == parent && *use_origin != 0 => Some(*child),
             _ => None,
         }).unwrap();
         let renamed = context.relations[child.0 as usize].key.context;
@@ -2560,4 +2575,160 @@ fn function_port_incidence_keeps_written_argument_filter_child_local() {
         ContextExpr::Swap { .. } | ContextExpr::BothFromRight { .. }
     )));
     assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+}
+
+#[test]
+fn retained_input_closes_both_directions_and_preserves_ports_replay_and_sharing() {
+    let mut context = State::default();
+    let parent = context.relation(task_pair(task(0, 1)), IDENTITY).unwrap();
+    let child = context.relation(task_pair(task(2, 3)), IDENTITY).unwrap();
+    for field in [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result] {
+        let operation = match field {
+            FunctionField::Argument | FunctionField::ArgumentEffect => FunctionPortOperation::Swap,
+            _ => FunctionPortOperation::Preserve,
+        };
+        context.dependency(Dependency::FunctionPort { parent, child, field, operation }).unwrap();
+    }
+    let shared = context.context(ContextExpr::Swap { input: IDENTITY }).unwrap();
+    let distinct = context.context(ContextExpr::WithoutLeftFilter { input: shared }).unwrap();
+    let replay = context.context(ContextExpr::Replay { lower: shared, upper: distinct }).unwrap();
+    let downstream = context.relation(task_pair(task(4, 5)), replay).unwrap();
+    let lower_input = BoundKey(value(2), Polarity::Negative, value(3));
+    let upper_input = BoundKey(value(3), Polarity::Negative, value(4));
+    context.attach(lower_input, child).unwrap();
+    context.attach(upper_input, parent).unwrap();
+    context.dependency(Dependency::Replay { child: downstream, lower: child, upper: parent, lower_input, upper_input }).unwrap();
+    let roots = [child];
+    let input = context.retained_input(&roots, &[], &[]).unwrap();
+    assert_eq!(input.roots, roots);
+    assert_eq!(input.evidence.relations().count(), 3);
+    assert_eq!(input.evidence.dependencies().count(), 5);
+    assert_eq!(input.evidence.contexts().count(), 3);
+    assert!(input.evidence.dependencies().any(|d| *d == Dependency::Replay { child: downstream, lower: child, upper: parent, lower_input, upper_input }));
+    assert!(input.evidence.contexts().any(|(id, expression)| id == replay && *expression == ContextExpr::Replay { lower: shared, upper: distinct }));
+    let InputCompleteness::Incomplete(gaps) = &input.completeness else { panic!("inert input cannot certify readiness"); };
+    assert!(gaps.contains(&InputGap::InertOperation));
+    assert!(gaps.contains(&InputGap::ProducerReadinessUnavailable));
+    assert!(gaps.contains(&InputGap::DependentObservationsUnavailable));
+    assert_eq!(input.owned_bytes().unwrap(), input.evidence.relations.capacity() + input.evidence.contexts.capacity()
+        + input.evidence.weights.capacity() + input.evidence.selected_views.capacity() + gaps.capacity() * std::mem::size_of::<InputGap>());
+}
+
+#[test]
+fn retained_input_transport_reasons_and_missing_evidence_survive_rollback_retry() {
+    let mut context = State::default();
+    let parent = context.relation(task_pair(task(0, 1)), IDENTITY).unwrap();
+    let child = context.relation(task_pair(task(2, 1)), IDENTITY).unwrap();
+    let from = BoundKey(value(0), Polarity::Negative, value(1));
+    let to = BoundKey(value(2), Polarity::Negative, value(1));
+    let parents = [candidate_intrusion::Parent { copy: candidate_scheme::RowKey::Value(0),
+        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0 }];
+    context.attach(from, parent).unwrap();
+    context.attach(to, child).unwrap();
+    let checkpoint = context.checkpoint();
+    for _ in 0..2 {
+        for reason in [TransportReason::Extrusion { operation: value(0), polarity: Polarity::Positive, target_level: 0 },
+            TransportReason::ParentCopy { parent_index: 0 }, TransportReason::EqualityCanonicalization, TransportReason::FreshUse] {
+            context.dependency(Dependency::Transport { parent, child, use_origin: 1,
+                witness: Some(TransportWitness { from, to, reason }) }).unwrap();
+        }
+        context.dependency(Dependency::Transport { parent, child, use_origin: 2, witness: None }).unwrap();
+        let roots = [parent];
+        let input = context.retained_input(&roots, &[], &parents).unwrap();
+        assert_eq!(input.evidence.dependencies().count(), 5);
+        assert_eq!(input.evidence.parents[0].copy, candidate_scheme::RowKey::Value(0));
+        assert!(context.edges.is_empty(), "transport evidence creates no solver edge");
+        let InputCompleteness::Incomplete(gaps) = &input.completeness else { panic!("missing witness must stay incomplete"); };
+        assert!(gaps.contains(&InputGap::MissingTransportWitness));
+        assert!(!gaps.contains(&InputGap::MissingReference));
+        assert!(!gaps.contains(&InputGap::InconsistentReference));
+        drop(input);
+        context.rollback(checkpoint);
+        assert_eq!(context.checkpoint(), checkpoint);
+        assert_eq!(context.bytes().unwrap(), context.enumerated_bytes());
+    }
+    let roots = [RelationId(u32::MAX)];
+    let input = context.retained_input(&roots, &[], &parents).unwrap();
+    let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("missing root cannot be complete"); };
+    assert!(gaps.contains(&InputGap::MissingReference));
+}
+
+fn retained_view_fixture() -> (State, Vec<candidate_effect::View>) {
+    let mut session = session_with_source("act E:\n    our emit: () -> int\n\nmy answer:[E] int = E::emit()");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let original = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views.iter()
+        .find(|view| !view.allowed.is_empty()).unwrap();
+    let mut context = State::default();
+    let weight = context.source_weight(0, &original.owner, &original.position, &original.allowed, None).unwrap();
+    let view = candidate_effect::View { closed_weight: Some(weight), source_weight: None,
+        provenance: candidate_effect::ViewOrigin::Annotation, owner: original.owner.clone(),
+        position: original.position.clone(), allowed: original.allowed.clone(), tail: None };
+    (context, vec![view])
+}
+
+#[test]
+fn retained_input_support_root_collects_view_and_registered_obligations_before_expansion() {
+    let (mut context, views) = retained_view_fixture();
+    let root = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::Support(0), upper: EffectEndpointKey::EffectRow(0) }, IDENTITY).unwrap();
+    let registered = context.relation(TypedPairKey::Effect { lower: EffectEndpointKey::EffectRow(1), upper: EffectEndpointKey::Allowance(0) }, IDENTITY).unwrap();
+    context.attach(BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(1)), Polarity::Negative,
+        ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(0))), registered).unwrap();
+    let downstream = context.relation(task_pair(task(2, 3)), IDENTITY).unwrap();
+    context.dependency(Dependency::Derived { parent: registered, child: downstream }).unwrap();
+    let roots = [root];
+    let input = context.retained_input(&roots, &views, &[]).unwrap();
+    assert_eq!(input.evidence.filter_views().count(), 1);
+    assert_eq!(input.evidence.weights().count(), 1);
+    assert!(input.evidence.includes(registered));
+    assert!(input.evidence.includes(downstream));
+    assert_eq!(input.evidence.inferred_entries().count(), 0);
+    assert_eq!(input.evidence.bundles().count(), 0);
+    let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("readiness unavailable"); };
+    assert!(!gaps.contains(&InputGap::MissingReference));
+}
+
+#[test]
+fn retained_input_missing_support_view_and_out_of_range_member_remain_incomplete() {
+    let (mut context, views) = retained_view_fixture();
+    for (lower, expected) in [(EffectEndpointKey::Support(u32::MAX), InputGap::MissingReference),
+        (EffectEndpointKey::AnnotationMember(0, views[0].allowed.len() as u32), InputGap::InconsistentReference)] {
+        let root = context.relation(TypedPairKey::Effect { lower, upper: EffectEndpointKey::EffectRow(0) }, IDENTITY).unwrap();
+        let roots = [root];
+        let input = context.retained_input(&roots, &views, &[]).unwrap();
+        let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("invalid operand cannot be complete"); };
+        assert!(gaps.contains(&expected));
+    }
+}
+
+#[test]
+fn retained_input_rejects_missing_bound_keys_and_mismatched_transport_parent_incidence() {
+    let mut context = State::default();
+    let parent = context.relation(task_pair(task(0, 1)), IDENTITY).unwrap();
+    let other = context.relation(task_pair(task(4, 1)), IDENTITY).unwrap();
+    let child = context.relation(task_pair(task(2, 1)), IDENTITY).unwrap();
+    let from = BoundKey(value(0), Polarity::Negative, value(1));
+    let to = BoundKey(value(2), Polarity::Negative, value(1));
+    context.attach(from, parent).unwrap();
+    context.attach(to, child).unwrap();
+    let checkpoint = context.checkpoint();
+    for (recorded_parent, source, expected) in [(parent, BoundKey(value(99), Polarity::Negative, value(1)), InputGap::MissingReference),
+        (other, from, InputGap::InconsistentReference)] {
+        context.dependency(Dependency::Transport { parent: recorded_parent, child, use_origin: 1,
+            witness: Some(TransportWitness { from: source, to, reason: TransportReason::FreshUse }) }).unwrap();
+        let roots = [child];
+        let input = context.retained_input(&roots, &[], &[]).unwrap();
+        let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("invalid transport cannot be complete"); };
+        assert!(gaps.contains(&expected));
+        context.rollback(checkpoint);
+    }
+    context.dependency(Dependency::Transport { parent, child, use_origin: 0,
+        witness: Some(TransportWitness { from, to, reason: TransportReason::ParentCopy { parent_index: 0 } }) }).unwrap();
+    let parents = [candidate_intrusion::Parent { copy: candidate_scheme::RowKey::Value(99),
+        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0 }];
+    let roots = [child];
+    let input = context.retained_input(&roots, &[], &parents).unwrap();
+    let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("unknown original-row correspondence cannot be complete"); };
+    assert!(gaps.contains(&InputGap::TransportAuthenticationUnavailable));
+    assert!(context.edges.is_empty());
 }

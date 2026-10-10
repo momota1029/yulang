@@ -11,7 +11,7 @@ pub(super) struct State {
     pub effect_algebra: candidate_effect::State,
     values: Vec<u32>,
     effects: Vec<u32>,
-    parents: Vec<Parent>,
+    pub(super) parents: Vec<Parent>,
     pub diagnostic_edges: HashSet<(CanonicalValuePairKey, DiagnosticEdge)>,
     pub completed: HashMap<candidate_context::RelationId, u64>,
     pub generation: u64,
@@ -20,11 +20,11 @@ pub(super) struct State {
     pub active_uses: HashSet<DefinitionUseId>,
 }
 #[derive(Clone, Copy, Debug)]
-struct Parent {
-    copy: RowKey,
-    parent: RowKey,
-    polarity: Polarity,
-    target: u32,
+pub(super) struct Parent {
+    pub copy: RowKey,
+    pub parent: RowKey,
+    pub polarity: Polarity,
+    pub target: u32,
 }
 pub(super) struct Undo {
     pub(super) effect_algebra: candidate_effect::Checkpoint,
@@ -474,7 +474,7 @@ impl InferenceSession {
         let (components, scratch) = graph.components()?;
         let mut merges = Vec::new();
         let state = &self.candidate_graph.as_ref().unwrap().intrusion;
-        for parent in &state.parents {
+        for (parent_index, parent) in state.parents.iter().enumerate() {
             let copy = state.rep(parent.copy);
             let original = state.rep(parent.parent);
             // Polarity/target remain creation provenance, not SCC graph edges.
@@ -483,13 +483,13 @@ impl InferenceSession {
                 && components[graph.positions[&row_endpoint(copy)]]
                     == components[graph.positions[&row_endpoint(original)]]
             {
-                push(&mut merges, (copy, original))?;
+                push(&mut merges, (copy, original, parent_index))?;
             }
         }
         let scratch = sum(&[
             scratch,
             graph.bytes()?,
-            bytes::<(RowKey, RowKey)>(merges.capacity())?,
+            bytes::<(RowKey, RowKey, usize)>(merges.capacity())?,
         ])?;
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self
             .candidate_graph
@@ -501,8 +501,8 @@ impl InferenceSession {
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             self.candidate_graph.as_mut().unwrap().intrusion.dirty = false;
-            for (copy, parent) in merges.iter().copied() {
-                self.merge_candidate_rows(copy, parent, root)?;
+            for (copy, parent, parent_index) in merges.iter().copied() {
+                self.merge_candidate_rows(copy, parent, root, parent_index)?;
             }
             Ok(())
         })();
@@ -515,6 +515,7 @@ impl InferenceSession {
         copy: RowKey,
         parent: RowKey,
         root: Option<CanonicalValuePairKey>,
+        parent_index: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let state = &self
             .candidate_graph
@@ -568,7 +569,8 @@ impl InferenceSession {
                 self.candidate_insert_bound_without_capture(row_endpoint(parent), side, item)?;
                 self.candidate_transfer_bound_origins(
                     candidate_effect::BoundKey(row_endpoint(copy), side, item),
-                    candidate_effect::BoundKey(row_endpoint(parent), side, self.canonical_extrusion(item)))?;
+                    candidate_effect::BoundKey(row_endpoint(parent), side, self.canonical_extrusion(item)),
+                    candidate_context::TransportReason::ParentCopy { parent_index })?;
             }
         }
         if effect {

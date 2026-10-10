@@ -26,17 +26,20 @@ Use the [Sol proof/task-decomposition roles](../notes/design/2026-10-10-proof-an
 under the [bounded delegation policy](../rules/agent-orchestration.md#proof-delegation-and-decomposition).
 `task_decomposer` proposes concrete dependency-aware packets when needed;
 `prover` owns constructive proofs, with complementary `researcher` methods.
-The custom `prover` role is registered through `.codex/config.toml` and was
-launched for bounded constructive lemmas and a conditional contravariant-effect
-derivation. On 2026-10-10 the configured `codex exec` fallback was verified in
-the JSONL session record: a real child had `agent_role=prover`,
-`model=gpt-6.1-sol`, and `effort=high`. Its conditional reconstruction of
-Function-path polarity and exact-witness residual support assumes the existing
-attachment, typed-transport, owner, and consumer premises; it does not prove
-their source construction or close effect hygiene. Apply the `yulang-proofs`
-skill on future proof obligations. The direct API collaboration schema still
-omits `prover`, so use the verified CLI fallback there rather than treating the
-custom role registration alone as a launch.
+The custom `prover` role is registered through `.codex/config.toml`; a prior
+standalone `codex exec` session is confirmed by its JSONL record to have launched
+a real child with `agent_role=prover`, `model=gpt-6.1-sol`, and `effort=high`.
+That leaf derived a conditional Function-path polarity and exact-witness
+residual result; attachment, typed transport, owner, and consumer construction
+remain premises, so it did not prove source construction or close effect
+hygiene. The current collaboration schema omits the `prover` role. Under the
+fail-open dispatch policy, an active team uses one named-role attempt when the
+schema supports it, then immediately falls back to a supported generic worker
+with the proof contract; it does not launch a nested Codex CLI process.
+`tools/codex-prover.sh` is an optional fresh standalone-session entry point,
+not an active-team workaround. Apply the `yulang-proofs` skill to proof work,
+record the actual worker identity and observed settings, and never describe a
+generic fallback as a custom `prover` launch.
 The selected primary keeps scheduling, authority, independent review and Git.
 Normally use Sol/high proofs and Sol/medium decomposition. A proof coordinator
 may use at most two preallocated leaf workers, including a justified native
@@ -7987,16 +7990,30 @@ graph or an existing production recognizer. See the
 [cycle certificate gap map](../notes/progress/2026-10-10-context-cycle-certificate-gap-map.md)
 and the [Function-port projection falsifier](../notes/progress/2026-10-10-entry-circuit-source-falsifier.md).
 
-Next: implement Packet 1 of the approved contextual-admission gate: retain and
-expose a complete inert circuit-input graph with exact relation kinds/endpoints,
-seed origins, operation incidences, attachment/member and filter identities,
-receiving owners, ordered replay inputs, shared context children, and transport
-provenance. Keep it separate from parent-copy SCC state and do not execute
-nonidentity operations or certify recursion. Then recognize the two approved
-complete components, implement transactional withdrawal/deferral/rollback, and
-only then connect operation execution. Complete Call, full effect hygiene,
-soundness/principality, ordinary/default/public inference, and F5 retirement
-remain open.
+The first inert-evidence implementation sub-slice now retains borrowed circuit
+inputs rooted at RelationIds, validates Support views and exact replay/transport
+incidences, and preserves explicit incompleteness where references or lifecycle
+authentication are unavailable. Its independent compiler-referee delta review
+passed; 71 focused context tests passed. This does not complete Packet 1:
+readiness production and complete lifecycle-authenticated inputs remain open.
+See [the retained-evidence checkpoint](../notes/progress/2026-10-10-retained-circuit-evidence-boundary.md).
+
+Two additional independent research results are frozen: the [ordered replay
+projection model](../notes/progress/2026-10-10-replay-input-projection-model.md)
+finds a minimal order-sensitive filter witness in its supplied finite algebra,
+and the [conditional Function-port origin derivation](../notes/progress/2026-10-10-function-port-origin-closure-proof.md)
+separates Lambda entry/return rows from negative Function ports under explicit
+source and transport premises. The first is unreviewed model evidence; the
+second awaits independent proof review. Neither establishes source reachability
+or a production defect.
+
+Next: close the exact Packet 1 retained-input/readiness obligations, then
+recognize the two approved complete components and implement transactional
+withdrawal, private deferral, and rollback before connecting operation
+execution. Concrete contravariant rows remain rejected until their source
+constructor, current/future consumer checks, and lifecycle correspondence are
+proved. Complete Call, full effect hygiene, soundness/principality,
+ordinary/default/public inference, and F5 retirement remain open.
 
 The private HIR source carrier now retains expression ascriptions with their
 exact annotation tail, occurrence, range, and lexical scope. Candidate source

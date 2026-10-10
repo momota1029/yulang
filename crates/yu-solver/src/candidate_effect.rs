@@ -437,12 +437,13 @@ impl InferenceSession {
         &mut self,
         from: BoundKey,
         to: BoundKey,
+        reason: candidate_context::TransportReason,
     ) -> Result<(), SolveAvailabilityError> {
         let mut cursor = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_cursor(from);
         while let Some(index) = cursor {
             let (parent, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);
             cursor = next;
-            self.candidate_context_transport(parent, to, 0)?;
+            self.candidate_context_transport_witness(parent, to, 0, Some(candidate_context::TransportWitness { from, to, reason }))?;
         }
         let count = self
             .candidate_graph
