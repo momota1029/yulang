@@ -7960,7 +7960,22 @@ or measurements ran. Certificate-bearing `BothFromRight` remains unavailable
 without an authentic owner, and source operation execution remains disconnected.
 See the [context freshening checkpoint](../notes/progress/2026-10-10-context-freshening.md).
 
-Next: complete the exact two-cycle certificate invalidation, withdrawal,
-rollback, and retry gate before recursively admitting nonempty contexts.
-Complete Call, full effect hygiene, soundness/principality,
-ordinary/default/public inference, and F5 retirement remain open.
+The follow-up source audit mapped the remaining approved two-cycle gate to
+explicit missing owners: authentic inferred-entry evidence at
+`admit_lambda_fact`; exact PUSH and POP/PUSH circuit recognition separate from
+parent-copy SCC generation; dependency-indexed withdrawal of memos,
+observations, and publication; private deferral that retains an unsupported
+late edge; and atomic rollback/retry for the whole certificate dependency
+state. Conditional one-memo, one-publication, and stale-edge witnesses show
+why each lifecycle part matters; they do not claim current source reachability
+or a compiler bug. See the
+[cycle certificate gap map](../notes/progress/2026-10-10-context-cycle-certificate-gap-map.md).
+
+Next: implement the source-owned inferred-entry certificate and exact circuit
+recognition/invalidation/deferral as one M3 lifecycle gate, preserving both
+approved unbounded circuit classes and all exact contexts. The path must retain
+late unsupported edges privately, withdraw every dependent observation before
+reuse/publication, and restore the complete pre-route certificate/dependency/
+observation/publication state on failure before a supported retry. Complete
+Call, full effect hygiene, soundness/principality, ordinary/default/public
+inference, and F5 retirement remain open.
