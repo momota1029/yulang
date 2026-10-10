@@ -120,6 +120,29 @@ This index is a navigation aid. The listed source document remains authoritative
   executable evidence and counterexamples. Unrestricted returning mixed
   contexts, source lifecycle, production attachments and cutover remain open.
 
+- **Mixed recursion and exact raw self factoring (2026-10-10, reviewed scoped research):**
+  The [complete integration record](../progress/2026-10-10-complete-mixed-self-edge-results.md)
+  distinguishes four proved results from the still open complete authentic
+  mixed decision. The [constant-unit theorem](../progress/2026-10-10-contextual-self-edge-erasure.md)
+  admits only actual I as a universal replay unit on normal inputs; raw I
+  replay performs mix. The [constructive normalizer](../progress/2026-10-10-contextual-self-edge-normalizer.md)
+  removes bare I/mix self productions on arbitrary raw recursive suppliers by
+  retaining each incoming E and adding mix(E). Its finite-derivation proof
+  preserves every original vertex language, lexical sharing, additions and
+  supplied quotient/freshening/recovery interfaces without normality or debt
+  bounds. Separate original filter events remain obligations. The
+  [nonpositive-displacement congruence](../progress/2026-10-10-complete-mixed-effect-obstruction.md)
+  supplies an exact finite mixed/copy recursion algorithm with query-specific
+  future observations. Its invariant is proved for the stated grammar class,
+  not imposed on source. The [unguarded shared PCP theorem](../progress/2026-10-10-complete-mixed-effect-construction.md)
+  rules out total empty-support decision for a broader two-ID shared-child
+  grammar. The [primitive source audit](../progress/2026-10-10-mixed-independent-grammar-bridge.md)
+  prevents transferring that impossibility to independently selected bound
+  replay, and falsifies atomic-copy and cancellation shortcuts. Two reviewed
+  research executables implement the finite observer and raw self factoring.
+  Positive-displacement mixed independent recursion, authentic source
+  constructor/consumer/lifecycle correspondence and production remain open.
+
 - **Function-only formal effect feedback (2026-10-10, reviewed conditional source scope):**
   The [one-formal source certificate](../progress/2026-10-10-formal-effect-admission-falsify.md)
   shows the prospective `f (f f)` debt circuit without Tuple or provider

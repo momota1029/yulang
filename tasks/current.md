@@ -7221,8 +7221,12 @@ full Call, hygiene and F5 cutover remain open.
 
 Four upstream research artifacts were integrated at `9610f0c3e` through
 `c2674ba5a`, followed by the independent-replay interface characterization at
-`de5c400d6`. Their claims remain producer-frozen and independently unreviewed;
-none changes source semantics or production code.
+`de5c400d6` and constructive raw identity-self factoring at `65557b27`.
+Their individual independent reviews are now complete within the stated
+scopes; the [current review record](../notes/progress/2026-10-10-complete-mixed-self-edge-results.md)
+records frozen hashes and two primary-only minor prose corrections. Historical
+producer handoff headers are not the current review status. None changes
+source semantics or production code.
 
 - The two-ID shared-child construction proves undecidability for an unguarded
   abstract mixed-weight grammar support query. Its bridge to authentic source
@@ -7232,11 +7236,18 @@ none changes source semantics or production code.
   stated grammar class and arbitrary finite future contexts. The invariant is
   not established for actual source suppliers; positive-displacement recursive
   suppliers remain outside that result.
-- The self-edge result makes equal endpoints insufficient for contextual
-  omission. Its candidate criterion is empty residual directed context at the
-  actual mix-normal boundary while preserving checks and filter events. The
-  source bridge remains conditional on the missing explicit contextual
-  constructor and transport.
+- The self-edge theorem proves that actual identity I is the only universal
+  constant replay unit on mix-normal inputs, in either orientation. A raw
+  nonidentity context whose isolated mix is I is insufficient. On raw inputs,
+  even actual I performs mix and cannot simply be deleted. Checks and filter
+  events remain separately owned; the source bridge remains conditional on
+  the missing explicit contextual constructor and transport.
+- The constructive normalizer removes bare I/mix self productions on arbitrary
+  raw recursive suppliers by retaining every other incoming E and adding
+  mix(E). A finite-derivation translation proves exact languages at every
+  original vertex, without a stored-normality or debt bound. Future additions
+  and supplied SCC quotients refactor original producers; plain self aliases
+  are independently removed. Remaining arbitrary recursion is not decided.
 - The independent-replay characterization shows that primitive bound replay
   chooses lower and upper records independently, while `both` duplicates one
   selected input atomically. Therefore the shared-child PCP reduction does not
@@ -7246,10 +7257,11 @@ none changes source semantics or production code.
 
 These results reinforce the need to keep residual identity, source admission,
 and generic algebra decidability as separate obligations. They do not resolve
-the residual-lineage question or justify a finite entry cap. Continue with the
-user decision in the [contextual residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md),
-then establish the authentic source admission envelope before enabling the
-concrete formal-row path.
+the residual-lineage proposal or justify a finite entry cap. The independent
+mathematical work proceeds under the existing annotation policy; this phase
+selected no residual-lineage policy and created no new question. Authentic
+source admission and the coupled constructor/consumer lifecycle remain
+necessary before enabling the concrete formal-row path.
 
 ### Returning recursive PUSH: direct source instance solved (2026-10-10)
 
@@ -7307,6 +7319,76 @@ left-word theorem are a real direct advance; they do not certify that every
 source reduces to that class. Preserve the existing source filter/orientation,
 authority, residual-key, intrusion/freshening/rollback and full hygiene gates.
 
+### Complete mixed cycles and exact raw self-edge factoring (2026-10-10)
+
+The latest user request asks for complete mixed Effect cycle decision and the
+correct contextual self-edge omission condition. Starting at actual remote
+`f75c8d2f` after `4958aa8d`, this wave closes a concrete part of that request:
+**raw identity-self factoring is a finite exact transformation**, including
+unbounded recursive PUSH suppliers. Complete authentic mixed decision remains
+open. See the [proof/implementation/review record](../notes/progress/2026-10-10-complete-mixed-self-edge-results.md)
+for full claims, counterexamples, hashes and publication history.
+
+The [self-normalization theorem](../notes/progress/2026-10-10-contextual-self-edge-normalizer.md)
+at `65557b27` removes only whole bare replay(X,I), replay(I,X), mix(X) self
+productions and plain reflexive aliases. Each remaining original producer E
+at a marked owner yields both E and mix(E). Every finite original derivation
+compresses its initial unit chain to zero or one mix; the inverse inserts one
+original self step. Exact raw languages and lexical child correlation are
+preserved at every original vertex. New producers, quotient-created self
+edges and newly merged producers must be handled from the original grammar.
+Fresh injective naming commutes; saved original/derived pairs restore the
+reference observations. The compiler filter journal is not implemented here.
+
+The [constant-unit theorem](../notes/progress/2026-10-10-contextual-self-edge-erasure.md)
+is maximal over all mix-normal inputs: only actual I is a universal unit, in
+either orientation. Raw inputs admit no universal constant unit. Also finite
+boolean active-presence continuations separate all distinct raw triples, so
+permanent support-only identification cannot preserve arbitrary future mixed
+observations. Exact state-dependent self redundancy is transfer-closure of
+the dropped least solution; it is not presented as a general inclusion test.
+
+The [finite mixed congruence](../notes/progress/2026-10-10-complete-mixed-effect-obstruction.md)
+at `98d21e1b` solves arbitrary recursive mixed/copy grammars whose constant
+left displacement and fixed-prefix displacement are nonpositive. This is a
+mathematical class, not a source restriction. With d=p-n>=0 and derived active
+bound N, retain (min(d,K),n,min(r,K)) for K>N. The operations form an exact
+finite congruence, giving at most |V|(K+1)^2(N+1) tuple insertions. Each
+finite future observer derives its own sufficient K from its fixed PUSH mass,
+hole multiplicity, node count and queried debt thresholds. Exact original
+syntax remains available for later observers; no POP count is permanently
+capped. The [reference implementation](../tools/research_nonpositive_mixed_observer.py)
+is published at `c2674ba5`.
+
+The [unguarded PCP theorem](../notes/progress/2026-10-10-complete-mixed-effect-construction.md)
+at `9610f0c3` proves undecidability of existential empty directed support for
+the broader two-ID grammar with repeated shared recursive child selections.
+The [source-rule audit](../notes/progress/2026-10-10-mixed-independent-grammar-bridge.md)
+at `de5c400d` shows why that theorem does not establish Yulang impossibility:
+ordinary bound replay selects independent lower/upper records, and an actual
+joint-support consumer is not derived. Atomic both cannot be replaced by two
+independent suppliers, and unfinished cancellation cannot be exported to a
+later swap; exact small counterexamples are provided for both shortcuts.
+
+All scoped independent reviews have no blocking/major finding. The two minor
+corrections concern Oracle POP/PUSH arithmetic wording and the normalizer
+validator's complexity; neither changes code or the exact-language/observer claims.
+The self reference passed 4,534 assertions and 99 exact finite fixtures;
+the finite observer passed 72 assertions and 495 literal evaluations, with
+263 further independent code checks. These are bounded executable evidence,
+not general proofs or compiler regressions. No production constructor/filter
+consumer, source expected type, Rust transition, canonical proof-DAG CLOSED
+status or `yulang3` cutover was changed. The callback target and actual
+source-owned attachment/fresh-use/rollback tests remain unrun.
+
+**Next single mathematical bottleneck:** exact required observation of a
+positive-displacement mixed recursive component with independent binary replay
+and atomic both, preserving maximal cancellation at every raw interface before
+later swap. A finite compositional construction or a genuine reduction for
+precisely that interface is still missing. Parameterized residual gamma owners
+and the complete source constructor/consumer bridge remain subsequent work;
+none is assumed away to certify the new results.
+
 ### Whole-local primitive annotations (2026-10-10)
 
 The live candidate path now accepts whole-local `Int`/`Unit` annotations,
@@ -7317,7 +7399,7 @@ publication so failed route transactions restore newly installed schemes while
 preserving prior ones. Focused HIR, solver, rollback/retry and solver package
 checks passed; see the [implementation record](../notes/progress/2026-10-10-whole-local-primitive-annotations.md).
 The accepted rollback repair and its resource accounting passed independent
-delta review. Other local
-annotation forms, complete Call, effect hygiene, public/default inference and
-F5 cutover remain open; the [contextual residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md)
+delta review. Other local annotation forms, complete Call, effect hygiene,
+public/default inference and F5 cutover remain open; the [contextual
+residual-owner question](../questions/2026-10-10-contextual-residual-owner/question.md)
 still blocks contextual residual and formal-row work.
