@@ -11434,3 +11434,26 @@ bounded source characterization, not runtime reachability or theorem closure.
 The proof-supported internal implementation remains unleased until its exact
 constructor, contribution-license, and activation rule is established;
 source preflight/general negative admission stay disabled.
+
+The bounded [cross-level SCC/generalization derivation](../notes/theory/2026-10-12-cross-level-scc-generalization-proof.md)
+now records the exact nested recursive witness:
+
+```yulang
+my odd n =
+    my even n = if n <= 0 { true } else odd(n - 1)
+    even(n - 1)
+```
+
+Its definition-owned Value references are `O → E` and `E → O`, so O and E
+form one nontrivial Value-reference SCC even though E is introduced in O's
+nested initializer at a deeper lexical level. The independent compiler-referee
+and spec-auditor reviews found no issues within the note's bounded scope. This
+establishes neither equality of O/E type descriptions nor identification of the
+Source Generalize component `C_E` with that SCC. The native level-boundary
+freshening result excludes level-1 variables from E's freshened set, but the
+actual `C_E` registration, typed provenance and original-scope allocation
+bridge remain OPEN. The note is committed and pushed at `a3f375077`. Exact
+source admission, complete Call/Branch formation, copied-incidence transport,
+intrusion preservation, soundness, principality, effect hygiene and F5
+replacement remain OPEN. The copied-row question remains pending and
+uncommitted.
