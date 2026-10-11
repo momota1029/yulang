@@ -65,6 +65,11 @@ git diff --check -- crates/yu-solver/src/shadow_apply.rs
 passed
 ```
 
+`cargo fmt -p yu-solver -- --check` was also inspected and fails on existing
+formatting drift across the package, including unrelated regions of
+`shadow_apply.rs`. The changed regression lines were compared against the
+formatter's output and formatted; no package-wide formatting was applied.
+
 The gate remains private graph-consumer safety only. `CandidateValueObservation`,
 ordinary F5 paths, complete conflict reflection, source rejection, public
 publication, soundness, principality, effect hygiene and F5 replacement are

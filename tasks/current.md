@@ -10818,4 +10818,7 @@ fresh-use routes remain observable. The focused test passed and an independent
 `compiler_referee` review found no issue. This closes only the private
 conflicted-graph export/fresh-use boundary; it does not establish source
 rejection, conflict completeness, soundness, public scheme safety, or F5
-cutover. See the [private candidate conflict boundary record](../notes/progress/2026-10-11-private-candidate-conflict-export-guard.md).
+cutover. The focused package formatter check still reports broad pre-existing
+formatting drift; the changed test lines were formatter-checked and kept
+formatted without applying a package-wide rewrite. See the [private candidate
+conflict boundary record](../notes/progress/2026-10-11-private-candidate-conflict-export-guard.md).
