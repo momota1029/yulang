@@ -26,7 +26,13 @@ selected. The prover owns the complementary constructive theorem lane.
 
 All Oracle excerpts below are from `git show a58eefc31...:<path>` in
 `/home/momota1029/rust/yulang2-oracle-capture`. Its live instrumented source
-was not used. Direct Y3 inputs matched the supplied baseline byte hashes.
+was not used. Unless a path includes another crate prefix, `annotation/...`,
+`analysis/...`, `compact/...`, `constraints/...`, `generalize/...`, and
+`lowering/...` are relative to `crates/infer/src/`; unprefixed module files and
+`expr/...` or `body/...` shorthand in the lowering sections are relative to
+`crates/infer/src/lowering/` (for example, `tail.rs` means
+`lowering/expr/tail.rs`). Parser paths are relative to `crates/parser/src/`.
+Direct Y3 inputs matched the supplied baseline byte hashes.
 
 ## Minimal candidate and exact occurrence
 
