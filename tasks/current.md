@@ -10422,3 +10422,36 @@ budget remains exhausted; this was source-only work with no run, build, test,
 or instrumentation. Keep H OPEN. Next: resolve the active `direct` proof's
 real projection/coverage ledger and determine whether either source route
 reaches an independently linked later consumer.
+
+### 2026-10-11 Value-reference graph: mathematical construction checkpoint
+
+The user's graph definition remains controlling: vertices are actual Value
+variables, and `u → v` means the value owned by `u` references `v`. A new
+construction note
+[`Value-reference graph contraction and polar transport`](../notes/theory/2026-10-11-value-reference-graph-mathematical-construction.md)
+at checkpoint `21b614b0d` gives a formal edge-witness relation and proves a
+bounded graph fact: contracting an actually mutually reachable parent/copy
+pair preserves directed reachability modulo that quotient. This does not
+justify type equality. A rational recursive Function-type example separates
+reference SCC from type equality absent the actual extrusion premise.
+
+The same note traces the actual shared `Function(alpha, alpha)` case through
+opposite-polarity extrusion. It refutes only transport by one unpolarized
+vertex renaming: the two Function ports receive distinct native copies. A
+separate source audit at `52dd81618`,
+[`Value-reference constructor and transport audit`](../notes/progress/2026-10-11-value-reference-graph-independent-falsification.md),
+also shows that source Name edges alone do not account for all native Function
+ports, and that parameter endpoint aliasing cannot be treated as a reference
+edge without an owner law. Neither artifact supplies a counterexample to the
+approved graph or selected intrusion.
+
+Both artifacts are research-only and independent review is pending. The
+decisive OPEN premise is the mathematical owner law for formal/occurrence rows
+and Lambda argument/result ports, including how one resolved binder and its
+owned reference are represented across distinct polar copies. Apply it to
+the already retained module-Name certificate, then prove transport through
+Apply, levels, extrusion, local generalization/fresh use, and agreement with
+the actual intrusion consumer. The original all-source/all-history/actual-
+retained-pair theorem, type-equality justification, required principality,
+complete Call, effects and production/cutover remain OPEN. No compiler code,
+tests, builds or Oracle execution were changed or run.
