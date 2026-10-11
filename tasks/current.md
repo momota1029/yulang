@@ -106,9 +106,16 @@ the original typing judgment for `my invoke f = f 1` but produced neither a
 proof nor a counterexample. It isolated the missing premise: an independently
 established semantic bridge from the actual Apply demand and discharge to one
 complete source Call witness. Thus source adequacy, soundness and principality
-remain OPEN. A read-only source audit is checking whether accepted constructors
-already provide this bridge; no conditional graph lemma will be promoted as
-closure.
+remain OPEN. The completed read-only source audit found no accepted constructor
+law bridging the four-port demand to a complete witness at this call. The actual
+literal argument lacks a Call-owned Reify origin and whole-carrier compatibility
+with the same returned provider; candidate rows `s`, `ae`, `e` and `beta` do not
+supply those objects. The approved bounded tagged-Reify direction supplies a
+construction shape, but actual original `P_old` registration/lookup and
+old-consumer closure remain open. A fresh constructive proof attack is tracing
+whether those premises follow from selected source owners. The exact complete-
+Call gate remains OPEN; no new Call rule, acceptance or scheme is inferred from
+the candidate graph.
 
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test
