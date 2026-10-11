@@ -10185,9 +10185,14 @@ It traces `tick::ping()` through PathSep parsing, full-path lowering, the act's
 companion module and the operation DefId; `note::tell()` and `log::put` are
 owning examples. A new exact-candidate qualification at
 [`oracle qualified returned callback probe`](../notes/progress/2026-10-11-oracle-qualified-returned-callback-probe.md)
-is active with the one remaining authorized Oracle call, bounded to 20 seconds
-and 2 GiB. Any diagnostic or missing provider stops the probe; the original H
-gate remains OPEN regardless of a successful dump.
+used the final authorized Oracle call (2/2 across the two packets), bounded to
+20 seconds and 2 GiB. The clean dump resolves the nested provider body to
+`tick::ping`, shows provider type `() -> () -> [tick] ()`, resolves the later
+`f provider` use, and prints observed type `() -> [tick] ()`. This qualifies
+one source observation; it proves neither the raw fresh SubtractId map nor
+annotation-check preservation or universal H. H remains OPEN. The next
+source-only bridge traces the actual SCC/generalized use, freshening, provider
+contribution and call/output/check owners without another Oracle run.
 
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
