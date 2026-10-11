@@ -10296,3 +10296,25 @@ recorded in [`effect latent tail source construction`](../notes/progress/2026-10
 This is Effect-only evidence: the selected Value graph remains based on
 references in Value contents, and the Effect source's parsing, accepted
 inference, complete Call, hygiene and semantic correspondence remain OPEN.
+
+### 2026-10-11 Oracle callback reuse projection candidate
+
+The pinned Oracle accepted a bounded source that passes one annotated callback
+through an inner call, returns that same callback, then invokes it again. In
+the poly dump, direct return and ordinary identity preserve the callback's
+generalized effect tail, while the annotated inner-call route prints a pure
+returned callback and a pure later caller. A separate control preserves
+`[tick]` for a direct call to the same provider, but prints a pure type for a
+higher-order function that invokes an annotated callback. This is a concrete
+source-qualified candidate loss at the displayed-type boundary, recorded in
+[`Oracle callback reuse projection probe`](../notes/progress/2026-10-11-oracle-callback-reuse-projection-probe.md).
+
+This does not yet identify the raw annotation SubtractId, the stored scheme's
+fresh-ID map, or the consumer that removed the later callback effect. It does
+not execute the operation or prove a source-qualified counterexample to the
+original universal hygiene theorem H. Keep H and Yulang3 implementation OPEN.
+Next: trace this exact annotation through the Oracle's scheme projection and
+later-call output consumer, preserving the first local subtraction separately
+from the returned callback's later invocation. No build, Cargo test, or Yulang3
+compiler check ran in this slice; the Oracle binary was already built and
+verified against its pinned hash.
