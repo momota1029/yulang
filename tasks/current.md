@@ -10922,14 +10922,21 @@ intrusion witness. A `spec_auditor` major finding on the approval boundary was
 repaired and delta-reviewed closed; `compiler_referee` found no issue within
 the bounded model scope. The note is checkpointed at `c4224d749`.
 
-Definition-root Value ownership is now a separate pending user decision in
-[`definition-root ownership`](../questions/2026-10-12-definition-root-value-reference-forwarding/question.md).
-Only native Lambda/body/Block/publication forwarding and its dependent graph,
-transport, SCC qualification and equality proof wait on that choice. The
-existing nested-Apply membership question remains separately pending. Direct
-Apply-coordinate characterization, original Simple-sub derivation, and
-independent Call/Effect work continue; no implementation or theorem closure
-follows from this source example.
+The user has selected definition-root ownership and recursive nested-Apply
+membership through the two integrated answer bundles
+[`definition-root ownership`](../questions/2026-10-12-definition-root-value-reference-forwarding/receipt.md)
+and
+[`nested Apply membership`](../questions/2026-10-12-nested-apply-reference-membership/receipt.md).
+The governing intrusion design records both rules at `2245e8576`. A bounded
+pre-write `spec_auditor` review found no semantic issue; its minor request to
+spell out the remaining Apply traversal boundaries was incorporated. This
+resolves those semantic choices only: native source construction, Apply
+fragment walking and transport through extrusion/fresh use, SCC-consumer
+correspondence, qualifying parent/copy membership and equality preservation
+remain OPEN. Apply-fragment
+membership across Lambda, Block, wrapper and local-initializer boundaries is
+still unspecified. No implementation or theorem closure follows from the
+answer bundles.
 
 ### Cross-level source-root composition review
 
@@ -10956,22 +10963,20 @@ rule gives `R → O` and `S → E`. This is a bounded source-root abstraction, n
 an instantiation of the earlier two-module theorem and not a native scanner
 equivalence proof.
 
-The review explicitly leaves the pending native ownership question open:
-identity of `O`/`E` and a source-root cycle do not prove that constructors emit
-those incidences into the actual native Value-reference graph or that the SCC
-consumer sees them. `PendingDefinitionUse.parent_ordinal` remains the enclosing
-module definition through a local initializer, so it cannot itself recover the
-nearest source owner `E`; the construction must retain or derive that owner
-from the local initializer/value structure. The exact conditional/arithmetic
-source in the user's example also has no established ordinary Y3 HIR admission
-bridge. Thus the source-level example refutes lexical-level acyclicity, while
-native row construction, extrusion/fresh-use transport, parent/copy
-qualification, and equality safety remain OPEN.
-
-The definition-root question remains pending as a native-construction choice;
-the source-root derivation neither selects its implementation representation
-nor authorizes scanner changes. The nested-Apply membership question is
-independent and remains pending as well. No compiler code or tests changed.
+The selected definition-root rule now makes `O → E` and `E → O` the intended
+Value-reference incidences for this source-owner example, independent of
+lexical level. This is a semantic definition, not evidence that the current
+native constructors emit those incidences or that the SCC consumer sees them.
+`PendingDefinitionUse.parent_ordinal` remains the enclosing module definition
+through a local initializer, so it cannot itself recover the nearest source
+owner `E`; native construction must retain or derive that owner from the local
+initializer/value structure. The exact conditional/arithmetic source in the
+user's example still has no established ordinary Y3 HIR admission bridge.
+Apply-result rows separately own Name references recursively through nested
+Apply operands, but the implementation walk and boundaries around Lambda,
+Block, wrappers and local initializers remain open. Parent/copy qualification,
+extrusion/fresh-use transport and equality safety also remain OPEN. No compiler
+code or tests changed.
 
 ### 2026-10-12 Oracle direct-return projection boundary
 
@@ -11025,3 +11030,23 @@ provider/call/output behavior, compiled-cache normalization, surrounding
 constraints or universal H. Oracle budget remains exhausted. Next owner: trace
 the actual fresh use through provider selection and the call/output route, then
 resume H's original surrounding-program/use quantifiers.
+
+The frozen [later-use proof]
+(`../notes/theory/2026-10-12-oracle-direct-use-discharge-proof.md`),
+checkpointed at `462e0bfa6`, resolves the exact-fragment transfer concern left
+by the [owner audit]
+(`../notes/progress/2026-10-12-oracle-direct-use-owner-audit.md`),
+checkpointed at `53f8b165e`: for this acyclic source fragment, completed
+`direct` quantification precedes incoming scheme instantiation, and its local
+annotation maps/body match the bounded K construction up to fresh identity
+renaming. This is conditional on P/S/K and normal completed construction; it
+does not generalize to arbitrary contexts. Thus the first remaining joined
+premise is the actual provider installed predicate and its compatibility,
+residual/replay path into the same instantiated negative row, followed by
+returned-callback activation and complete output projection. The proof's
+independent review found no blocking or major issue and one minor status
+mismatch; this primary adjudication consumes that finding for the exact
+fragment. The broader owner audit remains a frozen contemporaneous
+characterization, not an assertion that the contextual transfer is still open
+here. H, complete Call, soundness and principality remain OPEN. No Oracle,
+tests, builds, or compiler changes occurred.
