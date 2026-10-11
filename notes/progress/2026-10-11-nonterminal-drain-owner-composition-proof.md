@@ -47,6 +47,24 @@ W is an independent structural premise about retaining state and closing a trans
 
 **H3 — Lawful ordered acknowledgements and ownership.** All promised replay completion events are owned by this drain or its exact nested child owner. For each operation r, projecting the outstanding completion sequence onto r yields its successive exact indices beginning at the current `consumed_r`; no outside owner consumes one of those children between these events. Later append/transfer obeys the same rule and existing identity checks. Referenced operations, including a retired replay still linked to an active restoration, remain retained until their last owner releases them. This is not inferred from successful preparation: preparation validates `consumed <= index < queued`, while completion requires `consumed == index`.
 
+**Reviewed native H3 sublemma.** The constructive proof in
+[`retained-parent-h3-proof`](2026-10-11-retained-parent-h3-proof.md) establishes,
+for successful finite native replay-construction/forward histories, the
+per-operation conservation equation
+`π_r(A_F[d..] ++ Q) = [(r,c), …, (r,q−1)]`. A fresh compiler-referee found no
+correctness issue in that bounded derivation. It establishes one completion
+authority per native occurrence, exact FIFO indices, and retention through the
+last active completion/restoration/return owner. This discharges H3 for that
+native source domain without assuming semantic correctness of the helper
+operations.
+
+This sublemma does not discharge the original H3 quantifier over every valid
+initial Q/A/H and admitted scheduler state. The remaining bridge must show that
+every admitted initial/resumed state is a native construction cut, or prove
+that any additional admitted mutation and its ordered invalidation/recomputation
+preserve the same equation. Exact rollback remains conditional on the inverse
+premise in W. Therefore the original composition and W/A3 remain OPEN.
+
 **H4 — Retained stage protocol.** The resume driver starts at F's retained stage, current item and substage, uses the existing queue selection/enqueue order, and does not execute the fresh constructor's initialization/reset again. It drains all descendants owned by F, completes the exact diagnostic work, and only then enters Acknowledgements. At every child-call boundary an unfinished child has a retained frame above its blocked parent. Function.next denotes port admission/enqueue progress, not child semantic completion. Resuming FunctionEnqueue uses the saved pending item, not a second port admission. Diagnostics are atomic here unless W retains their internal cursor; replaying all diagnostic work after a partial unrecorded completion is outside H4.
 
 **H5 — Parent gate and mutation side conditions.** The driver returns a distinction between Complete and unfinished continuation. Replay generation/queue transfer, a boolean “transferred”, or a successful pause cannot satisfy Complete. Restoration uses the provenance-bearing child-consumption path and advances its next opposite only after all children of its active replay Complete; Local advances its bound cursor only after restoration Complete. Their updates use the existing journal-before-mutation owners. The original saved opposite count is retained, each later opposite index is re-read using current canonical representatives, and interfering external changes are deferred or separately proved harmless under contract §4. Allocation/accounting errors abort before continuing. No hidden commit releases undo mid-route.
