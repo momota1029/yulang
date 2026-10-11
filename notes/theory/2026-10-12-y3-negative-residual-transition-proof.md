@@ -1,6 +1,6 @@
 # One negative recipe and one source lower: finite transition boundary
 
-Status: frozen, unreviewed research derivation and source characterization.
+Status: independently reviewed bounded derivation and source characterization.
 The requested live composed-negative residual transition remains **OPEN**.
 No source admission, operation semantics, or proof-status promotion is selected.
 Producer: primary-assigned prover leaf; no delegation.
@@ -341,8 +341,9 @@ Complete-file SHA-256; all dependencies matched the baseline:
 - Baseline: `0df10df944c0289a96b6c743aee474ccd55493de`.
 - Changed dependency hashes: none; complete identities above.
 - Claim/review: unreviewed research contract consequences, bounded source
-  characterization and conditional unweighted headed-row delivery; requested
-  live negative residual transition OPEN. No self-certification.
+  characterization and conditional unweighted headed-row delivery; independent
+  `prover` review found no issue in the finite derivation or its stated limits.
+  Requested live negative residual transition remains OPEN.
 - Checks run: pinned-byte/hash, narrow owner/locator, relative-link and
   whitespace checks; no execution/tests/builds/Oracle.
 - Proposed checkpoint message: `research: isolate native negative residual equation and finite delivery owners`.

@@ -11290,13 +11290,13 @@ The bounded [negative residual transition derivation](../notes/theory/2026-10-12
 constructs current-lower and future-lower delivery through the existing
 unweighted headed-row Allowance consumer, conditional on supplied feedback and
 projection relations, identity contexts, completed replay, and the stated level
-orientation. It does not derive the weighted residual reduction or instantiate
-the required recipe. The missing construction still must compute correlated
-`J/kappa/beta/pi`, preserve independent contributions, and install both live
-relations with authentic attachment/fiber origins. A separate `prover` review
-is pending; its checkpoint is `0874e9e02`. Until that review is adjudicated,
-this remains a bounded conditional result, not closure of the original H,
-effect-hygiene, Call, soundness, principality, or F5-replacement gates.
+orientation. An independent `prover` reviewed the finite derivation and found
+no issue within scope. It does not derive the weighted residual reduction or
+instantiate the required recipe. The missing construction still must compute
+correlated `J/kappa/beta/pi`, preserve independent contributions, and install
+both live relations with authentic attachment/fiber origins. The research
+checkpoint is `0874e9e02`; the original H, effect-hygiene, Call, soundness,
+principality, and F5-replacement gates remain OPEN.
 
 No compiler code, tests, builds, measurements, or Oracle executions changed.
 The exact next proof obligation is the native negative residual equation at its
