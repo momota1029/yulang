@@ -11061,3 +11061,22 @@ fragment. The broader owner audit remains a frozen contemporaneous
 characterization, not an assertion that the contextual transfer is still open
 here. H, complete Call, soundness and principality remain OPEN. No Oracle,
 tests, builds, or compiler changes occurred.
+
+The frozen [provider-row replay derivation]
+(`../notes/theory/2026-10-12-oracle-provider-row-replay-proof.md`),
+checkpointed at `30d17cadb`, closes that bounded source-to-consumer seam for
+the resolved `direct/provider/observed_direct` fragment. It derives the actual
+installed provider Function with concrete `Row([tick])`, its ordinary use
+admission and Function replay, the matched nullary tick prefix with no tail or
+`x_u` consequence, returned-callback activation against the outer four-port
+demand, and pure exported result Effect under normal completed inference/query
+hypotheses. Independent `compiler_referee` review found no blocking or major
+issue and one minor wrong source path; the primary repaired that locator and
+recorded the review status. The proof uses no displayed Oracle scheme or prior
+execution dump, but it does not assert an authenticated historical event
+record. This local result does not establish universal H or refute it. H still
+requires the source/runtime correspondence for returning and invoking that
+same provider plus the authentic independent-origin/attachment classification
+for the original annotation occurrence. Complete Call, soundness,
+principality, and cutover remain OPEN. Oracle budget is exhausted; no Oracle,
+test, build, or compiler edit was made.

@@ -1,7 +1,7 @@
 # Oracle provider: concrete row replay and the returned callback output
 
 Date: 2026-10-12
-Status: frozen producer derivation; independent review pending; original H OPEN
+Status: independently reviewed bounded derivation; minor source locator repaired; original H OPEN
 Claim class: bounded source-to-consumer derivation under normal admission/query completion
 Y3 baseline: `148db454b6417890572a577ce4ea1c9618b59b52`
 Oracle baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -80,7 +80,7 @@ resolved operation path in `poly.effect_operations`. This constructor operates
 before any later ordinary scheme instantiation for this reference.
 
 `:1066–1091` uses the operation declaration's own effect application.
-`lowering/signature_helpers.rs:217–256` inserts it into the Function's return
+`lowering/body/signature_helpers.rs:217–256` inserts it into the Function's return
 Effect row, which initially has neither items nor a tail for `() -> ()`.
 `lowering/mod.rs:571–617` lowers the Function's four ports. The positive
 nonwildcard Effect-row branch at `lowering/signature_effect.rs:78–107` allocates
