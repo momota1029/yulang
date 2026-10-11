@@ -1,7 +1,7 @@
 # Negative recipe delivery: source transport falsifier
 
-Status: unreviewed research checkpoint; bounded source obstruction and conditional
-delivery characterization. No theorem, implementation gate, or source admission
+Status: independently reviewed bounded source obstruction and conditional
+delivery characterization; no theorem, implementation gate, or source admission
 is closed.
 Producer: primary-assigned researcher leaf; no delegation.
 Baseline: `0df10df944c0289a96b6c743aee474ccd55493de`,
@@ -233,7 +233,8 @@ integration; a live branch move itself does not establish invalidation.
 - Changed dependency hashes: none observed during the bounded inspection;
   final hash recheck is reported with the handoff.
 - Claim/review: unreviewed bounded source obstruction; conditional replay
-  characterization; original delivery/implementation gates OPEN.
+  characterization; compiler-referee review found no findings in the assigned
+  scope. Original delivery/implementation gates remain OPEN.
 - Checks: source-owner reads, dependency SHA-256 recheck, relative links,
   trailing whitespace and final newline; no tests/builds/runtime.
 - Proposed commit message:

@@ -11273,3 +11273,34 @@ construction/consumer invariant for current and future recipe delivery and
 origin/fiber retention before assigning the coupled internal implementation.
 Keep source preflight and general admission disabled. No code, tests, builds or
 Oracle execution changed.
+
+### 2026-10-12 negative residual delivery and transition checkpoint
+
+The bounded [recipe-delivery falsifier](../notes/progress/2026-10-12-negative-recipe-delivery-falsifier.md)
+identifies a concrete source-owner gap: bound fibers and origins are transported
+in separate passes, and destination origin admissions use `relation=None`,
+while the transported fiber is marked `MissingOriginAssociation`. The retained
+admission groups still preserve source information, so this is a missing
+association at the consumer, not a claim of global information loss or an
+observed runtime type error. A `compiler_referee` independently found no issue
+in the source obstruction, conditional replay quadrant argument, or its stated
+limits. The note and review are checkpointed in `12db532de`.
+
+The bounded [negative residual transition derivation](../notes/theory/2026-10-12-y3-negative-residual-transition-proof.md)
+constructs current-lower and future-lower delivery through the existing
+unweighted headed-row Allowance consumer, conditional on supplied feedback and
+projection relations, identity contexts, completed replay, and the stated level
+orientation. It does not derive the weighted residual reduction or instantiate
+the required recipe. The missing construction still must compute correlated
+`J/kappa/beta/pi`, preserve independent contributions, and install both live
+relations with authentic attachment/fiber origins. A separate `prover` review
+is pending; its checkpoint is `0874e9e02`. Until that review is adjudicated,
+this remains a bounded conditional result, not closure of the original H,
+effect-hygiene, Call, soundness, principality, or F5-replacement gates.
+
+No compiler code, tests, builds, measurements, or Oracle executions changed.
+The exact next proof obligation is the native negative residual equation at its
+internal constructor/consumer seam; source preflight and general concrete
+negative admission remain disabled. The Value-reference copy-content question
+is independent and remains pending; no dependent SCC transport work is inferred
+from the cross-level `odd`/`even` root SCC.
