@@ -10899,3 +10899,34 @@ Oracle's local-variable callback projection, and uses ordinary effect
 propagation; it also confirmed that the raw stored-scheme and provider records
 needed to establish the displayed loss are absent. This review does not supply
 those records or prove H. Oracle invocation budget remains exhausted.
+
+### 2026-10-12 cross-level recursion: native definition-root ownership
+
+The user's nested odd/even source has a source-owner cycle across lexical levels,
+`even → odd → even`. The accepted Apply-result rule supplies direct incidences
+from the inner and outer Apply result rows to their resolved Names, but does not
+identify those Apply rows with the distinct `even` or `odd` binding roots.
+The original Simple-sub model has type variables and bounds, not this selected
+Value-reference graph. Native source construction also keeps Lambda, Block,
+Apply, and definition-root rows separate; subtype links do not create graph
+edges.
+
+The frozen
+[`odd/even native-row bridge proof`](../notes/theory/2026-10-12-odd-even-native-value-row-bridge-proof.md)
+constructs a conditional pair at definition publication: with the same source,
+Apply incidences and shared candidate Lambda/Block forwarding, forwarding the
+Lambda body's owned Names to the published definition root gives `O → E → O`,
+while omitting that publication incidence leaves no `O/E` cycle in the displayed
+finite graph. These are local graph completions, not full compiler models or an
+intrusion witness. A `spec_auditor` major finding on the approval boundary was
+repaired and delta-reviewed closed; `compiler_referee` found no issue within
+the bounded model scope. The note is checkpointed at `c4224d749`.
+
+Definition-root Value ownership is now a separate pending user decision in
+[`definition-root ownership`](../questions/2026-10-12-definition-root-value-reference-forwarding/question.md).
+Only native Lambda/body/Block/publication forwarding and its dependent graph,
+transport, SCC qualification and equality proof wait on that choice. The
+existing nested-Apply membership question remains separately pending. Direct
+Apply-coordinate characterization, original Simple-sub derivation, and
+independent Call/Effect work continue; no implementation or theorem closure
+follows from this source example.

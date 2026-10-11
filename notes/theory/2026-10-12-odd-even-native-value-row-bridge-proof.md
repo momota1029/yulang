@@ -1,7 +1,7 @@
 # Odd/even: native row construction and the publication discriminator
 
 Date: 2026-10-12
-Status: frozen research-only source characterization and conditional model discriminator; independent review pending
+Status: frozen research-only source characterization and conditional model discriminator; independently reviewed, parent gates OPEN
 Baseline: `d557bc183d393bd181325c96569785df8262376e`, `research/simple-sub-intrusion`
 Exclusive lease: this file; one leaf, no delegation
 Parent source/transport, intrusion equality, soundness and principality gates: OPEN
@@ -234,11 +234,14 @@ already knows it. Retaining it can remove reconstruction debt but cannot
 decide whether L's body description belongs to O. No parent gate is relabeled
 or closed, and no third equivalent SCC proof is proposed.
 
-One next action: the primary resolves the native ownership forwarding
-contract for Lambda/body, Block-final and definition publication at the
-displayed coordinates, especially `L <: O`, then assigns its explicit
-constructor/consumer correspondence. An approved O/E cycle would still not
-qualify `(C,B)` or `(D,R)` or prove equality safe.
+One next action: the primary checks whether an existing approved source-value
+contract already determines Lambda/body, Block-final and definition
+publication forwarding at these coordinates, especially `L <: O`. If no such
+authority determines the rule, treat it as a new durable semantic decision:
+compare the two completions above, obtain independent design review and explicit
+user approval, and record the approved rule before implementation. Then assign
+the explicit constructor/consumer correspondence. An approved O/E cycle would
+still not qualify `(C,B)` or `(D,R)` or prove equality safe.
 
 ## Checks, resources and commit packet
 
