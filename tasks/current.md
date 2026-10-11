@@ -10147,13 +10147,16 @@ OPEN. Their bounded evidence and review outcomes are in
 [`oracle weight source bridge`](../notes/progress/2026-10-11-oracle-weight-source-bridge.md)
 and [`returned formal interface proof`](../notes/theory/2026-10-11-returned-formal-native-interface-proof.md).
 
-One bounded Oracle source-construction probe is active at
+One bounded Oracle source-construction attempt is checkpointed at
 [`oracle postpublication call probe`](../notes/progress/2026-10-11-oracle-postpublication-call-probe.md).
-It tests whether an authentic named callback provider plus a later published
-`f` call supplies the missing same-ID producer; it is limited to two serial
-Oracle invocations and does not change H's theorem or semantics. The
-source-to-value SCC question remains separately OPEN at copy-owned references
-and scanner equivalence.
+It added a named provider and later syntactic `f` call, but the provider body
+`tick.ping ()` failed with an unresolved-name diagnostic; the dump retained a
+partial result with status zero. This is failed source qualification, not an
+accepted provider, hygiene counterexample, or H closure. One of the packet's
+two allowed Oracle calls was used, with no control run and no syntax repair.
+The next packet statically resolves the Oracle operation-path syntax before
+any new execution. The source-to-value SCC question remains separately OPEN
+at copy-owned references and scanner equivalence.
 
 The next native source-Generalize bridge is now under two disjoint bounded
 lanes at baseline `26fedf6cd`: a constructive `prover` attempt to derive the
@@ -10164,3 +10167,9 @@ consumers (`notes/progress/2026-10-11-native-formal-interface-source-audit.md`).
 Neither may assume the missing interpretation or change compiler code. The
 original P and complete Generalize gates remain OPEN until the whole bridge is
 derived from source owners and independently reviewed.
+
+The bounded Oracle syntax follow-up is active at
+[`oracle operation-path source audit`](../notes/progress/2026-10-11-oracle-operation-path-source-audit.md).
+It inspects only the pinned Oracle's operation-path grammar, resolution and
+owning examples; it has no Oracle execution allowance. Any later source probe
+must use the remaining call budget only after this syntax owner is established.
