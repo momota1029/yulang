@@ -10165,8 +10165,11 @@ while preserving formal identity, local publication and capture. It still
 does not derive the Parameter/Lambda whole-entry Return/Request interpretation
 or refute it. The first constructive attempt is frozen at
 [`native whole-entry application proof`](../notes/theory/2026-10-11-parameter-lambda-whole-entry-application-proof.md): it derives the source Strict premise, then stops at the native
-Parameter/Lambda interpretation application. It establishes no counterexample
-or impossibility result; the independent proof review is active.
+Parameter/Lambda interpretation application. An independent `compiler_referee`
+found no issue in that bounded localization and no counterexample or
+impossibility claim. A distinct constructive lane remains active on deriving
+the Function representation/projection relation from source judgments and
+actual consumers.
 
 A distinct constructive lane now attempts the representation/projection proof
 from actual four-port Function formation and Function-pair dispatch to the
