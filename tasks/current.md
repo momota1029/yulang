@@ -9673,3 +9673,17 @@ later Local linking.
 No conflict list, private observation or diagnostic API is treated as proof of
 full-source rejection. No production implementation or F5 routing authority is
 implied.
+
+The constructive [Local restoration Value-SCC derivation](../notes/theory/2026-10-11-local-restoration-value-scc-preservation.md)
+now supplies the source invariant sought by that lane: authentic native Value
+bounds preserve `H(item) <= level(owner)`, and every retained extrusion
+copy/parent pair begins strictly ordered. A first qualifying merge would
+require a reverse dependency path that violates this level order. The derivation
+traces all current native Value-bound writers, lexical/module use levels,
+captured-bound order, interleaved restorations, earlier child-created parents,
+memo suppression and final Local linking. It is frozen with independent
+compiler-referee review pending. This removes the exact zero-product
+restoration predecessor from the bounded Effect-drain rejection analysis; it
+does not prove general inconsistency reflection, persistent-witness coverage,
+public acceptance, soundness, principality, complete Call, hygiene, or F5
+replacement. The original theorem remains OPEN.
