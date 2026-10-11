@@ -1,9 +1,8 @@
 # Negative licensing: source identity falsification
 
 Date: 2026-10-12
-Status: unreviewed research checkpoint; bounded source characterization and
-conditional constructor derivations; no negative-license counterexample or
-theorem closure
+Status: independently reviewed bounded source characterization and conditional
+constructor derivations; no negative-license counterexample or theorem closure
 Baseline: `79f5fc15bd652f8b86cea73721ffd452cb99c9d7`
 Branch supplied by primary: `research/simple-sub-intrusion`
 Method: read-only source tracing, distinct from the constructive prover lane
@@ -244,3 +243,13 @@ untouched. No new representation or production authorization is proposed here.
   record the concrete admission/construction guard and conditional common-row
   candidate separately from executable negative evidence. No shared records,
   authority files, question bundles or compiler files were changed.
+
+### Independent review
+
+A `compiler_referee` reviewed the source-owner localization, conditional
+common-row route, member-ordinal identity, contribution freshening condition,
+and the limits on source execution and negative licensing. It found no blocking,
+major or minor issue. The review did not independently revalidate every
+dependency against Git; the primary's pinned-baseline comparison found no
+dependency changes. Annotation-license construction, native residual execution,
+H, complete Call, soundness, principality and F5 replacement remain OPEN.
