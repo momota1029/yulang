@@ -1,8 +1,8 @@
 # Lifecycle constructor-to-consumer feasibility
 
 Date: 2026-10-11
-Status: bounded static source characterization; unreviewed research checkpoint;
-frozen for primary handoff. No authentic lifecycle witness or closure claim.
+Status: independently reviewed bounded static source characterization. No
+authentic lifecycle witness or closure claim.
 Baseline: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`
 Branch: `research/simple-sub-intrusion`
 Lease: this file only
@@ -177,11 +177,21 @@ representation decision is needed, return it through the existing review and
 user-approval path before implementation. Do not replace this packet with
 another synthetic adapter probe.
 
+## Independent review
+
+A fresh spec-auditor reviewed the frozen artifact at SHA-256
+`536da7ec6b480210adbd2a74563183d54ba4783978ffc00a192ffb61427955c1` and found
+no blocking, major or minor findings. The reviewer confirmed the distinction
+between authentic source construction and synthetic support, the future Local
+publication gate versus published-graph lifecycle, the saved-count/live-index
+behavior, and the proposal's unapproved status. Alternate constructors,
+complete consumer coverage, executable behavior, all-source reachability and
+soundness/principality remain unreviewed. No production or theorem gate closes.
+
 ## Dependency identities and commit packet
 
-Pinned Git blob identities; this worker changed no dependency. Primary must
-recheck these against integration HEAD and independently review before any
-status promotion.
+Pinned Git blob identities; this worker changed no dependency. The primary
+rechecked these against the integration baseline before review.
 
 | Dependency | Blob SHA-1 |
 | --- | --- |
@@ -200,7 +210,7 @@ status promotion.
 - Baseline: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`.
 - Changed dependency hashes: none by this worker; live dependency revalidation is
   left to the primary.
-- Review status: unreviewed bounded static research; frozen, no closure claim.
+- Review status: independently reviewed bounded static research; no closure claim.
 - Checks already run: pinned `git show` reads, narrow `rg` symbol locators,
   read-only branch/status and `git rev-parse` blob identification. No executable
   checks or final primary integrity check ran.

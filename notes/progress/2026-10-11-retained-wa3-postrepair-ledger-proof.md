@@ -1,7 +1,7 @@
 # Retained W/A3: postrepair ledger derivation
 
 Date: 2026-10-11
-Status: unreviewed constructive operational derivation under the explicit Rust allocation model below. No independent certification or original W/A3 closure.
+Status: independently reviewed conditional constructive derivation under the explicit Rust allocation model below. Actual linked-runtime applicability remains unverified; original W/A3 remains OPEN.
 Producer: leaf `/root/retained_w_a3_rollback_proof`; no delegation.
 Exclusive lease: this note only.
 Baseline: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`, branch `research/simple-sub-intrusion`.
@@ -108,6 +108,24 @@ The earlier missing compiler premise—pre-reserve history headroom—has actual
 
 This is not a third equivalent search against the old premise: its owning construction changed. The proof uses that new guard and proves the failure-history invariant. W/A3, incidence, lifecycle, complete Call meaning, effect hygiene, soundness, required principality and production cutover remain OPEN. The primary alone may adjudicate the narrow result after fresh independent review.
 
+## Independent review and adjudication
+
+Fresh compiler-referee review of the frozen artifact at SHA-256
+`b01c8f7f45b91ae604eff27a38bfb02688e3f4e84a53e5fd54e7264794347931` found
+no blocking, major or minor findings within its stated conditional scope. The
+review supports the guarded incoming/nonincoming counter inequalities, the
+failure-inclusive nested-byte induction, and the non-circular treatment of
+early rollback exits. It considers R sufficient under ordinary valid Rust
+allocation semantics, while confirming that actual linked-runtime/allocator
+applicability is unverified. The primary accepts this only as a conditional
+late-ledger lemma under R; it does not certify the unidentified binary or
+promote original W/A3.
+
+Semantic inverse totality, full rollback return, sampled whole-session
+accounting, scheduler/incidence correspondence, lifecycle/§7, complete Call,
+effect hygiene, soundness, required principality and production cutover remain
+outside this review and OPEN.
+
 ## Frozen dependencies, checks and resources
 
 The yulang-proofs skill and role/config pins were read by this continuing leaf. The current orchestration proof/model sections, research-lab evidence/stop policy, design-authority sources and compiler-engineering economy rules were reread; the unchanged relevant policies are carried forward. No coordination exception was granted. Requested runtime: ordinary prover, `gpt-6.1-sol`/high; observed effective model/effort **unknown**. No Astra, hot reload or override claim.
@@ -129,14 +147,16 @@ External read-only library snapshot root: `/home/momota1029/.rustup/toolchains/s
 
 Checks: plain-file HEAD/ref resolution, exact input hashes, bounded rule/source/library reads, counter-writer and nested-capacity owner searches, constructive arithmetic/ownership induction, final dependency and note scope/whitespace checks. No Git commands/mutations, tests, builds, Cargo, executable probes, measurements, formatter, code/test/shared-record edits or delegation. The primary-reported focused checks remain separate evidence. Initial broad captures were truncated and decisive regions reread in smaller captures. One leaf, short read/hash processes; zero sustained computation or performance samples; CPU/RSS unmeasured. Packet started at 01:31 UTC and stopped within its 20-minute ceiling.
 
-One next action: primary supplies this frozen derivation to fresh independent review, explicitly adjudicating whether R is the accepted shared runtime model, and applies only the resulting late-ledger lemma to W/A3.
+One next action: apply this reviewed conditional late-ledger lemma to the
+original W/A3 bridge while keeping its semantic inverse, source/scheduler,
+incidence and lifecycle premises OPEN.
 
 ## Commit packet
 
 - Exact leased/changed path: `notes/progress/2026-10-11-retained-wa3-postrepair-ledger-proof.md`.
 - Baseline SHA: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`.
 - Changed dependency hashes: none authored by this leaf; postrepair hashes above replace the prior proof's lib/extrusion inputs. The primary advanced the branch ref to `34b1c059f6ec91a472516d21f6cecaebc109668a` during this packet; all governing source/proof hashes above remained unchanged at final check.
-- Claim/review status: unreviewed constructive operational derivation under R; no self-certification or parent promotion. Actual runtime applicability and original W/A3 remain unverified/OPEN.
+- Claim/review status: independently reviewed constructive operational derivation under R; no binary certification or parent promotion. Actual runtime applicability and original W/A3 remain unverified/OPEN.
 - Checks already run: exact hashes, operational-owner/constructor/consumer inspection, library grounding, static induction and leased-note checks. No executable verification.
 - Proposed checkpoint message: `research: derive retained rollback ledger arithmetic after headroom repair`.
 - Shared-record deltas left to primary/curator: record the guard-derived branch inequalities and failure-inclusive nested-census induction; distinguish the R runtime premise and whole-session sampled census; retain semantic inverse/scheduler/lifecycle and parent W/A3 OPEN. No shared records edited.

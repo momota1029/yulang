@@ -9016,16 +9016,26 @@ Three independent research artifacts are checkpointed and pushed:
 - `020904362`: constructive post-repair late-ledger derivation under explicit
   ordinary Rust allocation validity model R. It derives incoming and
   nonincoming history-counter headroom from the new guard and gives a
-  failure-inclusive nested-byte census induction. Actual linked-runtime
-  applicability of R remains unverified, and the note is not independently
-  reviewed yet.
+  failure-inclusive nested-byte census induction. A fresh compiler-referee
+  found no issue within this conditional scope and accepted the derivation
+  under R. Actual linked-runtime applicability of R remains unverified.
 
-Fresh independent reviews are running for the ledger derivation, the adversarial
-source audit and the lifecycle bridge. Until those findings are adjudicated,
-the late-ledger theorem remains OPEN, as do semantic inverse totality, the
-original all-valid-initial-state W/A3 composition, source/scheduler and
-incidence correspondence, authentic lifecycle/withdrawal/recomputation, q113,
-complete Simple-sub inference, effect hygiene, soundness/principality and F5
-production cutover. The branch was pushed after each coherent checkpoint; the
-next action is to consume the reviews and apply only accepted evidence to the
-original parent obligations.
+Fresh independent reviews found no blocking, major or minor findings in all
+three frozen research artifacts. The compiler-referee accepts the late-ledger
+derivation only under its explicit ordinary Rust allocation model R; actual
+linked-runtime/allocator applicability remains unverified. The spec-auditor
+confirmed that synthetic support guards only future Local publication and
+does not establish producer completeness or published-graph withdrawal. The
+second compiler-referee confirmed the adversarial audit's bounded reserve and
+inverse-seam map without certifying the parent theorem.
+
+The primary applied the reviewed conditional late-ledger lemma under R to
+[`retained-parent-rollback-premise-proof`](../notes/progress/2026-10-11-retained-parent-rollback-premise-proof.md).
+The ledger arithmetic subpremise is now conditionally discharged for its
+stated owner domain; original W/A3 remains OPEN on semantic inverse totality,
+all-source scheduler/incidence correspondence and lifecycle. The branch was
+pushed after each coherent artifact and record checkpoint. Next: establish the
+atomic forward-owner to exact rollback-inverse correspondence, while the
+authentic retained-input readiness/filter/observation producer and propagation
+gap remains a separate lifecycle gate. Complete Simple-sub inference, effect
+hygiene, soundness/principality and F5 production cutover remain OPEN.

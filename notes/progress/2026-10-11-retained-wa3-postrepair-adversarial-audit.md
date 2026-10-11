@@ -1,7 +1,7 @@
 # Retained W/A3: post-repair adversarial source audit
 
 Date: 2026-10-11
-Status: unreviewed bounded source characterization; no constructor-qualified counterexample found in the inspected inventory. Original W/A3 remains OPEN.
+Status: independently reviewed bounded source characterization; no constructor-qualified counterexample found in the inspected inventory. Original W/A3 remains OPEN.
 Producer: leaf `/root/wa3_postrepair_adversarial`; no delegation or compiler authority.
 Baseline: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`, branch `research/simple-sub-intrusion`.
 Exclusive lease: this note only. Budget: one static pass, at most 20 minutes wall time, one lightweight process at a time; no executable experiment, test, build or Cargo.
@@ -82,12 +82,23 @@ Commands run: bounded `rg -n` producer/counter/nested-write inventories; `sed -n
 | Earlier falsifier | `093f2d3ef7ea4d3b206939c5dc8475cfbe793e25f3c01682c5b06d4f2afa59ad` |
 | Headroom proof | `28f595f0bf3b787d6c173dce7ee2a567e6790322626b28a44b4cc1a03741c51e` |
 
+## Independent review
+
+A fresh compiler-referee reviewed the frozen artifact at SHA-256
+`a4613487067cb350fd9387bca51160edd2ac574bee510bef881aa52bd86f7420` and found
+no blocking, major or minor findings. The reviewer confirmed the inspected
+reserve coverage and inverse-seam map, while explicitly leaving atomic
+constructor induction, allocator applicability, scheduler states, §4
+incidence, lifecycle/source/SCC paths and theorem certification unreviewed.
+This closes review of the bounded characterization only; the original W/A3
+inverse and byte premises remain OPEN.
+
 ## Commit packet
 
 - Exact leased/changed path: `notes/progress/2026-10-11-retained-wa3-postrepair-adversarial-audit.md`.
 - Baseline SHA: `d7e87c63723213550ac28ddab45e2ef47ce17f6e`.
 - Changed dependency hashes: none authored or observed relative to the pinned baseline; hashes above are the post-repair inputs, not the earlier pre-repair compiler hashes.
-- Claim/review status: unreviewed bounded source characterization and conditional local arithmetic explanation; no constructor-qualified refutation, theorem closure, independent self-review or production promotion.
+- Claim/review status: independently reviewed bounded source characterization and conditional local arithmetic explanation; no constructor-qualified refutation, theorem closure or production promotion.
 - Checks already run: exact branch/HEAD, scoped dependency diff/hash reads, guarded-producer inventory, named semantic inverse seams and note whitespace/scope check. No executable verification; primary owns verification/review.
 - Proposed checkpoint message: `research: audit retained rollback owners after headroom repair`.
 - Shared-record deltas intentionally left to primary/curator: associate guarded producer coverage with the repaired history premise; retain atomic producer/inverse correspondence and nested-byte census as explicit separate residual owners; retain original W/A3 OPEN. No shared files edited.
