@@ -1,8 +1,9 @@
 # Value-reference incidence construction and polar transport
 
-Status: frozen research-only construction and conditional source bridge; unreviewed
+Status: frozen research-only construction and conditional source bridge; the continuation delta passed bounded `compiler_referee` review for §§3.1–3.4 and the linked example edits; the all-source theorem remains OPEN
 Parent all-source/all-history/retained-Value-pair theorem: OPEN
-Baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`, `research/simple-sub-intrusion`
+Initial baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`, `research/simple-sub-intrusion`
+Continuation baseline: `70696a873` (primary-pinned origin; no Git query in this pass)
 Exclusive lease: this file; leaf, no delegation
 
 ## 1. Frozen objective and evidence classes
@@ -70,7 +71,7 @@ source path and, for a transport, its particular operation and polar port
 path. Multiple witnesses may have one row as owner. No witness is selected
 independently from its target or substituted with another use's map.
 
-The proposed graph projection is
+The conditional incidence projection, not an independently identified native graph, is
 
 ```text
 V_h = all actual allocated Value rows of h;
@@ -90,7 +91,10 @@ The finite source-reference walk constructs an evidence relation
 Apply takes the union of the callee and argument incidences; Group/ascription
 follow their source child; Block follows the final expression. Each nested
 initializer is walked with its own owner. A formal declaration adds no Name
-incidence. This source relation is distinct from the completed native graph.
+incidence. This source relation is a source projection. Actual Value payloads
+can reference formal rows without any source Name occurrence; those payload
+references remain eligible even when the payload is stored in a lower or upper
+bound. Neither storage side nor this walk defines the completed native graph.
 
 | Clause | Actual owner/target coordinates and source responsibility | Scope of the derived fact |
 | --- | --- | --- |
@@ -128,6 +132,148 @@ construction. The incidence method retains their distinct roles and does not
 promote a row collision to a self-reference or assert an injective
 binding→row map. Correct interpretation of such aliases remains necessary
 for completeness; allocating new facades to avoid it is not proposed.
+
+### 3.1 Source-to-row provenance: the established grammar construction
+
+Separate `Anchor_h(e,u)` from semantic ownership. It says that the actual
+source-construction recipe gives expression `e` endpoint row `u`; it does not
+say that `u` owns all syntax under `e`. On the successful allocation prefix,
+`Anchor` is a deterministic function for the collected LocalSource grammar:
+parameter Names use `param(j)`; the other expressions initially use
+`b(positions[e].value)`; ascription aliases use the retained peeled endpoint.
+Group and Block retain their facade rows and a separate child/final link.
+Unit, Integer and Operation have their own recipe coordinates; this anchor
+statement supplies no new operation/effect semantics. The grammar is at
+`local_source.rs:107–145`; allocation/alias recipes are at
+`candidate_source.rs:187–233,438–470` and endpoint realization at
+`shadow_apply.rs:1287–1302`.
+
+Proof is induction on the collected expressions and the recorded alias pass:
+the parameter-registration map uses the resolved original parameter ID; every
+other initial coordinate is the allocated expression component; peeling
+follows the already retained child indices. The constructors explicitly retain
+Lambda body, Apply operands and result, and Block final expression. No spelling
+lookup or independent witness selection enters this function. Separately,
+Name target coordinates are joined by the exact route described in §3. Open
+recursive uses retain the same active target root, while each published use
+retains its particular graph and row map. Local installation uses its exact
+initializer endpoint, even if it aliases a parameter row. These are provenance
+facts for authentic histories, not a proof that every possible prefix succeeds.
+
+Thus `S(a,o,d)` can be joined to `Anchor` and an authentic target/use record.
+This proves the covered source projection's identity construction. It does
+**not** prove an actual source-to-Value ownership relation. For example, the
+provenance of `x` in a Lambda body may be row `P`, but that does not say that
+the input value represented by `P` owns the body's Name occurrence. Keeping
+that distinction preserves the original binder and local-initializer scopes.
+
+### 3.2 Actual Value payload references: a second, different construction
+
+For an authentic constructed Function payload `F` with polarity `p`, retain
+its typed slots `(argument:Value/opposite(p), argument-effect:Effect/opposite(p),
+result-effect:Effect/p, result:Value/p)`. A Value slot whose endpoint is an
+actual row `v` supplies a payload-reference incidence `(F,slot,v)`; a nested
+Value payload supplies its own incidences along the actual structural path.
+This is a statement about the payload's actual operands, not about comparison
+orientation. Effect slots do not supply Value-variable graph paths here.
+The same payload reference is present when `F` is retained in a lower bound,
+an upper bound, or a constructor/route record. Storage location does not
+remove a reference and does not alone establish which row owns the payload.
+
+Source owners construct these payload incidences directly:
+
+- Lambda reads the actual formal endpoint and body endpoint, constructs
+  `F⁺=Function(P⁻,ae⁻,re⁺,B⁺)`, and admits that very `F⁺` against its retained
+  Lambda root `L` (`lib.rs:11233–11260,11342–11362`). A formal-domain override
+  may replace the first operand; the statement follows the actual operand,
+  rather than assuming every annotated Lambda has a direct `P` port.
+- Apply constructs `D⁻=Function(A⁺,ae⁺,ie⁻,R⁻)` and admits its separately
+  retained callee against that demand (`shadow_apply.rs:1331–1383`). `A` and
+  `R` are real payload references, even though this is a negative Function.
+  The callee is outside `D`; there is no callee payload slot in `D`.
+- Name, Group, Block and definition-root forwarding admit exact row/endpoint
+  links; they do not construct a new Function simply because their source
+  projection contains a Name. A published use rebuilds the captured actual
+  payload with the same use's map; an open recursive route instead uses the
+  retained active root. Neither operation substitutes another use's instance.
+
+This establishes `GeneratedFor_h(e,u,F,k)` for the authentic Lambda recipe
+and `DemandFor_h(e,callee,D,k)` for the authentic Apply recipe, together with
+their payload-slot incidences. The association to the recipe is established;
+identifying `GeneratedFor`, `DemandFor`, or accumulated bound membership with
+all contributions to the **owned Value of a row** is the remaining bridge.
+An upper-bound negative Function is not excluded merely for being upper or
+negative. Conversely the judgment `callee <: D` is not itself an edge to any
+row, and `D` being constructed for an Apply does not make `R` own all of `D`.
+
+### 3.3 Exact first missing constructor law
+
+The required relation has the shape
+
+```text
+Own_h(u, payload contribution F, constructor/forwarding context k)
+Own_h(u,F,k) and payload-reference(F,π,v)  =>  approved-edge_h(u,v).
+```
+
+The converse must cover every actual Value reference, with original scope,
+use identity and contribution retained. `Own` cannot be replaced by “a lower
+bound”, “an upper bound”, “one source Name below the expression”, or “parent
+of the copied row”. Bounds can carry genuine owned payload references on
+either side; the constructor/forwarding explanation must identify them.
+
+The first unresolved identification in this method is the **row-owned payload
+introduction and forwarding law** at the actual Lambda admission and its
+Name/Group/definition-root links. The exact original `F⁺`, Lambda row `L`,
+body/formal ports and subsequent links are recoverable. What is not derived
+is a rule identifying all contributions to each row's owned Value through
+those links and through accumulated constraints, including the corresponding
+negative-demand contributions. One can propose that the defining Lambda
+payload contributes to `L`; the sources establish its generated-for relation
+and admission, but no induction here establishes the required complete `Own`
+relation through arbitrary later native histories. This is an OPEN semantic
+bridge, not an impossibility theorem and not an assertion that an absent
+stored ownership field prevents a history-based construction.
+
+In particular, `S(Apply)=S(callee)∪S(argument)` is a proven source walk law. It
+is not yet the law for the Value owned by the Apply result row. Its copied
+result inheritance and outside-callee frame rule in §4 are conditional on
+this earlier identification. The source walk and payload-port construction
+are neither alternatives nor interchangeable definitions of the approved
+graph; no SCC qualification follows from either projection alone.
+
+### 3.4 Payload transport commutes on the actual visited slots
+
+On one successful polar event `q`, Function rebuilding reads the outputs of
+its own four visited keys and constructs the resulting payload
+(`candidate_extrusion.rs:224–249,325–352`). Hence each visited Value port
+`(F,i,v)` becomes `(F_q,i,M_q(v,p_i,t))`, where `p_argument=opposite(p)` and
+`p_result=p`. If a port is structural, apply the same argument recursively to
+its actual structural children; row-cycle traversal terminates this structural
+step at the memoized row key, and the visited selected bounds are accounted
+for separately. This is a direct constructor correspondence for payloads,
+not a theorem that all outgoing references of a copied row were visited.
+
+For the shared payload `Function(alpha,alpha)`, the original binder stays
+one actual row, but opposite Value ports use the two actual event keys. Both
+port incidences are represented jointly even if their outputs differ. No
+single unpolarized extrusion map is required and no incidental visit selects
+a source-reference target. A source `id` alone does not prove that a lower
+level event occurs; the statement applies to an authentic event satisfying
+its guards. Formal-domain overrides and Effects keep their separate slots.
+
+Fresh use uses a different actual construction: capture retains typed
+Function nodes with those four slots (`candidate_scheme.rs:458–513`), and
+preparation assigns each canonical captured row once for that use
+(`:981–1019`). Rebuilding ports with this map makes all occurrences of a
+shared `alpha` use that one mapped row, with their original polar views.
+Rows outside the copied generic region remain the actual shared anchors.
+That native slot correspondence is established; it does not establish that
+all source captures are inside that graph or a semantic frame law for a
+source incidence outside it. To promote either transport result to approved
+row edges needs `Own` preservation/creation for each authentic mapped payload
+contribution, plus a justified shared frame for all owned references not
+visited. Selected-bound transport and a retained parent alone do not supply
+that invariant. These are the exact remaining owners, without a new row map.
 
 ## 4. Transport indexed by the actual operation and port
 
@@ -211,7 +357,8 @@ the meaning of copying this result row. Its target is not licensed to change
 merely because an incidental selected-bound path visited a copy of the same
 row elsewhere in `q`.
 
-This is the first frozen obstruction of the incidence method:
+This is the previous bounded copy-result obstruction, now explicitly
+conditional on the earlier row-owned payload law in §3.3:
 
 > At an actual Apply-result copy, establish that the parent's source Apply
 > contribution is inherited by that row; for each inherited source reference,
@@ -231,10 +378,10 @@ supply them, so this is not an information-loss theorem.
 
 | Source | Result of applying the incidence method | Boundary retained |
 | --- | --- | --- |
-| `my f x = g; my g y = f` | Reuse the completed joint original Name/root route construction. The unused formals add no source incidences. | No new SCC proof or retained-copy witness is claimed. Copy transport still needs the actual event/source-slot lift. |
+| `my f x = g; my g y = f` | Reuse the completed joint original Name/root route construction. The unused formals add no source Name incidences; the two Lambda payloads still have their actual Value argument/result ports. | No new SCC proof or retained-copy witness is claimed. Copy transport still needs the actual event/source-slot lift. |
 | `my id x = x` | The body incidence retains binder `x` and target `param(x)` at the Lambda/definition owner. The bypassed Name component is not assigned an owned input value. | For a granted polar Function event, original binder identity can stay fixed while different native port contexts select different actual row views. The existing opposite-copy result does not refute this incidence method; it does not prove those views' semantic interpretation either. |
-| `my ignore x = 0` | The literal body gives no source Name incidence; the formal registration remains a binder/typing coordinate. | No argument-port edge is inferred. Absence of body Name references does not establish the contents of a later supplied formal value or a copied formal row. |
-| `my f x = { my inner z = g z; g }; my g y = f` | Under successful formation, `f`'s owned result references `g`; `inner` owns the separate Apply references to `g` and formal `z`; `g`'s body references `f`. The two `g` occurrences remain distinct. Apply result and argument rows are retained jointly in its actual source input. | No execution of the stipulated extrusion prefix is claimed. The required positive argument copy `(C,Z)` has parent `Z=param(z)`, not the Apply result `A`; the Apply-result conditional clause cannot be transferred to it. |
+| `my ignore x = 0` | The literal body gives no source Name incidence. Its authentic positive Function still references its formal row in the argument Value port and its retained body endpoint in the result Value port. | These payload references are preserved; translating them to row-owner edges requires §3.3. Absence of body Names does not prove absence of actual Value references. |
+| `my f x = { my inner z = g z; g }; my g y = f` | Under successful formation, the source projection for `f` contains `g`; the separate initializer projection for `inner` contains `g` and formal `z`; `g`'s body projection contains `f`. The two `g` occurrences remain distinct. Apply result and argument rows are retained jointly in its actual source input. | No execution of the stipulated extrusion prefix is claimed. The required positive argument copy `(C,Z)` has parent `Z=param(z)`, not the Apply result `A`; the Apply-result conditional clause cannot be transferred to it. |
 
 In the nested source, copying the **result** can use the conditional context
 in §4. Copying its **argument** `Z` does not inherit the Apply's owned source
@@ -309,19 +456,41 @@ another certificate inventory is not useful. The inherited reference meaning
 and formal input-content law are genuine semantic premises; adding a field
 cannot prove them and reclassifying them C/D cannot retire the parent gate.
 
-Before another equivalent attempt, the primary should adjudicate one concrete
-constructional invariant at the Apply/result-copy owners: copied result
-contributions retain their source union of references; the same event's
-authentic operand slots transport the covered references; source slots outside
-that event retain justified shared targets. Check it first on the actual
-Apply demand/result-parent coordinates in §4, with the existing use maps,
-against the required native copy meaning and future constraints. If it is
-correct, the resulting induction is the incidence lemma above, and the formal
-input supplier remains separate. If it is false, return the exact authentic
-source/event falsifier. This action requires semantic/source evidence, not
-another SCC probe or a new record merely naming the rule.
+The continuation does not discharge that premise by adding another relation.
+It proves the exact source-to-row provenance and payload-port transport above,
+then stops at the first constructor-owned semantic bridge (§3.3). The repaired
+bounded core proof explicitly assumes no desired Value-owner law; its replay
+coverage lemma also keeps initial/bulk-operation obligations conditional. It
+cannot supply this missing ownership law. The reference `Typer.scala:48–83`
+constructs a Lambda Function and a fresh Apply result with a negative demand;
+that comparison does not define Yulang's approved Value ownership either.
+
+One next decisive action: independently adjudicate the row-owned payload
+introduction/forwarding and transport invariant against the authoritative edge
+meaning, starting with the exact Lambda payload/root admission and Apply's
+callee/demand/result triple in §§3.2–3.4. Include aliases, all lower/upper
+payload contributions and future histories; then determine whether copied
+result source-union inheritance and the outside-callee frame law actually
+follow. No third source-walk reconstruction or scanner-derived graph can
+establish that premise. Keep the original theorem and all four example scopes
+OPEN until this source/operational bridge, consumer equivalence and required
+typing/equality obligations close.
 
 ## 8. Checks, resource use and dependency snapshot
+
+Continuation checks at primary-pinned `70696a873`: static bounded source reads
+of LocalSource grammar, source recipes, Lambda admission, Apply demand,
+actual polar Function rebuilding and fresh-use capture/preparation; reread
+of the authoritative clarification and committed repaired core proof. SHA-256
+integrity accounting below found no drift in the original 16 dependencies.
+The continuation used no Git command, code change, test, build, Oracle,
+instrumentation, executable probe or shared-record write. One mistaken path
+read for `lib.rs` failed, supplied no premise, and was corrected to its actual
+`crates/yu-solver/src/lib.rs` owner. Source constructor checks establish the
+bounded provenance and payload-slot facts only, with row ownership OPEN.
+At most three lightweight source-read processes ran concurrently. Zero
+measurement samples; resource usage otherwise unmeasured. The earlier checks
+below describe the initial pass, not new verification of semantic closure.
 
 Checks: static `cat`, `rg`, bounded `sed`/`nl`, source coordinate/port
 crosswalks and SHA-256 snapshots. A small read-only Python integrity check
@@ -368,13 +537,15 @@ No dependency was edited by this leaf. The live SHA-256 snapshot is:
 | `crates/yu-solver/src/shadow_apply.rs` | `230ed70cc8575016967cdf16c6c814544b25e45b0fc687d6c89f0d38e8fb5cd6` |
 | `crates/yu-solver/src/candidate_intrusion.rs` | `aec3ad6e6028a1a358b622a8d34723e43bde70282695ebc2415876a08dfbceb0` |
 | `crates/yu-solver/src/lib.rs` | `c21376746b2c6d022d4e7c709c0c88e61d8b9c10eb260d617479f4f10b901a94` |
+| `notes/theory/2026-10-11-simple-sub-rebuilt-core-proof.md` | `08f178b448c711c43938ec26dd438c18bbee5d47ee4d11f1a03d2e88839f6597` |
+| `/home/momota1029/rust/simple-sub-reference/shared/src/main/scala/simplesub/Typer.scala` | `f968f33615855eaa087a8127d042876867994ca8f1c7dc5d95e9bdd18c43c1e9` |
 
 ## Commit packet
 
 - Exact leased changed path: `notes/theory/2026-10-11-value-reference-incidence-construction.md`.
-- Baseline SHA: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
+- Baseline SHA: primary-pinned `70696a873` for this continuation; initial construction used `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
 - Changed dependency hashes: none caused by this leaf; the primary revalidates the listed snapshot at integration.
-- Claim/review: original-coordinate construction facts, conditional polar incidence transport, proposed copy-inheritance/frame invariant; unreviewed; original parent theorem OPEN. Writes stopped before submission.
+- Claim/review: original-coordinate construction facts, native payload-port transport, conditional row-ownership/copy-inheritance/frame invariant; unreviewed; original parent theorem OPEN. Writes stopped before submission.
 - Checks already run: static owner/port/route crosswalks, source example incidence characterizations and SHA-256 snapshots. No test/build/Oracle/probe.
-- Proposed one-line checkpoint message: `research: construct Value reference incidences through polar Apply coordinates`.
-- Shared-record deltas left for primary/curator: record the joint incidence method and covered Apply argument/result transport separately from semantic closure; assign the exact copy-inheritance/outside-reference frame premise at its owners; keep formal input suppliers, source reachability, scanner equivalence and typing/equality gates OPEN. No shared record or authoritative semantics changed.
+- Proposed one-line checkpoint message: `research: separate source incidences from native Value payload ownership`.
+- Shared-record deltas left for primary/curator: record the source projection and actual Value payload-port construction separately; assign the first row-owned payload introduction/forwarding law and its polar/fresh transport at the exact constructor owners; preserve the conditional copy-inheritance/outside-reference frame premise; keep formal input suppliers, source reachability, scanner equivalence and typing/equality gates OPEN. No shared record or authoritative semantics changed.
