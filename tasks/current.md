@@ -125,9 +125,22 @@ conformance. The bounded candidate construction is not itself a complete Call
 proof. The exact complete-Call gate remains OPEN, with actual constructor
 correspondence, whole-argument compatibility at the same returned provider,
 complete Call discharge, soundness and principality outstanding. No acceptance
-or scheme is inferred from the candidate graph. Next: finish the constructive
-proof for the adopted pre-Call fragment and identify the first source-qualified
-complete-Call sequent it does not discharge.
+or scheme is inferred from the candidate graph. A constructive prover has now
+instantiated the adopted rank-0..4 Formal/Name/Int/Result/Image construction
+for these exact occurrences, conditional on the complete finite declaration
+graph and every whole ordered local application at the candidate operand
+contexts. The proof and its independent review are recorded in
+[`adopted invoke pre-Call construction`](../notes/theory/2026-10-11-adopted-invoke-precall-construction.md).
+Review initially found the declaration quantifier too broad. The repaired note
+now requires the complete import closure, and independent compiler-referee
+delta review accepts the conditional construction. Actual source conformance
+remains OPEN at the first `Declare-Owned-Port` application:
+the complete `Fam_delta` telescope, its ordered substitution, and the
+carrier/receipt/Force/rebind scope/license maps have not been located or
+checked against the selected source declarations. This is the next owner
+sequent; it is not evidence of incompatibility or a source rejection. After it,
+complete Application/Gen-Call formation and same-provider whole-argument
+compatibility remain OPEN.
 
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test

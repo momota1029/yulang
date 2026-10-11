@@ -667,7 +667,7 @@ This index is a navigation aid. The listed source document remains authoritative
   Call, compiler implementation, inference closure, or F5 cutover. The
   candidate's conditional construction proof remains the mathematical basis.
 
-- **Reviewed source-owned invoke registry candidate, unadopted (2026-10-10):**
+- **Reviewed source-owned invoke registry construction (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
   build the actual formal/Name/literal pre-Call registry from source recipes,
   with seven source rows plus computed local declaration closure. Raw syntax
@@ -678,12 +678,19 @@ This index is a navigation aid. The listed source document remains authoritative
   Both fresh mathematical and specification delta reviews passed after the
   late-typed-reference repair; [review record](../progress/2026-10-10-original-registry-construction-review.md).
   Proof checkpoint `fdda52fd8ec9eb1b3a691825a7b895b3a40fc753` was pushed before
-  this shared-record update. P_old/Reg/lookup/manifest inputs are eliminated
-  in this defined pre-Call construction. Registry q3 does not yet adopt its
-  representation, raw-P interface or owner permission; arbitrary original
-  opaque declarations are not presumed to conform. Complete original Call
+  this shared-record update. The bounded six-choice representation has since
+  been adopted for the resolved nonrecursive formal/Name/Int pre-Call
+  fragment; see the [adoption authority](2026-10-10-original-registry-constructor-adoption-proposal.md).
+  P_old/Reg/lookup/manifest inputs are eliminated in this defined pre-Call
+  construction. Its conditional application to `my invoke f = f 1` is recorded
+  in the [adopted pre-Call derivation](../theory/2026-10-11-adopted-invoke-precall-construction.md):
+  its earliest actual-declaration premise is the unelaborated full `Fam_delta`
+  application for owned carrier/receipt/Force/rebind ports. Its conditional
+  construction is independently proof-reviewed; actual declaration
+  conformance remains open. Arbitrary opaque original declarations are not
+  presumed to conform. Complete original Call
   emission/checking, WholeArgCompatible, C0/admission, solving and publication
-  remain unproved. The separate L theorem is not an original-consumer bridge.
+  remain open. The separate L theorem is not an original-consumer bridge.
   No canonical DAG promotion, language restriction, implementation or F5.
 
 - **Authoritative exhaustive native signature formation (2026-10-08):**
