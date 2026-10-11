@@ -412,6 +412,9 @@ impl InferenceSession {
             ($rows:ident, $index:expr, $field:ident, $item:expr, $lane:expr, $effect:expr) => {{
                 let i = $index;
                 let old = self.$rows[i].$field.capacity();
+                self.preflight_bound_capacity_growth(
+                    i, $effect, self.$rows[i].$field.len(), old,
+                )?;
                 let reserved = reserve_f5b(&mut self.$rows[i].$field, 1, $lane);
                 self.record_incoming_bound_capacity_growth(
                     i,

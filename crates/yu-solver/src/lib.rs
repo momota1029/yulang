@@ -11691,6 +11691,11 @@ impl InferenceSession {
                     self.effect_bounds[b as usize].direct_lower_rows.capacity();
                 let old_upper_capacity =
                     self.effect_bounds[a as usize].direct_upper_rows.capacity();
+                self.preflight_bound_capacity_growth(
+                    b as usize, true,
+                    self.effect_bounds[b as usize].direct_lower_rows.len(),
+                    self.effect_bounds[b as usize].direct_lower_rows.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.effect_bounds[b as usize].direct_lower_rows,
                     1,
@@ -11704,6 +11709,11 @@ impl InferenceSession {
                     self.effect_bounds[b as usize].direct_lower_rows.capacity(),
                     std::mem::size_of::<u32>(),
                     reservation,
+                )?;
+                self.preflight_bound_capacity_growth(
+                    a as usize, true,
+                    self.effect_bounds[a as usize].direct_upper_rows.len(),
+                    self.effect_bounds[a as usize].direct_upper_rows.capacity(),
                 )?;
                 let reservation = reserve_f5b(
                     &mut self.effect_bounds[a as usize].direct_upper_rows,
@@ -11758,6 +11768,11 @@ impl InferenceSession {
                 let old_capacity = self.effect_bounds[index]
                     .exact_non_variable_lowers
                     .capacity();
+                self.preflight_bound_capacity_growth(
+                    index, true,
+                    self.effect_bounds[index].exact_non_variable_lowers.len(),
+                    self.effect_bounds[index].exact_non_variable_lowers.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.effect_bounds[index].exact_non_variable_lowers,
                     1,
@@ -11811,6 +11826,11 @@ impl InferenceSession {
                 let old_capacity = self.effect_bounds[index]
                     .exact_non_variable_uppers
                     .capacity();
+                self.preflight_bound_capacity_growth(
+                    index, true,
+                    self.effect_bounds[index].exact_non_variable_uppers.len(),
+                    self.effect_bounds[index].exact_non_variable_uppers.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.effect_bounds[index].exact_non_variable_uppers,
                     1,
@@ -13728,6 +13748,11 @@ impl InferenceSession {
                 }
                 let old_lower_capacity = self.bounds[upper_index].direct_lower_rows.capacity();
                 let old_upper_capacity = self.bounds[lower_index].direct_upper_rows.capacity();
+                self.preflight_bound_capacity_growth(
+                    upper_index, false,
+                    self.bounds[upper_index].direct_lower_rows.len(),
+                    self.bounds[upper_index].direct_lower_rows.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.bounds[upper_index].direct_lower_rows,
                     1,
@@ -13741,6 +13766,11 @@ impl InferenceSession {
                     self.bounds[upper_index].direct_lower_rows.capacity(),
                     std::mem::size_of::<u32>(),
                     reservation,
+                )?;
+                self.preflight_bound_capacity_growth(
+                    lower_index, false,
+                    self.bounds[lower_index].direct_upper_rows.len(),
+                    self.bounds[lower_index].direct_upper_rows.capacity(),
                 )?;
                 let reservation = reserve_f5b(
                     &mut self.bounds[lower_index].direct_upper_rows,
@@ -13806,6 +13836,11 @@ impl InferenceSession {
                 let index = row as usize;
                 self.journal_value_row(index)?;
                 let old_capacity = self.bounds[index].exact_non_variable_lowers.capacity();
+                self.preflight_bound_capacity_growth(
+                    index, false,
+                    self.bounds[index].exact_non_variable_lowers.len(),
+                    self.bounds[index].exact_non_variable_lowers.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.bounds[index].exact_non_variable_lowers,
                     1,
@@ -13879,6 +13914,11 @@ impl InferenceSession {
                 let index = row as usize;
                 self.journal_value_row(index)?;
                 let old_capacity = self.bounds[index].exact_non_variable_uppers.capacity();
+                self.preflight_bound_capacity_growth(
+                    index, false,
+                    self.bounds[index].exact_non_variable_uppers.len(),
+                    self.bounds[index].exact_non_variable_uppers.capacity(),
+                )?;
                 let reservation = reserve_f5b(
                     &mut self.bounds[index].exact_non_variable_uppers,
                     1,
@@ -14066,6 +14106,43 @@ impl InferenceSession {
             self.observe_f5c_structured_pair_top(
                 19, self.errors.len(), self.errors.capacity(),
             );
+        }
+        Ok(())
+    }
+
+    // Reserve history headroom before allocation; bytes still use actual post-reserve capacity.
+    fn preflight_bound_capacity_growth(
+        &self,
+        row_index: usize,
+        effect_row: bool,
+        len: usize,
+        capacity: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        if len != capacity {
+            return Ok(());
+        }
+        self.execution_counters.bound_table_growths.checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.execution_counters.bound_table_rebuilds.checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if let Some(journal) = &self.route_journal {
+            let events = journal.incoming_bound_growth_events.checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let existing_rows = if effect_row {
+                journal.effect_rows_len
+            } else {
+                journal.value_rows_len
+            };
+            if row_index < existing_rows {
+                journal.retained_bound_growths.checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+            if self.incoming_route_accounting_active {
+                journal.execution_counters.bound_table_growths.checked_add(events)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                journal.execution_counters.bound_table_rebuilds.checked_add(events)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
         }
         Ok(())
     }
@@ -32180,6 +32257,129 @@ mod tests {
             assert_eq!(session.store.facts().len(), 1);
             assert_eq!(session.routed_uses.len(), 1);
         }
+    }
+
+    #[test]
+    fn bound_growth_headroom_rejects_before_reserve_without_events() {
+        for exhausted in 0..4 {
+            let mut session = InferenceSession::new(collect(module("1", "bound-headroom")));
+            let row = session.fresh_value_at_level(1).unwrap() as usize;
+            session.begin_route_transaction().unwrap();
+            session.journal_value_row(row).unwrap();
+            match exhausted {
+                0 => session.execution_counters.bound_table_growths = usize::MAX,
+                1 => session.execution_counters.bound_table_rebuilds = usize::MAX,
+                2 => session.route_journal.as_mut().unwrap().incoming_bound_growth_events = usize::MAX,
+                3 => session.route_journal.as_mut().unwrap().retained_bound_growths = usize::MAX,
+                _ => unreachable!(),
+            }
+            let counters = session.execution_counters.clone();
+            let journal = session.route_journal.as_ref().unwrap();
+            let events = (journal.incoming_bound_growth_events, journal.retained_bound_growths);
+            let samples = session.resource_boundary_samples;
+            let physical_change = session.route_attempt_physical_change;
+            assert_eq!(
+                session.apply_value_task(CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(row as u32),
+                    upper: ValueEndpointKey::IntNegative,
+                }),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            assert_eq!(session.bounds[row].exact_non_variable_uppers.capacity(), 0);
+            assert!(session.bounds[row].exact_non_variable_uppers.is_empty());
+            assert_eq!(session.execution_counters.bound_table_growths, counters.bound_table_growths);
+            assert_eq!(session.execution_counters.bound_table_rebuilds, counters.bound_table_rebuilds);
+            let journal = session.route_journal.as_ref().unwrap();
+            assert_eq!((journal.incoming_bound_growth_events, journal.retained_bound_growths), events);
+            assert_eq!(session.resource_boundary_samples, samples);
+            assert_eq!(session.route_attempt_physical_change, physical_change);
+        }
+    }
+
+    #[test]
+    fn bound_growth_headroom_checks_dropped_row_incoming_checkpoint() {
+        for rebuild in [false, true] {
+            let mut session = InferenceSession::new(collect(module("1", "bound-dropped-headroom")));
+            if rebuild {
+                session.execution_counters.bound_table_rebuilds = usize::MAX;
+            } else {
+                session.execution_counters.bound_table_growths = usize::MAX;
+            }
+            session.begin_route_transaction().unwrap();
+            let row = session.fresh_value_at_level(1).unwrap() as usize;
+            session.execution_counters.bound_table_growths = 0;
+            session.execution_counters.bound_table_rebuilds = 0;
+            session.incoming_route_accounting_active = true;
+            let samples = session.resource_boundary_samples;
+            let physical_change = session.route_attempt_physical_change;
+            assert_eq!(session.apply_value_task(CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(row as u32),
+                upper: ValueEndpointKey::IntNegative,
+            }), Err(SolveAvailabilityError::IdentityExhausted));
+            assert_eq!(session.bounds[row].exact_non_variable_uppers.capacity(), 0);
+            assert!(session.bounds[row].exact_non_variable_uppers.is_empty());
+            assert_eq!(session.resource_boundary_samples, samples);
+            assert_eq!(session.route_attempt_physical_change, physical_change);
+            let journal = session.route_journal.as_ref().unwrap();
+            assert!(row >= journal.value_rows_len);
+            assert_eq!(journal.incoming_bound_growth_events, 0);
+            assert_eq!(journal.retained_bound_growths, 0);
+            assert_eq!(session.execution_counters.bound_table_growths, 0);
+            assert_eq!(session.execution_counters.bound_table_rebuilds, 0);
+            session.rollback_route_transaction().unwrap();
+        }
+    }
+
+    #[test]
+    fn bound_growth_headroom_rechecks_each_direct_pair_reserve() {
+        let mut session = InferenceSession::new(collect(module("1", "bound-pair-headroom")));
+        let lower = session.fresh_value_at_level(1).unwrap();
+        let upper = session.fresh_value_at_level(1).unwrap();
+        session.execution_counters.bound_table_growths = usize::MAX - 1;
+        session.execution_counters.bound_table_rebuilds = usize::MAX - 1;
+        session.begin_route_transaction().unwrap();
+        assert_eq!(session.apply_value_task(CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(lower),
+            upper: ValueEndpointKey::ValueRow(upper),
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(session.bounds[upper as usize].direct_lower_rows.capacity() > 0);
+        assert_eq!(session.bounds[lower as usize].direct_upper_rows.capacity(), 0);
+        assert!(session.bounds[upper as usize].direct_lower_rows.is_empty());
+        assert!(session.bounds[lower as usize].direct_upper_rows.is_empty());
+        assert_eq!(session.execution_counters.bound_table_growths, usize::MAX);
+        assert_eq!(session.execution_counters.bound_table_rebuilds, usize::MAX);
+        let journal = session.route_journal.as_ref().unwrap();
+        assert_eq!(journal.incoming_bound_growth_events, 1);
+        assert_eq!(journal.retained_bound_growths, 1);
+        session.rollback_route_transaction().unwrap();
+    }
+
+    #[test]
+    fn bound_growth_headroom_allows_existing_capacity_at_exhausted_counters() {
+        let mut session = InferenceSession::new(collect(module("1", "bound-spare-headroom")));
+        let row = session.fresh_value_at_level(1).unwrap() as usize;
+        session.apply_value_task(CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(row as u32),
+            upper: ValueEndpointKey::IntNegative,
+        }).unwrap();
+        session.bounds[row].exact_non_variable_uppers.clear();
+        let capacity = session.bounds[row].exact_non_variable_uppers.capacity();
+        session.execution_counters.bound_table_growths = usize::MAX;
+        session.execution_counters.bound_table_rebuilds = usize::MAX;
+        session.begin_route_transaction().unwrap();
+        session.route_journal.as_mut().unwrap().incoming_bound_growth_events = usize::MAX;
+        session.route_journal.as_mut().unwrap().retained_bound_growths = usize::MAX;
+        session.apply_value_task(CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(row as u32),
+            upper: ValueEndpointKey::IntNegative,
+        }).unwrap();
+        assert_eq!(session.bounds[row].exact_non_variable_uppers, [ValueEndpointKey::IntNegative]);
+        assert_eq!(session.bounds[row].exact_non_variable_uppers.capacity(), capacity);
+        assert_eq!(session.execution_counters.bound_table_growths, usize::MAX);
+        assert_eq!(session.execution_counters.bound_table_rebuilds, usize::MAX);
+        let journal = session.route_journal.as_ref().unwrap();
+        assert_eq!(journal.incoming_bound_growth_events, usize::MAX);
+        assert_eq!(journal.retained_bound_growths, usize::MAX);
     }
 
     #[test]

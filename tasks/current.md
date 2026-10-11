@@ -8973,3 +8973,21 @@ owners, separate from semantic inverse coverage. The incidence/order
 correspondence and authentic §7 lifecycle remain separate owners and gates.
 Complete Simple-sub inference, Yulang2-derived effect hygiene,
 soundness/principality, production authority and F5 cutover remain OPEN.
+
+The reserve-owner response to the cumulative growth/rebuild headroom gap is
+implemented in `lib.rs` and the shared candidate insertion macro in
+`candidate_extrusion.rs`. Each nested bound reserve now checks the relevant
+current counters, journal event/retained-growth count, and incoming rollback
+checkpoint counters before allocation when the Vec is full. Paired direct-edge
+reserves perform the check separately; spare capacity bypasses it. Physical
+byte accounting and resource sampling still use actual post-reserve capacity.
+Four focused regressions cover exhausted counters/events, fresh dropped-row
+incoming rollback, second-pair-reserve rejection, and growth within existing
+capacity. Both `cargo test -p yu-solver bound_growth_headroom --
+--test-threads=1` and the same filter with
+`--features shadow-apply-candidate,f5c_resource_probe` passed (4 tests each).
+Independent compiler-referee and spec-auditor reviews found no findings.
+This closes the pre-allocation growth/rebuild headroom repair slice only; byte
+sum representability, semantic inverse totality, the original W/A3 theorem,
+source/scheduler correspondence, lifecycle, complete inference, effect
+hygiene, soundness/principality, and production cutover remain OPEN.
