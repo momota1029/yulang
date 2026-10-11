@@ -80,10 +80,13 @@ HIR or public F5 routing.
 
 The Oracle effect-hygiene bridge is recorded in
 [`oracle-effect-hygiene-source-bridge`](../notes/theory/2026-10-11-oracle-effect-hygiene-source-bridge.md)
-at pushed checkpoint `9860681e2`. It establishes only a conditional positive
-producer-to-consumer path. Composed-negative subtraction, complete effect
-hygiene, conflict-to-publication rejection, the ordinary HIR carrier handoff,
-and full F5 replacement remain OPEN.
+at pushed checkpoint `e3c55249a`. Independent compiler-referee review supports
+its bounded positive formal-port construction and conditional reached-consumer
+derivation after the note linked the original H theorem and made successful
+replay setup/enqueue explicit. This does not close H: composed-negative
+attachment/subtraction, complete effect hygiene, conflict-to-publication
+rejection, the ordinary HIR carrier handoff, and full F5 replacement remain
+OPEN.
 
 ## 2026-10-11 normal-inference critical path resumed
 
@@ -10661,3 +10664,38 @@ signature at its declaration owner. Keep soundness, required principality,
 normal progress, termination, complete Call, effect hygiene, production
 correspondence and F5 replacement OPEN. No implementation, tests, builds,
 Oracle or benchmark ran in this slice.
+
+### 2026-10-11 Cross-level recursive Value-reference discriminator
+
+The user supplied:
+
+```yulang
+my odd n =
+    my even n = if n <= 0 { true } else odd(n - 1)
+    even(n - 1)
+```
+
+This is a recursive pair whose binders are at different lexical nesting
+levels. In the source binding/reference relation, `even`'s initializer
+references the enclosing module definition `odd`, while `odd`'s final
+expression references the local `even` after its initializer is published.
+Thus the source-owner edges are `even → odd` and `odd → even`, giving the
+nontrivial SCC `{odd, even}`. The HIR local-source builder's initializer and
+publish order, and its lexical-then-module Name lookup, support this scope
+derivation for forms it represents (`crates/yu-hir/src/module/local_source.rs`).
+The exact spelling is not currently a recovery-free Yulang3 source: `if`
+conditions require `:`, and ordinary HIR reports an indented binding body as
+`UnsupportedExpression` (`crates/yu-syntax/src/expression/if_expr.rs:203–245`,
+`crates/yu-hir/src/module.rs:1596–1611`). Even with those syntax issues
+corrected, the candidate LocalSource builder requires an `OperatorChain` body
+and has no conditional form (`local_source.rs:251–253,693–694`). Thus the
+source-owner SCC is a derivation for the intended binding/reference structure,
+not evidence that this exact text reaches the candidate solver. It still
+refutes any semantic shortcut that infers acyclicity of Value references from
+different lexical levels or a rank on nesting alone; source-to-native
+realization remains OPEN.
+
+This source derivation does not yet map either source owner to a native Value
+row, prove that the candidate solver constructs these two graph edges, or
+qualify any particular extrusion parent/copy pair for equality. The Apply
+result-row content law and parent/copy preservation theorem remain OPEN.
