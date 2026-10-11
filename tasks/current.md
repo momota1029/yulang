@@ -182,11 +182,18 @@ but original Call meaning does not universally require that record family.
 The direct `Build(S,T)` source-rule route is a legitimate alternative proof
 method, but no complete lowering from it to the implemented Simple-sub
 constraints, with all Call consumers and same-provider obligations preserved,
-has been established. A constructive proof attack for that full lowering is
-active at baseline `67b8119ca22313dc3e8d5ede623ae19dc2a65425`; output is pending.
-No new semantic decision is justified yet. Soundness, required principality,
-complete Call, normal inference adequacy and full effect hygiene remain OPEN.
-See [the formal-port construction attempt](../theory/2026-10-11-invoke-fam-delta-construction-proof.md)
+has been established. A bounded construction attempt traced the current
+literal, Name, Apply, Lambda and root constraints, their native accumulation,
+and conditional four-port activation. Independent compiler-referee review
+accepted that trace and localized a formal `Entry-Value` dependency gap. The
+review rejected its original claim that Entry-Value was the earliest missing
+application: the prior `FormalOwner-Ports` / `ParameterOrigin` and port
+introduction signatures and their order are not supplied. The repaired attempt
+does not claim to prove the original theorem, or complete normal progress,
+soundness, Call, effect hygiene or principality. No new semantic decision is
+justified yet; the actual formal-owned declaration/application chain is the
+next source-construction owner. See [the Build-to-native attempt](../theory/2026-10-11-invoke-build-to-simple-sub-proof.md),
+[the formal-port construction attempt](../theory/2026-10-11-invoke-fam-delta-construction-proof.md)
 and [the literal-emission construction attempt](../theory/2026-10-11-invoke-literal-emission-construction-proof.md).
 
 The separate type-error lane reproduced the exact source
