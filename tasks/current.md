@@ -10137,12 +10137,20 @@ SCC and of copy-owned reference transport. H, P, complete Call, soundness,
 principality, normal progress, Y3 hygiene/rejection, and F5 replacement remain
 OPEN.
 
-Two bounded follow-up packets are now active: a source-owner trace for the
-same-instance omitted-right-weight incidence at
-[`oracle weight source bridge`](../notes/progress/2026-10-11-oracle-weight-source-bridge.md),
-and a constructive native interpretation attempt for the returned formal's
-whole certificate at
-[`returned formal interface proof`](../notes/theory/2026-10-11-returned-formal-native-interface-proof.md).
-They have disjoint note leases and are forbidden from changing semantics or
-compiler code. The source-to-value SCC question remains separately OPEN at
-copy-owned references and scanner equivalence.
+The source-owner trace for the exact nested-weight route and the constructive
+returned-formal interface derivation are frozen and independently reviewed.
+The first excludes only the proposed direct same-ID route and postpublication
+use absent from its exact source; it does not close H. The second derives
+conditional Return/Request consequences but stops at the native
+Parameter/Lambda whole-entry interpretation; P and full Generalize remain
+OPEN. Their bounded evidence and review outcomes are in
+[`oracle weight source bridge`](../notes/progress/2026-10-11-oracle-weight-source-bridge.md)
+and [`returned formal interface proof`](../notes/theory/2026-10-11-returned-formal-native-interface-proof.md).
+
+One bounded Oracle source-construction probe is active at
+[`oracle postpublication call probe`](../notes/progress/2026-10-11-oracle-postpublication-call-probe.md).
+It tests whether an authentic named callback provider plus a later published
+`f` call supplies the missing same-ID producer; it is limited to two serial
+Oracle invocations and does not change H's theorem or semantics. The
+source-to-value SCC question remains separately OPEN at copy-owned references
+and scanner equivalence.

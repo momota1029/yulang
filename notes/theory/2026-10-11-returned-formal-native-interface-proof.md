@@ -3,7 +3,7 @@
 Date: 2026-10-11
 Baseline supplied by primary: `35e88c8113c9c6516e260170503bea753e4ede6`
 Producer: `/root/returned_formal_native_interface_proof`; leaf, no delegation
-Status: unreviewed conditional source derivation and bounded native correspondence audit
+Status: independently reviewed conditional source derivation and bounded native correspondence audit; P and parent Generalize remain OPEN
 Assigned whole-certificate/native-interface bridge: OPEN
 Parent emission law P and full source Generalize: OPEN
 Exclusive output lease: this file only; frozen on submission
@@ -130,7 +130,22 @@ Stop here, at the first unproved interpretation application. Do not run a third 
 
 One next action: the primary should seek the actual native Parameter/Lambda whole-entry interpretation application above, with the source I/IF constructor and independent domains fixed, testing both arbitrary-carrier Return and Request branches. Such an application would permit §3's elimination to run on the native operand and then be used at the nested capture. A merely postulated denotation, inert provenance token or supplier inventory does not meet this stop condition.
 
-## 7. Checks, dependency snapshot and omissions
+## 7. Independent review
+
+An independent `prover` review accepted the stated conditional Return/Request
+source consequences and bounded native audit with no blocking, major, or minor
+finding. It confirmed that the actual returned package uses the same
+whole-carrier, certificate, world and rebind incidence; the Request path
+retains its original response/raw-handle/resumed-state telescope and pending
+suffix. The review also confirmed that the native Parameter/Lambda path
+preserves scalar endpoints and provenance without proving the whole-entry
+interpretation application.
+
+The review established neither P nor that missing native bridge. Full Generalize,
+Internal conjunctions, complete Call, hygiene, soundness, principality and
+production adoption remain outside its closed scope.
+
+## 8. Checks, dependency snapshot and omissions
 
 Commands used: bounded `cat`, `sed`, `rg`, `wc`, `sha256sum`, and creation/static inspection of this leased note. No code/test/build/Oracle, executable model, benchmark, Git command or delegation. The primary remains the verification owner. Coverage is the selected source Return/Request/capture elimination and the actual listed native constructors/consumers. Broad source acceptance, all annotations/retained-entry constructors, complete domain/observation laws, hereditary model adequacy, all replay/lifecycle paths, Internal correlation, full Call, soundness/principality, public projection and cutover remain unverified.
 
@@ -161,7 +176,7 @@ c21376746b2c6d022d4e7c709c0c88e61d8b9c10eb260d617479f4f10b901a94  crates/yu-solv
 - Exact leased changed path: `notes/theory/2026-10-11-returned-formal-native-interface-proof.md`.
 - Baseline SHA: `35e88c8113c9c6516e260170503bea753e4ede6`.
 - Changed dependency hashes: none in final live recheck; baseline comparison remains primary-owned.
-- Honest review status: unreviewed research checkpoint; conditional source consequence and bounded native audit. Assigned native bridge, P and full Generalize OPEN.
+- Honest review status: independently reviewed conditional source consequence and bounded native audit; assigned native bridge, P and full Generalize OPEN.
 - Checks already run: static source-rule elimination, exact native owner/consumer trace, dependency stability and leased-note integrity inspection; zero executable verification.
 - Proposed one-line checkpoint message: `research: isolate returned-formal whole-entry interpretation bridge`.
 - Shared-record deltas left for primary/curator: link the actual Parameter/Lambda whole-entry interpretation application and the Return/Request test to P's formal-entry instance; retain original scope/status and separate Internal/Call/hygiene/principality owners. No shared record was edited.

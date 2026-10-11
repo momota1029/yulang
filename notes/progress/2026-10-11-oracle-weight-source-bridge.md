@@ -1,7 +1,7 @@
 # Exact nested source: directed-weight incidence before publication
 
 Date: 2026-10-11
-Status: frozen, unreviewed research source correspondence; original H remains OPEN
+Status: frozen, independently reviewed bounded source correspondence; original H remains OPEN
 Claim class: bounded constructor derivation and first missing producer, not a universal theorem or source-qualified counterexample
 Yulang3 HEAD at start: `0971cf7a921cd1aef92b8e7bcdf3800654dc63c4`
 Assigned solver baseline: `35e88c8113c9c6516e260170503bea753e4ede6`
@@ -177,6 +177,21 @@ through results (1034–1052). The nested concrete row reaches a Negative
 position and its initial guard rejects it (1035). These owners do not construct
 Oracle's authentic i at this source boundary. This is a current source owner
 gap, not an approved source restriction or permission to enable it.
+
+## Independent review
+
+An independent `compiler_referee` found no blocking, major, or minor issue in
+the bounded constructor derivation. The reviewer confirmed that the inner
+POP belongs to the returned Unit Value, the outer Function does not hoist it,
+cb is not generalized at its formal lookup, and the second application has no
+local-variable predicate lookup. The note excludes only this direct route and
+the postpublication use absent from exact source A; it does not exclude other
+routes in A or any other source history. The reviewer also confirmed that
+collector right-weight omission is distinct from proving an authentic included
+bound or a published replacement.
+
+Unreviewed: complete replay/extrusion closure, projection inclusion, universal
+H, check discharge, later-use behavior and Y3 production conformance.
 
 ## Result, independence, limits and resources
 
