@@ -11081,6 +11081,20 @@ for the original annotation occurrence. Complete Call, soundness,
 principality, and cutover remain OPEN. Oracle budget is exhausted; no Oracle,
 test, build, or compiler edit was made.
 
+The complementary [`direct/provider specialization audit`](../notes/progress/2026-10-12-oracle-direct-provider-specialization-audit.md)
+now maps the actual `SolvedTask` signatures, RuntimeEvidenceTask source/type
+sites, emitted App provenance tags, adapter marker schemas, and runtime thunk/
+Request consumers. These records do not link provider origin `b` or the fresh
+annotation origin `a/alpha_u` to the selected marker and force/output history.
+Static route candidates mark callback/application-argument boundaries as
+delayed; they do not certify a reached force. The precise residual remains
+same-task typed-boundary adequacy: interpret the selected actual/consumer/ref
+and adapter path jointly, classify attachment, and prove its reached force and
+complete output or an authentic specialization rejection. The audit is frozen
+but awaits independent review. It is not an H counterexample or a production
+semantics decision. Oracle remains unused; complete Call, H, soundness,
+principality, and cutover remain OPEN.
+
 The independent `compiler_referee` review of the provider-attachment boundary
 derivation found no blocking or major issue and one minor locator correction:
 the production delegation to Specializer2 is at `specialize/src/lib.rs:81`
