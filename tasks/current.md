@@ -10313,8 +10313,21 @@ This does not yet identify the raw annotation SubtractId, the stored scheme's
 fresh-ID map, or the consumer that removed the later callback effect. It does
 not execute the operation or prove a source-qualified counterexample to the
 original universal hygiene theorem H. Keep H and Yulang3 implementation OPEN.
-Next: trace this exact annotation through the Oracle's scheme projection and
-later-call output consumer, preserving the first local subtraction separately
-from the returned callback's later invocation. No build, Cargo test, or Yulang3
-compiler check ran in this slice; the Oracle binary was already built and
+The adversarial policy audit identifies the smaller discriminator already
+present in the same run: `direct(cb) = cb`, followed by
+`(direct provider) ()`. `direct` makes no callback call inside its body, so the
+selected argument annotation cannot authorize subtraction at the later
+`observed_direct` root. Oracle documentation says argument contracts permit
+handlers inside the receiving function to consume an effect, and effects
+propagate to callers absent a visible handler. This makes the pure printed
+`observed_direct` a sharper candidate loss than the longer route with an
+initial callback invocation. The independent policy audit remains conditional:
+the actual stored/freshened annotation identity, independent returned-provider
+contribution and completeness of the published effect observation are still
+unproved. See [`Oracle callback reuse policy falsification`](../notes/progress/2026-10-11-oracle-callback-reuse-policy-falsification.md).
+
+Next: the constructive prover traces `direct`'s annotation through scheme
+projection and fresh-use output, establishing or refuting that exact scope
+escape. H and Yulang3 implementation remain OPEN. No build, Cargo test, or
+Yulang3 compiler check ran in this slice; the already-built Oracle binary was
 verified against its pinned hash.
