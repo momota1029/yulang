@@ -9688,3 +9688,15 @@ rejection analysis. It does not prove semantic adequacy of eliminating native
 Value parent/copy mergers, persistent-witness coverage, general inconsistency
 reflection, public acceptance, soundness, principality, complete Call, hygiene,
 or F5 replacement. The original theorem remains OPEN.
+
+An independent reverse-path falsification packet is frozen in
+[`Local restoration SCC falsification boundary`](../notes/progress/2026-10-11-local-restoration-scc-falsification.md).
+It confirms that the earlier synthetic two-row discriminator cannot choose
+its copy as the restored owner: Local capture expands generic local rows,
+prepares the whole graph first, and only then restores from those prepared
+endpoints. It also traces the mandatory later Local root link and diagnostic
+path, distinguishing delayed reporting from a real lost-error counterexample.
+The packet constructs neither an authentic SCC history nor a permanent-loss
+counterexample, and it does not prove a universal exclusion. Together with the
+reviewed rank invariant, it leaves the exact earlier synthetic witness
+unsupported; the broad rejection and publication theorem remains OPEN.
