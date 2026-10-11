@@ -8826,3 +8826,66 @@ formatting rewrite was applied. The three emitted `dead_code` warnings belong
 to `candidate_context.rs` retained-input certificate payloads whose production
 consumer remains disabled; they are intentionally left visible until that
 consumer gate is implemented.
+
+## 2026-10-11 retained parent handoff checkpoint
+
+This section supersedes the preceding “next gate: design and implement that
+bounded parent handoff” sentence. Under the approved suspension contract
+§§3/4/6, the bounded handoff now exists in the working tree: terminal typed
+drain completion stores an exact replay destination/receipt before frame
+removal; Ready blocks transfer, retirement and restoration/Local cursor
+advancement until matching delivery releases it. Production callers remain
+synchronous. This implementation is still uncommitted and is not a production
+suspension or certificate gate.
+
+The source correspondence is recorded and independently reviewed in
+[`retained-parent-handoff-source-bridge`](../notes/progress/2026-10-11-retained-parent-handoff-source-bridge.md).
+The original W/A3 parent remains OPEN. The bounded rollback derivation
+[`retained-parent-rollback-premise-proof`](../notes/progress/2026-10-11-retained-parent-rollback-premise-proof.md)
+has fresh compiler-referee review with no findings: for constructor-valid
+closed retained Local invocations, the Local owner remains present and the
+exact entry census is restored before `refresh_bytes`. This is conditional on
+preceding semantic inverses returning normally. Late bound-ledger
+`accounting_error` success, semantic inverse coverage, lawful H3
+acknowledgement lineage, atomic semantic stages, incidence stability, the
+general scheduler, authentic §7 lifecycle, withdrawal/recomputation, SCC
+publication, q113, soundness/principality and F5 cutover remain open. The
+complementary unreviewed bounded falsification is
+[`retained-parent-rollback-falsifier`](../notes/progress/2026-10-11-retained-parent-rollback-falsifier.md).
+
+Code scope is five solver files: `lib.rs`, `candidate_context.rs`,
+`candidate_context_tests.rs`, `candidate_extrusion.rs` and
+`candidate_scheme.rs`. Compiler-referee and spec-auditor reviews found no
+handoff findings; a third regression-auditor delta review found no issue in
+the three test-only incoming-sample attribution changes. Those trace additions
+do not alter production behavior. Focused replay-parent (2), parsed Local (1),
+terminal typed-drain (3), transient-ack undo (1), preflight-failure (1), and
+feature/no-feature package checks passed before the last trace-attribution
+delta. `git diff --check` passes on the current tree.
+
+The current focused `tests::f4_chain_scale_matrix_is_linear` run advances
+through trace validation but fails the exact resource-boundary assertion at
+`chain/1000`: observed 12,006 versus expected 10,006. The new trace markers
+cannot themselves change that counter; the exact source of the +2,000 remains
+unresolved, and expected values were not changed. One feature-enabled full
+package run was interrupted after roughly 20 minutes while the 4k cycle case
+remained CPU-bound. It had also shown failures in direct-root N/2N counters,
+the F4 chain/diamond matrices, distinct-use-route sampling, and 1k/2k
+unbounded-cycle matrices. The distinct-use-route mismatch is documented on a
+pinned prior baseline; the other failures have not been confirmed as baseline.
+No broad rerun is authorized by the current test budget.
+
+Proof/source research checkpoints were pushed separately:
+
+- `1b0f3679d` — rollback owner and byte-sum falsification audit (unreviewed,
+  theorem open);
+- `81682cc93` — reviewed retained-child source correspondence;
+- `3f596ae5d` — reviewed bounded Local rollback early-exit derivation.
+
+All three are on `research/simple-sub-intrusion`. The five-file code slice and
+this task record remain uncommitted. Immediate next action: resolve the exact
+cause and status of the +2,000 sample boundaries without changing expectations,
+then synchronize the accepted research results into the parent progress record
+and continue the still-open semantic inverse, late-ledger, H3, incidence and
+authentic-lifecycle owners. Keep the original theorem and production promotion
+OPEN.
