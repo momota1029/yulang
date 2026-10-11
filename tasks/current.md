@@ -112,20 +112,34 @@ literal argument lacks a Call-owned Reify origin and whole-carrier compatibility
 with the same returned provider; candidate rows `s`, `ae`, `e` and `beta` do not
 supply those objects. The approved bounded tagged-Reify direction supplies a
 construction shape, but actual original `P_old` registration/lookup and
-old-consumer closure remain open. A fresh constructive proof attack is tracing
-whether those premises follow from selected source owners. The exact complete-
-Call gate remains OPEN; no new Call rule, acceptance or scheme is inferred from
-the candidate graph.
+old-consumer closure remain open. A bounded constructive proof attack located
+the earlier formal cut: selected Generalize supplies the Value role and Desc,
+while original Entry-Value consumes `ParameterOrigin` and independently
+declared received-carrier, entry, receipt, Force and rebind ports. No selected
+constructor supplies their complete original introduction signature and
+ordered application at this source context. The reviewed
+[`source-owned original-registry construction`](../notes/theory/2026-10-10-source-owned-original-registry-construction.md)
+constructs these in its new API, but its identification with the fixed original
+API is unproved and concrete adoption is explicitly withheld. The exact
+complete-Call gate remains OPEN; no new Call rule, acceptance or scheme is
+inferred from the candidate graph. Next is a decision on whether to adopt the
+reviewed source-owned API for this bounded fragment, which would still leave
+actual source conformance and complete Call obligations open.
 
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test
-passes and records `Int <: Function`; the candidate continues to a private
+`direct_source_int_application_records_int_function_conflict` passed with
+`RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-solver --features shadow-apply-candidate --lib direct_source_int_application_records_int_function_conflict -- --test-threads=1`.
+An independent regression review found no issue in the assigned test cone. It
+records `Int <: Function`; the candidate continues to a private
 result, which is not a public accepted typing. Independent consumer mapping
 found no current public acceptance boundary to repair in this private route.
 Ordinary Apply remains unsupported by ordinary HIR, and the reviewed carrier
 proposal has an unconsumed approval handoff, so no public-path behavior change
 is authorized by this reproduction. Keep the diagnostic/reflection and public
 validity boundary OPEN; do not expand this lane into rollback research.
+The focused regression and this task record were checkpointed at `d9807f92a`
+and `8f69f70df`, respectively; both were pushed to the current branch.
 
 Separately, one bounded Oracle run accepted a source with composed-negative
 formal `[tick]` and displayed no `tick` in the function's outer invocation-result
