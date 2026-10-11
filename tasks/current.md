@@ -10995,5 +10995,10 @@ groups. No source-qualified α deletion was found. The next owner is the
 complete weighted x incidence slice of the final compact root, including all
 same-coordinate Function contributions, α floors, recursive bounds, levels,
 and representative images through preparation's fixed-point passes. The
-constructive proof lane is tracing that exact slice; this bounded audit leaves
-S and universal H OPEN. Oracle budget remains exhausted.
+frozen constructive derivation at `78e4312ac` now supplies that slice for the
+fresh `direct` declaration before external uses, deriving x/PUSH α and the
+negative x tail, then tracking both co-occurrence tables and substitutions
+through the two simplifier fixed points. Independent proof review is pending,
+so this bounded S result remains provisional. It stops before stack cleanup at
+`generalize/mod.rs:805–834`; downstream quantification/export, provider/use
+coupling, and universal H remain OPEN. Oracle budget remains exhausted.
