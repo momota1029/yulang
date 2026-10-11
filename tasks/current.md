@@ -10088,3 +10088,61 @@ execution and semantic-graph/scanner equivalence as separate owners; do not
 add representation or rewrite semantic scope before examining existing
 constructor evidence. No tests, builds, Oracle runs or implementation changes
 were part of this SCC follow-up.
+
+### 2026-10-11 Oracle effect observation and source-Generalize follow-up
+
+The complementary three-run Yulang2 Oracle characterization is now checked in
+as `0971cf7a9`. The accepted nested source keeps a visible weighted `tick`
+residual in `f`'s result; deleting the inner concrete annotation removes it,
+and deleting the delayed second call leaves it on the returned Function. An
+independent `spec_auditor` found no conformance issue in the bounded report.
+This is an exported-observation distinction only: it supplies no concrete
+provider, later external use, independent same-family contribution, rejection,
+or proof that the original check remains active. Universal hygiene H remains
+OPEN.
+
+The constructive H attempt is checkpointed at `e30d0c7ba`. It derives the
+actual fresh-use root POP through the four Function ports and identifies a
+specific owner where a simple structural preservation proof stops:
+`compact_lower_bounds_from` projects an included positive lower using only its
+left weight, omitting its right component. A conditional same-ID PUSH/POP
+calculation shows that this defeats a naive commute argument; the source
+reachability of that exact coupled incidence and its actual published
+replacement remain unproved. Independent `prover` review found no blocking or
+major issue and recommended a precision correction: stack-ID selection also
+includes enumerated IDs whose machine fact has `All` subtractability. That
+correction is recorded in the proof note. Review does not establish H, a source
+counterexample, Oracle implementation soundness, or Y3 admission behavior.
+Negative concrete formal admission and complete Call remain separate Y3 gates.
+
+The constructor induction for source-Generalize law P is checkpointed at
+`d076c3356`. It preserves P's original scope and identifies the first
+supported nested-capture premise at the actual formal registration/whole-
+interface boundary: native registration, Lambda/Apply ports, and provenance
+observation do not yet derive the complete returned formal certificate at its
+original Force Return/rebind telescope. An independent `compiler_referee`
+found no issue in that bounded localization and confirmed that private pending
+supplier fields are not an impossibility argument. P remains OPEN; Internal
+whole-component preservation and the full constructor domain remain separate
+OPEN premises. No tests/builds ran and no compiler code changed in these
+research slices.
+
+Next proof/source actions: (1) retain a single source-generated bound's
+provider, call, output and tail incidence while tracing the omitted right
+weight through generalization and its actual later consumer, or rule out that
+incidence from construction; (2) derive the native meaning of the actual
+returned formal's whole certificate at Force Return/rebind and apply it to
+nested capture. These are independent of the already-established mutual-root
+SCC and of copy-owned reference transport. H, P, complete Call, soundness,
+principality, normal progress, Y3 hygiene/rejection, and F5 replacement remain
+OPEN.
+
+Two bounded follow-up packets are now active: a source-owner trace for the
+same-instance omitted-right-weight incidence at
+[`oracle weight source bridge`](../notes/progress/2026-10-11-oracle-weight-source-bridge.md),
+and a constructive native interpretation attempt for the returned formal's
+whole certificate at
+[`returned formal interface proof`](../notes/theory/2026-10-11-returned-formal-native-interface-proof.md).
+They have disjoint note leases and are forbidden from changing semantics or
+compiler code. The source-to-value SCC question remains separately OPEN at
+copy-owned references and scanner equivalence.

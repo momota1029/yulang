@@ -1,7 +1,7 @@
 # Oracle generalized observations: continuation demand and the first lost directed component
 
 Date: 2026-10-11
-Status: frozen, unreviewed research derivation; original universal H remains OPEN
+Status: frozen bounded research derivation; independently reviewed with one minor precision correction; original universal H remains OPEN
 Claim class: source-derived local operational derivation and a localized obstruction; no established universal theorem or source-qualified counterexample
 Yulang3 primary baseline: `35e88c8113c9c6516e260170503bea753e4ede6`
 Branch supplied by primary: `research/simple-sub-intrusion`
@@ -245,6 +245,9 @@ the actual non-generic set (generalize/mod.rs:900–921).
 Stack selection scans nonempty PUSH entries at covariant compact occurrences
 of those selected coordinates
 (`generalize/core/stack_ids.rs:23–49,72–180`).
+After `sorted_stack_quantifiers`,
+`extend_declared_all_stack_quantifiers` also includes enumerated IDs whose
+machine fact has subtractability `All` (`generalize/mod.rs:867–888`).
 Thus the selection happens *after* the right component in §4 has been
 forgotten. One cannot use the selection criterion as proof that its input
 preserved the consumer's demand.
@@ -311,7 +314,25 @@ replacement observation. Keep H and the independent Y3 construction gate OPEN.
 A fresh independent referee, appointed by the primary, is required before
 consuming any local lemma or promoting a status.
 
-## 7. Checks, resources and runtime
+## 7. Independent review
+
+An independent `prover` review found no blocking or major issue in the local
+weight derivations or the claim that positive lower compaction omits the
+right-weight component. The reviewer confirmed the ordinary argument
+reversal, the distinct pure-Effect transformation, same-ID count ordering, and
+that the nested annotation's matching POP wraps the returned Unit Value rather
+than the returned Function. The reviewer recommended one precision correction,
+now incorporated in §5: after `sorted_stack_quantifiers`,
+`extend_declared_all_stack_quantifiers` also adds enumerated IDs whose machine
+fact has subtractability `All`.
+
+An independent `spec_auditor` found no conformance issue in either this proof
+or the bounded three-run Oracle observation note. These reviews certify only
+the stated local derivation and observation limits. They did not establish
+same-instance B reachability, a published hygiene failure, universal H,
+complete Call, soundness, principality or Y3 production conformance.
+
+## 8. Checks, resources and runtime
 
 Changed path: this exact leased note only. No compiler, test, design, task,
 index, configuration, question-board or other worker file was edited.
@@ -340,7 +361,7 @@ Observed effective model/effort: unknown, because runtime metadata was not
 available. The actual parent-assigned leaf identity ran; no Astra/override
 success or hot-reload claim is made.
 
-## 8. Dependency snapshot and commit packet
+## 9. Dependency snapshot and commit packet
 
 SHA-256 pins inspected bytes, not Git blob identity. Oracle revision identity
 and Y3 baseline are primary-supplied. No Git comparison was performed; baseline
@@ -388,7 +409,7 @@ Commit packet:
 - Exact leased/change path: `notes/theory/2026-10-11-oracle-generalized-observation-proof.md`; frozen, writes stop at handoff.
 - Baseline SHA: `35e88c8113c9c6516e260170503bea753e4ede6`; Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1` supplied by primary.
 - Changed dependency hashes: none observed between inventory and final recheck; none edited by this leaf. Baseline equality remains primary-owned.
-- Review status: unreviewed research derivation and localized obstruction; no H closure, source-qualified counterexample, source reachability certification, implementation conformance or production authority.
+- Review status: independently reviewed bounded derivation with the minor §5 precision correction incorporated; no H closure, source-qualified counterexample, source reachability certification, implementation conformance or production authority.
 - Checks already run: static owner/rule/authority reads, SHA-256 inventory/recheck and leased-document whitespace/local links. Zero builds/tests/Oracle executions/probes/measurements.
 - Proposed research-checkpoint message: `research: isolate Oracle generalized directed-demand projection premise`.
 - Shared-record deltas left for primary/curator: link the root-POP four-port derivation; record right-component forgetting at positive lower compaction and its same-instance source-reachability/replacement premise. Keep original H, complete Call, soundness/principality, general admission, Y3 negative constructor/call/output and F5 gates OPEN. No shared record was edited.

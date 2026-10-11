@@ -1,7 +1,7 @@
 # Source Generalize emission law P: constructor induction stops at formal rebind
 
 Date: 2026-10-11
-Status: frozen research-only constructor correspondence analysis; independent review pending.
+Status: frozen bounded research-only constructor correspondence analysis; independently reviewed with no findings.
 Baseline assigned by primary: `35e88c8113c9c6516e260170503bea753e4ede6`.
 Branch assigned by primary: `research/simple-sub-intrusion`.
 Exclusive output lease: this file only. One Sol/high leaf attempt; no delegation.
@@ -298,8 +298,21 @@ complete Fix/Internal replay/activation, original binder-strategy transport,
 abnormal publication/suspension coverage, complete Call, effects/protection/
 attachment hygiene, soundness/principality, public projection, and cutover.
 Source laws selected in the governing documents are dependencies, not new
-theorems proved here. This artifact is frozen for primary-assigned independent
-review; its author does not certify it.
+theorems proved here. This artifact does not certify P or its parent theorem.
+
+## Independent review
+
+An independent `compiler_referee` found no blocking, major, or minor issue in
+the bounded localization. The selected source rules classify rebound `f` as
+external Mono at `step` publication under the original outer invocation;
+Strict entry supplies the actual Force Return/rebind tuple and pending suffix.
+The inspected native registration, Lambda/Apply construction, and observer
+preserve identity, ports, and cause but do not derive that full source
+interpretation. The review confirmed that the note preserves P's original
+scope, does not turn private pending suppliers into an impossibility theorem,
+and leaves Internal and wider constructor coverage OPEN. It did not establish
+baseline equality, P, complete Call, soundness, principality, or runtime
+acceptance.
 
 ## Commit packet
 
@@ -307,8 +320,8 @@ review; its author does not certify it.
 - Baseline SHA: `35e88c8113c9c6516e260170503bea753e4ede6`.
 - Changed dependency hashes: none during final producer recheck; comparison
   against the assigned baseline is unverified by this leaf and remains primary-owned.
-- Honest review status: research-only localized missing premise, independent
-  review pending; P and original full-domain Generalize parent OPEN.
+- Honest review status: independently reviewed bounded localization; P and
+  original full-domain Generalize parent OPEN.
 - Checks already run: static owning-rule/consumer trace, dependency SHA-256
   stability, note integrity/whitespace inspection; zero executable verification.
 - Proposed checkpoint message: `research: localize Generalize emission law P to formal rebind interface`.
