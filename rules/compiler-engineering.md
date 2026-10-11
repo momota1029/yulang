@@ -134,30 +134,27 @@ Do not comment by paraphrasing code, preserving dead implementation history, or 
 
 ### Deterministic Simple-sub inference
 
-The successor type-inference algorithm is deterministic. Generate and
-propagate Simple-sub constraints, levels, extrusion, intrusion, and
-generalization according to their selected rules; do not speculate over
-possible typings, undo solver state, and retry another typing as an inference
-search strategy. A proof or implementation difficulty is not grounds for
-adding backtracking. Resolve alternatives through the deterministic
-constraint/effect operations, or surface the exact missing semantic decision
-before changing the algorithm.
+The successor is a deterministic Simple-sub algorithm. Construct it from
+constraint generation, accumulation, propagation, levels, extrusion,
+intrusion, and generalization. Do not add per-constraint eager-solving rules or
+speculative search over possible typings. Establish the central invariants
+before implementation, derive data structures and processing from them, and
+prove the correctness and complexity of optimizations. Avoid unnecessary
+recomputation, state duplication, and auxiliary structures.
 
-If the generated constraints are inconsistent, reject the program with a type
-error. Do not retry inference to find a different typing, hide the conflict as
-a successful candidate, or fall back to F5. This semantic rejection is distinct
-from an internal construction/resource failure handled by the owning route
-transaction.
+For abnormal paths, continue inference and diagnostics where meaningful and
+detect appropriate type errors. Do not retry to discover another typing.
+Diagnostic text/order/identity and complete internal-state restoration are not
+general requirements. Never accept an incorrect typing or publish an
+inconsistent result. On unrecoverable resource exhaustion, stop safely without
+exposing a partial result. Use rollback only when an owning proof shows it is
+needed to preserve a semantic invariant; do not require full recovery, capacity
+restoration, or allocation-free rollback as goals in themselves.
 
-Error handling has a separate, strict contract. A construction or resource
-failure must not select a fallback typing or continue from partial state. The
-owning authoritative route contract determines whether the operation restores
-its exact pre-route state or terminates and discards the whole unpublished
-attempt; do not make that boundary more permissive for implementation
-convenience. Where the active contract requires rollback, reserve and restore
-all route-owned state, observations, and accounting before exposing the error.
-A successful suspension is not an error: it retains accepted facts and its
-continuation.
+A successful suspension is normal inference progress: retain its accepted
+facts and continuation, and do not reuse invalidated dependent results.
+Consult the [top-level inference principles](../notes/design/2026-10-11-yulang-inference-top-level-principles.md)
+before applying more specific historical rollback clauses.
 
 Do not encode semantics through incidental strings:
 

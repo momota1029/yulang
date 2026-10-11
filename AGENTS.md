@@ -24,6 +24,12 @@ choice. The short order is:
 4. confirmed code/test invariants;
 5. general practice or model intuition.
 
+For any Simple-sub inference or F5-replacement task, also read
+[`notes/design/2026-10-11-yulang-inference-top-level-principles.md`](notes/design/2026-10-11-yulang-inference-top-level-principles.md)
+before relying on older error-recovery or rollback clauses. It is Authoritative
+for the inference algorithm, proof/implementation direction, efficiency, and
+necessary abnormal-path safety.
+
 Use `notes/design/INDEX.md` to locate the governing source. The index is not a
 replacement for the source document.
 

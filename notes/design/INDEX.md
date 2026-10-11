@@ -37,6 +37,16 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-05)
 
+- **Top-level type-inference principles (2026-10-11):**
+  [Yulang Type-Inference Development: Top-Level Principles](2026-10-11-yulang-inference-top-level-principles.md)
+  is Authoritative by the user's explicit decision. It prioritizes the
+  mathematical Simple-sub algorithm, proof-derived implementation, and
+  efficiency; forbids speculative typing search; and limits abnormal-path
+  requirements to safe diagnostics, no incorrect typing/publication, and
+  safe termination. It supersedes blanket exact-state/capacity restoration
+  and allocation-free rollback requirements in conflicting inference gates.
+  Read it before applying older contextual rollback clauses.
+
 - **Current legacy withdrawal policy (2026-10-10):**
   [active removal of Simple-sub bypasses](2026-10-10-simple-sub-legacy-withdrawal.md)
   requires actual dependency removal and regression tests, including removal of
@@ -130,8 +140,11 @@ This index is a navigation aid. The listed source document remains authoritative
 
   The [contextual attachment/admission design](2026-10-10-contextual-attachment-admission-design.md)
   is authoritative for the private contextual carrier, exact acceleration of
-  two reviewed paired-ascription cycle shapes, certificate invalidation, and
-  rollback. The user's q1/a1 selects that bounded internal gate only; a later
+  two reviewed paired-ascription cycle shapes and certificate invalidation.
+  Apply its whole-route rollback/retry clauses under the newer
+  [top-level principles](2026-10-11-yulang-inference-top-level-principles.md):
+  they are not general correctness gates without a proof of semantic need.
+  The user's q1/a1 selects that bounded internal gate only; a later
   approved q1/a1 selects one attachment identity per annotation atom set,
   recorded in §3.1 and integrated at `d86d50dd2`. The user later retracted the
   previously claimed callback result as a mistake; no replacement is selected.
@@ -142,11 +155,15 @@ This index is a navigation aid. The listed source document remains authoritative
 - [Private candidate suspension contract](2026-10-11-private-candidate-suspension-contract.md)
   — Authoritative after the user's explicit approval “承認して実装を進めて”.
   Specifies the private continuation stack, retained source/SCC progress,
-  dependency invalidation/recomputation, private deferral, rollback and atomic
-  publication for the existing contextual-admission gate. No public pending
-  API, language-semantic change, or source restriction is selected. Production
-  certificate creation remains gated on complete readiness and recognition
-  evidence.
+  dependency invalidation/recomputation, private deferral and atomic
+  publication for the existing contextual-admission gate. Read its §6–7
+  failure-restoration and retry language under the newer
+  [top-level inference principles](2026-10-11-yulang-inference-top-level-principles.md):
+  blanket complete restoration is superseded, while semantic invalidation,
+  successful suspension progress and no inconsistent publication remain.
+  No public pending API, language-semantic change, or source restriction is
+  selected. Production certificate creation remains gated on complete
+  readiness and recognition evidence.
 
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)

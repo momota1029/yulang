@@ -20,34 +20,70 @@ the large branch range and all Gate E / semantic / production approval
 requirements must be treated as explicit integration work, not as completed
 cutover.
 
-## 2026-10-11 deterministic inference and strict exception boundary
+## 2026-10-11 user-selected top-level inference principles
 
-The user clarified that the objection concerns inference search: Simple-sub
-inference should be a deterministic constraint algorithm and must not undo a
-typing state to try another interpretation. The user further clarified that
-robust handling of abnormal programs means rejecting ill-typed programs with a
-type error; there is no reason to retry inference to assign them a type. Do not
-attribute a requirement for exact pre-failure restoration to that user
-statement.
+The user's explicit five-part decision is recorded in the Authoritative
+[top-level principles](../notes/design/2026-10-11-yulang-inference-top-level-principles.md).
+This is the first policy to read for inference design, proof, implementation,
+complexity, and abnormal-path decisions. It requires mathematical Simple-sub
+structure, proof-derived implementation, active efficiency work, deterministic
+no-search inference, useful diagnostic continuation, no incorrect typing or
+inconsistent publication, and rollback only when an owning proof shows its
+semantic necessity. Blanket exact-state/capacity restoration and
+allocation-free rollback are not general goals.
 
-Keep semantic rejection distinct from internal availability/construction
-failure. The inspected capture-map transaction rollback runs after
-`SolveAvailabilityError`, not after an alternative typing branch. Separately,
-the current Authoritative private suspension contract §6 requires exact
-pre-route restoration for route/allocation failures, and §7 has a supported
-retry regression. That document remains the operative contract unless its
-scope is explicitly changed; it was not what the user just asserted. Any work
-on that path must remain failure atomicity, never a way to search for another
-typing. Ill-typed input must terminate as a type error, not fall back to F5 or
-continue from a partial candidate state.
+This supersedes the unconditional rollback/retry clauses in the private
+suspension contract §§6–7 and contextual attachment/admission gate where they
+conflict. Successful suspension and semantic invalidation remain inference
+progress obligations. The existing occupied-key rollback repair remains in
+the branch as code; its continued necessity is not established by the new
+principles. Absent-key rollback headroom is no longer an automatic critical
+path; retain its source/history findings without spending further work unless
+a concrete semantic invariant requires it.
 
-`rules/compiler-engineering.md` now records the no-search invariant and the
-separate strict error boundary. The short-lived draft proposing whole-attempt
-discard was removed and has no authority; no implementation followed from it.
-The occupied-key in-place rollback fix remains a narrow resource-safety
-improvement. The absent-key splice inverse headroom question remains separate
-from semantic type-error rejection, with source/history evidence still open.
-No inference theorem, effect-hygiene gate, or F5 cutover status changes.
+The first source audit under the abnormal-path policy is
+[`simple-sub-type-error-rejection-audit`](../notes/progress/2026-10-11-simple-sub-type-error-rejection-audit.md).
+It finds that the private candidate can accumulate conflicts and continue,
+but the private result/export path has no conflict guard and is not established
+as source rejection or safe publication. Ordinary F5 stops at an unsupported
+application before comparable inference, so no type-error parity follows.
+Source error continuation, the no-inconsistent-publication boundary, effect
+hygiene, the ordinary HIR carrier approval handoff, and full F5 replacement
+remain open.
+
+## 2026-10-11 top-level inference principles integrated
+
+The user's full five-part decision and evaluation criterion are now recorded
+in [`Yulang Type-Inference Development: Top-Level Principles`](../notes/design/2026-10-11-yulang-inference-top-level-principles.md).
+This is the durable governing source; `AGENTS.md`, `rules/design-authority.md`,
+`rules/compiler-engineering.md`, and `notes/design/INDEX.md` point future
+inference work to it. Its approval is explicit user authority. Independent
+specification and semantic reviews found no issues; repository code and F5
+routing have not changed.
+
+The old private suspension and contextual attachment contracts demanded full
+route restoration/retry in their abnormal-path clauses. Those blanket demands
+are superseded in this scope. Keep successful suspension, retained constraints,
+dependency invalidation, prevention of inconsistent publication, semantic
+correctness, and safe resource-abort guarantees. Do not spend more work on
+absent-key/allocation-free inverse recovery unless a proof identifies a
+semantic invariant that needs it. No replacement recovery architecture has
+been selected.
+
+The frozen [`simple-sub-type-error-rejection-audit`](../notes/progress/2026-10-11-simple-sub-type-error-rejection-audit.md)
+provides one Oracle-valid `bridge` case: the private candidate accumulates the
+Int/Function conflict and continues diagnostics, but its private result/export
+does not enforce an inconsistent-result boundary. Ordinary F5 does not admit
+the same Apply and therefore establishes no parity. This concrete consumer gap
+is the next source-correctness target; it is not authorization to flip ordinary
+HIR or public F5 routing.
+
+The Oracle effect-hygiene bridge is recorded in
+[`oracle-effect-hygiene-source-bridge`](../notes/theory/2026-10-11-oracle-effect-hygiene-source-bridge.md)
+at pushed checkpoint `9860681e2`. It establishes only a conditional positive
+producer-to-consumer path. Composed-negative subtraction, complete effect
+hygiene, conflict-to-publication rejection, the ordinary HIR carrier handoff,
+and full F5 replacement remain OPEN.
 
 ## Proof and task-decomposition dispatch (2026-10-10)
 

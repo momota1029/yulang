@@ -12,6 +12,11 @@ When two instructions govern the same scope and conflict, use this order:
 
 Authority is scope-sensitive. A broad architecture document does not decide an unrelated local detail. A later narrow addendum overrides a broader document only where it explicitly says what it supersedes.
 
+For Yulang inference design, proof, implementation, complexity, and abnormal
+paths, the user's [top-level inference principles](../notes/design/2026-10-11-yulang-inference-top-level-principles.md)
+are the governing product policy. Read them before applying older inference
+contracts, especially clauses that prescribe failure rollback or retry.
+
 Implementation convenience never overrides an authoritative decision. When code and design appear inconsistent, stop the affected write, identify the exact conflict, and return it to the primary agent for adjudication or a user decision.
 
 ## User-selected product priorities (2026-09-24)
