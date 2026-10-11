@@ -9862,10 +9862,13 @@ latent port using that same scoped tail emits and activates a return path, or
 whether all such paths can be excluded from actual source constructors. The
 first responsible owners are Effect signature port construction, Function
 comparison dispatch, and incoming-incidence capture/restoration. The source
-audit passed independent compiler-referee review; the constructive note is
-under independent review. Neither result establishes semantic adequacy of
-`G_store`, Effect hygiene, or intrusion redundancy. No code, tests, or semantic
-rules changed; neither proof/artifact was tested or executed.
+audit passed independent compiler-referee review; the constructive note passed
+independent compiler-referee review with its bounded claims intact. A minor
+omission in its dependency manifest (`source_annotation.rs`) was repaired and
+delta-reviewed; the current hash is recorded in the note. Neither result
+establishes semantic adequacy of `G_store`, Effect hygiene, or intrusion
+redundancy. No code, tests, or semantic rules changed; neither proof/artifact
+was tested or executed.
 
 The earlier SCC checkpoint is commit `63ca221e4`; the reviewed source-map
 checkpoint is commit `80344d59e`, both pushed. Current source soundness,
