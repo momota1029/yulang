@@ -10344,17 +10344,30 @@ establish this occurrence's liveness or replay the provider into the final
 callback Effect. The frozen pure dump does not supply those raw records. The
 root POP is therefore a localized suspect, not the demonstrated cause of the
 displayed loss; no source-qualified H counterexample is established. An
-independent `compiler_referee` found no blocking or major issue; its minor
-findings on the second quantifier-selection branch, Oracle citation root and
-logical minimality were corrected in the checkpoint. No Oracle rerun,
-instrumentation, build, Cargo test or Yulang3 compiler check was done. H and
-Yulang3 implementation remain OPEN.
+independent `compiler_referee` found no blocking or major issue in the source
+constructor note; its minor findings were corrected in checkpoint
+`f914dc984`. No Oracle rerun, instrumentation, build, Cargo test or Yulang3
+compiler check was done. H and Yulang3 implementation remain OPEN.
 
-Next: establish the actual `direct` source occurrence's projected compact
-liveness and selected quantifier at the existing projection/selector owners,
-then connect its fresh-use map and provider replay to `observed_direct`'s
-output. Prefer a source derivation; if that cannot determine the actual
-projection/replay decision, capture those existing identities at those owners
-in one bounded observation. Do not infer raw IDs from display `#0`, and keep
-the independent-contribution clause separate from the minimum scope-escape
-counterexample test.
+Two complementary source passes now isolate the remaining owner evidence:
+[`direct projection/use owner audit`](../notes/progress/2026-10-11-oracle-direct-projection-owner-audit.md)
+at `0100dbfcf` and
+[`direct liveness source derivation`](../notes/theory/2026-10-11-oracle-direct-liveness-proof.md)
+at `bb54b3f02`. They correct the call-predicate distinction: `cb` has a
+populated binder call predicate, but `direct` never invokes it, the enclosing
+output predicate is empty, and the installed Scheme does not store binder call
+metadata. That metadata therefore does not explain the later App directly;
+the type graph's ID-bearing weights remain a separate route.
+
+The exact stopping premise is now an active returned-callback lower with
+original `s` and its actual support/formula-derived projection decision at
+`direct`'s collection boundary. A concrete prefix, source origin or empty
+support payload does not determine that decision. Both stack-quantifier
+branches and final cleanup remain downstream. An independent `compiler_referee`
+review is pending for these two notes. Next: finish that review, then capture
+the original `(annotation, s, coordinate, direct root)` association and the
+returned-callback lower records plus their actual projection decisions at the
+existing owners. Extend the evidence only if those records show `s` survives;
+keep later selector membership, fresh map, provider replay, and the independent
+same-family contribution as separate premises. No new Oracle execution or
+instrumentation has been authorized or run.
