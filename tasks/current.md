@@ -9987,10 +9987,12 @@ from their value constructors and how those edges are transported through
 later use and generalization. The semantic vertex domain is fixed by the user;
 the binder graph is only a projection and cannot identify distinct parent/copy
 vertices. Thus parent/copy SCC reachability and intrusion adequacy remain OPEN.
-The reviewed Draft passed two independent conformance-review passes with no
-residual findings; it remains unapproved and non-authoritative. A constructive
-candidate relation and a complementary source-constructor audit are frozen in
-the [Value-reference SCC proof note](../notes/theory/2026-10-11-value-reference-scc-source-bridge.md)
+The Draft passed two conformance-review passes by one `spec_auditor` with no
+residual findings; it remains unapproved and non-authoritative. A separate
+`compiler_referee` review passed on the two research bridge artifacts. A
+constructive candidate relation and a complementary source-constructor audit
+are frozen in the
+[Value-reference SCC proof note](../notes/theory/2026-10-11-value-reference-scc-source-bridge.md)
 and [constructor audit](../notes/progress/2026-10-11-value-reference-scc-constructor-audit.md).
 Both locate the first missing bridge at resolved Name ownership: HIR resolves
 the occurrence, but `candidate_source.rs` emits `Action::Link` or `Action::Local`
