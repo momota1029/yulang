@@ -11674,8 +11674,20 @@ repaired and delta-checked with local source-path existence and whitespace
 checks. The artifacts were checkpointed and pushed at `44e9ffff4` and
 `ec3cf1b5b`. No Y3 compiler code or tests changed.
 
-A bounded constructive proof lane is tracing the actual operation-reference
-seed through projection coverage and the selected `run` output. Its immediate
-consumer is the original universal H gate; the same-family route, complete
-Call, soundness, principality, ordinary/public inference and F5 replacement
-remain OPEN. No Oracle invocation/build budget was used for this candidate.
+The constructive artifact
+[`same-family handler output derivation`](../notes/theory/2026-10-12-same-family-handler-output-proof.md)
+is frozen and independently reviewed with no findings in §§2–6. It derives the
+actual `ev::send` operation-reference seed and the corresponding Direct,
+DerivedUnary and ReplayConjunction projection clauses through the handler
+result `T`, without treating an `Independent` tag as semantic independence.
+It does not prove P+ acceptance or selected `run` output membership. The first
+OPEN source operation is the recursive skeleton forwarding `T → R`, followed
+by selected Function port, generalization, and outer Call. The reviewed artifact
+is pushed at `7b663d1bb`; this checkpoint updates the note's review status and
+records the exact next proof gate.
+
+A bounded follow-up proof lane is now deriving that actual `T → R` route and
+trying to carry the same correlated lower through the selected output, using
+immutable Oracle source only. The original universal H, complete Call,
+soundness, principality, ordinary/public inference and F5 replacement remain
+OPEN. No Oracle invocation/build budget was used for either candidate.

@@ -1,7 +1,7 @@
 # Same-family handler-arm contribution: Oracle source-to-output derivation
 
 Date: 2026-10-12
-Status: producer research note; no independent review or gate promotion
+Status: frozen bounded derivation; independent compiler-referee review found no issue in §§2–6; original H remains OPEN
 Claim class: bounded source-to-handler derivation; output bridge remains unproved
 Yulang3 baseline: `0ef6b49ef401df9fa24e94007869d0c03fc80cc2`, branch `research/simple-sub-intrusion`
 Oracle source: immutable `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -198,7 +198,7 @@ Emitted roots alone are insufficient for the required published-output claim.
 
 ## 4. A source-derived projection fact for F0/F1/F2
 
-This is an unreviewed local derivation at the actual source constructors.
+This is a bounded local derivation at the actual source constructors.
 Its hypotheses are completed normal admissions of P+'s F0/F1/F2, with the
 actual fresh coordinates above. It concludes projectability of their alias
 lower bounds while those admitted records are queried. It does not assume an
@@ -369,7 +369,8 @@ seed, and its upper premise is included through q_i; the evaluator at
 actual forwarding edges. This is a proof about native producers and consumers,
 not a checker that assumes forwarding transitions.
 
-The combined §§4–6 result is an unreviewed bounded constructor derivation:
+The combined §§4–6 result is a bounded constructor derivation, independently
+reviewed with no findings in that scope:
 B's positive E row reaches the actual handler result T with a projectable
 parent tree. Its route does not use the scrutinee row's matched-E transition.
 It establishes no published `run` port. Unconditional inclusion of every derived row
@@ -539,9 +540,10 @@ blob IDs additionally freeze the actual constructor/consumer bridge:
   Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - Changed dependency hashes: none in the inspected pinned dependency cone;
   Oracle source blob IDs and Yulang3 note/design hashes are recorded above.
-- Claim/review status: unreviewed bounded source-to-T constructor derivation,
-  actual Direct-root projection derivation, and precise T-to-R/selected-output
-  obstruction. No accepted source counterexample, whole-output theorem,
+- Claim/review status: independently reviewed with no findings in §§2–6;
+  bounded source-to-T constructor derivation, actual Direct-root projection
+  derivation, and precise T-to-R/selected-output obstruction. No accepted
+  source counterexample, whole-output theorem,
   universal H, complete Call, soundness/principality or production closure.
 - Checks already run: immutable owner/activation/claim/evaluator/collector
   reads; baseline and dependency comparison; hashes/blob IDs; final local
