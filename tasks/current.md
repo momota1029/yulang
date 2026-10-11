@@ -9151,12 +9151,11 @@ next circuit packet; the focused package test and check no longer emit warnings.
 
 This section supersedes the preceding “next gate: design and implement that
 bounded parent handoff” sentence. Under the approved suspension contract
-§§3/4/6, the bounded handoff now exists in the working tree: terminal typed
-drain completion stores an exact replay destination/receipt before frame
+§§3/4/6, the bounded handoff is committed and pushed at `f87b4e42d`: terminal
+typed-drain completion stores an exact replay destination/receipt before frame
 removal; Ready blocks transfer, retirement and restoration/Local cursor
 advancement until matching delivery releases it. Production callers remain
-synchronous. This implementation is still uncommitted and is not a production
-suspension or certificate gate.
+synchronous. This is not a production suspension or certificate gate.
 
 The source correspondence is recorded and independently reviewed in
 [`retained-parent-handoff-source-bridge`](../notes/progress/2026-10-11-retained-parent-handoff-source-bridge.md).
