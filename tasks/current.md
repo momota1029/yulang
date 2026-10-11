@@ -10983,5 +10983,17 @@ port and its co-occurrence/simplification/substitution images remain OPEN;
 bipolarity alone does not prove α survival. No source-qualified deletion or
 explanation of the printed pure result is established. H and its original
 quantifiers remain OPEN. No Oracle invocation, test, build, or compiler edit
-was performed. Next owner: resolve whether α survives the actual merged
-compact root through simplification before tracing provider/use effects.
+was performed.
+
+The checkpointed
+[`direct-return simplification audit`](../notes/progress/2026-10-12-oracle-direct-return-simplification-audit.md)
+at `d84d21092` narrows that seam without closing it. Its independently reviewed
+conditional facts show that an absent α floor entry is not an Empty floor and
+that a negative `Row(tick, tail=x)` does not retain `Exact(tick)` when the same
+co-occurrence traversal visits a variable-only x tail and intersects the
+groups. No source-qualified α deletion was found. The next owner is the
+complete weighted x incidence slice of the final compact root, including all
+same-coordinate Function contributions, α floors, recursive bounds, levels,
+and representative images through preparation's fixed-point passes. The
+constructive proof lane is tracing that exact slice; this bounded audit leaves
+S and universal H OPEN. Oracle budget remains exhausted.
