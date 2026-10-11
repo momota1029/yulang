@@ -6,7 +6,7 @@ Status: bounded source/operational characterization and minimized obstruction;
 original normal-inference theorem OPEN
 Claim class: A/B source correspondence; no theorem closure or counterexample
 Authority: existing selected source definitions and the primary's frozen packet
-Review: producer-frozen, independent review pending; no self-certification
+Review: independently reviewed by compiler_referee; no theorem closure
 Exclusive lease: this file only
 
 ## 1. Objective, authority and frozen target
@@ -371,8 +371,9 @@ gates OPEN; do not request another conditional registry-packaging lemma.
 - Baseline: `67b8119ca22313dc3e8d5ede623ae19dc2a65425`.
 - Changed dependency hashes: none in the 30-path pre-write comparison;
   integration owner must recheck its frozen dependency snapshot.
-- Review: unreviewed research-only obstruction/operational trace; independent
-  review pending; no closure certification, production conformance or authority.
+- Review: independent compiler_referee found no remaining findings in the
+  repaired bounded obstruction/operational trace; no closure certification,
+  production conformance or authority.
 - Checks already run: pinned rule/source/test reads, lease absence and 30-path
   byte/hash audit; no test/build/probe or performance check.
 - Proposed research-checkpoint message:
