@@ -10859,3 +10859,27 @@ cutover. The focused package formatter check still reports broad pre-existing
 formatting drift; the changed test lines were formatter-checked and kept
 formatted without applying a package-wide rewrite. See the [private candidate
 conflict boundary record](../notes/progress/2026-10-11-private-candidate-conflict-export-guard.md).
+
+### 2026-10-12 Oracle direct-return use-chain audit
+
+The reduced `direct(cb) = cb` then `(direct provider) ()` discriminator now has
+a source-only chain audit in
+[`Oracle direct-return use chain`](../notes/progress/2026-10-12-oracle-direct-return-use-chain.md),
+checkpoint `306237a14`. The returned expression preserves the callback's
+original local DefId/value coordinate. At the later call, `(direct provider)`
+is an `Expr::App`, so the Oracle's special local-variable callback projection
+does not apply; ordinary callee-evaluation and call effects flow to the final
+application effect. This narrows away the later-call projection as the cause,
+but does not prove that a concrete `tick` lower reaches that effect.
+
+The exact missing premise is the stored generalized `direct` scheme and its
+correlated return-Effect row, raw annotation SubtractId, stack quantifiers,
+provider lower, and instantiation records. The earlier Oracle dump does not
+expose those records. Therefore this remains a source-correspondence audit,
+not a counterexample to universal hygiene H. The Y3 candidate currently
+rejects this composed-negative concrete formal-effect shape during preflight;
+that is an implementation admission boundary, not a semantic restriction.
+No new Oracle run, build, test, or instrumentation occurred. Oracle budget
+remains exhausted. Next owner: recover or account for the stored-scheme and
+instantiation records, then trace concrete effect transport. H, intrusion,
+full soundness, and F5 remain OPEN.
