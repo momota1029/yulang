@@ -10171,13 +10171,17 @@ impossibility claim. A distinct constructive lane remains active on deriving
 the Function representation/projection relation from source judgments and
 actual consumers.
 
-A distinct constructive lane now attempts the representation/projection proof
-from actual four-port Function formation and Function-pair dispatch to the
-original whole source interface, with a new lease at
+A distinct constructive attempt from actual four-port Function formation and
+Function-pair dispatch to the original whole source interface is frozen at
 [`native Function interface projection proof`](../notes/theory/2026-10-11-native-function-interface-projection-proof.md).
-It must preserve the original independent challenge domains and dependent
-Return/Request tuples. The original P and complete Generalize gates remain
-OPEN pending the actual bridge and independent proof review.
+It preserves the original independent challenge domains and dependent
+Return/Request tuples, then identifies whole-carrier challenge
+coverage/pullback as the first unsupported native bridge. A fresh
+`compiler_referee` found no issue in that bounded localization. This does not
+establish the relation's native adequacy: P, complete Generalize, and the full
+native bridge remain OPEN. The next proof owner must derive carrier coverage
+and pullback from actual Parameter/Lambda formation and Function-port
+consumption.
 
 The bounded Oracle syntax audit is frozen at
 [`oracle operation-path source audit`](../notes/progress/2026-10-11-oracle-operation-path-source-audit.md).
