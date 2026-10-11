@@ -161,6 +161,21 @@ the complete typed formal-entry bridge, not a claim about binder order inside
 an unknown telescope. This direct semantic gap is distinct from the adopted
 raw-registry argument-map conformance gate.
 
+The follow-up
+[`actual formal-interface proof`](../notes/theory/2026-10-11-invoke-actual-formal-interface-proof.md)
+and complementary
+[`formal-map falsification audit`](../notes/progress/2026-10-11-invoke-formal-map-falsification.md)
+refine that gap. Generic typed-boundary rules do provide Force result-prefix
+projection and same-type rebind identity once their typed views, carrier,
+profile, guards and incidence are supplied. The selected Parameter/Lambda
+formation and invocation-entry path generates the formal skeleton and retains
+the typed-flow premises, but no inspected constructor applies those generic
+maps to establish the complete actual `L,d_f` received-view/receipt/rebind
+interface. The bounded proof and independent source review found no blocking,
+major or minor issue in this localization. This remains a source-application
+obligation, not a refutation or impossibility result; the original theorem
+remains OPEN.
+
 Both Yulang extension results remain subordinate to the original theorem.
 Complete inner Call formation and same-provider whole-argument compatibility,
 source Generalize, full effect hygiene, principal public output, inconsistent-
