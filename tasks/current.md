@@ -11651,3 +11651,31 @@ Function/row output into the final compact scheme. The next observation should
 capture that route at its owning consumers. H, complete Call, soundness,
 principality and F5 replacement remain OPEN. These Oracle-only captures made
 no Yulang3 code or test changes.
+
+### 2026-10-12 Same-family handler-body contribution route
+
+The frozen source audit
+[`same-family handler route`](../notes/progress/2026-10-12-same-family-handler-source-route.md)
+adds a candidate with an independent `ev::send (s,n)` inside the matching
+handler arm of the captured int fixture. Immutable Oracle source constructs
+its positive route `operation return Effect → application Effect → arm block
+Effect → catch result → Function return port`, separately from the scrutinee's
+handled-row/residual path. For `action: [ev] 'a`, the inspected annotation and
+lambda constructors do not place that action subtraction ID as an output POP
+around the result. Thus this candidate isolates source-route separation; it
+does not exercise the stronger case where an actual output POP must preserve
+an independent same-family contribution.
+
+The artifact is a static, unexecuted candidate, not evidence of successful
+inference, semantic independence in the projection ledger, scheme inclusion,
+current/future Call survival, or a counterexample. A fresh compiler-referee
+review found no blocking or major issue; its minor path-prefix finding was
+repaired and delta-checked with local source-path existence and whitespace
+checks. The artifacts were checkpointed and pushed at `44e9ffff4` and
+`ec3cf1b5b`. No Y3 compiler code or tests changed.
+
+A bounded constructive proof lane is tracing the actual operation-reference
+seed through projection coverage and the selected `run` output. Its immediate
+consumer is the original universal H gate; the same-family route, complete
+Call, soundness, principality, ordinary/public inference and F5 replacement
+remain OPEN. No Oracle invocation/build budget was used for this candidate.
