@@ -795,3 +795,153 @@ and retain every original H/Call/implementation gate OPEN. No shared record,
 compiler, fixture, expectation, question bundle or configuration was edited.
 
 Writes stop before frozen review.
+
+## 11. Bounded Oracle capture of the selected `run` root
+
+This capture supplies the first actual selected-root input to §10, with one
+important scope limit: the repository fixture uses `str`, while the bounded
+no-prelude execution does not provide that name. The captured source therefore
+uses the same fixture and handler/call shape with only `str` changed to `int`
+and the string literal changed to `1`:
+
+```yulang
+act ev:
+    pub send: (int, int) -> ()
+
+my run(action: [ev] 'a): 'a = catch action:
+    ev::send (s, n), k -> run (k ())
+    v -> v
+
+run: ev::send (1, 42)
+```
+
+The exact captured input SHA-256 is
+`73b4a2d12233b9b658188f3baa17edb04c14a89f94217198befca22db4af77d9`.
+Its projection trace SHA-256 is
+`d60677637dcd82aed0bce2796a4804f09c53d45b2747b98b9e9855f2e7a2acb9`.
+The check exited successfully. The source label joined `DefId(2)` to `run`;
+its accepted root was `TypeVar(1)`, at iteration 1 and
+`ConstraintEpoch(291)`. For that fixed view the root query succeeded and
+selected exactly two records:
+
+```text
+BoundRecordId(256) -> PosId(45), Original / Standalone
+  coverage/representative: UpperReplayClaimId(998) / UpperReplayClaimId(998)
+  producer: ConstraintRecordId(163)
+BoundRecordId(258) -> PosId(44), ReplayConstraint / ReplayConjunction
+  coverage/representative: UpperReplayClaimId(998) / UpperReplayClaimId(998)
+  pivot: TypeVar(34); premises: BoundRecordId(255), BoundRecordId(257)
+  rule: UpperBoundAdded; result: ConstraintRecordId(164)
+```
+
+Both selected records had empty incoming stack weight and empty directed
+left/right weights. The reached `PosId(44)` was a Function whose actual
+return-effect endpoint was `PosId(14)`. Its successful compact return-effect
+query contained these eight variables:
+
+```text
+TypeVar(11) Primary; TypeVar(14) Secondary; TypeVar(29) Secondary;
+TypeVar(21) Secondary; TypeVar(30) Secondary; TypeVar(9) Secondary;
+TypeVar(33) Secondary; TypeVar(31) Secondary, stack entry SubtractId(0)
+```
+
+All compact occurrences had empty stack weight except `TypeVar(31)`, whose
+weight had `SubtractId(0)` with `pops=0`, empty floor and stack `[Empty]`. This
+is an intermediate compact value, not yet the finalized scheme port.
+
+The existing numeric `YULANG_TRACE_SCHEME_DEFS=2` path was then run separately
+on the same pinned source and byte-identical input (same input SHA-256). That
+second process also exited successfully and emitted the finalized scheme twice
+at the two existing trace sites. The raw form was:
+
+```text
+quantifiers: ['3, '9]
+stack_quantifiers: []
+predicate: p6
+p6 = Fun { arg: n4, arg_eff: n7, ret_eff: p4, ret: p5 }
+n4 = Var('3)
+n5 = Con(ev, [])
+n6 = Var('9)
+n7 = Row([n5], tail: n6)
+p4 = Var('9)
+p5 = Var('3)
+```
+
+Its displayed form is `'a [ev; 'b] -> ['b] 'a`. Thus this captured variant's
+finalized `run` scheme retains the handled family in the formal argument
+effect and has the residual `'b` in both the row tail and return-effect port.
+This joins the selected `run` root, accepted iteration, selected root records,
+encountered Function endpoint, compact return-effect result, substitutions and
+finalized scheme for this variant. The accepted generalized root had
+quantifiers `[TypeVar(3), TypeVar(9)]`, no stack quantifiers, no sandwiches,
+and no role predicates. Its substitutions were:
+
+```text
+None: TypeVar(1), TypeVar(4), TypeVar(21), TypeVar(26), TypeVar(27),
+      TypeVar(31), TypeVar(33), TypeVar(34)
+→ TypeVar(3): TypeVar(6), TypeVar(10), TypeVar(12), TypeVar(13),
+              TypeVar(25), TypeVar(28), TypeVar(32)
+→ TypeVar(9): TypeVar(11), TypeVar(14), TypeVar(29), TypeVar(30)
+```
+
+The actual ancestor chain was empty. It still does **not** join the particular
+concrete `send` contribution's source/Call parent to those records or prove
+that contribution's survival through the final Call output. That part of H
+remains OPEN.
+
+The original fixture with `--no-prelude` exits with an unresolved `str` error,
+so it does not supply a valid root. Running the original fixture with its
+default prelude was separately bounded at 120 seconds; it timed out before
+emitting the `run` label. The transcript does not identify which source or
+phase was being checked at timeout. This run is not evidence for the original
+fixture's selected map. The successful capture is only the explicit `int`
+variant above, and no identity between its concrete payload contribution and
+the original fixture's contribution is claimed.
+
+Capture process details: Oracle checkout HEAD
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`; five-file, env-gated research
+instrumentation reviewed in source before execution; offline locked `yulang`
+build succeeded in one Cargo process (2m12s, 105 `infer` warnings; comparison
+against an uninstrumented warning baseline was not run).
+
+Instrumented source hashes:
+
+| Oracle path | SHA-256 |
+| --- | --- |
+| `crates/infer/src/analysis/session/generalize.rs` | `4ea4821eb197ceecb82db9c8520458ea1b14f40f2d1e8e7b0c79566279e3e988` |
+| `crates/infer/src/compact/collect/mod.rs` | `23dce0d501aac161b0bd4d702ba6eda65c45a38f23c53965b62b32537a084b7a` |
+| `crates/infer/src/compact/collect/type_nodes.rs` | `405a1bf9b40a2dff55cbd20a22902f1acb244efb39578ebabac9f341954f1cf8` |
+| `crates/infer/src/compact/surface.rs` | `af31f1e68654831f1d005a7070bc50367a34691cc55dadddadfe55bb5e207c6c` |
+| `crates/yulang/src/source/mod.rs` | `de29d6bbcbe8a969f7bf77b852cae2c314de1d6158c6cdb7dec8b6022e06d059` |
+
+The bounded projection run used one process, `--no-prelude --no-cache check`,
+and a 30-second timeout. It emitted 53 trace events without a query/scope
+fallback, per-event truncation, or event-limit marker. The filtered raw-scheme
+run used one process and the same 30-second timeout; raw trace SHA-256 is
+`f8d06b5de73c8399987d4a79d34da6ca3ce07896dd97979142928fc75b910178`. The
+default-prelude attempt used one process and a 120-second timeout, then was
+stopped. No tests ran. Fresh compiler-referee review of the instrumentation
+repair found no blocking, major or minor findings; the separate delta review
+of this capture found no remaining findings.
+
+The successful trace's complete selected `run` root replaces `P_sel` for this
+explicit variant only. `Q_M` for the exact source contribution, its attribution
+through the Call, and output membership are still the next missing evidence.
+No Oracle semantics, Y3 semantics, or proof obligation has been weakened.
+
+### 11.1 Capture checks and boundary
+
+The source fixture transform and invocation were inspected; the projection
+transcript contains no `output_limit`, `truncated=true`, `query_error`, or
+`scope_error` marker. The separate scheme trace names `DefId(2)` and has the
+same displayed scheme as the projection run's generalized compact root. The
+instrumentation build is compile evidence only. It does not prove the trace
+is observationally equivalent to an uninstrumented run, nor does the captured
+scheme prove H or complete Call.
+
+The instrumentation diff was independently reviewed after its bounded-output
+repair; that review covered only the repair scope. A separate compiler-referee
+delta review of this runtime capture and its source-to-final-scheme
+interpretation found no remaining findings. The review confirms P_sel only for
+the explicit `int` variant; concrete contribution lineage, Call output
+membership and H remain OPEN.

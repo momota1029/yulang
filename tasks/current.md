@@ -11554,3 +11554,21 @@ Call/output retention, H, Y3 correspondence, soundness, principality and
 cutover open. A separate source-route audit is locating the narrowest way to
 capture the owner snapshot; that audit used static reads only. No compiler code
 or tests changed.
+
+The [§11 Oracle capture](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
+now supplies `P_sel` for one explicit source variant: the existing handler
+fixture with `(str, int)`/`"x"` replaced by `(int, int)`/`1`. On pinned Oracle
+HEAD `a58eefc31e22141574b6f20c6a5748151c6d79f1`, a bounded no-prelude check
+successfully captured `run` as `DefId(2)`, root `TypeVar(1)`, iteration 1,
+epoch 291, selected records 256/258, Function endpoint `PosId(44)` and return
+Effect `PosId(14)`. A separate selected scheme trace joins its substitutions
+and finalized scheme `'a [ev; 'b] -> ['b] 'a`; the ancestor chain is empty.
+An independent compiler-referee delta review found no remaining findings in
+the capture and its interpretation. The exact original `str` fixture remains
+uncaptured: its no-prelude check reports unresolved `str`, and its default-
+prelude check timed out before emitting the `run` label, without identifying
+which source/phase was active. This does not establish the original fixture's
+selected map or identify the concrete `send` contribution in final Call output.
+That source/Call lineage, H, complete Call, Y3 correspondence, soundness,
+principality and F5 replacement remain OPEN. No Y3 compiler code or tests
+changed; one Oracle build and bounded inference captures ran.
