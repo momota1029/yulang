@@ -11148,3 +11148,39 @@ stops at the source-qualified symbolic seed, selected same-task maps,
 attachment interpretation, reached force and complete output (or authentic
 rejection); M and H remain OPEN. No Oracle run, build, test, or compiler edit
 followed.
+
+### 2026-10-12 Value-reference source and qualifying-pair bridge
+
+The frozen [`Value-reference source bridge audit`](../notes/progress/2026-10-12-value-reference-source-bridge-audit.md)
+(`731df6a6b`) maps the approved Apply/definition-root incidences to the
+candidate owners. The first gap is at construction: Apply retains operand and
+result coordinates but emits no result-owned resolved-Name incidence, and
+definition/local publication emits no root-owned incidence. Extrusion,
+freshening and the current SCC scanner preserve/consume other payloads; they do
+not supply the selected source graph. This is a bounded static audit, now under
+independent `spec_auditor` review; no implementation or theorem closure follows.
+
+The frozen [`qualifying parent/copy preservation slice`](../notes/theory/2026-10-12-qualifying-parent-copy-preservation-proof.md)
+(`e1124885e`) directly derives a joint witness replacement for the finite
+original Simple-sub odd/even Call skeleton's two real polar pairs
+`(C,B,+)` and `(D,R,-)`, including its local level-1 generalization boundary
+and one direct Call demand. It proves neither that either pair qualifies in
+the approved source-reference SCC nor the original all-source preservation,
+complete-Call, soundness or principality theorem. Fresh `compiler_referee`
+review is running.
+
+An independent [`qualifying-pair falsifier search`](../notes/progress/2026-10-12-qualifying-pair-falsifier-search.md)
+found no source-qualified counterexample in four bounded shapes; root-level
+`O↔E` references did not provide a return path to the tested copies. It leaves
+open the actual Value-reference transport law, and is frozen for primary
+review. The architecture lane is checking whether the approved clauses and
+original Simple-sub uniquely determine that transport or leave a real design
+choice. The user's exact nested conditional source still has no ordinary HIR
+admission bridge; its cross-level root SCC must not be treated as native edge
+emission or as qualification of `(C,B)`/`(D,R)`.
+
+No compiler code, tests, builds or Oracle runs changed in this slice. Next:
+adjudicate the independent reviews, finish the transport-law comparison, and
+only then assign the minimal approved source-incidence constructor/consumer
+implementation. The parent/copy equality gate, complete Call, effect hygiene,
+soundness, principality, ordinary/public inference and F5 cutover remain OPEN.
