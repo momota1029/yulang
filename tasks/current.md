@@ -10163,12 +10163,18 @@ The complementary source audit is frozen at baseline `26fedf6cd` in
 The reduced `my keep f = { my step x = f; step }` graph removes the inner Call
 while preserving formal identity, local publication and capture. It still
 does not derive the Parameter/Lambda whole-entry Return/Request interpretation
-or refute it. A constructive `prover` lane remains active on that exact
-application at
-[`native whole-entry application proof`](../notes/theory/2026-10-11-parameter-lambda-whole-entry-application-proof.md);
-it must not assume the missing interpretation or change compiler code. The
-original P and complete Generalize gates remain OPEN pending the actual bridge
-and independent proof review.
+or refute it. The first constructive attempt is frozen at
+[`native whole-entry application proof`](../notes/theory/2026-10-11-parameter-lambda-whole-entry-application-proof.md): it derives the source Strict premise, then stops at the native
+Parameter/Lambda interpretation application. It establishes no counterexample
+or impossibility result; the independent proof review is active.
+
+A distinct constructive lane now attempts the representation/projection proof
+from actual four-port Function formation and Function-pair dispatch to the
+original whole source interface, with a new lease at
+[`native Function interface projection proof`](../notes/theory/2026-10-11-native-function-interface-projection-proof.md).
+It must preserve the original independent challenge domains and dependent
+Return/Request tuples. The original P and complete Generalize gates remain
+OPEN pending the actual bridge and independent proof review.
 
 The bounded Oracle syntax follow-up is active at
 [`oracle operation-path source audit`](../notes/progress/2026-10-11-oracle-operation-path-source-audit.md).
