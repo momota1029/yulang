@@ -2,6 +2,8 @@
 
 Date: 2026-10-11
 Baseline: `1876f777358489d01c9755fa63a8d5876aa729a2`
+Repair source snapshot: `13e4a644b613c35cf896fd13e3d3df1098f9453c`;
+all direct dependencies byte-identical to the original baseline
 Branch: `research/simple-sub-intrusion`
 Status: unreviewed research construction; exact generation identity refuted;
 bounded scalar correspondence and mathematical value interpretation derived
@@ -179,10 +181,70 @@ Value Dispatch delegates to the actual candidate bound owner
 (`lib.rs:13748–13751`; `candidate_extrusion.rs:807–840`). It inserts before
 replaying opposite bounds. Replay at `candidate_extrusion.rs:763–803`
 constructs a same-kind child task; `candidate_context_begin_replay` enumerates
-the retained lower/upper provenance fibers (`candidate_context.rs:2911–2999`),
-and `candidate_context_step_replay_child` starts the actual typed drain for
-that child (`:3022–3035`). A table of installed bounds alone would omit this
-activation bridge.
+the retained lower/upper provenance fibers (`candidate_context.rs:2911–2999`).
+The actual initial path calls `candidate_context_drive_replay(replay,None)`
+at `candidate_extrusion.rs:803`. Its `None` branch queues children into the
+**existing** typed drain; it does not start the separate provenance-bearing
+child drain at `candidate_context_step_replay_child`. The original version
+of this note incorrectly cited that other branch as its activation bridge.
+
+The queued path gives the following constructional completion argument for
+each successful initial source action:
+
+1. `replay_operation_queue_next` reads `children[queued]` and constructs a
+   `TypedWorkItem` carrying the exact replay task, retained relation, and
+   acknowledgement `(operation,index)` (`candidate_context.rs:1837–1842`).
+   The `None` branch passes it to `enqueue_item(item,false)`
+   (`:3089–3104`). After queue capacity/undo preparation,
+   `enqueue_item` calls `transfer_replay_child`, which increments `queued`
+   for that exact index, then infallibly appends the item to the worklist
+   (`lib.rs:12836–12860`; `candidate_context.rs:1852–1865`).
+2. `candidate_context_drive_replay` repeats until every child is transferred.
+   When all are queued but not consumed, `consume_replay_child` returns false,
+   so the driver returns `Queued`, not `Complete`
+   (`candidate_context.rs:3094–3096,3110–3123`). A zero-child operation is
+   instead immediately acknowledged/retired at `:3101–3103`. Thus a return
+   from `candidate_replay_bound` is not itself a completed-child assertion.
+3. Source constraints use `constrain_live_value` through
+   `constrain_live_item_with_inferred_entry`, which selects
+   `run_candidate_typed_drain` for graph mode (`lib.rs:11906–11954`). Its
+   loop returns only after `step_typed_drain` yields `Complete`
+   (`:12154–12165`). After the current Dispatch, the existing frame returns
+   to Transport. Transport prepares acknowledgement storage before popping
+   the next queued item, retains its acknowledgement in `frame.replay_acks`,
+   and processes the task through Transport, Context and Dispatch
+   (`:12226–12288`; FIFO `pop_worklist` at `:12779–12784`).
+   Dispatch strips the task's acknowledgement only after the frame has
+   retained it. A memoized duplicate therefore still has an owned
+   acknowledgement even if scalar Dispatch returns early.
+4. Diagnostics is entered only after the queue is empty and intrusion is
+   settled (`lib.rs:12244–12254`); it advances to Acknowledgements at
+   `:12297–12309`. The terminal owner completes retained acknowledgements
+   in pop order, advancing `completed_acks`; it enters ReturnReady only
+   when that cursor equals `replay_acks.len()` (`:12614–12624`).
+   `complete_replay_child` requires `operation.consumed == ack.index`
+   and acknowledges that exact child; the last acknowledgement retires
+   the operation (`candidate_context.rs:1867–1872,1912–1921`). For a given
+   initial replay operation, children were appended in increasing index
+   order, so FIFO consumption supplies this required order. This source
+   has no Function/Function dispatch or separate child drain that could
+   alter the argument. Only ReturnReady removes the frame and returns
+   completion (`lib.rs:12626–12633`).
+5. The source action waits for these calls: its Fact/Candidate/Lambda/Link
+   arms call admission synchronously (`candidate_source.rs:664–671`),
+   and the source cursor advances only after `execute_candidate_action`
+   succeeds (`:655–657`). Thus the queued `Int <= Int` and Function-to-root
+   replays below execute and finish their acknowledgements before their
+   respective successful source actions return.
+
+The finitely many initial scalar pairs below generate only finitely many
+retained provenance fibers: there is no value-bound cycle, no new source
+origin during replay, and no nonidentity context generation. The driver and
+drain therefore have finite queues and acknowledgement lists in this trace.
+Fallible preparation can return an availability error; this argument asserts
+completion only for successful source actions and requires no restoration of
+an unsuccessful attempt. A table of installed bounds alone would omit this
+queue, consumer and acknowledgement bridge.
 
 Up to repeated memoized tasks and reconstructed equal Function shapes, all
 initial **value** tasks and resulting bounds are:
@@ -296,7 +358,9 @@ nonidentity contexts, resumed/failing routes, graph capture/freshening,
 full Call, effects hygiene, SCC generalization, production output and full
 soundness/principality. Actual broader consumers can mix effect and value
 work; the initial trace's lack of such work cannot be generalized.
-Independent review is pending; the producer does not certify these claims.
+Independent review found a MAJOR error in the originally cited replay path.
+The queued-child/outer-drain repair above is pending independent delta review;
+the producer does not certify these claims or close that finding.
 
 Next action: independently review this frozen source/initial-replay bridge
 and its mathematical interpretation, then apply only its scoped result to
@@ -319,6 +383,14 @@ performance measurements or Git mutations ran. One leaf, no descendants,
 lightweight commands, within the 30-minute wall envelope. Requested runtime:
 `gpt-6.1-sol/high`; observed model/effort metadata unavailable, **unknown**.
 No Astra request. The only changed path is the exact leased note.
+
+Repair checks: the actual `None` replay branch, queue transfer, FIFO consumer,
+terminal acknowledgements and source-action return owners were reread at
+`13e4a644b613c35cf896fd13e3d3df1098f9453c`. Every dependency listed below matched
+that HEAD and the working bytes against the original baseline. Existential
+elimination and the scheme-order derivation in §5 were preserved unchanged.
+The repair uses one leaf and one static inspection pass, no executable
+compiler verification or Git mutations.
 
 Frozen SHA256 dependencies:
 
@@ -343,8 +415,9 @@ Commit packet:
 
 - Exact lease: `notes/theory/2026-10-11-invoke-value-projection-proof.md`.
 - Baseline: `1876f777358489d01c9755fa63a8d5876aa729a2`; changed dependency
-  hashes: none at the snapshot check.
-- Review: pending fresh independent review; research-only; no parent closure.
+  hashes: none at repair snapshot `13e4a644b613c35cf896fd13e3d3df1098f9453c`.
+- Review: accepted MAJOR replay-path finding repaired by the producer; pending
+  independent delta review; research-only; no parent closure.
 - Checks already run: static owner/consumer reads, pinned-byte/hash checks,
   HEAD dependency revalidation, direct whitespace/fence checks;
   no executable compiler verification.
