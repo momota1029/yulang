@@ -9080,6 +9080,29 @@ the separate authentic readiness/filter/dependent-observation lifecycle
 bridge. Original W/A3, complete Simple-sub inference, effect hygiene,
 soundness/principality, and production F5 cutover remain OPEN.
 
+## 2026-10-11 native capture-map history source audit
+
+The bounded static source inventory is checkpointed as
+`e722d9cd6` in
+[`capture-map-native-headroom-research`](../notes/progress/2026-10-11-capture-map-native-headroom-research.md).
+It finds three production writers for `capture_incidence`: admission, splice,
+and rollback. No constructor or owner invariant establishes condition (I) for
+all reverse insertions. A smaller falsification target avoids the still-unproved
+splice destination premise: a constructor-valid occupied-tail admission that
+logs `Some(A)`, followed by a new-tail admission that exhausts growth credit,
+then failure and reverse deletion of the new tail before reinserting `A`.
+Parsed annotation fixtures contain repeated-tail ingredients, but native
+admission order, RandomState placement, and a qualifying retained-Local failure
+remain unverified. This is a conditional probe target, not a native
+counterexample or theorem closure.
+
+Next: inspect focused test/resource behavior and determine whether a bounded
+native observation can record the real admission/rollback sequence and detect
+allocation or rehash at the inverse. If so, use only parsed-source constructors,
+actual row IDs and the production hasher; do not infer raw table state from
+`HashMap::capacity()`. Keep the original W/A3 and native condition (I) OPEN
+until that source/operational bridge is established.
+
 ## 2026-10-11 HashMap rollback-capacity reduction
 
 The bounded source derivation in
