@@ -11219,3 +11219,24 @@ construction invariant and current/future lineage fan-out before calling that
 slice correct. Neither note proves full H, complete Call, soundness,
 principality, source/public correspondence or F5 cutover. No compiler code,
 tests, builds or Oracle runs changed in this checkpoint.
+
+The frozen [Oracle negative Stack/Filter derivation](../notes/theory/2026-10-12-oracle-negative-stack-filter-source-proof.md)
+records the exact pinned-source result-row construction: the symbolic tail
+uses its existing binder coordinate, a fresh subtraction ID declares the
+concrete set, and the negative result wrapper contains the filter without
+PUSH/POP entries. Its bounded event induction covers completed filter/lower
+insertions through two named Oracle owners; its weighted row case emits both
+source feedback and the gamma-to-original-tail relation. It does not prove
+global contribution-lineage preservation or Yulang3 conformance.
+
+The first independent review found a major overclaim in activation for a
+positive Stack/NonSubtract lower endpoint, which Oracle normalizes before the
+upper filter branch. The repaired statement is limited to endpoints not of
+those two shapes and explicitly leaves checks of normalized-away payloads
+open. A fresh delta review found no remaining finding in that repair scope.
+This task-level counterexample is not an original source-program counterexample
+to H. The first Yulang3 negative-construction gap remains at source preflight
+and the paired/general negative concrete constructors; general admission stays
+disabled. Full H, residual lineage transport, complete Call, soundness,
+principality, source admission and F5 cutover remain OPEN. No code, tests,
+builds or Oracle execution changed.
