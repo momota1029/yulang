@@ -20,6 +20,26 @@ the large branch range and all Gate E / semantic / production approval
 requirements must be treated as explicit integration work, not as completed
 cutover.
 
+## 2026-10-11 deterministic inference and strict exception boundary
+
+The user clarified that the objection concerns inference search: Simple-sub
+inference should be a deterministic constraint algorithm and must not undo a
+typing state to try another interpretation. The separate transaction rollback
+observed in the capture-map work runs only after `SolveAvailabilityError`; it
+does not search alternatives. The user also directed that exceptional paths
+stay strict and robust. Preserve the current Authoritative failure-atomic
+rollback contract; do not replace it with fallback typing, partial-state
+continuation, or permissive retry behavior.
+
+`rules/compiler-engineering.md` now records the no-search invariant and the
+separate strict error boundary. The short-lived draft proposing whole-attempt
+discard was removed after the user's clarification; it has no authority and
+no implementation followed from it. The occupied-key in-place rollback fix
+remains a narrow resource-safety improvement. The absent-key splice inverse
+headroom question remains active under the exact failure-atomic contract, with
+source/history evidence still open. No inference theorem, effect-hygiene gate,
+or F5 cutover status changes.
+
 ## Proof and task-decomposition dispatch (2026-10-10)
 
 Use the [Sol proof/task-decomposition roles](../notes/design/2026-10-10-proof-and-task-decomposition-roles.md)

@@ -132,6 +132,27 @@ Do not comment by paraphrasing code, preserving dead implementation history, or 
 
 ## Type and inference safeguards
 
+### Deterministic Simple-sub inference
+
+The successor type-inference algorithm is deterministic. Generate and
+propagate Simple-sub constraints, levels, extrusion, intrusion, and
+generalization according to their selected rules; do not speculate over
+possible typings, undo solver state, and retry another typing as an inference
+search strategy. A proof or implementation difficulty is not grounds for
+adding backtracking. Resolve alternatives through the deterministic
+constraint/effect operations, or surface the exact missing semantic decision
+before changing the algorithm.
+
+Error handling has a separate, strict contract. A construction or resource
+failure must not select a fallback typing or continue from partial state. The
+owning authoritative route contract determines whether the operation restores
+its exact pre-route state or terminates and discards the whole unpublished
+attempt; do not make that boundary more permissive for implementation
+convenience. Where the active contract requires rollback, reserve and restore
+all route-owned state, observations, and accounting before exposing the error.
+A successful suspension is not an error: it retains accepted facts and its
+continuation.
+
 Do not encode semantics through incidental strings:
 
 - no special cases by path text, module name, function name, or variable name;
