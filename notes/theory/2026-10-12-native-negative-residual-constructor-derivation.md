@@ -550,3 +550,248 @@ dependencies: the table above. Proposed checkpoint message:
 `research: trace fixture residual Call and handler coordinates`.
 Shared-record deltas remain primary-owned: record full-slot/inner-slot/output
 separation and route the selected scheme/output bridge to its actual owner.
+
+## 10. Selected `run` return Effect: first missing projection-owner input
+
+Status: frozen, unreviewed bounded source characterization and conditional
+consumer derivation. No actual selected return-Effect map has been computed.
+Update baseline: `a9404414b1f11693d8ed5120c46f21792ef3a46c`.
+Oracle baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`, inspected at
+`/tmp/yulang2-oracle-read`. Sections preceding this append are unchanged.
+
+### 10.1 Frozen objective and quantifiers
+
+Keep original H in §1, including every original source program, annotation
+occurrence, scope/binder, actual copy and actual call/output route. This packet
+addresses only the exact fixture in §9, at Oracle
+`notes/bugs/solved/handler_arm_tuple_payload_pattern.yu:57–64`. In particular,
+`ev::send` at line 64 is the source contribution to track; the declaration at
+line 58 and handler pattern at line 61 are different source occurrences.
+The names `(u,v,s,t,r)` retain §9's meaning. No independent same-family
+contribution or attachment license is established by this fixture.
+
+The required concrete result is the actual `run` definition/root and selected
+Function endpoint, its selected positive return-Effect lower records with
+endpoints, directed weights, reasons and joint evidence, their compact image,
+actual substitutions and ancestor transformations, and the finalized Effect
+position. Any conclusion about the line-64 contribution must retain its actual
+source/call and attachment/residual association through that same map.
+Neither a specialized signature nor the existence of a row head substitutes
+for this result. Success, a pure final Effect, a gamma-only route, an independent
+output route and an attachment-to-fiber association are not hypotheses.
+
+The only operational premises are frozen source bytes and normally completed
+owner calls with valid handles before exhaustion. The parent supplied reviewed
+structural facts about selected-lower compaction, later transformations and
+the witness sidecar's omitted root Effect/output positions. They are inputs
+about the algorithm, not observations of this fixture's completed state.
+Authority and exclusions remain §1's exact governing sections and accepted
+decisions; admission, full H, complete Call, soundness, principality and cutover
+remain OPEN.
+
+### 10.2 Actual construction and selected collection
+
+All source locators below are relative to the Oracle checkout. The lambda
+constructor `lowering/expr/lambda.rs:948–974` allocates a fresh function Value
+coordinate and emits a positive `Pos::Fun` lower with all four actual ports.
+`lowering/expr/tail.rs:1084–1116` derives its positive `ret_eff` from the actual
+body Effect, wrapping it with the actual predicate when nonempty.
+`lowering/expr/constraints.rs:35–53` allocates that positive node and calls
+`infer.subtype` against the receiving variable. This is source construction;
+it supplies neither the final bound-record ID nor projection qualification.
+In particular, the constructed Function is not yet an identified selected
+Function of the completed `run` component.
+
+`analysis/session/selection.rs:1107–1117` consumes the actual
+`SccEvent::QuantifyComponent { component, roots }`.
+`analysis/session/instantiate.rs:14–21` passes its paired `(def,root)` to
+`generalize_root_with_prepasses_and_metrics`. That method compacts within its
+iteration at `analysis/session/generalize.rs:54–73`; it may subsequently
+route added constraints and restart, for example at lines 111–125. The desired
+observation must therefore be attached to the actual accepted iteration and
+constraint epoch, not an arbitrarily chosen earlier state.
+
+The compaction entry at `generalize.rs:580–604` uses an epoch-keyed cached
+result when present, otherwise calls
+`compact_type_var_recording_merge_constraints_for_scheme(machine,root)`.
+`compact/surface.rs:174–187` establishes a scoped legacy projection query and
+`compact/collect/mod.rs:231–239` first collects the root variable positively.
+At `collect/mod.rs:746–787`, variable collection retains the variable occurrence
+as well as collected bounds, with explicit recursion/cache handling.
+`collect/mod.rs:817–835,849–877` selects positive scheme bounds through:
+
+```text
+Q_M(z) = query.scheme_projectable_lowers_in_scope(z, round)
+```
+
+Here `M` is the actual fixed query view, not a supplied finite transition
+model. `constraints/structural_kernel/access/legacy_read_view.rs:214–223`
+obtains candidates from that view's actual bounds for `z`.
+`constraints/structural_kernel/access.rs:862–895` queries `project_lower` for
+each record, skips Excluded records, and returns `(record,bound,reason,evidence)`
+for Unclaimed or Included records. A Qualified reason retains uncovered claim
+IDs and independent proof carriers (`constraints/mod.rs:1240–1255`).
+`constraints/proof/mod.rs:9993–10131` reads the semantic bound, its state,
+projection supports/formula, live coverage and recursive proof evaluation.
+These inputs are not determined merely by the family name `ev` or by the
+existence of a generated subtype call.
+
+For supplied successful query results, the direct source-derived collection
+equation is:
+
+```text
+B_M(z,w) = fold positive merge over entries b in Q_M(z) of
+           compact_pos_bound_id(b.pos,
+             b.weights.left.to_stack_weight().union(w))
+```
+
+This is `collect/mod.rs:908–927`; the same pass records stack-family
+coexistence using actual pre-pop and node families. Variable compaction merges
+its own occurrence with `B_M`, subject to the explicit recursive representation
+above. It is not just the fold of concrete rows. The collector maps selected
+entries to cloned bounds at lines 866–871, so its compact output does not itself
+retain each selected record's reason/evidence. The scoped query result is the
+earlier owner at which that association is available.
+
+Once this root traversal actually selects a positive Function endpoint `f`,
+`compact/collect/type_nodes.rs:13–24` determines exactly:
+
+```text
+CompactFun(f).ret_eff = compact_pos_effect_id(f.ret_eff, incoming_weight)
+```
+
+`type_nodes.rs:196–234` preserves positive polarity and follows the actual
+endpoint shape. For a variable endpoint it invokes the same `Q_M` collection;
+for a Union it collects and positively merges both actual children, and for a
+Row it collects that row. Thus the first missing selected root query precedes
+the requested return-Effect query. No substitution of `u`, `v`, `t` or `r`
+for the selected Function endpoint is justified by these rules.
+
+### 10.3 Downstream image and the precise obstruction
+
+The subsequent image is determined by actual compact data and machine data:
+`analysis/session/generalize.rs:421–551` applies recorded role simplifications,
+floor equalities/elimination, alias expansion, simplification and stack cleanup
+before constructing `GeneralizedCompactRoot`. The result explicitly contains
+`substitutions` and `sandwiches` (`generalize/mod.rs:47–55`).
+`analysis/session/instantiate.rs:54–82` obtains the actual ancestors, finalizes
+and installs the actual `Def::Let.scheme`. Ancestors are the actual parent
+chain whose generalized schemes exist (`analysis/session/generalize.rs:940–955`),
+not an independently selected marginal witness.
+
+`generalize/mod.rs:837–870` clones this generalized root, applies ancestor
+simplifications, prunes, cleans stack weights and finalizes. The rewrite at
+`generalize/simplification.rs:95–120` follows substitutions, can omit a variable
+whose target is None, and recursively rewrites `fun.ret_eff`.
+`generalize/finalize.rs:3–28` clones stack-weight type arguments between the
+inference and scheme arenas and uses the finalized root as `Scheme.predicate`.
+`compact/finalize.rs:415–426,542–549` puts
+`finalize_pos_effect_type(fun.ret_eff)` into the corresponding positive
+Function return-Effect port, including the actual rowish normalization branch.
+This conditional consumer correspondence establishes no concrete substitution,
+ancestor list, finalized endpoint or source-contribution retention for `run`.
+
+The **first missing source-supplied premise** is:
+
+```text
+P_sel: the actual run (DefId, root TypeVar) and accepted generalization
+       iteration/constraint epoch, together with that fixed machine view's
+       Q_M(root) result: selected record IDs, endpoints, weights, reasons,
+       projection evidence, and the encountered Function endpoint(s).
+```
+
+The supplied packet and inspected checkout contain the fixture and algorithm,
+but no completed bounds/proof-store snapshot or selected-query transcript for
+this fixture. No actual root record ID, Function PosId, or return-Effect query
+result has therefore been derived here. Source alone could support a full
+symbolic execution with all resolution, scheduling, bounds and proof events
+established; the bounded constructor trace in §9 does not supply that execution.
+The absent transcript is an evidence gap, not proof that inference fails, that
+an effect disappears, or that H has a counterexample. The recording compaction
+entry also defaults its result on query error (`compact/surface.rs:187`);
+any future capture must distinguish a successful query from that fallback.
+
+After `P_sel`, the next dependent evidence is `Q_M` for each encountered actual
+return-Effect variable, the compact result and recursion entries, the recorded
+substitutions/sandwiches and ancestors, and the finalized installed predicate.
+The line-64 contribution's derivation parents must be joined to those exact
+selected records before discussing its survival. An absent witness-sidecar
+entry or absent concrete family in a guessed scheme cannot perform this join.
+
+The earlier local residual algebra and full-row coverage attempts did not
+establish this actual output-selection premise. The proof-obligation-economy
+audit keeps original hygiene/ordinary-inference obligations A/B and identifies
+the attempted recovery of selected record evidence from a compact shape as D
+reconstruction debt. The source owner already possesses records, reasons and
+evidence before cloning bounds. Inspecting or retaining that existing owner
+output is the next method; another gamma-only valuation or family partition
+would leave `P_sel` untouched. This audit neither changes H nor adopts compiler
+instrumentation or a new production representation.
+
+One next action for the primary: obtain one authorized bounded capture at the
+actual `run` generalization/projection seam, including successful-query status
+and joint source derivations, then apply the conditional consumer equations
+above. Do not retry the exhausted `dump --poly` route for this packet.
+
+### 10.4 Snapshot, checks, exclusions and commit packet
+
+Complete-byte dependency hashes for this append follow. Oracle paths use the
+checkout above. The prior document prefix was 30,554 bytes with SHA-256
+`f12e8a86960de78547138421d31d6671f1f96d6801bbdeef5f79121ad5f54914`.
+The authority hashes in §1's linked records remain those already recorded;
+their bytes were rechecked. The fixture, lambda, selection and instantiation
+hashes match §9. The owner crosswalk now has SHA-256
+`96c0c562d44082418a61adbbd46aa9a7d95d98a01d9bd2bd5f9fa257a68b3c7b`,
+and original H's note has SHA-256
+`6ac3f9665f89633adb4a7feacaee79abfddab693eed2c5078241e51df9545df1`.
+
+| Oracle path | SHA-256 |
+| --- | --- |
+| `crates/infer/src/analysis/session/generalize.rs` | `ed946b9ffb15f40c1fd721d8b2cb0907a6540c21d0bf690f784577307660e64a` |
+| `crates/infer/src/compact/surface.rs` | `1516be08117a372269909fcb7f64780cee4389a52a4f86ef63dd6eaa752b0d89` |
+| `crates/infer/src/compact/collect/mod.rs` | `828fa02521e2426297a9369df2fd9ef1560b7403a668ddfe881063ef16bdfd40` |
+| `crates/infer/src/compact/collect/type_nodes.rs` | `96dc38a9a05c447f019bb0421e0b37057d283026ba87bce121bb33959b0d8ab2` |
+| `crates/infer/src/constraints/structural_kernel/access.rs` | `ad90bc1444be22df6080c7131ef49fedace884178c375af84ecb09416b38740f` |
+| `crates/infer/src/constraints/structural_kernel/access/legacy_read_view.rs` | `d51ab100c247f34ccf94cd75af2c28e1bf845a9b1a8719780843b02ba2bd35a6` |
+| `crates/infer/src/constraints/proof/mod.rs` | `bc0f3fbcf8f5ed01245e74283d3fd9cb13aa1713aff252a1847fde76b11b8e03` |
+| `crates/infer/src/constraints/mod.rs` | `ad3cf5fd60462cb1a08ef1a5d6fc57c4fd640148597bc3b331d09729616d8392` |
+| `crates/infer/src/generalize/mod.rs` | `03bfda4e4997347b59483de96eca652b67477639fc363e0890d546d2cf36fcef` |
+| `crates/infer/src/generalize/simplification.rs` | `13936efe8423630581ccf7f813ee9b3fcc82ca2cbba4a7fd9284fc741b53536a` |
+| `crates/infer/src/generalize/finalize.rs` | `a8e5a1c8e6ad57d1fac7e25a1ab6a329093e5c76e6d84c0625c124c349f07492` |
+| `crates/infer/src/compact/finalize.rs` | `53a2452b109ddb461d98f6124d410fa2e771e700e272084f3b83ed87b4f3d272` |
+| `crates/infer/src/lowering/expr/tail.rs` | `ac406b309fbb0ba558a18e37aba63a8e7ffeabbc377a111566b1f97d786f93b8` |
+| `crates/infer/src/lowering/expr/constraints.rs` | `2800250aa516c519d91aa11b0d46455f0a86f14a009be3588c7e039d2c5cbe20` |
+
+Checks: bounded static owner reads/searches, complete-byte dependency snapshot
+and recheck, append-only prefix and document integrity checks. Startup used two
+read-only HEAD queries; no Git mutation occurred. Some initial combined output
+truncated and some guessed glob paths were absent; decisive owners were read
+subsequently in bounded excerpts. No inference execution, Oracle invocation,
+build, test, executable probe, measurement, external contact or delegation ran.
+At most four lightweight read processes were active together; zero heavy
+processes. CPU/RSS and cumulative subprocess count were not instrumented.
+The primary retains verification/integration and independent review ownership.
+Requested runtime: normal `gpt-6.1-sol/high`; observed model/effort metadata:
+unknown. No Astra escalation or configuration change occurred.
+
+Unverified scope: actual component reachability/selection and successful
+inference; every actual projection record/reason; the selected compact and
+finalized return Effect; source-contribution, attachment and residual-lineage
+retention; use instantiation and final Call output; completed replay, full H,
+soundness, principality and F5 replacement. No semantic loss or source-qualified
+counterexample is claimed. This append is frozen for primary-assigned review.
+
+Commit packet: exact lease is
+`notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md`,
+§10 append only; baseline `a9404414b1f11693d8ed5120c46f21792ef3a46c`,
+Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+Changed dependency hashes during this packet: none. Claim/review status:
+unreviewed bounded owner characterization and conditional image, selected-map
+and parent gates OPEN. Checks already run are listed above. Proposed one-line
+checkpoint message: `research: pin selected run return-effect projection input`.
+Shared-record deltas left to the primary/curator: record `P_sel` as the first
+actual source input, preserve selected records/reasons before bound cloning,
+and retain every original H/Call/implementation gate OPEN. No shared record,
+compiler, fixture, expectation, question bundle or configuration was edited.
+
+Writes stop before frozen review.
