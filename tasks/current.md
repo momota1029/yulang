@@ -10883,3 +10883,11 @@ No new Oracle run, build, test, or instrumentation occurred. Oracle budget
 remains exhausted. Next owner: recover or account for the stored-scheme and
 instantiation records, then trace concrete effect transport. H, intrusion,
 full soundness, and F5 remain OPEN.
+
+Independent `compiler_referee` review of this source audit found no issue in
+its source facts or its conditional limits. The reviewer confirmed that the
+later `(direct provider)` callee is an application expression, bypasses the
+Oracle's local-variable callback projection, and uses ordinary effect
+propagation; it also confirmed that the raw stored-scheme and provider records
+needed to establish the displayed loss are absent. This review does not supply
+those records or prove H. Oracle invocation budget remains exhausted.
