@@ -11363,3 +11363,16 @@ relations. Existing Contribution, AnnotationMember and bound-origin records do
 not yet supply that authorization. General negative source admission remains
 disabled. Original effect hygiene H, complete Call, soundness, principality and
 F5 replacement remain OPEN.
+
+The reviewed [negative recipe source-owner route audit](../notes/progress/2026-10-12-negative-recipe-owner-source-route.md)
+locates the first missing operation at composed-negative annotation/formal
+effect formation, before row-demand reduction. Even if source scheduling
+preflight is bypassed, the local annotation constructor has its own
+`preflight_local_annotation` gate. At the later consumer seam,
+`candidate_apply_effect` replays a supplied headed-row Allowance but does not
+construct residual `J/kappa/beta/pi_t` or correlated F/P. Independent review
+corrected the local preflight and current/consumed dispatch ordering. This is
+bounded source characterization, not runtime reachability or theorem closure.
+The proof-supported internal implementation remains unleased until its exact
+constructor, contribution-license, and activation rule is established;
+source preflight/general negative admission stay disabled.
