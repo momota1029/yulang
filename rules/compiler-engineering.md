@@ -143,6 +143,12 @@ adding backtracking. Resolve alternatives through the deterministic
 constraint/effect operations, or surface the exact missing semantic decision
 before changing the algorithm.
 
+If the generated constraints are inconsistent, reject the program with a type
+error. Do not retry inference to find a different typing, hide the conflict as
+a successful candidate, or fall back to F5. This semantic rejection is distinct
+from an internal construction/resource failure handled by the owning route
+transaction.
+
 Error handling has a separate, strict contract. A construction or resource
 failure must not select a fallback typing or continue from partial state. The
 owning authoritative route contract determines whether the operation restores

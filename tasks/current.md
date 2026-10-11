@@ -24,21 +24,30 @@ cutover.
 
 The user clarified that the objection concerns inference search: Simple-sub
 inference should be a deterministic constraint algorithm and must not undo a
-typing state to try another interpretation. The separate transaction rollback
-observed in the capture-map work runs only after `SolveAvailabilityError`; it
-does not search alternatives. The user also directed that exceptional paths
-stay strict and robust. Preserve the current Authoritative failure-atomic
-rollback contract; do not replace it with fallback typing, partial-state
-continuation, or permissive retry behavior.
+typing state to try another interpretation. The user further clarified that
+robust handling of abnormal programs means rejecting ill-typed programs with a
+type error; there is no reason to retry inference to assign them a type. Do not
+attribute a requirement for exact pre-failure restoration to that user
+statement.
+
+Keep semantic rejection distinct from internal availability/construction
+failure. The inspected capture-map transaction rollback runs after
+`SolveAvailabilityError`, not after an alternative typing branch. Separately,
+the current Authoritative private suspension contract §6 requires exact
+pre-route restoration for route/allocation failures, and §7 has a supported
+retry regression. That document remains the operative contract unless its
+scope is explicitly changed; it was not what the user just asserted. Any work
+on that path must remain failure atomicity, never a way to search for another
+typing. Ill-typed input must terminate as a type error, not fall back to F5 or
+continue from a partial candidate state.
 
 `rules/compiler-engineering.md` now records the no-search invariant and the
 separate strict error boundary. The short-lived draft proposing whole-attempt
-discard was removed after the user's clarification; it has no authority and
-no implementation followed from it. The occupied-key in-place rollback fix
-remains a narrow resource-safety improvement. The absent-key splice inverse
-headroom question remains active under the exact failure-atomic contract, with
-source/history evidence still open. No inference theorem, effect-hygiene gate,
-or F5 cutover status changes.
+discard was removed and has no authority; no implementation followed from it.
+The occupied-key in-place rollback fix remains a narrow resource-safety
+improvement. The absent-key splice inverse headroom question remains separate
+from semantic type-error rejection, with source/history evidence still open.
+No inference theorem, effect-hygiene gate, or F5 cutover status changes.
 
 ## Proof and task-decomposition dispatch (2026-10-10)
 
