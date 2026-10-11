@@ -737,6 +737,7 @@ pub(super) enum InputCompleteness {
     #[allow(dead_code, reason = "Packet 1 has no producer readiness or observation witness") ]
     Complete,
 }
+#[allow(dead_code, reason = "retained completeness fields are consumed by the next circuit packet")]
 pub(super) struct RetainedInput<'a> {
     pub roots: &'a [RelationId],
     pub evidence: CircuitEvidence<'a>,
@@ -790,6 +791,7 @@ impl CircuitEvidence<'_> {
     }
     pub fn includes(&self, id: RelationId) -> bool { self.relations.get(id.0 as usize) == Some(&1) }
 }
+#[allow(dead_code, reason = "retained input accounting is consumed by the next circuit packet")]
 impl RetainedInput<'_> {
     /// Input-owned masks and gap storage; canonical retained payloads stay borrowed.
     pub fn owned_bytes(&self) -> Result<usize, SolveAvailabilityError> {
