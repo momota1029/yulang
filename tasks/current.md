@@ -114,17 +114,20 @@ supply those objects. The approved bounded tagged-Reify direction supplies a
 construction shape, but actual original `P_old` registration/lookup and
 old-consumer closure remain open. A bounded constructive proof attack located
 the earlier formal cut: selected Generalize supplies the Value role and Desc,
-while original Entry-Value consumes `ParameterOrigin` and independently
-declared received-carrier, entry, receipt, Force and rebind ports. No selected
-constructor supplies their complete original introduction signature and
-ordered application at this source context. The reviewed
-[`source-owned original-registry construction`](../notes/theory/2026-10-10-source-owned-original-registry-construction.md)
-constructs these in its new API, but its identification with the fixed original
-API is unproved and concrete adoption is explicitly withheld. The exact
-complete-Call gate remains OPEN; no new Call rule, acceptance or scheme is
-inferred from the candidate graph. Next is a decision on whether to adopt the
-reviewed source-owned API for this bounded fragment, which would still leave
-actual source conformance and complete Call obligations open.
+while the original Entry-Value presentation consumes `ParameterOrigin` and
+received-carrier, entry, receipt, Force and rebind ports. The user has now
+adopted the reviewed six-choice
+[`source-owned API`](../notes/design/2026-10-10-original-registry-constructor-adoption-proposal.md)
+for the resolved nonrecursive formal/Name/Int pre-Call fragment. This selects
+the candidate's source-owned construction for the proof; it does not identify
+it with a separate fixed original kernel or establish actual source declaration
+conformance. The bounded candidate construction is not itself a complete Call
+proof. The exact complete-Call gate remains OPEN, with actual constructor
+correspondence, whole-argument compatibility at the same returned provider,
+complete Call discharge, soundness and principality outstanding. No acceptance
+or scheme is inferred from the candidate graph. Next: finish the constructive
+proof for the adopted pre-Call fragment and identify the first source-qualified
+complete-Call sequent it does not discharge.
 
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test

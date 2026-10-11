@@ -1,15 +1,17 @@
 # Original registry constructor: concrete adoption proposal
 
-Date: 2026-10-10
-Status: Reviewed; non-authoritative
-Scope: proposed source-owned pre-Call registry representation and constructor API
+Date: 2026-10-10 (approval integrated 2026-10-11)
+Status: Authoritative within the bounded fragment below
+Scope: source-owned pre-Call registry representation and constructor API for the resolved nonrecursive formal/Name/Int fragment
 Baseline: `070281ce0`
 Drafted-by: primary, from bounded architect assessment
 Reviewed-by: compiler_referee, spec_auditor; no findings in stated delta scope
-Supersedes: none
+Approved-by: user, integrated `source-owned-registry-adoption/q1/d1`
+Approved-at: 2026-10-11 (exact timestamp unavailable)
+Supersedes: none; the exact six choices below are authoritative only for the stated fragment
 Implementation / default acceptance / F5 authority: none
 
-## 1. Exact proposed decision
+## 1. Exact adopted decision
 
 The [approved q3 gate](2026-10-10-source-owned-registry-design-gate.md)
 already authorizes constructor design and independent review. This proposal
@@ -24,8 +26,8 @@ The exact scoped clauses below refer to that frozen version; references are
 part of the decision object. Its repaired construction proofs retain their
 existing conditional scope.
 
-Propose adopting the following six connected representation/API choices for
-the resolved nonrecursive formal/Name/Int pre-Call fragment:
+Adopt the following six connected representation/API choices for the resolved
+nonrecursive formal/Name/Int pre-Call fragment:
 
 1. **Nominal source keys and complete recipes** (§§3.1–3.2): keys are
    `(source version, actual owner occurrence, role)`, with complete ordered
@@ -67,8 +69,8 @@ a language rejection rule or a replacement for later Call/recursive owners.
 Allocator layout, traversal containers and internal implementation names can
 be chosen later within these equations.
 
-If approved, these definitions would be the selected source-owned old component
-for this fragment, before q2's separate Arg/Lit extension. This selects an
+These definitions are the selected source-owned old component for this
+fragment, before q2's separate Arg/Lit extension. This selects an
 interpretation; it does not identify it with a separately fixed original
 registry or certify an unprovided original consumer map.
 
@@ -138,6 +140,8 @@ Function-view scope. Review only the adoption delta and its direct dependency
 cone; the repaired candidate's unchanged construction proofs are carried
 forward. No tests, builds or measurements are needed for this document.
 
-After review, present the frozen exact six-choice proposal for explicit user
-approval through the question board. Neither q3's design permission nor a
-positive review supplies that later approval.
+The user approved these exact six choices in question
+[`source-owned-registry-adoption/q1`](../../questions/2026-10-11-source-owned-registry-adoption/q1/approved-answer.md).
+The approval selects this representation for subsequent source-constructor
+correspondence. It does not authorize compiler implementation or establish
+conformance to separately fixed original declarations.
