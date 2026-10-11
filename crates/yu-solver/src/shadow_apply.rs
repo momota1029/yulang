@@ -147,6 +147,10 @@ impl CandidateInference {
         Ok(CandidateGraphExport { state, graph })
     }
     pub fn fresh_use(&self, occurrence: &HirOccurrenceId) -> Option<CandidateGraphFreshUse<'_>> {
+        // Conflicts remain available for diagnostics, but invalidate fresh-use graphs.
+        if !self.solved.data.errors.is_empty() {
+            return None;
+        }
         if !self.solved.data.hir.owns_occurrence(occurrence) {
             return None;
         }
@@ -1703,6 +1707,42 @@ mod tests {
         }).unwrap();
         assert!(candidate.candidate_conflicts().is_empty());
         assert!(candidate.export(root).is_ok());
+    }
+    #[test]
+    fn candidate_graph_fresh_use_refuses_conflicts_and_preserves_valid_use() {
+        for (source, conflicted) in [
+            ("my apply f = f 1; my bad = apply 1", true),
+            ("my apply f = f 1; my id x = x; my good = apply id", false),
+        ] {
+            let hir = crate::candidate_lifecycle_retirement::hir(source);
+            let candidate = CandidateInference::solve(hir.clone()).unwrap();
+            let root = hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding.definition_root()),
+                _ => None,
+            }).unwrap();
+            assert_eq!(candidate.export(root).is_err(), conflicted);
+            assert_eq!(!candidate.candidate_conflicts().is_empty(), conflicted);
+            if conflicted {
+                assert!(candidate.candidate_conflicts().iter().any(|error| {
+                    error.kind() == SolverErrorKind::IncompatibleValue {
+                        lower: ValueShape::Int,
+                        upper: ValueShape::Function,
+                    }
+                }));
+            }
+            assert_eq!(candidate.source_call_count(), 2);
+            assert!(candidate.source_call(0).is_ok());
+            assert!(candidate.source_call(1).is_ok());
+            let state = candidate.solved.data.candidate_graph.as_ref().unwrap();
+            let occurrences: Vec<_> = state.routes.iter()
+                .map(|route| route.use_id.occurrence())
+                .chain(state.local_routes.iter().map(|route| &route.occurrence))
+                .collect();
+            assert!(!occurrences.is_empty(), "fixture retains fresh-use routes");
+            for occurrence in occurrences {
+                assert_eq!(candidate.fresh_use(occurrence).is_none(), conflicted);
+            }
+        }
     }
     #[test]
     fn source_call_registered_root_rejects_invalid_registration_and_native_polarity() {

@@ -41,3 +41,35 @@ that those gates are complete.
 Changed code path: `crates/yu-solver/src/shadow_apply.rs`, guarded export and
 one focused regression. Review: independent `compiler_referee`, no findings.
 No Git operation was performed by the implementer or reviewer.
+
+## Fresh-use graph boundary follow-up (2026-10-12)
+
+The same private result also exposed captured scheme graphs through
+`CandidateInference::fresh_use`, which bypassed the existing export guard. It
+now returns `None` whenever the completed candidate retains any solver errors,
+before examining either local-use or module-use routes. The check preserves
+`candidate_conflicts`, `effect_conflict`, and `source_call` for diagnostics and
+construction observations. As with export, the module-wide guard is
+conservative; per-root conflict validity is not established.
+
+The focused regression covers an invalid `apply 1` and valid `apply id`: it
+checks retained Int/Function diagnostics, conflict-gated export and fresh-use,
+and retained source-call observations. The owning test passed. An independent
+compiler-referee review of this delta found no blocking, major, or minor
+finding.
+
+```text
+cargo test -p yu-solver --features shadow-apply-candidate shadow_apply::tests::candidate_graph_fresh_use_refuses_conflicts_and_preserves_valid_use -- --exact --test-threads=1
+1 passed; other tests filtered
+git diff --check -- crates/yu-solver/src/shadow_apply.rs
+passed
+```
+
+The gate remains private graph-consumer safety only. `CandidateValueObservation`,
+ordinary F5 paths, complete conflict reflection, source rejection, public
+publication, soundness, principality, effect hygiene and F5 replacement are
+not certified by this follow-up.
+
+Changed code path: `crates/yu-solver/src/shadow_apply.rs`,
+`CandidateInference::fresh_use` and its focused regression. No Git operation
+was performed by the implementer or reviewer.

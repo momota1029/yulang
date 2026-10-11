@@ -43,12 +43,14 @@ a concrete semantic invariant requires it.
 
 The first source audit under the abnormal-path policy is
 [`simple-sub-type-error-rejection-audit`](../notes/progress/2026-10-11-simple-sub-type-error-rejection-audit.md).
-It finds that the private candidate can accumulate conflicts and continue,
-but the private result/export path has no conflict guard and is not established
-as source rejection or safe publication. Ordinary F5 stops at an unsupported
-application before comparable inference, so no type-error parity follows.
-Source error continuation, the no-inconsistent-publication boundary, effect
-hygiene, the ordinary HIR carrier approval handoff, and full F5 replacement
+It finds that the private candidate accumulates conflicts and continues
+diagnostics, without proving source rejection. The private `CandidateInference`
+now refuses both graph export and fresh-use graph observations when any
+conflict is retained; this prevents those inconsistent graph products from
+being consumed through those two APIs. It remains private observation behavior,
+not source rejection or public typing. Ordinary F5 stops at unsupported Apply
+before comparable inference, so no type-error parity follows. Complete source
+rejection, ordinary HIR adoption, effect hygiene, and full F5 replacement
 remain open.
 
 ## 2026-10-11 top-level inference principles integrated
@@ -10804,3 +10806,16 @@ qualification wait for that equation. Non-Apply Simple-sub/source work,
 complete Call construction, and effect-hygiene work remain authorized and
 independent. No solver code, tests, builds, or Oracle runs changed in this
 decision slice.
+
+### 2026-10-12 Conflicted fresh-use graph boundary
+
+The existing private candidate export guard covered `CandidateInference::export`
+but left `CandidateInference::fresh_use` able to expose a retained local or
+module fresh-use graph after the same solve had recorded conflicts. It now
+returns `None` before either route lookup when the completed result has any
+conflict. Diagnostics and source-call observations remain available, and valid
+fresh-use routes remain observable. The focused test passed and an independent
+`compiler_referee` review found no issue. This closes only the private
+conflicted-graph export/fresh-use boundary; it does not establish source
+rejection, conflict completeness, soundness, public scheme safety, or F5
+cutover. See the [private candidate conflict boundary record](../notes/progress/2026-10-11-private-candidate-conflict-export-guard.md).
