@@ -1,7 +1,7 @@
 # Native negative filter and residual: the missing joint owner equation
 
 Date: 2026-10-12
-Status: frozen, unreviewed research source characterization and minimized obstruction
+Status: frozen, independently reviewed bounded source characterization and minimized obstruction; minor handoff clarification incorporated
 Parent gate: OPEN; no native negative residual rule or global H proof established
 Producer: primary-assigned proof leaf; no further delegation
 Baseline: `eb2666f80c56ebb1500fc2e359774581c79b2ffb`
@@ -32,15 +32,17 @@ On a branch requiring a recipe, that one construction must produce
 
 ```text
 F_lambda = u <: Row(J,g) @ beta
-P_lambda = g <: x        @ pi
+P_lambda = g <: t        @ pi_t
 ```
 
 `lambda` is the constructor lineage; `g` is that lineage's gamma. `J`,
-`kappa`, `beta`, and `pi` are correlated outputs, not independent existential
-choices. If an intervening actual row-upper demand has a distinct original
-tail, its real connection to `x` must be retained rather than replacing either
-binder. A filter-only branch need not allocate gamma; the actual owner must
-determine which branch applies.
+`kappa`, `beta`, and `pi_t` are correlated outputs, not independent existential
+choices. Here `t` is the actual tail of the reached Row-upper demand. If that
+tail is distinct from the original annotation binder `x`, retain the actual
+directed/contextual connection from `t` to `x`; do not substitute either name
+for the other. Any derived `g <: x` consequence requires that separately
+established bridge and its direction/context. A filter-only branch need not
+allocate gamma; the actual owner must determine which branch applies.
 
 Required conclusion: derive that construction from authentic inputs, prove
 attachment-local subtraction including an independent same-family fiber on
@@ -79,8 +81,11 @@ Their conditional conclusions and omissions are retained.
 
 Claim classes: §3 is bounded source characterization; §4 derives a static
 consumer indistinguishability fact; §5 minimizes the missing owner equation
-and its evidence. No established negative-transition theorem, executable
-probe, or independent certification is claimed. There is no new conditional
+and its evidence. An independent `compiler_referee` review found no blocking
+or major finding. Its minor finding about confusing the original annotation
+binder `x` with the actual row-upper tail `t` is incorporated above and in the
+owner equation below. No established negative-transition theorem, executable
+probe, or parent-gate closure is claimed. There is no new conditional
 delivery lemma to promote as parent closure.
 
 ## 3. Why the authentic inputs do not yet determine the tuple
@@ -197,9 +202,9 @@ NativeNegativeResidual(
   = the owning branch and its correlated construction outputs;
 
 on a residual branch:
-  (lambda,J,kappa,g,beta,pi,
+  (lambda,J,kappa,g,beta,pi_t,
    live source feedback F_lambda,
-   exact gamma-to-actual-tail P_lambda,
+   exact gamma-to-actual-tail projection P_lambda = g <: t @ pi_t,
    actual retained connection from that tail to original x when needed)
 ```
 
@@ -286,7 +291,8 @@ added beyond the primary's static-only assignment and stop condition.
 Requested routing: normal configured `gpt-6.1-sol` / high. The registered
 prover role omits model/effort pins; configured subagent defaults are Sol/high.
 Observed effective model/effort: unknown. No Astra, hot reload or successful
-override is claimed. Writes stop at handoff; review is pending.
+override is claimed. The producer stopped at handoff; independent review has
+completed, with the minor projection-target clarification incorporated above.
 
 | Dependency | Complete-file SHA-256 |
 | --- | --- |
@@ -312,9 +318,10 @@ override is claimed. Writes stop at handoff; review is pending.
 - Exact completed lease: `notes/theory/2026-10-12-negative-filter-rule-proof.md` only.
 - Baseline: `eb2666f80c56ebb1500fc2e359774581c79b2ffb`.
 - Changed dependency hashes: none; complete identities above.
-- Claim/review: unreviewed research source characterization, primitive
-  indistinguishability derivation and localized missing equation; parent H,
-  actual negative transition and implementation gate OPEN. No self-certification.
+- Claim/review: independently reviewed bounded source characterization,
+  primitive indistinguishability derivation and localized missing equation;
+  minor projection-target clarification incorporated. Parent H, actual
+  negative transition and implementation gate OPEN. No self-certification.
 - Checks already run: pinned dependency SHA-256 comparison, narrow owner
   inspection, final link/whitespace/dependency checks; no execution/tests/builds.
 - Proposed checkpoint message: `research: isolate negative residual demand and attachment-local owner equation`.

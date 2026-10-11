@@ -11304,3 +11304,20 @@ internal constructor/consumer seam; source preflight and general concrete
 negative admission remain disabled. The Value-reference copy-content question
 is independent and remains pending; no dependent SCC transport work is inferred
 from the cross-level `odd`/`even` root SCC.
+
+The user restated the nested `odd`/`even` program as an example of recursion
+across lexical inference levels. Its definition-root reference edges are
+`O → E` (the outer `odd` body refers to nested `even`) and `E → O` (the
+nested `even` body refers to enclosing `odd`), so the original roots form a
+nontrivial SCC even though they are not same-level mutually recursive
+definitions. This confirms the root-graph case already recorded above; it does
+not establish any extrusion/freshening copy incidences or qualify a parent /
+copy pair.
+
+The independent review of the bounded native negative-filter equation note
+found no blocking or major issue and one minor handoff ambiguity: its projection
+target must be the actual Row-upper tail `t`, with any connection to annotation
+binder `x` established separately and directionally. The note now states
+`g <: t @ pi_t` and leaves the native transition OPEN. Its review and
+clarification are recorded in
+[`negative-filter-rule-proof`](../notes/theory/2026-10-12-negative-filter-rule-proof.md).
