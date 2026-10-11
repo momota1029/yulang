@@ -1,7 +1,7 @@
 # Retained parent H3: constructive acknowledgement conservation
 
 Date: 2026-10-11
-Status: **unreviewed constructive source derivation for native histories**, with a conditional rollback extension. No parent closure, independent certification, or production authority.
+Status: **independently reviewed constructive source derivation for native histories**, with a conditional rollback extension. No parent closure or production authority.
 Producer: leaf `/root/retained_h3_constructive_proof`; no delegation.
 Exclusive output lease: this note only; 35-minute static-read ceiling.
 Baseline locator: branch `research/simple-sub-intrusion`, primary-pinned HEAD `56a8dd529bf530549730a65ccccd06f821d27b3b`; proof source is the separately authorized frozen, uncommitted retained implementation identified by hashes below, rather than that commit's compiler files.
@@ -93,6 +93,30 @@ Two static API discriminators show why a wider claim would fail without that bri
 
 **Proof-obligation-economy audit.** The earlier proposal induction imported H3; the subsequent source audit established native producer/consumer control flow while leaving scheduler admission open. The present conservation derivation genuinely derives the forward pair-order/authority premise from those constructors, but the full scheduler join is still untouched. Completion ownership/retention is A correctness. Any missing natural resumption/recomputation is also an A/B requirement under the contract, not an optional C characterization. Exact a, destination, A/d, wait slot and B pointer already retain the naturally known lineage; another inverse relation or endpoint-ID reconstruction would add D debt. The next decisive work is the owning lifecycle admission/recomputation construction and its source bridge, rather than another equivalent FIFO proof. Classification changes no gate status or authority.
 
+## Independent proof review and primary adjudication
+
+A fresh compiler-referee reviewed the frozen derivation against the original
+H3 and the frozen native source cone. It found no blocking, major, or minor
+correctness issue in the bounded native-history lemma. The review independently
+checked the constructors, queue append/pop transfer, drain ownership,
+terminal exact-index consumption, Ready publication/delivery, and
+reclamation guards. It accepts the derived per-operation interval and sole
+completion authority for successful native forward histories.
+
+The rollback extension remains conditional on the owning inverse running
+successfully with retained objects intact. The reviewer does not establish
+semantic completion, universal rollback reachability, late accounting, or the
+original theorem's all-valid-initial-state domain. Applying this lemma to the
+parent still requires a source/scheduler bridge showing that every admitted
+initial or resumed state is a native construction cut, or that additional
+admitted mutations and recomputation preserve the same conservation law.
+Accordingly, this closes only the reviewed native H3 lemma; the parent H3 and
+W/A3 remain OPEN.
+
+No executable checks were added for this review. Its evidence is independent
+static proof/source inspection; the new parsed Local test is separate
+execution evidence and does not widen this theorem's source domain.
+
 ## Coverage, resources and frozen dependencies
 
 Checks: bounded `cat`/`sed` governing-source and constructor/consumer reads; `rg -n` inventories of ack literals, queue operations, A/c/q/wait writes, completion/start/replay/application callers and diagnostic owners; SHA-256 input checks. Initial read-only `git status --short`/`git rev-parse HEAD` resolved the supplied locator despite the packet's no-Git-command constraint; that was a packet deviation. No Git mutation occurred and no later Git command was used. Oversized initial grouped captures were replaced by bounded decisive reads. No tests, builds, Cargo, executable probes, random search, performance measurements, formatter, other output writes or delegation ran. Primary owns verification and independent review.
@@ -124,7 +148,7 @@ One next action: primary applies this structural lemma to H3's native branch aft
 - Exact leased/changed path: `notes/progress/2026-10-11-retained-parent-h3-proof.md`.
 - Baseline SHA: `56a8dd529bf530549730a65ccccd06f821d27b3b`; frozen uncommitted proof-source hashes above are authoritative inputs for this artifact.
 - Dependency deltas: no input authored by this leaf. Audit `lib.rs` `effd339a…` → authorized `7ace9902…` is test-formula only; audit context `1b67fa5b…` → inspected `e8c75472…` is primary-reconciled dead-code attributes only. These reconciliations are supplied by the primary, not an independent Git diff by this leaf. Full hashes appear above and in the audit.
-- Claim/review status: unreviewed constructive structural H3 derivation for native forward histories, conditional failure extension; exact broader source/scheduler premise remains OPEN. No self-certification or theorem/production status promotion.
+- Claim/review status: independently reviewed constructive structural H3 derivation for native forward histories, conditional failure extension; exact broader source/scheduler premise remains OPEN. The producer is not its reviewer. No parent theorem or production status promotion.
 - Checks already run: static source/caller/mutation inventories, exact input hashes, leased-note text/whitespace/hash checks; no executable verification.
 - Proposed checkpoint message: `research: derive native retained replay acknowledgement conservation`.
 - Shared-record deltas left to primary/curator: record the native interval/sole-owner derivation; separate its structural conclusion from semantic atomic completion; retain exact inverse and whole source/scheduler admission/recomputation bridge, incidence and all lifecycle/production gates OPEN. No shared task/index/theory/authority record edited.
