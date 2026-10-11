@@ -1,7 +1,7 @@
 # Candidate context transport: inverse and failure audit
 
 Date: 2026-10-11
-Status: unreviewed bounded source characterization; no constructor-qualified counterexample found. Original W/A3 remains OPEN.
+Status: independently reviewed bounded source characterization; no constructor-qualified counterexample found. Original W/A3 remains OPEN.
 Producer: leaf `/root/context_transport_inverse_audit`; complementary falsification/source method, no delegation.
 Baseline: `6c130940e077853672954640325b034b287a1e96`; inspected compiler dependencies equal the `d7e87c637` source hashes recorded in the prior audit.
 Exclusive write lease: this note. Budget: one lightweight static pass, at most 20 minutes wall time; no compiler edits, tests, builds, Cargo, executable search or Git mutation.
@@ -91,3 +91,14 @@ One recommended next action: the primary gives the constructive owner this produ
 - Shared-record deltas intentionally left to primary/curator: record this atomic producer coverage and the exact adjacency census/entry-predicate bridge; preserve semantic inverse totality and original W/A3 OPEN. No shared records edited.
 
 Artifact frozen after final lease/dependency checks. No further writes planned.
+
+## Independent review adjudication
+
+Fresh compiler-referee review of frozen SHA-256
+`3ccdb490f613187623bf165cb2521cc27dd42191d64ea61290b34347d4c6b733` found
+no blocking, major or minor findings. It confirmed that the transport producer
+and rollback map is accurate within scope, and that a post-reserve checked
+`edge_bytes` failure would retain unlogged growth if constructor-reachable.
+No constructor-qualified witness or census invariant was established. Runtime
+allocation behavior, all-history entry predicates and global W/A3 remain OPEN.
+No tests or executable probes ran.

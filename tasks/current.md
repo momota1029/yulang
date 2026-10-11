@@ -9039,3 +9039,34 @@ atomic forward-owner to exact rollback-inverse correspondence, while the
 authentic retained-input readiness/filter/observation producer and propagation
 gap remains a separate lifecycle gate. Complete Simple-sub inference, effect
 hygiene, soundness/principality and F5 production cutover remain OPEN.
+
+## 2026-10-11 transport and intrusion inverse evidence
+
+Two frozen research-only source audits were independently reviewed with no
+blocking, major or minor findings and pushed separately as `97ada4a92` and
+`aed149a05`. The intrusion settlement audit supports forest/scalar,
+memo/completion and diagnostic inverse correspondence within its stated
+hypotheses. It stops at allocation-free reinsertion of a removed capture-map
+key. The context transport audit maps relation, Derived dependency, edge and
+bundle logs and identifies the post-reserve `edge_bytes` arithmetic seam; no
+constructor-qualified overflow witness or exact entry-census proof was found.
+Both artifacts retain original W/A3 OPEN.
+
+A separate constructive context-transport rollback derivation is frozen in
+[`context-transport-rollback-proof`](../notes/progress/2026-10-11-context-transport-rollback-proof.md)
+and independently reviewed with no findings. It establishes the local logical
+inverse for relation + Derived dependency/edge/bundle admission on an isolated
+route suffix, under explicit entry, prefix and ordinary collection hypotheses.
+Applied to the parent rollback proof, this is bounded constructor evidence
+only. Retained capacity accounting and postrollback census publication remain
+unproved at the `InferenceSession` owner; real transaction-prefix reachability,
+other mutation owners, atomic absent-key capture restoration, H2/H3/H4,
+§4 incidence/scheduler correspondence and §7 lifecycle remain open. Original
+W/A3, complete Simple-sub inference, Yulang2-derived effect hygiene,
+soundness/principality, and production F5 cutover remain OPEN.
+
+Next: resolve the exact rollback accounting owner rule for retained context
+capacities and establish whether capture-map reinsertion has a constructor-wide
+allocation-free inverse. Continue the separate authentic readiness/filter/
+dependent-observation and published-SCC lifecycle bridge. No compiler/test
+changes or executable checks ran in this research-only wave.

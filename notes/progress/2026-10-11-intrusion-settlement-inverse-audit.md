@@ -1,7 +1,7 @@
 # Intrusion settlement: focused forward/inverse correspondence
 
 Date: 2026-10-11
-Status: unreviewed bounded source characterization and conditional local derivation; no constructor-qualified counterexample. Original W/A3 remains OPEN.
+Status: independently reviewed bounded source characterization and conditional local derivation; no constructor-qualified counterexample. Original W/A3 remains OPEN.
 Producer: leaf `/root/intrusion_inverse_audit`; no delegation or compiler authority.
 Baseline: `6c130940e077853672954640325b034b287a1e96`; inspected compiler sources equal `d7e87c63723213550ac28ddab45e2ef47ce17f6e`.
 Exclusive lease: this note only. Budget: static focused pass, at most 20 minutes wall; no code, tests, builds, Cargo, Git mutation or shared-record writes.
@@ -205,3 +205,15 @@ count are unmeasured; wall time stayed within the assigned ceiling.
 - Shared-record deltas intentionally left to primary/curator: record direct forest/scalar/memo correspondence as bounded evidence; name capture-map absent-key reinsertion normal return as a specific residual atomic premise; preserve imported context/store/replay inverse and original W/A3 OPEN. No shared records edited.
 
 Artifact frozen after final dependency/lease checks; no further writes planned.
+
+## Independent review adjudication
+
+Fresh compiler-referee review of frozen SHA-256
+`4cf66be9ea5b25f5e391a4fb08d0a20f4b414a40a8eba00af2bfc1af3bec8753` found
+no blocking, major or minor findings. It confirmed the forest/scalar, memo,
+completion and diagnostic correspondence within the stated scope, and accepted
+the absent-key `HashMap` reinsertion as the exact unresolved operational
+premise. The review did not establish allocation-free reinsertion for every
+native capture history, imported helper inverse laws, scheduler reachability,
+or W/A3. No tests or executable allocation probes ran. Original W/A3 remains
+OPEN.
