@@ -10933,6 +10933,17 @@ follows from this source example.
 
 ### Cross-level source-root composition review
 
+The user's concrete example
+`my odd n = my even n = if n <= 0 { true } else odd(n - 1); even(n - 1)`
+is a direct witness that recursion is not restricted to same-level mutual
+definitions. Under source-owner references, the outer `odd` value references
+the nested `even` binder, and `even` references the outer `odd` binder, giving
+`O → E → O` across the lexical/inference boundary. This rules out any SCC
+eligibility condition requiring equal lexical levels. It does not by itself
+show that native Value rows materialize those owner edges or that an actual
+extrusion parent/copy pair qualifies for intrusion; the source-to-native bridge
+below remains OPEN.
+
 An independent `compiler_referee` reviewed the proposed composition for the
 carrier-shaped analogue
 `my odd n = { my even n = odd(n); even(n) }`. Conditional on successful
@@ -11001,8 +11012,16 @@ through both simplifier fixed points. Independent `compiler_referee` review
 found no blocking, major, or minor issue and checked all 13 recorded dependency
 hashes. S is closed only for that snapshot and is conditional on P and
 successful ordinary construction. The reviewer did not recertify P or extend S
-to external-use constraints. S stops before stack cleanup at
-`generalize/mod.rs:805–834`; downstream quantification/export, provider/use
-coupling, and universal H remain OPEN. Oracle budget remains exhausted. Next
-owner: trace x/Pα through finalization, stack cleanup and scheme export, then
+to external-use constraints.
+
+The frozen [K derivation](../notes/theory/2026-10-12-oracle-direct-return-stack-cleanup-proof.md)
+now carries that same x/PUSH α and negative tick/x tail through both cleanup
+passes, quantifier and stack-ID selection, the actual empty module-ancestor
+path, finalization and installation into the ordinary `Def::Let` scheme. It
+derives that x and α are quantified. An independent `compiler_referee` review
+found no blocking, major or minor finding in K's conditional scope. K depends
+on P/S and does not reprove them. It does not cover fresh-use discharge,
+provider/call/output behavior, compiled-cache normalization, surrounding
+constraints or universal H. Oracle budget remains exhausted. Next owner: trace
+the actual fresh use through provider selection and the call/output route, then
 resume H's original surrounding-program/use quantifiers.
