@@ -9700,3 +9700,62 @@ The packet constructs neither an authentic SCC history nor a permanent-loss
 counterexample, and it does not prove a universal exclusion. Together with the
 reviewed rank invariant, it leaves the exact earlier synthetic witness
 unsupported; the broad rejection and publication theorem remains OPEN.
+
+## 2026-10-11 continued proof frontier: Generalize and Oracle hygiene
+
+The ordinary Simple-sub base remains the original Parreaux paper and pinned
+implementation, kept persistently at
+`/home/momota1029/rust/simple-sub-reference-paper.pdf` and
+`/home/momota1029/rust/simple-sub-reference` (`9bae772624c23b52a93c1b226157e16898b4d9db`).
+Continue consulting them for ordinary constraint generation, propagation,
+extrusion, and the published theorem statements. The imported source remains
+deliberately bounded: the paper omits complete proofs and excludes local
+let-polymorphism; neither the Yulang source bridge nor its soundness,
+principality, normal progress, and complete Call obligations are closed.
+
+Three research-only notes were checkpointed and pushed without promotion of
+their OPEN gates:
+
+- [`effect hygiene Y3 owner crosswalk`](../notes/progress/2026-10-11-effect-hygiene-y3-owner-crosswalk.md)
+  locates the first native mismatch at negative-concrete formal preflight and
+  paired construction (`candidate_source.rs:118`; `candidate_effect.rs:1035,
+  1068`). It maps current downstream owners. The source-admission guard in
+  contextual attachment design §§5–6 remains authoritative and disabled;
+  this crosswalk does not authorize removing it.
+- [`Oracle global effect hygiene proof`](../notes/theory/2026-10-11-oracle-global-effect-hygiene-proof.md)
+  derives local attachment-ID freshness, current/future registered-filter
+  invocation, and per-use quantified-ID renaming from actual Oracle owners.
+  Its original universal hygiene claim H remains OPEN at
+  generalization/projection/compaction/pruning/finalization and actual delayed
+  call/output consumption. No counterexample or universal source bridge was
+  proved.
+- [`Oracle nested scheme falsification`](../notes/progress/2026-10-11-oracle-effect-nested-scheme-falsification.md)
+  confirms that nested Function output-subtraction vectors are not forwarded
+  into the enclosing binder-call predicate. It does not show a hygiene
+  counterexample: nested POP/PUSH checks may be discharged or projected by
+  generalization. The exact unresolved case is semantic discharge/export of
+  pruned nested IDs and delayed activation of retained IDs.
+
+The user requested an independent audit of the reviewed Value parent/copy
+separation invariant. The bounded
+[`Value intrusion semantic-conformance audit`](../notes/progress/2026-10-11-value-intrusion-semantic-conformance-audit.md)
+found no concrete source/spec contradiction. Value SCC unreachability is
+compatible with the selected conditional parent/copy equality operation; it
+does not prove semantic adequacy or justify disabling intrusion. Effect
+reachability is distinct. Authentic candidate `non_generic` remains false
+because rows initialize false and production merge only ORs existing values;
+level capture still preserves direct older-formal sharing, but the typed
+fixed/retain closure in source Generalize is not established. The inspected
+single-sided bound transitions replay both current and later opposite bounds,
+but universal source constraint completeness remains OPEN. In particular,
+the natural recursion regression does not establish the complete two-root
+Generalize relation for `my f x=g; my g y=f`.
+
+The next normal-inference proof lane is the actual source fixed/retain closure
+at Generalize and its correspondence to level-based capture, with a separate
+source falsifier. An independent review of the frozen Oracle hygiene artifact
+is also running. Full source Generalize, complete Call, soundness, principality,
+normal inference progress, effect hygiene, production acceptance, and F5
+replacement all remain OPEN. Current research branch checkpoint is
+`391779c91` (pushed); no compiler code, tests, semantic rules, or F5 routing
+changed in this wave.
