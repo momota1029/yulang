@@ -142,6 +142,20 @@ sequent; it is not evidence of incompatibility or a source rejection. After it,
 complete Application/Gen-Call formation and same-provider whole-argument
 compatibility remain OPEN.
 
+The next bounded proof attack composed the adopted literal Reify construction
+with selected contextual Function membership. Its independently reviewed
+conditional result shows that, given the actual complete Application and whole
+tagged-argument check, one fixed literal carrier reaches each retained actual
+provider and its receiver observations, preserving effects and protection.
+This closes no parent dependency because those inputs are not supplied by the
+source. An independent source audit confirms the first post-four-port cut:
+there is no actual `EmittedGenCall0(Idx_c)` / complete Application package for
+the literal call. The earlier `Fam_delta` source-conformance cut remains
+separate and OPEN. Next owner: construct or refute that actual typed
+Application package with the literal Reify incidence; do not cast native rows
+or occurrence IDs into original typed origins. See the
+[`invoke complete-Call proof attempt`](../theory/2026-10-11-invoke-complete-call-proof-attempt.md).
+
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test
 `direct_source_int_application_records_int_function_conflict` passed with

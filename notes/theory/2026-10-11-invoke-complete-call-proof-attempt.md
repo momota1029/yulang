@@ -1,12 +1,14 @@
 # `invoke`: literal input and complete receiver elimination
 
 Date: 2026-10-11
-Status: unreviewed conditional derivation; actual complete Call constructor OPEN
+Status: independently reviewed conditional derivation; actual complete Call constructor OPEN
 Baseline: `593f7ee8a9109744f75782983e3d57ff51e8bd04`
 Branch assigned by primary: `research/simple-sub-intrusion`
 Exclusive lease: this file only; frozen at handoff
 Claim class: conditional A/B contribution to the original normal-inference theorem
 Authority / production / proof-status promotion: none
+Reviewed-by: independent compiler-referee (conditional derivation §§2–3, 5)
+Source audit: independent researcher, bounded to the first post-demand Application constructor in §4
 
 ## 1. Frozen obligation and selected dependency
 
@@ -277,7 +279,8 @@ complete Call requirement.
 
 **Parent dependencies closed unconditionally by this packet: none.** The actual
 source constructor, original complete Call/C0 discharge, source soundness and
-required principality remain OPEN. The conditional consequence is unreviewed.
+required principality remain OPEN. The conditional consequence was independently
+reviewed with no findings.
 No source-qualified counterexample is found: an absent constructor supplier
 does not demonstrate incompatibility, source rejection or impossibility.
 
@@ -332,8 +335,10 @@ Commit packet:
 
 - Exact leased path: `notes/theory/2026-10-11-invoke-complete-call-proof-attempt.md`.
 - Baseline SHA: `593f7ee8a9109744f75782983e3d57ff51e8bd04`.
-- Review status: unreviewed conditional derivation; no theorem/source gate
-  closure or self-certification.
+- Review status: conditional §§2–3/5 independently reviewed with no findings;
+  §4 source-constructor claim independently checked only for the narrow
+  post-four-port Application cone. No theorem/source gate closure or
+  self-certification.
 - Proposed checkpoint message: `research: derive conditional invoke literal receiver bridge`.
 - Shared-record delta for primary/curator only: record this conditional
   literal/selected-membership composition; keep the earlier `Fam_delta` gate
