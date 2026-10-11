@@ -10207,6 +10207,19 @@ falsifier or proof of hygiene. The Oracle call budget is exhausted. A bounded
 prover lane now owns the annotation-to-scheme identity and quantifier-selection
 lemma; H remains OPEN.
 
+The constructive annotation-to-scheme lane is frozen at
+[`Oracle annotation scheme identity proof`](../notes/theory/2026-10-11-oracle-annotation-scheme-identity-proof.md).
+It proves that finalization preserves surviving SubtractId keys and that the
+actual instantiator freshens each selected stack ID consistently and adds its
+root POP. Exact selection requires a surviving covariant PUSH occurrence at a
+quantified compact variable, or the selector's `fact_by_id(id)` result being
+`Subtractability::All`; neither annotation allocation nor the printed `#0`
+establishes the former for this `s_a`. Independent review found one minor
+wording error about declared-fact provenance, repaired to match the actual
+predicate. The source-qualified compact projection/liveness premise remains
+OPEN, as does H. Next action: derive that exact liveness witness from the
+original annotation's constructed route and actual scheme projection.
+
 ### 2026-10-11 mutual-recursion root route boundary
 
 The user's suggested mutual recursion is a natural source of a genuine
