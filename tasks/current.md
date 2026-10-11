@@ -157,6 +157,16 @@ validity boundary OPEN; do not expand this lane into rollback research.
 The focused regression and this task record were checkpointed at `d9807f92a`
 and `8f69f70df`, respectively; both were pushed to the current branch.
 
+The private candidate boundary has since been tightened: after candidate
+inference finishes and retains all diagnostics, `CandidateInference::export`
+refuses graph export if any solver conflict was recorded. A focused regression
+confirms the Int/Function error remains observable while a valid graph still
+exports; independent compiler-referee review found no findings. This closes
+only the private graph-export consumer seam. It does not establish public source
+rejection, completeness of conflict reflection, ordinary Apply admission, or
+public scheme publication. See the
+[`private candidate conflict export guard`](../notes/progress/2026-10-11-private-candidate-conflict-export-guard.md).
+
 Separately, one bounded Oracle run accepted a source with composed-negative
 formal `[tick]` and displayed no `tick` in the function's outer invocation-result
 effect. The frozen audit traces Oracle `PUSH_i`/`POP_i` through call predicate

@@ -124,6 +124,10 @@ impl CandidateInference {
         &self,
         root: &DefinitionRootId,
     ) -> Result<CandidateGraphExport<'_>, ArtifactMismatch> {
+        // Conflicts remain available for diagnostics, but invalidate graph export.
+        if !self.solved.data.errors.is_empty() {
+            return Err(ArtifactMismatch);
+        }
         if !self.solved.data.hir.owns_definition_root(root) {
             return Err(ArtifactMismatch);
         }
@@ -1673,6 +1677,32 @@ mod tests {
                     upper: ValueShape::Function,
                 }
         }));
+    }
+    #[test]
+    fn candidate_graph_export_refuses_conflicts_and_preserves_valid_export() {
+        let hir = crate::candidate_lifecycle_retirement::hir("my bridge x = 1 1");
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let root = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding.definition_root()),
+            _ => None,
+        }).unwrap();
+        assert!(matches!(candidate.export(root), Err(ArtifactMismatch)));
+        assert!(candidate.candidate_conflicts().iter().any(|error| {
+            error.kind()
+                == SolverErrorKind::IncompatibleValue {
+                    lower: ValueShape::Int,
+                    upper: ValueShape::Function,
+                }
+        }));
+
+        let hir = crate::candidate_lifecycle_retirement::hir("my bridge x = x");
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let root = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding.definition_root()),
+            _ => None,
+        }).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        assert!(candidate.export(root).is_ok());
     }
     #[test]
     fn source_call_registered_root_rejects_invalid_registration_and_native_polarity() {
