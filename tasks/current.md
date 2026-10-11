@@ -9655,14 +9655,21 @@ observation export and finds no production solve/acceptance caller in the
 bounded Rust search. The constructive
 [rejection proof](../notes/theory/2026-10-11-deterministic-rejection-proof.md)
 is frozen against source baseline `ffde1f789` and under independent review. It
-proves reported-error retention on successful synchronous solve, that a
-recorded error blocks native graph export, and the conditional
+has since passed an independent `prover` review for its bounded claims, with no
+findings. The parent remains OPEN. It proves reported-error retention on
+successful synchronous solve, that a recorded error blocks native graph
+export, and the conditional
 `my bridge x = 1 1` Int/Function witness. It also identifies a potentially
 empty Effect-drain loop: `complete_diagnostic_delta` clears its delta before a
 later induced-Value-witness iteration. Whether authentic Local fresh-bound
 restoration can leave a qualifying Value parent/copy SCC pending on entry to
 that Effect drain remains OPEN. The independent source audit at
-`notes/progress/2026-10-11-effect-drain-value-witness-reachability.md` is
-tracing that exact predecessor. No conflict list, private observation or
-diagnostic API is treated as proof of full-source rejection. No production
-implementation or F5 routing authority is implied.
+`notes/progress/2026-10-11-effect-drain-value-witness-reachability.md` was
+checkpointed at `2ebad3f62` and passed source review. It excludes saved queued
+Value work and Effect-created Value SCCs, and isolates zero-product Value-bound
+restoration as the missing predecessor. A freshening proof lane now owns the
+exact SCC-preservation induction across interleaved captured restoration and
+later Local linking.
+No conflict list, private observation or diagnostic API is treated as proof of
+full-source rejection. No production implementation or F5 routing authority is
+implied.
