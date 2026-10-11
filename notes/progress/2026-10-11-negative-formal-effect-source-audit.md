@@ -1,7 +1,7 @@
 # Negative formal concrete effect row: Oracle-qualified source audit
 
 Date: 2026-10-11
-Status: unreviewed research evidence; frozen at handoff
+Status: independently reviewed bounded Oracle/source observation; current Yulang3 bridge OPEN
 Claim class: one executed Oracle characterization plus static constructor/consumer correspondence; no general theorem or implementation authority
 Yulang3 baseline supplied by primary: `e899d1acd0f40b3b29b9f651f6cb658be316fbc1`
 Oracle revision supplied by primary: `a58eefc31e22141574b6f20c6a5748151c6d79f1`, checkout `/tmp/yulang2-oracle-read`
@@ -178,7 +178,7 @@ space in `my f (cb:(() -> [tick] ())) = cb ()`. No Yulang3 run occurred.
 - On admitted formals, planning schedules `Action::FormalAnnotation`
   (`candidate_source.rs:282`) before visiting the body; execution routes it to
   `candidate_formal_annotation` (`663`). That owner starts paired construction
-  at `Polarity::Negative` (`candidate_effect.rs:1094`).
+  at `Polarity::Negative` (`candidate_effect.rs:1090`).
 - The independent paired guard at `candidate_effect.rs:1035` rejects the same
   negative concrete row; Function recursion (1045–1052) retains result variance.
   `candidate_formal_effect_port:1054–1070` has only omitted, singleton-symbolic,

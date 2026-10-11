@@ -9536,3 +9536,26 @@ states exact scope and checks. Absent-key insertion (including splice inverse
 restoration) remains an OPEN storage obligation, as do retained-frame failure,
 original W/A3, full inference/effect hygiene, soundness/principality and F5
 cutover.
+
+## 2026-10-11 Permanent Simple-sub reference and negative-formal Oracle audit
+
+The original Simple-sub reference stays in the persistent local checkout
+`/home/momota1029/rust/simple-sub-reference` at commit
+`9bae772624c23b52a93c1b226157e16898b4d9db`; its paper stays at
+`/home/momota1029/rust/simple-sub-reference-paper.pdf` (SHA-256
+`5ab2bd4122caee17c20134e4cbe8dc8a4848c142de1e576b5fd178aed8787698`). Keep
+using these as the source for ordinary Simple-sub rules, implementation
+correspondence, and proof obligations. The import's explicit limitation is
+also binding: the paper's complete proofs are omitted and its published
+inference proof excludes local let-polymorphism, so neither those omitted
+proofs nor Yulang source correspondence may be claimed closed by citation.
+
+The bounded Oracle observation for the negative formal `[tick]` callback is
+independently reviewed; the sole locator correction is applied in
+[`negative-formal-effect-source-audit`](../notes/progress/2026-10-11-negative-formal-effect-source-audit.md).
+It establishes the exact Oracle source/result and static constructor/call-local
+POP/filter chain described there. Current Yulang3 still rejects this concrete
+negative formal during preflight and has no live consumer for the detached
+positive PUSH, so source-to-consumer correspondence and negative-formal
+admission remain OPEN. This does not discharge effect hygiene, complete Call,
+normal inference, soundness/principality, or F5 replacement.
