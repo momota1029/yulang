@@ -10191,8 +10191,10 @@ used the final authorized Oracle call (2/2 across the two packets), bounded to
 `f provider` use, and prints observed type `() -> [tick] ()`. This qualifies
 one source observation; it proves neither the raw fresh SubtractId map nor
 annotation-check preservation or universal H. H remains OPEN. The next
-source-only bridge traces the actual SCC/generalized use, freshening, provider
-contribution and call/output/check owners without another Oracle run.
+source-only bridge is active at
+[`Oracle returned-callback fresh-use bridge`](../notes/progress/2026-10-11-oracle-returned-callback-fresh-use-bridge.md).
+It traces the actual SCC/generalized use, freshening, provider contribution,
+call/output and check owners without another Oracle run.
 
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
