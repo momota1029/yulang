@@ -10050,3 +10050,41 @@ and transport of source values/references for fresh Value copies. The parent
 intrusion, complete inference, soundness, principality, Generalize, effect
 hygiene and production gates remain OPEN. No tests, builds, Oracle runs or
 compiler changes were made in this slice.
+
+### 2026-10-11 mutual recursion and copy-reference ownership follow-up
+
+The mutual-recursion suggestion is established for ordinary definition roots:
+the source `my f x = g; my g y = f` gives actual distinct Value roots `F,G`
+with source-reference edges `F → G` and `G → F`. This is a genuine two-vertex
+SCC, but it does not put an extrusion copy and its retained parent in that
+component.
+
+The next bounded audit follows the nested `g z` argument-copy source from the
+actual `z` parameter row `Z` through its retained copy `C`. HIR/solver records
+identify the true Name target, the Apply occurrence and the actual Parent pair.
+They do not yet establish which outgoing references are owned by `Z` or how
+negative extrusion gives `C` its own value/reference targets. The separate
+negative-result audit similarly recovers `C`'s original Apply provenance but
+does not establish result-owned references. These derivations preserve the
+user's graph definition: neither comparison direction, bound storage, nor
+Parent metadata is used as an edge.
+
+The independent `compiler_referee` review found no blocking, major or minor
+issue in this bounded OPEN conclusion. It also confirmed that operational SCC
+adjacency in `candidate_intrusion` is not yet proved equivalent to the
+source-Value-reference graph. Thus ordinary mutual recursion answers how to
+obtain a nontrivial Value SCC; copy ownership and scanner correspondence remain
+separate OPEN obligations. The source-owner audit and formal/copy obstruction
+are checkpointed at `475fca7d0` and `f3c221bd3` on
+`research/simple-sub-intrusion`; neither changes compiler code or closes the
+parent/copy gate. Exact source execution, replay arrival, later admission,
+intrusion adequacy, complete inference, soundness, principality, effect
+hygiene and F5 replacement remain OPEN.
+
+Next action: prove the source/operation law for the owned value and outgoing
+references of an actual formal Value row and its extrusion copy, or produce a
+source-qualified counterexample to that correspondence. Keep source-prefix
+execution and semantic-graph/scanner equivalence as separate owners; do not
+add representation or rewrite semantic scope before examining existing
+constructor evidence. No tests, builds, Oracle runs or implementation changes
+were part of this SCC follow-up.

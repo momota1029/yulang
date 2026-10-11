@@ -1,6 +1,6 @@
 # Exact nested source: parameter value and extrusion-copy reference bridge
 
-Status: frozen research obstruction; independent review pending
+Status: frozen bounded research obstruction; independently reviewed with no findings
 Claim class: bounded source-to-operation audit, not an established theorem or counterexample
 Parent claim: OPEN; no semantic parent/copy SCC witness
 Primary-pinned baseline: `35e88c8113c9c6516e260170503bea753e4ede6`
@@ -228,6 +228,18 @@ joint identities; keep executable validation of this exact source prefix in
 its own lane. Investigate existing construction evidence before proposing a
 new certificate, and retain the parent gate OPEN until the missing premise is
 established or a source-qualified counterexample is obtained.
+
+## Independent review
+
+An independent `compiler_referee` reviewed this note and the complementary
+source-owner audit against the governing Value-reference decision and the
+named HIR, source, Apply, allocation, extrusion, Parent, local-scheme and
+intrusion owners. The reviewer found no blocking, major or minor issue in the
+bounded OPEN conclusion: retained Parent/Apply provenance does not establish
+copy-owned outgoing Value references, and the operational scanner has not been
+shown equivalent to the selected semantic graph. Review did not establish
+source execution, replay arrival, later admission, a parent/copy SCC, soundness,
+principality or cutover.
 
 ## Checks, resources and frozen dependencies
 
