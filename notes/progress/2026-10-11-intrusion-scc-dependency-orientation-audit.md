@@ -43,10 +43,13 @@ language meaning or assert that subtype-relation SCC is the selected meaning.
    A row points to every row/structural endpoint in either stored bound side.
    A Function points to all four ports. An Allowance or Support points to its
    symbolic tail. Parent metadata contributes no edge.
-2. **Constraint graph C:** a comparison graph defined here only for the audit:
-   each accumulated scalar constraint `a <: b` contributes `a -> b`. This
-   faithfully preserves the direction named by the emitted relation, but is
-   not independently established as the intended intrusion dependency graph.
+2. **Scalar comparison graph C₀:** a graph defined here only for the scalar
+   discriminator: its vertices are canonical rows of one sort, and each
+   accumulated row-to-row constraint `a <: b` contributes `a -> b`. This
+   preserves the direction named by that emitted relation, but is not
+   independently established as the intended intrusion dependency graph.
+   Function/Effect structural comparisons are discussed below as typed emitted
+   relations; they are not silently added to C₀'s vertex or edge domain.
 3. **Structural occurrence/dependency graph:** a constructor references its
    children, potentially with signed positions. Outgoing occurrence edges do
    not by themselves encode subtype variance. A semantic account must state
@@ -54,7 +57,7 @@ language meaning or assert that subtype-relation SCC is the selected meaning.
 
 No numerical-level invariant proving termination or absence of particular
 physical SCCs establishes that P has the semantic SCCs required for intrusion.
-Conversely, P differing from C alone does not refute the selected operation.
+Conversely, P differing from C₀ alone does not refute the selected operation.
 
 ## Exact scalar storage and orientation
 
@@ -68,7 +71,7 @@ defines Positive as lower storage and Negative as upper storage
 
 For the single constraint `a <: b`:
 
-| Levels | Selected physical cell | Relation represented by cell | P adjacency | C direction |
+| Levels | Selected physical cell | Relation represented by cell | P adjacency | C₀ direction |
 |---|---|---|---|---|
 | `L(a) < L(b)` | `b.direct_lower_rows += a` | `a <: b` | `b -> a` | `a -> b` |
 | `L(a) > L(b)` | `a.direct_upper_rows += b` | `a <: b` | `a -> b` | `a -> b` |
@@ -98,14 +101,15 @@ adjacency by iterating the typed relation/memo table.
 **Claim class:** conditional finite characterization; no source-program
 counterexample. Hypotheses are two distinct canonical rows, initial levels
 `L(a)=0`, `L(b)=1`, empty relevant bounds, successful ordinary insertion/replay,
-and no other edges or merges. Interpret the comparison graph as C above.
+and no other edges or merges. Interpret the scalar comparison graph as C₀
+above.
 
 Submit `a <: b`, then `b <: a` through `candidate_apply_value`:
 
 1. The first puts lower `a` on `b`, giving P edge `b -> a`.
 2. The second puts upper `a` on `b`, also giving P edge `b -> a`.
 3. Replay compares `a <: a`; the identity transition inserts no new edge.
-4. Thus P has components `{a}`, `{b}`. C has edges `a -> b`, `b -> a`,
+4. Thus P has components `{a}`, `{b}`. C₀ has edges `a -> b`, `b -> a`,
    hence component `{a,b}`.
 
 This is minimal in distinct row vertices for a disagreement about whether two
@@ -134,9 +138,9 @@ bound dependencies. Opposite replay again produces only `c <: c`.
 `settle_candidate_intrusion` excludes parent provenance from adjacency and
 requires the computed components of `p,c` to match before merging
 (`candidate_intrusion.rs:477`). Therefore it does not merge this pair under
-these hypotheses, whereas C puts them in one SCC. This is a source-owner
+these hypotheses, whereas C₀ puts them in one SCC. This is a source-owner
 transition discriminator, not evidence that an accepted source program must
-produce the opposite relation or that C supplies the required semantic graph.
+produce the opposite relation or that C₀ supplies the required semantic graph.
 
 The existing test `real_extrusion_parent_copy_scc_equates_both_kinds_and_polarities`
 does not discriminate these graphs. Its helper `close_cycle`
@@ -169,8 +173,9 @@ polarity copies, whose parents are retained. Thus primes matter: P references
 the actual rewritten ports, not automatically the original coordinates.
 
 Conversely, `F+(a,ae,re,r) <: x` is stored as an exact lower of `x`, after positive
-extrusion at `L(x)` (`lib.rs:12415`). P still has `x -> F+ -> ports`, whereas C's
-outer relation points `F+ -> x`. An isolated `x <: Function(...)` does not
+extrusion at `L(x)` (`lib.rs:12415`). P still has `x -> F+ -> ports`, whereas
+the emitted outer comparison relation points `F+ -> x`. An isolated
+`x <: Function(...)` does not
 generate a scalar relation between `x` and every port. Neither `x <: a` nor
 `a <: x` follows merely by naming a Function argument; occurrence and subtype
 dependencies cannot be identified by inspection of that one constraint.
@@ -232,9 +237,10 @@ their filters, scope, attachments or context into plain subtype semantics.
 
 For the usual positive bound `Support(A,t) <: e`, storage instead gives
 `e -> Support(A,t) -> t`; the initial outer relation has the opposite direction
-in C. If replay compares Support with an upper endpoint `u`, the concrete
-operand owner expands it into `AnnotationMember(view,i) <: u` and `t <: u`
-(`candidate_effect.rs:895`). In particular, replay against an existing upper
+in the emitted outer comparison. If replay compares Support with an upper
+endpoint `u`, the concrete operand owner expands it into
+`AnnotationMember(view,i) <: u` and `t <: u` (`candidate_effect.rs:895`).
+In particular, replay against an existing upper
 bound can make an actual tail-to-upper relation, whose physical orientation
 again depends on the receiving levels. Tail occurrence is not that generated
 relation. Positive/negative extrusion remaps a view with the remapped same-kind
@@ -248,7 +254,7 @@ allowance also uses the tail directly (`:1329`). Therefore an audit that only
 counts wrapper nodes misses authentic direct-row paths.
 
 Reversing every stored lower-bound edge would repair the displayed scalar
-comparison with C, but that change alone is not a proved semantic repair.
+comparison with C₀, but that change alone is not a proved semantic repair.
 Function containment still needs an interpretation of signed contravariant
 ports; it is not a collection of scalar inequalities to its children.
 Support-to-upper replay expands into tail/member inequalities, whereas an
@@ -269,7 +275,7 @@ have no dependencies on Value payloads or contextual interfaces.
 Established here by static reading: the branch-specific one-sided storage,
 physical edge orientation, port polarity/dispatch directions, wrapper-tail
 edges, and selected same-component merge condition. The two-row SCC mismatch
-is an elementary derivation conditional on the explicitly defined C and stated
+is an elementary derivation conditional on the explicitly defined C₀ and stated
 empty-state hypotheses. It is not a reviewed theorem about the intended
 semantic graph, an Oracle comparison, or a source-qualified counterexample.
 
@@ -287,7 +293,7 @@ premises.
 Recommended next action: the primary should use this explicit discriminator to
 pin the existing intended dependency relation with its semantic/proof owner,
 then request a source-qualified trace or proof that P preserves exactly the
-parent/copy SCC condition needed by that relation. If C is not that relation,
+parent/copy SCC condition needed by that relation. If C₀ is not that relation,
 state the actual relation and test this same witness against it. Do not schedule
 an edge-orientation compiler repair from this note alone.
 
