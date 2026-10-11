@@ -10699,3 +10699,49 @@ This source derivation does not yet map either source owner to a native Value
 row, prove that the candidate solver constructs these two graph edges, or
 qualify any particular extrusion parent/copy pair for equality. The Apply
 result-row content law and parent/copy preservation theorem remain OPEN.
+
+A supported-source analogue isolates the same scope cycle without the
+unsupported conditional/arithmetic:
+
+```yulang
+my odd n = { my even n = odd n; even n }
+```
+
+Static LocalSource construction gives `even → odd` from the nested initializer
+and `odd → even` from the block result. Its candidate schedule assigns the
+outer and nested initializers levels 1 and 2, respectively, and resolves the
+names to the module root and local binder as expected. However, the emitted
+`Module`/`Local` actions retain target/use provenance for type-scheme
+constraints, not these two explicit Value-reference incidences. The Module
+dependency is owned by the enclosing definition; the published-local use
+freshens its scheme. `candidate_intrusion` consumes bound-side payloads and
+Function ports, not the source incidences. Thus the first concrete bridge gap
+is source-owner/reference → native Value-content construction and transport.
+This is a bounded static characterization of the opt-in LocalSource path, not
+ordinary-HIR admission, runtime execution, or a parent/copy SCC witness.
+
+Two research artifacts now preserve the next bridge evidence:
+[`Value-reference source audit`](../notes/progress/2026-10-11-value-reference-source-audit.md)
+and [`Value-content identity transport proof`](../notes/progress/2026-10-11-value-reference-transport-proof.md).
+The source audit finds that the original Simple-sub representation contains
+type variables/bounds and structural type constructors, but does not define
+Yulang's Value-owned reference graph. It derives discriminators such as a
+projected-away lexical reference and the cross-level `odd`/`even` source SCC;
+it does not choose a native graph. The transport derivation refutes assigning
+every lexical Name a route in the exported type graph and shows one Name can
+have distinct positive and negative extrusion images. Neither is a
+source-qualified counterexample to the approved parent/copy equality rule.
+Both retain the native Value-content owner/transport and equality-preservation
+gates as OPEN. Checkpoints: `dcf7ac5e0` and `a5b5c638d`, pushed to
+`origin/research/simple-sub-intrusion`.
+
+The interpretation draft at
+[`Value-content intrusion interpretation`](../notes/design/2026-10-11-value-content-intrusion-interpretation-draft.md)
+is a candidate, not an approved semantic definition. Independent
+`spec_auditor` review closed the wording findings by making Apply result-row
+ownership approval an explicit prerequisite to implementation and marking
+the source graph as a candidate. The concrete unresolved equation remains
+whether an Apply result row owns its source computation fragment, returned
+Value content, or only inferred type structure, with a corresponding
+reference-introduction/forwarding law. No source evidence or proof selects
+among these choices. No solver code or tests changed.
