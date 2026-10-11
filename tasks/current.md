@@ -9785,3 +9785,59 @@ complete Call, soundness, principality, normal inference progress, effect
 hygiene, production acceptance, and F5 replacement all remain OPEN. Current
 research branch checkpoint is `4361e3b59` (pushed); no compiler code, tests,
 semantic rules, or F5 routing changed in this wave.
+
+## 2026-10-11 intrusion SCC edge semantics
+
+The independent source map
+[`intrusion SCC orientation audit`](../notes/progress/2026-10-11-intrusion-scc-dependency-orientation-audit.md)
+and constructive
+[`intrusion SCC dependency graph proof`](../notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md)
+were independently reviewed with no findings. They distinguish three graph
+meanings that cannot be conflated:
+
+- `G_le` directs each actually active, typed comparison `S <: T` as `S → T`;
+  Function variance is handled by the real decomposed port constraints
+  (`arg₂ <: arg₁`, `arg-effect₂ <: arg-effect₁`, covariant result ports), not
+  by treating constructor containment as subtyping. Mutual reachability is a
+  sufficient equality condition by transitivity. Its converse was proved only
+  for finite atomic variables in a free preorder, not for full Call/effects or
+  source inference.
+- `G_exp` records positive-lower, negative-upper and polarized structural
+  expansion recursion. Positive and negative views of one variable share one
+  assignment, but that identity alone does not identify their expansion states
+  or insert cross-sign edges.
+- Current `G_store` is physical owner-to-bound incidence (lower and upper
+  sides both point outward), Function-to-port containment and Allowance/Support
+  to tail edges. It erases bound side and row polarity. At unequal levels its
+  edge can oppose comparison direction. The real-reference two-constraint
+  discriminator and a native-reference Function-containing source witness show that
+  `G_store` SCC membership does not generally entail equality; the Function
+  witness has no extrusion record and therefore does not itself refute the
+  narrower parent/copy operation.
+
+Function contravariance rules out repairing this by reversing all lower
+edges: comparison decomposition flips both argument ports but preserves both
+result ports, while constructor containment is not a subtype edge. Effect
+views also cannot be collapsed to a generic tail edge: Support expands
+members/tail comparisons, Allowance can discharge an allowed member, and the
+current SCC builder omits AnnotationMember traversal. Value and Effect are
+separate kinds.
+
+The reviewed Value rank invariant excludes authentic Value parent/copy SCCs
+while its admission and restoration premises hold. That is an operational
+nonreachability result, not a proof that the approved intrusion operation is
+semantically redundant or that `G_store` is the intended graph. Synthetic
+parent/copy restoration discriminators are not source-qualified. The approved
+design fixes parent retention and equality after SCC qualification but does
+not define the edge relation meant by “same SCC.” Therefore OPEN-GRAPH remains
+at the owning intrusion/authority seam: prove the chosen relation against all
+source constructors, restorations and scoped observations, including Effect
+and Generalize, before any graph replacement or implementation. No semantic
+choice or compiler change was made here. Source soundness, required
+principality, complete Call, effect hygiene, normal progress, rejection,
+production acceptance and F5 replacement remain OPEN.
+
+Artifact `notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md`
+was checkpointed and independently reviewed; commit `63ca221e4` is pushed.
+No tests, builds or executable probes were run. This is a research checkpoint,
+not parent theorem closure.
