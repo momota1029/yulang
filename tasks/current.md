@@ -11192,25 +11192,39 @@ The bounded parent/copy finite-store proof received an independent
 only the one native finite-store joint witness replacement; it does not prove
 that its extrusion pairs qualify in the approved Value-reference SCC.
 
-The Value-copy architecture comparison confirms that approved original-row
-ownership (`O → E → O` for nested odd/even, `result → resolved Name` for
-Apply, and definition-root forwarding) does not determine how reference edges
-move when an owner row is copied or freshened. A generic graph reference is
-unsigned, while extrusion can have distinct positive and negative row maps.
-The minimized `id x = x` discriminator is: copying the body owner either keeps
-its edge to original `x`, or transports that edge to the fresh `x` image when
-one exists. A third law recursively adds referenced targets to the copy
-closure. These laws change the resulting reference graph and are not decided
-by ordinary Simple-sub, which has no Value-reference graph or intrusion rule.
-The user has been asked to select the copy law. Keep source-incidence
-construction, transport, SCC consumption and equality preservation as separate
-gates; do not implement transport until this choice is recorded. Existing
-`O ↔ E` is cross-level SCC evidence, not parent/copy qualification.
+The independently reviewed [Value-reference transport audit](../notes/progress/2026-10-12-value-reference-transport-source-audit.md)
+and [native transport derivation](../notes/theory/2026-10-12-value-reference-transport-proof.md)
+refine the missing law. The exact nested `odd`/`even` source has root edges
+`O → E` and `E → O` across inference levels; lexical nesting does not filter
+those references. The smaller native analogue also forces polar extrusion
+pairs `(C,B,+)` and `(D,R,-)`, but neither pair is in the established `O ↔ E`
+SCC. Original Simple-sub determines a shared unsigned map for freshening and
+distinct positive/negative extrusion maps; it defines no Value-reference graph
+or transport law. Approved Yulang rules fix original Apply/root incidences and
+their resolved binder targets, but do not yet supply which copied rows own
+those incidences or how their binder rows relate to each fresh description
+frame. The finite graph witnesses distinguish candidate completions only under
+explicit, unproved copy-domain/incoming-reference premises; they are not
+source-qualified counterexamples or approved alternatives. A `compiler_referee`
+and `spec_auditor` found no issue in their bounded claims. Keep transport,
+actual SCC qualification, equality preservation and the original soundness/
+principality obligations OPEN until the missing owner/frame construction is
+derived; do not infer it from bounds or treat `O ↔ E` as parent/copy
+qualification.
 
-The disjoint static source-owner audit is frozen and independently reviewed;
-the constructive source-construction note is frozen pending its independent
-`compiler_referee` review. The proof note reuses reviewed P/Q only in its old
-conditional scope and identifies the same concrete-negative constructor gap.
+Both bounded artifacts were checkpointed and pushed to
+`research/simple-sub-intrusion` as `a534640c2` (source audit) and `ef7c53086`
+(native derivation). Their metadata now records the separate `spec_auditor`
+and `compiler_referee` no-finding reviews. No inference code, tests, builds or
+Oracle runs changed. The exact remaining construction premise is copied-owner
+incidence plus its resolved binder-row/fresh-description-frame relation; the
+conditional graphs do not prove that this premise occurs in a supported source
+history.
+
+The disjoint static source-owner audit is frozen and independently reviewed.
+The negative construction proof reuses reviewed P/Q only in its old conditional
+scope; its independent review found no issue in that bounded derivation while
+leaving the concrete-negative constructor gap open.
 The Oracle budget remains exhausted. The accepted contextual-admission gate
 still keeps general concrete-formal source admission disabled; the next useful
 implementation slice can only be an internal negative attachment/view plus

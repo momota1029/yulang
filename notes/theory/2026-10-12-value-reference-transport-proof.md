@@ -1,7 +1,7 @@
 # Value-reference transport: native map derivation and a missing incoming path
 
 Date: 2026-10-12
-Status: unreviewed research derivation and conditional graph characterization; parent gates OPEN
+Status: independently compiler-referee reviewed bounded derivation and conditional graph characterization; parent gates OPEN
 Baseline: `874d43756cc44ce1787b4ca30a7595eeff1bc121`, `research/simple-sub-intrusion`
 Reference baseline: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Exclusive output: this file; leaf only; no further delegation
@@ -385,7 +385,9 @@ Normal requested policy route: `gpt-6.1-sol/high`. The configured prover role
 omits model/effort pins and agent defaults request that route. Effective runtime
 model/effort metadata is unavailable to this leaf, so observed settings are
 unknown. No Astra, nested process, model override or hot reload is claimed.
-Independent review has not occurred; the producer does not certify this note.
+An independent `compiler_referee` found no issue in the native map derivation,
+conditional graph calculations, or stated claim boundaries. This review does
+not establish a source-qualified qualifying pair or universal preservation.
 
 Direct read dependencies, unchanged from the pinned Yulang baseline:
 
@@ -407,8 +409,9 @@ Direct read dependencies, unchanged from the pinned Yulang baseline:
 - Exact leased/changed path: `notes/theory/2026-10-12-value-reference-transport-proof.md`.
 - Baseline: `874d43756cc44ce1787b4ca30a7595eeff1bc121`; reference baseline above.
 - Changed dependency hashes: none; the direct snapshot is listed above.
-- Claim/review: unreviewed native derivation and conditional graph characterization;
-  no source-qualified pair theorem, universal preservation or implementation closure.
+- Claim/review: independent `compiler_referee` review found no issue in the
+  stated bounded derivation; no source-qualified pair theorem, universal
+  preservation or implementation closure.
 - Checks: exact source locators, direct-input baseline comparison, note whitespace;
   zero tests/builds/Oracle or executable graph probes.
 - Proposed checkpoint: `research: derive native Value copy maps and isolate incoming-reference qualification`.

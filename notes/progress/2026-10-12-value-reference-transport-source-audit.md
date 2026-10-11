@@ -1,6 +1,6 @@
 # Value-reference transport: bounded source audit
 
-Status: frozen, unreviewed, non-authoritative research characterization
+Status: frozen, independently spec-reviewed bounded non-authoritative research characterization
 Baseline: `874d43756cc44ce1787b4ca30a7595eeff1bc121`
 Branch: `research/simple-sub-intrusion`
 Lease: this note only; no compiler, test, semantic or integration authority
@@ -191,8 +191,9 @@ toy graph probe will not establish it.
   `9bae772624c23b52a93c1b226157e16898b4d9db`.
 - Dependency changes: none by this leaf; direct snapshot above. Full baseline
   comparison and any subsequent invalidation belong to the primary.
-- Review: frozen, unreviewed research characterization and conditional graph
-  witness; no accepted semantic alternative, source counterexample or closure.
+- Review: independent `spec_auditor` found no issue within exact-conformance
+  scope. The conditional graph witness is not a source counterexample or
+  approved semantic alternative, and does not close transport or intrusion.
 - Checks already run: bounded rule/source/paper reads, initial HEAD/status,
   external reference identity, dependency SHA-256 snapshot, artifact link and
   whitespace validation. No tests/builds/Oracle.
