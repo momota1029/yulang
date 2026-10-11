@@ -11080,3 +11080,11 @@ same provider plus the authentic independent-origin/attachment classification
 for the original annotation occurrence. Complete Call, soundness,
 principality, and cutover remain OPEN. Oracle budget is exhausted; no Oracle,
 test, build, or compiler edit was made.
+
+The independent `compiler_referee` review of the provider-attachment boundary
+derivation found no blocking or major issue and one minor locator correction:
+the production delegation to Specializer2 is at `specialize/src/lib.rs:81`
+(within lines 77–82), not the narrower earlier range. The primary applied that
+correction. Review closes only the bounded note's source locator and stated
+characterization; exact attachment/output membership M and universal H remain
+OPEN. No execution, build, test, or compiler change followed.

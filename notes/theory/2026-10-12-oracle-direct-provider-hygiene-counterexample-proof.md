@@ -198,7 +198,8 @@ as an authenticated Oracle attachment record.
 ## 5. Actual operational owners and the first missing join
 
 Production `specialize::specialize` delegates to Specializer2
-(`crates/specialize/src/lib.rs:68–78`), not to the legacy Specializer helpers.
+(`crates/specialize/src/lib.rs:77–82`, call at line 81), not to the legacy
+Specializer helpers.
 Its `specialize2/emit.rs:112–195` selects an inference/runtime/marker signature,
 solves the actual definition body using TaskSolver and the provenance sidecar,
 emits it, and applies the marker wrapper. TaskSolver's body entry is
