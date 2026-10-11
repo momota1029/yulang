@@ -9841,3 +9841,34 @@ Artifact `notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md`
 was checkpointed and independently reviewed; commit `63ca221e4` is pushed.
 No tests, builds or executable probes were run. This is a research checkpoint,
 not parent theorem closure.
+
+The Effect-specific follow-up separates the same questions. The reviewed
+[`Effect parent-copy source audit`](../notes/progress/2026-10-11-effect-parent-copy-source-audit.md)
+shows that the Value rank argument cannot be transferred mechanically:
+`candidate_apply_effect` admits a row/Support or row/Allowance bound without
+extruding the view or checking its tail level. A source-shaped local computation
+can therefore create the physical ascent
+`r₂ → c₁ → Allowance(v) → t₂`. This refutes that simple Effect-level rank
+invariant under the displayed lowering and admission path; it does **not** show
+the missing return path `t₂ → … → r₂` or an actual parent/copy SCC.
+
+The bounded constructive
+[`Effect SCC derivation`](../notes/theory/2026-10-11-effect-parent-copy-scc-proof.md)
+traces the Apply slot-2 event that activates the extrusion lower. In its
+root-computation-only source, `t₂` is a `G_store` sink and cannot return to the
+original parent. Thus it derives a local non-merge for that history, not a
+universal Effect exclusion. The exact A/B premise remains whether an authentic
+latent port using that same scoped tail emits and activates a return path, or
+whether all such paths can be excluded from actual source constructors. The
+first responsible owners are Effect signature port construction, Function
+comparison dispatch, and incoming-incidence capture/restoration. The source
+audit passed independent compiler-referee review; the constructive note is
+under independent review. Neither result establishes semantic adequacy of
+`G_store`, Effect hygiene, or intrusion redundancy. No code, tests, or semantic
+rules changed; neither proof/artifact was tested or executed.
+
+The earlier SCC checkpoint is commit `63ca221e4`; the reviewed source-map
+checkpoint is commit `80344d59e`, both pushed. Current source soundness,
+principality, complete Call, Generalize correspondence, full effect hygiene,
+normal progress, rejection, production acceptance and F5 cutover all remain
+OPEN.
