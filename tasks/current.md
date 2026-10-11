@@ -10961,3 +10961,24 @@ The definition-root question remains pending as a native-construction choice;
 the source-root derivation neither selects its implementation representation
 nor authorizes scanner changes. The nested-Apply membership question is
 independent and remains pending as well. No compiler code or tests changed.
+
+### 2026-10-12 Oracle direct-return projection boundary
+
+The bounded construction and independent review establish an α-bearing
+annotation-positive Function lower at formal coordinate `c`, but `direct`'s
+named-Lambda lowering replaces the returned body coordinate with skeleton
+coordinate `Y`. Consequently the live lower at `c` is not itself the returned
+scheme input: collection of `PosVar(c)` is secondary-only, and positive alias
+expansion does not recursively collect its Function bounds. The relevant
+candidate is the replayed `A <: Y` lower. The frozen
+[`projection input audit`](../notes/progress/2026-10-12-oracle-direct-return-projection-audit.md),
+committed at `d6a54ded8`, identifies the exact first unresolved predicate:
+whether that actual `Y` lower is retained by its final projection decision and
+whether its accumulated compact weight survives recursive collection and
+simplification. The independent `compiler_referee` found no issue in the
+bounded source claims; this review does not establish the final replay ledger,
+projection decision, α survival, a source counterexample, or universal effect
+hygiene H. H and its original quantifiers remain OPEN. No Oracle invocation,
+test, build, or compiler edit was performed. Next owner: complete the bounded
+replayed-lower derivation, then obtain the final simplification input before
+attempting any claim about the later provider/use effect.
