@@ -10154,3 +10154,13 @@ It tests whether an authentic named callback provider plus a later published
 Oracle invocations and does not change H's theorem or semantics. The
 source-to-value SCC question remains separately OPEN at copy-owned references
 and scanner equivalence.
+
+The next native source-Generalize bridge is now under two disjoint bounded
+lanes at baseline `26fedf6cd`: a constructive `prover` attempt to derive the
+whole-entry Return/Request application from the actual Parameter/Lambda
+constructors (`notes/theory/2026-10-11-parameter-lambda-whole-entry-application-proof.md`),
+and a complementary source/falsification audit of those constructors and
+consumers (`notes/progress/2026-10-11-native-formal-interface-source-audit.md`).
+Neither may assume the missing interpretation or change compiler code. The
+original P and complete Generalize gates remain OPEN until the whole bridge is
+derived from source owners and independently reviewed.
