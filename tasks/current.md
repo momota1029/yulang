@@ -10839,6 +10839,14 @@ a conditional projection, keeps nested membership OPEN, and corrects the
 allocation order; the reviewer confirmed both findings resolved. Direct Names
 in `invoke`, `konst 1`, and each relevant odd/even Apply are covered by the
 selected equation, but this does not settle recursive fragment membership.
+The architect audit then found a minimal unresolved discriminator in
+`my use f = f(0)(0)`: the outer Apply either owns the nested `f` Name and adds
+`R2 → F`, or stops at the inner Apply owner and adds no such edge. Both
+completions fit the approved direct examples, including odd/even. The candidate
+recursive walk remains a proposal. This decision is recorded pending in
+[`nested Apply membership`](../questions/2026-10-12-nested-apply-reference-membership/question.md);
+only the dependent fragment-membership and graph-implementation work waits.
+Independent Simple-sub and Oracle-effect work continues.
 Next owner: prove the source-incidence construction and consumer invariant
 across actual publication, extrusion and shared fresh use before authorizing a
 reference-system implementation. Parent/copy equality soundness/principality,
