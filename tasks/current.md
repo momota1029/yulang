@@ -11525,3 +11525,21 @@ result, not H closure or a counterexample. The next effect obligation is the
 actual generalization/compaction/use-scheme map and its designated independent
 output route. Checkpoint `dff45c67b` was pushed after inspecting its full
 outbound range; no tests/builds or compiler edits occurred.
+
+An independent compiler-referee audit of the Oracle return-effect scheme path
+now confirms that positive `Function.ret_eff` collection selects lower-bound
+records through `project_lower`; simplification can eliminate eligible
+coordinates, and finalization further normalizes the compact row. The bounded
+generalized-witness sidecar omits root Function argument-effect, return-effect,
+and result positions and reports whole-scheme completeness as `Incomplete`.
+These are Oracle-only source facts, not evidence that the fixture loses an
+effect. The fixture's actual selected `run` return-effect records and their
+post-simplification images remain uncomputed. The next exact source query is
+the completed `run` component's selected Function endpoint, its
+`scheme_projectable_lowers_in_scope` entries and weights, then the resulting
+`CompactFun.ret_eff`, substitutions, and finalized return-effect position.
+The Oracle CLI attempt without prelude failed on unresolved `str`; two default
+prelude `dump --poly` attempts produced no output before 30-second and
+15-second timeouts. No Oracle result was inferred from these invocations. This
+source bridge, H, complete Call, soundness, principality, and F5 replacement
+remain OPEN. No compiler code or tests changed.
