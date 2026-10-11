@@ -10378,3 +10378,28 @@ Extend the evidence only if those records show `s` survives; keep later
 selector membership, fresh map, provider replay, and the independent
 same-family contribution as separate premises. No new Oracle execution or
 instrumentation has been authorized or run.
+
+### 2026-10-11 Value-reference SCC: retained Name route certificate
+
+The user's graph definition remains the authority: vertices are Value
+variables, and `u → v` means the value owned by `u` references `v`. The
+mutual-recursion source `my f x = g; my g y = f` has reviewed source-root SCC
+`Rf ↔ Rg`. The new bounded derivation
+[`mutual-recursion native Value-reference bridge`](../notes/theory/2026-10-11-mutual-recursion-native-value-reference-bridge.md),
+checkpoint `9370f0076`, corrects one earlier obstruction: the actual Name
+occurrence row, resolved target root, containing definition, and successful
+internal route provenance remain jointly recoverable through retained
+`ComponentId::Occurrence`, `DefinitionUse`, and `RoutedUseProvenance` records.
+An independent `compiler_referee` found no findings in that bounded identity
+and route derivation.
+
+The certificate still does not prove the semantic owner clause
+`C_h(Name)=Ref(target)`, the Lambda/root preservation law, or equivalence of
+the source-reference graph to the current bound/Function payload scanner.
+Those are distinct from endpoint identity. No extrusion/fresh-use transport
+was derived, and this source constructs no retained parent/copy pair. The
+original all-histories/all-retained-parent-copy SCC theorem, complete
+inference, soundness, principality, effect hygiene, and F5 replacement remain
+OPEN. Next: establish the Name-owner and Lambda/root interpretation from
+actual source construction and consumer semantics; only then prove copy
+transport and scanner correspondence. No compiler or test files changed.
