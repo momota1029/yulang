@@ -9134,3 +9134,36 @@ overflow. The candidate context reserve paths do not set the existing
 physical-change flag, and candidate local/retained exits do not own that final
 publication. Any repair must preserve this sampling boundary and account for
 candidate-path complexity without broadening an incoming hot-path traversal.
+
+## 2026-10-11 Oracle-qualified native capture-map observation
+
+The value-restriction correction is applied to the bounded source probe: the
+input is a function binding `bridge` with an annotated function parameter,
+not an expansive `my ans: [E] int` value. The frozen Yulang2 Oracle at
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` accepts its 28-tail form and dumps
+a generalized function scheme with quantified effect-row variables. Yulang3
+uses its required spacing and a corresponding declared effect operation; its
+focused probe establishes parsing/HIR construction and direct
+`FormalAnnotation` constructor execution only, not Yulang3 binding
+generalization.
+
+The ignored test-only observer at
+[`capture-map-native-probe`](../notes/progress/2026-10-11-capture-map-native-probe.md)
+passed one focused invocation: eight parsed constructor sessions, all reaching
+the full-new-tail injected failure; six made an allocator request while
+reversing an occupied-tail `Some` bucket. The first observed suffix removed
+new tail B, then reinserted A with one allocation request. Exact logical map,
+record and key contents restored in all sessions. The cfg(test) global
+allocator instrumentation and source claims received independent
+compiler-referee and spec-auditor review. Both found no blocking/major issues;
+the spec-auditor's minor evidence-scope wording was corrected in the note.
+
+This is a native `FormalAnnotation` constructor-prefix observation only. No
+retained Local failure-path correspondence is established, no allocator
+failure is injected, and no raw table layout is inferred from public capacity.
+Native allocation-free rollback, original W/A3, complete Simple-sub
+inference, Yulang2-derived effect hygiene, soundness/principality, and F5
+cutover remain OPEN. Immediate next action: establish or refute reachability
+of this source-valid suffix in the retained Local failure domain, or integrate
+an independently authorized inverse-storage repair while keeping that
+correspondence gate explicit.

@@ -43,6 +43,67 @@ pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId
 pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct CaptureIncidence { pub source: u32, pub view: u32, pub next: Option<usize> }
+// Research observer: allocator requests are counted only during one inverse
+// insertion. The production map, hasher and insertion path are unchanged.
+#[cfg(test)]
+mod capture_probe_allocator {
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+    thread_local! {
+        static ACTIVE: Cell<bool> = const { Cell::new(false) };
+        static REQUESTS: Cell<usize> = const { Cell::new(0) };
+    }
+    struct Observer;
+    #[global_allocator]
+    static ALLOCATOR: Observer = Observer;
+    fn request() {
+        let _ = ACTIVE.try_with(|active| {
+            if active.get() { let _ = REQUESTS.try_with(|count| count.set(count.get() + 1)); }
+        });
+    }
+    unsafe impl GlobalAlloc for Observer {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            request();
+            unsafe { System.alloc(layout) }
+        }
+        unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+            request();
+            unsafe { System.alloc_zeroed(layout) }
+        }
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {
+            request();
+            unsafe { System.realloc(ptr, layout, size) }
+        }
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+    pub(super) fn begin() {
+        REQUESTS.with(|count| count.set(0));
+        ACTIVE.with(|active| assert!(!active.replace(true)));
+    }
+    pub(super) fn end() -> usize {
+        ACTIVE.with(|active| active.set(false));
+        REQUESTS.with(Cell::get)
+    }
+}
+#[cfg(test)]
+#[derive(Debug)]
+struct CaptureProbeEvent {
+    inverse: bool,
+    row: u32,
+    old_present: bool,
+    before: (usize, usize),
+    after: (usize, usize),
+    allocation_requests: usize,
+}
+#[cfg(test)]
+#[derive(Debug)]
+struct CaptureProbe {
+    events: Vec<CaptureProbeEvent>,
+    fail_at_full_new: bool,
+    failed: bool,
+}
 #[derive(Debug, Default)]
 pub(super) struct State {
     pub context: candidate_context::State,
@@ -69,6 +130,8 @@ pub(super) struct State {
     failed_view_sample: Option<(usize, usize)>,
     #[cfg(test)]
     failed_formal_sample: Option<(usize, usize, usize, usize, usize, usize)>,
+    #[cfg(test)]
+    capture_probe: Option<CaptureProbe>,
 }
 #[derive(Debug)]
 pub(super) struct Contribution {
@@ -198,8 +261,18 @@ impl State {
             self.capture_records[index].next = next;
         }
         for (row, bucket) in checkpoint.capture_incidence.into_iter().rev() {
+            #[cfg(test)]
+            let probe_before = (self.capture_incidence.len(), self.capture_incidence.capacity());
+            #[cfg(test)]
+            if bucket.is_some() && self.capture_probe.is_some() { capture_probe_allocator::begin(); }
             if let Some(bucket) = bucket { self.capture_incidence.insert(row, bucket); }
             else { self.capture_incidence.remove(&row); }
+            #[cfg(test)]
+            if let Some(probe) = &mut self.capture_probe {
+                let allocation_requests = if bucket.is_some() { capture_probe_allocator::end() } else { 0 };
+                probe.events.push(CaptureProbeEvent { inverse: true, row, old_present: bucket.is_some(),
+                    before: probe_before, after: (self.capture_incidence.len(), self.capture_incidence.capacity()), allocation_requests });
+            }
         }
         for key in checkpoint.capture_keys { self.capture_incidence_keys.remove(&key); }
         self.capture_records.truncate(checkpoint.capture_records);
@@ -401,6 +474,8 @@ impl InferenceSession {
         let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
         if state.capture_incidence_keys.contains(&(source, view)) { return Ok(()); }
         let bucket = state.capture_incidence.get(&tail).copied();
+        #[cfg(test)]
+        let probe_before = (state.capture_incidence.len(), state.capture_incidence.capacity());
         let mut undo = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut())
             .map(|undo| &mut undo.effect_algebra);
         if let Some(undo) = &mut undo {
@@ -423,7 +498,25 @@ impl InferenceSession {
         state.capture_records.push(CaptureIncidence { source, view, next: None });
         state.capture_incidence.insert(tail, CaptureBucket { head: bucket.map_or(index, |bucket| bucket.head), tail: index });
         state.capture_incidence_keys.insert((source, view));
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        #[cfg(test)]
+        if let Some(probe) = &mut state.capture_probe {
+            probe.events.push(CaptureProbeEvent { inverse: false, row: tail, old_present: bucket.is_some(),
+                before: probe_before, after: (state.capture_incidence.len(), state.capture_incidence.capacity()), allocation_requests: 0 });
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        #[cfg(test)]
+        {
+            let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+            if let Some(probe) = &mut state.capture_probe {
+                if probe.fail_at_full_new && bucket.is_none() && state.capture_incidence.len() >= 16
+                    && state.capture_incidence.len() == state.capture_incidence.capacity()
+                    && probe.events.iter().rev().nth(1).is_some_and(|event| !event.inverse && event.old_present) {
+                    probe.failed = true;
+                    return Err(exhausted());
+                }
+            }
+        }
+        Ok(())
     }
     pub(super) fn candidate_splice_capture_incidence(&mut self, from: u32, to: u32) -> Result<(), SolveAvailabilityError> {
         if from == to { return Ok(()); }
@@ -1480,6 +1573,58 @@ impl InferenceSession {
 mod tests {
     use super::*;
     use crate::candidate_scheme::{Node, RowKey};
+    #[test]
+    #[ignore = "bounded native capture rollback research observation"]
+    fn capture_map_native_admission_inverse_observation() {
+        // Eight fresh RandomState sessions; no seed, key substitution or raw
+        // table-layout assumption. This is a FormalAnnotation constructor
+        // prefix, not a retained Local scheduling witness.
+        let mut targets = 0;
+        let mut allocating_sessions = 0;
+        for tails in [28, 56] {
+            let ports = (0..tails).flat_map(|index| [index, index])
+                .map(|index| format!("(int -> [tick, 'e{index}] ())"))
+                .collect::<Vec<_>>().join(" -> ");
+            let text = format!("act tick:\n    our ping: () -> ()\nmy bridge (consume:({ports} -> ())) = consume");
+            for fresh_session in 0..4 {
+                let mut session = make_session(&text);
+                let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+                    .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+                let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+                let state = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+                let before_map = state.capture_incidence.clone();
+                let before_records = state.capture_records.clone();
+                let before_keys = state.capture_incidence_keys.clone();
+                state.capture_probe = Some(CaptureProbe { events: Vec::with_capacity(tails * 16), fail_at_full_new: true, failed: false });
+                let mut constructed = false;
+                let result = session.with_route_transaction(|session| {
+                    session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)?;
+                    constructed = true;
+                    // If the named target was not reached, rollback a complete
+                    // native constructor and report that miss explicitly.
+                    Err::<(), _>(exhausted())
+                });
+                assert_eq!(result, Err(exhausted()));
+                let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+                assert_eq!(state.capture_incidence, before_map);
+                assert_eq!(state.capture_records, before_records);
+                assert_eq!(state.capture_incidence_keys, before_keys);
+                let probe = state.capture_probe.as_ref().unwrap();
+                assert!(constructed || probe.failed, "another failure invalidates this prefix");
+                targets += usize::from(probe.failed);
+                let requests: usize = probe.events.iter().filter(|event| event.inverse).map(|event| event.allocation_requests).sum();
+                allocating_sessions += usize::from(requests > 0);
+                eprintln!("capture_probe tails={tails} fresh={fresh_session} target={} constructed={constructed} inverse_allocation_requests={requests}", probe.failed);
+                // Complete actual order, bounded to the target-sized prefix.
+                for event in &probe.events {
+                    eprintln!("capture_probe {} row={} old={} before={:?} after={:?} allocation_requests={}",
+                        if event.inverse { "inverse" } else { "admit" }, event.row, event.old_present,
+                        event.before, event.after, event.allocation_requests);
+                }
+            }
+        }
+        eprintln!("capture_probe coverage sessions=8 tail_counts=[28,56] targets={targets} allocating_sessions={allocating_sessions} seeds=uncontrolled_RandomState");
+    }
     fn make_session(text: &str) -> InferenceSession {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(
