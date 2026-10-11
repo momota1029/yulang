@@ -9951,3 +9951,18 @@ implementation or tests changed in this checkpoint.
 The original Simple-sub inference, complete Call, soundness, principality,
 Effect hygiene, Generalize, rejection, production acceptance and F5 replacement
 gates remain OPEN. No implementation or tests changed.
+
+### 2026-10-11 correction: SCC graph is source-value references
+
+The user corrected the preceding SCC work: its solver-bound payload graph is
+not the intended graph. Actual source-value references, including edges such
+as `host → outer` and `g → g`, must be present. The user also states there is
+no SCC in the cited example. The reviewed `Q/P*`, `R/V`, and polar-copy
+payload cycles therefore do not establish semantic SCC membership or qualify
+any extrusion pair. The associated SCC conclusions in the ancestor-call and
+higher-order extrusion notes are superseded; their constructor traces remain
+only operational evidence. The graph's exact vertex granularity and how the
+stated `g → g` edge is treated in the reported “no SCC” result need
+clarification before another SCC derivation. No intrusion or inference theorem
+is closed by these payload traces. Continue from the source-value graph the
+user described; keep all original parent gates OPEN.

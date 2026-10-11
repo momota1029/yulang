@@ -1,7 +1,8 @@
 # Active ancestor call: extrusion and returned-helper source audit
 
 Date: 2026-10-11.
-Status: frozen, unreviewed research-only bounded constructor derivation.
+Status: **superseded for semantic SCC conclusions**. This bounded native
+payload trace did not establish the intended source-value reference graph.
 Original source/inference adequacy and authentic parent/copy SCC gates: **OPEN**.
 Compiler baseline: `330d5432aff4b1f9655d501e17a9eefb7e75e098`.
 Exclusive lease: this file; leaf, no further delegation.
@@ -357,3 +358,11 @@ probe would leave that premise untouched.
   events, the R/A* ordinary cycle and exact missing original-parent return
   reference; preserve source adequacy and authentic qualifying-pair gates OPEN.
   No task/index/authority/theory/question-board bundle was edited.
+
+## Later graph-definition correction
+
+The user clarified that source-value references such as `host → outer` belong
+to the intended graph. This note projects solver-stored bound payloads and
+therefore omits semantic source-value adjacency. Its SCC comparison does not
+answer the intrusion question. Keep the constructor trace as operational
+evidence only; treat its semantic SCC qualification as superseded.

@@ -1,8 +1,10 @@
 # Source-required parent/copy dependency: higher-order argument seam
 
 Date: 2026-10-11
-Status: independently reviewed bounded constructor derivation and localized
-original-judgment obstruction. All parent gates remain **OPEN**.
+Status: **superseded for semantic SCC conclusions**. The reviewed polar-bound
+construction and conditional preorder witness remain bounded operational
+facts; no semantic source-value SCC was established. All parent gates remain
+**OPEN**.
 Compiler baseline: `faf5853fddccd120734d7a3355a1208e7d597eb3`.
 Ordinary reference: `9bae772624c23b52a93c1b226157e16898b4d9db` at
 `/home/momota1029/rust/simple-sub-reference`.
@@ -376,3 +378,11 @@ dispatch another parent/copy cycle variant.
   still missing; keep all-source intrusion, Call, Generalize, soundness,
   principality and cutover OPEN. No shared task/index/theory-status, authoritative
   semantics or question-board file was edited.
+
+## Later graph-definition correction
+
+The user clarified that source-value references such as `host → outer` belong
+to the intended graph. This note reasons over solver payload references and
+Value inequalities; it does not construct the complete source-value graph.
+Its diagonal witness remains a bounded preorder result, but it cannot decide
+semantic SCC membership or whether intrusion equality is needed.

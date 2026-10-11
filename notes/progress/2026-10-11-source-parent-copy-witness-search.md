@@ -1,8 +1,9 @@
 # Higher-order recursive argument: sibling-copy SCC without freshening
 
 Date: 2026-10-11
-Status: independently reviewed bounded native source-to-constructor derivation;
-the separate Scala comparison is not covered by that review.
+Status: **superseded for semantic SCC conclusions**. The reviewed derivation
+is an operational payload trace only; it did not construct the intended
+source-value reference graph.
 Original source/inference and qualifying parent/copy gates: **OPEN**.
 Pinned compiler baseline: `faf5853fddccd120734d7a3355a1208e7d597eb3`.
 Pinned ordinary reference: `9bae772624c23b52a93c1b226157e16898b4d9db`.
@@ -374,3 +375,11 @@ frozen artifact; subsequent review repair requires the primary's new packet.
   pre-freshening R/V sibling SCC, actual four parent events, earliest positive
   Function reconstruction seam, and open source-Generalize/Call necessity
   premise. No task/index/authority/theory map/question-board bundle was edited.
+
+## Later graph-definition correction
+
+The user clarified that source-value references such as `host → outer` belong
+to the intended graph. This note projects solver-stored bound payloads and
+omits that source adjacency, so its `R/V` cycle and exclusion of extrusion
+parents do not establish semantic SCC membership. Keep the four extrusion
+events as operational facts only; its semantic SCC claims are superseded.

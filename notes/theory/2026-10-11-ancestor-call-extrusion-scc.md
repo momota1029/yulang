@@ -1,7 +1,9 @@
 # Ancestor call, genuine extrusion, and the returned fresh descendant
 
 Date: 2026-10-11
-Status: independently reviewed bounded source/algorithm derivation; theorem remains open.
+Status: **superseded for semantic SCC conclusions**. The independent review
+covered only the bounded native payload construction below, not the user's
+semantic value-reference graph; the parent theorem remains open.
 Original all-source normal-inference/intrusion theorem: **OPEN**.
 Compiler baseline: `9d2bdce2f9c1cb4d619f4c5889b84ebd5e48c009`.
 Direct compiler/HIR dependencies are unchanged from
@@ -443,3 +445,13 @@ not model-execution evidence.
   result; record genuine Value parents Y/P, return cycle Q/P*, and absence
   of required P*=P; keep the original source/normal-inference theorem OPEN.
   No task/index/theory-status edits made by the leaf.
+
+## Later graph-definition correction
+
+The user clarified that this payload-only SCC is not the intended graph. The
+analysis above follows solver-stored bound payloads but omits source-value
+references such as `host → outer`. Therefore the displayed `Q/P*` cycle is an
+operational payload cycle only; it is not evidence about the semantic SCC used
+by intrusion and does not establish absence of an SCC in the source graph.
+Treat all SCC qualification claims in this note as superseded until source
+value-reference adjacency is derived from actual source constructors.
