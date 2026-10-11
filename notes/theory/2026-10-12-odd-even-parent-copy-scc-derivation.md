@@ -1,7 +1,7 @@
 # Cross-level odd/even: forced port extrusion and the remaining reference bridge
 
 Date: 2026-10-12
-Status: frozen, unreviewed bounded constructive derivation; parent gates OPEN
+Status: frozen bounded constructive derivation; independently reviewed; parent gates OPEN
 Baseline: `264bf0158c986579739964289450bb70cbe57a71`, `research/simple-sub-intrusion`
 Exclusive lease: this file; one leaf, no delegation
 
@@ -351,8 +351,12 @@ and proof construction stayed within the 45-minute packet; exact CPU, RAM and
 reasoning elapsed time were not measured. The primary remains verification
 and integration owner. Requested normal policy route: `gpt-6.1-sol/high`;
 effective model/effort metadata is unavailable to this leaf, so observed
-runtime settings are unknown. No Astra or hot-reload claim. No independent
-review has occurred.
+runtime settings are unknown. No Astra or hot-reload claim. A separate
+`compiler_referee` review found no blocking, major or minor findings in the
+finite original-rule derivation, bounded candidate constructor trace, or
+stated claim boundary. The review did not cover exact-source admission, later
+candidate worklist/effect/SCC transitions, Value-owner semantics, complete
+Call, global soundness/principality, or the parent theorem.
 
 Direct dependency SHA-256 snapshot (no dependency was edited by this leaf):
 
@@ -386,8 +390,8 @@ Baseline: `264bf0158c986579739964289450bb70cbe57a71`; reference baseline:
 `9bae772624c23b52a93c1b226157e16898b4d9db`. Changed dependency hashes: none
 caused by this leaf; listed live inputs are the frozen read snapshot, with
 baseline-content comparison/integration retained by the primary. Claim/review:
-unreviewed finite original derivation and conditional native constructor
-characterization, no theorem/implementation closure. Checks: exact source
+independently reviewed finite original derivation and conditional native
+constructor characterization, no theorem/implementation closure. Checks: exact source
 reads, identity/hash inspection and note integrity only; no tests/builds.
 Proposed checkpoint message:
 `research: derive odd-even Call port extrusion and isolate its reference bridge`.

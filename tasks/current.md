@@ -10744,15 +10744,28 @@ analogue `my odd n = { my even n = odd(n); even(n) }` now reaches two actual
 polar extrusion events during opposite-bound replay:
 `Parent(cQ1,Q2,+,1)` for the inner formal and
 `Parent(cA1,A2,-,1)` for the inner Apply result. Neither pair is `(odd, even)`;
-the source-owner cycle gives no return Value-reference path for either pair.
-Thus the example confirms why cross-level source recursion matters, while
-leaving source-content/target transport and qualifying parent-copy SCC
-membership OPEN. The exact user's conditional/arithmetic spelling and the
-analogue have not been executed through ordinary HIR. The bounded operational
-trace passed independent `compiler_referee` review with no findings and is
-checkpointed at [`odd/even native extrusion audit`](../notes/progress/2026-10-12-odd-even-native-extrusion-audit.md)
-(`f3521ec34`); it proves neither intrusion qualification nor equality
-preservation.
+the binder SCC alone supplies no path connecting either extrusion pair's
+endpoints, so their approved Value-reference SCC membership or nonmembership
+remains OPEN. Thus the example confirms why cross-level source recursion
+matters without deciding intrusion qualification. The exact user's
+conditional/arithmetic spelling and the analogue have not been executed
+through ordinary HIR. The bounded operational trace passed independent
+`compiler_referee` review with no findings and is checkpointed at
+[`odd/even native extrusion audit`](../notes/progress/2026-10-12-odd-even-native-extrusion-audit.md)
+(`f3521ec34`).
+
+A separate bounded `prover` derivation now instantiates the original
+Simple-sub rules on the recursive/nested Call skeleton and traces the same
+port extrusion in the candidate analogue. In the original store, the bound
+cycles `C <: A <: B' <: C` and `D <: S <: D` contain neither extrusion parent
+`B` nor `R`; these are constraint cycles, not Value-reference SCCs. In the
+candidate trace, `C` and `D` are retained copies of inner formal `B` and Apply
+result `R`; later local-use freshening preserves them as anchors. Independent
+`compiler_referee` review found no issue in the finite original derivation or
+the bounded constructor trace. This still does not establish the actual
+Apply/formal owned-content and polar transport law, exact source admission,
+same-SCC qualification, or equality preservation. See [`odd/even parent-copy derivation`](../notes/theory/2026-10-12-odd-even-parent-copy-scc-derivation.md)
+(`225acb748`).
 
 The interpretation draft at
 [`Value-content intrusion interpretation`](../notes/design/2026-10-11-value-content-intrusion-interpretation-draft.md)
@@ -10763,4 +10776,12 @@ the source graph as a candidate. The concrete unresolved equation remains
 whether an Apply result row owns its source computation fragment, returned
 Value content, or only inferred type structure, with a corresponding
 reference-introduction/forwarding law. No source evidence or proof selects
-among these choices. No solver code or tests changed.
+among these choices. The finite original Simple-sub derivation and bounded
+candidate construction trace in the
+[`odd/even parent-copy derivation`](../notes/theory/2026-10-12-odd-even-parent-copy-scc-derivation.md)
+(`225acb748`) passed independent `compiler_referee` review with no findings.
+Primary revalidated all listed source/reference hashes against the committed
+worktree after the review. The note derives two constraint cycles excluding
+the extrusion parents, while explicitly keeping those cycles separate from
+Value-reference SCCs. It does not resolve the Apply owner law or establish
+parent/copy SCC qualification. No solver code or tests changed.
