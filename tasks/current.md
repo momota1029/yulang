@@ -9609,3 +9609,20 @@ next premise remains actual formal-owned declaration/application and
 entry/receipt/Force/rebind construction at `L,d_f`, followed by literal
 Application and same-provider completion. Complete Call, Generalize, source
 adequacy, soundness, principality and F5 remain OPEN.
+
+The [direct local-law analysis](../notes/theory/2026-10-11-invoke-source-local-law-proof.md)
+was then independently reviewed by a `prover` and `compiler_referee`. Its
+bounded result is the selected Return/Request/raw-resumption operational
+template plus an exact remaining formation gap: actual source-owned complete
+`I_f/IF_L` and `F_c/D_c/P_F_c/IF_c`, their independent challenge/carrier
+incidence, and native interpretation are still unprovided by the selected
+rules and inputs. Strict and ReadInvoke compose already-formed facts; they do
+not establish those local laws. The prover review's notation minor was fixed
+by separating inert source derivation `d_c` from independently formed whole
+challenge `h_c` with carrier/context incidence. Neither review found a
+blocking or major defect. This is not a source counterexample or impossibility
+result, and it closes none of the original source Call, Generalize, adequacy,
+hygiene, soundness, principality, or F5 gates. Next owner remains primary:
+elaborate the actual formal-owned entry/declaration law and literal
+Application law at their source owners, without assuming their complete typed
+outputs.
