@@ -107,6 +107,39 @@ subagent does not transfer those responsibilities.
 Do not select current roles from legacy Level numbers, Fable/Sonnet
 availability, or ad hoc model-tier prose.
 
+## Proof-first critical-path scheduling
+
+For a new or substantially changed core Simple-sub mechanism whose correctness
+or ordinary inference behavior depends on an open class-A/B proof obligation,
+**prioritize proving or refuting its decisive invariant before committing to a
+proof-dependent implementation strategy.** The primary assigns a constructive
+proof, an adversarial falsification or source-coverage check, and independent
+review as appropriate before scheduling a large dependent implementation slice.
+Pin the original theorem, quantifiers, accepted source behavior, and exact
+construction/consumer premises. A plausible design, approved implementation
+plan, conditional lemma, or successful test is not proof of its central premise.
+
+Order the shared critical path as: (1) establish or refute the required theorem
+or the specific feasibility invariant that controls the design choice;
+(2) establish the source-to-construction/consumer correspondence needed to use
+that result; (3) integrate the proof-supported implementation and verify it.
+If a full theorem requires executable source evidence, permit only the smallest
+bounded, reversible, explicitly provisional instrumentation, prototype or
+implementation slice needed to establish that evidence before proof closure.
+Keep its dependent production/cutover gate OPEN; do not convert such scaffolding
+into settled architecture merely because tests pass. Continue genuinely
+independent approved fixes and implementation work. Proof priority does not
+require completing all global metatheory before writing any compiler code.
+
+When a failed proof or genuine counterexample invalidates a chosen
+construction, pause the affected implementation and return the exact
+contradiction to the existing independent design-review and user-approval path.
+Do not silently reopen or change an Authoritative semantic decision without
+that process. Never salvage a failed proof by narrowing the supported source
+domain, changing native Simple-sub behavior, or relabeling a required A/B
+obligation as optional research. The parent proof gate retains its owner and
+OPEN/BLOCKED status until its original claim is genuinely resolved.
+
 ## Proof closure and implementation handoff
 
 **The objective of proof work is to discharge the original obligation, not to

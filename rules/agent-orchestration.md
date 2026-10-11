@@ -124,6 +124,30 @@ Return a derivation with original quantifiers and explicit hypotheses, a genuine
 counterexample, or the exact reduced premise with failed routes and next evidence.
 Tests of a supplied finite model do not prove its source assumptions.
 
+**Proof-first critical-path order.** When an unproved A/B premise could
+invalidate a proposed Simple-sub mechanism, make the original theorem and its
+source/consumer construction the highest-priority dependent gate. Dispatch
+`prover` construction and genuinely independent falsification/source
+correspondence before spending the next major implementation packet on that
+mechanism. Record the proposed implementation invariant, exact proof-status
+evidence, failure falsifier, and construction owner before treating the design
+as an implementation-ready gate. For new proof-dependent design choices,
+resolve the decisive feasibility argument before design freeze; independent
+review must attack its assumptions, not merely the planned code.
+
+If the critical premise stays OPEN, hold broad dependent implementation and
+production promotion while the primary pursues the exact missing proof or
+counterexample. Bounded exploratory compiler instrumentation or a reversible
+construction slice may run only when it is needed to supply the proof's actual
+source evidence, with an explicit non-authoritative scope, falsifier and
+verification owner. Independently justified implementation can continue.
+If a proof failure exposes a real contradiction to an already Authoritative
+design, stop affected work and use the established design-authority review and
+user-approval process; never silently change semantics or restrict ordinary
+source inputs. A conditional lemma or experimental pass cannot lift this gate.
+Do not make proof-first a pretext for endless planning, for proving optional C
+characterizations before required A/B, or for blocking unrelated safe work.
+
 A `prover` is a leaf unless the primary explicitly assigns a **proof-coordinator
 packet**. The primary may grant this packet under the current user authorization
 without asking for approval again. It must specify:
