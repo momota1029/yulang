@@ -11498,3 +11498,30 @@ source reachability or actual output survival. The next effect proof must
 trace an actual source contribution to its final output route while retaining
 attachment, source/call parents and residual lineage. No code or tests changed;
 H, full Call, soundness, principality and F5 replacement remain OPEN.
+
+The [Value-reference copy-law derivation](../notes/theory/2026-10-12-value-reference-copy-law-proof.md)
+§9 now records the exact equations fixed by approved source ownership. Its
+independent compiler-referee delta review found no findings in that section.
+The settled rows are `I → X` for `id x = x`, no body Name edge for
+`konst x = 0`, `R → K` for `konst 1`, and `O → E,A`, `E → O,B` for nested
+cross-level `odd/even`; `A` and `B` are distinct shadowed formals. The original
+Simple-sub `extrude` and `freshenAbove` copy type/bound structure and provide
+no Value-owner transport rule. Finite interface graphs show that incidence
+inheritance and description-only copies differ in adjacency, but neither
+qualifies the displayed retained pair or establishes a typing difference.
+The two operations' copied-owner/frame rules remain a genuine open design
+seam; no policy is adopted, and the pending question remains uncommitted.
+Original incidence emission is a separate implementation bridge. Call/Lambda/
+Block admission and all equality-preservation, soundness and principality
+gates remain OPEN. No compiler code or tests changed.
+
+The reviewed §9 source derivation in the [native negative residual artifact](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
+adds the Oracle fixture's `(u,v,s,t,r)` map. `[ev] 'a` has `Top` as the row
+tail, not a fresh Effect tail. The concrete `send` contribution enters the
+full formal slot `v` and matching handled head; no inspected rule maps it to
+inner residual coordinate `u`, and input-head acceptance is not positive
+retention in catch/function output. This is a bounded local Call/handler
+result, not H closure or a counterexample. The next effect obligation is the
+actual generalization/compaction/use-scheme map and its designated independent
+output route. Checkpoint `dff45c67b` was pushed after inspecting its full
+outbound range; no tests/builds or compiler edits occurred.

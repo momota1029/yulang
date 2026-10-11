@@ -421,3 +421,125 @@ Commit packet:
   Do not promote either policy or the parent theorem. No shared record edited.
 
 Writes stop at submission; the primary owns review, authority and integration.
+
+## 9. Original-owner equations and the separate copied-owner seam
+
+Append baseline: `c87a828b357d996009ddfe6b2f74ff90a35c97a2`.
+Status: unreviewed constructive characterization of the fixed source rules;
+no selected copy policy and no parent-gate closure. This section preserves
+§1's original programs, histories, scopes, quantifiers and required conclusion.
+For each resolved Name occurrence sigma, retain its original binder beta,
+original binder Value row b(beta), source scopes and actual use/event frame.
+Given established source ownership Own(v,sigma), the Name-incidence component
+of the graph is determined by
+
+```text
+I_Name(v,sigma,beta,b(beta)) iff Own(v,sigma) and Resolve(sigma)=beta
+v ->_Name w iff exists sigma,beta. I_Name(v,sigma,beta,w).
+```
+
+This determines incidence once ownership is known; it does not determine every
+owner or exclude other independently licensed Value references. Subtype
+comparisons, bounds, providers and Parent records do not fill that gap.
+
+For the settled Name/Literal/Apply fragment, the approved Apply membership
+rules give the minimal induction
+
+```text
+Names(Name sigma) = {sigma}
+Names(Literal) = empty
+Names(Apply f a) = Names(f) union Names(a)
+Own(result_of_Apply(f,a),sigma) iff sigma in Names(Apply f a).
+```
+
+The final equation is exact for this settled fragment. It does not assign
+membership across Lambda, Block, wrapper or local-initializer boundaries of
+an Apply, and does not restrict supported source to this fragment. Independently,
+at definition publication, its root owns the Names in its source-owned
+initializer/body; nested declaration initializer Names belong to that nested
+declaration's root. Binding declarations are not Name references. One Name
+may be owned by both an Apply result and its enclosing definition root without
+identifying those Value rows. The approved definition rule can apply to Names
+inside its own Lambda/Block body; it does not assign the standalone Lambda or
+Block row the same ownership.
+
+Consequently the fixed original-owner cases are:
+
+| Source case | Original Name-incidence adjacency |
+| --- | --- |
+| `id x = x` | `I -> X`, to the original formal binder row |
+| `konst x = 0` | `Out_Name(K) = empty` for this body |
+| `konst 1` | `R -> K`, before and after Call, including when the provider is literal 0 |
+| `f(0)(0)` | `R1 -> F` and `R2 -> F`; containment adds no `R2 -> R1` |
+| Nested `odd`/`even` of §6 | `O -> E,A` and `E -> O,B`, plus any actually resolved external Names |
+
+A and B are the distinct shadowed formal `n` rows. External operator/Boolean
+Names require their actual resolution; no primitive signature is supplied here.
+The approved `O -> E -> O` cycle crosses levels and establishes an original-root
+SCC, not a retained parent/copy pair. Exact-source admission and native emission
+remain outside this derivation. These equations are the maximal settled
+Name-incidence characterization for these owner cases, not a unique complete
+graph for all source constructors and copies.
+
+The original reference supplies no further owner assignment.
+`Typer.scala:134–159` extrudes type structure with a polar variable map,
+reverses Function argument polarity, and copies the relevant bounds: positive
+extrusion records parent <: copy, negative extrusion copy <: parent.
+`:166–188,201–207` freshens eligible variables and both bound lists with one
+coherent map per instantiation, sharing variables below the boundary.
+`:194–230` defines types, levels and bounds without source-owner, Name-incidence
+or Value-reference fields. Thus `id`'s two type ports become the same X_i,
+while `konst`'s parameter description freshens and int remains unchanged;
+neither calculation assigns a copied root a source-computation owner role.
+The paper's §3.5.1 and Figures 6–7 concern this type/bound copying, not the
+selected Value graph. Source Generalize §§2–5 and selected construction §5.2
+preserve whole clauses, scopes, shared anchors and independent description
+frames; their symbolic binder/final-root incidences do not establish this
+native SCC owner assignment.
+
+Separating extrusion from fresh use gives the smallest complete graph pairs
+at the actual cuts of §3. All other edges in each displayed interface are empty.
+At the fresh-use cut, hold the extrusion choice identical in both graphs:
+
+| Operation/cut | Vertex set | Copy without inherited owner | Copy with inherited owner |
+| --- | --- | --- | --- |
+| After negative extrusion | `{F,Y,C}` | `{Y -> F}` | `{Y -> F, C -> F}` |
+| After fresh use, C unowned in both | `{F,Y,C,Y_i}` | `{Y -> F}` | `{Y -> F, Y_i -> F}` |
+
+Any separate outer definition owner adds the same §3 incidences to both sides.
+These are complete finite interface graphs over the same native allocation,
+bounds, scopes and original binder targets, not complete language models.
+Each pair differs in one Own fact. Neither supplies an incoming path to C,
+so neither qualifies (C,Y) or establishes a difference in inferred typing.
+The use row Y_i is not an extrusion parent by its allocation. No claim is made
+that either completion satisfies every future soundness/principality obligation.
+
+The precise missing equations are Own(C,sigma,scope,frame) for polar extrusion
+and Own(Y_i,sigma,scope,frame) for per-use freshening; one does not decide the
+other. Original Apply/root emission is missing implementation evidence for
+already selected semantics (§7); reconstructing it from bounds is design debt.
+Assigning ownership to newly allocated description copies is an unresolved
+durable inference/graph design seam unless independently established source
+ownership determines it. Whether alternatives preserve the same observable
+language behavior remains unproved. This characterization does not adopt a
+policy or constitute another attempt at the unchanged parent theorem.
+Transport, incoming-reference construction, qualifying equality, complete Call,
+effect hygiene, soundness, required principality and all original parent gates
+remain OPEN.
+
+An independent compiler-referee delta review of this §9 at artifact hash
+`bf3a31795f643f0518380e2c6076188c50662f40c584048c1b104b623f54c41f` found
+no blocking, major, or minor findings within the stated scope. The unchanged
+§§1–8 and the original parent theorem were not reviewed or closed by this
+delta review.
+
+Checks for this append: governing sections and target reread, native source
+reread, dependency hashes and text/diff inspection; no tests, builds, Oracle,
+executable graph probes, Git mutations or delegation. The four governing
+design/construction hashes and reference Typer hash still equal §8's snapshot.
+The local paper SHA-256 is
+`5ab2bd4122caee17c20134e4cbe8dc8a4848c142de1e576b5fd178aed8787698`.
+Requested runtime: normal Sol proof leaf `gpt-6.1-sol/high`; observed runtime
+model/effort metadata unknown. No Astra. One next action: the primary specifies
+and independently reviews the exact owner/frame law for each copy operation,
+keeping the already selected original emission/consumer gap separate.
