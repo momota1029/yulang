@@ -11543,3 +11543,14 @@ prelude `dump --poly` attempts produced no output before 30-second and
 15-second timeouts. No Oracle result was inferred from these invocations. This
 source bridge, H, complete Call, soundness, principality, and F5 replacement
 remain OPEN. No compiler code or tests changed.
+
+The appended [§10 selected `run` projection trace](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
+is committed and pushed at `fc0b947c5`. Its fresh compiler-referee review found
+no issue within the bounded source/consumer characterization. It does not
+compute the fixture's selected map: the first missing input remains the actual
+`run` root, accepted generalization iteration/epoch, selected root records and
+Function endpoint (`P_sel`). The review explicitly leaves fixture execution,
+Call/output retention, H, Y3 correspondence, soundness, principality and
+cutover open. A separate source-route audit is locating the narrowest way to
+capture the owner snapshot; that audit used static reads only. No compiler code
+or tests changed.
