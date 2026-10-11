@@ -10026,3 +10026,27 @@ reference transport to extrusion copies/fresh uses, equivalence with the
 operational `candidate_intrusion` graph, or a retained parent/copy pair in
 this SCC. Those are the next proof obligations; complete inference,
 soundness, principality, generalization and production gates remain OPEN.
+
+### 2026-10-11 mutual recursion copy discriminator
+
+The independently reviewed original-root witness answers the user's proposed
+SCC example: ordinary mutual recursion gives an actual nontrivial Value SCC
+`F ↔ G`. A separate nested Apply discriminator was traced toward an
+extrusion-created copy/parent pair. Its conditional operational prefix
+allocates actual distinct rows and retains their parent metadata, but it does
+not establish source-reference ownership for those copies or a source path
+back to the parent. The exact nested extension and successful prefix also
+remain unexecuted. A fresh `compiler_referee` review found two overclaims in
+the initial complementary progress note (Block ownership projection and
+reconstructed-vs-admitted demand); both were corrected and delta review passed.
+
+The corrected audit is
+[the nested mutual-recursion search](../notes/progress/2026-10-11-mutual-recursion-parent-copy-search.md);
+the conditional constructor derivation is
+[the parent/copy proof note](../notes/theory/2026-10-11-mutual-recursion-parent-copy-proof.md).
+Neither proves source parent/copy SCC membership, scanner equivalence, or
+intrusion adequacy. The exact next premise is the extrusion-owned construction
+and transport of source values/references for fresh Value copies. The parent
+intrusion, complete inference, soundness, principality, Generalize, effect
+hygiene and production gates remain OPEN. No tests, builds, Oracle runs or
+compiler changes were made in this slice.
