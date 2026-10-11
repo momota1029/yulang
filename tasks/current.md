@@ -10002,3 +10002,27 @@ payload constructors cannot fill this premise by themselves. The conditional
 structural/transport lemmas therefore do not establish the actual source graph,
 intrusion SCC conformance, or pair reachability. Those gates remain OPEN. No
 compiler code or tests changed.
+
+### 2026-10-11 mutual-recursion Value SCC witness
+
+Following the user's suggestion, the smaller supported module source
+`my f x = g; my g y = f` supplies the needed nontrivial source Value SCC.
+The resolved Name occurrences belong to the two distinct definition values;
+each definition root is allocated an actual, distinct Value row `F` or `G`.
+Composing the source-owned references with that joint root-to-row map gives
+`F → G` and `G → F`, so `{F,G}` is an SCC containing two distinct Value
+variables. This construction uses neither subtype-comparison direction nor
+the definition `SccPlan` as semantic adjacency. The exact source-to-root
+derivation is recorded in the independently reviewed
+[constructive proof](../notes/theory/2026-10-11-mutual-recursive-value-scc-proof.md)
+and corroborating
+[source trace](../notes/progress/2026-10-11-mutual-recursive-value-scc-source-trace.md).
+An independent `compiler_referee` accepted this bounded source-root bridge.
+Existing test sources contain this program but no tests were run in this slice.
+
+This closes the Name-owner/target bridge for these two original module Value
+roots only. It does **not** establish occurrence-row path factorization,
+reference transport to extrusion copies/fresh uses, equivalence with the
+operational `candidate_intrusion` graph, or a retained parent/copy pair in
+this SCC. Those are the next proof obligations; complete inference,
+soundness, principality, generalization and production gates remain OPEN.
