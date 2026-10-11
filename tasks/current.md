@@ -9835,3 +9835,54 @@ artifact only; it is not integrated into the Value graph result. No compiler
 code or tests changed in this correction. The full Simple-sub inference,
 soundness, principality, complete Call, Effect hygiene, source Generalize,
 rejection, production acceptance, and F5 replacement gates remain OPEN.
+
+### 2026-10-11 source-qualified Value-reference follow-up
+
+The reviewed [native Value-reference reachability derivation](../notes/theory/2026-10-11-value-parent-copy-reachability-proof.md)
+supports only the bounded operational claim: the inspected native Value payload
+writers preserve nonascending contained-reference levels, so a strictly lower
+retained extrusion copy cannot return to its parent in that represented graph
+before a first Value merge. The independent review found no source-level
+contradiction in that bounded proof, but identified the original semantic
+bridge as OPEN: completeness of the four payload arrays as the user's full
+source Value-reference relation is not established. Do not infer normality,
+intrusion redundancy, or source adequacy from this rank result.
+
+The [source-qualified recursive application trace](../notes/progress/2026-10-11-source-qualified-value-parent-copy-scc.md)
+constructs an actual `P₃ → C₂` retained pair and a separate equal-level Value
+cycle `Qc₂ → R₂ → B₂ → Qc₂`; neither contains its traced parent/copy pair.
+It remains an unreviewed static derivation and did not execute the source.
+
+An independently reviewed [nested returned-helper construction](../notes/progress/2026-10-11-nested-source-value-reference-search.md)
+finds a different source shape that preserves an active ancestor reference:
+`my outer = { my f x = { my g y = f; g }; f }`. Under the explicit source and
+replay hypotheses, fresh local use retains the original `F` in `N*.lower` and
+the emitted payloads form `F → B → N* → F`. This cycle contains no retained
+Value extrusion event; fresh-use identities are not extrusion children. The
+review confirms the bounded constructor trace and flags exact source parse/HIR
+and completed replay as unverified. The artifact was corrected to avoid
+implying the SCC scan executes when there are no parent records.
+
+The constructive [ordinary Simple-sub and native ancestor-sharing comparison](../notes/theory/2026-10-11-source-required-value-parent-copy-cycle.md)
+traces the same minimal family against pinned `simple-sub-reference`
+`9bae772624c23b52a93c1b226157e16898b4d9db`: `freshenAbove(2, D)` retains the
+shared level-2 ancestor while freshening level-3 helper rows, matching the
+native `N*.lower=[A]` construction at this boundary. It derives an ordinary
+equal-level ancestor cycle without any retained Value extrusion pair. This is
+a bounded bridge only; independent review found no blocking/major finding,
+confirmed preservation of the original ancestor and the projected payload
+cycle, and required labeling it as a row path contracted through Function
+nodes. That precision fix is in the note. Exact parse/HIR and completed replay
+remain unverified; complete source acceptance and semantic adequacy remain
+OPEN.
+
+These constructions distinguish genuine payload cycles and preserved lexical
+dependencies from the specific retained-parent/copy antecedent. They still do
+not establish whether a supported source requires an original higher-level
+parent reference to survive an actual extrusion. The remaining source witness
+owner must find or refute that exact requirement at a constructor that creates
+a recorded extrusion parent; it cannot substitute lexical freshening or repeat
+the rank proof.
+The original Simple-sub inference, complete Call, soundness, principality,
+Effect hygiene, Generalize, rejection, production acceptance and F5 replacement
+gates remain OPEN. No implementation or tests changed.
