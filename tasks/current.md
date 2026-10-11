@@ -176,6 +176,23 @@ major or minor issue in this localization. This remains a source-application
 obligation, not a refutation or impossibility result; the original theorem
 remains OPEN.
 
+The separate direct-rule attack in
+[`invoke original Call source falsification`](../notes/progress/2026-10-11-invoke-original-call-source-falsification.md)
+and the constructive
+[`invoke original Call proof attempt`](../notes/theory/2026-10-11-invoke-original-call-proof.md)
+now record a distinction derived from the upstream source itself. The actual
+`LocalSource` spine projects to `lambda f. f 1`; Parreaux's ordinary
+T-Var/T-Lit/T-App/T-Abs derivation gives the ordinary scheme
+`∀β.(Int → β) → β` under `α <: Int → β`, with no receipt map. That does not
+lift to Yulang's complete Function judgment: the selected Lambda/Call rules
+also require authentic contextual entry, same-provider `ActualAdm`, receipt,
+transport and complete observations. The source audit and prover locate the
+unproved edge at the Lambda/Call source lift, without showing that a particular
+standalone formal-map representation is necessary. Both artifacts are frozen
+and pushed as unreviewed research; independent proof review remains pending.
+The complete Yulang Call, soundness, required principality, effect hygiene,
+source Generalize and F5 replacement remain OPEN.
+
 Both Yulang extension results remain subordinate to the original theorem.
 Complete inner Call formation and same-provider whole-argument compatibility,
 source Generalize, full effect hygiene, principal public output, inconsistent-
