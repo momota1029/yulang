@@ -8936,6 +8936,9 @@ promotion OPEN.
 
 ## 2026-10-11 lifecycle proposal and W/A3 rollback continuation
 
+This continuation supersedes the preceding checkpoint's immediate next-action
+sentence.
+
 The primary's exploratory lifecycle admission proposal is recorded in
 [`retained-lifecycle-admission-architecture-proposal`](../notes/progress/2026-10-11-retained-lifecycle-admission-architecture-proposal.md).
 Independent spec-auditor and compiler-referee reviews found and adjudicated
