@@ -9727,8 +9727,9 @@ their OPEN gates:
   invocation, and per-use quantified-ID renaming from actual Oracle owners.
   Its original universal hygiene claim H remains OPEN at
   generalization/projection/compaction/pruning/finalization and actual delayed
-  call/output consumption. No counterexample or universal source bridge was
-  proved.
+  call/output consumption. A fresh compiler-referee review passed these local
+  claims and confirmed the stated generalization/call coverage limit; no
+  counterexample or universal source bridge was proved.
 - [`Oracle nested scheme falsification`](../notes/progress/2026-10-11-oracle-effect-nested-scheme-falsification.md)
   confirms that nested Function output-subtraction vectors are not forwarded
   into the enclosing binder-call predicate. It does not show a hygiene
@@ -9751,11 +9752,13 @@ but universal source constraint completeness remains OPEN. In particular,
 the natural recursion regression does not establish the complete two-root
 Generalize relation for `my f x=g; my g y=f`.
 
-The next normal-inference proof lane is the actual source fixed/retain closure
-at Generalize and its correspondence to level-based capture, with a separate
-source falsifier. An independent review of the frozen Oracle hygiene artifact
-is also running. Full source Generalize, complete Call, soundness, principality,
-normal inference progress, effect hygiene, production acceptance, and F5
-replacement all remain OPEN. Current research branch checkpoint is
-`391779c91` (pushed); no compiler code, tests, semantic rules, or F5 routing
-changed in this wave.
+The active normal-inference proof lane is the actual source fixed/retain
+closure at Generalize and its correspondence to level-based capture, with a
+separate source falsifier. A second constructive lane now attacks the exact
+nested Oracle Generalize-to-delayed-call bridge; it must derive whether pruned
+IDs are discharged/exported and retained IDs reach their actual consumer. The
+reviewed Oracle local lemmas do not close universal hygiene. Full source
+Generalize, complete Call, soundness, principality, normal inference progress,
+effect hygiene, production acceptance, and F5 replacement all remain OPEN.
+Current research branch checkpoint is `a92fc1c8e` (pushed); no compiler code,
+tests, semantic rules, or F5 routing changed in this wave.
