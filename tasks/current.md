@@ -10445,13 +10445,18 @@ ports, and that parameter endpoint aliasing cannot be treated as a reference
 edge without an owner law. Neither artifact supplies a counterexample to the
 approved graph or selected intrusion.
 
-Both artifacts are research-only and independent review is pending. The
-decisive OPEN premise is the mathematical owner law for formal/occurrence rows
-and Lambda argument/result ports, including how one resolved binder and its
-owned reference are represented across distinct polar copies. Apply it to
-the already retained module-Name certificate, then prove transport through
-Apply, levels, extrusion, local generalization/fresh use, and agreement with
-the actual intrusion consumer. The original all-source/all-history/actual-
-retained-pair theorem, type-equality justification, required principality,
-complete Call, effects and production/cutover remain OPEN. No compiler code,
-tests, builds or Oracle execution were changed or run.
+Both artifacts remain research-only. An independent `compiler_referee`
+reviewed the mathematical note with no findings in the graph quotient,
+conditional SCC/type-equality separation, or source-derived polarity
+obstruction; the all-source theorem and its source correspondence remain OPEN.
+The complementary source audit remains unreviewed and establishes no
+counterexample. The decisive OPEN premise is the mathematical owner law for
+formal/occurrence rows and Lambda argument/result ports, including how one
+resolved binder and its owned reference are represented across distinct polar
+copies. Apply it to the already retained module-Name certificate, then prove
+transport through Apply, levels, extrusion, local generalization/fresh use,
+and agreement with the actual intrusion consumer. The original
+all-source/all-history/actual-retained-pair theorem, type-equality
+justification, required principality, complete Call, effects and
+production/cutover remain OPEN. No compiler code, tests, builds or Oracle
+execution were changed or run.
