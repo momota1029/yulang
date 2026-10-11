@@ -10196,6 +10196,32 @@ source-only bridge is active at
 It traces the actual SCC/generalized use, freshening, provider contribution,
 call/output and check owners without another Oracle run.
 
+### 2026-10-11 mutual-recursion root route boundary
+
+The user's suggested mutual recursion is a natural source of a genuine
+nontrivial Value-reference SCC: the reviewed witness
+`my f x = g; my g y = f` establishes actual distinct roots `F ↔ G`. A separate
+bounded native-constructor audit now follows those roots toward the retained
+intrusion pair. The actual mutual Name transitions are row/row admissions and
+do not invoke extrusion. If a level-one root is visited at an extrusion target
+`t >= 1`, the constructor retains and returns that same row before traversing
+its payload; it creates no copy whose parent is `F` or `G`. Boundary-zero
+generalization capture and later fresh-use allocation are different
+constructors. An independent `compiler_referee` review found no issue in this
+guarded route-local conclusion.
+
+This does not refute the approved operation or establish a source parent/copy
+SCC. The exact missing obligations remain an authentic route to a retained
+pair and the source-value/reference ownership and transport for copied rows,
+followed by conformance of the operational scanner to the selected
+Value-reference graph. The derivation and its level/target guards are in
+[`mutual-recursion copy SCC bridge`](../notes/theory/2026-10-11-mutual-recursion-copy-scc-bridge.md).
+The parent/copy, scanner, complete inference, soundness, principality, effect
+hygiene and F5 replacement gates remain OPEN. No tests, builds, Oracle calls or
+compiler changes were made. Next action: establish the existing copied-row
+value/reference law at its owning constructor, rather than repeating the
+formal or result-copy variants already audited.
+
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
 operational Effect SCC; an independent `compiler_referee` found no blocking or
