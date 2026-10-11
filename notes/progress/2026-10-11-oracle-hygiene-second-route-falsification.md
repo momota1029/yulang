@@ -124,10 +124,10 @@ observe its fresh-use root POP at k. The actual positive collector defeats this
 particular retained-PUSH route before such a conclusion can be drawn.
 
 For a compact visit carrying exactly boxed's output POP_i to its original T_i
-lower, `compact/collect/type_nodes.rs:84–91` passes the carried weight into
+lower, `compact/collect/type_nodes.rs:76–81` passes the carried weight into
 each Tuple component. Positive Function collection (:17–23) resets argument
 weights and sends that POP to F_i's result Effect. Its Stack constructor
-(:97–105) prefixes its own PUSH_i before the carried weight:
+(:87–95) prefixes its own PUSH_i before the carried weight:
 
 ```text
 tuple output weight:             POP_i
@@ -139,7 +139,7 @@ This is the real order: `stack_weight.union(&weight)`, where
 `poly/src/types.rs:402–410` defines union as compose. `append` (:485–495)
 then `push_pops` (:540–557) removes the one matching active stack entry.
 The tick filter persists; it is not a same-family contribution deletion.
-Positive NonSubtract compaction (:92–96) adds F_i's Unit-return POP separately,
+Positive NonSubtract compaction (:83–86) adds F_i's Unit-return POP separately,
 which does not recreate an active PUSH at q.
 
 **Conditional local conclusion:** on this direct T_i compact path, the intended
