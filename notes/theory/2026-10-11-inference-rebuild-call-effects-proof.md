@@ -1,9 +1,12 @@
 # Complete Call and contextual effects in the inference rebuild
 
-Status: frozen unreviewed research note; relative constructor derivations and
-bounded source correspondence; no parent-theorem closure or design authority.
+Status: frozen research note; relative clauses have bounded `compiler_referee`
+review, and the literal-supplier delta passed separate bounded review; Oracle
+source claims and parent-theorem closure remain unreviewed/OPEN. No design
+authority is claimed.
 Date: 2026-10-11
-Baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`,
+Initial baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
+Constructive-delta baseline: `70696a873a6d0eea420fa90eb5481b2c0502919f`,
 `research/simple-sub-intrusion`.
 Exclusive lease: this file only. Leaf; no delegation, code, tests or Git mutation.
 
@@ -228,6 +231,219 @@ source fact or proof for parent/copy equality. Packet 1's equality premise
 remains open. Row equality must activate newly combined bounds/recipes and
 cannot erase separate lineages or grant annotation authority elsewhere.
 
+## Constructive delta: `my invoke f = f 1`
+
+This is one additional bounded pass at the current pinned revision. Source
+and governing design dependencies named above have no changes in
+`d8c097e..70696a8`; previously integrated proof wording is not semantic
+authority. The delta applies actual selected constructor judgments rather
+than asking a new reconstruction layer to infer their fields.
+
+### Literal Call supplier tuple from source formation
+
+Resolve the source as one Lambda L with parameter declaration `d_f`, one body
+Call c, callee Name occurrence `u_f`, and literal child a with payload 1.
+The source has no concrete effect annotation. Its lexical scope is Delta_c,
+and all the following outputs use one T_c and `xi=(nu,K,D)`:
+
+```text
+ParameterOrigin(L,f,Value(A_f),R_f), Entry-Value(L,...)
+  -> T_c = ValueBind(Capture(L),d_f,R_f,A_f,entry/rebind origin)
+Resolve(u_f,d_f), Name(T_c,u_f)=(same binding,actual route)
+  -> q_f = Data-Name(T_c,u_f,reg_f,route_f)
+  -> q_cf = Code-Result(q_f,o_f) : Comp(empty,A_f)
+
+ArgumentChild(c,a), IntegerLiteral(a,1), original Int/Result formation
+  -> q_a : Data_orig(T_c,literal(a,1),Value(Int))
+  -> o_a : ResultOfLiteral(a), q_ca = Code-Result(q_a,o_a)
+  -> R_a=Comp(empty,Int), J_a=Image_orig(q_ca)
+```
+
+These are the actual formation judgments in Call-input proof §§3.1–3.3 and
+the adopted Reify constructor proof §§2–3,5. Their primitive/reference/port
+formation inputs remain genuine. `Entry-Value` forms receipt/Force/rebind
+*ports*, not an executed receipt or a valid live world. Name uses the original
+formal binding and route; literal a is not fabricated as a Name. The generic
+native Simple-sub application analog generates `A_f <= Int -> r` and fresh r;
+it alone does not supply the complete Call judgment below.
+
+The adopted Reify direction supplies a constructive continuation for this
+literal child, independent of f's inlet or membership. Use the actual
+`ChildCode(a,q_ca)` derivation and the original licensed references in T_c:
+
+```text
+kappa = (version(S),c,ArgumentChild(c,a),ArgReify)
+P† = (P_old,N_arg,N_lit), with unchanged P_old at its original binder
+Original-LiteralImage†(q_ca,J_a) -> distinct J_lit, retaining J_a
+b = (chi,q_ca,J_a,I=J_lit,T_c,Delta_c,xi,refs(T_c),
+     o_arg=ArgPort(kappa,ArgReify),r_arg=ArgRoot(kappa),R_a)
+CodeUse(q_ca), BorrowRef(each actual licensed reference), b
+  -> AllocateArg -> SuspendLicense -> Original-CallArgReify†
+  -> t_a = Carrier-Delay(q_ca,origin†,refs(T_c)).
+```
+
+Derivation: invert q_ca once to retain the actual child/Result license;
+traverse its finite reference tuple once and keep each original scope/guard;
+install b at its source-owned ArgKey, then apply the selected license and
+Reify introductions. None consumes successful checking, a Call certificate,
+O0, source-effect correspondence or a satisfying assignment. Alternative
+valid payloads stay in the same slot's dependent fiber. Neither `J_lit=J_a`
+nor `J_lit=R_a` is used. The selected literal-carrier theorem in that proof
+§5 supplies CarrierMem at R_a and SourceImageCarrier at J_lit for every
+independently valid original immutable world/demand, including administrative
+prefixes, pending responses and future uses. This consumes the genuine Int,
+Return, Force and reference/world laws; it supplies no arbitrary-f inlet
+acceptance. Native-id/0 checking's narrower selected frame is not reused as
+an arbitrary-f/1 theorem.
+
+At the complete Call formation owner the remaining supplier is the following
+whole tuple, with dependencies in their original order:
+
+```text
+(S,B,X,xi,T_c,Delta_c,P_old;
+ d_f,A_f,R_f,reg_f,route_f,u_f,a,c,actual child edges;
+ q_f,o_f,q_cf,J_f; q_a,o_a,q_ca,J_a,R_a;
+ kappa,b,origin†,t_a,J_lit;
+ F_c:complete demand at R_f, rho_c, E_c,A_c;
+ u:checking occurrence distinct from u_f;
+ origin_WF, origin_VIncl, origin_WholeArgCompatible;
+ Q_e:authentic complete Call operation, origin_CIncl, result-origin;
+ beta=(d_f,R_f),p0,ElimOrigin,p_out(c),o_result;
+ actual-U/current-world-dependent entry/receipt/Force-or-Retain/
+   body/consumer/native-return/invocation-return suffix;
+ result provider, ordered future challenge/observation/evidence fields;
+ source annotation/protection origins, source scope and complete arm interfaces).
+```
+
+The future family remains dependent on the actual output provider. It is not
+one chosen future at generation. Source annotation records are empty for this
+unannotated source; its protected-formal seed and actual upper-use exposure
+remain distinct from provider-owned lower protection and from subtraction
+permission. No new annotation is inserted to make `f 1` easier to prove.
+
+The minimal emitter is a source-owned **record assembly** constructor that,
+from the actual child/registration/Reify/demand and existing predicate-domain
+formation derivations, emits the original predicate origins at this tuple:
+
+```text
+WF_Dec(F_c;xi)
+VIncl(A_f,F_c;xi,at actual checking u)
+WholeArgCompatible(the original assembled argument view,
+                   CarrierContract(F_c);xi,at c's argument origin)
+CIncl(the authentic complete Call image at Q_e,
+      Comp(E_c,A_c);xi,at the original result origin)
+plus original role/protection, complete arm, licensing and source-origin fields.
+```
+
+This list is a proposed constructor output obligation, not replacement
+predicate semantics or asserted satisfaction. The selected generic
+WholeArgCompatible schema takes its original Result/whole argument view;
+J_lit is the separate new suspension image attachment. Approval of Reify
+does not identify that attachment with the assembled checking operand, old
+image J_a or a raw actual-provider inlet. The actual predicate declaration
+and its declared-domain license must choose the operand at its original
+binder. No original witness is discarded by choosing an identity proof.
+
+Once *actual emitted origins* and the Application/demand/result formation
+exist, Code-Call (§3.4 of the input proof) assembles `Check_c` and the ordered
+Code tree from them. It cannot derive those origins: they are its premises.
+Hence the first exact missing source judgment is a forward, licensed
+original Call emission instance for this literal argument at the original
+P_old/Reg/Route and predicate domains, returning these whole origins and
+authentic Q_e/result/future incidence. If P_old or the original formal
+registration/primitive domain is not supplied, construction stops even
+earlier at that declared input. Current native Rust registration/terms are
+not certificates of those original judgments. No total literal emitter,
+complete typing, soundness or principal scheme is asserted by naming it.
+
+### Composed-polarity local subtraction and ordered replay
+
+The base source has no `[E]` occurrence, so it creates no concrete subtraction
+grant. For any actual annotation occurrence omega in the original theorem's
+domain, compute its sign by multiplying the enclosing polarities: each
+Function argument Value and argument Effect flips; result Value and result
+Effect preserve. Oracle pin `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`lowering/mod.rs:571–663`, implements these four constructor choices. Thus a
+formal Function's return row has composed negative sign, while a further
+argument descent flips it again. This derives the sign from the actual source
+path; it does not classify by the nearest textual label or solved shape.
+
+For a concrete negative row H at its function boundary, the paired annotation
+constructor `annotation/constraints.rs:424–469` allocates an actual inner row
+t, one fresh subtraction ID i for its concrete set, declared facts at t, and
+the following coherent views:
+
+```text
+positive Effect: Stack(t+, PUSH_i[H])
+negative Effect: Stack(t-, Filter_H)
+returned positive Value: NonSubtract(r+, POP_i with Filter_H).
+```
+
+The returned Value wrapper is assembled with the same `ret_eff.subtracts` at
+`:363–389`; the single set identity comes from `effect_row_stack`, while
+variables are skipped from the concrete set (`signature_effect.rs:453–460`).
+Symbolic-only tails retain their variable connection. The signature route
+`signature_effect.rs:140–178,378–439` retains its own actual stack/filter
+construction. These are exact static Oracle-source facts; they do not select
+an identical successor representation or claim all source positions follow
+one textual helper. The positive allowance case keeps concrete permitted
+members and tail flow; it grants no subtraction at another occurrence.
+
+Write a relation as `(lower,upper;W,origin)` with `W=(L,F,R)`. Actual wrapper
+normalization and replay are:
+
+```text
+Stack+(x,w) <= y @ W
+  -> x <= y @ prefix_left(w,W), retaining source derivation
+x <= Stack-(y,w) @ W
+  -> retain/check Filter(x,filter(w)) and active-family obligations;
+     x <= y @ suffix_right(with_filter(w,All),W)
+
+lower bound @ W1 and upper bound @ W2 of the same variable
+  -> lower <= upper @ mix(L1;L2,F1 intersect F2,R2;R1),
+     retaining BOTH bound derivations and their exact ordered inputs.
+```
+
+These clauses are `machine/propagate.rs:11–60`,
+`constraints/mod.rs:3566–3612`, `directed_weight.rs:12–39,137–176,290–294`.
+Function argument children apply the actual swap; result children retain W.
+The special both-from-right route at `propagate.rs:232–254` is guarded by the
+actual inferred `Neg::Bot` argument-effect constructor; a written annotation
+or a type shape alone does not justify it. Different IDs cannot cancel;
+ordered same-ID counts and family payloads remain exact. Replay is not
+flattened into an associative support union.
+
+Current and future lowers have real activation owners. Registering a filter
+at variable t stores it and checks every existing weighted lower
+(`machine/bounds.rs:3213–3255`). Each later semantic lower insertion invokes
+registered filters at `:714`, via `:3285–3302`, then prepares ordinary and
+row-reduction replay against retained uppers (`:727`, `:3381–3455`). A finite
+event-order induction therefore covers each filter/lower pair whenever both
+insertions occur and their owned tasks complete. This is a local activation
+bridge to those actual constructors, not a theorem of complete replay,
+termination or whole source hygiene.
+
+For concrete residual consumption, actual `row_effect.rs:120–232` checks the
+filter, retains applicable heads, and routes the remaining contextual relation.
+With retained heads, it emits source-to-Row(heads,gamma) feedback and the
+gamma-to-tail relation with the exact residual left weight and original right
+debt. The selected successor replaces the Oracle residual-key identity policy
+with already approved constructor lineage: each rho retains its own gamma
+and outgoing obligations. This policy change's full operational correspondence
+is not proved by the Oracle trace. In particular an unmatched weighted lower
+can enter gamma with its original active family; gamma is not assumed to
+contain only the complement of the heads.
+
+Independent contributions retain their own origins/instances and attachment
+contexts; local cancellation removes only the authorized attached path.
+Another contribution at the same family/type point is checked and routed by
+its own lineage. Equality of rows may redirect coordinates and activate new
+cross pairs, but cannot collapse i, rho, provider evidence or grant local
+authority globally. These are the exact preserved contracts. The missing
+successor producer/consumer remains live negative attachment/subtraction and
+lineage-owned residual activation, rather than the mathematical ability to
+form the paired rule. No blanket subtraction of the nominal family is derived.
+
 ## Stop, checks, runtime and commit packet
 
 Method: one bounded static pass; apply selected constructor elimination and
@@ -245,8 +461,11 @@ required principal generalization are B. Owner retention removes D only.
 It does not discharge A/B or authorize a source restriction.
 
 Commands: `cat`/`sed`/`rg` on the named sources; read-only `git rev-parse HEAD`
-and `git status --short`; `sha256sum` for dependencies. HEAD matched the pin.
-No compiler, Cargo, Oracle, tests, benchmark, executable probe, Git mutation or
+and `git status --short`; `sha256sum` for dependencies. The additional pass
+used static `git show a58eefc31:<owning source>` reads and a dependency-scoped
+`git diff --name-only d8c097e..HEAD`; no listed code/design input changed.
+HEAD matched the constructive-delta pin.
+No compiler, Cargo, Oracle execution, tests, benchmark, executable probe, Git mutation or
 child launch. At most two parallel lightweight read commands; no heavyweight
 processes or measurement samples. Whole-task CPU/RAM/wall time were not
 instrumented. Requested routing is normal Sol/high; role defaults are those
@@ -270,18 +489,30 @@ candidate_context.rs    4385c96423cd5c6cd1686066b2e6f0581c5cebf47d68bc86476c79e2
 candidate_effect.rs     ae98dd92e2c8eb7e538c4450f250826bf83872f3bb62f1de1b014406313634df
 local_source.rs         906864b15edd43c33cd675ebff86e2652655d6fd1000ed47fe197a4cfd7ed7ed
 frozen packet 1         4180f06f9168faefae97ec88233657ff6dc7b33434753a9054f6a8be9791e8fb
+Reify constructor proof 6d382a248ad7f1c4bbcf7b14231f21448e957640d96b35e7efec333bc019e564
+Call-input proof        f7c1b1eb23acb33ab98487097ab67617e1af84964b012874b1c951a8805dd9f6
+literal checking scope  e65be7638ed616f5a88ce7d7bc5fffa06a07ee634df3649bd83cf0a60410d39b
+formal source bridge    0a07713df99571d19705333e73c195c3ad29b6165af92cb6821c02cd407da507
 ```
 
 Exact changed path: `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md`.
-Baseline SHA: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
+Baseline SHA for this constructive delta: `70696a873a6d0eea420fa90eb5481b2c0502919f`.
 Changed dependency hashes: no changes made by this worker; primary rechecks
 the recorded snapshot before integration. Review status: unreviewed; parent
 Call/effect/inference theorem OPEN. Checks already run: static source/pin/hash
 inspection above. Writes stop at handoff.
-Proposed message: `research: localize complete Call and contextual effect suppliers`.
+Proposed message: `research: derive literal Call suppliers and scoped effect replay`.
 Shared-record deltas left to primary/curator: retain the selected relative
 clauses; record exact complete-demand/Q_e and live subtraction/residual
 supplier gaps; promote no source/production or parent proof status.
-One next action: construct the source-owned jointly scoped complete Call
-constraint at its actual generation owner, with authentic operation and whole
-carrier/future interface outputs, before scheduling its downstream proof.
+After two passes leave original licensed predicate emission unsupplied, the
+economy audit applies before another equivalent packet: source origin/binder
+retention is D; the primitive's genuine declared-domain license and complete
+operation typing are A, and ordinary literal Call inference/principality are B.
+The added pass constructs the selected Reify prefix and traces actual Oracle
+filter activation; it does not turn a proposed emitter into the missing
+original judgment. Original soundness, principal schemes and H stay OPEN.
+One next action: supply the original literal Call predicate-emission instance
+at P_old/Reg/Route, returning the exact checking/result/operation origins and
+whole future telescope at its source owner; do not schedule another equivalent
+reconstruction proof first.
