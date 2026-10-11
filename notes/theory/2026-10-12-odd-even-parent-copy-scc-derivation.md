@@ -264,9 +264,13 @@ candidate worklist/effect/SCC transition.
 
 ## 5. Exact intended-source Call skeleton and the first missing law
 
-For the original example, the inner and outer binder/formal levels are the
-same. If the arithmetic source constructor law realizes `n_inner - 1` as
-an ordinary App result `T` at level 2, the inner call generates
+For the literal nested example, the inner and outer inference levels differ:
+the `even` initializer and its formal `n_inner` are at level 2, while the
+enclosing `odd` root/formal `n_outer` and the final `even(n_outer - 1)` call
+are at level 1. This cross-level recursion is precisely why the source-owner
+SCC rule cannot require equal lexical or inference levels. If the arithmetic
+source constructor law realizes `n_inner - 1` as an ordinary App result `T`
+at level 2, the inner call generates
 `O <: Function(T,R)` with fresh R at level 2. Its negative extrusion has
 `(T,+) -> C_T` and `(R,-) -> D_R` at level 1; selected bounds of T may force
 additional polar copies. R's result copy is forced by its freshly allocated
@@ -282,17 +286,23 @@ to claim a complete exact-source store. The first actual-source gap for the
 literal text is admission/generation for those constructors.
 
 For the Call-bearing representable analogue, that gap is bypassed by a genuine
-smaller source structure, and the retained port pairs above follow. The next
-missing premise is exactly:
+smaller source structure, and the retained port pairs above follow. The
+approved source rules already determine the original incidence endpoints:
+the inner Apply result owns references to resolved Names in its Apply
+fragment, the `even` definition root owns the resolved `odd` Name in its
+initializer, and the enclosing `odd` root owns the resolved `even` Name in its
+source-owned initializer/body. Those incidences do not identify Apply results,
+Lambda roots, or definition roots with one another. The remaining premise is
+assignment and transport of those incidences to actual solver rows and
+extrusion/fresh-use copies. More exactly:
 
-> Given the actual inner Apply input `(callee=U, argument=B, result=R)`, its
-> resolved target O, and the Lambda/root introduction `(root=E, formal=B,
-> body=R)`, what semantic Value content does R own, what references does that
-> content introduce or forward, and how is that same jointly scoped content
-> assigned to the retained negative copy D? Correspondingly, what does B own
-> and how does the retained positive copy C transport its actual reference
-> targets? Published even uses must specify binding identity versus the same
-> use's fresh description identity jointly, preserving nongeneric anchors.
+> Given those fixed source incidences and actual construction endpoints,
+> which incidences are owned by the Apply result row R, Lambda/root row E and
+> formal row B, respectively? How are they assigned to and transported
+> through retained negative copy D and positive copy C, including resolved
+> targets outside the copied fragment, polar duplicates, shared captures and
+> published `even` uses? Binding identity and each use's fresh description
+> identity must be tracked jointly, preserving nongeneric anchors.
 
 Neither actual demand construction nor the above bound operations give these
 equations. In particular, they supply neither `B ->* C ->* B` nor

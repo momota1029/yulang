@@ -10978,6 +10978,17 @@ Block, wrappers and local initializers remain open. Parent/copy qualification,
 extrusion/fresh-use transport and equality safety also remain OPEN. No compiler
 code or tests changed.
 
+The literal nested `odd`/`even` example also has distinct inference levels:
+the enclosing `odd` root and outer formal are at level 1, while the local
+`even` initializer and its formal are at level 2. Thus `O → E → O` is
+cross-level as well as cross-lexical-scope; SCC membership must not be filtered
+by level equality. The exact source's conditional and infix arithmetic still
+lack an established ordinary HIR admission/generation bridge. Corrected the
+stale same-level sentence in the bounded derivation; its remaining OPEN
+premise is solver-row ownership and transport of the already selected source
+incidences through extrusion and fresh use, followed by consumer correspondence
+and parent/copy equality safety.
+
 ### 2026-10-12 Oracle direct-return projection boundary
 
 The annotation-positive Function lower at formal coordinate `c` carries α,
