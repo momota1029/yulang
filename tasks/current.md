@@ -11457,3 +11457,16 @@ source admission, complete Call/Branch formation, copied-incidence transport,
 intrusion preservation, soundness, principality, effect hygiene and F5
 replacement remain OPEN. The copied-row question remains pending and
 uncommitted.
+
+The Oracle negative residual owner crosswalk at `f0ae878e1` received a fresh
+`compiler_referee` review with no findings in its bounded source-correspondence
+scope. The review verified Oracle's reached nonempty-retained Row-upper
+equations, directed right-weight projection, and the Y3 owner gaps without
+claiming a native residual constructor, source reachability, or effect-hygiene
+closure. Oracle execution remains exhausted. The exact native negative
+attachment-to-fiber transformation and coupled residual owner equation remain
+OPEN; general negative admission stays disabled. The next proof result must
+either derive that actual owner equation from construction evidence or name
+the precise source-owned fact still missing. This does not close H, complete
+Call, soundness, principality, or F5 replacement. No compiler code or tests
+changed in this checkpoint.
