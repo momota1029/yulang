@@ -9786,92 +9786,52 @@ hygiene, production acceptance, and F5 replacement all remain OPEN. Current
 research branch checkpoint is `4361e3b59` (pushed); no compiler code, tests,
 semantic rules, or F5 routing changed in this wave.
 
-## 2026-10-11 intrusion SCC edge semantics
+## 2026-10-11 Value-reference SCC correction
 
-The independent source map
-[`intrusion SCC orientation audit`](../notes/progress/2026-10-11-intrusion-scc-dependency-orientation-audit.md)
-and constructive
-[`intrusion SCC dependency graph proof`](../notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md)
-were independently reviewed with no findings. They distinguish three graph
-meanings that cannot be conflated:
+The primary previously made a foundational error by proposing subtype
+comparisons as graph edges and evaluating the physical bound-reference graph
+against that comparison graph. The user corrected the definition directly:
+vertices are Value variables and edges are references in their values. A
+parent value may reference a child; a nephew may reference an uncle; such
+references can create SCCs. This correction is recorded in the Authoritative
+[parent-copy intrusion decision](../notes/design/2026-10-10-parent-copy-scc-intrusion.md).
+The earlier comparison-graph analysis is superseded by the banners on the
+[intrusion graph proof](../notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md)
+and [orientation audit](../notes/progress/2026-10-11-intrusion-scc-dependency-orientation-audit.md).
 
-- `G_le` directs each actually active, typed comparison `S <: T` as `S → T`;
-  Function variance is handled by the real decomposed port constraints
-  (`arg₂ <: arg₁`, `arg-effect₂ <: arg-effect₁`, covariant result ports), not
-  by treating constructor containment as subtyping. Mutual reachability is a
-  sufficient equality condition by transitivity. Its converse was proved only
-  for finite atomic variables in a free preorder, not for full Call/effects or
-  source inference.
-- `G_exp` records positive-lower, negative-upper and polarized structural
-  expansion recursion. Positive and negative views of one variable share one
-  assignment, but that identity alone does not identify their expansion states
-  or insert cross-sign edges.
-- Current `G_store` is physical owner-to-bound incidence (lower and upper
-  sides both point outward), Function-to-port containment and Allowance/Support
-  to tail edges. It erases bound side and row polarity. At unequal levels its
-  edge can oppose comparison direction. The real-reference two-constraint
-  discriminator and a native-reference Function-containing source witness show that
-  `G_store` SCC membership does not generally entail equality; the Function
-  witness has no extrusion record and therefore does not itself refute the
-  narrower parent/copy operation.
+The reviewed [Simple-sub reference characterization](../notes/theory/2026-10-11-simple-sub-value-reference-scc.md)
+defines the reference occurrence graph from actual stored bound payloads and
+structural Function/Record children. Its constructive uncle/nephew trace has
+an SCC `{U,N}` while the tracked extrusion-family pairs remain outside that
+particular SCC. This proves a bounded reference SCC can occur; it neither
+proves intrusion reachability for those parent/copy pairs nor a successor
+source theorem. The reference itself has no retained extrusion-parent or
+intrusion implementation.
 
-Function contravariance rules out repairing this by reversing all lower
-edges: comparison decomposition flips both argument ports but preserves both
-result ports, while constructor containment is not a subtype edge. Effect
-views also cannot be collapsed to a generic tail edge: Support expands
-members/tail comparisons, Allowance can discharge an allowed member, and the
-current SCC builder omits AnnotationMember traversal. Value and Effect are
-separate kinds.
+The independently reviewed [native Value-reference map](../notes/progress/2026-10-11-native-value-reference-scc-map.md)
+finds that, on inspected paths, `settle_candidate_intrusion` adjacency matches
+actual Value payload references: both bound sides point from their owner to
+stored values, and Function-port traversal follows contained Value references
+outward. Function variance changes comparison decomposition, not the direction
+of a reference. The Effect-only branch cannot return to a Value row in this
+adjacency. Parent provenance is consulted for the equality condition and adds
+no reference edge by itself.
 
-The reviewed Value rank invariant excludes authentic Value parent/copy SCCs
-while its admission and restoration premises hold. That is an operational
-nonreachability result, not a proof that the approved intrusion operation is
-semantically redundant or that `G_store` is the intended graph. Synthetic
-parent/copy restoration discriminators are not source-qualified. The approved
-design fixes parent retention and equality after SCC qualification but does
-not define the edge relation meant by “same SCC.” Therefore OPEN-GRAPH remains
-at the owning intrusion/authority seam: prove the chosen relation against all
-source constructors, restorations and scoped observations, including Effect
-and Generalize, before any graph replacement or implementation. No semantic
-choice or compiler change was made here. Source soundness, required
-principality, complete Call, effect hygiene, normal progress, rejection,
-production acceptance and F5 replacement remain OPEN.
+An independently reviewed conditional rank argument still says that if every
+authentic Value-bound writer and restoration preserves
+`H(bound) <= level(owner)`, then strict-level parent/copy pairs cannot share an
+SCC before the first merge. The uncle/nephew cycle satisfies that rank while
+not containing a qualifying pair. **Do not treat parent/copy nonreachability
+as normality, proof that intrusion is redundant, or evidence that all required
+value references were generated.** The remaining proof task is to establish or
+falsify the exhaustive native bridge from actual source value construction,
+copying and restoration to this reference graph, then determine whether an
+authentic supported history can place a retained pair in one SCC. If the rank
+argument survives that bridge, identify the earliest missing semantic
+dependency or source constructor rather than closing the inference obligation.
 
-Artifact `notes/theory/2026-10-11-intrusion-scc-dependency-graph-proof.md`
-was checkpointed and independently reviewed; commit `63ca221e4` is pushed.
-No tests, builds or executable probes were run. This is a research checkpoint,
-not parent theorem closure.
-
-The Effect-specific follow-up separates the same questions. The reviewed
-[`Effect parent-copy source audit`](../notes/progress/2026-10-11-effect-parent-copy-source-audit.md)
-shows that the Value rank argument cannot be transferred mechanically:
-`candidate_apply_effect` admits a row/Support or row/Allowance bound without
-extruding the view or checking its tail level. A source-shaped local computation
-can therefore create the physical ascent
-`r₂ → c₁ → Allowance(v) → t₂`. This refutes that simple Effect-level rank
-invariant under the displayed lowering and admission path; it does **not** show
-the missing return path `t₂ → … → r₂` or an actual parent/copy SCC.
-
-The bounded constructive
-[`Effect SCC derivation`](../notes/theory/2026-10-11-effect-parent-copy-scc-proof.md)
-traces the Apply slot-2 event that activates the extrusion lower. In its
-root-computation-only source, `t₂` is a `G_store` sink and cannot return to the
-original parent. Thus it derives a local non-merge for that history, not a
-universal Effect exclusion. The exact A/B premise remains whether an authentic
-latent port using that same scoped tail emits and activates a return path, or
-whether all such paths can be excluded from actual source constructors. The
-first responsible owners are Effect signature port construction, Function
-comparison dispatch, and incoming-incidence capture/restoration. The source
-audit passed independent compiler-referee review; the constructive note passed
-independent compiler-referee review with its bounded claims intact. A minor
-omission in its dependency manifest (`source_annotation.rs`) was repaired and
-delta-reviewed; the current hash is recorded in the note. Neither result
-establishes semantic adequacy of `G_store`, Effect hygiene, or intrusion
-redundancy. No code, tests, or semantic rules changed; neither proof/artifact
-was tested or executed.
-
-The earlier SCC checkpoint is commit `63ca221e4`; the reviewed source-map
-checkpoint is commit `80344d59e`, both pushed. Current source soundness,
-principality, complete Call, Generalize correspondence, full effect hygiene,
-normal progress, rejection, production acceptance and F5 cutover all remain
-OPEN.
+The Effect latent-tail source construction is retained as an unreviewed
+artifact only; it is not integrated into the Value graph result. No compiler
+code or tests changed in this correction. The full Simple-sub inference,
+soundness, principality, complete Call, Effect hygiene, source Generalize,
+rejection, production acceptance, and F5 replacement gates remain OPEN.

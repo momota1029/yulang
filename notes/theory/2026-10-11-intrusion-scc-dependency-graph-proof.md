@@ -1,6 +1,16 @@
 # Intrusion SCCs: inequality, polarized expansion, and physical ownership
 
-Status: unreviewed research checkpoint; constructive lemmas and counterexamples
+> **Superseded graph premise (2026-10-11).** The user clarified that intrusion
+> SCCs are over Value variables and that edges are references in their values;
+> a subtype judgment is not an edge. The `G_le` candidate and its comparison-
+> SCC conclusions below do not define or justify the approved intrusion
+> condition. The reference and current-source correspondence are recorded in
+> [Simple-sub value-reference SCCs](2026-10-11-simple-sub-value-reference-scc.md)
+> and the [native Value-reference map](../progress/2026-10-11-native-value-reference-scc-map.md).
+> Retain this file only as historical analysis of the distinctions it made;
+> do not use it as the operative SCC definition.
+
+Status: superseded research checkpoint; comparison-graph premise withdrawn
 Claim boundary: no theorem, production gate, or semantic choice is promoted
 Owner: constructive proof leaf; independent review and integration belong to primary
 Yulang baseline: `c8c62f473028d7684813e83284cc228b28a09831`

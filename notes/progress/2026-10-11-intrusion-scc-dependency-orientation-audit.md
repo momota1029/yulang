@@ -1,5 +1,12 @@
 # Intrusion SCC dependency orientation audit
 
+> **Superseded by the user's Value-reference clarification (2026-10-11).**
+> The operative graph has Value variables as vertices and references in their
+> values as edges; comparison judgments are not edges. The scalar comparison
+> discriminator and any conclusion that its graph is a candidate intrusion
+> graph are withdrawn. See the reviewed [native Value-reference map](2026-10-11-native-value-reference-scc-map.md)
+> and [Simple-sub reference characterization](../theory/2026-10-11-simple-sub-value-reference-scc.md).
+
 Status: frozen, unreviewed research checkpoint; source characterization and
 conditional mathematical discriminator. No theorem closure or implementation
 authority.

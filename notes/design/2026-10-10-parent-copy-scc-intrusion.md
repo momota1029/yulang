@@ -35,6 +35,18 @@ The implementation must connect this operation to actual successor SCC
 processing. Merely leaving recursive internal uses rejected, or adding unused
 parent metadata, does not satisfy the requested implementation.
 
+## Value-reference SCC clarification (direct user decision, 2026-10-11)
+
+The SCC qualification is over Value variables and edges are references in
+their values. A comparison judgment such as `a <: b` is not itself an edge.
+References may cross the extrusion-family tree: a parent value may reference a
+child, and a nephew value may reference an uncle. These actual references can
+form SCCs. Do not infer the graph from subtype direction or from parent/copy
+metadata; the source constructors that create the references determine its
+adjacency. This clarification supersedes earlier candidate graph definitions
+that treated comparison judgments as edges or treated bound-storage adjacency
+as unverified merely because it was stored on a lower/upper side.
+
 Value/effect kind, polarity-specific copies, bounds, lexical levels, shared
 captures, fresh-use independence and transactional state remain concrete
 correctness responsibilities. The bounded mechanism review resolves data
