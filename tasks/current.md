@@ -8902,6 +8902,9 @@ Proof/source research checkpoints were pushed separately:
   requires source/scheduler evidence for admitted mutation, invalidation and
   ordered recomputation. The rollback extension remains conditional on exact
   inverses. H3 and W/A3 stay OPEN.
+- `0746f84d7` — primary integrated that reviewed native sublemma into the
+  original W/A3 composition note while preserving its all-valid-initial-state
+  quantifiers and recording the exact source/scheduler residual.
 - `0a640d09d` — unreviewed static source route for a nonempty retained Local
   child: `my outer = { my local = 1; local }`. The literal retains both bound
   polarities; the annotated fixture drops the upper bound, and its test loop
