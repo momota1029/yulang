@@ -10195,10 +10195,17 @@ used the final authorized Oracle call (2/2 across the two packets), bounded to
 `f provider` use, and prints observed type `() -> [tick] ()`. This qualifies
 one source observation; it proves neither the raw fresh SubtractId map nor
 annotation-check preservation or universal H. H remains OPEN. The next
-source-only bridge is active at
+source-only bridge is frozen at
 [`Oracle returned-callback fresh-use bridge`](../notes/progress/2026-10-11-oracle-returned-callback-fresh-use-bridge.md).
-It traces the actual SCC/generalized use, freshening, provider contribution,
-call/output and check owners without another Oracle run.
+It shows scheme quantification and installation precede the later `f` scheme
+expansion, while all source bodies are lowered before the analysis drain. Its
+first unsupported identity is the original annotation's `s_a` to the retained
+and quantified ID in `f`'s finalized scheme; printed `#0` is formatter-local.
+The exact executed quantifier set, freshening map, and retained-check lineage
+are absent from the dump. This is a bounded positive observation, not an H
+falsifier or proof of hygiene. The Oracle call budget is exhausted. A bounded
+prover lane now owns the annotation-to-scheme identity and quantifier-selection
+lemma; H remains OPEN.
 
 ### 2026-10-11 mutual-recursion root route boundary
 
