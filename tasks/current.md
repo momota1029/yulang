@@ -11321,3 +11321,25 @@ binder `x` established separately and directionally. The note now states
 `g <: t @ pi_t` and leaves the native transition OPEN. Its review and
 clarification are recorded in
 [`negative-filter-rule-proof`](../notes/theory/2026-10-12-negative-filter-rule-proof.md).
+
+The user's indented `odd`/`even` example is a nested cross-level recursion:
+outer definition root `O` refers to nested root `E`, and `E` refers to enclosing
+`O`, so the source-owner graph contains `O → E → O` without a same-level
+mutual-recursion group. This remains distinct from native polar extrusion
+pairs `(C,B)` and `(D,R)`.
+
+The frozen [Value-copy incidence proof](../notes/theory/2026-10-12-value-reference-copy-law-proof.md)
+received an independent `compiler_referee` review with no findings. Within its
+finite interface, it shows that settled original-owner rules and the native
+`lambda f. let y = f 0 in y` derivation do not entail automatic incidence
+inheritance on extrusion or fresh-use copies. Both models preserve the
+approved original-root cycle and distinguish binder identity from copied
+description frames. The conditional incoming-copy discriminator is not a
+source-qualified witness. Global policy consistency, copied-owner transport,
+actual SCC-consumer correspondence, equality preservation, soundness and
+principality remain OPEN.
+
+The pending copied-row question is now revision 2: it asks for extrusion and
+freshening separately and includes a construction-specific owner/frame rule as
+a third option. This corrects the prior combined binary framing; it records no
+answer or approval. The question directory remains pending and uncommitted.
