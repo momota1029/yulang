@@ -394,12 +394,44 @@ bytes. Yumark doc-comment emission is the first path needing inspection. The
 107-byte correction is only a hypothesis, so these event IDs are not yet
 authenticated to the exact physical source occurrence.
 
-The next narrow step is an env-gated observation of the already loaded source
-and CST root at the same parse, recording their lengths/digests and the final
-expression subtree's kinds/text/ranges, then locating the first byte divergence.
-Only after that source identity is established can a further owner lease join
-the authentic application through actual use/provider/freshening and a named
-Function/row event to output `O`. J64, exact contribution membership, H,
-complete Call, Yulang3 correspondence, soundness, principality and F5
-replacement remain OPEN. The independent hook review found no remaining major
-or minor findings; it did not review the source-coordinate seam or close H.
+## Terminal source-coordinate authentication
+
+A separate 49-line observer in `crates/sources/src/lib.rs` was reviewed with
+no blocking, major or minor findings. It runs only when
+`YULANG_RESEARCH_RUN_LINEAGE=1`, only for the loaded root module, and compares
+the source bytes with the rendered CST bytes. Its source range, payload and I/O
+behavior are bounded; it does not alter loading or inference. One locked offline
+build completed under a 6 GiB process-group RSS cap in 39.39 seconds. No peak
+RSS value was retained for this second build. The observer file SHA-256 is
+`16e9a1a57fdf10536c6ccdb58eb3d120631c53a1596fe5663c192e1343e9fe1d`.
+
+One execution of the same input completed in 0.27 seconds under a 2 GiB RSS
+cap; peak process-group RSS was 38,830,080 bytes. The log hash is
+`59e9b4f7ee58b33d75786f955097eeadfdea001c643d778fa57177a94cee5caf`.
+The observer recorded `source_bytes=2588`, `cst_bytes=2695`,
+`first_difference=211`, and a byte-equal common suffix of 585 bytes. Both final
+64-byte windows were identical. The terminal application spans fall wholly
+within that common suffix, so the mapping is exact for these two occurrences:
+
+| Same-run application | CST range | Physical source range | Resolved text |
+| --- | --- | --- | --- |
+| `ExprId(15)` outer call | `2673..2695` | `2566..2588` | `run: ev::send (1, 42)\n` |
+| `ExprId(14)` inner send | `2678..2695` | `2571..2588` | `ev::send (1, 42)\n` |
+
+The same event records show `ExprId(15)` consumes the Value and Effect result
+of `ExprId(14)`. The 107-byte displacement is therefore verified only for
+these terminal ranges, by equal suffix bytes; its earlier cause is not yet
+known and the mapping must not be applied to other offsets. This authenticates
+the exact final-line application occurrence. It does not connect that event
+through its actual provider/use freshening and Function/row output to the final
+compact scheme. Compact scheme observation remains explicitly absent, and the
+truncated ancestry-roots log line still omits some textual root-to-anchor
+associations.
+
+Next: use a separate bounded owner lease to join this now-authenticated
+`ExprId(14/15)` event through the actual Name use/provider/freshening relation
+to the designated Function/row output and final scheme observation. J64,
+source-to-output contribution membership, H, complete Call, Yulang3
+correspondence, soundness, principality and F5 replacement remain OPEN. The
+independent probe review only certifies the coordinate observation; it does
+not close any of those gates.

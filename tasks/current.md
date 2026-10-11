@@ -11622,27 +11622,32 @@ reduction claim registration, `CpkProjectionEvaluator::eval_root_coverage`,
 and scheme exclusion, with one actual independent same-family contribution
 and its complete current/future output route.
 
-The repaired private Oracle observer, previously only statically reviewed and
-uncompiled, now has one successful bounded build and one execution of the
-existing int-variant fixture. The details are in
+The repaired private Oracle observer now has two successful bounded builds and
+captures against the existing int-variant fixture. The details are in
 [`run lineage capture`](../notes/progress/2026-10-12-run-origin-lineage-capture.md).
-The build used 1,549,127,680 bytes peak process-group RSS and completed in
-37.12s; the capture used 36,208,640 bytes peak RSS and completed in 0.51s.
-The one check produced four application events and five successful selected
-projection queries at epoch 313, with no query errors or incomplete markers.
-Compact scheme observation remains explicitly absent, so no final output
-membership is claimed. The selected-root ancestry export succeeded, while its
-root-to-anchor log line was truncated.
+The initial build used 1,549,127,680 bytes peak process-group RSS and completed
+in 37.12s; the initial capture used 36,208,640 bytes peak RSS and completed in
+0.51s. The second build completed in 39.39s under a 6 GiB cap; its peak RSS
+was not retained. The second capture used 38,830,080 bytes peak process-group
+RSS and completed in 0.27s. Both checks produced four application events and
+five successful selected-projection queries at epoch 313, with no query errors
+or incomplete markers. Compact scheme observation remains explicitly absent,
+so no final output membership is claimed. The selected-root ancestry export
+succeeded, while its root-to-anchor log line was truncated.
 
-The capture's event coordinates do not yet authenticate the source occurrence:
-the loaded input has 2,588 bytes and the physical final send occupies
-`2566..2588`, but `ExprId(14/15)` report CST ranges `2678..2695` and
-`2673..2695`, respectively. The 107-byte offset is unexplained; no CLI prefix
-or file concatenation accounts for it. Direct CST-to-source byte identity is
-not established. Thus the captured applications are not yet joined to the
-concrete line-64 contribution, actual provider/use/freshening, and final
-output. The next observation must compare the already loaded root source and
-CST byte representations at parse time; only then can that authenticated event
-be joined through those owners. H, complete Call, soundness, principality and
-F5 replacement remain OPEN. This Oracle-only capture made no Yulang3 code or
-test changes.
+The second capture's source/CST observer found 2,588 source bytes and 2,695 CST
+bytes, with the terminal 585 bytes identical. Therefore the terminal event
+ranges are authenticated exactly: `ExprId(15)` range `2673..2695` maps to
+physical `2566..2588` (`run: ev::send (1, 42)\n`), and nested `ExprId(14)`
+range `2678..2695` maps to `2571..2588` (`ev::send (1, 42)\n`). The two events
+also record that `ExprId(15)` consumes the Value/Effect result of `ExprId(14)`.
+The 107-byte offset is validated only within this equal terminal suffix; the
+earlier first difference at byte 211 remains unexplained, so no universal
+offset is claimed.
+
+This authenticates the concrete final-line application occurrence but does
+not join it through actual Name provider/use/freshening and the designated
+Function/row output into the final compact scheme. The next observation should
+capture that route at its owning consumers. H, complete Call, soundness,
+principality and F5 replacement remain OPEN. These Oracle-only captures made
+no Yulang3 code or test changes.
