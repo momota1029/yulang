@@ -10541,3 +10541,45 @@ preservation premises. Then independently review the Call/effect artifact and
 derive a minimal reference slice only from the reviewed invariants. Keep the
 original soundness, required principality, normal progress, termination,
 complete Call, hygiene and F5 replacement gates OPEN.
+
+### 2026-10-11 Value-payload and literal-Call continuation
+
+The source-reference investigation now keeps three relations separate:
+
+1. source Name/binder incidences such as `host → outer` and `g → g`;
+2. variable occurrences in actual constructed type payloads, including both
+   Value ports of Lambda and Apply Function terms, regardless of whether the
+   term is stored as a lower or upper bound;
+3. the approved graph edge from one actual Value row to another, which still
+   requires the row-owned payload introduction/forwarding law.
+
+This corrects the earlier risk of treating the source Name projection as the
+native graph. The audited `ignore x = 0` constructor still has the formal row in
+its Function argument port; identity retains one row in both Value ports;
+Apply's demand has argument/result ports but no callee port. These are actual
+payload incidences, not SCC edges by themselves. The remaining owner law must
+identify which generated/accumulated payloads belong to each row through
+Lambda admission, aliases, forwarding, extrusion and fresh use. Copy-result
+inheritance and the outside-callee frame law remain conditional. The updated
+[`Value-reference incidence construction`](../notes/theory/2026-10-11-value-reference-incidence-construction.md)
+passed bounded independent `compiler_referee` review for its continuation
+delta. Its parent graph/equality theorem remains OPEN.
+
+The parallel literal-Call construction derives the child, original `Int`
+result, and tagged Reify continuation for `my invoke f = f 1` from the accepted
+source constructors, retaining the original scope, binder and Reify image.
+An independent `compiler_referee` review passed that delta. It stops before
+the original licensed predicate-emission instance at `P_old/Reg/Route`, the
+complete Call witness, and source soundness/principality. Its contextual-effect
+continuation retains local subtraction authority and ordered replay, but the
+review did not verify the historical Oracle source claims in that section;
+live negative subtraction and residual-lineage activation remain OPEN. The
+artifact is [`Call and contextual-effect construction`](../notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md).
+
+Research-only checkpoints `98bf430cf` and `a99f9bf2c` were pushed to
+`research/simple-sub-intrusion`; no compiler code or tests changed. The first
+checkpoint was `98bf430cf` and the second `a99f9bf2c`. The next critical
+construction is the actual row-owned payload law; the next Call supplier is
+the original licensed literal predicate-emission instance at its source owner.
+The original theorem, complete Call, hygiene, soundness, principality, normal
+progress, production correspondence and F5 cutover remain OPEN.
