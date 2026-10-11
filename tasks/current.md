@@ -10326,8 +10326,34 @@ the actual stored/freshened annotation identity, independent returned-provider
 contribution and completeness of the published effect observation are still
 unproved. See [`Oracle callback reuse policy falsification`](../notes/progress/2026-10-11-oracle-callback-reuse-policy-falsification.md).
 
-Next: the constructive prover traces `direct`'s annotation through scheme
-projection and fresh-use output, establishing or refuting that exact scope
-escape. H and Yulang3 implementation remain OPEN. No build, Cargo test, or
-Yulang3 compiler check ran in this slice; the already-built Oracle binary was
-verified against its pinned hash.
+The constructive source trace is frozen in
+[`Oracle callback reuse: source constructors and the exact unfinished use bridge`](../notes/theory/2026-10-11-oracle-callback-reuse-source-proof.md),
+checkpoint `f914dc984`. It establishes the actual annotation PUSH/POP
+constructors, monomorphic formal reuse, provider operation owner, result-port
+transport, quantified-root POP(MAX) owner and surface-dump behavior. The
+annotation's immediate local-call predicate is empty; `direct` itself never
+calls `cb`. This makes the post-publication `observed_direct` use the sharper
+scope discriminator.
+
+The raw source ID is not yet proved to survive `direct`'s projected compact
+scheme or to be selected in its actual stack-quantifier set. Finalization
+preserves surviving IDs, and the instantiator consistently freshens selected
+IDs before adding root POP(MAX), but those conditional transport rules do not
+establish this occurrence's liveness or replay the provider into the final
+callback Effect. The frozen pure dump does not supply those raw records. The
+root POP is therefore a localized suspect, not the demonstrated cause of the
+displayed loss; no source-qualified H counterexample is established. An
+independent `compiler_referee` found no blocking or major issue; its minor
+findings on the second quantifier-selection branch, Oracle citation root and
+logical minimality were corrected in the checkpoint. No Oracle rerun,
+instrumentation, build, Cargo test or Yulang3 compiler check was done. H and
+Yulang3 implementation remain OPEN.
+
+Next: establish the actual `direct` source occurrence's projected compact
+liveness and selected quantifier at the existing projection/selector owners,
+then connect its fresh-use map and provider replay to `observed_direct`'s
+output. Prefer a source derivation; if that cannot determine the actual
+projection/replay decision, capture those existing identities at those owners
+in one bounded observation. Do not infer raw IDs from display `#0`, and keep
+the independent-contribution clause separate from the minimum scope-escape
+counterexample test.
