@@ -172,6 +172,34 @@ No production rejection/acceptance consumer of `candidate_conflicts` was found
 in the inspected solver owners; external compiler/CLI consumers were excluded
 by the read lease and are explicitly unverified.
 
+## Current HEAD revalidation (2026-10-11)
+
+The table above records the original pinned implementation audit at baseline
+`e899d1a`; its `CandidateInference::export` row has since been superseded.
+In a source revalidation against HEAD `74e027c9f`,
+`CandidateInference::export` first returns `ArtifactMismatch` whenever the
+retained solver error list is nonempty
+(`crates/yu-solver/src/shadow_apply.rs:123–131`). Thus a reported conflict
+blocks this private graph export. `candidate_conflicts()` remains an
+observation API and its result alone does not establish source rejection.
+
+This guard is only the downstream implication “reported error ⇒ no
+CandidateInference graph export.” It does not prove that every semantic
+inconsistency is reported, nor identify a public production acceptance
+consumer. `CandidateValueObservation` is a distinct historical F5-backed
+observation API: its `export` returns the retained closed scheme without
+checking its error list (`shadow_apply.rs:693–701`), while its comments and
+preflight keep source admission unresolved. Its `export` is consumed by the
+feature-gated test-wired observational crosswalk
+(`shadow_candidate_source_crosswalk.rs:98–100,269–271,494–496`); no production
+solve/acceptance caller was found. This is a bounded Rust workspace search,
+not a claim about external consumers. Likewise, the current native
+`CandidateInference` callers found in Rust are tests and its API definition.
+The full original gate therefore remains OPEN:
+source-generated inconsistency reflection through generation/activation/
+transport, plus a production acceptance consumer and conflict-free result
+publication policy.
+
 ## Discriminating evidence and exact missing owner
 
 The retained source test `source_call_registered_root_survives_conflicting_apply`

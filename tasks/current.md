@@ -9625,3 +9625,44 @@ hygiene, soundness, principality, or F5 gates. Next owner remains primary:
 elaborate the actual formal-owned entry/declaration law and literal
 Application law at their source owners, without assuming their complete typed
 outputs.
+
+The [Astra catalogue/native interpretation attempt](../notes/theory/2026-10-11-invoke-source-local-law-astra.md)
+was frozen at `f0d3ebcbb` and independently reviewed with no findings. Its
+bounded calculations confirm that selected constructor definitions and native
+Function4 ports do not by themselves provide the actual complete Parameter/
+Lambda entry and literal/Application declarations or their joint semantic
+interpretation. This is a source-law gap, not an impossibility result or
+counterexample. The [independent source-owner inventory](../notes/progress/2026-10-11-invoke-source-owner-inventory.md)
+was frozen and checkpointed at `74e027c9f`, then its single minor source-
+attribution finding was repaired and pushed at `3b3822263`. It
+records positive selected owner definitions separately from missing complete
+applications and native interpretation. Ordinary Simple-sub remains anchored
+to the persistent upstream clone `/home/momota1029/rust/simple-sub-reference`
+at `9bae772624c23b52a93c1b226157e16898b4d9db` and paper
+`/home/momota1029/rust/simple-sub-reference-paper.pdf`; neither artifact is a
+temporary export. Complete source Call, soundness, effect hygiene, required
+principality, public acceptance and F5 replacement remain OPEN.
+
+The original type-error rejection audit is now checked against current HEAD:
+`CandidateInference::export` already refuses nonempty reported errors, but this
+private guard proves only conflict-to-export containment. A bounded constructive
+source-consumer revalidation is frozen in
+`notes/progress/2026-10-11-native-conflict-consumer-crosswalk.md`; an initial
+write collision with that already committed note was resolved by restoring its
+tracked version and adding a reviewed, narrowly bounded current-HEAD section.
+It distinguishes the native graph export guard from the historical F5-backed
+observation export and finds no production solve/acceptance caller in the
+bounded Rust search. The constructive
+[rejection proof](../notes/theory/2026-10-11-deterministic-rejection-proof.md)
+is frozen against source baseline `ffde1f789` and under independent review. It
+proves reported-error retention on successful synchronous solve, that a
+recorded error blocks native graph export, and the conditional
+`my bridge x = 1 1` Int/Function witness. It also identifies a potentially
+empty Effect-drain loop: `complete_diagnostic_delta` clears its delta before a
+later induced-Value-witness iteration. Whether authentic Local fresh-bound
+restoration can leave a qualifying Value parent/copy SCC pending on entry to
+that Effect drain remains OPEN. The independent source audit at
+`notes/progress/2026-10-11-effect-drain-value-witness-reachability.md` is
+tracing that exact predecessor. No conflict list, private observation or
+diagnostic API is treated as proof of full-source rejection. No production
+implementation or F5 routing authority is implied.
