@@ -9065,18 +9065,20 @@ other mutation owners, atomic absent-key capture restoration, H2/H3/H4,
 W/A3, complete Simple-sub inference, Yulang2-derived effect hygiene,
 soundness/principality, and production F5 cutover remain OPEN.
 
-Next: resolve the exact rollback accounting owner rule for retained context
-capacities and establish whether capture-map reinsertion has a constructor-wide
-allocation-free inverse. Continue the separate authentic readiness/filter/
-dependent-observation and published-SCC lifecycle bridge. No compiler/test
-changes or executable checks ran in this research-only wave.
+Next: implement the already-authoritative failed-attempt accounting owner at
+the candidate capacity owners and final exits, preserving one conditional
+postrollback sample and its all-or-none error rule. In parallel, establish
+condition (I) for each reverse map insertion or repair storage ownership
+without narrowing the source envelope. Continue the separate authentic
+readiness/filter/dependent-observation and published-SCC lifecycle bridge. No
+compiler/test changes or executable checks ran in this research-only wave.
 
 ## 2026-10-11 HashMap rollback-capacity reduction
 
 The bounded source derivation in
 [`capture-map-inverse-capacity-proof`](../notes/progress/2026-10-11-capture-map-inverse-capacity-proof.md)
-is checkpointed as `ebe2fc5e0`; fresh independent review is pending. Against
-the installed Rust 1.95.0 / hashbrown 0.16.1 source it derives condition (I)
+is checkpointed as `ebe2fc5e0`; a fresh compiler-referee found no findings.
+Against the installed Rust 1.95.0 / hashbrown 0.16.1 source it derives condition (I)
 for allocation-free `HashMap::insert` and shows that the current single-credit
 pre-splice reserve does not establish that condition after every reverse
 operation. Its 32-bucket case is only a library control-layout branch: no
@@ -9086,9 +9088,11 @@ This result narrows the already reviewed context-transport local proof's
 runtime hypothesis: ordinary reserved HashMap capacity is not an established
 allocation-free replacement guarantee. That proof and intrusion audit remain
 bounded and conditional at their map restoration sites; the primary applied
-this caveat to the original W/A3 parent, which remains OPEN. The established
-owner now requires either a source-history proof of condition (I) for every
-rollback insertion or an authorized storage construction that gives inverses
+this caveat to the original W/A3 parent, which remains OPEN. The source review
+also identified `candidate_context` reverse insertions in `bundle_incidence_heads`
+and `pair_heads`; direct inventory locates additional `replay_heads`, `bounds`,
+and `BundleTransports::heads` restorations. Each map needs its own history proof
+of condition (I) or an authorized storage construction that gives inverses
 their required headroom. The linked-runtime connection beyond the selected
 sysroot remains unverified.
 

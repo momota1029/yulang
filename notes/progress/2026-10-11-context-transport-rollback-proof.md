@@ -138,3 +138,12 @@ bridge. Until each reverse map insertion is shown to satisfy condition (I) or
 another owner-specific guarantee, the local inverse remains conditional at
 those map restoration steps and must not be cited as unconditional source
 correspondence.
+
+A fresh delta review found no findings in this caveat and identified the exact
+`candidate_context` insertions within its scope: `bundle_incidence_heads` at
+1627 and `pair_heads` at 1650. Direct source inventory also locates rollback
+insertions in `replay_heads` (1637), `bounds` (1660), and the optional
+`BundleTransports::heads` map (its rollback at 291–297); their corresponding
+history-specific credit premises are not discharged by that focused review.
+All these routes remain conditional until their own current-table headroom is
+established.

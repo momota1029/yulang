@@ -112,9 +112,11 @@ The reviewed context-transport derivation is additional bounded evidence for
 the relation/Derived-edge constructor only. Its exact entry accounting and
 postrollback census publication remain with the `InferenceSession`
 accounting owner; it neither proves nor replaces the prefix and global inverse
-premises above. Its reverse HashMap operations now carry the explicit
-condition-(I) caveat from the selected stdlib source bridge. The independently
-reviewed intrusion settlement audit likewise supports forest/scalar,
+premises above. The selected stdlib bridge's condition (I) applies to the
+context rollback insertions in `bundle_incidence_heads`, `replay_heads`,
+`pair_heads`, `bounds`, and `BundleTransports::heads`; no history-specific
+headroom proof for every insertion is established. The independently reviewed
+intrusion settlement audit likewise supports forest/scalar,
 memo/completion and diagnostic inverse *ordering* within its local hypotheses,
 while capture-map absent-key reinsertion has a pinned allocation branch and no
 native source-history closure. The context transport source audit identifies

@@ -1,7 +1,7 @@
 # Capture-map inverse: exact allocation branch
 
 Date: 2026-10-11
-Status: unreviewed constructive collection/source reduction; native all-history inverse premise OPEN. No constructor-qualified counterexample or W/A3 closure.
+Status: independently reviewed constructive collection/source reduction; native all-history inverse premise OPEN. No constructor-qualified counterexample or W/A3 closure.
 Producer: leaf `/root/retained_w_a3_rollback_proof`; no delegation.
 Exclusive lease: this note only.
 Baseline: `159ae453cd1ffc413180dcd5a308973089edb810`, branch `research/simple-sub-intrusion`.
@@ -128,9 +128,20 @@ One next action: primary assigns the exact native placement/history question exp
 - Exact changed lease: `notes/progress/2026-10-11-capture-map-inverse-capacity-proof.md` only.
 - Baseline: `159ae453cd1ffc413180dcd5a308973089edb810`.
 - Changed dependency hashes: none authored; frozen inputs above match assigned compiler hashes.
-- Review status: unreviewed constructive source/library reduction; native allocation-free inverse and W/A3 OPEN; conditional layout branch is not an authentic source counterexample.
+- Review status: independently reviewed constructive source/library reduction; native allocation-free inverse and W/A3 OPEN; conditional layout branch is not an authentic source counterexample.
 - Checks run: static reads/searches, metadata, archive/source hashes/equality, control-credit derivation and note inspection; no executable verification.
 - Proposed checkpoint message: `research: isolate capture rollback HashMap allocation branch`.
 - Shared-record delta left to primary/curator: record exact condition (I) and unconditional pre-lookup reserve; keep native capture inverse OPEN and adjudicate imported replacement assumptions. No shared record or prior note edited.
 
 Frozen after final checks; no further writes planned.
+
+## Independent review adjudication
+
+Fresh compiler-referee review of frozen SHA-256
+`2ca519c79bb98f1948a3b2dab3a924d0b16fb8bb4a53dc8b1e1c192ab1543727` found
+no blocking, major or minor findings. It confirmed the std-to-hashbrown source
+chain, reserve-before-lookup behavior, condition (I), capture admission/splice
+credit transitions, and the conditional 32-bucket branch. The reviewer did not
+establish native Yulang hash-placement/history reachability, actual executable
+linkage, other inverse owners, or full rollback return. The native capture-map
+inverse and original W/A3 remain OPEN.
