@@ -11403,6 +11403,25 @@ the pending copied-row question still blocks choosing an extrusion/freshening
 copy rule. Complete Call, soundness, principality, ordinary/public inference
 and F5 replacement remain OPEN.
 
+The frozen [cross-level odd/even derivation](../notes/theory/2026-10-12-cross-level-odd-even-inference-derivation.md)
+was independently reviewed with no findings in its conditional scope. It
+establishes that the outer recursive root remains monomorphic at level 1 while
+the nested `even` initializer/formal are inferred at level 2 and generalized at
+boundary 1; a genuine inner Call with result `R` at level 2 forces negative
+extrusion to fresh level-1 result copy `D` before opposite-bound replay, even
+with arbitrary existing level-valid bounds. Shared level-1 anchors remain
+shared through reference freshening without using Value-reference SCCs. The
+user's root edges `O → E` and `E → O` remain cross-level source references; they
+do not qualify any `(copy,parent)` pair. The exact source's arithmetic,
+condition/branch, Call and Generalize formation are still missing premises, and
+the source has no current end-to-end parser/HIR/candidate route. This is not a
+successful exact-source inference or final-scheme result. The note is pushed at
+`5e5500f4f`; no compiler code or tests changed. The smallest next proof input is
+the authentic local-body/primitive/Branch/complete-Call formation judgment
+for the exact binder tree. Copied-row meaning, full Call/Generalize
+correspondence, intrusion preservation, soundness, principality, effect
+hygiene and F5 replacement remain OPEN.
+
 The reviewed [negative recipe source-owner route audit](../notes/progress/2026-10-12-negative-recipe-owner-source-route.md)
 locates the first missing operation at composed-negative annotation/formal
 effect formation, before row-demand reduction. Even if source scheduling
