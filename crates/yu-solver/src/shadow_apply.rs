@@ -1716,25 +1716,32 @@ mod tests {
         ] {
             let hir = crate::candidate_lifecycle_retirement::hir(source);
             let candidate = CandidateInference::solve(hir.clone()).unwrap();
-            let root = hir.items().iter().find_map(|item| match item {
-                HirItem::Binding(binding) => Some(binding.definition_root()),
-                _ => None,
-            }).unwrap();
+            let root = hir
+                .items()
+                .iter()
+                .find_map(|item| match item {
+                    HirItem::Binding(binding) => Some(binding.definition_root()),
+                    _ => None,
+                })
+                .unwrap();
             assert_eq!(candidate.export(root).is_err(), conflicted);
             assert_eq!(!candidate.candidate_conflicts().is_empty(), conflicted);
             if conflicted {
                 assert!(candidate.candidate_conflicts().iter().any(|error| {
-                    error.kind() == SolverErrorKind::IncompatibleValue {
-                        lower: ValueShape::Int,
-                        upper: ValueShape::Function,
-                    }
+                    error.kind()
+                        == SolverErrorKind::IncompatibleValue {
+                            lower: ValueShape::Int,
+                            upper: ValueShape::Function,
+                        }
                 }));
             }
             assert_eq!(candidate.source_call_count(), 2);
             assert!(candidate.source_call(0).is_ok());
             assert!(candidate.source_call(1).is_ok());
             let state = candidate.solved.data.candidate_graph.as_ref().unwrap();
-            let occurrences: Vec<_> = state.routes.iter()
+            let occurrences: Vec<_> = state
+                .routes
+                .iter()
                 .map(|route| route.use_id.occurrence())
                 .chain(state.local_routes.iter().map(|route| &route.occurrence))
                 .collect();
