@@ -11322,11 +11322,25 @@ binder `x` established separately and directionally. The note now states
 clarification are recorded in
 [`negative-filter-rule-proof`](../notes/theory/2026-10-12-negative-filter-rule-proof.md).
 
-The user's indented `odd`/`even` example is a nested cross-level recursion:
-outer definition root `O` refers to nested root `E`, and `E` refers to enclosing
-`O`, so the source-owner graph contains `O → E → O` without a same-level
-mutual-recursion group. This remains distinct from native polar extrusion
-pairs `(C,B)` and `(D,R)`.
+The user's `odd`/`even` example specifies a nested cross-level source-owner
+cycle: outer definition root `O` refers to nested root `E`, and `E` refers to
+enclosing `O`. For an admitted equivalent LocalSource Block, the planner uses
+level 1 for outer `odd`, level 2 for the nested `even` initializer/body, and
+boundary/final-use level 1. The levels therefore do not restrict the intended
+`O → E → O` reference SCC to same-level mutual definitions.
+
+The exact spelling has no current end-to-end parser/HIR/candidate route. The
+syntax-v0 `if` grammar requires `:` and excludes brace arm bodies;
+`<=`/`-` need operator declarations in the supplied syntax environment;
+`true` has no resolved Boolean binding/type in this path. Even after syntax
+admission, ordinary HIR rejects the indented binding block, LocalSource body
+formation requires one inline `OperatorChain`, and LocalSource has no
+conditional constructor. Thus the root-edge pair is the intended source
+ownership reading, not an executed solver graph. This remains separate from
+native polar extrusion pairs `(C,B)` and `(D,R)` and does not settle their
+incidence rule. These locators were checked in `if_expr.rs:187–230`,
+`module.rs:1597`, `module/local_source.rs:250`, and
+`candidate_source.rs:254–305`; no execution or test was run.
 
 The frozen [Value-copy incidence proof](../notes/theory/2026-10-12-value-reference-copy-law-proof.md)
 received an independent `compiler_referee` review with no findings. Within its
@@ -11363,6 +11377,31 @@ relations. Existing Contribution, AnnotationMember and bound-origin records do
 not yet supply that authorization. General negative source admission remains
 disabled. Original effect hygiene H, complete Call, soundness, principality and
 F5 replacement remain OPEN.
+
+The bounded [negative annotation license proof](../notes/theory/2026-10-12-negative-annotation-license-source-proof.md)
+was independently reviewed with one minor factual correction applied. It
+establishes only constructor/allocation facts, a local nominal-membership
+consumer lemma, and the current source guards; it does not derive an actual
+negative annotation-to-fiber association or close H. The complementary
+[source identity falsification audit](../notes/progress/2026-10-12-negative-license-source-falsification.md)
+was independently reviewed without findings. It confirms the current negative
+concrete admission/construction guard is the first missing owner on inspected
+routes, and gives a conditional common-row derivation for two independent
+operation supports. That combined literal was not parsed or executed, and is
+not a negative-license counterexample. Both artifacts are checkpointed at
+`a053a9b89` and `6fba3d88b`, pushed to the research branch. The source review
+did not independently rehash every dependency; primary baseline checks found
+the listed dependencies unchanged. No code or tests changed.
+
+The next effect-hygiene step remains the exact source operation that must turn a
+composed-negative annotation occurrence into a licensed lower-fiber/route
+association, followed by construction of correlated `J/kappa/beta/pi_t` and
+both live residual relations. Do not enable the current preflight guard or
+claim permanent source rejection as a repair. In parallel, the original
+cross-level `odd`/`even` root SCC remains separate from copied-row incidence;
+the pending copied-row question still blocks choosing an extrusion/freshening
+copy rule. Complete Call, soundness, principality, ordinary/public inference
+and F5 replacement remain OPEN.
 
 The reviewed [negative recipe source-owner route audit](../notes/progress/2026-10-12-negative-recipe-owner-source-route.md)
 locates the first missing operation at composed-negative annotation/formal
