@@ -9198,3 +9198,22 @@ remain OPEN. Next: investigate and implement an authorized restoration
 construction at the owning map mutation, retaining distinct proof obligations
 for occupied-key restoration and absent-key reinsertion. Full inference,
 Yulang2 effect hygiene, soundness/principality and F5 cutover remain OPEN.
+
+## 2026-10-11 occupied capture rollback repair and bounded refutation
+
+The pre-repair claim that every logged capture-incidence inverse is allocation
+free is refuted on the source-qualified injected-failure domain by the
+independently reviewed [counterexample derivation](../notes/theory/2026-10-11-capture-local-rollback-allocation-counterexample.md).
+Its witness is tied to frozen pre-repair source; it does not establish a
+naturally occurring production failure, retained-frame entry, or W/A3.
+
+The owning rollback path now restores a saved occupied bucket through
+`get_mut`, retaining `insert` for absent keys. The focused synthetic and
+actual-Local checks passed in one serial Cargo invocation; eight sampled Local
+transactions each had 81 occupied inverses with zero observed allocation
+requests. A compiler-referee reviewed the code repair without findings. The
+separate [repair record](../notes/progress/2026-10-11-capture-occupied-rollback-repair.md)
+states exact scope and checks. Absent-key insertion (including splice inverse
+restoration) remains an OPEN storage obligation, as do retained-frame failure,
+original W/A3, full inference/effect hygiene, soundness/principality and F5
+cutover.

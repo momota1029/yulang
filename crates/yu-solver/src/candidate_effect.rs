@@ -44,7 +44,7 @@ pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct CaptureIncidence { pub source: u32, pub view: u32, pub next: Option<usize> }
 // Research observer: allocator requests are counted only during one inverse
-// insertion. The production map, hasher and insertion path are unchanged.
+// restoration. The production map and hasher are unchanged.
 #[cfg(test)]
 mod capture_probe_allocator {
     use std::alloc::{GlobalAlloc, Layout, System};
@@ -268,7 +268,10 @@ impl State {
             let probe_before = (self.capture_incidence.len(), self.capture_incidence.capacity());
             #[cfg(test)]
             if bucket.is_some() && self.capture_probe.is_some() { capture_probe_allocator::begin(); }
-            if let Some(bucket) = bucket { self.capture_incidence.insert(row, bucket); }
+            if let Some(bucket) = bucket {
+                if let Some(current) = self.capture_incidence.get_mut(&row) { *current = bucket; }
+                else { self.capture_incidence.insert(row, bucket); }
+            }
             else { self.capture_incidence.remove(&row); }
             #[cfg(test)]
             if let Some(probe) = &mut self.capture_probe {
@@ -1579,6 +1582,36 @@ mod tests {
     use super::*;
     use crate::candidate_scheme::{Node, RowKey};
     #[test]
+    fn capture_inverse_restores_occupied_without_allocation_and_inserts_absent() {
+        let mut state = State::default();
+        let saved = CaptureBucket { head: 0, tail: 1 };
+        let changed = CaptureBucket { head: 2, tail: 3 };
+        state.capture_incidence.reserve(28);
+        let capacity = state.capture_incidence.capacity();
+        for row in 0..capacity as u32 { state.capture_incidence.insert(row, changed); }
+        let mut checkpoint = state.checkpoint();
+        // Reverse a newly admitted row before replacing an occupied bucket,
+        // matching the failure suffix in the actual Local observation.
+        checkpoint.capture_incidence.push((0, Some(saved)));
+        checkpoint.capture_incidence.push((1, None));
+        state.capture_probe = Some(CaptureProbe { events: Vec::with_capacity(3), fail_at_full_new: false, failed: false });
+        state.rollback(checkpoint);
+        assert_eq!(state.capture_incidence.get(&0), Some(&saved));
+        assert!(!state.capture_incidence.contains_key(&1));
+        let occupied = &state.capture_probe.as_ref().unwrap().events[1];
+        assert!(occupied.inverse && occupied.old_present);
+        assert_eq!(occupied.before.0, occupied.after.0, "replacement keeps the occupied key");
+        assert_eq!(occupied.allocation_requests, 0);
+
+        let mut checkpoint = state.checkpoint();
+        checkpoint.capture_incidence.push((1, Some(saved)));
+        state.rollback(checkpoint);
+        assert_eq!(state.capture_incidence.get(&1), Some(&saved));
+        let absent = &state.capture_probe.as_ref().unwrap().events[2];
+        assert!(absent.inverse && absent.old_present);
+        assert_eq!(absent.after.0, absent.before.0 + 1, "an absent saved key still needs insertion");
+    }
+    #[test]
     #[ignore = "bounded actual Local capture rollback research observation"]
     fn retained_local_capture_inverse_observation() {
         use crate::candidate_source::{Action, CandidateRun, Schedule, Support};
@@ -1637,8 +1670,11 @@ mod tests {
             let admissions = probe.events.iter().filter(|event| !event.inverse).count();
             let retained_admissions = probe.events.iter().filter(|event| !event.inverse && event.local_frame).count();
             let requests: usize = probe.events.iter().filter(|event| event.inverse).map(|event| event.allocation_requests).sum();
+            let occupied_inverses = probe.events.iter().filter(|event| event.inverse && event.old_present && event.before.0 == event.after.0).count();
+            let occupied_requests: usize = probe.events.iter().filter(|event| event.inverse && event.old_present && event.before.0 == event.after.0).map(|event| event.allocation_requests).sum();
+            assert_eq!(occupied_requests, 0, "occupied capture inverses restore in place");
             allocating_sessions += usize::from(requests > 0);
-            eprintln!("retained_local_capture fresh={fresh_session} tails={tails} source_action={position} slot={slot} before={before_size:?} admissions={admissions} retained_admissions={retained_admissions} target={} inverse_allocation_requests={requests}", probe.failed);
+            eprintln!("retained_local_capture fresh={fresh_session} tails={tails} source_action={position} slot={slot} before={before_size:?} admissions={admissions} retained_admissions={retained_admissions} target={} inverse_allocation_requests={requests} occupied_inverses={occupied_inverses} occupied_allocation_requests={occupied_requests}", probe.failed);
             // Print only the suffix around the injected failure and allocating
             // inverses. The full event inventory is counted above.
             if let Some(last) = probe.events.iter().rposition(|event| !event.inverse) {
