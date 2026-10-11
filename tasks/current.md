@@ -11343,3 +11343,23 @@ The pending copied-row question is now revision 2: it asks for extrusion and
 freshening separately and includes a construction-specific owner/frame rule as
 a third option. This corrects the prior combined binary framing; it records no
 answer or approval. The question directory remains pending and uncommitted.
+
+The bounded [native negative residual payload proof](../notes/theory/2026-10-12-native-negative-residual-equation-proof.md)
+now proves an inventory invariant for the current six-node `ContextExpr`
+algebra: evaluation can preserve or remove supplied PUSH payload families,
+but cannot transform a surviving `{E,F}` payload into `{F}` unless a separately
+constructed transformed payload is supplied. An independent
+`compiler_referee` review found no blocking or major issue; its terminology
+correction distinguishes unchanged nominal atoms from changed payload sets.
+This rules out obtaining Oracle-style partial-family subtraction merely by
+rebracketing the existing operators. It does not prove a source-qualified
+native residual equation or an H counterexample.
+
+The smallest remaining owner obligation is the negative constructor / Row-upper
+reduction that associates the licensed lower fiber with the actual annotation
+instance and route, preserves an independent same-family contribution on the
+same row, derives correlated `J/kappa/beta/pi_t`, and installs both live
+relations. Existing Contribution, AnnotationMember and bound-origin records do
+not yet supply that authorization. General negative source admission remains
+disabled. Original effect hygiene H, complete Call, soundness, principality and
+F5 replacement remain OPEN.
