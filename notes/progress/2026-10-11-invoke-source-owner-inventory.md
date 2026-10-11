@@ -7,7 +7,8 @@ Reference: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Producer: `/root/invoke_source_owner_inventory`, leaf source-inventory lane
 Exclusive output: this note
 Claim class: bounded source/artifact characterization; no new theorem or semantic decision
-Independent review and gate disposition: assigned by the primary; none performed by this producer
+Independent review: one compiler_referee; one minor source-attribution correction repaired
+Gate disposition: bounded inventory only; all parent gates OPEN
 
 ## Objective and fixed premises
 
@@ -89,7 +90,9 @@ The source chain is directly construction-driven, before a solved endpoint:
    demand is ordinary latent inference; dispatch is conditional on a later pair.
 7. `candidate_call.rs` defines FormalRegistrationInput, ApplySourceInput and
    NativeInterface. Its observer validates source children/scopes/checking,
-   the exact demand fields and the shared native registered root. Its
+   the exact demand fields and that the registered root is a positive value
+   port. The source constructors establish that it is the same root as the
+   callee endpoint; the observer does not check that equality. Its
    PendingCallSupplier enum names whole original registration, formal
    introduction, exposure, Gen-Call-0, argument Reify/carrier, dispatch/result/
    future interfaces as still missing suppliers. These are declarative
@@ -260,8 +263,9 @@ those transitions cannot resolve this source-definition/application premise.
   `9bae772624c23b52a93c1b226157e16898b4d9db`.
 - Changed dependency hashes: only unrelated tasks/current.md bookkeeping delta
   above observed; invoke baseline section unchanged. No dependency edited here.
-- Review status: primary-owned assignment pending; no independent review or
-  theorem promotion performed by this producer. Writes stop at handoff.
+- Review status: compiler_referee found one minor attribution issue in §5.7;
+  repaired above. The review confirms this bounded inventory only. No theorem
+  promotion or parent-gate closure.
 - Checks run: targeted symbol/owner reads, paper Fig.3 extraction, read-only
   baseline comparisons and note integrity inspection; zero compiler checks.
 - Proposed message: `research: inventory invoke source owners and complete application gaps`.
