@@ -8824,8 +8824,9 @@ Verification also attempted `cargo fmt --check -p yu-solver`; it reports broad
 pre-existing formatting drift across touched and untouched package files, so no
 formatting rewrite was applied. The three emitted `dead_code` warnings belong
 to `candidate_context.rs` retained-input certificate payloads whose production
-consumer remains disabled; they are intentionally left visible until that
-consumer gate is implemented.
+consumer remains disabled. The staged `RetainedInput` fields/accounting and
+`CircuitEvidence::parents` field now carry scoped `dead_code` reasons naming the
+next circuit packet; the focused package test and check no longer emit warnings.
 
 ## 2026-10-11 retained parent handoff checkpoint
 
@@ -8846,10 +8847,10 @@ has fresh compiler-referee review with no findings: for constructor-valid
 closed retained Local invocations, the Local owner remains present and the
 exact entry census is restored before `refresh_bytes`. This is conditional on
 preceding semantic inverses returning normally. Late bound-ledger
-`accounting_error` success, semantic inverse coverage, lawful H3
-acknowledgement lineage, atomic semantic stages, incidence stability, the
-general scheduler, authentic §7 lifecycle, withdrawal/recomputation, SCC
-publication, q113, soundness/principality and F5 cutover remain open. The
+`accounting_error` success, semantic inverse coverage, atomic semantic stages,
+incidence stability, the general scheduler, authentic §7 lifecycle,
+withdrawal/recomputation, SCC publication, q113, soundness/principality and F5
+cutover remain open. The
 complementary unreviewed bounded falsification is
 [`retained-parent-rollback-falsifier`](../notes/progress/2026-10-11-retained-parent-rollback-falsifier.md).
 
@@ -8863,11 +8864,21 @@ terminal typed-drain (3), transient-ack undo (1), preflight-failure (1), and
 feature/no-feature package checks passed before the last trace-attribution
 delta. `git diff --check` passes on the current tree.
 
-The current focused `tests::f4_chain_scale_matrix_is_linear` run advances
-through trace validation but fails the exact resource-boundary assertion at
-`chain/1000`: observed 12,006 versus expected 10,006. The new trace markers
-cannot themselves change that counter; the exact source of the +2,000 remains
-unresolved, and expected values were not changed. One feature-enabled full
+The focused `tests::f4_chain_scale_matrix_is_linear` run advanced through trace
+validation and reported `chain/1000`: 12,006 resource samples versus the prior
+10,006 expectation. The source audit identified the exact +2,000 as two
+pre-existing per-component boxed-SCC boundaries (`SourceDrafts` and
+`AllDrafts`); the witness has 1,000 components. The separate coverage formula
+also omitted these two named boundaries. The pre-write spec-auditor review
+approved the narrow exact-arithmetic correction, recorded in
+[`f4-scale-resource-sample-omissions`](../notes/progress/2026-10-11-f4-scale-resource-sample-omissions.md).
+The correction adds checked `2 * witness.components` and two named coverage
+bits, preserving exact equality. It passed pre-write and post-write
+spec-auditor review and is committed as `179b29c15`. Its focused test compiled,
+then exceeded the 120-second cap while executing the full 1k/2k/4k scale matrix;
+the corrected runtime assertion remains unverified. The correction's causal
+accounting is source-established, not runtime-verified.
+One feature-enabled full
 package run was interrupted after roughly 20 minutes while the 4k cycle case
 remained CPU-bound. It had also shown failures in direct-root N/2N counters,
 the F4 chain/diamond matrices, distinct-use-route sampling, and 1k/2k
@@ -8881,11 +8892,40 @@ Proof/source research checkpoints were pushed separately:
   theorem open);
 - `81682cc93` — reviewed retained-child source correspondence;
 - `3f596ae5d` — reviewed bounded Local rollback early-exit derivation.
+- `56a8dd529` — bounded native H3 source correspondence, independently reviewed
+  with no finding.
+- `ea95a59d5` — constructive H3 conservation lemma, independently reviewed with
+  no correctness finding. For native replay construction/execution, the
+  outstanding per-operation acknowledgement projection is the exact consecutive
+  interval from `consumed` to `queued`. This discharges the native ownership
+  lemma only; applying it to the original all-valid-initial-state parent still
+  requires source/scheduler evidence for admitted mutation, invalidation and
+  ordered recomputation. The rollback extension remains conditional on exact
+  inverses. H3 and W/A3 stay OPEN.
+- `0a640d09d` — unreviewed static source route for a nonempty retained Local
+  child: `my outer = { my local = 1; local }`. The literal retains both bound
+  polarities; the annotated fixture drops the upper bound, and its test loop
+  also stops after the first zero-opposite restoration.
 
-All three are on `research/simple-sub-intrusion`. The five-file code slice and
-this task record remain uncommitted. Immediate next action: resolve the exact
-cause and status of the +2,000 sample boundaries without changing expectations,
-then synchronize the accepted research results into the parent progress record
-and continue the still-open semantic inverse, late-ledger, H3, incidence and
-authentic-lifecycle owners. Keep the original theorem and production promotion
-OPEN.
+All are on `research/simple-sub-intrusion`. The retained handoff implementation
+and its parsed nonempty-child test remain uncommitted in five solver files; the
+new test has passed a focused run. A regression-auditor found minor gaps in its
+Ready rollback snapshot, progress bound and receipt-payload assertion. The
+first two are repaired; the test asserts exact ack/index and committed delivery
+but does not claim a nonzero or independently reconstructed receipt payload.
+The adjusted focused test passes again with no package warnings. Fresh bounded
+verification:
+
+```text
+RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 timeout 120s cargo test -p yu-solver --features shadow-apply-candidate --offline --jobs=1 parsed_literal_local_retains_nonempty_child_until_exact_once_receipt_delivery -- --test-threads=1
+```
+
+The H3 source and proof notes are pushed separately as `56a8dd529` and
+`ea95a59d5`; the static source-witness note is pushed as `0a640d09d`. The
+corrected F4 expectation is pushed as `179b29c15`; its full scale matrix still
+exceeds the 120-second cap. Immediate next action: inspect and commit the
+reviewed retained handoff slice with this test and honest focused evidence.
+Afterward, continue the still-open semantic inverse, late-ledger, lifecycle
+admission/deferral/recomputation and authentic §7 owners. Keep the original
+theorem, complete inference, effect hygiene, soundness/principality, and F5
+production promotion OPEN.

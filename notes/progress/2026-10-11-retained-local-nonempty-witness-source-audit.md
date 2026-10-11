@@ -1,14 +1,14 @@
 # Parsed Local: smallest literal route to nonempty retained replay
 
 Date: 2026-10-11
-Status: unreviewed research source characterization and conditional experiment handoff; no executed witness, theorem closure, or production suspension claim.
+Status: source characterization followed by a passing focused parsed-source test and bounded regression review; no theorem closure or production suspension claim.
 Producer: `/root/retained_local_witness_source_audit`, leaf.
 Exclusive lease: this note only; frozen at handoff.
 Baseline: `56a8dd529bf530549730a65ccccd06f821d27b3b`, branch supplied by the primary: `research/simple-sub-intrusion`. Source evidence uses the frozen worktree hashes below, including five concurrent uncommitted solver files.
 
 ## Objective, authority, and result
 
-Find the smallest authentic parsed Local source path that can generate a nonempty native replay batch, enter Running, publish/deliver Ready, and leave restoration/Local cursors blocked until their completion gates. Method: static producer-to-consumer tracing, comparing annotated and unannotated literal locals. No Cargo, tests, model execution, compiler edits, or delegation.
+Find the smallest authentic parsed Local source path that can generate a nonempty native replay batch, enter Running, publish/deliver Ready, and leave restoration/Local cursors blocked until their completion gates. The producer used static producer-to-consumer tracing, comparing annotated and unannotated literal locals; primary later executed the focused test recorded below.
 
 Authority is the user-approved [private candidate suspension contract](../design/2026-10-11-private-candidate-suspension-contract.md), §3 (innermost ownership and completed-child advancement), §4 (saved opposite count and live lookup), §6 (route rollback/accounting), and §7 (distinguishing authentic lifecycle verification from synthetic adapter checks). Its recorded user decision is “承認して実装を進めて”. The accepted correction in [the retained source bridge](2026-10-11-retained-parent-handoff-source-bridge.md), “Objective, authority and frozen claim”, remains fixed: terminal acknowledgement consumes in F; Ready is the post-consumption barrier; delivery validates `consumed == index + 1` and does not acknowledge again.
 
@@ -70,13 +70,45 @@ Static coverage: one literal-local route and the existing annotated/control adap
 
 Omitted: real certified component, late unsupported Function/swap incidence, lifecycle dirty withdrawal/recomputation, multiple remaining products, initially published SCC member, external canonicalization during suspension, repeated unchanged-wait stability, full §7 recovery, general nested scheduler, production certificate creation, Call/effect hygiene, soundness/principality and cutover. This source has one product and identity context, so even a passing execution would not satisfy the full §7 regression. No globally minimal witness or impossibility result is claimed.
 
-Recommended next action: the primary assigns an explicitly authorized focused test/experiment to the solver implementation/verification owner using this exact unannotated source and the existing retained helper, continuing through the second restoration and asserting native nonempty H, Running, committed Ready, exact-once delivery, cursor blocking and failed-step rollback. Keep authentic §7/lifecycle and the original parent theorem OPEN.
+The primary assigned the focused test below using this exact unannotated source and existing retained helper. Authentic §7/lifecycle and the original parent theorem remain OPEN.
+
+## Primary execution and independent regression review
+
+The test `parsed_literal_local_retains_nonempty_child_until_exact_once_receipt_delivery`
+was added to `candidate_context_tests.rs`. It parses the source above through
+the normal entrypoint, completes the first zero-opposite restoration, then
+observes the second restoration with one opposite and a nonempty native replay.
+It checks Running and Ready for each child, exact acknowledgement/index,
+`consumed == index + 1` before delivery, blocked parent cursors, successful
+delivery without another acknowledgement, retained fresh-use/emission identity,
+and rollback of the retained child step.
+
+Focused verification passed:
+
+```text
+RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 timeout 120s cargo test -p yu-solver --features shadow-apply-candidate --offline --jobs=1 parsed_literal_local_retains_nonempty_child_until_exact_once_receipt_delivery -- --test-threads=1
+```
+
+Result: 1 passed, 0 failed; the filtered integration targets ran zero tests.
+The compile emitted no package warnings. A regression-auditor found no
+blocking issue and noted that the progress loop should be bounded and Ready
+failure should compare the full route snapshot; both were repaired and the
+focused test passed again. The test checks exact ack/index and successful
+delivery, but does not assert an independently reconstructed receipt payload.
+A temporary assertion that `completion.transitions > 0` failed; that stronger
+claim was removed because this source route can legitimately produce a zero
+transition receipt. The test does not claim that payload value.
+
+This execution establishes one authentic source path through the retained
+helper, not a production suspension lifecycle. It does not exercise certified
+support invalidation, external mutation permission, withdrawal/recomputation,
+SCC publication, full §7 recovery, or arbitrary parent-theorem histories.
 
 ## Frozen dependencies and checks
 
-SHA-256 values were rechecked before note freeze. HEAD advanced concurrently from the pinned baseline to `742624c45728a74798fa8b5b85fb1c136a651f0c`; the six inspected solver worktree hashes in the table remained unchanged. The governing contract and source bridge were also unchanged. This note continues to name the primary's pinned baseline and actual worktree bytes rather than claiming a fixed HEAD. Concurrent bytes differ from the pinned committed baseline; no compiler path was authored here.
+SHA-256 values below are the source audit's freeze-time inputs. HEAD advanced concurrently from the pinned baseline to `742624c45728a74798fa8b5b85fb1c136a651f0c`; the inspected solver worktree hashes in the table remained unchanged at that audit freeze. The governing contract and source bridge were also unchanged. Later test edits are recorded below and do not change the source-constructor analysis.
 
-| Path | Current worktree SHA-256 |
+| Path | SHA-256 at source-audit freeze |
 | --- | --- |
 | `notes/design/2026-10-11-private-candidate-suspension-contract.md` | `734d94cb02c3d2a101ab21435b4377ed06952ab384815da73636bcfbc986033d` |
 | `notes/progress/2026-10-11-retained-parent-handoff-source-bridge.md` | `538ccff23338c0c55cdc6bc4cda535b50f55644e342d9fe925ae8c63dcc0a44d` |
@@ -91,15 +123,18 @@ SHA-256 values were rechecked before note freeze. HEAD advanced concurrently fro
 
 For the five concurrent files in the table, the baseline hashes, in the same order context/tests/extrusion/scheme/lib, are `7d758c4177dad59a6c7c3422e68955905db12441b06816f4206bac9960fba416`, `936097b62e3133a7d87f85a850c6e7c755970ece0dee6f95fc1a26dcae3ec137`, `1fcfd729cc1a2afb080efc6ceeb424146bead7aba0142313b3a12d4ee120fade`, `ad3208eea2b348f1e87f1c6958b1d13b2d625ba38a42f5eac22959edd371a825`, and `9a32a53d75892521f28d9cce2955244f99ff5f27fc0a22364e656aedfa540e54`. These differences were already present at lane entry and are preserved.
 
-Checks run: read-only `git rev-parse HEAD`, `git status --short`, narrowly scoped `git diff --stat`; bounded `rg`/`sed` source/contract/fixture reads; `sha256sum` worktree inputs and `git show 56a8dd529:<path> | sha256sum` for baseline comparison; leased-note whitespace/scope inspection. One search for a nonexistent `candidate_signature.rs` returned no file; the signature implementation was found and read in `candidate_effect.rs`. No build/test/run/format/Git mutation occurred. One leaf, short read/hash shell processes, zero Cargo/heavy processes and zero samples. Static reads remained within the assigned 30-minute ceiling; actual elapsed CPU/RSS were not measured. The primary owns executable verification and independent review.
+Checks run by the source-audit producer: read-only `git rev-parse HEAD`, `git status --short`, narrowly scoped `git diff --stat`; bounded `rg`/`sed` source/contract/fixture reads; `sha256sum` worktree inputs and `git show 56a8dd529:<path> | sha256sum` for baseline comparison; leased-note whitespace/scope inspection. One search for a nonexistent `candidate_signature.rs` returned no file; the signature implementation was found and read in `candidate_effect.rs`. No build/test/run/format/Git mutation occurred in that lane. One leaf, short read/hash shell processes, zero Cargo/heavy processes and zero samples. Static reads remained within the assigned 30-minute ceiling; actual elapsed CPU/RSS were not measured. Primary execution and review are recorded above.
 
 ## Commit packet
 
 - Exact leased/changed path: `notes/progress/2026-10-11-retained-local-nonempty-witness-source-audit.md`.
 - Baseline SHA: `56a8dd529bf530549730a65ccccd06f821d27b3b`; exact worktree and changed-from-baseline dependency hashes are above. No dependency was changed by this leaf; observed worktree inputs remained stable across the audit.
-- Claim/review status: frozen, unreviewed source characterization and conditional experiment handoff; no executed witness or theorem promotion.
-- Checks already run: bounded static producer/consumer/control reads, exact input/baseline hashes and note scope/whitespace inspection; no executable verification.
+- Claim/review status: the static source characterization now has one focused parsed-source execution and bounded regression review. No theorem or §7 closure.
+- Checks already run: bounded static producer/consumer/control reads, exact input/baseline hashes and note scope/whitespace inspection; primary's focused test command/result are recorded above.
 - Proposed one-line research-checkpoint commit message: `research: identify unannotated literal Local for nonempty retained replay`.
-- Shared-record deltas intentionally left to primary/curator: record this source candidate and the first-bound early-exit gap; assign the focused experiment owner; preserve original parent proof and authentic §7/lifecycle gates OPEN. No task/design/index/theory/question/shared record changed.
+- Shared-record deltas intentionally left to primary/curator: record this source candidate and the first-bound early-exit gap; preserve original parent proof and authentic §7/lifecycle gates OPEN. No design/index/theory/question/authority record changed.
 
-Writing stopped before frozen review submission.
+The producer's write lease stopped before review, as assigned. The primary later
+added the execution and review record above. Current test-source SHA-256 after
+the addition is `5589562bfa4de07f8324f61a98c04cbebc898c28bfc2796a1f81a84d985aca39`;
+the historical freeze-time hash remains in the dependency table.
