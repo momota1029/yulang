@@ -10176,11 +10176,15 @@ It must preserve the original independent challenge domains and dependent
 Return/Request tuples. The original P and complete Generalize gates remain
 OPEN pending the actual bridge and independent proof review.
 
-The bounded Oracle syntax follow-up is active at
+The bounded Oracle syntax audit is frozen at
 [`oracle operation-path source audit`](../notes/progress/2026-10-11-oracle-operation-path-source-audit.md).
-It inspects only the pinned Oracle's operation-path grammar, resolution and
-owning examples; it has no Oracle execution allowance. Any later source probe
-must use the remaining call budget only after this syntax owner is established.
+It traces `tick::ping()` through PathSep parsing, full-path lowering, the act's
+companion module and the operation DefId; `note::tell()` and `log::put` are
+owning examples. A new exact-candidate qualification at
+[`oracle qualified returned callback probe`](../notes/progress/2026-10-11-oracle-qualified-returned-callback-probe.md)
+is active with the one remaining authorized Oracle call, bounded to 20 seconds
+and 2 GiB. Any diagnostic or missing provider stops the probe; the original H
+gate remains OPEN regardless of a successful dump.
 
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
