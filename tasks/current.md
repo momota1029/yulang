@@ -9915,6 +9915,39 @@ higher-level parent to survive extrusion, not another cycle whose return path
 passes only through a fresh instance. No compiler implementation or tests
 changed in this checkpoint.
 
+### Pre-freshening higher-order recursion and Call correlation
+
+The distinct [higher-order recursive argument trace](../notes/progress/2026-10-11-source-parent-copy-witness-search.md)
+uses `my g y = outer g; x`, so the active helper self-binding is the ancestor
+call's argument and there is no returned-helper fresh use at the analyzed
+cut. Native construction records four actual Value parent/copy events:
+`(C,K)`, `(R,A)`, `(U,Y)`, `(V,A)`. Late Function replay creates the sibling
+reference SCC `R → Function(U,V) → V → R`; none of its members reaches an
+original extrusion parent. An independent `compiler_referee` review found no
+finding in the bounded native identity, polarity, reconstruction, replay, or
+SCC claims. The review did not cover the artifact's separate Scala-reference
+comparison. Exact parsing and replay completion remain conditional.
+
+The complementary [higher-order Call seam proof](../notes/theory/2026-10-11-source-required-parent-copy-proof.md)
+constructs a second real extrusion fact: in domain-first positive extrusion
+of the id argument's `Function(Z,Z)`, the negative `Z−` link is installed
+before the positive copy `Z+` snapshots Z.lower. Thus the emitted payloads
+retain `Z− <: Z+`. The diagonal witness `z=Z−` satisfies both identity ports
+in the bounded Value preorder; polarity splitting alone does not show lost
+correlation. Its independent review found no finding in that bounded claim.
+This witness does not prove the original complete Call judgment or preserve
+its whole scoped solution/observation fiber.
+
+The shortest remaining proof dependency is the actual `ArgumentReify` /
+`OriginalGenCall0` clause and its source-Generalize correspondence. The
+candidate owner `candidate_call.rs:224–242` still lists those suppliers as
+pending; the primary's original Call source-construction lane owns them. The
+Value SCC constructions do not establish that parent/copy equality is needed,
+and they do not prove it unnecessary for all source judgments. Complete Call,
+source Generalize, all-source intrusion adequacy, soundness, principality,
+normal progress, effect hygiene and F5 replacement remain OPEN. No compiler
+implementation or tests changed in this checkpoint.
+
 The original Simple-sub inference, complete Call, soundness, principality,
 Effect hygiene, Generalize, rejection, production acceptance and F5 replacement
 gates remain OPEN. No implementation or tests changed.
