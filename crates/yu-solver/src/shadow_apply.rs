@@ -1661,6 +1661,20 @@ mod tests {
         assert!(calls.iter().all(|call| call.unresolved() == UNRESOLVED));
     }
     #[test]
+    fn direct_source_int_application_records_int_function_conflict() {
+        let candidate = CandidateInference::solve(crate::candidate_lifecycle_retirement::hir(
+            "my bridge x = 1 1",
+        ))
+        .unwrap();
+        assert!(candidate.candidate_conflicts().iter().any(|error| {
+            error.kind()
+                == SolverErrorKind::IncompatibleValue {
+                    lower: ValueShape::Int,
+                    upper: ValueShape::Function,
+                }
+        }));
+    }
+    #[test]
     fn source_call_registered_root_rejects_invalid_registration_and_native_polarity() {
         let hir = crate::candidate_lifecycle_retirement::hir("my apply f = f 1");
         let mut batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();

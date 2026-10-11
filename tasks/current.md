@@ -85,6 +85,48 @@ producer-to-consumer path. Composed-negative subtraction, complete effect
 hygiene, conflict-to-publication rejection, the ordinary HIR carrier handoff,
 and full F5 replacement remain OPEN.
 
+## 2026-10-11 normal-inference critical path resumed
+
+The user's current steering makes the original Simple-sub normal-inference
+theorem the primary path. The reviewed
+[`candidate-graph-call correspondence`](../notes/theory/2026-10-10-candidate-graph-call-correspondence.md)
+already proves actual source graph capture, four-port preservation, fresh-route
+sharing, scalar replay and termination in its all-local envelope for
+`my invoke f = f 1`. It explicitly does not establish the independent complete
+Call judgment, source Generalize, or a principal public scheme. Do not reprove
+those closed operational results or infer an expected scheme from a graph.
+
+The shortest unresolved semantic bridge identified so far is the interpretation
+of the actual four-port Apply demand and its later discharge as one complete
+source Call witness, preserving the same callable, whole argument,
+receiver/entry, result, protection and scope. The original complete Call and
+principal-order owners remain necessary dependencies; the source-generated
+scalar bounds alone do not discharge them. The bounded `prover` task examined
+the original typing judgment for `my invoke f = f 1` but produced neither a
+proof nor a counterexample. It isolated the missing premise: an independently
+established semantic bridge from the actual Apply demand and discharge to one
+complete source Call witness. Thus source adequacy, soundness and principality
+remain OPEN. A read-only source audit is checking whether accepted constructors
+already provide this bridge; no conditional graph lemma will be promoted as
+closure.
+
+The separate type-error lane reproduced the exact source
+`my bridge x = 1 1` through source HIR and candidate solving. The focused test
+passes and records `Int <: Function`; the candidate continues to a private
+result, which is not a public accepted typing. Independent consumer mapping
+found no current public acceptance boundary to repair in this private route.
+Ordinary Apply remains unsupported by ordinary HIR, and the reviewed carrier
+proposal has an unconsumed approval handoff, so no public-path behavior change
+is authorized by this reproduction. Keep the diagnostic/reflection and public
+validity boundary OPEN; do not expand this lane into rollback research.
+
+Separately, one bounded Oracle run accepted a source with composed-negative
+formal `[tick]` and displayed no `tick` in the function's outer invocation-result
+effect. The frozen audit traces Oracle `PUSH_i`/`POP_i` through call predicate
+subtraction, while the Yulang3 candidate rejects that formal row during
+preflight and paired construction. This is source evidence, not an inference
+theorem or an implementation fix; complete effect hygiene stays OPEN.
+
 ## Proof and task-decomposition dispatch (2026-10-10)
 
 Use the [Sol proof/task-decomposition roles](../notes/design/2026-10-10-proof-and-task-decomposition-roles.md)
