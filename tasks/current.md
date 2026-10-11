@@ -10989,6 +10989,25 @@ premise is solver-row ownership and transport of the already selected source
 incidences through extrusion and fresh use, followed by consumer correspondence
 and parent/copy equality safety.
 
+The exact [`odd/even source admission audit`](../notes/progress/2026-10-12-odd-even-source-admission-audit.md)
+traces the user's conditional/indented source without substituting a
+brace-block example. The parser yields `IndentedStatementBlock`; ordinary HIR
+reports `UnsupportedExpression`, and private `LocalSource` requires an inline
+`OperatorChain` before it can publish a carrier. Even if the block shape were
+admitted, the inspected LocalSource route has no `IfExpression` or infix-use
+constructor, and successful operator parsing depends on a supplied operator
+environment. Its independent `spec_auditor` review found no issues within the
+static admission scope. The audit conditionally maps Name ownership and planner
+levels only for an admitted carrier; neither generates Value-reference edges.
+The companion [`cross-level typing analysis`](../notes/theory/2026-10-12-odd-even-cross-level-typing-proof.md)
+derives only the conditional original-Simple-sub prefix (outer root/formal at
+level 1, nested initializer/formal at level 2, shared outer recursive root,
+coherent later freshening above boundary 1). It does not derive the exact
+program's bounds, extrusion, final scheme, or intrusion qualification. That
+note is frozen and awaits independent proof review. Exact source admission,
+native edge emission/transport, SCC-consumer correspondence, qualifying
+parent/copy equality, soundness and principality remain OPEN.
+
 ### 2026-10-12 Oracle direct-return projection boundary
 
 The annotation-positive Function lower at formal coordinate `c` carries α,
