@@ -10930,3 +10930,34 @@ existing nested-Apply membership question remains separately pending. Direct
 Apply-coordinate characterization, original Simple-sub derivation, and
 independent Call/Effect work continue; no implementation or theorem closure
 follows from this source example.
+
+### Cross-level source-root composition review
+
+An independent `compiler_referee` reviewed the proposed composition for the
+carrier-shaped analogue
+`my odd n = { my even n = odd(n); even(n) }`. Conditional on successful
+authentic LocalSource formation and checked allocation, the existing module
+root map gives actual root `O`; the Authoritative unannotated-local publication
+constructors preserve the initializer endpoint as local root `E`. The source
+ownership/resolution rules then give `E → O` from the inner initializer and
+`O → E` from the outer block's final expression. The separately approved Apply
+rule gives `R → O` and `S → E`. This is a bounded source-root abstraction, not
+an instantiation of the earlier two-module theorem and not a native scanner
+equivalence proof.
+
+The review explicitly leaves the pending native ownership question open:
+identity of `O`/`E` and a source-root cycle do not prove that constructors emit
+those incidences into the actual native Value-reference graph or that the SCC
+consumer sees them. `PendingDefinitionUse.parent_ordinal` remains the enclosing
+module definition through a local initializer, so it cannot itself recover the
+nearest source owner `E`; the construction must retain or derive that owner
+from the local initializer/value structure. The exact conditional/arithmetic
+source in the user's example also has no established ordinary Y3 HIR admission
+bridge. Thus the source-level example refutes lexical-level acyclicity, while
+native row construction, extrusion/fresh-use transport, parent/copy
+qualification, and equality safety remain OPEN.
+
+The definition-root question remains pending as a native-construction choice;
+the source-root derivation neither selects its implementation representation
+nor authorizes scanner changes. The nested-Apply membership question is
+independent and remains pending as well. No compiler code or tests changed.
