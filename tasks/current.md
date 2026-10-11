@@ -10785,3 +10785,22 @@ worktree after the review. The note derives two constraint cycles excluding
 the extrusion parents, while explicitly keeping those cycles separate from
 Value-reference SCCs. It does not resolve the Apply owner law or establish
 parent/copy SCC qualification. No solver code or tests changed.
+
+### 2026-10-12 Apply-result Value-reference owner decision
+
+The user's `odd`/`even` example confirms a source-owner SCC across distinct
+lexical levels; it does not determine which Value row owns the references of
+an Apply result. The two remaining constructor completions differ already on
+`konst 1`: a computation-fragment owner gives the Apply result row an edge to
+`konst`, while returned-content ownership gives the returned literal no such
+edge. The latter needs the actual complete-Call provider and an explicit
+reference-forwarding rule. This choice can change SCC qualification, so neither
+candidate is being installed as semantics or inferred from type ports.
+
+The exact decision and consequences are recorded in the pending, uncommitted
+[`Apply-result Value-reference owner question`](../questions/2026-10-12-apply-result-value-reference-owner/question.md).
+Only Apply-result ownership, its transport proof, and dependent parent/copy
+qualification wait for that equation. Non-Apply Simple-sub/source work,
+complete Call construction, and effect-hygiene work remain authorized and
+independent. No solver code, tests, builds, or Oracle runs changed in this
+decision slice.
