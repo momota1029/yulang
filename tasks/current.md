@@ -10525,6 +10525,15 @@ not certify complete C0, all-source Call formation, executable negative
 subtraction, residual activation, hygiene, soundness, principality or
 publication. The parent gates remain OPEN.
 
+The frozen [Oracle direct projection census](../notes/progress/2026-10-11-oracle-direct-static-projection-census.md)
+adds a separate static effect-hygiene lead: an interned same-key `Y → O → Y`
+route can revisit the canonical replay key with a distinct pivot carrier,
+potentially changing qualified parents without semantic enqueue. The complete
+admission prefix, later carrier batches, final projection, and callback-use
+bridge are missing. This is an unreviewed candidate route, not an Oracle
+counterexample and not closure of hygiene H. Oracle invocation budget remains
+exhausted; no execution or instrumentation was done.
+
 No code, tests, builds, Oracle runs or instrumentation were performed. Next:
 construct the missing complete Call suppliers at their source-generation
 owners, and establish the actual Value-owner/transport and equality
