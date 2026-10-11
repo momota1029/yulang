@@ -11091,9 +11091,12 @@ delayed; they do not certify a reached force. The precise residual remains
 same-task typed-boundary adequacy: interpret the selected actual/consumer/ref
 and adapter path jointly, classify attachment, and prove its reached force and
 complete output or an authentic specialization rejection. The audit is frozen
-but awaits independent review. It is not an H counterexample or a production
-semantics decision. Oracle remains unused; complete Call, H, soundness,
-principality, and cutover remain OPEN.
+and independently reviewed by `compiler_referee` with no findings. Review
+supports the source owners and the exact M localization, while confirming that
+the discriminator's actual selected signatures, attachment interpretation,
+force/output, and specialization outcome are still absent. It is not an H
+counterexample or a production semantics decision. Oracle remains unused;
+complete Call, H, soundness, principality, and cutover remain OPEN.
 
 The independent `compiler_referee` review of the provider-attachment boundary
 derivation found no blocking or major issue and one minor locator correction:
