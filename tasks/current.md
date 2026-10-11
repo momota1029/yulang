@@ -9681,9 +9681,10 @@ copy/parent pair begins strictly ordered. A first qualifying merge would
 require a reverse dependency path that violates this level order. The derivation
 traces all current native Value-bound writers, lexical/module use levels,
 captured-bound order, interleaved restorations, earlier child-created parents,
-memo suppression and final Local linking. It is frozen with independent
-compiler-referee review pending. This removes the exact zero-product
-restoration predecessor from the bounded Effect-drain rejection analysis; it
-does not prove general inconsistency reflection, persistent-witness coverage,
-public acceptance, soundness, principality, complete Call, hygiene, or F5
-replacement. The original theorem remains OPEN.
+memo suppression and final Local linking. An independent compiler-referee
+review passed this construction invariant with no findings. This removes the
+exact zero-product restoration predecessor from the bounded Effect-drain
+rejection analysis. It does not prove semantic adequacy of eliminating native
+Value parent/copy mergers, persistent-witness coverage, general inconsistency
+reflection, public acceptance, soundness, principality, complete Call, hygiene,
+or F5 replacement. The original theorem remains OPEN.
