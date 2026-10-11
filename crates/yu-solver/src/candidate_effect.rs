@@ -91,6 +91,9 @@ mod capture_probe_allocator {
 #[derive(Debug)]
 struct CaptureProbeEvent {
     inverse: bool,
+    // Vector residence only: LocalUse moves its frame out during an atomic
+    // owner step, so false does not exclude execution inside that owner.
+    local_frame: bool,
     row: u32,
     old_present: bool,
     before: (usize, usize),
@@ -270,7 +273,7 @@ impl State {
             #[cfg(test)]
             if let Some(probe) = &mut self.capture_probe {
                 let allocation_requests = if bucket.is_some() { capture_probe_allocator::end() } else { 0 };
-                probe.events.push(CaptureProbeEvent { inverse: true, row, old_present: bucket.is_some(),
+                probe.events.push(CaptureProbeEvent { inverse: true, local_frame: false, row, old_present: bucket.is_some(),
                     before: probe_before, after: (self.capture_incidence.len(), self.capture_incidence.capacity()), allocation_requests });
             }
         }
@@ -471,6 +474,8 @@ impl InferenceSession {
     pub(super) fn candidate_capture_incidence(
         &mut self, tail: u32, source: u32, view: u32,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        let probe_local_frame = self.candidate_graph.as_ref().is_some_and(|state| !state.local_use.is_empty());
         let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
         if state.capture_incidence_keys.contains(&(source, view)) { return Ok(()); }
         let bucket = state.capture_incidence.get(&tail).copied();
@@ -500,7 +505,7 @@ impl InferenceSession {
         state.capture_incidence_keys.insert((source, view));
         #[cfg(test)]
         if let Some(probe) = &mut state.capture_probe {
-            probe.events.push(CaptureProbeEvent { inverse: false, row: tail, old_present: bucket.is_some(),
+            probe.events.push(CaptureProbeEvent { inverse: false, local_frame: probe_local_frame, row: tail, old_present: bucket.is_some(),
                 before: probe_before, after: (state.capture_incidence.len(), state.capture_incidence.capacity()), allocation_requests: 0 });
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -1573,6 +1578,82 @@ impl InferenceSession {
 mod tests {
     use super::*;
     use crate::candidate_scheme::{Node, RowKey};
+    #[test]
+    #[ignore = "bounded actual Local capture rollback research observation"]
+    fn retained_local_capture_inverse_observation() {
+        use crate::candidate_source::{Action, CandidateRun, Schedule, Support};
+        let tails = 28;
+        let ports = (0..tails).flat_map(|index| [index, index])
+            .map(|index| format!("(int -> [tick, 'e{index}] ())"))
+            .collect::<Vec<_>>().join(" -> ");
+        let text = format!("act tick:\n    our ping: () -> ()\nmy outer = {{ my bridge (consume:({ports} -> ())) = consume; bridge }}");
+        let mut targets = 0;
+        let mut allocating_sessions = 0;
+        for fresh_session in 0..8 {
+            let mut session = make_session(&text);
+            let (root, position) = session.batch.candidate_source.schedules.iter()
+                .find_map(|(root, actions)| actions.iter().rposition(|action| matches!(action, Action::Local { .. }))
+                    .map(|position| (root.clone(), position))).unwrap();
+            let schedule = Schedule::Root(session.batch.root_definition_positions[&root]);
+            session.begin_candidate_source(schedule).unwrap();
+            while session.candidate_graph.as_ref().unwrap().source.unwrap().next < position {
+                assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+            }
+            let Action::Local { slot, .. } = session.batch.candidate_source.schedules[&root][position] else { unreachable!() };
+            let graph = session.candidate_graph.as_ref().unwrap();
+            assert!(graph.locals[slot].is_some(), "real schedule must install bridge before use");
+            assert!(graph.local_use.is_empty(), "target starts a new actual Local route");
+            let before_source = graph.source;
+            let before_routes = graph.local_routes.len();
+            let state = &graph.intrusion.effect_algebra;
+            let before_map = state.capture_incidence.clone();
+            let before_records = state.capture_records.clone();
+            let before_keys = state.capture_incidence_keys.clone();
+            let before_context = state.context.checkpoint();
+            let before_size = (state.capture_incidence.len(), state.capture_incidence.capacity());
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.capture_probe =
+                Some(CaptureProbe { events: Vec::with_capacity(tails * 16), fail_at_full_new: true, failed: false });
+            let before_route = RouteCheckpoint::capture(&session);
+            // The source owner dispatches Action::Local. Its production route
+            // opens the transaction, captures/freshens once, and steps LocalUse.
+            let result = session.step_candidate_source(Support::READY);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            let probe = state.capture_probe.as_ref().unwrap();
+            if probe.failed {
+                assert_eq!(result, Err(exhausted()));
+                before_route.assert_restored(&session);
+                assert_eq!(state.capture_incidence, before_map);
+                assert_eq!(state.capture_records, before_records);
+                assert_eq!(state.capture_incidence_keys, before_keys);
+                assert_eq!(state.context.checkpoint(), before_context);
+                let graph = session.candidate_graph.as_ref().unwrap();
+                assert_eq!(graph.source, before_source);
+                assert_eq!(graph.local_routes.len(), before_routes);
+                assert!(graph.local_use.is_empty());
+            } else {
+                assert_eq!(result, Ok(CandidateRun::Complete(false)), "unrelated failure invalidates the witness");
+            }
+            targets += usize::from(probe.failed);
+            let admissions = probe.events.iter().filter(|event| !event.inverse).count();
+            let retained_admissions = probe.events.iter().filter(|event| !event.inverse && event.local_frame).count();
+            let requests: usize = probe.events.iter().filter(|event| event.inverse).map(|event| event.allocation_requests).sum();
+            allocating_sessions += usize::from(requests > 0);
+            eprintln!("retained_local_capture fresh={fresh_session} tails={tails} source_action={position} slot={slot} before={before_size:?} admissions={admissions} retained_admissions={retained_admissions} target={} inverse_allocation_requests={requests}", probe.failed);
+            // Print only the suffix around the injected failure and allocating
+            // inverses. The full event inventory is counted above.
+            if let Some(last) = probe.events.iter().rposition(|event| !event.inverse) {
+                for event in probe.events[last.saturating_sub(1)..].iter().take(4) {
+                    eprintln!("retained_local_capture {} row={} old={} local_frame={} before={:?} after={:?} allocation_requests={}",
+                        if event.inverse { "inverse" } else { "admit" }, event.row, event.old_present,
+                        event.local_frame, event.before, event.after, event.allocation_requests);
+                }
+            }
+            for event in probe.events.iter().filter(|event| event.allocation_requests > 0) {
+                eprintln!("retained_local_capture allocating_inverse row={} before={:?} after={:?} requests={}", event.row, event.before, event.after, event.allocation_requests);
+            }
+        }
+        eprintln!("retained_local_capture coverage sessions=8 tails=28 targets={targets} allocating_sessions={allocating_sessions} seeds=uncontrolled_RandomState");
+    }
     #[test]
     #[ignore = "bounded native capture rollback research observation"]
     fn capture_map_native_admission_inverse_observation() {

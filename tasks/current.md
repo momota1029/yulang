@@ -9175,3 +9175,26 @@ For each of five context head maps, it proves key presence at each reversed
 `Some` and reduces allocation-free restoration to condition (I) at that map's
 first reversed `Some`. It has no native counterexample or all-history headroom
 proof; each map and the capture map retain distinct OPEN storage premises.
+
+## 2026-10-11 Oracle-valid actual Local capture rollback observation
+
+The follow-up source-correspondence probe is recorded in
+[`retained-local-capture-observation`](../notes/progress/2026-10-11-retained-local-capture-observation.md).
+Its source uses the syntactic local function binding `bridge`, accepted by the
+frozen Yulang2 Oracle; it does not use an expansive annotated value such as
+`my ans: [E] int`. Yulang3's root schedule installs the function and reaches
+the actual `Action::Local -> route_candidate_local` transaction. In 8 fresh
+sessions with 28 tails, the failure hook reached the occupied-A/new-B/remove-B/
+restore-A suffix every time, and 5 sessions recorded an allocator request while
+reversing an occupied bucket. Logical incidence, record, key, context and route
+state restored in the injected failure. A compiler-referee and spec-auditor
+reviewed the frozen code and note without findings.
+
+This observes an allocation request in the actual Local failure rollback
+route, but it is not an allocator-failure test or a general allocation-free
+rollback theorem. The route starts a fresh Local use; no retained-frame
+pause/resume failure was tested. Capture-map storage safety and original W/A3
+remain OPEN. Next: investigate and implement an authorized restoration
+construction at the owning map mutation, retaining distinct proof obligations
+for occupied-key restoration and absent-key reinsertion. Full inference,
+Yulang2 effect hygiene, soundness/principality and F5 cutover remain OPEN.
