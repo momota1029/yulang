@@ -5070,3 +5070,70 @@ fn parsed_literal_local_retains_nonempty_child_until_exact_once_receipt_delivery
     assert_eq!(state(&session).evidence.emissions.len(), emissions);
     assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
 }
+
+
+#[test]
+fn private_failed_candidate_census_restores_current_bytes_and_preserves_peak() {
+    for retained in [false, true] {
+        let (mut session, restoration, _) = retained_replay_parent_fixture(false);
+        let checkpoint = state(&session).checkpoint();
+        let restoration_before = state(&session).restorations[&restoration].clone();
+        let rows = session.bounds.len();
+        session.begin_route_transaction_for(if retained { RoutePurpose::RetainedResume } else { RoutePurpose::Fresh }).unwrap();
+        let mut event_peak = 0;
+        let mut samples = 0;
+        let operation = |session: &mut InferenceSession| {
+            session.fresh_value_at_level(1)?;
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            event_peak = session.execution_counters.inference_session_peak_bytes;
+            samples = session.resource_boundary_samples;
+            Err::<(), _>(exhausted())
+        };
+        let result = if retained { session.finish_route_transaction(operation) }
+            else { session.finish_route_transaction_with_candidate_accounting(operation, true) };
+        assert_eq!(result, Err(exhausted()));
+        assert_eq!(session.bounds.len(), rows);
+        assert_eq!(state(&session).checkpoint(), checkpoint);
+        assert_eq!(state(&session).restorations[&restoration], restoration_before);
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+        assert_eq!(session.resource_boundary_samples, samples + 1);
+        assert!(session.execution_counters.inference_session_peak_bytes >= event_peak);
+        let current = (session.execution_counters.semantic_arena_retained_bytes,
+            session.execution_counters.inference_session_retained_bytes);
+        assert_eq!(current, (session.resource_ledger.semantic_arena_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes));
+        session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+        assert_eq!(current, (session.execution_counters.semantic_arena_retained_bytes,
+            session.execution_counters.inference_session_retained_bytes), "rollback boundary agrees with the restored owner census");
+    }
+}
+
+#[test]
+fn private_failed_candidate_census_overflow_publishes_no_partial_sample() {
+    for retained in [false, true] {
+        let (mut session, restoration, _) = retained_replay_parent_fixture(false);
+        let checkpoint = state(&session).checkpoint();
+        let restoration_before = state(&session).restorations[&restoration].clone();
+        session.begin_route_transaction_for(if retained { RoutePurpose::RetainedResume } else { RoutePurpose::Fresh }).unwrap();
+        let ledger = session.resource_ledger.clone();
+        let counters = session.execution_counters.clone();
+        let samples = session.resource_boundary_samples;
+        let attempts = session.incoming_route_sample_attempts;
+        let operation = |session: &mut InferenceSession| {
+            // This probe becomes active only after setup, at the final census.
+            session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::RouteJournal);
+            Err::<(), _>(SolveAvailabilityError::ReceiptMismatch)
+        };
+        let result = if retained { session.finish_route_transaction(operation) }
+            else { session.finish_route_transaction_with_candidate_accounting(operation, true) };
+        assert_eq!(result, Err(exhausted()));
+        assert_eq!(session.incoming_route_sample_attempts, attempts + 1);
+        assert_eq!(session.resource_boundary_samples, samples);
+        assert_eq!(session.resource_ledger, ledger);
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(state(&session).checkpoint(), checkpoint);
+        assert_eq!(state(&session).restorations[&restoration], restoration_before);
+        assert!(session.route_journal.is_none());
+        // Accounting exhaustion is terminal: discard this private session.
+    }
+}

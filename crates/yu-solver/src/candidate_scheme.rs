@@ -1358,7 +1358,7 @@ impl InferenceSession {
         self.incoming_route_accounting_active = true;
         self.route_attempt_physical_change = false;
         self.incoming_route_event_sample_failed = false;
-        let result = self.with_route_transaction(|session| {
+        let result = self.begin_route_transaction().and_then(|()| self.finish_route_transaction_with_candidate_accounting(|session| {
             if session.candidate_graph.as_ref().ok_or_else(exhausted)?.local_use.is_empty() {
                 let (root, boundary, local) = {
                     let scheme = session.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
@@ -1400,7 +1400,7 @@ impl InferenceSession {
                 steps += 1;
                 if pause_after == Some(steps) { return Ok(LocalRun::Paused); }
             }
-        });
+        }, true));
         self.incoming_route_accounting_active = false;
         self.route_attempt_physical_change = false;
         self.incoming_route_event_sample_failed = false;
@@ -1430,13 +1430,13 @@ impl InferenceSession {
                     if self.candidate_graph.as_ref().unwrap().local_use.is_empty() { return Err(exhausted()); }
                 }
                 LocalScriptStep::FailOne => {
-                    let result = self.with_route_transaction(|session| {
+                    let result = self.begin_route_transaction().and_then(|()| self.finish_route_transaction_with_candidate_accounting(|session| {
                         let mut frame = session.candidate_graph.as_mut().unwrap().local_use.pop().ok_or_else(exhausted)?;
                         let result = session.step_candidate_local_use(&mut frame);
                         session.candidate_graph.as_mut().unwrap().local_use.push(frame);
                         result?;
                         Err::<(), _>(exhausted())
-                    });
+                    }, true));
                     if result != Err(exhausted()) { return Err(exhausted()); }
                 }
                 LocalScriptStep::Complete => {

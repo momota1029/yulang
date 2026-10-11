@@ -9065,13 +9065,20 @@ other mutation owners, atomic absent-key capture restoration, H2/H3/H4,
 W/A3, complete Simple-sub inference, Yulang2-derived effect hygiene,
 soundness/principality, and production F5 cutover remain OPEN.
 
-Next: implement the already-authoritative failed-attempt accounting owner at
-the candidate capacity owners and final exits, preserving one conditional
-postrollback sample and its all-or-none error rule. In parallel, establish
-condition (I) for each reverse map insertion or repair storage ownership
-without narrowing the source envelope. Continue the separate authentic
-readiness/filter/dependent-observation and published-SCC lifecycle bridge. No
-compiler/test changes or executable checks ran in this research-only wave.
+The private failed-body census slice is now implemented and reviewed in
+[`private-failed-candidate-census`](../notes/progress/2026-10-11-private-failed-candidate-census.md).
+Private Local and RetainedResume failures take one checked current census after
+successful rollback; successful/generic routes and `route_incoming` finalization
+remain unchanged. Compiler-referee found no blocking or major defect and one
+minor test assertion gap; the primary repaired it and reran the two focused
+tests successfully. The incoming §3 conditional accounting gate, early rollback
+failures, and consuming-session overflow disposal remain OPEN.
+
+Next: establish a constructor-qualified native capture-map rollback headroom
+invariant or history witness without narrowing the source envelope. Continue
+the separate authentic readiness/filter/dependent-observation lifecycle
+bridge. Original W/A3, complete Simple-sub inference, effect hygiene,
+soundness/principality, and production F5 cutover remain OPEN.
 
 ## 2026-10-11 HashMap rollback-capacity reduction
 

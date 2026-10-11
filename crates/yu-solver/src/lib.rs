@@ -9200,6 +9200,16 @@ impl InferenceSession {
         &mut self,
         operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
     ) -> Result<T, SolveAvailabilityError> {
+        let sample_failed_candidate = self.route_journal.as_ref()
+            .is_some_and(|journal| journal.purpose == RoutePurpose::RetainedResume);
+        self.finish_route_transaction_with_candidate_accounting(operation, sample_failed_candidate)
+    }
+
+    fn finish_route_transaction_with_candidate_accounting<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
+        sample_failed_candidate: bool,
+    ) -> Result<T, SolveAvailabilityError> {
         match operation(self) {
             Ok(value) => {
                 #[allow(unused_mut, reason = "candidate route undo is released only with its feature")]
@@ -9233,6 +9243,13 @@ impl InferenceSession {
             }
             Err(error) => {
                 self.rollback_route_transaction()?;
+                if sample_failed_candidate {
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if let Some(state) = &mut self.candidate_graph { state.scratch_bytes = 0; }
+                    // The private retained owner is restored before the checked
+                    // census publishes current bytes; event-time peaks survive.
+                    self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                }
                 Err(error)
             }
         }
