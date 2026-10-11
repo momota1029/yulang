@@ -9752,13 +9752,36 @@ but universal source constraint completeness remains OPEN. In particular,
 the natural recursion regression does not establish the complete two-root
 Generalize relation for `my f x=g; my g y=f`.
 
-The active normal-inference proof lane is the actual source fixed/retain
-closure at Generalize and its correspondence to level-based capture, with a
-separate source falsifier. A second constructive lane now attacks the exact
-nested Oracle Generalize-to-delayed-call bridge; it must derive whether pruned
-IDs are discharged/exported and retained IDs reach their actual consumer. The
-reviewed Oracle local lemmas do not close universal hygiene. Full source
-Generalize, complete Call, soundness, principality, normal inference progress,
-effect hygiene, production acceptance, and F5 replacement all remain OPEN.
-Current research branch checkpoint is `a92fc1c8e` (pushed); no compiler code,
-tests, semantic rules, or F5 routing changed in this wave.
+The first bounded normal-inference construction is recorded in
+[`Value level and source Generalize correspondence`](../notes/theory/2026-10-11-value-generalize-level-correspondence-proof.md)
+at `803c5378a`. Its independent compiler-referee review passed the exact
+operational claims: older rows remain shared, younger eligible rows use one
+canonical freshening map, and opposite-bound replay gives the bare recursive
+pair scalar reachability. The review also confirms the exact gap: this does
+not establish complete source fixed/retain closure. Law P remains OPEN: actual
+Mono/Established, Executed/OneShot and Shared constructors must emit complete
+correlated free fields and original binder incidences, and retain their fixed
+assignments across incoming frames.
+
+The separate frozen source falsifier
+[`Value Generalize discarded-peer capture`](../notes/progress/2026-10-11-value-generalize-level-falsification.md)
+at `4361e3b59` traces
+`my f x = { my u = g; x }; my g y = f`. Candidate publication captures each
+member root independently; the f capture and later f-only recapture omit g's
+Function and y. Its independent compiler-referee review passed those static
+representation claims. No lawful distinguishing client or semantic
+counterexample was established, because y's fixed/eligible provenance through
+the discarded binding and a whole-source reconstruction are still missing.
+This is a concrete correspondence gap, not proof that the source contract can
+be weakened or that intrusion is dispensable. A constructive prover now owns
+the exact source-emission law P and the unchanged whole-component Generalize
+obligation for this discarded-peer case.
+
+A second constructive lane attacks the exact nested Oracle
+Generalize-to-delayed-call bridge; it must derive whether pruned IDs are
+discharged/exported and retained IDs reach their actual consumer. The reviewed
+Oracle local lemmas do not close universal hygiene. Full source Generalize,
+complete Call, soundness, principality, normal inference progress, effect
+hygiene, production acceptance, and F5 replacement all remain OPEN. Current
+research branch checkpoint is `4361e3b59` (pushed); no compiler code, tests,
+semantic rules, or F5 routing changed in this wave.
