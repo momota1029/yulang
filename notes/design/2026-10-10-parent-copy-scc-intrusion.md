@@ -53,6 +53,30 @@ correctness responsibilities. The bounded mechanism review resolves data
 structures and integration against those requirements; it does not replace the
 user's operation with a different one to simplify a proof.
 
+### Apply-result source-fragment ownership (direct decision, 2026-10-12)
+
+For an `Apply` expression, its result Value row owns the resolved Name
+references in the Apply source fragment. Each such reference contributes an
+edge from the result row to the actual Value row of the resolved binder,
+before and after Call dispatch. For example, `konst 1` contributes
+`result → konst` even when the returned provider is the literal `0`. This edge
+records source-computation incidence for SCC construction; it does not claim
+that the returned runtime object points to the callee or argument.
+
+The Apply source constructor must retain this incidence explicitly. Function
+demand ports, subtype comparisons, bound-storage direction, possible or
+selected providers, and extrusion-parent metadata do not create or replace
+these edges. This decision fixes Apply-result adjacency only. It does not
+complete Call typing, define effect behavior, prove source-to-row construction
+or transport through extrusion/fresh use, or establish that any retained
+parent/copy pair qualifies for intrusion.
+
+The nested `odd`/`even` example also makes clear that lexical nesting and
+inference levels do not filter or rank Value-reference edges. The source-owner
+references point in both directions across the nesting boundary; this is not
+evidence that the exact text is admitted by current Y3 HIR or that an actual
+native parent/copy pair is in that SCC.
+
 ## Retained boundary
 
 The full inference/F5 replacement objective remains active. Complete Call,

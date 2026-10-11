@@ -10790,22 +10790,29 @@ parent/copy SCC qualification. No solver code or tests changed.
 
 ### 2026-10-12 Apply-result Value-reference owner decision
 
-The user's `odd`/`even` example confirms a source-owner SCC across distinct
-lexical levels; it does not determine which Value row owns the references of
-an Apply result. The two remaining constructor completions differ already on
-`konst 1`: a computation-fragment owner gives the Apply result row an edge to
-`konst`, while returned-content ownership gives the returned literal no such
-edge. The latter needs the actual complete-Call provider and an explicit
-reference-forwarding rule. This choice can change SCC qualification, so neither
-candidate is being installed as semantics or inferred from type ports.
+The approved answer selects **source-computation ownership**: every resolved
+Name in an Apply source fragment contributes an edge from the Apply result
+Value row to the actual resolved binder row, before and after Call dispatch.
+Thus `konst 1` gives `r → konst` even when the returned provider is literal
+`0`. This is SCC incidence, not runtime result-object reachability. The edge
+must be retained by the Apply source constructor, not inferred from Function
+ports, comparisons, bound storage or provider identity.
 
-The exact decision and consequences are recorded in the pending, uncommitted
-[`Apply-result Value-reference owner question`](../questions/2026-10-12-apply-result-value-reference-owner/question.md).
-Only Apply-result ownership, its transport proof, and dependent parent/copy
-qualification wait for that equation. Non-Apply Simple-sub/source work,
-complete Call construction, and effect-hygiene work remain authorized and
-independent. No solver code, tests, builds, or Oracle runs changed in this
-decision slice.
+Question revision 1 and approved draft
+`2026-10-12-apply-result-value-reference-owner-a1` were validated and
+integrated in commit `a18d70f20` on `research/simple-sub-intrusion`; the
+matching bundle is pushed. Receipt: [`Apply-result owner decision`](../questions/2026-10-12-apply-result-value-reference-owner/receipt.md).
+The governing [intrusion design](../design/2026-10-10-parent-copy-scc-intrusion.md)
+now records this equation. The user's cross-level `odd`/`even` example also
+rules out filtering or ranking reference edges by lexical nesting or inference
+level; its source-owner SCC does not itself prove native row transport.
+
+Still OPEN: proving actual source occurrence/owner/target construction for all
+Apply forms, preserving the selected incidence through extrusion and shared
+fresh use, matching the SCC consumer to this graph, and proving soundness and
+principality of a qualifying parent/copy equality. Complete Call/effect
+semantics remain separately OPEN. No solver code or tests changed in this
+decision integration.
 
 ### 2026-10-12 Conflicted fresh-use graph boundary
 

@@ -1,6 +1,8 @@
 # Static Value-reference semantics for Simple-sub intrusion
 
-Status: Draft; mathematical design proposal; no implementation authority
+Status: Draft; mathematical design proposal; Apply-result ownership in §3
+selected by the user on 2026-10-12; source construction, transport proofs and
+implementation remain open
 Scope: Value ownership, source references, and their transport through extrusion/fresh use
 Baseline: `3fa72e768c5a31e12ff44061d119102efca9aef3`, `research/simple-sub-intrusion`
 Authority: `2026-10-10-parent-copy-scc-intrusion.md`, Value-reference SCC clarification and selected operation; `2026-10-11-yulang-inference-top-level-principles.md`
@@ -11,10 +13,10 @@ One candidate is a **static source-value graph**: a Value variable owns a
 source value description, and a reference edge records a resolved Value
 reference occurring in that description. This is independent of a runtime
 provider and inferred type. It is not a heap graph of one execution or a graph
-of possible outputs. The approved operation requires Value-reference edges,
-but the inspected authorities do not yet determine the owner/content equation
-for every native Value row, especially an Apply result. This candidate is not
-selected as the complete native semantics.
+of possible outputs. The user-selected Apply result-row equation is recorded
+in §3 and the authoritative parent-copy design. This document remains a draft
+for the other Value constructors, their native row correspondence, and
+transport; it is not selected as the complete native semantics.
 
 The accepted examples `host → outer`, `outer → x`, `g → outer`, and `g → g`
 establish that source references can cross lexical scopes and include a
@@ -104,7 +106,7 @@ separately. The reference clauses are:
 | `Name(o,b)` | The Name value row owns `Ref(o,b)`. Its target is the actual row for the resolved binder `b`, not a spelling match or the occurrence's type endpoint unless the constructor proves they coincide. |
 | Literal | Owns a literal description with no outgoing Value references. |
 | `Lambda(x,body)` | Owns its code/body fragment, excluding nested declaration initializers. Every resolved Name in that fragment contributes an edge to its resolved binding row, including formal Names. Formal/domain type ports alone contribute none. |
-| `Apply(f,a)` | The result row owns the static Apply source fragment and its resolved Names in the callee/argument fragments. Those source-reference edges do not claim that the runtime result object points to the callee or argument. The actual output provider and result tuple remain in complete Call for typing/effect meaning; they do not replace the static fragment. |
+| `Apply(f,a)` | **User-selected 2026-10-12:** the result row owns the static Apply source fragment and its resolved Names in the callee/argument fragments, before and after Call dispatch. For `konst 1`, this gives `r → konst` even when the returned provider is literal `0`. These source-reference edges do not claim that the runtime result object points to the callee or argument. The actual output provider and result tuple remain in complete Call for typing/effect meaning; they do not replace the static fragment. |
 | Record/projection/group/block | A constructor owns its actual value fragment and the Name occurrences in that fragment. Group forwards the child owner description. A block owns its final expression; each initializer has its own owner. Structural subexpressions and declaration containment do not themselves add edges. |
 | Recursive binding | The original recursive binder row is the Name target throughout its initializer. A recursive Name contributes a self-edge; mutually recursive resolved names contribute their actual cross-edges. No polymorphic recursion or local mutual group is added. |
 
@@ -219,13 +221,12 @@ not establish that all reference occurrences map to the particular Value row
 whose value owns them, or that the extrusion consumer sees exactly this graph.
 The corresponding equality-preservation theorem is also OPEN.
 
-Do not implement an SCC scanner from this candidate until the Apply
-result-row ownership/content law is selected and recorded through the design
-authority process, and the constructor mapping, transport law, and
-equality-preservation theorem are proved and independently reviewed. Proof
-and review cannot select the missing semantic ownership equation. After those
-separate gates close, construct the smallest standalone reference transition
-system directly from the approved rules, rather than repairing the current
-candidate by assumption. Complete Call, contextual effects, full
-soundness/principality, normal inference progress, and F5 replacement remain
-OPEN.
+The Apply result-row ownership equation is selected and recorded, but no SCC
+scanner may be implemented from this proposal yet. First prove and independently
+review the remaining constructor-to-row mapping, reference transport through
+extrusion and fresh use, and equality preservation for an actually qualifying
+parent/copy pair. These proof obligations cannot be closed by this proposal
+alone. Then construct the smallest standalone reference transition system
+directly from the approved rules, rather than repairing the current candidate
+by assumption. Complete Call, contextual effects, full soundness/principality,
+normal inference progress, and F5 replacement remain OPEN.
