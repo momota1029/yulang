@@ -11572,3 +11572,32 @@ selected map or identify the concrete `send` contribution in final Call output.
 That source/Call lineage, H, complete Call, Y3 correspondence, soundness,
 principality and F5 replacement remain OPEN. No Y3 compiler code or tests
 changed; one Oracle build and bounded inference captures ran.
+
+The selected Oracle `run` Call now has a bounded, independently reviewed
+constructor/consumer derivation in
+[`run effect contribution proof`](../notes/theory/2026-10-12-run-effect-contribution-proof.md).
+For the captured int variant, one per-use map preserves the shared result and
+return-effect variable. Its actual Function consumer sends the concrete `ev`
+lower to `Row({ev},B)`, while the separate return-effect tail has `B <: K`.
+The reached nullary matching-head branch emits no tail child. This establishes
+that local input-head acceptance is not itself positive output retention; it
+does not show global output absence, the actual line-64 activation, or an H
+counterexample. The independent `compiler_referee` found no issue within the
+conditional derivation. H, complete Call, soundness, principality and F5
+replacement remain OPEN.
+
+The companion independently reviewed
+[`run source-origin audit`](../notes/progress/2026-10-12-run-origin-lineage-audit.md)
+locates the first missing correlation at its source owner: `make_source_app`
+retains the demand origin and source span but drops the returned application
+Effect association, and the selected root Function witness collector skips
+root Effect ports. This is reconstruction and observation debt, not evidence
+that effect propagation is absent. The attempted capture lease and its
+independent review identify the next valid seam: an env-gated observer in
+`infer::check` after ordinary lowering has drained, with the application
+identity handed from its constructor. No early query, raw-bound substitution,
+or Oracle source edit was performed in that first lease. The follow-up is now
+bounded to `tail.rs` and `check.rs` in the frozen Oracle worktree, one serial
+build and one execution of the already captured int variant. Exact source-to-
+output membership remains OPEN pending that capture and review. No Y3
+production behavior changed.
