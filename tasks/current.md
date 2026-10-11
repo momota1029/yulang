@@ -11602,8 +11602,47 @@ build and one execution of the already captured int variant. The capture hook
 repair is now independently reviewed with no major or minor findings: compact
 output is explicitly omitted rather than treated as a default result, relevant
 pre-accumulation collections are bounded, and TLS is scoped across errors and
-unwinding. The repair remains uncompiled. Its sole authorized build attempt
-failed under a virtual-address-space cap (not a resident-memory limit), so the
-runtime capture has not run; a new build budget and appropriate memory
-enforcement are required before that capture. Exact source-to-output
-membership remains OPEN. No Y3 production behavior changed.
+unwinding. At this checkpoint the repair remained uncompiled after its
+virtual-address-space-capped build failed; this state is superseded by the
+successful build/capture and source-coordinate finding recorded below. Exact
+source-to-output membership remains OPEN. No Y3 production behavior changed.
+
+## 2026-10-12 Oracle H proof review and completed lineage capture
+
+The bounded original-H proof attempt is recorded in
+[`oracle effect-hygiene H proof attempt`](../notes/theory/2026-10-12-oracle-effect-hygiene-original-H-proof-attempt.md).
+Its independent compiler-referee review found no blocking, major or minor
+findings and verified its frozen dependency hashes. It preserves the original
+universal H statement and identifies the unproved bridge from source
+contribution ownership to projection-claim construction/coverage and then to
+the exported current/future Call output. This is neither a proof nor a
+counterexample; H and implementation/cutover remain OPEN. The exact next proof
+owner is the route through `register_lower_projection_derivation`, row
+reduction claim registration, `CpkProjectionEvaluator::eval_root_coverage`,
+and scheme exclusion, with one actual independent same-family contribution
+and its complete current/future output route.
+
+The repaired private Oracle observer, previously only statically reviewed and
+uncompiled, now has one successful bounded build and one execution of the
+existing int-variant fixture. The details are in
+[`run lineage capture`](../notes/progress/2026-10-12-run-origin-lineage-capture.md).
+The build used 1,549,127,680 bytes peak process-group RSS and completed in
+37.12s; the capture used 36,208,640 bytes peak RSS and completed in 0.51s.
+The one check produced four application events and five successful selected
+projection queries at epoch 313, with no query errors or incomplete markers.
+Compact scheme observation remains explicitly absent, so no final output
+membership is claimed. The selected-root ancestry export succeeded, while its
+root-to-anchor log line was truncated.
+
+The capture's event coordinates do not yet authenticate the source occurrence:
+the loaded input has 2,588 bytes and the physical final send occupies
+`2566..2588`, but `ExprId(14/15)` report CST ranges `2678..2695` and
+`2673..2695`, respectively. The 107-byte offset is unexplained; no CLI prefix
+or file concatenation accounts for it. Direct CST-to-source byte identity is
+not established. Thus the captured applications are not yet joined to the
+concrete line-64 contribution, actual provider/use/freshening, and final
+output. The next observation must compare the already loaded root source and
+CST byte representations at parse time; only then can that authenticated event
+be joined through those owners. H, complete Call, soundness, principality and
+F5 replacement remain OPEN. This Oracle-only capture made no Yulang3 code or
+test changes.

@@ -1,8 +1,8 @@
 # `run` lineage capture: completed-query seam blocker
 
 Date: 2026-10-12
-Status: repair independently reviewed; uncompiled; single prior build failed; capture not executed
-Claim class: static feasibility plus failed-build evidence; no source-to-output runtime result
+Status: repaired hook independently reviewed; build and one bounded capture completed; source-origin join remains open
+Claim class: completed bounded runtime observation; source-to-output contribution join remains open
 Exclusive Y3 lease: this file only
 Y3 baseline: `c1041f8f4706e847bf709e36728211965be24980`
 Oracle baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -10,9 +10,10 @@ Oracle worktree: `/home/momota1029/rust/yulang2-oracle-capture`
 
 The initial no-run blocker below is historical and superseded by a later
 primary-authorized two-file instrumentation seam. Its independent review
-remains scoped to that initial blocker. The follow-up result is recorded in
-“Authorized follow-up and failed build”. That hook received two major and one
-minor findings; the batched repair is recorded below and awaits re-review.
+remains scoped to that initial blocker. The follow-up hook received two major
+and one minor findings, was repaired and independently re-reviewed, and has
+now been built and used for one bounded capture. Its result and remaining
+source-coordinate limitation are recorded at the end.
 
 ## Objective and accepted dependencies
 
@@ -169,7 +170,7 @@ soundness and principality.
   before assigning a fresh build/capture packet. The Oracle patch remains
   private research instrumentation, not production implementation.
 
-## Authorized follow-up and failed build
+## Authorized follow-up and failed build (historical, superseded)
 
 The primary subsequently granted the completed observer and identity handoff
 explicitly, leasing exactly Oracle `crates/infer/src/lowering/expr/tail.rs` and
@@ -347,9 +348,58 @@ the patch and did not inspect the whole artifact. Per-candidate proof/cache
 work and shape/path payload sizes remain outside the collection bounds, as
 recorded above.
 
-The exact reviewed Oracle hashes are the repaired hashes above. The next
-evidence packet needs a fresh build budget and a resident-memory enforcement
-method; the prior build budget was consumed by the failed virtual-address-cap
-attempt. Only after a successful build should the single bounded int capture
-run. Runtime observation equivalence, actual source/output membership, H and
-complete Call remain OPEN.
+The exact reviewed Oracle hashes are the repaired hashes above. At the time of
+this review, a fresh build and capture were still pending; that state is
+superseded by the successful bounded run below. Runtime observation
+equivalence, actual source/output membership, H and complete Call remain OPEN.
+
+## Successful bounded build and capture
+
+After the failed virtual-address-cap attempt, one fresh serial offline locked
+build was run with a process-tree resident-memory monitor and a 6 GiB RSS cap.
+It completed successfully in 37.12 seconds; peak process-group RSS was
+1,549,127,680 bytes. The compiler emitted 105 warnings. This compiles the
+repaired private observer at the frozen Oracle HEAD; it does not verify default
+environment observational equivalence or Yulang3 behavior.
+
+One execution of the existing int-variant input then completed successfully in
+0.51 seconds under a 2 GiB RSS cap, with peak RSS 36,208,640 bytes. The input
+hash remains `73b4a2d12233b9b658188f3baa17edb04c14a89f94217198befca22db4af77d9`.
+The log hash is
+`0abfbda6f1f1c2eb6ba933571c2a0372d391017795aceaf3649d067098418e8c`.
+There was one completed check, four application events, five successful
+selected-projection queries at `ConstraintEpoch(313)`, zero query errors and
+zero incomplete-query markers. Each compact observation is explicitly
+`compact_not_observed`; no compact scheme result or final membership is
+claimed. The ancestry export completed for its selected anchors, but the
+4096-byte `ancestry_roots` log line is truncated. Therefore the export's
+selected-root completeness does not imply a complete textual root-to-anchor
+mapping in the log.
+
+The two structurally relevant application events are `ExprId(14)` and
+`ExprId(15)`: the latter consumes the former's Value/Effect and is its source
+parent. Their captured result Effects are `TypeVar(48)` and `TypeVar(51)`;
+both were queried successfully. This remains a completed-query observation,
+not proof that either application is the concrete line-64 send or that its
+contribution survives the output scheme.
+
+An independent read-only source-coordinate audit found that the loaded input
+is 2,588 bytes and ends with `run: ev::send (1, 42)\n`, whose physical range is
+`2566..2588` (the nested send application begins at `2571`). The captured
+`ExprId(15)` and `ExprId(14)` source ranges are respectively `2673..2695` and
+`2678..2695`, exactly 107 bytes later. No CLI prefix or file concatenation
+accounts for this. The trace converts Rowan CST byte ranges directly; the
+missing identity is that rendered CST token bytes equal the collected input
+bytes. Yumark doc-comment emission is the first path needing inspection. The
+107-byte correction is only a hypothesis, so these event IDs are not yet
+authenticated to the exact physical source occurrence.
+
+The next narrow step is an env-gated observation of the already loaded source
+and CST root at the same parse, recording their lengths/digests and the final
+expression subtree's kinds/text/ranges, then locating the first byte divergence.
+Only after that source identity is established can a further owner lease join
+the authentic application through actual use/provider/freshening and a named
+Function/row event to output `O`. J64, exact contribution membership, H,
+complete Call, Yulang3 correspondence, soundness, principality and F5
+replacement remain OPEN. The independent hook review found no remaining major
+or minor findings; it did not review the source-coordinate seam or close H.
