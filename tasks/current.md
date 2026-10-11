@@ -9167,3 +9167,11 @@ cutover remain OPEN. Immediate next action: establish or refute reachability
 of this source-valid suffix in the retained Local failure domain, or integrate
 an independently authorized inverse-storage repair while keeping that
 correspondence gate explicit.
+
+The separate context-map source reduction is preserved at pushed checkpoint
+`0eb24ff4b` in
+[`context-map-native-headroom-research`](../notes/progress/2026-10-11-context-map-native-headroom-research.md).
+For each of five context head maps, it proves key presence at each reversed
+`Some` and reduces allocation-free restoration to condition (I) at that map's
+first reversed `Some`. It has no native counterexample or all-history headroom
+proof; each map and the capture map retain distinct OPEN storage premises.
