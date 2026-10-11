@@ -10519,6 +10519,12 @@ lineage-owned residual/gamma activation, including future lowers and reverse
 feedback. This note is unreviewed, and these conditional clauses do not close
 complete Call or hygiene.
 
+An independent `compiler_referee` review found no findings within those
+relative clauses and supplier/local-subtraction boundaries. It explicitly did
+not certify complete C0, all-source Call formation, executable negative
+subtraction, residual activation, hygiene, soundness, principality or
+publication. The parent gates remain OPEN.
+
 No code, tests, builds, Oracle runs or instrumentation were performed. Next:
 construct the missing complete Call suppliers at their source-generation
 owners, and establish the actual Value-owner/transport and equality
