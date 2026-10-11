@@ -1,7 +1,8 @@
 # Oracle effect hygiene: an actual formal port and its missing subtraction bridge
 
 Date: 2026-10-11
-Status: frozen, unreviewed research derivation; no theorem or gate status promotion
+Status: frozen, independently reviewed bounded research derivation; no theorem or gate status promotion
+Reviewed-by: compiler_referee (P/Q derivation and narrow repair delta)
 Baseline: `f9fb4f07c7e045f4a01d70ca4dbf50f93686cce6`
 Lease: this file only
 Method: constructive inspection of native HIR formation, paired annotation construction, bound replay and the actual typed consumer
@@ -15,6 +16,11 @@ The user withdrew the callback example's claimed result. No expected callback sc
 The primary supplied the later controlling abnormal-path decision during this packet: continue diagnostics where possible, preserve no-wrong-typing and no-inconsistent-publication, abort safely on unrecoverable resource exhaustion, and require rollback only where inference semantics need it. Full internal restoration and exact diagnostic identity are not general abnormal-path premises. P/Q concern successful construction and actual reached consumers; neither depends on the older full-restoration contract. Successful suspension remains distinct from error/abort, and no resumed-suspension theorem is claimed here.
 
 The objective is to establish a bounded actual producer/consumer correspondence for an admitted formal port, and identify precisely why it does not discharge the still-open subtraction obligation. This is neither a new annotation calculus nor another checker assuming source transitions. Complete Call, effect hygiene, soundness, required principality and F5 remain open.
+
+The original quantified hygiene theorem H is stated in
+[`Oracle global effect hygiene proof`](2026-10-11-oracle-global-effect-hygiene-proof.md)
+§1. This note proves only the local claims P and Q below; it does not restate,
+narrow or discharge H.
 
 ## 2. Frozen statements, binders and omissions
 
@@ -40,6 +46,12 @@ effect(x) != E => enqueue the same x <: canonical(t_i)
 Here `x` is either a Contribution instance or an AnnotationMember with its original view/member identity. Support expansion retains each member and the symbolic tail as separate work. This result is a conditional derivation about a reached consumer, not a termination or complete replay theorem. No arbitrary new source arrival is presumed reachable merely because its endpoint can be named.
 
 Shared premises: the supplied source has the recorded HIR formation and source-identity allocation; distinct syntax rows have distinct SourceNodeKeys; candidate feature/session ownership and endpoint branding hold; fallible steps succeed for P, and the selected drain reaches the named consumer for Q. Q's fixed-owner epoch is the unit of this local sublemma, not a restriction on accepted source. Equality/extrusion/fresh-use epochs remain obligations of their actual owners. Neither P nor Q substitutes for the original full hygiene theorem.
+
+For Q's insertion-to-consumer implication, successful physical insertion alone
+is insufficient: every fallible replay-setup and child-enqueue operation on
+the specified ordinary route must also succeed. If replay setup or enqueue
+returns an error after insertion, Q makes no queue-delivery claim; no internal
+restoration premise is added.
 
 Exclusions: source operation execution, handler/Catch selection, nonempty contextual subtraction, attachment-qualified residual projection, all-path replay/termination, recursive certificate lifecycle, generalization/use preservation, failure restoration, parameterized effect arguments and public/default cutover. The recorded source reaches a Local use, but that fact does not prove these excluded semantics.
 
