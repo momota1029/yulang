@@ -8956,20 +8956,20 @@ the saved child. No code or test changed in this slice.
 The complementary static W/A3 rollback falsifier is recorded in
 [`retained-parent-wa3-rollback-falsifier`](../notes/progress/2026-10-11-retained-parent-wa3-rollback-falsifier.md).
 It found no constructor-qualified semantic escape or late-ledger error witness
-in the inspected retained Local/replay/drain cone. Its concrete remaining
-premise is constructor/history headroom for byte reconciliation and cumulative
-growth/rebuild counters, including failed forward preflights that leave capacity
-allocated. The existing MAX-ledger rollback test uses a deliberately corrupted
-Fresh state and is not a retained Q/D counterexample. Late accounting errors
-are returned after workspace reversal, so they do not demonstrate unreversed
-Q/D or receipts. The original W/A3 theorem remains OPEN; this falsifier is
-unreviewed static evidence and ran no executable checks.
+in the inspected retained Local/replay/drain cone. Its exact remaining premise
+is branch-specific constructor/history headroom for rollback byte
+reconciliation and cumulative growth/rebuild counters. The existing
+MAX-ledger rollback test uses a deliberately corrupted Fresh state and is not a
+retained Q/D counterexample. Late accounting errors are returned after
+workspace reversal, so they do not demonstrate unreversed Q/D or receipts. A
+resumed prover derived `K≤T+1` for changed surviving lanes and the conditional
+rollback inequalities. Fresh compiler-referee review found a minor wording
+omission: incoming rollback also needs event headroom for a failed growth on a
+dropped row. That correction is in the proof note. Neither the lemma nor W/A3
+is closed.
 
-An attempted complementary prover lane was stopped before returning a frozen
-artifact. Do not treat its preliminary source trace as proof. The next proof
-packet should isolate the headroom/cumulative-ledger premise at its owning
-accounting constructions, separate from semantic inverse coverage. The
-incidence/order correspondence and authentic §7 lifecycle remain separate
-owners and gates. Complete Simple-sub inference, Yulang2-derived effect
-hygiene, soundness/principality, production authority and F5 cutover remain
-OPEN.
+The exact source-derived headroom gap remains with the reserve/accounting
+owners, separate from semantic inverse coverage. The incidence/order
+correspondence and authentic §7 lifecycle remain separate owners and gates.
+Complete Simple-sub inference, Yulang2-derived effect hygiene,
+soundness/principality, production authority and F5 cutover remain OPEN.
