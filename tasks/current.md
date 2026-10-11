@@ -11126,3 +11126,25 @@ the production delegation to Specializer2 is at `specialize/src/lib.rs:81`
 correction. Review closes only the bounded note's source locator and stated
 characterization; exact attachment/output membership M and universal H remain
 OPEN. No execution, build, test, or compiler change followed.
+
+The frozen [`same-task route audit`](../notes/progress/2026-10-12-oracle-same-task-route-audit.md)
+derives that the retained `--poly` pipeline supplied no SolvedTask boundary
+plans, and that the literal fragment has no runtime roots from which
+Specializer2 would select an observed/direct/provider instance. This is static
+pipeline evidence, not a run or a rejection of its latent source Call. Its
+independent `compiler_referee` found one minor owner-locator overreach; the
+bodyless ping locator was corrected to `act.rs:505–521,63–138`, and the review
+then had no blocking or major issue. The first missing contract remains a
+source-qualified latent Call-to-materialization seed, with selected maps (or
+authentic rejection), before attachment/force/output can be joined.
+
+The frozen [`typed-boundary adequacy attempt`](../notes/theory/2026-10-12-oracle-typed-boundary-adequacy-proof.md)
+was independently reviewed with no blocking, major, or minor finding. It
+establishes a conditional TaskSolver map-correlation fact and the local native
+consumer result that a processed closed `[tick] ≤ []` row comparison emits no
+child and returns `Ok(())`. That local fact is not an actual discriminator
+task, an H counterexample, or a whole-program acceptance result. The attempt
+stops at the source-qualified symbolic seed, selected same-task maps,
+attachment interpretation, reached force and complete output (or authentic
+rejection); M and H remain OPEN. No Oracle run, build, test, or compiler edit
+followed.
