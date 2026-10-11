@@ -22,7 +22,7 @@ Route rollback targets C, not a checkpoint newly created at B. For an exact **pr
 
 These conditions are sufficient hypotheses of the local composition, not new restrictions on the original W/A3 domain. If a real route prefix already changed the projection, the owner will restore C's value, which need not equal B's value. Establishing the appropriate actual prefix correspondence is therefore required before using the pre-call wording. In particular, actual typed callers have prepared/current-item work before this call; this note does not declare those preceding inverses proved.
 
-Shared runtime assumptions are normal Rust collection validity: successful reservation provides capacity for subsequent insertion/push; a fallible reserve error preserves logical contents; deleting/draining elements does not secretly shrink retained allocation capacity; reserved HashMap capacity and ordinary Eq/Hash support replacement/removal without a new allocation. No arbitrary scalar overwrite, forged ID/capacity, data race, continuing execution after panic/UB, or broken allocator is admitted. No allocation success is assumed. For the supplementary edge-byte argument, current nonzero edge Vec backing allocations are disjoint and addressable, as in the explicit ordinary allocation model of [postrepair ledger derivation](2026-10-11-retained-wa3-postrepair-ledger-proof.md). Actual linked runtime/allocator metadata remains unverified.
+Shared runtime assumptions are normal Rust collection validity: successful reservation provides capacity for subsequent insertion/push; a fallible reserve error preserves logical contents; deleting/draining elements does not secretly shrink retained allocation capacity. The initial derivation also conditioned reverse HashMap replacement/removal on no new allocation. The later pinned stdlib source derivation in [capture-map inverse proof](2026-10-11-capture-map-inverse-capacity-proof.md) shows this is not a generic HashMap guarantee: `HashMap::insert` reserves before checking membership, and allocation-free insertion requires its exact raw-table credit condition (I) or another owner-specific construction invariant. That condition has not been established for the map restorations below; therefore those rollback cases remain conditional and are not imported as unconditional implementation evidence. No arbitrary scalar overwrite, forged ID/capacity, data race, continuing execution after panic/UB, or broken allocator is admitted. No allocation success is assumed. For the supplementary edge-byte argument, current nonzero edge Vec backing allocations are disjoint and addressable, as in the explicit ordinary allocation model of [postrepair ledger derivation](2026-10-11-retained-wa3-postrepair-ledger-proof.md). Actual linked runtime/allocator metadata remains unverified.
 
 ## 1. Construct the call cases
 
@@ -122,7 +122,7 @@ Artifact frozen after final checks; no further writes planned.
 
 ## Independent review adjudication
 
-Fresh compiler-referee review of frozen SHA-256
+Fresh compiler-referee review of the original frozen SHA-256
 `f3d240f29a1b2563ba629fefdcf2d00fe792eba090ae9125bf7e0ad8c50979a0` found no
 blocking, major or minor findings. It accepts the local logical inverse under
 the stated transaction-prefix and runtime hypotheses. It confirms that this
@@ -130,3 +130,11 @@ does not prove the real route prefix, retained-capacity census publication or
 the whole W/A3 theorem. Apply the local inverse to that parent only as bounded
 constructor evidence; keep accounting and original W/A3 OPEN. No executable
 verification ran.
+
+The subsequent pinned stdlib source derivation in the capture-map note narrows
+those runtime hypotheses: reserved HashMap capacity alone does not establish
+allocation-free replacement. The review above did not inspect that stdlib
+bridge. Until each reverse map insertion is shown to satisfy condition (I) or
+another owner-specific guarantee, the local inverse remains conditional at
+those map restoration steps and must not be cited as unconditional source
+correspondence.

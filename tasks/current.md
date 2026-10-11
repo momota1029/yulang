@@ -9070,3 +9070,33 @@ capacities and establish whether capture-map reinsertion has a constructor-wide
 allocation-free inverse. Continue the separate authentic readiness/filter/
 dependent-observation and published-SCC lifecycle bridge. No compiler/test
 changes or executable checks ran in this research-only wave.
+
+## 2026-10-11 HashMap rollback-capacity reduction
+
+The bounded source derivation in
+[`capture-map-inverse-capacity-proof`](../notes/progress/2026-10-11-capture-map-inverse-capacity-proof.md)
+is checkpointed as `ebe2fc5e0`; fresh independent review is pending. Against
+the installed Rust 1.95.0 / hashbrown 0.16.1 source it derives condition (I)
+for allocation-free `HashMap::insert` and shows that the current single-credit
+pre-splice reserve does not establish that condition after every reverse
+operation. Its 32-bucket case is only a library control-layout branch: no
+constructor-valid native Yulang history or counterexample was established.
+
+This result narrows the already reviewed context-transport local proof's
+runtime hypothesis: ordinary reserved HashMap capacity is not an established
+allocation-free replacement guarantee. That proof and intrusion audit remain
+bounded and conditional at their map restoration sites; the primary applied
+this caveat to the original W/A3 parent, which remains OPEN. The established
+owner now requires either a source-history proof of condition (I) for every
+rollback insertion or an authorized storage construction that gives inverses
+their required headroom. The linked-runtime connection beyond the selected
+sysroot remains unverified.
+
+Separately, the failed-route sampling owner is governed by the Authoritative
+2026-09-23 addendum §3: exact current postrollback retained census, one
+conditional O(1) sample after changed failed incoming attempts, no sample for
+unchanged attempts, checked all-or-none publication, and terminal handling on
+overflow. The candidate context reserve paths do not set the existing
+physical-change flag, and candidate local/retained exits do not own that final
+publication. Any repair must preserve this sampling boundary and account for
+candidate-path complexity without broadening an incoming hot-path traversal.
