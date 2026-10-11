@@ -96,6 +96,34 @@ sharing, scalar replay and termination in its all-local envelope for
 Call judgment, source Generalize, or a principal public scheme. Do not reprove
 those closed operational results or infer an expected scheme from a graph.
 
+### Ordinary Simple-sub proof base imported from the original source
+
+Following the user's correction, use Parreaux's original §5.3 theorem/lemma
+structure and its `mlsub-compare` implementation as the ordinary Simple-sub
+base. The frozen, independently reviewed import is
+[`Parreaux Simple-sub proof import`](../notes/theory/2026-10-11-parreaux-simple-sub-proof-import.md).
+The primary sources remain available locally at
+`/home/momota1029/rust/simple-sub-reference-paper.pdf` and
+`/home/momota1029/rust/simple-sub-reference` (commit
+`9bae772624c23b52a93c1b226157e16898b4d9db`). For `λf. f 1`, the reference
+constructors generate `α <: Int → β` and root `α → β`; the note records the
+coalesced result and its valid simplification.
+
+Scope boundary: the original paper publishes soundness and principality
+statements and proof sketches, explicitly says complete proofs are omitted,
+and restricts §5's proof discussion to non-let-polymorphic inference. This
+faithfully imports the ordinary base; it does not manufacture a complete proof
+of those claims or cover let generalization. Keep the original theorem's
+unproved ordinary premises visible. Do not reconstruct the already published
+ordinary argument from scratch; spend proof work on the actual Yulang extension
+and source correspondence, including effects, intrusion/generalization and
+complete Call. All Yulang soundness, principality, normal-progress and complete
+Call gates remain OPEN.
+
+Independent `compiler_referee` review found no issues in the imported theorem
+directions/quantifiers, lemma statements, coalescing, example derivation or
+stated limitations. Review did not assess Yulang extensions or theorem closure.
+
 The shortest unresolved semantic bridge identified so far is the interpretation
 of the actual four-port Apply demand and its later discharge as one complete
 source Call witness, preserving the same callable, whole argument,
