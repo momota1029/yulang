@@ -1,7 +1,7 @@
 # Negative concrete formal: source-owned local call proof boundary
 
 Date: 2026-10-11
-Status: unreviewed research derivation; frozen at handoff
+Status: independently reviewed conditional singleton derivation; parent gates OPEN
 Claim class: source-qualified singleton lemma and proposed insertion/consumption invariant; no global hygiene theorem
 Primary baseline: `cfab95a2cb64be8f8a58f8e69abee22390042135`
 Reference Simple-sub: `9bae772624c23b52a93c1b226157e16898b4d9db`
@@ -88,12 +88,16 @@ The original reference `shared/src/main/scala/simplesub/Typer.scala` has
 `f_ty <: Function(a_ty,res)`. Its `constrain` Function case reverses the
 argument and preserves the result. Its variable cases insert a bound and
 propagate against the opposite bounds, using extrusion when levels differ.
-`typeLetRhs` infers at `lvl+1` and retains `PolymorphicType(lvl,res)`;
-`freshenAbove` uses one variable map and preserves variables below the boundary.
-There is no effect row, annotation attachment, POP or subtraction constructor
-in that reference. Consequently no native-reference theorem silently supplies
-the missing effect law. Qualifying parent/copy SCC intrusion is a Yulang
-extension with its own owner, rather than a rule present in this reference.
+The reference also operationally characterizes let handling: `typeLetRhs`
+infers at `lvl+1` and retains `PolymorphicType(lvl,res)`; `freshenAbove` uses
+one variable map and preserves variables below the boundary. These are source
+characterizations only: the paper's published soundness/completeness treatment
+is restricted to the non-let-polymorphic fragment, so it does not prove these
+let/freshening cases. There is no effect row, annotation attachment, POP or
+subtraction constructor in that reference. Consequently no native-reference
+theorem silently supplies the missing effect law. Qualifying parent/copy SCC
+intrusion is a Yulang extension with its own owner, rather than a rule present
+in this reference.
 
 The relevant native generation spine in Yulang's four-port extension is
 especially small. Write `P` for cb's registered Value row, `U` for the unit
@@ -337,7 +341,30 @@ gate and its admission boundary; obtain independent review before using the
 singleton lemma as implementation evidence. A generic model with supplied
 attachment/filter transitions cannot answer the remaining source question.
 
-## 7. Checks, resources and runtime
+## 7. Independent review
+
+An independent `prover` reviewed the native-paper import and conditional
+attachment algebra. It found no blocking or major issue and one scope minor:
+make explicit that the paper's theorems exclude let-polymorphism even though
+the following reference-code description characterizes `Let` and
+`freshenAbove`. That qualification is now stated in §2. The reviewer confirmed
+that `PUSH_i ; POP_i` composes to `(0,0)`, reverse order does not, and selecting
+by exact `SubtractId` leaves a distinct `j` entry unchanged. It reviewed only
+this conditional construction, not source-wide lineage, replay, Call,
+principality or the omitted paper proofs.
+
+An independent `compiler_referee` reviewed the actual Oracle and Yulang owner
+claims without blocking, major or minor findings. It confirmed that the same
+`i` is retained from the formal constructor through cb's local call predicate
+to the defined output; current Yulang's preflight and paired guards reject the
+witness and no live matching subtraction consumer exists. Complete provider
+correspondence and universal transport remain open.
+
+These reviews do not promote the singleton result into the original A/B parent
+theorem or authorize implementation/admission. The coupled constructor,
+consumer and activation law remains the exact missing source-owned premise.
+
+## 8. Checks, resources and runtime
 
 Only the leased note changed. Checks: bounded `cat`/`sed`/`rg` source reads,
 the original paper's §5.3 lookup, dependency SHA-256 snapshot/recheck and local
@@ -365,7 +392,7 @@ The paper's old redirect failed with HTTP 429; the canonical EPFL PDF endpoint
 then provided the §5.3 text. This is a bounded paper lookup, not a new full-paper
 audit or an independently pinned PDF byte snapshot.
 
-## 8. Dependency snapshot and commit packet
+## 9. Dependency snapshot and commit packet
 
 Hashes identify inspected bytes, not Git blob IDs. Oracle hashes match the
 earlier source audit's corresponding entries. Comparison of current repository
@@ -410,7 +437,7 @@ Commit packet:
 - Exact leased/change path: `notes/theory/2026-10-11-negative-formal-effect-source-proof.md`; writes stopped at handoff.
 - Baseline: `cfab95a2cb64be8f8a58f8e69abee22390042135`; reference Simple-sub `9bae772624c23b52a93c1b226157e16898b4d9db`; Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - Changed dependency hashes: none between final snapshots; equality to baseline remains primary-owned. No Git mutation.
-- Claim/review: unreviewed conditional source-constructor/call lemma and static Y3 obstruction, plus proposed coupled-owner invariant. No independent certification or parent-gate closure.
+- Claim/review: independently reviewed conditional source-constructor/call lemma and static Y3 obstruction, plus proposed coupled-owner invariant. No theorem or parent-gate closure.
 - Checks already run: exact source reads, bounded paper lookup, SHA-256 stability and leased-document whitespace/local links; no tests/builds/execution probes.
 - Proposed checkpoint: `research: derive negative formal effect call constructor lemma`.
-- Shared-record deltas left for primary/curator: link the singleton lemma and exact missing coupled formal/call/output source law; retain negative-formal A/B, admission/implementation, complete Call, full hygiene, soundness/principality and F5 gates OPEN. No shared task/index/theory-status record edited.
+- Shared-record deltas left for primary/curator: link the singleton lemma and exact missing coupled formal/call/output source law; retain negative-formal A/B, admission/implementation, complete Call, full hygiene, soundness/principality and F5 gates OPEN. No shared task/index/theory-status record edited by the worker.

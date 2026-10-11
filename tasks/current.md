@@ -9569,3 +9569,18 @@ candidate entry. The compiler-referee found one locator minor (`1052` to
 otherwise confirmed. This static evidence supplies the exact source-owner gap
 to the active constructive proof lane and does not establish general behavior
 or close any gate.
+
+The active [negative-formal source proof](../notes/theory/2026-10-11-negative-formal-effect-source-proof.md)
+now derives an Oracle singleton constructor/call lemma and the native
+Simple-sub transport spine. Independent `prover` review confirmed the
+attachment-count algebra and corrected the statement boundary: Parreaux's
+published soundness/completeness proof covers the non-let-polymorphic
+fragment; reference-code `Let` behavior is only an operational
+characterization. Independent `compiler_referee` review confirmed the Oracle
+source chain and current Yulang obstruction. This is a conditional singleton
+lemma, not a proof of source-wide attachment formation, complete Call,
+current/future lower activation, replay, freshening/extrusion/intrusion,
+soundness, principality, or the original inference theorem. The exact next
+premise remains the coupled constructor → same-call/output consumer → retained
+current/future lower invariant at the source owners. All parent and admission
+gates remain OPEN; no implementation is authorized by this result.
