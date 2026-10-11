@@ -10814,6 +10814,30 @@ principality of a qualifying parent/copy equality. Complete Call/effect
 semantics remain separately OPEN. No solver code or tests changed in this
 decision integration.
 
+The user's nested odd/even program has the source-owner edges `even → odd`
+from the inner initializer and `odd → even` from the outer block result, so
+the binders form a nontrivial Value-reference SCC despite different lexical
+nesting. This rules out lexical nesting or inference levels as an edge filter
+or strict rank. Current HIR does not admit the exact conditional/indented
+spelling through its ordinary constructor path; the derivation is not evidence
+of native Value-row emission or parent/copy qualification.
+
+Two independent static lanes then found the first native gap for the approved
+Apply equation. [`Apply incidence transport audit`](../notes/progress/2026-10-12-apply-reference-transport-audit.md), checkpoint
+`de3f00e32`, derives a bounded `invoke` prefix where the Apply result has no
+outgoing edge to its formal callee. [`Apply source-coordinate construction
+audit`](../notes/theory/2026-10-12-apply-reference-construction-proof.md),
+checkpoint `f20c39a08`, constructs the original result/Name/binder coordinate
+join, including nested odd/even and fallback Apply paths, then identifies the
+same missing producer/consumer law: `emit_candidate_source` emits no
+per-fragment Name incidence and `settle_candidate_intrusion` does not consume
+one. These are static source characterizations, not an executed counterexample
+or a proof of the full theorem. The second artifact awaits independent review.
+Next owner: prove the source-incidence construction and consumer invariant
+across actual publication, extrusion and shared fresh use before authorizing a
+reference-system implementation. Parent/copy equality soundness/principality,
+complete Call/effects, and F5 remain OPEN.
+
 ### 2026-10-12 Conflicted fresh-use graph boundary
 
 The existing private candidate export guard covered `CandidateInference::export`
