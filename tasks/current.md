@@ -10173,3 +10173,12 @@ The bounded Oracle syntax follow-up is active at
 It inspects only the pinned Oracle's operation-path grammar, resolution and
 owning examples; it has no Oracle execution allowance. Any later source probe
 must use the remaining call budget only after this syntax owner is established.
+
+A separate conditional source construction now traces a shared latent Effect
+tail through negative extrusion and later Allowance admission into an
+operational Effect SCC; an independent `compiler_referee` found no blocking or
+major trace issue. Its boundary and the current Value-graph authority delta are
+recorded in [`effect latent tail source construction`](../notes/progress/2026-10-11-effect-latent-tail-source-construction.md).
+This is Effect-only evidence: the selected Value graph remains based on
+references in Value contents, and the Effect source's parsing, accepted
+inference, complete Call, hygiene and semantic correspondence remain OPEN.
