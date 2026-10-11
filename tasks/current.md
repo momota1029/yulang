@@ -10583,3 +10583,19 @@ construction is the actual row-owned payload law; the next Call supplier is
 the original licensed literal predicate-emission instance at its source owner.
 The original theorem, complete Call, hygiene, soundness, principality, normal
 progress, production correspondence and F5 cutover remain OPEN.
+
+A bounded Astra proof escalation on the Value owner law produced neither a
+derivation nor a source-qualified counterexample. It also did not establish
+two complete semantic models with different parent/copy SCC qualification.
+It localized one missing semantic clause: whether the Value owned by an Apply
+result includes the Apply's source-level callee/argument references, beyond
+the actual result type payload, or whether those references belong only to
+their source-owned constructors and typed ports. Native Simple-sub itself
+generates `f_ty <: Function(a_ty,res)` and returns `res`; Yulang constructs the
+callee separately from the negative argument/result demand. Thus neither the
+original rule nor the current admitted payload proves the result row's source
+ownership. The decision is required before defining `R` or proving its
+transport; no additional ownership reconstruction or implementation is
+scheduled until it is resolved. Requested Astra/low; runtime model/effort
+metadata was not exposed. No execution, test, build, Oracle call or file write
+came from that proof lane.
