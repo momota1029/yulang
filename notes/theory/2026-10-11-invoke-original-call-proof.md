@@ -5,7 +5,7 @@ Baseline: `72de8a8389825b395bc910654aa030ad82a289b0`
 Branch: `research/simple-sub-intrusion`
 Reference: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Producer: `/root/invoke_original_call_proof`; leaf, no delegation
-Status: unreviewed constructive source-bridge attempt; original Yulang theorem OPEN
+Status: independently reviewed bounded ordinary derivation/source-bridge result; original Yulang theorem OPEN
 Lease: `notes/theory/2026-10-11-invoke-original-call-proof.md` only
 Requested runtime: `gpt-6.1-sol` / `high`; observed model/effort: unknown
 Semantic adoption, implementation, Git integration and certification authority: none
