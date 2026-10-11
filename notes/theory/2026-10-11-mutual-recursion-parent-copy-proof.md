@@ -1,6 +1,6 @@
 # Mutual recursion: extrusion identity and the first copy-reference obstruction
 
-Status: frozen, unreviewed bounded source audit and conditional operational derivation
+Status: reviewed bounded source audit and conditional operational derivation; parent gate OPEN
 Parent claim: OPEN; no source parent/copy SCC or scanner conformance established
 Baseline supplied by primary: `670d1572e`
 Exclusive output lease: this file
@@ -261,7 +261,9 @@ Inspected direct dependency SHA-256 snapshot:
 
 No dependency was changed by this leaf. Changed dependency hashes relative to
 the supplied baseline were not computed; the primary must revalidate the
-snapshot. This is unreviewed research and requires fresh independent review.
+snapshot. An independent `compiler_referee` review found no issue in this
+guarded allocation derivation. The complementary progress note's two major
+ownership/admission overclaims were corrected and passed delta review.
 Source execution, copy-owned references, scanner equivalence, generalization,
 complete Call, effects, soundness, principality and production/cutover remain
 unverified. No shared task/index/theory-status record was edited.
@@ -269,8 +271,8 @@ unverified. No shared task/index/theory-status record was edited.
 Commit packet: exact lease
 `notes/theory/2026-10-11-mutual-recursion-parent-copy-proof.md`; baseline
 `670d1572e`; only this new research note changed; dependency snapshot above,
-baseline deltas unknown; frozen unreviewed conditional/source audit, parent
-OPEN; read/hash checks already run, no tests/builds. Proposed message:
+baseline deltas unknown; independently reviewed conditional/source audit,
+parent OPEN; read/hash checks already run, no tests/builds. Proposed message:
 `research: locate mutual recursion copy reference ownership obstruction`.
 Shared-record delta left to primary/curator: retain the reviewed original-root
 SCC result, record this guarded nested-copy constructor route and its source

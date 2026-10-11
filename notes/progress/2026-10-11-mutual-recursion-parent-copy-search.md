@@ -1,7 +1,7 @@
 # Mutual module recursion with a nested extrusion demand
 
 Date: 2026-10-11
-Status: frozen, unreviewed bounded static research; no parent-gate closure.
+Status: frozen, independently reviewed bounded static research; no parent-gate closure.
 Baseline supplied by primary: `670d1572eedd2bf5ee839ff5f889a2222f6c36b2`.
 Exclusive lease: this file. No compiler edits, tests, builds, Oracle, executable
 probe, Git mutation, or child delegation.
@@ -244,9 +244,11 @@ shadow_apply.rs                        230ed70cc8575016967cdf16c6c814544b25e45b0
 Exact leased path: `notes/progress/2026-10-11-mutual-recursion-parent-copy-search.md`.
 Baseline: `670d1572eedd2bf5ee839ff5f889a2222f6c36b2`.
 Changed dependency hashes: none caused by this worker; primary-owned baseline
-comparison/integration revalidation pending. Review status: frozen unreviewed
-conditional source/operation trace; no genuine parent/copy SCC witness and no
-parent theorem, scanner, source-adequacy or production certification.
+comparison/integration revalidation pending. Independent `compiler_referee`
+review found two major overclaims in the initial version; both were corrected
+and the delta review passed. This remains a conditional source/operation trace;
+there is no genuine parent/copy SCC witness and no parent theorem, scanner,
+source-adequacy or production certification.
 Checks already run: bounded static reads and dependency hashes; no builds/tests.
 Proposed message: `research: trace nested mutual-module extrusion construction`.
 Shared-record delta intentionally left to primary/curator: record this
