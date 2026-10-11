@@ -10735,6 +10735,25 @@ Both retain the native Value-content owner/transport and equality-preservation
 gates as OPEN. Checkpoints: `dcf7ac5e0` and `a5b5c638d`, pushed to
 `origin/research/simple-sub-intrusion`.
 
+The user's cross-level example is a genuine source-owner recursion pattern:
+`even → odd` occurs inside the nested initializer, while `odd → even` occurs
+in the enclosing body's final expression after `even` is published. It is
+not same-level mutual recursion, and lexical nesting depth cannot rank these
+reference edges. A bounded static trace of the call-bearing LocalSource
+analogue `my odd n = { my even n = odd(n); even(n) }` now reaches two actual
+polar extrusion events during opposite-bound replay:
+`Parent(cQ1,Q2,+,1)` for the inner formal and
+`Parent(cA1,A2,-,1)` for the inner Apply result. Neither pair is `(odd, even)`;
+the source-owner cycle gives no return Value-reference path for either pair.
+Thus the example confirms why cross-level source recursion matters, while
+leaving source-content/target transport and qualifying parent-copy SCC
+membership OPEN. The exact user's conditional/arithmetic spelling and the
+analogue have not been executed through ordinary HIR. The bounded operational
+trace passed independent `compiler_referee` review with no findings and is
+checkpointed at [`odd/even native extrusion audit`](../notes/progress/2026-10-12-odd-even-native-extrusion-audit.md)
+(`f3521ec34`); it proves neither intrusion qualification nor equality
+preservation.
+
 The interpretation draft at
 [`Value-content intrusion interpretation`](../notes/design/2026-10-11-value-content-intrusion-interpretation-draft.md)
 is a candidate, not an approved semantic definition. Independent
