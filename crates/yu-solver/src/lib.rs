@@ -19208,12 +19208,17 @@ mod tests {
                 .checked_mul(3)
                 .and_then(|count| count.checked_add(witness.synthetic_seed_value_pair_probes))
                 .expect("F4 scale initial-admission sample count fits usize");
+            let component_draft_samples = witness
+                .components
+                .checked_mul(2)
+                .expect("F4 scale per-component draft sample count fits usize");
             let base_resource_samples = checked_usize_sum(
                 [
                     1, // initial reservation
                     initial_admission_samples,
                     witness.internal_uses,
                     witness.components, // one scratch clear per component
+                    component_draft_samples, // source and all-draft boundaries
                     witness.definitions,
                     witness.definitions, // one scheme install per member
                     witness.incoming_uses,
@@ -19237,7 +19242,7 @@ mod tests {
             );
             assert_eq!(
                 summary.resource_boundary_coverage,
-                8 + usize::from(witness.internal_uses != 0)
+                10 + usize::from(witness.internal_uses != 0)
                     + usize::from(witness.incoming_uses != 0),
                 "{} records every applicable named resource boundary exactly",
                 witness.name
