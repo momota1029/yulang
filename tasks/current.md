@@ -9560,10 +9560,12 @@ positive PUSH, so source-to-consumer correspondence and negative-formal
 admission remain OPEN. This does not discharge effect hygiene, complete Call,
 normal inference, soundness/principality, or F5 replacement.
 
-The frozen [current-source falsification audit](../notes/progress/2026-10-11-negative-formal-effect-current-source-falsification.md)
+The independently reviewed [current-source falsification audit](../notes/progress/2026-10-11-negative-formal-effect-current-source-falsification.md)
 tracks the same witness through current HIR, preflight, paired construction,
 Apply/Lambda transport, live allowance checks and scheme copying. It finds no
 live negative-formal PUSH/POP consumer and confirms rejection at the private
-candidate entry. This is unreviewed bounded static evidence; it supplies the
-exact source-owner gap to the active constructive proof lane and does not
-establish general behavior or close any gate.
+candidate entry. The compiler-referee found one locator minor (`1052` to
+`1049`), corrected in the note; its bounded claim and OPEN status were
+otherwise confirmed. This static evidence supplies the exact source-owner gap
+to the active constructive proof lane and does not establish general behavior
+or close any gate.

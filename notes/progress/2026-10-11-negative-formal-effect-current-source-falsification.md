@@ -1,7 +1,7 @@
 # Negative formal effect row: current-source falsification audit
 
 Date: 2026-10-11
-Status: unreviewed research evidence; frozen at handoff
+Status: independently reviewed bounded static source falsification; inference gate OPEN
 Claim class: bounded static source correspondence/falsification; no theorem or gate closure
 Baseline: `cfab95a2cb64be8f8a58f8e69abee22390042135` on `research/simple-sub-intrusion`
 Exclusive lease: this note only
@@ -104,7 +104,7 @@ positive Support/Allowance pairs; its remaining case rejects. The generic
 signature effect owner also rejects negative concrete at `1507–1509`.
 
 For admitted pairs, the positive Function uses `(an, qan, qrp, rp)` and negative
-Function `(ap, qap, qrn, rn)` at `candidate_effect.rs:1052`. The owner adds
+Function `(ap, qap, qrn, rn)` at `candidate_effect.rs:1049`. The owner adds
 annotation-positive → parameter-negative and parameter-positive →
 annotation-negative links at `1107–1115` and stores the negative formal domain.
 `lib.rs:11242–11244` uses that domain in f's exposed Function argument. These
