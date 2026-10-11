@@ -746,6 +746,7 @@ pub(super) struct RetainedInput<'a> {
 pub(super) struct CircuitEvidence<'a> {
     state: &'a State,
     pub views: &'a [candidate_effect::View],
+    #[allow(dead_code, reason = "retained parent evidence is consumed by the next circuit packet")]
     pub parents: &'a [candidate_intrusion::Parent],
     relations: Vec<u8>,
     contexts: Vec<u8>,
