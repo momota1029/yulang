@@ -8908,8 +8908,8 @@ Proof/source research checkpoints were pushed separately:
   also stops after the first zero-opposite restoration.
 
 All are on `research/simple-sub-intrusion`. The retained handoff implementation
-and its parsed nonempty-child test remain uncommitted in five solver files; the
-new test has passed a focused run. A regression-auditor found minor gaps in its
+and its parsed nonempty-child test are committed in five solver files as
+`f87b4e42d`; the new test passed a focused run. A regression-auditor found minor gaps in its
 Ready rollback snapshot, progress bound and receipt-payload assertion. The
 first two are repaired; the test asserts exact ack/index and committed delivery
 but does not claim a nonzero or independently reconstructed receipt payload.
@@ -8923,9 +8923,10 @@ RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 timeout 120s cargo test -p yu-solver --feature
 The H3 source and proof notes are pushed separately as `56a8dd529` and
 `ea95a59d5`; the static source-witness note is pushed as `0a640d09d`. The
 corrected F4 expectation is pushed as `179b29c15`; its full scale matrix still
-exceeds the 120-second cap. Immediate next action: inspect and commit the
-reviewed retained handoff slice with this test and honest focused evidence.
-Afterward, continue the still-open semantic inverse, late-ledger, lifecycle
-admission/deferral/recomputation and authentic §7 owners. Keep the original
-theorem, complete inference, effect hygiene, soundness/principality, and F5
-production promotion OPEN.
+exceeds the 120-second cap. The handoff and reviewed proof records were
+checkpointed separately, all on the working branch. Immediate next action:
+assign the remaining lifecycle admission/deferral/recomputation source bridge
+and semantic inverse/late-ledger premises to distinct owners, then integrate
+their evidence into the original parent proof. Keep the original theorem,
+complete inference, effect hygiene, soundness/principality, and F5 production
+promotion OPEN.
