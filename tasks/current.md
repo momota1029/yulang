@@ -10460,3 +10460,69 @@ all-source/all-history/actual-retained-pair theorem, type-equality
 justification, required principality, complete Call, effects and
 production/cutover remain OPEN. No compiler code, tests, builds or Oracle
 execution were changed or run.
+
+### 2026-10-11 mathematical Simple-sub rebuild checkpoint
+
+The active task has shifted from repairing the candidate solver to a
+mathematical reconstruction, with the candidate frozen as comparison material.
+The original Simple-sub paper and pinned implementation remain local reference
+sources (`/home/momota1029/rust/simple-sub-reference-paper.pdf` and
+`/home/momota1029/rust/simple-sub-reference`, commit
+`9bae772624c23b52a93c1b226157e16898b4d9db`).
+
+The first bounded constructive result is
+[`bounded native Simple-sub core`](../notes/theory/2026-10-11-simple-sub-rebuilt-core-proof.md),
+an unreviewed research proof draft after an independent `compiler_referee`
+found and reviewed the repair to a major gap in opposite-bound coverage. The
+bounded repair now scopes the later-insertion argument to replaying insertions
+and explicitly leaves initial and direct extrusion/freshening pair coverage
+OPEN. The note records local derivations for opposite
+bound replay, level-preserving extrusion, correlated freshening and the
+conditional SCC level obstruction. Under the hypothesis that Value references
+are exactly bound-contained references, all such edges are level
+nonincreasing, so strict lower-level extrusion parent/copy pairs cannot share
+an SCC. The approved graph is not defined by this hypothesis: the actual
+Value-owner law, qualifying parent/copy route and level transport remain OPEN.
+Even a qualifying SCC does not imply type equality: extrusion supplies only
+polar inequalities, and equality/scope/principality preservation is unproved.
+
+The independent original correspondence crosswalk is
+[`original Simple-sub correspondence`](../notes/progress/2026-10-11-inference-rebuild-original-correspondence.md),
+also unreviewed. It confirms that constraint generation is deterministic and
+may immediately install a bound without deciding the demand; opposite-bound
+replay activates it later. Its examples cover projection, let freshening and
+polar extrusion. This distinguishes ordinary structural propagation from
+eagerly choosing a typing.
+
+The existing Value-reference incidence construction
+[`incidence transport`](../notes/theory/2026-10-11-value-reference-incidence-construction.md)
+identifies joint owner/use/target coordinates and a conditional transport for
+actual Apply port events. It stops at copy-result inheritance and the
+outside-reference frame law. The complementary
+[`incidence falsification audit`](../notes/progress/2026-10-11-value-incidence-independent-falsification.md)
+finds no metadata-loss counterexample and leaves native Lambda/fresh-use
+semantic preservation OPEN. These artifacts are independent research inputs,
+not closure of source ownership, intrusion, soundness or principality.
+
+The review found the level/SCC argument and explicit `S`/`R` separation
+properly bounded. The delta review passed: the local insertion lemma is now
+scoped correctly, while initial/bulk pair activation remains OPEN. Neither
+review establishes source ownership, equality soundness or the parent theorem.
+
+The coupled
+[`Call and contextual-effect construction`](../notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md)
+derives selected relative clauses for same-provider acceptance, CallMem fiber
+identity, ordered pending suffixes and invocation-root computation. It
+localizes two source gaps: generation of jointly scoped complete demand / the
+Gen-Call-0 telescope / authentic `Q_e`, and live negative subtraction with
+lineage-owned residual/gamma activation, including future lowers and reverse
+feedback. This note is unreviewed, and these conditional clauses do not close
+complete Call or hygiene.
+
+No code, tests, builds, Oracle runs or instrumentation were performed. Next:
+construct the missing complete Call suppliers at their source-generation
+owners, and establish the actual Value-owner/transport and equality
+preservation premises. Then independently review the Call/effect artifact and
+derive a minimal reference slice only from the reviewed invariants. Keep the
+original soundness, required principality, normal progress, termination,
+complete Call, hygiene and F5 replacement gates OPEN.
