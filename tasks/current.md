@@ -10403,3 +10403,22 @@ inference, soundness, principality, effect hygiene, and F5 replacement remain
 OPEN. Next: establish the Name-owner and Lambda/root interpretation from
 actual source construction and consumer semantics; only then prove copy
 transport and scanner correspondence. No compiler or test files changed.
+
+### 2026-10-11 Oracle hygiene: Tuple output-predicate route
+
+The bounded [Tuple predicate-carrier derivation](../notes/progress/2026-10-11-oracle-hygiene-second-route-falsification.md),
+checkpoint `aea097522` with citation repair `b5f198d07`, found a distinct
+Oracle constructor path: a Tuple formal can carry a child's output POP to the
+lambda result without invoking that callback. On the direct positive compact
+path, the callback's PUSH is composed before the same POP and canceled, so this
+route does not establish a live-PUSH selector witness. Independent
+`compiler_referee` review found no remaining citation or semantic findings in
+that bounded calculation.
+
+The exact projected returned-Value records/formulas remain uncomputed, as do
+installed selector membership, fresh-use mapping, provider independence,
+final output observation, and universal hygiene H. The actual Oracle call
+budget remains exhausted; this was source-only work with no run, build, test,
+or instrumentation. Keep H OPEN. Next: resolve the active `direct` proof's
+real projection/coverage ledger and determine whether either source route
+reaches an independently linked later consumer.
