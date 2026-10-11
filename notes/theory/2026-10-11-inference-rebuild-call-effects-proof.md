@@ -1,9 +1,8 @@
 # Complete Call and contextual effects in the inference rebuild
 
-Status: frozen research note; relative clauses have bounded `compiler_referee`
-review, and the literal-supplier delta passed separate bounded review; Oracle
-source claims, the source-judgment inversion continuation below and
-parent-theorem closure remain unreviewed/OPEN. No design authority is claimed.
+Status: frozen research note; relative clauses and both literal-supplier
+continuations have bounded `compiler_referee` review; Oracle source claims and
+parent-theorem closure remain OPEN. No design authority is claimed.
 Date: 2026-10-11
 Initial baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
 Constructive-delta baseline: `70696a873a6d0eea420fa90eb5481b2c0502919f`,
@@ -636,8 +635,157 @@ or child launches. At most four lightweight read processes concurrently; the
 and peak RSS are uninstrumented. Requested runtime is gpt-6.1-sol/high;
 observed effective model/effort metadata is unavailable/unknown. Config
 defaults and unpinned prover keys are not runtime observations. This delta is
-unreviewed and frozen at handoff; its dependency snapshot and commit packet
+frozen at handoff; its dependency snapshot and commit packet
 are returned to the primary. No shared record was edited.
+
+## Forward construction attempt: the first original predicate application
+
+Output base: `8e05d73d9cea58de9e3cc0342d1b199870628b03`. Semantic/source
+inputs retain `1e65dd3d2af604bac2bbbc548503ff4edd398957`; the governing
+dependencies are unchanged. This is a new bounded construction packet under
+the approved `original-literal-call-emission/q1/d1` and
+`original-call-argument-reify-owner/q1/d1` directions. Those approvals permit
+source-owned definitions and preservation proofs; they do not adopt a new
+argument predicate, complete operator domain or source acceptance rule.
+Claim classes: proposed source-origin bookkeeping rule and conditional
+dependent-record formation; actual literal Call instantiation remains OPEN.
+
+### Statement, complete inputs and exclusions
+
+The target remains the exact complete emitter for `my invoke f = f 1` at
+the original source occurrences, scopes and joint telescope frozen above.
+This attempt constructs the forward primitive application at its source
+owner rather than assuming one complete delta_Call or its emission conclusion.
+It keeps authentic original primitive declarations as independent inputs.
+Their actual complete applications are obligations to check, not supplied
+merely by their names. Pre-Call conformance remains independently OPEN.
+
+Conditionally reuse the previously derived child/Reify prefix at its genuine
+local inputs: `reg_f,route_f,T_c,q_cf,q_ca,J_f,J_a`, and q2's source-owned
+ArgKey, registration, license, Delay and distinct J_lit. No part of that
+prefix supplies a target checking-view license, an original Call operator,
+or an equality between J_a, J_lit and Comp(empty,Int). Its original
+P_old argument stays at its unchanged binder under `pr_old`.
+
+Declare the candidate Call demand F_c in the complete descriptor sort at
+R_f and Delta_c, inside every preceding rigid binder on which that sort
+depends. E_c/A_c remain symbolic at their original result scopes. The formal
+A_f stays at its earlier Parameter Desc scope before the invocation challenge.
+F_c is not an actual returned provider. This proposed demand introduction
+records the ordinary unsolved interface; it asserts no descriptor validity,
+solution, receiver receipt or original emitted-family membership.
+
+### Direct retention rule and its typed construction
+
+For a genuine original predicate declaration delta, let Delta_in(delta)
+be its actual complete ordered input telescope and Phi_delta its declared
+complete witness family. This notation designates supplied declaration
+fields; it defines no new predicate meaning. At the source application point,
+propose the following additional tagged origin case:
+
+```text
+actual source occurrence c and predicate-use role j, original scope map iota
+delta : authentic original declaration at its unchanged P_old
+mu : checked dependent substitution into Delta_in(delta)
+ell : the declaration's actual static application/domain permission at mu
+---------------------------------------------------------------- Retain-Predicate-Application
+o = (c,j,iota,delta,mu,ell, the exact formed Phi_delta[mu])
+code(o) = the same original predicate application delta[mu]
+witnessType(o) = the entire original Phi_delta[mu].
+```
+
+The construction is ordinary dependent record introduction: substitute mu
+into the declaration's type formation derivation in order, transport by the
+actual scope map, then store that very application and permission. No witness
+of Phi_delta[mu] is an input. Projection returns the identical complete
+declaration, substitution, permission and witness type. Erasing this origin
+account leaves the same original predicate application. These calculations
+hold conditionally on the displayed typed inputs and require no semantic
+containment, execution or successful comparison. They introduce no new
+primitive license or alternate Call relation. Keeping prior cases in their
+separate original branch preserves their witness identity; no quotient or
+exhaustive old-family equivalence is claimed.
+
+This case can retain a source-owned origin when its original application
+exists. It does not manufacture that application. In particular the adopted
+OwnerPortLicense_src is an owner-declaration permission (registry §4.1,
+lines 409–419); it cannot replace ell if the original predicate requires a
+different static domain license.
+
+### First attempted application and exact stopping binder
+
+Apply this rule first at j=WF, before forming either the callee, argument or
+result proof binder. The required type formation is precisely
+
+```text
+Gamma_c = original preceding source/registry/child/Reify context
+Gamma_c ; F_c:CompleteFunctionDemand(R_f,Delta_c)
+  |- mu_WF : Delta_in(delta_WF)
+  |- ell_WF : OriginalStaticApplicationPermission(delta_WF,mu_WF)
+  |- Phi_WF[mu_WF] type
+
+only then form w_WF : Phi_WF[mu_WF]
+```
+
+Here delta_WF must be the authentic original WF_Dec declaration, and its
+application must read back exactly WF_Dec(F_c;xi). The display preserves
+every original hidden parameter in Delta_in(delta_WF); it does not assert
+that its complete list is just P_old,F_c,xi. The permission notation denotes
+whatever actual static application judgment that declaration requires; it
+adds no semantic permission constructor. If its signature requires no such
+separate permission, that fact must follow from the supplied signature.
+
+The inspected original source generation §5 and initial-context construction
+§4.4 name independently interpreted WF_Dec and emit its reference formula.
+They do not expose delta_WF's complete ordered formation/application API at
+this source-owned registry context. Source Generalize L1/L2 requires that
+API as local input. The adopted registry §3.1, lines 197–204, retains a WF_Dec
+signature only if actually imported and leaves later Call declarations to
+their real owner. Thus this first application is uninstantiated: the complete
+delta_WF signature, mu_WF and its required static permission have not been
+independently supplied here. A complete descriptor sort alone neither forms
+unknown additional arguments nor creates a declared-domain license.
+
+This is the first unresolved clause **in this chosen forward construction
+order**, conditional on its child/demand prefix. It is not a globally earliest
+missing source fact or a discovered incompatible hidden binder. There is no
+legitimate w_WF binder to insert until its full type is formed. Leaving its
+value unsolved is permissible; leaving its type or license unformed is not
+constraint generation.
+
+The remaining original order would place the VIncl witness e_f and whole
+argument witness e_a after their own complete type formations, in Delta_c
+below the same preceding descriptor parameters. A complete Q_e/image and
+CIncl type may depend on those same binders; they cannot receive separate
+chosen proofs. Their returned provider/current-world fields occur under the
+actual callee/arm result binders, and each future family stays below that
+arm's output provider. No such later binder or field is constructed by this
+stopping prefix.
+
+The nearby literal pipeline §3.5, lines 393–468, deliberately defines
+WholeArgCompatible_L and allows it to differ from the original proposition.
+Lines 494–530 define a new StructuralEvent/OldEvent operation domain; lines
+549–578 define CIncl_L. Copying those clauses would select extra meanings to
+avoid these original applications. This packet stops before that choice.
+The selected complete Call semantics, its original conservative arms,
+source reachability, effects and independent admission remain the target.
+
+Outcome and next action: only the conditional forward retention calculation
+is constructed; no complete literal emitter, authentic Q_e or result/future
+application is established. Obtain the authentic delta_WF complete formation
+signature at its original declaration owner, then check its whole mu_WF and
+permission at the displayed Delta_c binder before attempting the next origin.
+Missing documentary elaboration alone demonstrates no necessary new user
+decision. A new domain/license meaning would require primary adjudication and
+the existing approval route. The A/B obligations remain OPEN; retaining
+origins addresses D only. No additional equivalent conditional Call package
+or semantic reconstruction is proposed.
+
+Forward-packet verification: static declaration/source inspection and frozen
+dependency/document integrity checks only. No code, tests, builds, compiler,
+Oracle, executable probe, Git mutation, delegation or shared-record write.
+Requested Sol/high; observed model/effort unknown. Writes freeze at handoff
+for newly assigned independent review. The packet does not certify itself.
 
 ## Stop, checks, runtime and commit packet
 
@@ -693,8 +841,8 @@ formal source bridge    0a07713df99571d19705333e73c195c3ad29b6165af92cb6821c02cd
 Exact changed path: `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md`.
 Baseline SHA for this constructive delta: `70696a873a6d0eea420fa90eb5481b2c0502919f`.
 Changed dependency hashes: no changes made by this worker; primary rechecks
-the recorded snapshot before integration. Review status: unreviewed; parent
-Call/effect/inference theorem OPEN. Checks already run: static source/pin/hash
+the recorded snapshot before integration. Review status: bounded independent
+review clean; parent Call/effect/inference theorem OPEN. Checks already run: static source/pin/hash
 inspection above. Writes stop at handoff.
 Proposed message: `research: derive literal Call suppliers and scoped effect replay`.
 Shared-record deltas left to primary/curator: retain the selected relative

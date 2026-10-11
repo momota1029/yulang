@@ -492,9 +492,9 @@ or Git mutations occurred in the producer lanes.
 | --- | --- | --- |
 | `redesign_decompose` | Dependency-ordered design/proof packets | Complete; critical path is Value-owner constructor law → qualified equality preservation → source/consumer correspondence → reference implementation. |
 | `redesign_core_prover` | Constructive specification and intrusion preservation | Frozen in `notes/theory/2026-10-11-inference-rebuild-native-spec-proof.md`; conditional quotient valuation lemma and a non-qualified continuation counterexample; independent review clean after correcting comparison/ancestry wording. Parent theorem OPEN. |
-| `redesign_original_correspondence` | Original paper/reference source crosswalk | Frozen in `notes/progress/2026-10-11-inference-rebuild-original-correspondence.md`; finite Lambda, delayed Apply replay and recursive-let derivations; minor replay-order correction closed. Not universal proof. |
-| `literal_call_emission_prover` | Original complete Call source inversion | Additive continuation in `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md`; independent bounded compiler review clean; exact original declaration/application and forward-emission supplier remains OPEN. |
-| Primary | Authority, review, record integration | Asked user to choose the Value-reference construction root; dependent owner-law proof waits, independent correspondence/equality work continues. |
+| `redesign_original_correspondence` | Original paper/reference source crosswalk | Frozen in `notes/progress/2026-10-11-inference-rebuild-original-correspondence.md`; finite Lambda, delayed Apply replay, recursive-let derivations, and identity/constant complete-Call reductions. Independent compiler-referee delta review clean. The exact returned-provider tuple → native Apply-result Value-content owner rule remains OPEN. |
+| `literal_call_emission_prover` | Original complete Call source inversion | Additive forward construction in `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md`; independent compiler-referee delta review clean. It stops at the authentic `WF_Dec` declaration/application signature and checked substitution; exact literal emission remains OPEN. |
+| Primary | Authority, review, record integration | Integrated both reviewed bounded deltas. The Value-owner/equality proof remains dependent on the source-derived result-to-row-content law; Call continues independently at `WF_Dec` application formation. |
 
 The joint valuation quotient lemma is conditional algebra, not a source typing
 or principality proof. `p <: Bool`, positive extrusion, then `Int <: c`
@@ -506,8 +506,18 @@ complete literal Call rule application is still absent from the inspected
 selected source judgment. No reference implementation is ready because the
 Value-owner/transport and qualified-equality premises remain unresolved.
 
-All producer leases are frozen. The user clarification request is pending.
-Next: adjudicate the owner equation from the reply or constructor evidence,
-then resume only the dependent proof/implementation lane; keep soundness,
-required principality, normal progress, termination, complete Call, effect
-hygiene, production correspondence and F5 replacement OPEN.
+The original three artifact leases and both follow-up deltas are frozen from
+the pushed checkpoint `8e05d73d9`:
+
+| Follow-up | Method / exclusive artifact | State |
+| --- | --- | --- |
+| `literal_call_emission_prover` | Construct the approved tagged complete literal Call emission and Call-owned Reify/Delay source application; update only `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md` | Frozen; independent compiler-referee review clean; stops at `WF_Dec` signature/application formation, no emitted-family adoption or implementation authority |
+| `redesign_original_correspondence` | Independent original-judgment derivation/falsification of the Apply-result Value-owner equation; update only `notes/progress/2026-10-11-inference-rebuild-original-correspondence.md` | Frozen; independent compiler-referee review clean; result-provider facts established, native result-row ownership remains OPEN |
+
+The earlier owner-equation clarification remains unanswered; these new source
+derivations do not settle it. Next: obtain the native Apply-result content law
+from its responsible constructor/approved representation, and independently
+obtain the actual `WF_Dec` application signature. Resume qualified equality
+proof only after the first law is grounded. Keep soundness, required
+principality, normal progress, termination, complete Call, effect hygiene,
+production correspondence and F5 replacement OPEN.

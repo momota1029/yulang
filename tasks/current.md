@@ -10642,3 +10642,22 @@ Value-owner/transport and qualified-equality preservation laws. No conditional
 note or finite trace closes soundness, required principality, normal progress,
 termination, complete Call, effect hygiene, public correspondence, or F5
 replacement.
+
+Two independent follow-ups from the pushed checkpoint are frozen and reviewed.
+The literal Call forward construction preserves the approved Reify prefix but
+stops at the authentic `WF_Dec` declaration/application signature and its
+complete checked substitution; compiler-referee review found no issue in that
+bounded delta. The original source derivation establishes same-provider
+dispatch, result/provider preservation, and scope/use transport for identity
+and constant functions, but leaves the mapping from the returned provider tuple
+to Value content owned by the native Apply result row OPEN; its independent
+compiler-referee review found no issue in scope. Neither review closes the
+parent theorem or establishes repository-wide absence.
+
+Next: resolve the result-to-row-content owner law from its source constructor
+or approved Value representation, then resume qualified equality preservation
+only from that law. In parallel, obtain the actual `WF_Dec` application
+signature at its declaration owner. Keep soundness, required principality,
+normal progress, termination, complete Call, effect hygiene, production
+correspondence and F5 replacement OPEN. No implementation, tests, builds,
+Oracle or benchmark ran in this slice.
