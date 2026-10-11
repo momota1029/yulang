@@ -156,6 +156,39 @@ Application package with the literal Reify incidence; do not cast native rows
 or occurrence IDs into original typed origins. See the
 [`invoke complete-Call proof attempt`](../theory/2026-10-11-invoke-complete-call-proof-attempt.md).
 
+### Direct construction attempts and unclosed Call theorem (2026-10-11)
+
+Two reviewed bounded construction attempts now trace the actual source and
+candidate path for `my invoke f = f 1`. The native path constructs and actively
+submits the four-port negative Function constraint, retaining distinct source
+and checking incidence. It does not construct a whole original Application,
+Call-owned literal Reify/carrier evidence, or the same-provider complete Call
+package. The actual ordered literal-Application introduction remains
+unavailable in the inspected source owners.
+
+The pre-Call attempt identifies the complete `ReceivedWholeCarrier` local
+declaration as **one concrete missing formal-port input** to the adopted raw-
+registry constructor. Independent review rejected the stronger claim that it
+is the earliest formal premise: the ordering of its introduction relative to
+`ParameterOrigin` and static-license construction is unresolved. Its full
+ordered telescope, import closure, scope operations, licenses and substitution
+are not supplied. Do not assert that this candidate `Fam_delta` application is
+necessary to every original source-to-Simple-sub proof. Complete local source
+laws remain necessary; the raw-registry presentation may be representation-
+specific.
+
+Likewise, `EmittedGenCall0` is required by the selected O0 constructor route,
+but original Call meaning does not universally require that record family.
+The direct `Build(S,T)` source-rule route is a legitimate alternative proof
+method, but no complete lowering from it to the implemented Simple-sub
+constraints, with all Call consumers and same-provider obligations preserved,
+has been established. A constructive proof attack for that full lowering is
+active at baseline `67b8119ca22313dc3e8d5ede623ae19dc2a65425`; output is pending.
+No new semantic decision is justified yet. Soundness, required principality,
+complete Call, normal inference adequacy and full effect hygiene remain OPEN.
+See [the formal-port construction attempt](../theory/2026-10-11-invoke-fam-delta-construction-proof.md)
+and [the literal-emission construction attempt](../theory/2026-10-11-invoke-literal-emission-construction-proof.md).
+
 The separate type-error lane reproduced the exact source
 `my bridge x = 1 1` through source HIR and candidate solving. The focused test
 `direct_source_int_application_records_int_function_conflict` passed with
