@@ -10978,12 +10978,12 @@ at `4a3848441`, derives conditional admission and projection inclusion of the
 replayed `A <: Y` lower, then traces its α-bearing positive result-Effect stack
 into collection. An independent `compiler_referee` found no issue in P's
 bounded derivation, while explicitly leaving execution records, the complete
-compact root and final scheme unverified. The complete merged compact return
-port and its co-occurrence/simplification/substitution images remain OPEN;
-bipolarity alone does not prove α survival. No source-qualified deletion or
-explanation of the printed pure result is established. H and its original
-quantifiers remain OPEN. No Oracle invocation, test, build, or compiler edit
-was performed.
+compact root and final scheme unverified. The following S derivation closes
+the complete x incidence and simplifier-survival slice for one fresh ordinary
+declaration snapshot, conditional on P and before external uses. It does not
+establish the final scheme or explain the printed pure result. H and its
+original quantifiers remain OPEN. No Oracle invocation, test, build, or
+compiler edit was performed.
 
 The checkpointed
 [`direct-return simplification audit`](../notes/progress/2026-10-12-oracle-direct-return-simplification-audit.md)
@@ -10991,20 +10991,18 @@ at `d84d21092` narrows that seam without closing it. Its independently reviewed
 conditional facts show that an absent α floor entry is not an Empty floor and
 that a negative `Row(tick, tail=x)` does not retain `Exact(tick)` when the same
 co-occurrence traversal visits a variable-only x tail and intersects the
-groups. No source-qualified α deletion was found. The next owner is the
-complete weighted x incidence slice of the final compact root, including all
-same-coordinate Function contributions, α floors, recursive bounds, levels,
-and representative images through preparation's fixed-point passes. The
-frozen constructive derivation at `78e4312ac` now supplies that slice for the
-fresh `direct` declaration before external uses, deriving x/PUSH α and the
-negative x tail, then tracking both co-occurrence tables and substitutions
-through the two simplifier fixed points. Independent `compiler_referee` review
+groups. No source-qualified α deletion was found in the bounded S slice. The
+frozen constructive derivation at `78e4312ac` supplies the complete weighted x
+incidence for that fresh `direct` declaration snapshot, including same-coordinate
+Function contributions, α floors, recursive bounds, levels, and representative
+images through preparation's fixed-point passes. It derives x/PUSH α and the
+negative x tail, then tracks both co-occurrence tables and substitutions
+through both simplifier fixed points. Independent `compiler_referee` review
 found no blocking, major, or minor issue and checked all 13 recorded dependency
-hashes. S is therefore closed for that exact fresh declaration snapshot,
-conditional on P's accepted projection premises and successful ordinary
-construction. The reviewer did not recertify P or extend S to external-use
-constraints. S stops before stack cleanup at `generalize/mod.rs:805–834`;
-downstream quantification/export, provider/use coupling, and universal H remain
-OPEN. Oracle budget remains exhausted. Next owner: derive the actual x/Pα image
-through finalization, stack cleanup and scheme export, then resume H's original
-surrounding-program/use quantifiers.
+hashes. S is closed only for that snapshot and is conditional on P and
+successful ordinary construction. The reviewer did not recertify P or extend S
+to external-use constraints. S stops before stack cleanup at
+`generalize/mod.rs:805–834`; downstream quantification/export, provider/use
+coupling, and universal H remain OPEN. Oracle budget remains exhausted. Next
+owner: trace x/Pα through finalization, stack cleanup and scheme export, then
+resume H's original surrounding-program/use quantifiers.
