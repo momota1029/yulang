@@ -194,8 +194,8 @@ are:
 
 All arrows in the preceding native derivation mean **operational payload
 incidences `→op`**, including the listed Function-port references. No semantic
-source edge is inferred from insertion or propagation. Consequently
-The **projection of the operational payload graph onto Value rows** has
+source edge is inferred from insertion or propagation. The **projection of
+the operational payload graph onto Value rows** has
 nontrivial SCC `{Ng,Nf}`. Roots and root Lambda rows feed it but have no
 incoming payload incidence from its members, so those rows are outside that
 component. In the scanner's unprojected graph, Function nodes subdivide these
@@ -230,9 +230,9 @@ module-use route separately admits `Rg <: Ng` (`candidate_scheme.rs:938–944`;
 `Rg →op Ng`. It installs no `Ng →op Rg` payload reference. Inferring the
 semantic edge `Ng →src Rg` solely by reversing this comparison would violate
 the accepted edge definition. The same construction holds for `Rf` and `Nf`.
-This identifies where the reviewed
-source Name-reference edge fails to transfer to the current payload graph; it
-does not by itself prescribe a representation or implementation repair.
+This identifies where the reviewed source Name-reference edge fails to
+transfer to the current payload graph; it does not by itself prescribe a
+representation or implementation repair.
 
 In the displayed complete relevant native payload table, the only Value rows
 reachable from `Rf`, apart from itself, are `X,Ng,Nf,Y`; none points to `Rg` or
