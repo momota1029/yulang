@@ -11470,3 +11470,18 @@ either derive that actual owner equation from construction evidence or name
 the precise source-owned fact still missing. This does not close H, complete
 Call, soundness, principality, or F5 replacement. No compiler code or tests
 changed in this checkpoint.
+
+The [native negative residual constructor derivation](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
+is now independently reviewed and pushed at `c61d005d4`. It instantiates
+Oracle's `J/K/beta/pi_t` arithmetic and verifies the actual Allowance consumer's
+matching-head early return. Its finite `u={E}, gamma=t={}` valuation proves
+only that F/P do not force `E` into gamma/t when gamma/t is separately
+designated as the survivor route. The same F relation retains `E` in its
+`[E]` head, and the approved hygiene contract does not universally designate
+gamma/t as the output route. The reviewer therefore found no evidence of
+deletion, global insufficiency, or a source-qualified counterexample. The exact
+source equation still must designate and prove the actual independent-output
+route (which may be the retained head); no internal residual implementation
+slice is justified by this conditional model alone. H, complete Call,
+soundness, principality, general negative admission, and F5 replacement remain
+OPEN. The copied-row ownership question remains pending and uncommitted.
