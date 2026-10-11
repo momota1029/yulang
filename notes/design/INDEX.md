@@ -69,6 +69,10 @@ This index is a navigation aid. The listed source document remains authoritative
   same SCC. The user directly authorized implementation. Actual equality and
   SCC integration are required; unused metadata or continued internal-SCC
   rejection does not satisfy this operation. The
+  [Value-reference ownership decisions](2026-10-10-parent-copy-scc-intrusion.md)
+  now include recursive nested-Apply Name membership and definition-root
+  ownership across lexical levels; source construction, transport, qualifying
+  parent/copy membership, and equality preservation remain open. The
   [implementation checkpoint](../progress/2026-10-10-parent-copy-intrusion-implementation.md)
   connects canonical equality, live use-time recapture and actual open recursive
   uses, with bounded M2 reviews and owning builds. The

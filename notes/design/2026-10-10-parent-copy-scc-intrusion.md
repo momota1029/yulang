@@ -71,6 +71,49 @@ complete Call typing, define effect behavior, prove source-to-row construction
 or transport through extrusion/fresh use, or establish that any retained
 parent/copy pair qualifies for intrusion.
 
+#### Nested Apply membership (user-approved decision, 2026-10-12)
+
+Approval is recorded in the integrated answer for
+[`2026-10-12-nested-apply-reference-membership`](../../questions/2026-10-12-nested-apply-reference-membership/approved-answer.md),
+revision 1.
+
+An Apply result recursively owns resolved Name occurrences in its callee and
+argument source subtrees, including nested Apply callee/argument subtrees. For
+`my use f = f(0)(0)`, the two Apply results therefore contribute `R1 → F` and
+`R2 → F`, where `F` is the original resolved binder row for `f`. Syntactic
+containment alone does not contribute `R2 → R1`; every edge targets the row of
+an actual resolved Name occurrence.
+
+This decision does not settle Lambda, Block, wrapper, or local-initializer
+boundaries for Apply-fragment membership. It does not extend the Apply rule to
+other source constructors or establish source-to-row construction or transport.
+
+#### Definition-root Value ownership (user-approved decision, 2026-10-12)
+
+Approval is recorded in the integrated answer for
+[`2026-10-12-definition-root-value-reference-forwarding`](../../questions/2026-10-12-definition-root-value-reference-forwarding/approved-answer.md),
+revision 1.
+
+At definition publication, the definition root owns resolved Name references
+in its source-owned initializer/body. A nested declaration's initializer
+references belong to that nested declaration's own root. These are explicit
+Value-reference incidences; they do not identify definition roots with
+Lambda, Block, or Apply rows and are not inferred from subtype constraints.
+
+Thus the nested `odd`/`even` source has root edges `O → E` and `E → O` across
+the lexical/inference-level boundary, when its Names resolve to those roots.
+Value-reference SCC eligibility is not restricted by lexical level. The rule
+does not establish that the current compiler emits or transports these edges,
+that an extrusion parent/copy pair is in this SCC, or that equating such a pair
+preserves soundness or required principality.
+
+The boundary of the Apply decision is deliberate: recursive membership covers
+nested Apply callee/argument subtrees only. It does not settle Lambda, Block,
+wrapper, or local-initializer boundaries for Apply-fragment membership. The
+definition-root decision separately owns Name references in each definition's
+source-owned initializer/body; it does not imply that the root is identical to
+the body's Lambda, Block, or Apply row.
+
 The nested `odd`/`even` example also makes clear that lexical nesting and
 inference levels do not filter or rank Value-reference edges. The source-owner
 references point in both directions across the nesting boundary; this is not
