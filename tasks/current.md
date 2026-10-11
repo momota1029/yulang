@@ -9584,3 +9584,28 @@ soundness, principality, or the original inference theorem. The exact next
 premise remains the coupled constructor → same-call/output consumer → retained
 current/future lower invariant at the source owners. All parent and admission
 gates remain OPEN; no implementation is authorized by this result.
+
+## 2026-10-11 `invoke`: original source construction remains OPEN
+
+The frozen [complete Call source crosswalk](../notes/progress/2026-10-11-invoke-call-source-constructor-crosswalk.md)
+was independently reviewed with no blocking, major or minor findings. It maps
+the actual formal, resolved Name, integer, Apply, Function4 and observer paths
+to their consumers. The source-local complete formal declaration/entry chain
+and literal complete Application still have no actual producer in the
+inspected Yulang path. The captured Gen-Call-0 constructor also cannot model
+this root Lambda→Apply/Integer form; this is constructor-coverage evidence,
+not a source counterexample or a proof that its record representation is
+universal.
+
+The [full-source proof attempt](../notes/theory/2026-10-11-invoke-fam-delta-full-source-proof.md)
+was independently reviewed by a `prover` and `compiler_referee` with no
+blocking, major or minor findings. It consumes the reviewed ordinary
+Simple-sub derivation, preserves the original parent quantifiers, and shows
+that both the adopted `Fam_delta` route and representation-free `Build(S,T)`
+route still require the actual local Lambda entry law; the body also requires
+the literal complete Application law. No complete lift, semantic
+impossibility, source rejection or wrapper replacement was proved. The exact
+next premise remains actual formal-owned declaration/application and
+entry/receipt/Force/rebind construction at `L,d_f`, followed by literal
+Application and same-provider completion. Complete Call, Generalize, source
+adequacy, soundness, principality and F5 remain OPEN.

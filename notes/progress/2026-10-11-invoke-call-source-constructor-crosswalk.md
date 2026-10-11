@@ -4,7 +4,7 @@ Date: 2026-10-11
 Baseline: `f709764603da5e1ed01eab400ba01b6b245c78a6`
 Branch: `research/simple-sub-intrusion`
 Producer: `/root/invoke_call_source_falsification`; researcher leaf
-Status: unreviewed bounded static characterization; frozen on submission
+Status: independently reviewed bounded static characterization; parent gates OPEN
 Exclusive lease: this note only
 Complete source/Call, soundness, required principality and Generalize: OPEN
 Semantic adoption, implementation authority and independent certification: none

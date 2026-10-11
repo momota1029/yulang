@@ -4,7 +4,7 @@ Date: 2026-10-11
 Baseline: `f709764603da5e1ed01eab400ba01b6b245c78a6`
 Reference: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Producer: `/root/invoke_fam_delta_complete_proof`; leaf, no delegation
-Status: unreviewed bounded source-owner obstruction; full source lift unproved
+Status: independently reviewed bounded source-owner obstruction; full source lift unproved
 Exclusive lease: this file only; frozen on submission
 Authority to adopt semantics, change implementation or certify closure: none
 
@@ -273,7 +273,29 @@ justified interpretation of its native constructors could supply them.
 Absent such a derivation, a record-field census proves only this bounded
 output boundary, not semantic impossibility.
 
-## 7. Economy audit, status and stop condition
+## 7. Independent review
+
+An independent `prover` reviewed the theorem scope and the bounded
+construction/source-law obstruction. It found no blocking, major or minor
+finding. It confirmed that the complete declaration application is absent,
+the literal argument does not instantiate the cited Name/Name Gen-Call rule,
+and the representation-free route still needs the actual local entry and
+Application laws. It rejected no source as untypable and did not promote the
+original theorem.
+
+An independent `compiler_referee` reviewed the unique source/implementation
+claims without blocking, major or minor findings. It confirmed the adopted
+`Delta_in^orig` gap, exact Gen-Call-0 literal/topology mismatch, and the
+boundary between submitted native Function4 constraints and complete Call.
+The previous source crosswalk was separately reviewed and corroborates the
+shared producer/consumer inventory; this review focused on the unique claims
+in §§3–6.
+
+These reviews accept only this bounded obstruction and exact next source law.
+They establish no source/native adequacy, full Call, Generalize, hygiene,
+soundness, principality or F5 gate.
+
+## 8. Economy audit, status and stop condition
 
 The adopted full-family construction and direct original/operational route
 leave the same genuine local source-law input unresolved. The earlier
@@ -317,7 +339,7 @@ progress/termination, cross-level clients, source Generalize, public
 principality, ordinary HIR/F5 acceptance and publication. This scope remains
 part of the parent objective.
 
-## 8. Checks, resources, runtime and commit packet
+## 9. Checks, resources, runtime and commit packet
 
 Checks: focused `cat`/`sed`/`rg` reads of the above rules, declarations and
 owning code; direct local reference `Typer.scala` and paper Fig.3 via
@@ -356,8 +378,9 @@ Commit packet:
   `9bae772624c23b52a93c1b226157e16898b4d9db`.
 - Changed dependency hashes: final filesystem stability result below;
   baseline-blob comparison deferred to primary. No dependency edits by this leaf.
-- Review status: unreviewed bounded source-owner obstruction; no theorem
-  closure or producer certification. Writes frozen on return.
+- Review status: two independent reviewers found no blocking, major or minor
+  issue in their scoped mathematical/source review; no theorem closure or
+  producer certification. Writes frozen on return.
 - Checks already run: exact owner/reference reads, lease absence and hash
   snapshot; final note/dependency integrity result below. No compiler checks.
 - Proposed checkpoint: `research: pin invoke full-source entry and literal Call cuts`.
