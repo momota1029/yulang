@@ -10331,9 +10331,10 @@ The constructive source trace is frozen in
 checkpoint `f914dc984`. It establishes the actual annotation PUSH/POP
 constructors, monomorphic formal reuse, provider operation owner, result-port
 transport, quantified-root POP(MAX) owner and surface-dump behavior. The
-annotation's immediate local-call predicate is empty; `direct` itself never
-calls `cb`. This makes the post-publication `observed_direct` use the sharper
-scope discriminator.
+annotation does construct a call predicate on the monomorphic `cb` binder;
+`direct` never invokes `cb`, so that predicate has no local call that activates
+it inside `direct`. This makes the post-publication `observed_direct` use the
+sharper scope discriminator.
 
 The raw source ID is not yet proved to survive `direct`'s projected compact
 scheme or to be selected in its actual stack-quantifier set. Finalization
