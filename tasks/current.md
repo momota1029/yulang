@@ -8933,3 +8933,40 @@ and semantic inverse/late-ledger premises to distinct owners, then integrate
 their evidence into the original parent proof. Keep the original theorem,
 complete inference, effect hygiene, soundness/principality, and F5 production
 promotion OPEN.
+
+## 2026-10-11 lifecycle proposal and W/A3 rollback continuation
+
+The primary's exploratory lifecycle admission proposal is recorded in
+[`retained-lifecycle-admission-architecture-proposal`](../notes/progress/2026-10-11-retained-lifecycle-admission-architecture-proposal.md).
+Independent spec-auditor and compiler-referee reviews found and adjudicated
+two wording defects: storage must be reserved before each dependent mutation,
+and a lifecycle coordinator cannot authorize cross-component incidence changes
+without independently established §4 replay/order correspondence. A fresh
+spec-auditor delta review confirms both findings closed in the proposal text.
+This is not implementation or user approval; internal support-record,
+alternate-support, cyclic-frontier, admission-evidence and staged/undo layout
+choices remain unresolved and unapproved. The proposal confirms the present
+boundary: preserve active-child live-index behavior, defer unproved
+cross-component incidence changes, withdraw before reuse, and recompute before
+the saved child. No code or test changed in this slice.
+
+The complementary static W/A3 rollback falsifier is recorded in
+[`retained-parent-wa3-rollback-falsifier`](../notes/progress/2026-10-11-retained-parent-wa3-rollback-falsifier.md).
+It found no constructor-qualified semantic escape or late-ledger error witness
+in the inspected retained Local/replay/drain cone. Its concrete remaining
+premise is constructor/history headroom for byte reconciliation and cumulative
+growth/rebuild counters, including failed forward preflights that leave capacity
+allocated. The existing MAX-ledger rollback test uses a deliberately corrupted
+Fresh state and is not a retained Q/D counterexample. Late accounting errors
+are returned after workspace reversal, so they do not demonstrate unreversed
+Q/D or receipts. The original W/A3 theorem remains OPEN; this falsifier is
+unreviewed static evidence and ran no executable checks.
+
+An attempted complementary prover lane was stopped before returning a frozen
+artifact. Do not treat its preliminary source trace as proof. The next proof
+packet should isolate the headroom/cumulative-ledger premise at its owning
+accounting constructions, separate from semantic inverse coverage. The
+incidence/order correspondence and authentic §7 lifecycle remain separate
+owners and gates. Complete Simple-sub inference, Yulang2-derived effect
+hygiene, soundness/principality, production authority and F5 cutover remain
+OPEN.
