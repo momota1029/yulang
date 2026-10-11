@@ -9883,6 +9883,38 @@ parent reference to survive an actual extrusion. The remaining source witness
 owner must find or refute that exact requirement at a constructor that creates
 a recorded extrusion parent; it cannot substitute lexical freshening or repeat
 the rank proof.
+
+### Reviewed ancestor-call extrusion witness
+
+The bounded source/algorithm derivation
+[`ancestor call, genuine extrusion, and returned fresh descendant`](../notes/theory/2026-10-11-ancestor-call-extrusion-scc.md)
+traces the parameterized local source
+`my host z = { my outer x = { my g y = outer y; g }; outer }` through its
+actual Value payload references. The ancestor application creates genuine
+extrusion pairs `(C₂,Y₃)` and `(Q₂,P₃)`. The returned helper freshens its local
+result row to `P*₂` while sharing `Q₂`; later replay yields the SCC
+`Q₂ → Function(Y*,P*) → P*₂ → Q₂`. The retained original parent `P₃` is not in
+that SCC, and the source's ordinary Value inequalities already entail both
+the original and fresh call-result constraints without identifying `P*` with
+`P`. Independent `compiler_referee` review found no finding in the bounded
+trace or its Value-preorder entailment.
+
+The disjoint companion [source audit](../notes/progress/2026-10-11-ancestor-call-extrusion-source-audit.md)
+independently checks the native HIR/solver identities and locates the same
+earliest absent edge: the fresh result A* has no stored Value reference to
+original A. Its separate `compiler_referee` review also found no finding in
+that bounded trace.
+
+This is concrete source-shaped evidence against using this candidate to force
+original-parent/copy SCC equality; it is not a universal result. The exact
+program was not parsed or run. Complete Call, exact source acceptance, source
+Generalize adequacy, all-source intrusion adequacy, Effect hygiene, soundness,
+principality and normal progress remain OPEN. The next proof target is the
+actual source-generalization dependency that could require an original
+higher-level parent to survive extrusion, not another cycle whose return path
+passes only through a fresh instance. No compiler implementation or tests
+changed in this checkpoint.
+
 The original Simple-sub inference, complete Call, soundness, principality,
 Effect hygiene, Generalize, rejection, production acceptance and F5 replacement
 gates remain OPEN. No implementation or tests changed.
