@@ -10259,6 +10259,26 @@ operational trace is not evidence that the selected intrusion is redundant or
 that normal source inference cannot need it. Next action: prove that owner map
 and compare it with the scanner on this fixture.
 
+The same bare mutual source now supplies a sharper discriminator in
+[`mutual-recursion Value SCC source audit`](../notes/progress/2026-10-11-mutual-recursion-value-scc-source-audit.md).
+The independently reviewed source-reference graph has actual definition
+roots `F ↔ G`; under successful construction/drain guards, the native
+bound/Function graph instead has Value-row projection SCC `{Ng,Nf}`, and its
+unprojected scanner component also includes the two Function nodes. Neither
+root reaches the other in that payload graph. The first divergence is the
+resolved recursive Name: the source edge targets the other definition root,
+while native Lambda construction stores the distinct occurrence row and the
+Name route adds only the comparison `G <: Ng` (and symmetrically). The audited
+writer stores `G →op Ng`; the comparison does not add `Ng → G`. This is a
+conditional mismatch between the selected source graph and the current
+operational adjacency, not an observed runtime failure or a missed intrusion
+equality: this source creates no retained parent/copy pair. The approved graph
+meaning and selected intrusion remain unchanged. Next action: establish how
+source-owned Name references enter the native Value-reference SCC consumer,
+then prove that retained parent/copy qualification uses that same graph across
+extrusion and freshening. Complete Call, soundness, principality, effects and
+F5 replacement remain OPEN.
+
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
 operational Effect SCC; an independent `compiler_referee` found no blocking or
