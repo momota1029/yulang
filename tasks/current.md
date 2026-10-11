@@ -11240,3 +11240,22 @@ and the paired/general negative concrete constructors; general admission stays
 disabled. Full H, residual lineage transport, complete Call, soundness,
 principality, source admission and F5 cutover remain OPEN. No code, tests,
 builds or Oracle execution changed.
+
+The frozen [Y3 negative-construction bridge proof](../notes/theory/2026-10-12-y3-negative-effect-construction-bridge-proof.md)
+received an independent `compiler_referee` review with no findings. It confirms
+the exact current obstruction: source preflight and paired/general effect
+constructors reject composed-negative concrete rows before binder/view creation;
+an open Allowance accepts matching members without forwarding them to its tail,
+which does not implement the approved negative FILTER wrapper; and there is no
+live lineage-owned gamma plus both residual obligations. The proof keeps the
+requested transition OPEN and does not equate Oracle behavior with Y3.
+
+The disjoint [negative-effect implementation seam audit](../notes/progress/2026-10-12-y3-negative-effect-implementation-seam-audit.md)
+records additional supplier obligations: direct bound insertion does not
+guarantee initial recipe activation, and current origin transfer lacks an
+origin-to-fiber association. This audit is an unreviewed source
+characterization, not implementation authority. Next, prove the exact
+construction/consumer invariant for current and future recipe delivery and
+origin/fiber retention before assigning the coupled internal implementation.
+Keep source preflight and general admission disabled. No code, tests, builds or
+Oracle execution changed.
