@@ -9968,3 +9968,35 @@ the nontrivial SCC condition relevant to distinct parent/copy variables. No
 intrusion or inference theorem is closed by these payload traces. Continue
 from the source-value graph the user described; keep all original parent gates
 OPEN.
+
+The bounded HIR/source audit for
+`my host z = { my outer x = { my g y = outer g; x }; outer }` resolves the
+binding-reference edges under direct declaration ownership (nested
+declaration initializers belong to the nested binding) as `host → outer`,
+`outer → x`, `g → outer`, and `g → g`. There is no `outer → g` edge from
+lexical containment. All components are singletons; `{g}` is a cyclic
+singleton SCC and there is no nontrivial SCC.
+The source audit locates binder installation/name resolution in
+`crates/yu-hir/src/module/local_source.rs` around lines 332–360, 636–657, and
+819–830. A new non-authoritative
+[repair draft](../notes/design/2026-10-11-source-value-reference-intrusion-draft.md)
+keeps source references, solver constraints, operational payload incidence,
+and extrusion ancestry separate. Its unresolved critical bridge is how
+actual extrusion-created Value variables acquire their own reference edges
+from their value constructors and how those edges are transported through
+later use and generalization. The semantic vertex domain is fixed by the user;
+the binder graph is only a projection and cannot identify distinct parent/copy
+vertices. Thus parent/copy SCC reachability and intrusion adequacy remain OPEN.
+The reviewed Draft passed two independent conformance-review passes with no
+residual findings; it remains unapproved and non-authoritative. A constructive
+candidate relation and a complementary source-constructor audit are frozen in
+the [Value-reference SCC proof note](../notes/theory/2026-10-11-value-reference-scc-source-bridge.md)
+and [constructor audit](../notes/progress/2026-10-11-value-reference-scc-constructor-audit.md).
+Both locate the first missing bridge at resolved Name ownership: HIR resolves
+the occurrence, but `candidate_source.rs` emits `Action::Link` or `Action::Local`
+without establishing which actual Value vertex owns the reference and which
+actual Value identity it denotes, including at fresh uses. Constraint and
+payload constructors cannot fill this premise by themselves. The conditional
+structural/transport lemmas therefore do not establish the actual source graph,
+intrusion SCC conformance, or pair reachability. Those gates remain OPEN. No
+compiler code or tests changed.
