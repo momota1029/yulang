@@ -360,3 +360,193 @@ contextual-tail route to the actual output observation, retaining the original
 attachment, source/call parents and residual lineage. H, full weighted-context
 preservation, complete Call, soundness, principality and F5 replacement remain
 OPEN.
+
+## 9. Fixture Call/handler coordinates and the selected-output boundary
+
+This appended source derivation is unreviewed. Its update baseline is
+`c87a828b3`; the preceding reviewed sections are unchanged. It uses the frozen
+Oracle checkout `/tmp/yulang2-oracle-read`, revision supplied by the parent
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`. All twelve dependencies recorded
+above matched their hashes before this append. The original H quantifiers,
+source domain and required conclusion in §1 remain fixed and OPEN.
+
+The bounded source is Oracle
+`notes/bugs/solved/handler_arm_tuple_payload_pattern.yu:57`:
+
+```text
+act ev:
+    pub send: (str, int) -> ()
+
+my run(action: [ev] 'a): 'a = catch action:
+    ev::send (s, n), k -> run (k ())
+    v -> v
+
+run: ev::send ("x", 42)
+```
+
+Names in the following equations denote inference coordinates, not the
+fixture's payload variable `s` or value-arm variable `v`. Fix completed
+successful calls to the inspected constructors, with valid arena handles
+before exhaustion. This establishes their emitted constraints and structural
+consumption rules; it does not assume a particular solved or published scheme.
+
+### 9.1 Full formal slot, stack view and catch tail
+
+Write `v` for the fresh full formal computation Effect slot, `u` for its fresh
+inner stack coordinate, `s` for the fresh subtraction ID with payload `{ev}`,
+`t` for the catch result Effect, and `r` for the final defined-function body
+Effect coordinate after any recursive skeleton forwarding. The Value binder
+`'a` is distinct from all of them.
+
+The concrete row in `[ev] 'a` has **no annotation Effect tail**.
+`annotation/constraints.rs:709–728` lowers its negative row to
+`Row({ev}, Top)`. The parameter owner at `552–590`, using the stack constructor
+at `657–690`, emits:
+
+```text
+Push_s(u) <: v
+ArgEff = Var(v) intersect Row({ev}, Top)
+```
+
+It does not equate `v` and `u`. The lambda annotation connection retains the
+full slot together with this inner/weight view
+(`expr/lambda.rs:1244–1341`). Reading `action` returns Effect `v` and the
+separate local view `(v,u,s)` (`name_ref.rs:147–186`).
+
+The `send` payload tuple covers all values and has no guard; `ev` declares
+only that operation. The actual completeness owners therefore select the
+catch result Effect itself as the handled-row tail
+(`control/syntax.rs:133–146`; `control.rs:1155–1178,1702–1758`).
+`control.rs:922–1019` emits both:
+
+```text
+v         <: Row({ev}, t)
+Push_s(u) <: Row({ev}, t)
+```
+
+The second relation supplies the reached weighted Row-upper input for §2:
+`J={ev}`, the residual payload for `s` is empty with its ID/count retained,
+`F: u <: Row({ev}, gamma)` has identity context, and P projects gamma to
+the actual catch tail `t`. Neither `t` nor gamma is an annotation tail.
+
+The defined-lambda owner forwards the body Effect to the recursive skeleton
+body coordinate when applicable, then constructs its actual return Effect
+from that body coordinate (`expr/lambda.rs:780–866,948–974`;
+`expr/tail.rs:1084–1116`). Thus `r` must not silently be substituted by `v`,
+`u`, or a guessed annotation binder. The concrete parameter stack ID alone
+does not create an output POP: this root Effectful parameter connection has
+only the Value connection's returned subtracts, and the parameter predicate
+owner excludes weights belonging solely to its own Effect stack
+(`annotation/constraints.rs:260–280`; `expr/lambda.rs:1581–1632`).
+
+### 9.2 The send Call contribution and input-head acceptance
+
+The operation signature owner inserts `ev` into `send`'s positive return
+Effect row (`body/signature_helpers.rs:217–260`;
+`signature_effect.rs:78–107`). Its application forwards that return Effect
+into the argument computation Effect `c` supplied to `run`.
+`expr/tail.rs:535–624` constructs the four-port Call demand using that actual
+`c`. When the demand meets the emitted `run` Function port, the inspected
+Function consumer gives:
+
+```text
+c <: v
+c <: Row({ev}, Top)
+```
+
+Argument ports use the actual swapped directed context
+(`constraints/machine/propagate.rs:210–253`). This is the constructor-level
+Call interface. No inspected rule in this spine maps `c` to `u`; the existing
+edge `Push_s(u) <: v` supplies no converse. This is a bounded statement about
+these owners, not a claim that other inference paths can never form an edge.
+
+The application owner forwards callee evaluation and return Effect into its
+result Effect, with no generic argument-Effect-to-result-Effect edge. Its
+special pure-argument passthrough requires `Neg::Bot`; the emitted `run`
+argument Effect port above is an Intersection, not that branch.
+
+The full-slot relation `v <: Row({ev},t)` is a **handled-input decomposition**.
+A matching concrete `ev` constrains the head arguments without forwarding
+that lower to `t`; only a nonmatching family takes the tail route
+(`propagate.rs:1007–1042`). Consequently, the send contribution's full-slot
+head acceptance does not prove positive output retention in `t`, `r`, or the
+final Call Effect. Likewise, §8's complete upper row `Row(J,t)` is not thereby
+identified with this source expression's positive output.
+
+The fixture's `send` is the explicitly handled operation. Its family presence
+does not establish H's independent contribution or attachment association.
+It supplies neither an independent-survivor proof nor a source-qualified
+counterexample. If a separately established independent contribution must
+survive at the actual Call output, a route into that output must be derived:
+possibly through `t`/`r`, or through another actual positive output route.
+This paragraph does not require every survivor to enter `u` or gamma.
+
+### 9.3 Exact generalization, scheme and output bridge still required
+
+The global `run` reference enqueues `ApplyRefResolution`, which creates
+`SccInput::UseResolved` for the actual definition/use Value
+(`name_ref.rs:83–115`; `analysis/session/lifecycle.rs:1092–1101`).
+The SCC owner distinguishes a quantified target from an open internal use
+(`scc.rs:266–288`). `analysis/session/selection.rs:1040–1108` routes actual
+InstantiateUse and OpenUse events. An OpenUse constrains the target root to
+the use Value; instantiation instead reads the target's actual
+`Def::Let.scheme`, clones its predicate and installs it at the use Value
+(`analysis/session/instantiate.rs:4–11,345–525`).
+
+The clone owners preserve supplied Function ports, negative Intersections,
+rows and consistent variable renaming (`instantiate.rs:798–808,850–901`).
+They do not prove which original receiver/output graph generalization placed
+in this fixture's selected scheme. In particular, no unselected specialized
+signature or guessed final-output route is evidence here.
+
+The smallest remaining source bridge is at
+`quantify_component/generalize_root_with_prepasses_and_metrics`, followed by
+`finalize_generalized_compact_root_with_ancestors`, the actual target
+`Def::Let.scheme`, and its actual use instantiation
+(`analysis/session/instantiate.rs:14–85,345–525`). Derive the jointly selected
+receiver/output map for this Call, including any surviving copies of
+`(u,v,s,t,r)` and their consistent renaming. For an independently established
+contribution, then derive its designated actual output observation through
+that map. Input-head acceptance and positive output retention must remain
+separate judgments. A per-fiber license, `v -> u`, final scheme shape, or
+exclusive gamma route cannot be supplied as a premise merely to close H.
+
+### 9.4 Appendix checks and handoff
+
+Only this section was appended. The original twelve dependency hashes were
+rechecked; all matched. The eight fixture/source hashes captured by the
+preceding message-only derivation also matched before the append. The extra
+owner bytes used here are pinned below. All paths in this table are relative
+to the frozen Oracle checkout.
+
+| Path | SHA-256 |
+| --- | --- |
+| `notes/bugs/solved/handler_arm_tuple_payload_pattern.yu` | `1f42d3d68f57462f124f9574492b9f9b2d124aa9564e9bc64efd8e706514d997` |
+| `crates/infer/src/annotation/constraints.rs` | `3c0482d4549a2bfc7e651a6b2cc15fa4e70488fe8f68fcbfca34c1bfb72920db` |
+| `crates/infer/src/lowering/expr/lambda.rs` | `2e0206bdcfdfbe98d13c12eec7ba8f7964383bc08c92947352ad370754024db9` |
+| `crates/infer/src/lowering/expr/tail.rs` | `ac406b309fbb0ba558a18e37aba63a8e7ffeabbc377a111566b1f97d786f93b8` |
+| `crates/infer/src/lowering/control.rs` | `4253ea5e94b671271fe64b5d1956bb961215e2e5c1278c56d88f0c67caaa7963` |
+| `crates/infer/src/lowering/control/syntax.rs` | `4b48526e7e4caecf1d9990b623c5ac34eb2569e15973e4e0ffa10b6fd24fc38a` |
+| `crates/infer/src/lowering/name_ref.rs` | `699c7dc84a2b4889355ffe9cd23b3e871c295957dbcb3fbad96ee9ee36470ede` |
+| `crates/infer/src/lowering/body/signature_helpers.rs` | `8302de665ec38ef4a1cf2e00b762b74c7f5fb85e866526224ec527d487cea4cd` |
+| `crates/infer/src/lowering/signature_effect.rs` | `9eec35dcbe721cec20b8cab302c409ec0bc014781a36d5287a781a6cb9fe50ce` |
+| `crates/infer/src/constraints/machine/propagate.rs` | `8695fa5d7dfac805cd7d66e9e0760c8c298002b952b0cd8a43dcd1f8eb6f7086` |
+| `crates/infer/src/analysis/session/lifecycle.rs` | `196b0f1eeef891e3547bf77e3d00f5f0574399e24bc59c4697219df6ff93d5ed` |
+| `crates/infer/src/analysis/session/selection.rs` | `18865934a6b9d5a86e246f45f9cf6cfe950d7867d4ec533d79ff3490c03c5b33` |
+| `crates/infer/src/analysis/session/instantiate.rs` | `bf21175f47df78f35f2070fea51b3483d59a91ac4a606bace9e24f32878c2d19` |
+| `crates/infer/src/scc.rs` | `5c0c70a4681db1c9687bc0da5c5ac70cfcad9f9f286778d87811b832dc4506e6` |
+| `crates/infer/src/instantiate.rs` | `876ede0627a1ac64b155d3d7896a386ac1fa81d8814c40c77a0f3893128a9b2c` |
+
+This update performs static reads, hashes, append-only comparison and document
+integrity checks. No compiler/test/shared-record edits, tests, builds, Oracle
+execution, probes, Git operations or delegation are authorized or performed.
+The appended derivation awaits independent delta review. H, the selected
+scheme/output bridge, soundness, principality and cutover remain OPEN.
+Requested runtime is `gpt-6.1-sol/high`; observed runtime metadata is unknown.
+
+Commit packet for this append: exact lease is this document; update baseline
+`c87a828b3`; changed recorded dependency hashes: none; new frozen fixture
+dependencies: the table above. Proposed checkpoint message:
+`research: trace fixture residual Call and handler coordinates`.
+Shared-record deltas remain primary-owned: record full-slot/inner-slot/output
+separation and route the selected scheme/output bridge to its actual owner.
