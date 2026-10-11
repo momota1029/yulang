@@ -8991,3 +8991,41 @@ This closes the pre-allocation growth/rebuild headroom repair slice only; byte
 sum representability, semantic inverse totality, the original W/A3 theorem,
 source/scheduler correspondence, lifecycle, complete inference, effect
 hygiene, soundness/principality, and production cutover remain OPEN.
+
+## 2026-10-11 post-repair W/A3 and lifecycle evidence wave
+
+The nested-bound reserve preflight implementation and its verification are
+checkpointed as `d7e87c637`. Its two focused filters passed with four matching
+tests each (plain solver and `shadow-apply-candidate,f5c_resource_probe`);
+compiler-referee and spec-auditor reviews found no findings. This repairs the
+pre-allocation growth/rebuild headroom slice only.
+
+Three independent research artifacts are checkpointed and pushed:
+
+- `34b1c059f`: bounded post-repair adversarial source audit. It found no
+  constructor-qualified guard bypass in the inspected producers, and maps the
+  retained Q/D/F, receipt, replay, restoration and Local inverse seams. Its
+  exact residuals are atomic producer/inverse correspondence and nested-byte
+  census evidence.
+- `0ababb968`: bounded lifecycle constructor/consumer bridge. The current
+  `retained_input` constructor unconditionally records filter, readiness and
+  dependent-observation gaps. Synthetic FunctionPort support can withhold a
+  future Local publication, but it does not withdraw already published Local
+  member graphs or establish incoming-use eligibility. Authentic §7 evidence
+  remains absent; cross-component incidence/order stays deferred under §4.
+- `020904362`: constructive post-repair late-ledger derivation under explicit
+  ordinary Rust allocation validity model R. It derives incoming and
+  nonincoming history-counter headroom from the new guard and gives a
+  failure-inclusive nested-byte census induction. Actual linked-runtime
+  applicability of R remains unverified, and the note is not independently
+  reviewed yet.
+
+Fresh independent reviews are running for the ledger derivation, the adversarial
+source audit and the lifecycle bridge. Until those findings are adjudicated,
+the late-ledger theorem remains OPEN, as do semantic inverse totality, the
+original all-valid-initial-state W/A3 composition, source/scheduler and
+incidence correspondence, authentic lifecycle/withdrawal/recomputation, q113,
+complete Simple-sub inference, effect hygiene, soundness/principality and F5
+production cutover. The branch was pushed after each coherent checkpoint; the
+next action is to consume the reviews and apply only accepted evidence to the
+original parent obligations.
