@@ -1,23 +1,24 @@
 # Nested odd/even: ordinary Simple-sub reasoning before intrusion
 
 Date: 2026-10-12
-Status: frozen, unreviewed research checkpoint; conditional derivation and static source crosswalk
+Status: independently reviewed conditional derivation and static source crosswalk
 Baseline: `e466f629452d1d868f23f70ccd1fe8581c213011`, `research/simple-sub-intrusion`
 Exclusive lease: this file; proof leaf, no further delegation
 Reference baseline: `9bae772624c23b52a93c1b226157e16898b4d9db`
 
 ## 1. Frozen statement and authority
 
-The assigned illustrative source is exactly:
+The user's illustrative source is:
 
 ```yulang
-my odd n = my even n = if ... odd(n-1); even(n-1)
+my odd n =
+    my even n = if n <= 0 { true } else odd(n - 1)
+    even(n - 1)
 ```
 
-The ellipsis leaves the test, other arm, and primitive declarations unspecified.
-The more explicit earlier example has `if n <= 0 { true } else odd(n - 1)`;
-it is subject to the same missing admission/elaboration and primitive laws.
-Neither spelling is replaced by a Call-only program here.
+The source's operator environment, primitive declarations and typing laws are
+not supplied. The exact spelling remains outside the current parser/HIR/candidate
+route documented below; it is not replaced by a Call-only program here.
 
 Freeze distinct binders `O` (outer recursive odd), `E` (nested local even),
 `a` (outer n), and `b` (inner n). E's initializer sees O and b; b shadows a
@@ -390,7 +391,7 @@ Direct dependency SHA-256 snapshot:
 - Changed dependency hashes: none caused by this leaf; final snapshot recheck
   is reported with the handoff. No comparison against baseline Git blobs is
   asserted; the primary retains that integration check.
-- Review status: frozen, unreviewed conditional research checkpoint;
+- Review status: independently reviewed conditional research checkpoint;
   no theorem/implementation certification or semantic adoption.
 - Checks already run: narrow static source/PDF reads, dependency SHA-256
   snapshot/recheck and document whitespace/link-target integrity. No runtime
@@ -402,3 +403,16 @@ Direct dependency SHA-256 snapshot:
   conditional native consequences; preserve exact source formation, full
   Generalize/Call correspondence and copied-row qualification as separate
   OPEN premises. No shared record was edited. Writes stop at submission.
+
+### Independent review
+
+A `compiler_referee` reviewed the conditional reference-algorithm derivation,
+Rust owner crosswalk, recursive lookup, forced negative result extrusion, and
+boundary-1 sharing argument. It found no blocking, major or minor correctness
+finding within that scope. The review confirms that the result-copy conclusion
+is an ordinary Call/extrusion consequence under the stated successful
+argument-inference and level-invariant premises, and that the numerical
+generalization/sharing argument does not rely on copied-row incidence. It does
+not establish exact-source admission, source Generalize correspondence,
+complete Call, copied-row meaning, intrusion qualification/preservation,
+soundness, principality or F5 replacement.
