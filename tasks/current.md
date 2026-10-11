@@ -10832,7 +10832,13 @@ join, including nested odd/even and fallback Apply paths, then identifies the
 same missing producer/consumer law: `emit_candidate_source` emits no
 per-fragment Name incidence and `settle_candidate_intrusion` does not consume
 one. These are static source characterizations, not an executed counterexample
-or a proof of the full theorem. The second artifact awaits independent review.
+or a proof of the full theorem. Independent spec review found that the proof
+note's recursive Apply-fragment boundaries were not approved and its annotation
+root allocation order was misstated. The note now labels the recursive walk as
+a conditional projection, keeps nested membership OPEN, and corrects the
+allocation order; the reviewer confirmed both findings resolved. Direct Names
+in `invoke`, `konst 1`, and each relevant odd/even Apply are covered by the
+selected equation, but this does not settle recursive fragment membership.
 Next owner: prove the source-incidence construction and consumer invariant
 across actual publication, extrusion and shared fresh use before authorizing a
 reference-system implementation. Parent/copy equality soundness/principality,

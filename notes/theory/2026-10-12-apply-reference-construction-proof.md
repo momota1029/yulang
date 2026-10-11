@@ -72,13 +72,15 @@ original parent source domain is not reduced to either experimental envelope.
 No ordinary HIR admission, complete Call dispatch, solver execution, or
 successful inference is inferred from a representable constructor shape.
 
-The source-fragment walk retains the already established owner boundaries:
-Apply visits its callee and argument fragments; Lambda follows its body;
-Group/ascription follow their child; Block follows its final expression.
-Each nested declaration initializer is a separate fragment, walked with its
-own owner. Annotation type-variable names and Operation namespace/member
-tokens are not LocalSource Value Names. This is the prior source projection's
-fragment convention, not adoption of all draft Value-owner clauses.
+For coordinate enumeration only, this audit reuses the prior source walk:
+Apply visits its callee and argument subtrees; Lambda follows its body;
+Group/ascription follow their child; Block follows its final expression, with
+each nested initializer visited separately. Annotation type-variable names
+and Operation namespace/member tokens are not LocalSource Value Names. The
+approved Apply equation does not itself settle these recursive fragment
+boundaries. This walk is a conditional projection convention, not an
+authoritative completeness claim or adoption of the interpretation draft's
+other Value-owner clauses.
 
 ## 3. What the real constructors jointly retain
 
@@ -98,7 +100,7 @@ are recorded separately.
 | Module binder target | `candidate_source.rs:375` retains Name occurrence and target DefId; `lib.rs:1273` joins that exact occurrence to DefinitionUseId, target definition/root component and use component. | Original target is C_h(target_root_component), distinct from C_h(use_value_component). `DefinitionUse.parent` is not the Apply result owner. |
 | Forming local target | `candidate_source.rs:300` puts the exact initializer endpoint in active_initializers; `:381` emits a Link with that endpoint and the particular Name facade. | The open use's target endpoint is explicit; it is not a newly freshened scheme root. |
 | Published local target | `candidate_source.rs:327` installs the original initializer endpoint; `candidate_scheme.rs:1316` records LocalScheme(id, root, boundary). | For an unannotated binding, canonical initializer endpoint and installed root agree by the actual install constructor. |
-| Annotated local publication | `candidate_effect.rs:1117` constructs and installs an exposed root; `:1162` allocates that separate root after checking the initializer. | Original initializer endpoint and published annotation root may differ; LocalScheme retains the published id/root jointly. Source-reference forwarding to this new description is not established. |
+| Annotated local publication | `candidate_effect.rs:1117–1123` constructs the exposed term, allocating its separate root at `:1162` before initializer checks and installing the completed term afterward. | Original initializer endpoint and published annotation root may differ; LocalScheme retains the published id/root jointly. Source-reference forwarding to this new description is not established. |
 | Published use description | `candidate_scheme.rs:1362` ties local id/occurrence/root to one capture and fresh construction; `:227` retains its graph/row map. Module routing at `:947` and `:1305` retains the exact DefinitionUseId and map. | Original binder and the same use's mapped root are recoverable together. The fresh root is not thereby the original binder target required by A. |
 
 HIR introduction preserves the scopes needed for these joins. Top-level
@@ -119,13 +121,13 @@ step, before a subsequent published Name action. The earlier forming Name
 retains its earlier open route. This history distinction cannot be removed
 by assuming one injective or immutable binder-to-row map.
 
-### 3.1 Constructive joint lookup by the existing grammar
+### 3.1 Conditional coordinate lookup by the existing grammar
 
-Fix one authentic successfully collected source and allocated session. Define
-N(e) as the finite set of retained `(occurrence, scope, resolved binder)`
-coordinates in e's fragment, preserving occurrence identity even when two
-occurrences resolve to the same binder. Then the original coordinate
-construction is deterministic:
+Fix one authentic successfully collected source and allocated session. Under
+the candidate projection convention above, define `N_candidate(e)` as the
+finite set of retained `(occurrence, scope, resolved binder)` coordinates
+selected for `e`, preserving occurrence identity even when two occurrences
+resolve to the same binder. Its coordinate walk is deterministic:
 
 ```text
 N(Name(o,b))       = {(o, stored scope(o), stored resolution(o))}
@@ -136,16 +138,17 @@ N(Lambda(_,body))  = N(body)
 N(Block(_,last))   = N(last)
 ```
 
-This is the prior source walk, now joined to the accepted Apply owner.
-Induct on the finite authentic constructor tree. Each Name leaf is set with
-its occurrence and resolution by the HIR owner. At Apply, the stored operand
-indices identify the same two children used by both the HIR constructor and
-the candidate recipe, so taking their union selects exactly the fragment's
-Name coordinates. Wrappers forward the same child; Lambda forwards the same
-body; Block forwards only its final-expression fragment and the source retains
-separate initializer roots. Leaves introduce no LocalSource Name. No lookup
+Induct on the finite authentic constructor tree. Each selected Name leaf has
+its occurrence and resolution recorded by the HIR owner. At Apply, stored
+operand indices identify the same two children used by the HIR constructor
+and candidate recipe; taking their union therefore enumerates the coordinates
+under this convention. Wrappers forward the selected child; the convention
+forwards a Lambda body and only a Block's final expression while tracking
+initializer roots separately. Leaves introduce no LocalSource Name. No lookup
 uses type success, a provider, a copy-parent link, or a differently scoped
-witness. This covers all forms emitted by this constructor schema.
+witness. This proves a coordinate enumeration under the stated convention;
+it does not prove that the convention selects every Name required by the
+approved Apply source-fragment law.
 
 Join e through its exact ApplySourceInput to C_h(input.result). Join each
 Name through its original resolution to the appropriate row-producing record
@@ -157,11 +160,14 @@ contexts; identifying their reference ownership through the publication
 requires a separate forwarding premise. No anonymous choice is hidden in
 this exception.
 
-Under the approved A equation, each grounded original tuple projects to the
-required original Apply edge R_e -> w. This is a constructive **source
-projection**, grounded in the real constructors for its coordinates. The
-source constructors do not actually emit N(e) or that per-Apply incidence
-join. Building it as a mathematical read of their retained records does not
+Under the approved A equation, each grounded tuple whose Name is established
+to belong to the Apply source fragment projects to the required original
+Apply edge `R_e -> w`. For direct callee/argument Names in `invoke f = f 1`,
+`konst 1`, and the two Apply sites in the nested odd/even example, this
+membership is explicit in the source expressions. General recursive fragment
+membership remains OPEN. The coordinate projection is grounded in real
+constructors, but source constructors do not emit `N_candidate(e)` or the
+per-Apply incidence join. Reading retained records mathematically does not
 prove explicit retention, activation, consumer coverage, or copy transport.
 
 ## 4. The first missing operational premise
@@ -223,11 +229,11 @@ Historical native terms still need their proper current representative/context.
 | Integer or Unit, including empty CallTail's synthetic Unit | None in that operand. | No type port or literal signature is treated as a Name. |
 | Resolved Operation | None as a LocalSource Value Name; operation resolution remains retained separately. | This does not specify new Operation-reference semantics or effects. |
 | Module, parameter, or local Name | Exact original leaf and the corresponding target records in §3. | Published fresh root and original binder root stay distinct; annotated forwarding remains open. |
-| Nested Apply in either operand; chained application | The same recursive union, including every nested Name occurrence. | Outer and inner result rows remain distinct; containment creates no result-to-result edge. |
-| Group | Same child Name coordinates; own facade and child's endpoint remain distinct. | Typing forwarding is not ownership forwarding. |
-| Ascription, including Group peeling | Same child Names; the actual endpoint alias chosen by the alias pass is retained. | Annotation variables are not source Value Names; no injectivity is assumed. |
-| Lambda schema | Exact body Name coordinates and original formals. | LocalSource introduces Lambdas from binding parameters; no unsupported anonymous-Lambda syntax is claimed. |
-| Block | Final-expression fragment; each initializer has its own retained fragment/owner. | Local publication, self recursion, annotations and shadowing retain their exact histories. |
+| Nested Apply in either operand; chained application | Under the candidate walk, the recursive coordinate union includes nested Name occurrences. | Whether every nested occurrence belongs to the approved outer Apply fragment remains OPEN. Outer/inner result rows remain distinct; containment gives no result-to-result edge. |
+| Group | Under the candidate walk, child Name coordinates are preserved; facade and child endpoint remain distinct. | Whether Group forwards all owned references under the approved law remains OPEN. |
+| Ascription, including Group peeling | Under the candidate walk, child coordinates are preserved; the endpoint alias chosen by the alias pass is retained. | Annotation variables are not source Value Names; no injectivity is assumed. Ownership forwarding remains OPEN. |
+| Lambda schema | The current walk enumerates body Name coordinates and original formals. | Whether Lambda body Names all belong to an enclosing Apply fragment remains OPEN. LocalSource introduces Lambdas from binding parameters; no unsupported anonymous-Lambda syntax is claimed. |
+| Block | The current walk enumerates the final expression and tracks initializer roots separately. | Whether this is the approved ownership boundary remains OPEN; local publication, self recursion, annotations and shadowing retain their actual histories. |
 
 The source Apply constructor accepts MlArgument, CallTail and
 ColonApplicationTail at `local_source.rs:526`; all three share the same child
@@ -256,12 +262,12 @@ than any claim of source-input observation or complete Call.
 
 ## 6. Required discriminators
 
-| Source computation | Constructively recovered original projection under A | What it does not prove |
+| Source computation | Original projection under A for direct fragment membership; nested membership is conditional on `N_candidate` | What it does not prove |
 | --- | --- | --- |
 | `my konst x = 0; my result = konst 1` | For the Apply result R and resolved module binder root K, N(Apply) contains the callee occurrence; A requires R -> K. The argument literal contributes no Name. | Returning 0, the callee occurrence row U, a same-use fresh root K_u, and a Function formal/result port do not replace K or establish this emitted edge. |
 | `my invoke f = f 1` | R is the body Apply result; its one resolved formal Name targets P_h(f), so A requires R -> P_h(f). | The native callee is P_h(f) but its negative demand is stored/solved as a typing obligation. That is not an emitted R-owned incidence. The enclosing Lambda/root ownership and principal scheme do not follow. |
 | `my odd n = { my even n = odd(n); even(n) }` | Inner R has resolved targets outer module O and distinct inner formal B; outer S has published local even's original initializer root E and distinct outer formal A. A requires R -> O,B and S -> E,A at their respective source cuts. | This does not equate R with E, O with an extrusion copy, or an even-use fresh root with E. The exact original conditional/infix text has no established admission bridge. |
-| `(f x) y`, when authentically formed | Inner result R1 owns its f/x occurrences; outer R2 owns those occurrences plus y, with the same original binder identities. | No R2 -> R1 edge follows from syntax containment alone; a provider or marginal target selected for another use is not substituted. |
+| `(f x) y`, when authentically formed | Direct `y` is an outer Apply-fragment Name. Under `N_candidate`, inner `f/x` coordinates also project from the outer result R2, with their original binder identities. | Approved membership of the nested `f/x` Names remains OPEN. No `R2 -> R1` edge follows from syntax containment alone; a provider or marginal target selected for another use is not substituted. |
 
 The odd/even note already derives the authentic analogue's forced Value pairs
 `(C,B)` and `(D,R)` and distinguishes them from binder E/O and later use
