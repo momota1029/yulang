@@ -1,7 +1,7 @@
 # Native negative residual constructor: local head-coverage obstruction
 
 Date: 2026-10-12
-Status: independently reviewed conditional arithmetic derivation and local countermodel
+Status: independently reviewed conditional residual algebra and family-coverage derivation; source/output bridge OPEN
 Original source-qualified native equation and hygiene H: OPEN
 Pinned source baseline: `8ed50c86af67c2f43fd240dabe810fa2852e0ab1`
 Observed HEAD at dependency revalidation: `a0b2e9339c144c4849e8f6bfd2097526e9777a53`
@@ -311,3 +311,52 @@ proved live output route could suffice.
 The review did not inspect authentic negative-source reachability, final-output
 designation, contextual projection semantics, completed drain/lifecycle, H,
 soundness, principality, or cutover. All remain OPEN.
+
+## 8. Row-head/tail coverage derivation
+
+A subsequent bounded constructive pass tested the countermodel against the
+complete Oracle row rather than gamma alone. In the finite-set fragment used
+here, write the active left payload sets as `S_i`, the demand heads as `I`,
+`J = I ∩ ⋂_i S_i`, and `K_i = S_i \ J`. Because `J ⊆ S_i`, for every active
+payload:
+
+```text
+S_i = J ⊎ K_i
+```
+
+This is a set-level family-coverage fact: each family from an active payload
+is either present in the explicit retained head or in that payload's residual
+set. It does not identify source contributions, stack IDs, or routes.
+
+The inspected Oracle consumer also branches on the complete row structure:
+`propagate.rs:1007–1042` constrains matching lower/upper head arguments, while
+a nonmatching lower is forwarded to the actual tail with its weights. For
+ordinary unweighted rows, `F: u <: Row(J,g)` and `P: g <: t` give the complete
+row `Row(J,t)`; an `E` in `J` remains in the head even when `g=t=empty`. The
+weighted case retains the actual `directed_mix(K,R)` projection, and no bare
+inequality or Y3 context denotation is inferred from it. Oracle's
+`compact_neg_row_item:292–316` and `compact_neg_row:449–473` separately retain
+concrete heads and the compacted tail; this is not proof that the compact row
+is an actual source output.
+
+Therefore the local gamma-only valuation in §3 does not refute H or show
+global loss of the family. The set theorem proves family coverage only. It does
+not distinguish two same-family contributions, preserve their exact
+attachment/call correlation, show that a concrete source lower reaches the
+head or residual branch, or show that the complete row reaches the actual
+output observation after contextual replay and projection. The earlier
+q-to-gamma condition remains only one possible route-specific construction,
+not a universal requirement.
+
+An independent `compiler_referee` delta review found no issue in this section's
+conditional scope. It verified the finite-set partition, Oracle head-match
+argument constraints, weighted nonmatch forwarding, and the separate compact
+head/tail retention. The reviewer did not establish actual source reachability,
+output designation, weighted-context denotation, or contribution lineage.
+
+The exact remaining source
+bridge is to follow an actual contribution through its matching-head or
+contextual-tail route to the actual output observation, retaining the original
+attachment, source/call parents and residual lineage. H, full weighted-context
+preservation, complete Call, soundness, principality and F5 replacement remain
+OPEN.

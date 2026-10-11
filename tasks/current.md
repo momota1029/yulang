@@ -11485,3 +11485,16 @@ route (which may be the retained head); no internal residual implementation
 slice is justified by this conditional model alone. H, complete Call,
 soundness, principality, general negative admission, and F5 replacement remain
 OPEN. The copied-row ownership question remains pending and uncommitted.
+
+The reviewed [row-head/tail coverage derivation](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
+now adds a bounded correction, independently checked with no findings. In the
+finite-set branch, `J ⊆ S_i` and `K_i=S_i\J` give `S_i=J ⊎ K_i` for every
+active payload. Oracle's matching-head branch retains the family in explicit
+`J`; a nonmatching lower proceeds to the actual tail with its ordered weight.
+Thus the earlier empty-gamma valuation retains `E` in `Row({E}, empty)` and is
+not evidence against H. This proves only family coverage and Oracle-local
+head/tail behavior, not exact contribution lineage, weighted Y3 projection,
+source reachability or actual output survival. The next effect proof must
+trace an actual source contribution to its final output route while retaining
+attachment, source/call parents and residual lineage. No code or tests changed;
+H, full Call, soundness, principality and F5 replacement remain OPEN.
