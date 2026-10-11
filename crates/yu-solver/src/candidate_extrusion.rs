@@ -687,7 +687,13 @@ impl InferenceSession {
     pub(super) fn candidate_step_bound_restoration(
         &mut self, restoration: candidate_context::ReplayOperationId,
     ) -> Result<Option<candidate_context::BoundEmissionId>, SolveAvailabilityError> {
-
+        self.candidate_step_bound_restoration_child(restoration, false)
+    }
+    // Both adapters use the same saved-count/live-index owner. The private
+    // retained adapter stops after one whole child operation or receipt delivery.
+    pub(super) fn candidate_step_bound_restoration_child(
+        &mut self, restoration: candidate_context::ReplayOperationId, retain_child_step: bool,
+    ) -> Result<Option<candidate_context::BoundEmissionId>, SolveAvailabilityError> {
         let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.restoration(restoration)?;
         let (owner, p, bound, n, count, active, emission) = (operation.owner, operation.polarity, operation.bound,
             operation.next_opposite, operation.opposite_count, operation.replay, operation.emission);
@@ -698,16 +704,27 @@ impl InferenceSession {
             // A cold resumed route can allocate undo even at a zero-product
             // retirement. Account that retained peak before semantic mutation.
             if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
-            else { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
+            else {
+                #[cfg(test)]
+                incoming_sample_trace::reason("candidate_step_bound_restoration_child-restoration-undo-growth");
+                self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            }
         }
         if n == count {
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retire_restoration(restoration, transactional);
             return Ok(Some(emission));
         }
         if let Some(replay) = active {
-            if self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?
-                != candidate_context::ReplayDriveOutcome::Complete {
-                return Err(SolveAvailabilityError::IdentityExhausted);
+            self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.validate_restoration_replay(restoration, replay)?;
+            if retain_child_step {
+                let step = self.candidate_context_step_replay_child(replay, &occurrence, &cause)?;
+                if step == candidate_context::ReplayChildStep::More
+                    || !self.candidate_context_replay_returned(replay)? { return Ok(None); }
+            } else {
+                if self.candidate_context_drive_replay(replay, Some((&occurrence, &cause)))?
+                    != candidate_context::ReplayDriveOutcome::Complete {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
             }
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.advance_restoration(restoration, transactional);
             return Ok(None);

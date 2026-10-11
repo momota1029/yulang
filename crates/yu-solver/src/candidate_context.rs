@@ -14,6 +14,14 @@ pub(super) struct ReplayChildAck {
     pub operation: ReplayOperationId,
     pub index: usize,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ReplayChildWait {
+    Idle,
+    Running { ack: ReplayChildAck, drain_index: usize },
+    Ready { ack: ReplayChildAck, drain_index: usize, completion: DrainCompletion },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ReplayChildStep { More, Delivered, NoChild }
 // Queue transfer and child completion are distinct replay frontiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ReplayDriveOutcome { Complete, Queued }
@@ -43,6 +51,7 @@ pub(super) struct TypedDrainFrame {
     pub prepared_acks: usize,
     pub terminal_prepared: bool,
     pub function: Option<FunctionDispatch>,
+    pub replay_destination: Option<ReplayChildAck>,
 }
 #[derive(Debug)]
 struct TypedDrainUndo {
@@ -66,10 +75,12 @@ struct ReplayOperation {
     consumed: usize,
     retired: bool,
     restoration: Option<ReplayOperationId>,
+    waiting_child: ReplayChildWait,
 }
 #[derive(Clone, Copy, Debug)]
 struct ReplayOperationUndo {
     id: ReplayOperationId,
+    waiting_child: ReplayChildWait,
     queued: usize,
     consumed: usize,
     retired: bool,
@@ -1592,6 +1603,7 @@ impl State {
         }
         for undo in self.replay_operation_undo.drain(checkpoint.replay_operation_undo..).rev() {
             let operation = self.replay_operations.get_mut(&undo.id).expect("retirement waits for route commit");
+            operation.waiting_child = undo.waiting_child;
             operation.queued = undo.queued;
             operation.consumed = undo.consumed;
             operation.retired = undo.retired;
@@ -1670,6 +1682,7 @@ impl State {
         #[cfg(test)]
         { self.operation_frontier_visits += 1; }
         let reclaim = self.replay_operations.get(&id).is_some_and(|operation| operation.retired
+            && operation.waiting_child == ReplayChildWait::Idle
             && !operation.restoration.is_some_and(|parent| self.restorations.get(&parent)
                 .is_some_and(|restoration| !restoration.retired && restoration.replay == Some(id))));
         if reclaim { self.remove_replay_operation(id); }
@@ -1727,7 +1740,7 @@ impl State {
         let index = self.typed_drains.len();
         self.typed_drains.push(TypedDrainFrame { initial, occurrence: occurrence.clone(), cause: cause.clone(),
             previous_processing, previous_relation, current: None, stage: TypedDrainStage::Transport,
-            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None });
+            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None, replay_destination: None });
         Ok(index)
     }
     // Keep the original allocation owned by undo, so rollback restores the
@@ -1743,7 +1756,7 @@ impl State {
             previous_processing: frame.previous_processing, previous_relation: frame.previous_relation,
             current: frame.current, stage: frame.stage, context_consumed: frame.context_consumed,
             transitions: frame.transitions, replay_acks, completed_acks: frame.completed_acks,
-            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone() };
+            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), replay_destination: frame.replay_destination };
         let frame = std::mem::replace(&mut self.typed_drains[index], replacement);
         self.typed_drain_undo.push(TypedDrainUndo { index, frame });
         Ok(())
@@ -1780,6 +1793,13 @@ impl State {
     }
     pub(super) fn restoration(&self, id: ReplayOperationId) -> Result<&BoundRestoration, SolveAvailabilityError> {
         self.restorations.get(&id).ok_or_else(exhausted)
+    }
+    pub(super) fn validate_restoration_replay(&self, restoration: ReplayOperationId, replay: ReplayOperationId) -> Result<(), SolveAvailabilityError> {
+        if self.restoration(restoration)?.replay != Some(replay)
+            || self.replay_operations.get(&replay).ok_or_else(exhausted)?.restoration != Some(restoration) {
+            return Err(exhausted());
+        }
+        Ok(())
     }
     pub(super) fn prepare_restoration_update(&mut self, id: ReplayOperationId, transactional: bool) -> Result<bool, SolveAvailabilityError> {
         let operation = self.restorations.get(&id).ok_or_else(exhausted)?;
@@ -1825,13 +1845,13 @@ impl State {
         let operation = self.replay_operations.get(&id).ok_or_else(exhausted)?;
         if transactional {
             self.replay_operation_undo.try_reserve(1).map_err(|_| exhausted())?;
-            self.replay_operation_undo.push(ReplayOperationUndo { id, queued: operation.queued, consumed: operation.consumed, retired: operation.retired });
+            self.replay_operation_undo.push(ReplayOperationUndo { id, waiting_child: operation.waiting_child, queued: operation.queued, consumed: operation.consumed, retired: operation.retired });
         }
         Ok(())
     }
     pub(super) fn transfer_replay_child(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
         let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
-        if operation.retired || ack.index >= operation.children.len() || ack.index < operation.consumed || ack.index > operation.queued {
+        if operation.waiting_child != ReplayChildWait::Idle || operation.retired || ack.index >= operation.children.len() || ack.index < operation.consumed || ack.index > operation.queued {
             return Err(exhausted());
         }
         if ack.index == operation.queued {
@@ -1853,6 +1873,9 @@ impl State {
     pub(super) fn prepare_replay_child_completion(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
         let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
         if ack.index >= operation.queued || ack.index < operation.consumed { return Err(exhausted()); }
+        if let ReplayChildWait::Running { ack: expected, .. } = operation.waiting_child {
+            if expected != ack || operation.queued != ack.index.checked_add(1).ok_or_else(exhausted)? { return Err(exhausted()); }
+        } else if operation.waiting_child != ReplayChildWait::Idle { return Err(exhausted()); }
         #[cfg(test)]
         let counted_failure = if transactional {
             match self.fail_replay_completion_after {
@@ -1873,9 +1896,25 @@ impl State {
     pub(super) fn terminal_storage(&self) -> (usize, usize, usize) {
         (self.typed_drain_undo.capacity(), self.replay_operation_undo.capacity(), self.typed_drain_undo.len())
     }
+    pub(super) fn prepare_replay_return(&mut self, ack: ReplayChildAck, index: usize, transactional: bool) -> Result<(), SolveAvailabilityError> {
+        let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
+        let next = ack.index.checked_add(1).ok_or_else(exhausted)?;
+        if operation.waiting_child != (ReplayChildWait::Running { ack, drain_index: index })
+            || operation.consumed != next || operation.queued != next {
+            return Err(exhausted());
+        }
+        self.prepare_replay_ack(ack.operation, transactional)
+    }
+    pub(super) fn retain_replay_return(&mut self, ack: ReplayChildAck, index: usize, completion: DrainCompletion) {
+        self.replay_operations.get_mut(&ack.operation).expect("prepared exact replay return").waiting_child =
+            ReplayChildWait::Ready { ack, drain_index: index, completion };
+    }
     pub(super) fn complete_replay_child(&mut self, ack: ReplayChildAck, transactional: bool) -> Result<(), SolveAvailabilityError> {
         let operation = self.replay_operations.get(&ack.operation).ok_or_else(exhausted)?;
         if operation.consumed != ack.index { return Err(exhausted()); }
+        if let ReplayChildWait::Running { ack: expected, .. } = operation.waiting_child {
+            if expected != ack || operation.queued != ack.index.checked_add(1).ok_or_else(exhausted)? { return Err(exhausted()); }
+        } else if operation.waiting_child != ReplayChildWait::Idle { return Err(exhausted()); }
         self.acknowledge_replay(ack.operation, transactional);
         Ok(())
     }
@@ -2940,7 +2979,7 @@ impl InferenceSession {
             let id = ReplayOperationId(state.next_replay_operation);
             state.next_replay_operation += 1;
             state.replay_operations.insert(id, ReplayOperation { task, inputs: (lower_input, upper_input), heads,
-                prior: old, incoming_use, children: std::mem::take(&mut replay), queued: 0, consumed: 0, retired: false, restoration: None });
+                prior: old, incoming_use, children: std::mem::take(&mut replay), queued: 0, consumed: 0, retired: false, restoration: None, waiting_child: ReplayChildWait::Idle });
             state.replay_child_bytes = child_bytes;
             // Ownership moved from generation scratch to retained operation storage.
             self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
@@ -2952,13 +2991,104 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
     }
+    // ReturnReady owns the receipt. The ordered replay parent releases that
+    // barrier without acknowledging the same child a second time.
+    fn candidate_prepare_replay_wait(&mut self, id: ReplayOperationId) -> Result<(), SolveAvailabilityError> {
+        let transactional = self.route_journal.is_some();
+        let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let before = context.replay_operation_undo.capacity();
+        context.prepare_replay_ack(id, transactional)?;
+        if context.replay_operation_undo.capacity() != before {
+            if self.incoming_route_accounting_active { self.observe_typed_route_capacity(true)?; }
+            else {
+                #[cfg(test)]
+                incoming_sample_trace::reason("candidate_prepare_replay_wait-replay-operation-undo-growth");
+                self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            }
+        }
+        Ok(())
+    }
+    pub(super) fn candidate_context_step_replay_child(
+        &mut self, id: ReplayOperationId, occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<ReplayChildStep, SolveAvailabilityError> {
+        let transactional = self.route_journal.is_some();
+        let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id).ok_or_else(exhausted)?;
+        match operation.waiting_child {
+            ReplayChildWait::Idle => {
+                if operation.queued != operation.consumed { return Err(exhausted()); }
+                let item = operation.children.get(operation.consumed).copied().map(|relation| TypedWorkItem {
+                    task: operation.task, relation: Some(relation),
+                    replay_ack: Some(ReplayChildAck { operation: id, index: operation.consumed }),
+                });
+                if !self.typed_worklist.is_empty() { return Err(exhausted()); }
+                self.candidate_prepare_replay_wait(id)?;
+                let Some(item) = item else {
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.acknowledge_replay(id, transactional);
+                    return Ok(ReplayChildStep::NoChild);
+                };
+                let ack = item.replay_ack.unwrap();
+                let index = self.start_typed_drain(item, occurrence, cause, None)?;
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                context.typed_drains[index].replay_destination = Some(ack);
+                context.replay_operations.get_mut(&id).unwrap().waiting_child = ReplayChildWait::Running { ack, drain_index: index };
+                Ok(ReplayChildStep::More)
+            }
+            ReplayChildWait::Running { ack, drain_index } => {
+                let next = ack.index.checked_add(1).ok_or_else(exhausted)?;
+                if ack.operation != id || operation.queued != next
+                    || (operation.consumed != ack.index && operation.consumed != next) { return Err(exhausted()); }
+                let frame = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.get(drain_index).ok_or_else(exhausted)?;
+                if frame.replay_destination != Some(ack) || &frame.occurrence != occurrence || &frame.cause != cause { return Err(exhausted()); }
+                // The terminal owner publishes Ready before removing F.
+                let _ = self.step_typed_drain(drain_index)?;
+                Ok(ReplayChildStep::More)
+            }
+            ReplayChildWait::Ready { ack, drain_index, completion: _ } => {
+                let next = ack.index.checked_add(1).ok_or_else(exhausted)?;
+                if ack.operation != id || operation.consumed != next || operation.queued != next
+                    || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.len() != drain_index {
+                    return Err(exhausted());
+                }
+                self.candidate_prepare_replay_wait(id)?;
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                context.replay_operations.get_mut(&id).unwrap().waiting_child = ReplayChildWait::Idle;
+                if !transactional { context.retire_replay_candidate(id); }
+                Ok(ReplayChildStep::Delivered)
+            }
+        }
+    }
     pub(super) fn candidate_context_consume_replay_child(
         &mut self, id: ReplayOperationId,
         provenance: Option<(&ConstraintOccurrenceId, &CauseId)>,
     ) -> Result<bool, SolveAvailabilityError> {
+        if let Some((occurrence, cause)) = provenance {
+            let graph = self.candidate_graph.as_ref().unwrap();
+            let frame_count = graph.intrusion.effect_algebra.context.typed_drains.len();
+            let previous_processing = graph.intrusion.effect_algebra.processing;
+            let previous_relation = graph.intrusion.effect_algebra.context.processing;
+            let result = (|| {
+                loop {
+                    match self.candidate_context_step_replay_child(id, occurrence, cause)? {
+                        ReplayChildStep::More => {}
+                        ReplayChildStep::Delivered => return Ok(true),
+                        ReplayChildStep::NoChild => return Ok(false),
+                    }
+                }
+            })();
+            if result.is_err() {
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                if context.typed_drains.len() > frame_count {
+                    context.typed_drains.truncate(frame_count);
+                    context.replay_operations.get_mut(&id).ok_or_else(exhausted)?.waiting_child = ReplayChildWait::Idle;
+                }
+                self.candidate_processing(previous_processing);
+                self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous_relation;
+            }
+            return result;
+        }
         let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let operation = state.replay_operations.get(&id).ok_or_else(exhausted)?;
-        if provenance.is_some() && operation.queued != operation.consumed { return Err(exhausted()); }
+        if operation.waiting_child != ReplayChildWait::Idle { return Err(exhausted()); }
         let item = state.replay_operation_queue_next(id)?;
         let transactional = self.route_journal.is_some();
         if item.is_none() && operation.consumed < operation.children.len() {
@@ -2966,15 +3096,16 @@ impl InferenceSession {
             return Ok(false);
         }
         if let Some(item) = item {
-            match provenance {
-                Some((occurrence, cause)) => { self.constrain_live_item(item, occurrence, cause)?; }
-                None => self.enqueue_item(item, false)?,
-            }
+            self.enqueue_item(item, false)?;
         } else {
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.prepare_replay_ack(id, transactional)?;
             self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.acknowledge_replay(id, transactional);
         }
         Ok(item.is_some())
+    }
+    pub(super) fn candidate_context_replay_returned(&self, id: ReplayOperationId) -> Result<bool, SolveAvailabilityError> {
+        let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id).ok_or_else(exhausted)?;
+        Ok(operation.waiting_child == ReplayChildWait::Idle && operation.retired)
     }
     pub(super) fn candidate_context_drive_replay(
         &mut self, id: ReplayOperationId,
@@ -2983,7 +3114,7 @@ impl InferenceSession {
         loop {
             let transferred = self.candidate_context_consume_replay_child(id, provenance)?;
             let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id);
-            if operation.is_none_or(|operation| operation.retired) { return Ok(ReplayDriveOutcome::Complete); }
+            if operation.is_none_or(|operation| operation.retired && operation.waiting_child == ReplayChildWait::Idle) { return Ok(ReplayDriveOutcome::Complete); }
             if !transferred {
                 // Only the outer worklist consumer can complete queued children.
                 if provenance.is_some() { return Err(exhausted()); }

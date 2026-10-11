@@ -12556,6 +12556,11 @@ impl InferenceSession {
                     context.typed_drains[index].prepared_acks += 1;
                 }
             }
+            if context.typed_drains[index].stage == candidate_context::TypedDrainStage::ReturnReady {
+                if let Some(ack) = context.typed_drains[index].replay_destination {
+                    context.prepare_replay_return(ack, index, transactional)?;
+                }
+            }
             context.typed_drains[index].terminal_prepared = transactional;
             Ok(())
         })();
@@ -12580,6 +12585,10 @@ impl InferenceSession {
             let frame = &mut context.typed_drains[index];
             if frame.completed_acks == frame.replay_acks.len() { frame.stage = candidate_context::TypedDrainStage::ReturnReady; }
             return Ok(None);
+        }
+        if let Some(ack) = context.typed_drains[index].replay_destination {
+            let receipt = DrainCompletion { transitions: context.typed_drains[index].transitions };
+            context.retain_replay_return(ack, index, receipt);
         }
         let frame = context.typed_drains.pop().unwrap();
         self.candidate_processing(frame.previous_processing);
@@ -12643,6 +12652,15 @@ impl InferenceSession {
             let capacity = journal.workspace.capacity();
             let reservation = journal.workspace.try_reserve(additional);
             let grew = journal.workspace.capacity() != capacity;
+            #[cfg(test)]
+            if grew && self.incoming_route_accounting_active {
+                incoming_sample_trace::event(
+                    || "route-journal".into(),
+                    || "WorkspaceUndo".into(),
+                    capacity,
+                    journal.workspace.capacity(),
+                );
+            }
             self.observe_workspace_capacity(grew)?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }

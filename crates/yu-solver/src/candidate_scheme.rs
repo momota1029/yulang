@@ -1463,6 +1463,40 @@ impl InferenceSession {
         }
         Ok(observations)
     }
+    #[cfg(test)]
+    pub(super) fn candidate_test_retained_local_step(&mut self, fail_after: bool) -> Result<(), SolveAvailabilityError> {
+        if self.route_journal.is_some() { return Err(exhausted()); }
+        let state = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
+        if state.local_use.len() != 1 || state.local_use[0].cursor.complete { return Err(exhausted()); }
+        self.begin_route_transaction_for(RoutePurpose::RetainedResume)?;
+        self.finish_route_transaction(|session| {
+            let restoration = session.candidate_graph.as_ref().unwrap().local_use[0].cursor.restoration;
+            if let Some(restoration) = restoration {
+                let state = session.candidate_graph.as_ref().unwrap();
+                let operation = state.intrusion.effect_algebra.context.restoration(restoration)?;
+                let occurrence = ConstraintOccurrenceId::new(state.local_use[0].occurrence.clone(), 0);
+                if operation.occurrence != occurrence || operation.cause != CauseId::for_occurrence(occurrence) { return Err(exhausted()); }
+                // The Local remains in its owner vector throughout child execution
+                // and receipt delivery, including all fallible returns.
+                if session.candidate_step_bound_restoration_child(restoration, true)?.is_some() {
+                    let frame = &mut session.candidate_graph.as_mut().unwrap().local_use[0];
+                    frame.cursor.restoration = None;
+                    frame.cursor.next_bound += 1;
+                }
+            } else {
+                if !session.typed_worklist.is_empty()
+                    || !session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.is_empty() {
+                    return Err(exhausted());
+                }
+                let mut frame = session.candidate_graph.as_mut().unwrap().local_use.pop().unwrap();
+                let result = session.step_candidate_local_use(&mut frame);
+                session.candidate_graph.as_mut().unwrap().local_use.push(frame);
+                result?;
+            }
+            if fail_after { return Err(exhausted()); }
+            Ok(())
+        })
+    }
     fn step_candidate_local_use(&mut self, frame: &mut LocalUse) -> Result<(), SolveAvailabilityError> {
         if frame.cursor.complete { return Err(exhausted()); }
         let id = ConstraintOccurrenceId::new(frame.occurrence.clone(), 0);

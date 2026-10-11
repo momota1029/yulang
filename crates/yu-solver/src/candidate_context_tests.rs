@@ -4777,3 +4777,296 @@ fn direct_function_steps_prepare_full_retained_prefix_before_admission_or_enqueu
         assert_eq!(state(&session).typed_drains[index], frame);
     }
 }
+
+fn retained_replay_parent_fixture(empty: bool) -> (InferenceSession, ReplayOperationId, ReplayOperationId) {
+    let mut session = session();
+    let (index, restoration, replay) = terminal_drain_fixture(&mut session, empty);
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    assert_eq!(index, 0);
+    context.typed_drains.pop().unwrap();
+    context.replay_operations.get_mut(&replay).unwrap().queued = 0;
+    (session, restoration, replay)
+}
+
+fn retained_parent_step(session: &mut InferenceSession, restoration: ReplayOperationId, fail: bool) -> Result<Option<BoundEmissionId>, SolveAvailabilityError> {
+    session.begin_route_transaction_for(RoutePurpose::RetainedResume)?;
+    session.finish_route_transaction(|session| {
+        let result = session.candidate_step_bound_restoration_child(restoration, true)?;
+        if fail { return Err(exhausted()); }
+        Ok(result)
+    })
+}
+
+#[test]
+fn retained_replay_parent_commits_more_and_ready_before_exact_once_delivery() {
+    // Synthetic ordered-occurrence fixture, not lifecycle/source readiness.
+    let (mut session, restoration, replay) = retained_replay_parent_fixture(false);
+    let emission = state(&session).restorations[&restoration].emission;
+    let children = state(&session).replay_operations[&replay].children.clone();
+    assert_eq!(children.len(), 2);
+    assert_eq!(children[0], children[1], "occurrence identity cannot be relation equality");
+    for index in 0..2 {
+        assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), None);
+        let ack = ReplayChildAck { operation: replay, index };
+        assert!(matches!(state(&session).replay_operations[&replay].waiting_child,
+            ReplayChildWait::Running { ack: actual, drain_index: 0 } if actual == ack));
+        assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+        assert_eq!(session.candidate_context_consume_replay_child(replay, None), Err(exhausted()),
+            "queue transfer cannot release an unfinished provenance child");
+        loop {
+            let ack_capacity = state(&session).typed_drains[0].replay_acks.capacity();
+            let before = state(&session).typed_drains[0].clone();
+            let replay_before = state(&session).replay_operations[&replay].clone();
+            let restoration_before = state(&session).restorations[&restoration].clone();
+            let queue = session.typed_worklist.clone();
+            let delta = session.diagnostic_delta.clone();
+            let capacities = (session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+                session.diagnostic_delta_indices.capacity(), ack_capacity);
+            assert_eq!(retained_parent_step(&mut session, restoration, true), Err(exhausted()));
+            assert_eq!(state(&session).typed_drains[0], before);
+            assert_eq!(state(&session).typed_drains[0].replay_acks.capacity(), capacities.3);
+            assert_eq!(state(&session).replay_operations[&replay], replay_before);
+            assert_eq!(state(&session).restorations[&restoration], restoration_before);
+            assert_eq!(session.typed_worklist, queue);
+            assert_eq!(session.diagnostic_delta, delta);
+            assert_eq!((session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+                session.diagnostic_delta_indices.capacity()), (capacities.0, capacities.1, capacities.2));
+            assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+            assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), None);
+            assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+            if let ReplayChildWait::Ready { ack: actual, drain_index, completion } =
+                state(&session).replay_operations[&replay].waiting_child {
+                assert_eq!(actual, ack);
+                assert_eq!(drain_index, 0);
+                assert_eq!(completion.transitions, before.transitions);
+                assert!(state(&session).typed_drains.is_empty());
+                break;
+            }
+        }
+        let ready = state(&session).replay_operations[&replay].clone();
+        assert_eq!(ready.consumed, index + 1);
+        assert_eq!(ready.queued, index + 1);
+        assert_eq!(ready.retired, index == 1);
+        assert_eq!(session.candidate_context_consume_replay_child(replay, None), Err(exhausted()),
+            "retirement and acknowledgement cannot bypass Ready");
+        assert_eq!(retained_parent_step(&mut session, restoration, true), Err(exhausted()));
+        assert_eq!(state(&session).replay_operations[&replay], ready);
+        assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+        assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), None);
+        if index == 0 {
+            let operation = &state(&session).replay_operations[&replay];
+            assert_eq!(operation.waiting_child, ReplayChildWait::Idle);
+            assert_eq!(operation.consumed, 1, "receipt delivery never acknowledges again");
+            assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+        }
+    }
+    assert_eq!(state(&session).restorations[&restoration].next_opposite, 1);
+    assert_eq!(state(&session).restorations[&restoration].replay, None);
+    assert!(!state(&session).replay_operations.contains_key(&replay));
+    let before = state(&session).restorations[&restoration].clone();
+    assert_eq!(retained_parent_step(&mut session, restoration, true), Err(exhausted()));
+    assert_eq!(state(&session).restorations[&restoration], before);
+    assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), Some(emission));
+    assert!(!state(&session).restorations.contains_key(&restoration));
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn retained_replay_parent_empty_batch_has_no_fabricated_drain_receipt() {
+    let (mut session, restoration, replay) = retained_replay_parent_fixture(true);
+    let before = state(&session).replay_operations[&replay].clone();
+    let emission = state(&session).restorations[&restoration].emission;
+    assert_eq!(retained_parent_step(&mut session, restoration, true), Err(exhausted()));
+    assert_eq!(state(&session).replay_operations[&replay], before);
+    assert!(state(&session).typed_drains.is_empty());
+    assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), None);
+    assert!(!state(&session).replay_operations.contains_key(&replay));
+    assert!(state(&session).typed_drains.is_empty());
+    assert_eq!(state(&session).restorations[&restoration].next_opposite, 1);
+    assert_eq!(retained_parent_step(&mut session, restoration, false).unwrap(), Some(emission));
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
+
+#[test]
+fn parsed_local_retained_child_steps_restore_parent_cursor_after_failure() {
+    use crate::candidate_scheme::LocalScriptStep::DriveOne;
+    use crate::candidate_source::{Action, CandidateRun, Schedule, Support};
+    let mut session = session_with_source("my outer = { my local:int = 1; local }");
+    let root = session.batch.definitions[0].root.clone();
+    let position = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, Action::Local { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next < position {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    session.candidate_test_local_script(&[DriveOne]).unwrap();
+    let uses = state(&session).uses;
+    let emissions = state(&session).evidence.emissions.len();
+    loop {
+        let frame = &session.candidate_graph.as_ref().unwrap().local_use[0];
+        let cursor = frame.cursor;
+        let restoration = cursor.restoration.unwrap();
+        let operation = state(&session).restorations[&restoration].clone();
+        let replay = operation.replay.map(|id| (id, state(&session).replay_operations[&id].clone()));
+        let drains = state(&session).typed_drains.clone();
+        let queue = session.typed_worklist.clone();
+        assert_eq!(session.candidate_test_retained_local_step(true), Err(exhausted()));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().local_use[0].cursor, cursor);
+        assert_eq!(state(&session).restorations[&restoration], operation);
+        if let Some((id, replay)) = replay { assert_eq!(state(&session).replay_operations[&id], replay); }
+        assert_eq!(state(&session).typed_drains, drains);
+        assert_eq!(session.typed_worklist, queue);
+        assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+        session.candidate_test_retained_local_step(false).unwrap();
+        assert_eq!(state(&session).uses, uses);
+        assert_eq!(state(&session).evidence.emissions.len(), emissions);
+        let next = session.candidate_graph.as_ref().unwrap().local_use[0].cursor;
+        if next.restoration.is_none() {
+            assert_eq!(next.next_bound, cursor.next_bound + 1);
+            assert!(state(&session).typed_drains.is_empty());
+            break;
+        }
+        assert_eq!(next.next_bound, cursor.next_bound);
+    }
+}
+
+#[test]
+fn parsed_literal_local_retains_nonempty_child_until_exact_once_receipt_delivery() {
+    use crate::candidate_scheme::LocalScriptStep::DriveOne;
+    use crate::candidate_source::{Action, CandidateRun, Schedule, Support};
+    // Authentic parsed replay execution; not the lifecycle regression of §7.
+    let mut session = session_with_source("my outer = { my local = 1; local }");
+    let root = session.batch.definitions[0].root.clone();
+    let position = session.batch.candidate_source.schedules[&root].iter()
+        .position(|action| matches!(action, Action::Local { .. })).unwrap();
+    session.begin_candidate_source(Schedule::Root(0)).unwrap();
+    while session.candidate_graph.as_ref().unwrap().source.unwrap().next < position {
+        assert_eq!(session.step_candidate_source(Support::READY).unwrap(), CandidateRun::Complete(false));
+    }
+    let observations = session.candidate_test_local_script(&[DriveOne]).unwrap();
+    let use_origin = observations[0].use_origin.unwrap();
+    let uses = state(&session).uses;
+    let first = observations[0].restoration.as_ref().unwrap();
+    let owner = first.owner;
+    let first_emission = first.emission;
+    assert_eq!(first.polarity, Polarity::Positive);
+    assert_eq!(first.opposite_count, 0);
+    session.candidate_test_retained_local_step(false).unwrap();
+    let cursor = session.candidate_graph.as_ref().unwrap().local_use[0].cursor;
+    assert_eq!(cursor.next_bound, 1);
+    assert_eq!(cursor.restoration, None);
+    session.candidate_test_retained_local_step(false).unwrap();
+    let cursor = session.candidate_graph.as_ref().unwrap().local_use[0].cursor;
+    assert_eq!(cursor.next_bound, 1);
+    let restoration = cursor.restoration.unwrap();
+    let bound = state(&session).restorations[&restoration].clone();
+    assert_eq!(bound.owner, owner);
+    assert_eq!(bound.polarity, Polarity::Negative);
+    assert_eq!(bound.opposite_count, 1);
+    assert_ne!(bound.emission, first_emission);
+    let emissions = state(&session).evidence.emissions.len();
+    session.candidate_test_retained_local_step(false).unwrap();
+    let replay = state(&session).restorations[&restoration].replay.unwrap();
+    let generated = &state(&session).replay_operations[&replay];
+    assert!(generated.incoming_use);
+    assert!(generated.heads.0.is_some() && generated.heads.1.is_some());
+    assert_eq!(generated.prior, (None, None));
+    assert!(!generated.children.is_empty(), "native source replay must generate a child");
+    let children = generated.children.clone();
+    for index in 0..children.len() {
+        let ack = ReplayChildAck { operation: replay, index };
+        session.candidate_test_retained_local_step(false).unwrap();
+        assert!(matches!(state(&session).replay_operations[&replay].waiting_child,
+            ReplayChildWait::Running { ack: actual, drain_index: 0 } if actual == ack));
+        let mut ready_reached = false;
+        for _ in 0..64 {
+            let checkpoint = state(&session).checkpoint();
+            let operation = state(&session).restorations[&restoration].clone();
+            let replay_before = state(&session).replay_operations[&replay].clone();
+            let drains = state(&session).typed_drains.clone();
+            let queue = session.typed_worklist.clone();
+            let delta = session.diagnostic_delta.clone();
+            let indices = session.diagnostic_delta_indices.clone();
+            let capacities = (session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+                session.diagnostic_delta_indices.capacity(), state(&session).typed_drains[0].replay_acks.capacity());
+            assert_eq!(session.candidate_test_retained_local_step(true), Err(exhausted()));
+            assert_eq!(state(&session).checkpoint(), checkpoint);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().local_use[0].cursor, cursor);
+            assert_eq!(state(&session).restorations[&restoration], operation);
+            assert_eq!(state(&session).replay_operations[&replay], replay_before);
+            assert_eq!(state(&session).typed_drains, drains);
+            assert_eq!(session.typed_worklist, queue);
+            assert_eq!(session.diagnostic_delta, delta);
+            assert_eq!(session.diagnostic_delta_indices, indices);
+            assert_eq!((session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+                session.diagnostic_delta_indices.capacity(), state(&session).typed_drains[0].replay_acks.capacity()), capacities);
+            assert_eq!(state(&session).uses, uses);
+            assert_eq!(state(&session).evidence.emissions.len(), emissions);
+            assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+            session.candidate_test_retained_local_step(false).unwrap();
+            assert_eq!(session.candidate_graph.as_ref().unwrap().local_use[0].cursor, cursor);
+            assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+            assert_eq!(state(&session).restorations[&restoration].emission, bound.emission);
+            assert_eq!(state(&session).uses, uses);
+            assert_eq!(state(&session).evidence.emissions.len(), emissions);
+            if let ReplayChildWait::Ready { ack: actual, drain_index, .. } =
+                state(&session).replay_operations[&replay].waiting_child {
+                assert_eq!(actual, ack);
+                assert_eq!(drain_index, 0);
+                assert!(state(&session).typed_drains.is_empty());
+                ready_reached = true;
+                break;
+            }
+        }
+        assert!(ready_reached, "retained child did not reach Ready: {:?}",
+            state(&session).replay_operations[&replay].waiting_child);
+        let ready = state(&session).replay_operations[&replay].clone();
+        assert_eq!(ready.children, children);
+        assert_eq!(ready.queued, index + 1);
+        assert_eq!(ready.consumed, index + 1);
+        assert_eq!(ready.retired, index + 1 == children.len());
+        assert_eq!(session.candidate_context_consume_replay_child(replay, None), Err(exhausted()));
+        let ready_checkpoint = state(&session).checkpoint();
+        let ready_restoration = state(&session).restorations[&restoration].clone();
+        let ready_drains = state(&session).typed_drains.clone();
+        let ready_queue = session.typed_worklist.clone();
+        let ready_delta = session.diagnostic_delta.clone();
+        let ready_indices = session.diagnostic_delta_indices.clone();
+        let ready_capacities = (session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+            session.diagnostic_delta_indices.capacity(), state(&session).bytes().unwrap());
+        assert_eq!(session.candidate_test_retained_local_step(true), Err(exhausted()));
+        assert_eq!(state(&session).replay_operations[&replay], ready);
+        assert_eq!(state(&session).checkpoint(), ready_checkpoint);
+        assert_eq!(state(&session).restorations[&restoration], ready_restoration);
+        assert_eq!(state(&session).typed_drains, ready_drains);
+        assert_eq!(session.typed_worklist, ready_queue);
+        assert_eq!(session.diagnostic_delta, ready_delta);
+        assert_eq!(session.diagnostic_delta_indices, ready_indices);
+        assert_eq!((session.typed_worklist.capacity(), session.diagnostic_delta.capacity(),
+            session.diagnostic_delta_indices.capacity(), state(&session).bytes().unwrap()), ready_capacities);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().local_use[0].cursor, cursor);
+        assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+        session.candidate_test_retained_local_step(false).unwrap();
+        assert_eq!(session.candidate_graph.as_ref().unwrap().local_use[0].cursor, cursor);
+        if index + 1 < children.len() {
+            let delivered = &state(&session).replay_operations[&replay];
+            assert_eq!(delivered.waiting_child, ReplayChildWait::Idle);
+            assert_eq!(delivered.consumed, index + 1, "delivery cannot acknowledge twice");
+            assert_eq!(state(&session).restorations[&restoration].next_opposite, 0);
+        }
+    }
+    assert!(!state(&session).replay_operations.contains_key(&replay));
+    assert_eq!(state(&session).restorations[&restoration].next_opposite, 1);
+    assert_eq!(state(&session).restorations[&restoration].replay, None);
+    assert_eq!(state(&session).restorations[&restoration].emission, bound.emission);
+    session.candidate_test_retained_local_step(false).unwrap();
+    let completed = session.candidate_graph.as_ref().unwrap().local_use[0].cursor;
+    assert_eq!(completed.next_bound, 2);
+    assert_eq!(completed.restoration, None);
+    assert!(!state(&session).restorations.contains_key(&restoration));
+    let observations = session.candidate_test_local_script(&[crate::candidate_scheme::LocalScriptStep::Idle]).unwrap();
+    assert_eq!(observations[0].use_origin, Some(use_origin));
+    assert_eq!(state(&session).uses, uses);
+    assert_eq!(state(&session).evidence.emissions.len(), emissions);
+    assert_eq!(state(&session).bytes().unwrap(), state(&session).enumerated_bytes());
+}
