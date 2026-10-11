@@ -10246,6 +10246,19 @@ compiler changes were made. Next action: establish the existing copied-row
 value/reference law at its owning constructor, rather than repeating the
 formal or result-copy variants already audited.
 
+The exact recursive source fixture has a separate operational trace at
+[`recursive source bound-payload trace`](../notes/progress/2026-10-11-source-qualified-value-parent-copy-scc.md).
+It derives a retained result pair and an equal-level cycle in the current
+scanner's physical bound-payload adjacency. Review found that the first draft
+had promoted those payload incidences to source-Value edges without an owner
+law. The primary repaired that claim; delta review closed the BLOCKING finding.
+The artifact now makes no source SCC or missing-return-edge claim. The precise
+OPEN premise is the mapping from source/extrusion/freshening constructors to
+references in each semantic Value and its actual transported targets. This
+operational trace is not evidence that the selected intrusion is redundant or
+that normal source inference cannot need it. Next action: prove that owner map
+and compare it with the scanner on this fixture.
+
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
 operational Effect SCC; an independent `compiler_referee` found no blocking or
