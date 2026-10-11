@@ -141,8 +141,9 @@ Name shares the same formal projection and all its provider evidence.
 ### 3.2 Operational entry law, with arbitrary incoming behavior
 
 Use the selected invocation equation at the actual `L,d_f`. At its same
-activation `u`, Receive establishes the source boundary instances and
-receipt before the designated entry view runs. The received `t` is the
+activation `u`, invocation entry establishes the source boundary instances.
+Receive uses their supplied typed correspondence to establish the receipt
+before the designated entry view runs. The received `t` is the
 whole computation supplied by the caller. It is neither the literal `1`
 inside this body nor a carrier reconstructed from `A_f` or a native row.
 If it is a Delay, Force uses its captured lexical references and the

@@ -124,6 +124,53 @@ Independent `compiler_referee` review found no issues in the imported theorem
 directions/quantifiers, lemma statements, coalescing, example derivation or
 stated limitations. Review did not assess Yulang extensions or theorem closure.
 
+### 2026-10-11 current-source value projection and formal-entry frontier
+
+The bounded constructive task for the **original complete** judgment of
+`my invoke f = f 1` did not prove complete Call, source adequacy or principality.
+It has now established a narrower source-qualified value projection in
+[`invoke value projection proof`](../notes/theory/2026-10-11-invoke-value-projection-proof.md).
+Current constructors emit `Int ≤ s ≤ Int`, `α ≤ s → β`, and
+`α → β ≤ L ≤ r`, with definition root `r`; the exact raw effect-erasure
+identity with Parreaux's `α ≤ Int → β` and root `α → β` is false. However, for
+every assignment in the stated reflexive/transitive subtype preorder with
+ordinary arrow variance, existential elimination of the administrative `s,L`
+is equivalent to `α ≤ Int → β` and `α → β ≤ r`. The actual initial scalar
+replay/acknowledgement path was corrected after an independent reviewer found
+that the first draft cited the wrong child-drain branch; delta review closed
+that major finding. Ordinary coalescing of the initial projected bound table
+then yields `C_raw = r ∨ ((α ∩ ((s ∨ Int) → β)) → β)`, whose closure is scheme-
+equivalent to `(Int → β) → β` under Parreaux's order. This is a finite
+mathematical result for the successful initial source construction only. It
+does not establish mixed-port or later-provider projection, complete Call,
+Yulang generalization, a public scheme, effect hygiene, soundness or
+principality.
+
+The separate
+[`invoke formal-entry proof`](../notes/theory/2026-10-11-invoke-entry-entry-law-proof.md)
+specializes the selected Value entry expansion at the actual `L,d_f`: it
+preserves the received whole carrier, receipt, one designated Force, the same
+result/current state, rebind, body and pending request/resumption suffix. Given
+an independently formed whole-carrier certificate and matching typed
+receipt/rebind maps, the existing hereditary elimination yields ValueBind for
+the body Name. Independent review found no blocking or major issue; its minor
+boundary-ownership wording was corrected. The actual source still does not
+supply the complete ParameterOrigin/received-view/receipt/Force/rebind
+introduction and map application. That is the first open source supplier for
+the complete typed formal-entry bridge, not a claim about binder order inside
+an unknown telescope. This direct semantic gap is distinct from the adopted
+raw-registry argument-map conformance gate.
+
+Both Yulang extension results remain subordinate to the original theorem.
+Complete inner Call formation and same-provider whole-argument compatibility,
+source Generalize, full effect hygiene, principal public output, inconsistent-
+result rejection, ordinary HIR adoption and F5 replacement remain OPEN. No
+conditional entry lemma, local coalescing argument, test, or private graph is
+promoted to full inference closure. The source characterization, projection
+proof, entry-supplier map and entry-law checkpoint are pushed through
+`264a91c9f` on `research/simple-sub-intrusion`; their review and theorem limits
+remain stated in their owning notes.
+
 The shortest unresolved semantic bridge identified so far is the interpretation
 of the actual four-port Apply demand and its later discharge as one complete
 source Call witness, preserving the same callable, whole argument,
