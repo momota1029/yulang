@@ -481,3 +481,33 @@ feedback directions at the Var-to-Allowance seam. The main task remains open;
 no conditional result, input restriction, new Q&A, or CLOSED promotion is used
 to call full negative inference complete. Git and shared synchronization are
 primary-owned.
+
+### 2026-10-11 mathematical Simple-sub redesign wave
+
+Baseline `1e65dd3d2af604bac2bbbc548503ff4edd398957`, branch
+`research/simple-sub-intrusion`; no compiler edits, tests, builds, Oracle calls,
+or Git mutations occurred in the producer lanes.
+
+| Assignment | Method / exclusive artifact | State and result |
+| --- | --- | --- |
+| `redesign_decompose` | Dependency-ordered design/proof packets | Complete; critical path is Value-owner constructor law → qualified equality preservation → source/consumer correspondence → reference implementation. |
+| `redesign_core_prover` | Constructive specification and intrusion preservation | Frozen in `notes/theory/2026-10-11-inference-rebuild-native-spec-proof.md`; conditional quotient valuation lemma and a non-qualified continuation counterexample; independent review clean after correcting comparison/ancestry wording. Parent theorem OPEN. |
+| `redesign_original_correspondence` | Original paper/reference source crosswalk | Frozen in `notes/progress/2026-10-11-inference-rebuild-original-correspondence.md`; finite Lambda, delayed Apply replay and recursive-let derivations; minor replay-order correction closed. Not universal proof. |
+| `literal_call_emission_prover` | Original complete Call source inversion | Additive continuation in `notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md`; independent bounded compiler review clean; exact original declaration/application and forward-emission supplier remains OPEN. |
+| Primary | Authority, review, record integration | Asked user to choose the Value-reference construction root; dependent owner-law proof waits, independent correspondence/equality work continues. |
+
+The joint valuation quotient lemma is conditional algebra, not a source typing
+or principality proof. `p <: Bool`, positive extrusion, then `Int <: c`
+refutes preserving copy-creation-time equality under arbitrary future
+constraints; it has no return Value-reference path and is not an
+intrusion-qualified counterexample. The source/reference crosswalk does not
+define Yulang's Value-reference graph or prove let generalization. The actual
+complete literal Call rule application is still absent from the inspected
+selected source judgment. No reference implementation is ready because the
+Value-owner/transport and qualified-equality premises remain unresolved.
+
+All producer leases are frozen. The user clarification request is pending.
+Next: adjudicate the owner equation from the reply or constructor evidence,
+then resume only the dependent proof/implementation lane; keep soundness,
+required principality, normal progress, termination, complete Call, effect
+hygiene, production correspondence and F5 replacement OPEN.

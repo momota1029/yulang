@@ -10594,8 +10594,51 @@ their source-owned constructors and typed ports. Native Simple-sub itself
 generates `f_ty <: Function(a_ty,res)` and returns `res`; Yulang constructs the
 callee separately from the negative argument/result demand. Thus neither the
 original rule nor the current admitted payload proves the result row's source
-ownership. The decision is required before defining `R` or proving its
-transport; no additional ownership reconstruction or implementation is
-scheduled until it is resolved. Requested Astra/low; runtime model/effort
-metadata was not exposed. No execution, test, build, Oracle call or file write
-came from that proof lane.
+ownership. The latest redesign request makes constructor-owned Value
+references an explicit definition obligation but does not supply an Apply
+result equation. The primary has asked which construction is intended; only
+work depending on that equation waits. Other original-rule, correspondence,
+and equality-preservation work continues. Requested Astra/low; runtime
+model/effort metadata was not exposed. No execution, test, build, Oracle call
+or file write came from that proof lane.
+
+### 2026-10-11 fresh redesign proof and original-source construction
+
+The constructive redesign lane produced
+[`native specification and intrusion preservation proof`](../notes/theory/2026-10-11-inference-rebuild-native-spec-proof.md).
+It states the original full theorem, gives native generation and polar
+extrusion, and proves a conditional equality-quotient solution correspondence
+using one joint valuation. A direct reference-operation continuation
+(`p <: Bool`, positive extrusion to `c`, then `Int <: c`) shows that an
+equality extension available at copy creation can be lost under a later
+ordinary constraint. This is not a source-qualified SCC counterexample: the
+trace has no return Value reference and does not qualify for selected
+intrusion. It refutes unconditional parent/copy equality preservation and
+shows why SCC-specific preservation needs proof. The note now keeps directed
+comparison storage, copy ancestry and Value-reference edges separate. Its
+bounded delta review closed; parent equality preservation and Value-owner/
+transport remain OPEN.
+
+The independent
+[`original Simple-sub source correspondence`](../notes/progress/2026-10-11-inference-rebuild-original-correspondence.md)
+adds finite derivations for identity Lambda, higher-order Apply with delayed
+opposite-bound replay, and recursive let with an open shared recursive row and
+coherent per-use freshening. One replay-order wording issue was corrected
+after independent review. These are constructor-specific characterizations,
+not universal proofs or Yulang Value-reference edges. The original reference
+does not define Yulang's Value-owned graph, SCC-qualified intrusion, complete
+Call, or contextual effect hygiene.
+
+The literal Call source-inversion continuation in the existing
+[`Call/effect record`](../notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md)
+passed independent bounded compiler review. It localizes the missing original
+complete Call declaration/application and forward-emission map for `f 1`,
+conditional on its child/pre-Call prefix; it makes no global-absence or
+impossibility claim. Complete Call emission remains OPEN.
+
+No compiler implementation, test, build, Oracle run, or benchmark was made in
+this slice. The reference implementation gate remains blocked by unresolved
+Value-owner/transport and qualified-equality preservation laws. No conditional
+note or finite trace closes soundness, required principality, normal progress,
+termination, complete Call, effect hygiene, public correspondence, or F5
+replacement.

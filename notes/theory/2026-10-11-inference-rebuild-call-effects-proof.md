@@ -2,8 +2,8 @@
 
 Status: frozen research note; relative clauses have bounded `compiler_referee`
 review, and the literal-supplier delta passed separate bounded review; Oracle
-source claims and parent-theorem closure remain unreviewed/OPEN. No design
-authority is claimed.
+source claims, the source-judgment inversion continuation below and
+parent-theorem closure remain unreviewed/OPEN. No design authority is claimed.
 Date: 2026-10-11
 Initial baseline: `d8c097e1f810fb26a8cf1936aa97059f6948bf32`.
 Constructive-delta baseline: `70696a873a6d0eea420fa90eb5481b2c0502919f`,
@@ -443,6 +443,201 @@ authority globally. These are the exact preserved contracts. The missing
 successor producer/consumer remains live negative attachment/subtraction and
 lineage-owned residual activation, rather than the mathematical ability to
 form the paired rule. No blanket subtraction of the nominal family is derived.
+
+## Source-judgment inversion continuation: the original literal Call rule
+
+Continuation baseline: `1e65dd3d2af604bac2bbbc548503ff4edd398957`,
+`research/simple-sub-intrusion`. Claim class: bounded characterization of an
+unprovided original rule application. This is neither a proved emission
+theorem nor a source-qualified counterexample. Earlier reviewed relative and
+literal-Reify clauses retain their bounded scope. This continuation does not
+rederive Reify or propose another supplier inventory.
+
+### Frozen statement and input distinction
+
+Fix the actual resolved `L,d_f,u_f,a,c` for `my invoke f = f 1`, payload 1,
+`Resolve(u_f,d_f)`, `ArgumentChild(c,a)`, original `B,X,T_c,Delta_c` and
+`xi=(nu,K,D)`. Keep the original `P_old`, registration and route at their
+binders; the q2 projection is `pr_old(Pdagger)=P_old`. No extension or decoder
+is silently substituted for an old consumer's registry argument.
+
+The requested statement is a source-directed construction, before choosing a
+solution or observation: from the accepted source rules and their genuine
+complete local declaration applications, construct this Call's licensed
+original predicate origins, authentic complete `Q_e`, result origin and
+dependent future interface. The origins must have the exact WF_Dec, VIncl,
+WholeArgCompatible and complete CIncl applications at their original scopes.
+They are emitted obligations, not proofs that those obligations hold. The
+operation must keep the whole callee prefix, the independently admitted whole
+carrier, the actual returned receiver/current world and every original
+structural or W/Z arm with its own output-dependent future fields.
+
+This statement retains all original joint assignments, challenge domains,
+complete/pending observations, responses, raw resumptions and future uses.
+It does not demand a satisfying assignment during generation. It cannot
+choose independent port witnesses, infer a provider from F_c, replace a
+whole-carrier operand by J_lit, or add an annotation or source restriction.
+
+There are three distinct inputs here. The actual resolved graph fixes the
+source shape. The selected synthesis rules fix its result/consumer skeleton.
+A complete original declarative typing derivation would additionally contain
+the particular local rule applications and their semantic evidence. Source
+acceptance or the synthesis skeleton is not such a supplied derivation.
+Conversely, if a genuine full derivation is supplied, its inversion may return
+its actual local evidence; it still needs a field-preserving map to these
+specific original emission judgments. No such map is assumed below.
+
+### Invert the accepted source construction
+
+The selected Source Generalize proof §3.1, lines 137–147, fixes the Parameter,
+Name, Literal, Result, Lambda and Call schemas. Typed-core §6, lines 333–358
+and 396–423, gives their source skeleton. At this source, Parameter chooses
+Value(A_f) before body synthesis; Name reads that same binding; literal a
+synthesizes Value(Int). Result normalizes the children to `n_f` and `n_a`,
+with argument interface `Result(Value(Int))=Comp(empty,Int)`. Application
+therefore synthesizes a Computation result and the ordered skeleton
+
+```text
+n_f >>= (actual_f,current).
+  let t = Delay(n_a,the same lexical references) in
+  ExecuteCallable(actual_f,t,current).
+```
+
+This inversion identifies the whole argument and the receiver order. It does
+not expose an original predicate declaration, its declared-domain license,
+or an actual `Application` emission derivation. Typed-core lines 412–420 say
+that the symbolic endpoints are constrained by existing complete relations;
+they do not instantiate those complete relations at P_old. The broader
+typed-core record remains Draft outside its selected source cases.
+
+Now try the last rule needed for the original body Code-Call. Its displayed
+premises in the Call-input proof §3.4, lines 310–346, include an actual
+Application/Gen-Call-0 origin, the complete result port, and **already emitted**
+VIncl and WholeArgCompatible origins. Inverting that rule returns those
+premises; applying it requires them. Theorem S constructs Check_c for each
+actual emitted Call-check record (lines 350–355), rather than constructing
+the missing emission from the two child Code derivations. Using a Code-Call
+conclusion to supply these premises would assume the target body derivation.
+
+The actual forward Gen-Call-0 in source-generation §4.2 is a resolved
+singleton `Call(c,u_f,u_x)` with `u_x -> d_x` and Value(A_x). Our argument
+has the IntegerLiteral constructor, not that resolved Name/binding edge.
+The disjoint HIR constructors are explicit in `local_source.rs:107–120`.
+Substituting Int for A_x does not substitute a literal source derivation for
+the missing Name incidence. Moreover Gen-Call-0's displayed conclusion only
+forms the initial demand/address record; Call-input lines 344–346 separately
+exclude deriving the additional Application checking origins from it.
+Thus even a generalized initial address rule would not, by itself, close
+this complete emitter gate.
+
+### Why symbolic Build does not fill the local rule application
+
+The selected Generalize Build (§4, lines 364–377) recursively emits the
+explicit clause of a **fixed rule instance**, retaining its actual premise
+programs, alternatives and binders. L1–L5 (§2) require complete independent
+local contracts; they do not define unavailable primitive domains. The Call
+row's operational order is not an expanded original Call rule catalogue.
+
+Let delta_Call denote the actual complete original local rule declaration
+required at this Call owner, if supplied. This notation names the missing
+declaration; it introduces no new relation or accepted Call rule. With
+Gamma_c the genuine preceding source/registration/child/Reify context, the
+next required application is
+
+```text
+Gamma_c(P_old,reg_f,route_f,q_cf,q_ca,t_a,original scopes)
+  |- mu_Call : Delta_in(delta_Call)
+then actual original Call introduction[mu_Call]
+  and its declared forward emission/field maps.
+```
+
+Each field of mu_Call must type-check against the complete original ordered
+input telescope after its preceding fields. Its declared argument-view
+assembly must resolve the actual WholeArgCompatible operand, and its
+complete operation reference must retain the result-provider/future fields.
+Neither the full Delta_in(delta_Call) nor this typed application and forward
+emission map is supplied by the cited selected construction. No first hidden
+binder, late-decoder dependency or impossible license is inferred from that
+omission. This is the exact derivation dead end at the Call-rule application
+after the child prefix, conditional on that prefix actually existing.
+
+The adopted registry's §3.1, lines 153–164, expressly constructs a pre-Call
+domain with no Application or CallResult row. Lines 197–204 say HCall,
+WholeArgCompatible, WF_Dec, VIncl and CIncl declarations are retained if
+genuinely imported; otherwise their later Call owner must introduce them.
+Consequently the pre-Call closure theorem neither proves these declarations
+absent nor supplies their original complete applications. A Law token can
+retain an actual signature, but cannot manufacture its argument substitution.
+The adoption §2, lines 84–109, independently retains that distinction.
+Even granting the already reviewed pre-Call and q2 prefixes conditionally
+therefore leaves this Call application unresolved. Without that grant, the
+earlier formal-origin/entry-port correspondence remains an additional open
+prefix gate; this continuation makes no global earliest-premise claim.
+
+There is a genuinely forward selected Emit-Original-Literal-Arg rule in
+MIN-ORIG-WHOLEARG §4.2, lines 194–206. Its adoption fixes the id/literal-0,
+registered Int-frame case. The rule itself takes the complete demand and
+Function-elimination/ReceiveSchema incidence; it emits only the argument
+conjunct. Lines 222–227 expressly exclude manufacturing the full Application,
+Gen-Call-0 and result/suffix interfaces. Its identity complete-view assembly
+is not a theorem providing arbitrary f's demand or a binder-preserving
+literal-1 instance. The generic Result-view schema records what the argument
+check must mean; it supplies no whole original declaration application here.
+This route cannot be promoted by renaming the literal or marginally choosing
+an Int identity witness.
+
+The reviewed literal-emission pipeline does supply newly defined local
+declarations and RuleCall_L. Its §4.7, lines 968–976, and §9.1, lines
+1515–1534, explicitly mark those definitions unadopted. The q2 direction
+expressly excludes them. Using that construction as delta_Call would adopt
+a new rule rather than derive the requested original one. Complete Call
+contribution §2 and source-interface §§2–4 instead consume an authentic
+complete declaration/reference and its whole local laws; CallMem, IF-Insert
+and IF-Use preserve those inputs, without producing this missing application.
+
+### Actual source owner and bounded outcome
+
+The Rust source owner confirms a different, smaller output. Integer generation
+at `candidate_source.rs:336–350` emits Int and purity endpoint facts. Apply
+at `:394–411` retains source children, checking occurrence, endpoints and
+an Action::Candidate. `shadow_apply.rs:1361–1400` forms the negative Function
+demand, stores the term-only NativeInterface and actually admits provenance
+and calls constrain_live_value. These are real native constraint-generation
+and activation calls. They contain no typed delta_Call application or complete
+Q_e/provider/future declaration. `candidate_call.rs:49–58,224–240` displays
+the native fields and remaining original suppliers. This source trace proves
+neither complete replay nor that a missing semantic field is unnecessary.
+
+Outcome: the inspected selected source rules do not supply the requested
+original complete emitter instance. No genuine source counterexample or
+impossibility theorem follows. The original predicate operand/domain and
+operation/emission application remain unelaborated. No new user decision is
+demonstrated merely by this missing signature: an existing authentic local
+declaration and its original field maps could discharge it. If none exists
+and supplying it requires a new domain, license or observable Call rule, that
+specific choice returns to the primary's design/review/adoption process.
+
+Economy audit after the two prior routes: the complete local Call application
+and its compiler correspondence are A correctness; natural f/1 inference
+and required principality remain B. Retention of already constructed source
+origins/maps is D, but no retained certificate can create an unprovided
+declaration or license. Arbitrary foreign-kernel equality would be C and is
+outside this packet. Another conditional tuple constructor or reconstruction
+pass leaves the same premise untouched. The next action is to obtain and
+elaborate delta_Call's complete original declaration and forward emission map
+at the Call owner, preserving its whole telescope; no third equivalent
+supplier derivation is proposed. All parent gates remain OPEN.
+
+Continuation checks/resources: focused static source/rule reads, baseline and
+dependency-byte/hash checks, and documentary artifact integrity checks only;
+zero builds, tests, compiler/Oracle runs, probes, measurements, Git mutations
+or child launches. At most four lightweight read processes concurrently; the
+30-minute bound is the assigned limit, not a measurement claim. CPU seconds
+and peak RSS are uninstrumented. Requested runtime is gpt-6.1-sol/high;
+observed effective model/effort metadata is unavailable/unknown. Config
+defaults and unpinned prover keys are not runtime observations. This delta is
+unreviewed and frozen at handoff; its dependency snapshot and commit packet
+are returned to the primary. No shared record was edited.
 
 ## Stop, checks, runtime and commit packet
 
