@@ -11598,6 +11598,12 @@ independent review identify the next valid seam: an env-gated observer in
 identity handed from its constructor. No early query, raw-bound substitution,
 or Oracle source edit was performed in that first lease. The follow-up is now
 bounded to `tail.rs` and `check.rs` in the frozen Oracle worktree, one serial
-build and one execution of the already captured int variant. Exact source-to-
-output membership remains OPEN pending that capture and review. No Y3
-production behavior changed.
+build and one execution of the already captured int variant. The capture hook
+repair is now independently reviewed with no major or minor findings: compact
+output is explicitly omitted rather than treated as a default result, relevant
+pre-accumulation collections are bounded, and TLS is scoped across errors and
+unwinding. The repair remains uncompiled. Its sole authorized build attempt
+failed under a virtual-address-space cap (not a resident-memory limit), so the
+runtime capture has not run; a new build budget and appropriate memory
+enforcement are required before that capture. Exact source-to-output
+membership remains OPEN. No Y3 production behavior changed.
