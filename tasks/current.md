@@ -11184,3 +11184,34 @@ adjudicate the independent reviews, finish the transport-law comparison, and
 only then assign the minimal approved source-incidence constructor/consumer
 implementation. The parent/copy equality gate, complete Call, effect hygiene,
 soundness, principality, ordinary/public inference and F5 cutover remain OPEN.
+
+### 2026-10-12 Value-reference transport choice and parallel effect proof
+
+The bounded parent/copy finite-store proof received an independent
+`compiler_referee` review with no findings in its stated scope. It still proves
+only the one native finite-store joint witness replacement; it does not prove
+that its extrusion pairs qualify in the approved Value-reference SCC.
+
+The Value-copy architecture comparison confirms that approved original-row
+ownership (`O → E → O` for nested odd/even, `result → resolved Name` for
+Apply, and definition-root forwarding) does not determine how reference edges
+move when an owner row is copied or freshened. A generic graph reference is
+unsigned, while extrusion can have distinct positive and negative row maps.
+The minimized `id x = x` discriminator is: copying the body owner either keeps
+its edge to original `x`, or transports that edge to the fresh `x` image when
+one exists. A third law recursively adds referenced targets to the copy
+closure. These laws change the resulting reference graph and are not decided
+by ordinary Simple-sub, which has no Value-reference graph or intrusion rule.
+The user has been asked to select the copy law. Keep source-incidence
+construction, transport, SCC consumption and equality preservation as separate
+gates; do not implement transport until this choice is recorded. Existing
+`O ↔ E` is cross-level SCC evidence, not parent/copy qualification.
+
+To keep the independent Oracle effect-hygiene objective moving while that
+choice is pending, bounded lanes are active for (a) a constructive proof of
+the approved composed-polarity/concrete-effect and residual-lineage clauses,
+and (b) a disjoint static source-owner audit. The Oracle budget remains
+exhausted. These lanes may not assume source admission, complete Call,
+parent/copy preservation, or full H; their outputs remain subordinate to the
+original inference/effect theorem. No compiler code, tests, builds or Oracle
+runs changed in this checkpoint.
