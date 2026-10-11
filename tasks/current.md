@@ -11207,11 +11207,15 @@ construction, transport, SCC consumption and equality preservation as separate
 gates; do not implement transport until this choice is recorded. Existing
 `O ↔ E` is cross-level SCC evidence, not parent/copy qualification.
 
-To keep the independent Oracle effect-hygiene objective moving while that
-choice is pending, bounded lanes are active for (a) a constructive proof of
-the approved composed-polarity/concrete-effect and residual-lineage clauses,
-and (b) a disjoint static source-owner audit. The Oracle budget remains
-exhausted. These lanes may not assume source admission, complete Call,
-parent/copy preservation, or full H; their outputs remain subordinate to the
-original inference/effect theorem. No compiler code, tests, builds or Oracle
-runs changed in this checkpoint.
+The disjoint static source-owner audit is frozen and independently reviewed;
+the constructive source-construction note is frozen pending its independent
+`compiler_referee` review. The proof note reuses reviewed P/Q only in its old
+conditional scope and identifies the same concrete-negative constructor gap.
+The Oracle budget remains exhausted. The accepted contextual-admission gate
+still keeps general concrete-formal source admission disabled; the next useful
+implementation slice can only be an internal negative attachment/view plus
+its live scoped residual consumer, with source preflight unchanged. Require a
+construction invariant and current/future lineage fan-out before calling that
+slice correct. Neither note proves full H, complete Call, soundness,
+principality, source/public correspondence or F5 cutover. No compiler code,
+tests, builds or Oracle runs changed in this checkpoint.
