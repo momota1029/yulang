@@ -10286,8 +10286,8 @@ its result. These constructors do not establish the owned-reference
 correspondence on native identities. The source-root SCC, payload SCC
 `{Ng,Nf}`, and qualifying parent/copy SCC remain distinct. This source creates
 no retained extrusion pair, so it neither proves nor refutes the original
-all-histories/all-retained-pairs theorem. An independent `compiler_referee`
-review is pending. No implementation change or test ran.
+all-histories/all-retained-pairs theorem. Independent `compiler_referee` review
+of the bounded proof found no findings. No implementation change or test ran.
 
 Next: resolve this exact Name/Lambda owner correspondence under the selected
 Value-reference meaning. Only after that premise is established should its
@@ -10370,11 +10370,11 @@ The exact stopping premise is now an active returned-callback lower with
 original `s` and its actual support/formula-derived projection decision at
 `direct`'s collection boundary. A concrete prefix, source origin or empty
 support payload does not determine that decision. Both stack-quantifier
-branches and final cleanup remain downstream. An independent `compiler_referee`
-review is pending for these two notes. Next: finish that review, then capture
-the original `(annotation, s, coordinate, direct root)` association and the
-returned-callback lower records plus their actual projection decisions at the
-existing owners. Extend the evidence only if those records show `s` survives;
-keep later selector membership, fresh map, provider replay, and the independent
+branches and final cleanup remain downstream. Independent `compiler_referee`
+review of these two notes found no findings. Next: capture the original
+`(annotation, s, coordinate, direct root)` association and the returned-callback
+lower records plus their actual projection decisions at the existing owners.
+Extend the evidence only if those records show `s` survives; keep later
+selector membership, fresh map, provider replay, and the independent
 same-family contribution as separate premises. No new Oracle execution or
 instrumentation has been authorized or run.
