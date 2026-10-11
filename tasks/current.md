@@ -10273,11 +10273,20 @@ writer stores `G →op Ng`; the comparison does not add `Ng → G`. This is a
 conditional mismatch between the selected source graph and the current
 operational adjacency, not an observed runtime failure or a missed intrusion
 equality: this source creates no retained parent/copy pair. The approved graph
-meaning and selected intrusion remain unchanged. Next action: establish how
-source-owned Name references enter the native Value-reference SCC consumer,
-then prove that retained parent/copy qualification uses that same graph across
-extrusion and freshening. Complete Call, soundness, principality, effects and
-F5 replacement remain OPEN.
+meaning and selected intrusion remain unchanged. The user has now directly
+confirmed that the SCC relation is actual references among Value variables.
+The existing Authoritative clarification already excludes comparison direction
+and parent metadata as edges; the current bound/Function payload traversal is
+not established as that reference relation. A bounded proof/source-map pass
+confirms the remaining bridge is constructional: resolved module/local/formal
+Name ownership must reach the actual Value-reference consumer, and extrusion
+copies plus freshened uses need one jointly transported owned-reference map.
+The bare mutual source proves `F ↔ G` but creates no retained extrusion pair;
+its occurrence rows `Ng,Nf` are not thereby identified with those roots. Next
+action: establish the existing occurrence-to-target and copy-owned
+Value-reference law from the source/extrusion constructors, then compare the
+consumer against it before changing scanner implementation. Complete Call,
+soundness, principality, effects and F5 replacement remain OPEN.
 
 A separate conditional source construction now traces a shared latent Effect
 tail through negative extrusion and later Allowance admission into an
