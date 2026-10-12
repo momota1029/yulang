@@ -88,26 +88,58 @@ At baseline `0e621f549`, a constructive `prover` derivation of the original
 Simple-sub nested `f/g` level crossing established actual polar parent/copy
 pairs `(C,B,+,1)` and `(D,R,-,1)` with completed ordinary bound replay. The
 approved Value graph gives `F ↔ G` while formal `Y` and Apply result `V_R` lie
-outside that root SCC. Two still-unselected occurrence associations produce
-different activation results on those same pairs: `(F,Y)/(F,V_R)` do not
-qualify, while `(F,G)` qualifies both. Original Simple-sub and current source
-constructors do not select between them. This is an underdetermination result,
-not an unsoundness counterexample or parent theorem closure.
+outside that root SCC. The user selected qualification by the actual extrusion
+occurrence, with origin `G`, receiver `F`, and the produced parent/copy pairs.
+The accepted rule therefore qualifies `(C,B,+,1)` and `(D,R,-,1)`.
 
-The proof artifact and independent source-constructor audit passed one fresh
-`compiler_referee` review with no findings. The user then selected intrusion
-qualification per extrusion occurrence: retain its origin Value, receiving
-Value, and produced parent/copy pairs; intrude those pairs when the two Values
-share a Value-reference SCC. In the displayed `f/g` construction, `G` is the
-origin, `F` the receiver, and the event carries `(C,B,+,1)` and `(D,R,-,1)`.
-This resolves the association discriminator, not its all-path construction,
-equality-preservation proof, implementation, or F5 gate. The approved handoff
-is integrated in question receipt
+The follow-up original-source derivation locates the unique copying call at
+`App(f,y)` inside `g`'s active initializer and confirms the two polar pairs,
+but the original Simple-sub implementation emits no Value event certificate.
+A Y3 source audit traces the `G` and `F` binding identities to the level-1
+copying replay; current `ApplySourceInput`, extrusion dispatch and retained
+`Parent` do not join those endpoints to the pair set. This derivation and
+source audit passed one fresh independent `compiler_referee` review with no
+findings. Checkpoints: `05fbad8d2`, `700390d3d`.
+
+A supported-form two-use candidate gives a conditional fixed-anchor failure:
+if `C=B` is active and `C` remains shared at `g` publication, the second Unit
+use reaches the first Integer consumer and requires `unit <: int`. It is not
+an admitted Yulang counterexample: the exact `f y` Call still lacks the
+original whole-Call construction, and the source realization, validating
+component, fixed/template classification and equality transport of
+extrusion-created `C` remain unproved. The bounded publication-incidence proof
+records this exact missing producer premise. That proof and the candidate are
+research-only and unreviewed; neither proves or refutes the original
+soundness, natural-inference, required-principality, progress or termination
+obligation.
+
+The approved handoff is integrated in question receipt
 [`type-value-occurrence-association`](../questions/2026-10-12-type-value-occurrence-association/receipt.md).
-The current Apply/extrusion path still retains no such event certificate.
-See the [constructive discriminator](../notes/theory/2026-10-12-intrusion-association-proof.md),
-[source audit](../notes/progress/2026-10-12-intrusion-association-source-audit.md),
+See the [original-source derivation](../notes/theory/2026-10-12-intrusion-occurrence-source-proof.md),
+[Y3 retention audit](../notes/progress/2026-10-12-intrusion-occurrence-retention-audit.md),
+[two-use candidate](../notes/progress/2026-10-12-intrusion-admitted-two-use-witness.md),
+[publication-incidence bridge](../notes/theory/2026-10-12-intrusion-publication-incidence-bridge.md),
 and [authoritative occurrence rule](../notes/design/2026-10-12-intrusion-value-type-association.md).
+The user-directed revision-1 answer draft is committed as part of the answer
+history; answer revision 2 remains the approved operative decision.
+
+The occurrence bridge bundle adds a bounded proof-equivalent generic worker
+result: the selected Source Generalize input does not provide the source
+declaration/term realization of extrusion-created `C`, so it cannot determine
+the fixed/template incidence or show equality transport through lawful uses.
+The registered `prover` launch was attempted once and failed at runtime
+capacity; the supported generic fallback ran with effective model/effort
+unobserved. The two-use candidate, publication-incidence obstruction, and
+source-event route audit are pushed as research-only commits `49dbb2668`,
+`438318605`, `700390d3d`, and `05fbad8d2`. A fresh `compiler_referee` reviewed
+the original-source derivation and Y3 retention audit at `700390d3d` with no
+findings; the publication-incidence and two-use artifacts remain unreviewed.
+No compiler code, tests or builds changed. The next decisive evidence is an
+original complete Call construction for the candidate's `f y`, together with
+the owning extrusion-copy source realization and its Generalize/frame
+incidence; no event-ID-only implementation or source restriction is authorized
+by these results. Parent soundness, principality, progress, termination, full
+Call/effect hygiene and F5 replacement remain OPEN.
 
 ### 2026-10-12 effect-hygiene source transfer checkpoint
 
