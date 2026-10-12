@@ -567,10 +567,10 @@ consistency review, not validation of the old compiler or source correspondence.
 No priority defining/operational document remains unread in the selected
 historical design/specification/research corpus; full-corpus precision,
 external approval receipts, every intermediate revision body, and the 513
-screened paths remain incomplete. The catalogue initially overstated the CBV
-witness as refuting every main conclusion; primary corrected it to the reviewed
-colored-fundamental refutation and unsupported integrated proof. No full-corpus
-theorem or source acceptance gate is certified.
+screened paths remain incomplete. The CBV witness refutes the colored
+fundamental theorem and therefore the integrated theorem as a conjunction in
+its printed scope; it does not refute termination or principality separately.
+No full-corpus theorem or source acceptance gate is certified.
 
 ### 2026-10-12 Oracle appendix completion and synchronization
 
