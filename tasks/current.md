@@ -13310,9 +13310,13 @@ inner formal `b`. The original Source-Generalize and complete-Call rules
 require the actual declaration, complete operand telescope, selected
 method/provider and its world/effect relation, plus Call origins, entry and
 consumer ports; they do not select this overload. Current Y3 HIR retains
-operator spelling/fixity/range and lacks semantic imports. A bounded prover
-packet is now constructing the inner typed subtraction/Call judgment or
-identifying the exact first absent source premise. This is not source
-rejection. Guard/Branch, recursive-world closure, event transport, equality
-preservation, soundness, required principality, termination and F5 remain OPEN.
-No code or tests changed/run.
+operator spelling/fixity/range and lacks semantic imports. The bounded prover
+and independent `spec_auditor` review identify the first missing input as an
+original declaration-typing/registration certificate for the integer
+`Sub`/`IntSub` method and primitive supplier, with its complete telescope and
+lawful dependent-use substitution at `b`'s source scope. The arrow signature
+and frozen catalogue do not supply that certificate. A separate complete Call
+derivation remains required afterward. This is a missing proof premise, not
+source rejection. Guard/Branch, recursive-world closure, event transport,
+equality preservation, soundness, required principality, termination and F5
+remain OPEN. No code or tests changed/run.
