@@ -52,12 +52,14 @@ not universal contribution preservation or successful worklist completion.
 
 Hypotheses: one live Oracle arena; successful source resolution and completed
 constructor calls; fresh allocation without ID exhaustion; an ordinary
-non-wildcard nullary concrete result-effect row; actual local formal binder;
-actual direct `Expr::Var` application in the corresponding defined-lambda
-frame. No intervening generalization transformation is included in this local
-statement. This last exclusion bounds the lemma, not H or supported language.
-No provider body is selected: the recorded singleton has a formal callback but
-no implementation of its actual future provider.
+non-wildcard nullary concrete result-effect row; a callable annotation with no
+effect wildcard anywhere (the actual `callable_annotation_has_effect_wildcard`
+guard scans the whole annotation); actual local formal binder; actual direct
+`Expr::Var` application in the corresponding defined-lambda frame. No
+intervening generalization transformation is included in this local statement.
+This last exclusion bounds the lemma, not H or supported language. No provider
+body is selected: the recorded singleton has a formal callback but no
+implementation of its actual future provider.
 
 **Conditional algebraic fact:** given the emitted ordered operations, composing
 PUSH_i({E}) with POP_i cancels that ID's unit count. A POP_i does not modify the
@@ -249,6 +251,14 @@ global export observation bridge separate. Another checker supplied with
 PUSH/POP rules would leave these premises untouched.
 
 ## 7. Evidence, resources and omissions
+
+Independent `compiler_referee` review found no blocking or major issue and one
+minor scope clarification: the direct local pairing lemma must exclude effect
+wildcards anywhere in the callable annotation, because the actual predicate
+guard is whole-annotation. The hypothesis above now states that guard exactly.
+The recorded `() -> [E] ()` spine is unchanged. This repair narrows only the
+local derivation's hypotheses and does not narrow H or the supported source
+domain.
 
 Checks: bounded source/document `cat`, `rg`, `sed`, `nl`; pinned Oracle
 `git show` and `git grep`; sequential `git rev-parse <SHA>:<path>` blob census;
