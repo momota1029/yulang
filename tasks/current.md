@@ -13632,3 +13632,16 @@ presentation and source/base construction for an exposed positive R atom;
 prove its source-provenance readout or identify the exact missing constructor
 premise, then continue to any unmatched complete-envelope/equation conjunct.
 No compiler code, tests or builds changed or ran.
+
+### 2026-10-13 negative FormalAnnotation source-owner audit
+
+The bounded [negative FormalAnnotation source-owner audit](../notes/progress/2026-10-13-negative-formal-source-owner-falsification.md)
+found no inspected Y3 route that supplies the authentic composed-negative
+concrete formal application with its eligible contribution incidence, or an
+existing live consumer that installs the joint residual operation. It is a
+bounded source characterization, not a source-wide absence theorem,
+counterexample or proof of hygiene. The matching [instance construction](../notes/theory/2026-10-13-negative-formal-annotation-instance-construction.md)
+likewise records only the missing original annotation derivation and its
+operational owners. Both artifacts remain unreviewed research checkpoints;
+the original H, complete Call, source correspondence and F5 gates remain
+OPEN. No code, tests or builds changed or ran.
