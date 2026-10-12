@@ -13372,6 +13372,28 @@ assuming a `Desc` for `C`: the missing item is its operand incidence and
 lawful telescope in the complete source relation, including whether that
 operand is shared across both genuine `g` use frames.
 
+A separate constructive pass now gives the conditional c1 tree: authentic
+`Name(f)` and `Name(y)` `Code-Result` derivations (each retaining its actual
+result node/port), followed by whole-argument `Carrier-Delay`, feed `Code-Call`
+only if the complete original Application input is supplied. `AppOrig_c1` is
+shorthand for that required input bundle, not a newly selected constructor.
+It includes the source telescope, complete check/reification origins, actual
+result/effect ports, provider-dependent suffix and future interfaces. Two
+independent reviews pass this conditional boundary after the result-port
+clarification. Even given that bundle, transport from the native Function
+demand, signed extrusion pairs and qualified equalities into the whole source
+clause under a lawful dependent map remains unproved. `OSig-Demand` and
+`OC-CallEff` consume already emitted Gen-Call-0 records; they do not fill this
+gap. No source rejection, failed-solvability result or C `Desc` is established.
+
+Independent architecture review found no genuine user-facing choice:
+generic source Call semantics and contextual placement are selected, but the
+exact source application instance and its typed action on the complete native
+operand tuple are absent. The next step is to construct that owner instance
+and its lawful whole-map interpretation, then apply the existing publication
+walk. Do not ask the user to choose among unproved mappings; reopen the choice
+only if the construction produces incompatible outcomes under approved rules.
+
 Accordingly the conditional `bool <: int` discriminator is still neither a
 source-qualified counterexample nor a source witness. Do not infer `K_g`,
 allocation, or frame transport from Value-SCC membership, native level, or row
