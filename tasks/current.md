@@ -128,6 +128,22 @@ admission implementation. Global H, complete Call, hygiene, soundness,
 principality and F5 cutover remain OPEN. See the [pinned transfer audit](../notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md)
 and [negative-formal derivation](../notes/theory/2026-10-12-negative-formal-source-proof.md).
 
+### 2026-10-12 contextual cycle finite-observer proof
+
+The reviewed [cycle-summary derivation](../notes/theory/2026-10-12-contextual-cycle-summary-proof.md)
+establishes the exact one-ID count images for the two approved source-cycle
+shapes and an extensional finite-continuation equality when observations factor
+through retained boundary tuples and lineage data. Its effective Presburger
+decision additionally requires an effectively represented sharing relation,
+or independent selections represented by shared DAG nodes. A fresh
+`compiler_referee` found one minor omission of that condition; the proof now
+states it explicitly. This does not establish authentic source attachment to a
+live PUSH relation, downstream POP/output correspondence, arbitrary mixed
+components, or certificate lifecycle correctness. The first source bridge
+remains open at attachment-to-live-PUSH construction. No compiler code or tests
+changed. The proof checkpoint `98f34a91d` is pushed; the association question
+and unrelated research drafts remain untouched and uncommitted.
+
 ## User objective and branch boundary
 
 The active user objective is to complete type inference and replace the F5

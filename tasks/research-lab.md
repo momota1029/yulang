@@ -645,3 +645,21 @@ metadata was unavailable, with configured defaults Sol/high. No Astra. Pinned
 source workers read Git objects but made no Git mutations; primary performed
 the research checkpoints. The two pre-existing dirty theory drafts remain
 untouched; the new question directory is intentionally unstaged/uncommitted.
+
+### 2026-10-12 contextual cycle summary derivation
+
+| Assignment | Method / lease | Result |
+| --- | --- | --- |
+| `context_cycle_prover` | Constructive one-ID count-image and finite-DAG observation derivation; `notes/theory/2026-10-12-contextual-cycle-summary-proof.md` only | Frozen; exact PUSH-only and nested POP/PUSH images, conditional extensional continuation equality, and live source-PUSH emission as the first missing premise. |
+| `context_cycle_review` | Fresh independent compiler-referee review of the frozen proof | No blocking/major findings; one minor missing effectiveness condition on sharing relation `J`, repaired in the artifact. Count images, factorized DAG argument and source obstruction confirmed; arbitrary components, full source/output and lifecycle unreviewed. |
+
+The extensional equality accepts any fixed grounded `J` used consistently on
+both sides. The effective Presburger construction is limited to effectively
+represented `J`, or independent selections with shared nodes represented
+directly. All 11 pinned dependencies matched at integration. `98f34a91d`
+contains only the research proof and is pushed. The source/output theorem,
+complete Call, effect hygiene, soundness, principality and production gates
+remain OPEN. Verification was documentary/static only: whitespace and
+dependency hashes; no builds, tests, probes, benchmarks or measurements.
+The next action is to ground the authentic annotation-to-live-PUSH constructor
+and consumer relation, not to expand the finite algebra model.
