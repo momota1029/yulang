@@ -13271,10 +13271,31 @@ does enqueue each invocation's own feedback and projection even when gamma
 cache reuse skips allocation. This is a bounded consumer difference, not a
 source-qualified hygiene counterexample, admission result, or proof of H.
 
-The minimal next proof obligation is the source-owned negative-attachment
-constructor and its authentic call/output or alias transport, preserving the
-same attachment instance and separate residual lineages. Keep concrete-formal
-admission, coupled preservation, complete Call, generalization, soundness,
-principality and F5 cutover OPEN. The notes used no tests, builds or compiler
-edits; Oracle evidence was read from immutable source objects at the recorded
-pin.
+The source/Call/output bridge is recorded in
+[`negative-formal source and residual boundary`](../notes/progress/2026-10-13-negative-formal-source-call-output-bridge.md)
+and passed independent `spec_auditor` and `compiler_referee` review; checkpoint
+`5628aba76`. `FormalAnnotation` is the earliest Y3 construction site, while
+negative paired generation remains unavailable in the inspected private
+candidate. Call/output wrapping does not create the authentic `Neg::Row`
+demand required to activate residual feedback. Oracle's same-ID feedback and
+exact-tail projection remain conditional on that independently formed demand.
+No source rejection, H counterexample, implementation authority, or parent-gate
+closure follows. Concrete-formal admission, coupled preservation, complete
+Call, generalization, soundness, principality and F5 cutover remain OPEN.
+No code or tests changed/run.
+
+### 2026-10-13 nested subtraction source judgment
+
+The exact operator-owner lookup found frozen-Oracle library evidence for
+integer subtraction (`-` through `Sub`, `std::int::sub`, and builtin
+`IntSub`). It did not establish the adopted scoped source judgment at the
+inner formal `b`. The original Source-Generalize and complete-Call rules
+require the actual declaration, complete operand telescope, selected
+method/provider and its world/effect relation, plus Call origins, entry and
+consumer ports; they do not select this overload. Current Y3 HIR retains
+operator spelling/fixity/range and lacks semantic imports. A bounded prover
+packet is now constructing the inner typed subtraction/Call judgment or
+identifying the exact first absent source premise. This is not source
+rejection. Guard/Branch, recursive-world closure, event transport, equality
+preservation, soundness, required principality, termination and F5 remain OPEN.
+No code or tests changed/run.

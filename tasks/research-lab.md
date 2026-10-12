@@ -730,12 +730,24 @@ follow-up.
 | `prove_nested_odd_even_intrusion` | Exact source-incidence and origin derivation; `notes/theory/2026-10-13-cross-level-odd-even-source-intrusion-proof.md` | `compiler_referee` PASS after a minor wording correction. O/E SCC and E/O origin are established from approved source rules; actual native integer-reference pairs qualify conditionally. Original `b - 1` typed Call input remains missing; no source success/refutation. Commit `c2aeac371`. |
 | `map_nested_odd_even_source_path` | Parser/HIR/solver owner audit; `notes/progress/2026-10-13-nested-odd-even-source-owner-audit.md` | `spec_auditor` and `compiler_referee` PASS. Inline and indented spellings have distinct current-carrier cuts, not language rejection; nested source origin and event endpoints are absent from inspected native records. Commit `3338f6492`. |
 | `prove_negative_formal_residual_hygiene` | Pinned Oracle residual emissions and indexed information-sufficiency derivation; `notes/theory/2026-10-13-negative-formal-residual-hygiene-proof.md` | `spec_auditor` PASS. Oracle owner emits each invocation's feedback and exact-tail projection, including cache hits; no attachment-to-independent-fiber license or native transport is proved. H remains OPEN. Commit `2e8e816a1`. |
-| `construct_negative_effect_source_owner` | Y3/Oracle annotation, Call and residual-owner crosswalk; `notes/progress/2026-10-13-negative-formal-source-call-output-bridge.md` | Frozen; independent review pending. `FormalAnnotation` is the earliest Y3 construction site, but negative paired generation is blocked and accepted Call/IF consume rather than generate the missing scoped negative-annotation→Row-demand judgment. |
+| `construct_negative_effect_source_owner` | Y3/Oracle annotation, Call and residual-owner crosswalk; `notes/progress/2026-10-13-negative-formal-source-call-output-bridge.md` | `spec_auditor` and `compiler_referee` PASS. `FormalAnnotation` is the earliest Y3 construction site, but negative paired generation is blocked and accepted Call/IF consume rather than generate the missing scoped negative-annotation→Row-demand judgment. Checkpoint `5628aba76`. |
 
-The nested example's exact `b - 1` operator/complete Call judgment is the next
-source proof owner; guard/Branch and recursive L4 remain separate. Effect work
-is narrowed to proving the authentic annotation-local contribution license and
-its actual delivery from source Call/output to Row demand, preserving alias
-identity and separate residual lineages. No effect source admission or code
-change is authorized by the current conditional Oracle result. Parent soundness,
+The exact `b - 1` source-owner lookup found the frozen Oracle integer
+subtraction declaration chain (`-` → `Sub` → `std::int::sub` → `IntSub`),
+but that catalogue and builtin lowering do not instantiate the adopted scoped
+source judgment at the inner formal `b`. The adopted Source-Generalize rules
+require the actual declaration, full operand telescope, effects, selected
+method/provider and complete Call/origin/entry/consumer evidence; they do not
+select this overload or supply its source/world witness. Current Y3 operator
+HIR retains spelling/fixity/range only and has no semantic imports. A bounded
+`prover` packet now owns the constructive derivation or exact missing-premise
+result for the inner typed subtraction/Call. This is not source rejection.
+Guard/Branch, recursive-world closure, source-event transport and parent
+soundness/principality/termination/F5 remain OPEN. No code or tests changed.
+
+Guard/Branch and recursive L4 remain separate. The next effect proof owner is
+the authentic annotation-local contribution license and its delivery from
+source Call/output to Row demand, preserving alias identity and separate
+residual lineages. No effect source admission or code change is authorized by
+the conditional Oracle result. Parent soundness,
 principality, natural progress, termination and F5 replacement remain OPEN.
