@@ -12359,3 +12359,35 @@ next owning gate is
 source-owned live attachment formation and its same-ID transport through direct
 and aliased Calls into output and residual consumers; keep dependent production
 implementation gated until that construction is authorized and proved.
+
+### 2026-10-12 cross-level `odd/even` native derivation and Yulang bridge
+
+The user's nested `odd/even` witness is now tracked in two bounded artifacts.
+The actual registered `prover` constructed a complete native integer-instance
+Simple-sub derivation for the corresponding fixed reference term in
+[the cross-level derivation](../notes/theory/2026-10-12-cross-level-odd-even-simple-sub-derivation.md).
+It accounts for all eleven Apps, the two polar extrusion pairs `(C,T,+)` and
+`(D,R,-)`, E's live graph freshening, outer replay, the computed recursive
+scheme graph, and simplification to `int -> bool`. A fresh independent
+`compiler_referee` review passed with no findings for that bounded calculation
+and its explicitly conditional qualification. This establishes that
+cross-level recursion can occur without same-level sibling definitions in the
+original native algorithm. It does not establish current Yulang source
+admission, overloaded operator/Branch elaboration, the actual extrusion
+event's E/O endpoints, equality preservation, principality, or the original
+inference theorem.
+
+The separate [Yulang source-construction bridge](../notes/progress/2026-10-12-odd-even-yulang-source-bridge.md)
+maps the intended nested lexical identities conditionally: distinct outer and
+inner `n` parameters, inner `odd` resolving to O, final `even` resolving to E,
+and the approved conditional source-reference cycle O↔E. An independent
+`spec_auditor` review passed with no findings. The exact indented body, If,
+infix operators and Bool still lack the inspected private carrier route; no
+parse or execution was performed. Existing Parent records retain type-copy
+facts but do not retain the approved event endpoint/value association for this
+source. The precise next gate is to construct that operator/Branch-to-native
+Call path with the actual event endpoints and produced pairs, while preserving
+complete Call/effect obligations. Both artifacts are checkpointed together at
+`944708509`; all source admission, intrusion-preservation, principality,
+soundness, complete Call/effect and F5 replacement gates remain OPEN. No
+compiler code or tests changed or ran.
