@@ -829,3 +829,29 @@ Call, effects, or scoped equality transport. Soundness, required principality,
 progress, termination and F5 remain OPEN. No implementation, tests, or build
 changed or ran. Next action is to construct the exact source argument
 `n_E - 1` and its complete operator Call under the actual source rules.
+
+### 2026-10-13 exact subtraction source-construction boundary
+
+The leased [prover source-constructor analysis](../notes/theory/2026-10-13-odd-even-source-subtraction-construction.md)
+and independent [operator-owner audit](../notes/progress/2026-10-13-odd-even-operator-owner-audit.md)
+both stop before claiming a source judgment. They identify the original
+`Γ_E;W_E ⊢ n_E - 1 : Comp(E_arg,T)` as the missing premise. The opt-in
+LocalSource route rejects infix tails before producing an Apply, but this does
+not reject infix expressions through every language route. The operator-chain
+reference is syntax-only; the inspected Reviewed/unapproved Call-introduction
+proposal delegates semantic typing to independent primitive/Call laws and
+does not choose subtraction's route. The candidate's literal Int/empty-effect
+bounds do not construct the original semantic judgment.
+
+The prover artifact's 13 source dependency hashes match its assigned baseline;
+its constructor and complete-Call boundaries passed fresh
+`compiler_referee` review with no findings. The operator-owner audit's minor
+claim was repaired to leave primitive-versus-Call introduction route-neutral,
+then passed delta review; its exact source claims also passed independent
+review. The audit's broad discovery captures exceeded the short-read intent
+and were truncated, as disclosed in the artifact; conclusions use its final
+narrow read. No code, tests or builds changed or ran. Next step: identify the
+actual selected operator-resolution/semantic introduction law and construct
+the source instance at `Γ_E,W_E`, retaining literal `1`, effects and the
+complete enclosing Call unchanged. The original inference and F5 gates remain
+OPEN.

@@ -13499,3 +13499,24 @@ recursive-let principality. No compiler code or tests changed or ran.
 Next evidence: construct the original `n_E - 1` argument and complete operator
 Call at their owning source rules, then check each actual extrusion pair and
 its transported complete clause before applying the bounded projection proof.
+
+The exact-source `n_E - 1` owner packet now separates two facts: the opt-in
+LocalSource path rejects this flat infix tail before constructing an Apply,
+while the language-wide original arithmetic rule remains uninspected. The
+syntax reference defines only operator-chain structure. Candidate Int literal
+bounds do not establish the source literal/provider contract or subtraction
+typing. An independent audit found the reviewed-but-unapproved original Call
+introduction proposal itself delegates semantic typing to independent
+primitive/Call laws; it does not choose whether subtraction is a primitive or
+a Call. A compiler-referee repaired and passed its route-neutral owner claim.
+The prover's construction attempt and separate compiler-referee review also
+passed within the bounded source-constructor scope. This is a missing source
+instance, not proof of global semantic absence or source rejection.
+
+The remaining source owner is the actual selected subtraction operator
+resolution/introduction law at `Γ_E,W_E`, including literal `1`; it must
+derive `Γ_E; W_E ⊢ n_E - 1 : Comp(E_arg,T)` before the enclosing complete
+`odd(...)` Call can retain it as the whole delayed argument. No `Int`, empty
+effect, provider, or Call route is assumed. The exact argument, all enclosing
+Calls/effects, intrusion transport, soundness, principality and F5 remain
+OPEN. No implementation or tests changed or ran.
