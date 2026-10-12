@@ -12132,3 +12132,11 @@ hashes, 10 Y3 direct dependency hashes, local links and whitespace passed
 static checks. Measurement samples remain zero. Complete argument-image
 preservation, source-qualified publication validity, H, complete Call,
 soundness/principality, intrusion construction and F5 replacement remain OPEN.
+
+The previously uncommitted choice-output proof appendix §11 has now passed a
+fresh independent `compiler_referee` review and its minor source-owner citation
+finding is repaired. It establishes the actual shared centerless merge-key
+collision and the joint tuple/substitution image, but not that skipped weighted
+comparisons are discharged by the native filter/call/replay constructors. The
+exact remaining judgment and source owners are in §11; the fixture theorem and
+H remain OPEN. No compiler code or test expectation changed.

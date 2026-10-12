@@ -845,3 +845,214 @@ compact/generalized bytes establish the missing result observation, not
 semantic compatibility or preservation. They now permit the original proof
 owner to derive the actual tuple/substitution/support correspondence. Actual
 definition publication/fresh use and the original universal H remain OPEN.
+
+## 11. Complete joint image, actual merge omission, and native remainder
+
+Status: **independently reviewed bounded source/consumer bridge**, not the original fixture
+theorem or its refutation. Baseline `67830dce1`; Oracle pin unchanged. The
+statement, original scopes/binders, hypotheses, required four-coordinate/check
+conclusion and exclusions are exactly §9's frozen statement. Universal H,
+complete Call, soundness, required principality and future-use obligations
+remain unchanged. §§1–10 are preserved.
+
+This pass uses only the partitioned log and complete objects in §10, under the
+reviewed `2f5aebb…` passive patch. The five object lengths/hashes were rechecked;
+the partial iteration-2 merge input and truncated support/frontier tails remain
+excluded. A bounded structural decoder consumed each complete object's entire
+Debug value. Its key-collision result was separately checked against all 156
+literal key strings. This is static artifact inspection, not a solver probe or
+proof of the decoder's source assumptions.
+
+### One actual four-coordinate image and shared substitution
+
+The complete iteration-1, iteration-2 and selected-root CompactRoot **values
+are structurally identical**; their event headers differ. Each has precisely
+one concrete parse row in p's callback return, q's callback return and the
+unit return. The unit is reached through the actual p Function's return,
+then q Function's return, then unit Function's `ret_eff`; no unrelated return
+is selected. Native B's four Value coordinates TV81–84 occur in order in this
+unit row's four intervals. The lower sides carry Set(parse,Neu16–19) and
+POPs0/3/6; upper sides are unweighted. These are simultaneous occurrences in
+one whole root, not independently selected witnesses.
+
+The complete generalized object records **one shared substitution**:
+
+```text
+TV81 -> TV28; TV82 -> TV29; TV83 -> TV30; TV84 -> TV31.
+```
+
+Its p/q callback parse rows contain the ordered intervals
+`[TV28,TV29,TV30,TV31]`, with unweighted lower/upper occurrences. Its same
+unit-return parse row has those same four ordered lower variables under
+Set(parse,Neu16–19), no stack entries, and unweighted upper variables. The
+retained ParseError role has one invariant TV29 input; quantifiers are
+TV26/28/29/30/31, and stack quantifiers are empty. Thus the actual exported
+*structural* coordinates and role coordinate are now known jointly.
+
+These observations have real consumers. `generalize/simplification.rs:100–151,
+164–187` rewrites constructor arguments and all Function ports through the
+same substitution map; `155–161` combines weights only after variable targets
+coincide. `generalize/mod.rs:176–241` chooses actual quantifiers and removes
+unquantified stack IDs; `core/prune.rs:504–555` preserves the row key while
+traversing its four interval arguments. This explains the recorded structural
+transformation. It does not prove that the chosen variable identifications,
+removed stack entries or retained filter handle have the required original
+check/future-use meaning. A map recorded *after* simplification cannot justify
+the earlier comparisons that simplification assumes.
+
+### Exact source-derived pair set and memo effect
+
+The complete iteration-1 input contains 156 ordered constraints. Every operand
+is a variable-only Interval accepted by `surface.rs:398–438`. Applying the
+actual helper's two Cartesian products, distinct-pair deduplication and self
+exclusion gives four disjoint native sets:
+
+| Coordinate | Native variables appearing in its operands | Distinct helper pairs |
+| --- | --- | ---: |
+| item / TV28 | 28,54,74,81,101,108,129,148,155,185,189,194,198,202 | 182 |
+| err / TV29 | 29,55,75,82,98,102,107,119,123,130,145,149,154,164,186,190,193,199,201,205 | 342 |
+| pos / TV30 | 30,56,76,83,103,109,131,150,156,187,191,195,200,203 | 182 |
+| snap / TV31 | 31,57,60,77,84,104,110,128,133,151,157,188,192,196,197,204 | 240 |
+
+There are 39 constraints per coordinate. In every constraint, lower/upper
+variable **sets** match those of its coordinate's first constraint, although
+weights and occurrence order vary. For err, 119 and123 occur only on the lower
+sides; the upper sides contain the other18 variables. Its 342 pairs are the
+20-by-18 product minus18 self pairs. The other three coordinates give the
+full distinct-pair products of sets of14/14/16 variables. Total:946 distinct
+bare pairs. This enumeration is an exact finite characterization of the actual
+complete operands; it does not assume their compatibility.
+
+The decisive previously unseen consumer is the merge **memo key**. All156
+constraints have exactly the same key:
+
+```text
+CompactMergeConstraintKey {
+    lhs: Interval { center: None }, rhs: Interval { center: None }
+}
+```
+
+This follows directly from `compact/merge/mod.rs:27–43,89–113`: a multi-variable
+interval has no single center, so its key retains neither variable IDs nor
+weights. The actual item/err/pos/snap source coordinates therefore collide.
+`surface.rs:347` inserts this key into the shared applied set before invoking
+the direct/ordinary branch. `analysis/session/generalize.rs:49` starts that
+set empty for this invocation. Consequently the first156 root constraints
+process **only index0 (item,182 pairs)**; indices1–155 are skipped by key reuse.
+Role collection may append later tasks to this same set; it cannot retrospectively
+make this earlier skip an err/pos/snap comparison. These claims are derived
+from complete ordered inputs and the real control flow, not from absence of
+trace events. Nothing is inferred about the partial iteration-2 vector.
+
+This is not a fixture counterexample. The skipped consequences might already
+follow from the native filter/call constraints, or be authentically represented
+by the returned contract. What is refuted is the proposed *justification*
+that collecting all four vectors, recording156 constraints or draining one
+processed coordinate proves that all four generated tasks were activated.
+The original theorem did not assume that shortcut.
+
+### Actual native proof attempt and exact remaining judgment
+
+Native filter formation supplies genuine relevant facts:
+`row_effect.rs:925–934` generates paired comparisons of actual family/filter
+arguments with empty weights, including B's beta/filter comparisons when its
+registered check runs. It calls `row_effect.rs:71–86`'s
+`enqueue_row_invariant_args`, which emits both directions through
+`entry.rs:1617–1701`'s `enqueue_row_derived_subtype` admission path;
+`propagate.rs:104–129` accumulates their Var lower and upper bounds. Opposite
+replay at `bounds.rs:3452–3473` retains the real parents, composes the actual
+weights and submits the replay constraint. This is the constructional route
+to proving that each coordinate's required comparisons are already justified.
+
+However, the complete compact operands do not provide that native derivation.
+In particular, `collect/mod.rs:964–1009` can emit an unweighted negative alias
+from a native bound having pop-only context, so a plain upper occurrence in
+the complete Debug value does not certify an empty-weight native edge. The err
+lower-only119/123 cases must follow their actual call/provider route; they
+cannot be replaced by a symmetric20-variable equality class. The generated
+substitution's identification of them with29 does not supply those missing
+source premises.
+
+The alternative prior-canonical route is grounded but narrower. For the actual
+prepass direct call at epoch3178, `changed=false` plus append-only occupied/
+vacant admission (`entry.rs:676–699,1092–1118,1357–1424`) implies no new
+canonical bare pair key was added by that call. Hash-consing at
+`poly/types.rs:676–692` fixes the exact Var endpoint IDs. The occupied branch
+can add root origins and projection carriers; `bounds.rs:2373–2555` shows
+these operations explicitly. Projection publication evaluates inclusion and
+invalidates affected owners (`constraints/mod.rs:2119–2150,2356–2375`), and
+3178 is below the epoch saturation boundary (`339–356`). This rules out
+claiming a newly added type constraint merely because a weighted operand was
+seen. It does **not** establish the original source origin, activation or
+weighted observation meaning of the previously stored keys. Moreover, this
+prepass's full operands are still truncated; it is not the complete3352 input.
+Matching prefixes or numeric IDs cannot identify their entire pair sets.
+
+Both methods therefore stop at the same precise native judgment: **for the
+actual four ordered coordinate classes above, the original filter and complete
+call/role constructors and their retained replay clauses must discharge (or
+correctly represent) every skipped weighted comparison and the actual direct
+bare relations, while retaining B's check-compatible unit-return contribution
+under the observed shared substitution and stack cleanup.** The first omitted
+owning justification is at the multi-variable merge-key reuse/weighted direct
+consumer; its necessary native witnesses belong to filter comparisons, the
+119/123 error-call route and qualified replay, not the compact image alone.
+No wrong final scheme, alternative provider or source-qualified contradiction
+was established.
+
+Economy audit after these two different methods: independent B survival and
+joint ordinary annotated inference remain A/B. Reconstructing native weights,
+parents and admission from a compact alias or centerless key is D: the bound,
+collector and comparison constructors already know those facts. The next
+useful action is a native proof of the exact directional class saturation and
+weighted/check consequences above, using the source filter/call/replay owners;
+another complete final-image dump or count lemma leaves that premise untouched.
+No new semantic layer, arbitrary pre-intrusion fiber requirement, empty-weight
+restriction, source-domain narrowing or proof-status change is adopted.
+
+### Freeze and commit packet
+
+Only §11 was appended. Pinned source reads/searches, bounded static decoding,
+object length/hash rechecks and leased-note whitespace checking ran. No
+compiler execution, build/test, solver probe, measurement, network request,
+Git mutation, delegation or other path write ran. At most two light read
+processes; this pass used sequential reads. CPU/RSS were not instrumented;
+20-minute assignment bound retained. Requested Sol/high; observed runtime
+settings unknown. A fresh independent `compiler_referee` review found no
+blocking or major issue and one minor citation mismatch; this repair replaces
+the root-invariant citation with the actual row-invariant owner and extends the
+replay citation through weight composition and replay admission. The substantive
+paired-comparison claim was confirmed. See the review summary below.
+
+- Lease: this note only; writes stop at handoff. Preserved §§1–10 SHA-256:
+  `a89d697897a230e2690abd90fb154650c0bdec99715023eb9ceebc02fcd1ff39`,
+  equal to its baseline67830dce1 bytes.
+- Baseline: `67830dce1`; Oracle pin above. §10 partitioned objects retain
+  their recorded hashes. No dependency edited.
+- New pinned source hashes: `compact/merge/mod.rs`
+  `272b2ad1609a2e5fe8e17ca9f7924cd2211cb1196a72f94d6118f70d1d886569`;
+  `generalize/simplification.rs`
+  `13936efe8423630581ccf7f813ee9b3fcc82ca2cbba4a7fd9284fc741b53536a`.
+- Claim/review: exact joint structural image, actual pair/memo consumer and
+  native obstruction, independently reviewed after the citation repair;
+  original theorem/refutation not established.
+- Proposed checkpoint: `research: map complete choice tuple and native merge omission`.
+- Shared-record delta for primary/curator: record the one shared four-coordinate
+  output/substitution bridge and the actual centerless-key omission with its
+  exact native remainder. Keep fixture hygiene/H, complete Call, principality,
+  soundness, future-use and production gates OPEN; no shared records edited.
+
+### Independent review and repair
+
+The fresh `compiler_referee` review independently decoded the complete objects
+and confirmed the joint row image, shared substitution, all 156 memo-key
+collisions, the four exact pair sets, and index-0-only activation. It found no
+blocking or major issue. Its minor finding was that the first draft cited the
+root invariant helper instead of the row filter's actual invariant helper and
+stopped the replay citation before composition/admission. The repair above
+traces `row_effect.rs:927–933` through the two-direction row helper and its
+row-derived subtype admission, and cites lower replay through `bounds.rs:3473`.
+The reviewer
+confirmed the substantive claim; it did not reprove §§1–10, reconstruct
+truncated native support, establish future-use/publication, or prove/refute the
+original fixture theorem, H, soundness, principality or complete Call.
