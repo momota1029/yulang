@@ -12974,3 +12974,42 @@ execution probes or compiler edits ran. Next gate: prove the exact source-owned
 certificate and representative-consuming constructor/read bridge, or isolate
 the first premise that prevents its construction; do not reopen the completed
 finite calculation without contradictory evidence.
+
+### 2026-10-12 quotient solution correspondence and source-allocation boundary
+
+The finite algebraic claim in
+[`quotient solution correspondence`](../notes/theory/2026-10-12-quotient-solution-correspondence-proof.md)
+is independently reviewed: for the explicitly defined finite sorted store,
+solutions of the quotient correspond exactly to solutions of the original
+store satisfying all selected coordinate equalities. This is faithful
+representation of equality, not preservation of arbitrary old solutions or a
+source-principality theorem. The reviewer verified the lift/descent maps,
+Function ports, nested Value/Effect coordinates, tagged bound occurrences and
+separate provenance identities.
+
+The companion
+[`quotient/source allocation falsification`](../notes/progress/2026-10-12-quotient-solution-correspondence-falsification.md)
+also passed a fresh `compiler_referee` review. It found no new
+source-qualified counterexample and isolates the missing bridge: the actual
+source construction must supply `p_g`, the registered validating component
+`K_g`, the typed edge for recursive `f`, `g`'s parameter declaration/telescope,
+and the complete scoped clause for the actual extrusion/equality. That
+construction-owned record must determine the fixed/template classification
+and the allocation/freshening behavior under Source Generalize. Neither Value
+SCC membership nor a native numeric level supplies it.
+
+The existing correlated-helper witness is not counted again. Its rejection
+under a shared fixed anchor remains conditional on the missing publication
+classification. Source interpretation, lawful full allocation, operational
+replay, complete Call/effects, original soundness, required principality,
+normal progress, termination and F5 replacement remain OPEN. The approved
+nested extrusion-origin answer is already integrated in commit
+`c0b67771d`; it selects the enclosing source-owning definition root without
+closing any preservation proof.
+
+Next proof action: construct the actual publication registration/dependency
+record for the existing nested helper at its owning source constructors and
+apply the Source Generalize fixed-closure/allocation rules to that record.
+Do not substitute another flat quotient calculation or numeric-level
+argument. No compiler code, tests, builds, executable probes or design
+authority changed in this step.
