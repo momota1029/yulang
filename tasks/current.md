@@ -43,6 +43,29 @@ requested Sol/high, with observed model/effort unknown. L4, Call, inference,
 intrusion, effects, and F5 replacement remain OPEN. No compiler code or tests
 changed.
 
+A second, distinct constructive attempt is frozen in
+[nested recursive-f postfixedness](../notes/theory/2026-10-12-nested-recursive-f-postfixedness-proof.md),
+checkpointed at `680210543`. The actual registered `prover` worker
+`/root/nested_f_postfixedness_proof_retry1` constructed an event-indexed
+candidate relation and expanded the `drop` body/entry without using ordinary
+recursive-f membership as an axiom. It isolates the first unconstructed
+source-checking step: Application `c` needs an authentic finite complete
+Function comparison transporting the same whole-carrier admission from
+`F_c` to `f`'s actual `A_f` entry and deriving the observation map from the
+original local checking constructors. The note also gives a bounded raw
+structural argument against finite Return for the supplied recursive source
+branch, conditional on its stated operational equations. Neither result proves
+the original `H_f` postfixedness or refutes source acceptance. The artifact's
+ten semantic dependency hashes match both the frozen note and baseline
+`988ef4ae1`; whitespace and local links pass. A fresh independent
+`compiler_referee` worker `/root/nested_f_postfixedness_review` reviewed the
+artifact with PASS and no blocking, major or minor correctness finding. Its
+review explicitly leaves compiler correspondence, full postfixedness,
+independent background embedding and parent theorem closure OPEN; effective
+review model/effort are unknown. Requested Sol/high; effective prover model and
+effort are unknown. L4, complete Call, inference, intrusion, effects, and F5
+replacement remain OPEN; no code or tests changed.
+
 ## 2026-10-12 completed Oracle document-audit slice
 
 The user directed a documentary audit of Oracle historical inference designs,

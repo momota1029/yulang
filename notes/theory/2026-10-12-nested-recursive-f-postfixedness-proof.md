@@ -1,7 +1,7 @@
 # Nested recursive f: direct postfixedness attempt
 
 Date: 2026-10-12
-Status: frozen unreviewed research; conditional clause derivations and a local obstruction
+Status: frozen research; conditional clause derivations and a local obstruction, independently reviewed within the bounded claim
 Original L4 / complete Call / inference A/B gates: OPEN
 Primary-issued baseline: `988ef4ae1`
 Primary-issued branch: `research/simple-sub-intrusion`
@@ -380,8 +380,13 @@ Observed worker identity: `/root/nested_f_postfixedness_proof_retry1`.
 Effective model/effort runtime metadata: **unknown**. The inspected config
 registers prover, defaults to gpt-6.1-sol/high for subagents, and omits prover
 model/effort pins; these are configuration facts, not execution evidence.
-No Astra, hot reload, delegation or independent review is claimed. The
-yulang-proofs skill was applied under the explicit leaf-only assignment.
+No Astra, hot reload or delegation is claimed. A fresh independent
+`compiler_referee` worker `/root/nested_f_postfixedness_review` reviewed the
+frozen artifact and reported PASS with no blocking, major or minor correctness
+finding; its effective model/effort are unknown. The review did not assess
+compiler correspondence, full postfixedness, independent background embedding
+or parent theorem closure. The yulang-proofs skill was applied under the
+explicit leaf-only assignment.
 
 Frozen current semantic dependency SHA-256 snapshots, rechecked at handoff:
 
@@ -411,7 +416,7 @@ Commit packet:
 - Exact leased path: `notes/theory/2026-10-12-nested-recursive-f-postfixedness-proof.md`.
 - Baseline SHA supplied by primary: `988ef4ae1`.
 - Changed dependency hashes: none between the before/after snapshots.
-- Claim/review status: frozen unreviewed candidate coalgebra, conditional
+- Claim/review status: independently reviewed candidate coalgebra, conditional
   source-clause derivations and bounded raw-operational argument; original
   H_f postfixedness and parent gates OPEN. No source-qualified falsifier.
 - Checks already run: static source/constructor reads, dependency hashes,
