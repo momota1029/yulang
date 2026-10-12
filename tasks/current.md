@@ -12775,3 +12775,25 @@ minimal cross-level `let rec`/Lambda/App term using only the original
 Simple-sub grammar; it must preserve the approved Value-reference and
 occurrence-qualified intrusion rules and does not stand in for the full
 Yulang source bridge.
+
+### 2026-10-12 Cross-level recursive core and intrusion boundary
+
+The bounded original Simple-sub term in
+[`cross-level recursive SCC core proof`](../notes/theory/2026-10-12-cross-level-recursive-scc-core-proof.md)
+was derived through both recursive publication boundaries, fresh uses and the
+stock final interface `Top -> Bot`. A direct Fig. 3 typing and fixed-term
+principality argument were independently reviewed against Fig. 10 and the
+reference Scala; the `compiler_referee` found no blocking, major or minor
+finding. This proves only this term's stock interface, not the intrusive
+transition or the general parent theorem.
+
+The nested call has origin E and receiver O in the approved Value-reference
+graph. Its two actual extrusion pairs `(C,B,+)` and `(D,R,-)` jointly qualify;
+the outer call creates no further extrusion. The unmodified reference solver
+has no consumer that applies the mixed-level equalities and carries them
+through pending comparisons/cache state, levels, inner publication and
+fresh-use. No intrusive continuation was assumed. The artifact is committed
+and pushed at `623491760`. Next is the exact live equality-consumer and
+continuation proof for this event; source correspondence to the full Yulang
+example, complete Call/effects, general preservation and all original parent
+gates remain OPEN. No compiler code, tests, builds or probes changed.
