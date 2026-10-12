@@ -13334,14 +13334,25 @@ concrete contribution. Operation `Support` retains source identity but does
 not mint such a contribution; the selected residual policy still requires
 separate per-lineage current/future fanout.
 
-The exact semantic dependency is an authentic original negative governed-port
-annotation rule with attachment-local permission that preserves independent
-same-family contributions. Evidence must be correlated at the original scope
-and distinguish licensed subtraction from independent siblings, but it may
-retain complete fibers symbolically: no particular `Gamma_ann` record,
-per-witness table, or construction allocation has been selected. An independent
-spec review corrected this boundary; a clean delta review confirms the narrowed
-wording. The authentic source consumer and reached `Neg::Row` demand remain
-separate open obligations. This is not source rejection or an H refutation.
-Annotation admission, alias transport, H, soundness, principality and F5 remain
-OPEN. No implementation or tests changed/run.
+The selected policy already fixes the semantic rule: resolved concrete `E` at
+an actual composed-contravariant Function effect port permits function-local
+subtraction at that boundary, while an independently attached same-point
+contribution survives that subtraction. Authority follows the source
+annotation and governed position, not equality of families, rows, values or
+SCCs; symbolic variables and later concrete checks remain. Independent
+`architect` analysis and `compiler_referee` review found no remaining semantic
+choice and no representation mandate. This is a direct policy corollary, not a
+new rule.
+
+The remaining gate is exact source-to-consumer correspondence: construct the
+resolved governed port and source contribution/attachment incidence; transport
+that same relationship through actual Calls, outputs, propagation,
+freshening/extrusion and qualifying intrusion; then establish that the authentic
+residual consumer reaches `Neg::Row` with its concrete heads, exact tail and
+separate constructor lineage, preserving an independent sibling and applicable
+current/future lowers. `L-Annotation`/`A-Annotation`/`SF-Annotation` consume
+these source premises rather than constructing them. `FormalAnnotation` is
+only the current executable seam after HIR/preflight. No source rejection, H
+refutation/closure, admission, or implementation follows. Alias transport,
+global H, soundness, principality and F5 remain OPEN. No implementation or
+tests changed/run.
