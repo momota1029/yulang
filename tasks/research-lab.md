@@ -821,6 +821,16 @@ rejected draft theories are not added as redundant repository proof notes.
 | `falsify_odd_even_intrusion` — [`independent projection and countermodel check`](../notes/progress/2026-10-13-odd-even-intrusion-falsification.md) | Independently derives finite multi-use projection elimination; raw old private valuations are not preserved, and a one-polar mutation shows the boundary of the theorem. It constructs no exact-source counterexample. |
 | `review_odd_even_intrusion_proof`, `review_odd_even_intrusion_falsification` | Both compiler-referee reviews PASS with no BLOCKING, major or minor findings within their finite claim scopes. |
 
+The read-only ordinary-route map for the exact `n_E - 1` boundary confirms
+that syntax association can form `HirExpr::Apply` with spelling/fixity/range,
+but the current ordinary semantic lowering accepts leaf Values and reports
+dynamic Apply unsupported. The F5 Lambda route is likewise restricted to
+integer or resolved/parameter-name bodies. The Authoritative HIR design
+excludes semantic resolution, while method selection remains an open gate.
+This is a bounded current-route construction gap, not global absence, source
+rejection or a user-facing choice. Other historical/source routes and actual
+imports remain unverified; the original scoped argument judgment stays OPEN.
+
 The original nested-call event is qualified by approved source endpoints `E`
 and `O` in their Value SCC; the retained actual argument/result pairs are
 equated. The conditional finite algebra does not prove the exact source's
