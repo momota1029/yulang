@@ -66,6 +66,40 @@ review model/effort are unknown. Requested Sol/high; effective prover model and
 effort are unknown. L4, complete Call, inference, intrusion, effects, and F5
 replacement remain OPEN; no code or tests changed.
 
+The next bounded `Application c` proof slice is checkpointed in
+[the source-constructor bridge](../notes/progress/2026-10-12-application-c-source-bridge.md)
+at `7d2325caf`, and [the finite-checking reduction](../notes/theory/2026-10-12-application-c-finite-check-proof.md)
+at `b7b59c05a`. The source bridge traces the conditional LocalSource/HIR and
+candidate route: c retains actual local f/y names and native Function demand
+provenance, but no authentic finite D/P proof or same-carrier map to actual
+`I_x` is supplied. Its independent `compiler_referee` review passed within the
+constructor-mapping scope; exact-byte reachability, exhaustive admission,
+production routes and baseline equality remain unverified. The actual
+registered `prover` then conditionally derived `ActualAdm` from authentic
+Entry-Value inversion plus a same-carrier admission and original guards, with
+no `H_f` or ordinary f membership. It confirmed that `WholeArgCompatible(J_y,
+F_c)` has the wrong operand/direction for D; the actual D tree and its
+S-indexed P children remain OPEN. Independent `compiler_referee` review passed
+for that bounded reduction. Both artifacts preserve original quantifiers and
+do not show source rejection or impossibility. H_f, L3-at-c, L4, complete Call,
+inference, soundness/principality and F5 remain OPEN. No code or tests changed.
+
+For the independent effect lane, the actual registered `prover` artifact
+[live attachment through Call and residuals](../notes/theory/2026-10-12-live-attachment-call-residual-proof.md)
+is checkpointed at `639841c32`. It reuses, rather than repeats, the reviewed
+empty-operation-word obstruction and negative preflight evidence; the first
+missing constructor remains live attachment emission at
+`candidate_signature_view -> source_weight`. It also proves only a bounded
+within-use fresh-map fact: same-key endpoint views are reused, and payload
+reuse/metadata transport is conditional on a source `LocalWeight` existing.
+An independent review first found that the claim incorrectly included
+payload-less Support/Allowance views; the primary corrected the quantifier and
+the same reviewer delta-reviewed it with PASS. The result does not establish
+source emission, complete capture, Call/provider incidence, output survival,
+residual activation or Oracle H. The approved §6 source scope is unchanged;
+effect hygiene, complete Call and F5 remain OPEN. No compiler code or tests
+changed.
+
 ## 2026-10-12 completed Oracle document-audit slice
 
 The user directed a documentary audit of Oracle historical inference designs,
