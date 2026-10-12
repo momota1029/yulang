@@ -189,15 +189,34 @@ contravariance supplies no `bool <: C`. A regular-type assignment satisfies
 the displayed native constraints and both selected equalities. This only
 refutes that attempted contradiction; it does not prove all typings survive
 or that principal schemes are preserved. One `compiler_referee` reviewed the
-artifact and passed the bound claim. The full equality-preservation proof is
-being constructed independently, with a separate adversarial lane.
+artifact and passed the bound claim.
 
-Next: complete the original-scope preservation/refutation attempt, then
-construct a preserving nested-definition registration law from the existing
-Source Generalize authorization and independently review it. Do not derive a
+The separate native equality-lift proof now derives a local diagonal
+valuation directly from `extrude`: every actual polar copy is assigned its
+parent's type, satisfying old bounds, same-invocation opposite-polar links,
+selected parent/copy equalities, and the rewritten comparison when the
+original demand is satisfied. Native approximation links also imply the
+original comparison in every satisfying interpretation. A first independent
+review found that recursive extrusion may copy a parent link inserted earlier
+in the same invocation; the repair now proves this case explicitly, including
+`Function(a,a)`, and a fresh delta review passed. The proof remains local to
+native constraints. It does not establish a source-admissible lift across
+fixed dependencies, scopes, or independent generalized frames, and it does
+not prove source preservation or principality.
+
+An independent design pass also isolated the unresolved registration output
+at nested publication: `K_g(h)`, the whole `N_g(h)`, the typed inherited-f
+edge, and B's original telescope. The existing Source Generalize constructors
+consume but do not generate these records. A bounded constructive pass is now
+testing whether source formation uniquely determines the live-root capture
+and allocation behavior, without treating the Value SCC as `K_g`.
+
+Next: settle the complete nested live-root registration/allocation derivation;
+then apply it to the correlated helper's independent uses and decide whether
+the local diagonal lift extends at the original source scopes. Do not derive a
 registration component from Value SCC membership alone. Keep complete `Q_c`,
-L4, allocation, soundness, required principality, Call/effect hygiene,
-termination and F5 OPEN.
+L4, allocation, source-wide soundness, required principality, Call/effect
+hygiene, termination and F5 OPEN.
 
 ## 2026-10-12 agent-dispatch capacity retry correction
 
