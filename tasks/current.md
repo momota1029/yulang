@@ -11744,10 +11744,14 @@ No tests, builds, Oracle execution, or Yulang3 implementation changes occurred.
 
 The next proof owner is the actual source/copy-content constructor and its
 transport through polarity-specific extrusion; continue only from an authentic
-creation-to-SCC trace. In parallel, the same-family Oracle effect lane is
-trying to establish the actual B-bound-to-compact/generalized/use image for its
-unchanged H scope. Complete Call, effects, ordinary source correspondence,
-soundness, principality and F5 replacement stay OPEN.
+creation-to-SCC trace. The same-family Oracle effect lane has now derived a
+bounded B-origin positive image from the actual included `b_R` endpoint through
+compact collection, generalization, publication/copy and the outer Call. The
+artifact is committed at `daf140cb5`, but its independent review remains
+pending. It does not close H: attachment/residual identity, arbitrary variable
+rewrites and current/future checks remain OPEN. Complete Call, effects,
+ordinary source correspondence, soundness, principality and F5 replacement
+stay OPEN.
 
 ### 2026-10-12 copied-row incidence decision integrated
 
