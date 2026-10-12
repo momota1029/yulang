@@ -11907,6 +11907,48 @@ bounded frontier stream followed by proof/source work on its actual operands
 and support cone. The universal theorem and returned-image gate remain OPEN;
 two exact passes do not close them. Do not repeat either unchanged capture.
 
+### 2026-10-12 source-qualified joint-image proof resumed
+
+The separate observation streams passed one narrow independent
+`compiler_referee` delta review: support has a 12,000-event budget and
+source/collector/merge/root observations have a separate 2,000-event budget,
+each with the existing 8,192-byte buffer and explicit stream-specific caps.
+The actual solver operations and support hooks remain unchanged. Current
+prototype SHA-256 is
+`b2f6de7e1dd550596d6b6c44ce64fa3f26568fdfe3742641e087258892ffe66f`.
+Primary's unchanged bounded compile passed in 13.65 seconds; the exact existing
+fixture passed in 17.16 seconds (one passed, 1,392 filtered out). No broad suite
+or performance sample ran.
+
+The frozen isolated log `research-logs/choice-runtime-streams.log` has SHA-256
+`47d14c23e9d994998a702c39ade7ad33058f30f49a04349a2f4bed30b28e5ed9`.
+This time it reaches real weighted neutral conversions, 30 coexistences,
+156 merge-consume observations and one direct-merge before/after pair. Both
+event streams still truncate, and 261 frontier lines truncate separately.
+Choice `DefId(7)`/`TypeVar(22)` starts its first recorded root iteration at
+epoch 3352 before the frontier event cap. Neither absence after a cap nor a
+partial compact value establishes preservation, compatibility or rejection.
+Use `(stream,event)` only as a local observation identity; correlate native
+IDs, weights, epochs and physical output order rather than equal numeric
+event counters.
+
+Primary actually launched `choice_joint_image_source_proof` with the registered
+`prover` role, requested `gpt-6.1-sol`/high; runtime metadata beyond the tool
+launch is unavailable. Its original claim is preservation of the independent
+B contribution and jointly scoped four-coordinate/check image through the
+actual source-emitted invariant comparisons, projection changes, recollection
+and final output, including the role demand. It must discharge premises at
+their source constructors and preserve the original conclusion. The full H
+scope remains OPEN. A separate read-only researcher maps the new actual
+tuple/merge owners and missing evidence; it does not duplicate the constructive
+projection-clause induction.
+
+The prover exclusively owns the existing choice proof note while writing §9.
+Its §8 prototype metadata synchronization is deferred until that lease freezes;
+this entry records the current code/checkpoint accurately in the meantime.
+The primary remains owner of this parent gate, interpretation and integration.
+This is not F5 cutover or production solver adoption.
+
 The reviewed proof checkpoint's artifact hash, 29 pinned Oracle dependency
 hashes, 10 Y3 direct dependency hashes, local links and whitespace passed
 static checks. Measurement samples remain zero. Complete argument-image

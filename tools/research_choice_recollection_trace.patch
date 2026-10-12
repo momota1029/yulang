@@ -1,5 +1,5 @@
 diff --git a/crates/infer/src/analysis/session/generalize.rs b/crates/infer/src/analysis/session/generalize.rs
-index fbf8473ae..63e80d88a 100644
+index fbf8473ae..46221c406 100644
 --- a/crates/infer/src/analysis/session/generalize.rs
 +++ b/crates/infer/src/analysis/session/generalize.rs
 @@ -59,12 +59,21 @@ impl AnalysisSession {
@@ -7,7 +7,7 @@ index fbf8473ae..63e80d88a 100644
              self.timing.record_generalize_iteration();
              let compact_epoch = self.infer.constraints().epoch();
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "root-iteration def={def:?} root={root:?} iteration={generalize_iteration} epoch={compact_epoch:?}",
 +            ));
              if let Some(shadow) = self.generalize_compact_shadow.as_mut() {
@@ -17,7 +17,7 @@ index fbf8473ae..63e80d88a 100644
              let phase = Instant::now();
              let (next_compact, mut merge_constraints) = self.compact_root_for_generalize(root);
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "root-collected def={def:?} root={root:?} iteration={generalize_iteration} epoch={:?} image={next_compact:?}",
 +                self.infer.constraints().epoch(),
 +            ));
@@ -29,7 +29,7 @@ index fbf8473ae..63e80d88a 100644
                          && view.dispositions.len() == coalesced_role_constraints.len()
                  });
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "root-selected def={def:?} root={root:?} iteration={generalize_iteration} collection_epoch={compact_epoch:?} current_epoch={:?} image={compact:?}",
 +                self.infer.constraints().epoch(),
 +            ));
@@ -41,7 +41,7 @@ index fbf8473ae..63e80d88a 100644
              oracle.publish(observation);
          }
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "root-generalized def={def:?} root={root:?} epoch={:?} image={generalized:?}",
 +            self.infer.constraints().epoch(),
 +        ));
@@ -53,7 +53,7 @@ index fbf8473ae..63e80d88a 100644
          if let Some(cache) = self.generalize_compact_cache.as_ref() {
              if let Some(cached) = cache.get(root, compact_epoch) {
 +                #[cfg(test)]
-+                crate::constraints::research_choice_trace(format_args!(
++                crate::constraints::research_choice_frontier_trace(format_args!(
 +                    "root-cache-hit root={root:?} epoch={compact_epoch:?}",
 +                ));
                  self.timing.record_generalize_compact_cache(true);
@@ -64,7 +64,7 @@ index fbf8473ae..63e80d88a 100644
              root,
          );
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "root-recollected root={root:?} input_epoch={compact_epoch:?} output_epoch={:?}",
 +            self.infer.constraints().epoch(),
 +        ));
@@ -72,7 +72,7 @@ index fbf8473ae..63e80d88a 100644
              cache.insert(root, compact_epoch, &out.0, &out.1);
              self.timing.record_generalize_compact_cache_insert();
 diff --git a/crates/infer/src/compact/collect/mod.rs b/crates/infer/src/compact/collect/mod.rs
-index 2e0e8ac84..1022a32fd 100644
+index 2e0e8ac84..0701db35e 100644
 --- a/crates/infer/src/compact/collect/mod.rs
 +++ b/crates/infer/src/compact/collect/mod.rs
 @@ -401,6 +401,10 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
@@ -80,7 +80,7 @@ index 2e0e8ac84..1022a32fd 100644
                  .filter(|family| &family.path == row_path && family.args.len() == row_args.len())
              {
 +                #[cfg(test)]
-+                crate::constraints::research_choice_trace(format_args!(
++                crate::constraints::research_choice_frontier_trace(format_args!(
 +                    "stack-row-coexistence path={row_path:?} stack_args={:?} row_args={row_args:?}", family.args,
 +                ));
                  self.record_merge_bound_args(&family.args, row_args);
@@ -91,7 +91,7 @@ index 2e0e8ac84..1022a32fd 100644
              .filter(|family| family.path == path && family.args.len() == args.len())
          {
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "stack-row-item-coexistence path={path:?} stack_args={:?} row_args={args:?}", family.args,
 +            ));
              self.record_merge_bound_args(&family.args, args);
@@ -102,7 +102,7 @@ index 2e0e8ac84..1022a32fd 100644
              return;
          }
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "coexistence-ordered-args lhs={lhs:?} rhs={rhs:?}",
 +        ));
          record_merge_bound_args_with_sink(&mut self.merge_constraints, lhs, rhs);
@@ -115,7 +115,7 @@ index 2e0e8ac84..1022a32fd 100644
 -                        .map(|entry| entry.bound.clone())
 +                        .map(|entry| {
 +                            #[cfg(test)]
-+                            crate::constraints::research_choice_trace(format_args!(
++                            crate::constraints::research_choice_frontier_trace(format_args!(
 +                                "collect-included owner={var:?} outer_weight={outer_weight:?} entry={entry:?}",
 +                            ));
 +                            entry.bound.clone()
@@ -128,13 +128,13 @@ index 2e0e8ac84..1022a32fd 100644
              let mut bound_stack_families = self.compact_weight_stack_families(&left_weight);
              bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "compact-bound-input owner={var:?} bound={bound:?} outer_weight={outer_weight:?} effective_weight={:?} active_sides={:?}",
 +                left_weight.union(outer_weight), self.in_progress,
 +            ));
              let compact = self.compact_pos_bound_id(bound.pos, left_weight.union(outer_weight));
 +            #[cfg(test)]
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "compact-bound-output owner={var:?} bound={bound:?} outer_weight={outer_weight:?} effective_weight={:?} result={compact:?} active_sides={:?}",
 +                left_weight.union(outer_weight), self.in_progress,
 +            ));
@@ -142,7 +142,7 @@ index 2e0e8ac84..1022a32fd 100644
              self.record_stack_families_row_coexistence(&bound_stack_families, &acc);
              self.record_stack_families_row_coexistence(&bound_stack_families, &compact);
 diff --git a/crates/infer/src/compact/collect/type_nodes.rs b/crates/infer/src/compact/collect/type_nodes.rs
-index 3cc7de8d3..3b19471c4 100644
+index 3cc7de8d3..0bec01cd2 100644
 --- a/crates/infer/src/compact/collect/type_nodes.rs
 +++ b/crates/infer/src/compact/collect/type_nodes.rs
 @@ -263,7 +263,16 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
@@ -156,7 +156,7 @@ index 3cc7de8d3..3b19471c4 100644
 +        #[cfg(test)]
 +        let input_shape = shape.clone();
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "compact-row-item-input id={id:?} weight={weight:?} shape={shape:?} active_sides={:?}", self.in_progress,
 +        ));
 +        let result = match shape {
@@ -170,7 +170,7 @@ index 3cc7de8d3..3b19471c4 100644
 -        }
 +        };
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "compact-row-item-output id={id:?} weight={input_weight:?} native_shape={input_shape:?} result={result:?} active_sides={:?}", self.in_progress,
 +        ));
 +        result
@@ -188,7 +188,7 @@ index 3cc7de8d3..3b19471c4 100644
 +        #[cfg(test)]
 +        let input_shape = shape.clone();
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "compact-neutral-input id={id:?} weight={weight:?} shape={shape:?} active_sides={:?}", self.in_progress,
 +        ));
 +        let result = match shape {
@@ -202,7 +202,7 @@ index 3cc7de8d3..3b19471c4 100644
 -        }
 +        };
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "compact-neutral-output id={id:?} weight={input_weight:?} native_shape={input_shape:?} result={result:?} active_sides={:?}", self.in_progress,
 +        ));
 +        result
@@ -210,7 +210,7 @@ index 3cc7de8d3..3b19471c4 100644
  
      pub(in crate::compact) fn compact_effect_neu_id(
 diff --git a/crates/infer/src/compact/surface.rs b/crates/infer/src/compact/surface.rs
-index 0c79a4678..47364f039 100644
+index 0c79a4678..b89bacd53 100644
 --- a/crates/infer/src/compact/surface.rs
 +++ b/crates/infer/src/compact/surface.rs
 @@ -344,16 +344,29 @@ pub(crate) fn apply_compact_merge_constraints(
@@ -218,7 +218,7 @@ index 0c79a4678..47364f039 100644
      for constraint in constraints {
          let CompactMergeConstraint { key, lhs, rhs } = constraint;
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "merge-consume lhs={lhs:?} rhs={rhs:?} epoch={:?}", machine.epoch(),
 +        ));
          if lhs == rhs || !applied.insert(key) {
@@ -229,7 +229,7 @@ index 0c79a4678..47364f039 100644
              if pairs.len() > VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD {
 -                changed |= machine.constrain_var_var_pairs_direct(
 +                #[cfg(test)]
-+                crate::constraints::research_choice_trace(format_args!(
++                crate::constraints::research_choice_frontier_trace(format_args!(
 +                    "merge-direct-before lhs={lhs:?} rhs={rhs:?} pairs={pairs:?} epoch={:?}", machine.epoch(),
 +                ));
 +                let direct_changed = machine.constrain_var_var_pairs_direct(
@@ -237,7 +237,7 @@ index 0c79a4678..47364f039 100644
                      crate::constraints::OriginId::unknown_internal(),
                  );
 +                #[cfg(test)]
-+                crate::constraints::research_choice_trace(format_args!(
++                crate::constraints::research_choice_frontier_trace(format_args!(
 +                    "merge-direct-after lhs={lhs:?} rhs={rhs:?} changed={direct_changed} epoch={:?}", machine.epoch(),
 +                ));
 +                changed |= direct_changed;
@@ -249,7 +249,7 @@ index 0c79a4678..47364f039 100644
              )
          };
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "merge-finalized lhs={lhs:?} rhs={rhs:?} lhs_neu={lhs_neu:?} rhs_neu={rhs_neu:?} epoch={:?}", machine.epoch(),
 +        ));
          changed |= machine.constrain_invariant_neu(
@@ -354,26 +354,42 @@ index d75544523..5288d66d8 100644
              key: constraint.clone(),
              root_origins: origin.into_iter().collect(),
 diff --git a/crates/infer/src/constraints/mod.rs b/crates/infer/src/constraints/mod.rs
-index 14860e366..2291cf255 100644
+index 14860e366..e10b5f8b9 100644
 --- a/crates/infer/src/constraints/mod.rs
 +++ b/crates/infer/src/constraints/mod.rs
-@@ -44,6 +44,44 @@ mod trace;
+@@ -44,6 +44,60 @@ mod trace;
  #[cfg(test)]
  use std::cell::Cell;
  
 +// Provisional, passive evidence for the pinned choice fixture; never production metadata.
 +#[cfg(test)]
 +pub(crate) fn research_choice_trace(args: std::fmt::Arguments<'_>) {
++    static EVENTS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
++    research_choice_trace_stream(args, &EVENTS, 12000, "support");
++}
++
++#[cfg(test)]
++pub(crate) fn research_choice_frontier_trace(args: std::fmt::Arguments<'_>) {
++    static EVENTS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
++    research_choice_trace_stream(args, &EVENTS, 2000, "frontier");
++}
++
++#[cfg(test)]
++fn research_choice_trace_stream(
++    args: std::fmt::Arguments<'_>,
++    events: &std::sync::atomic::AtomicUsize,
++    event_cap: usize,
++    stream: &str,
++) {
 +    use std::fmt::Write;
-+    use std::sync::atomic::{AtomicUsize, Ordering};
-+    static EVENTS: AtomicUsize = AtomicUsize::new(0);
++    use std::sync::atomic::Ordering;
 +    if std::env::var_os("YULANG_RESEARCH_CHOICE_TRACE").is_none() {
 +        return;
 +    }
-+    let event = EVENTS.fetch_add(1, Ordering::Relaxed);
-+    if event >= 12000 {
-+        if event == 12000 {
-+            eprintln!("[choice-research] TRUNCATED event cap; evidence incomplete");
++    let event = events.fetch_add(1, Ordering::Relaxed);
++    if event >= event_cap {
++        if event == event_cap {
++            eprintln!("[choice-research] stream={stream} TRUNCATED event cap={event_cap}; evidence incomplete");
 +        }
 +        return;
 +    }
@@ -395,14 +411,14 @@ index 14860e366..2291cf255 100644
 +    let truncated = line.write_fmt(args).is_err();
 +    // write_str accepts complete UTF-8 strings only.
 +    let text = std::str::from_utf8(&line.bytes[..line.len]).expect("trace UTF-8");
-+    eprintln!("[choice-research] event={event} {text}{}",
++    eprintln!("[choice-research] event={event} stream={stream} {text}{}",
 +        if truncated { " TRUNCATED line cap; evidence incomplete" } else { "" });
 +}
 +
  #[cfg(test)]
  thread_local! {
      static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
-@@ -2112,6 +2150,13 @@ impl ConstraintMachine {
+@@ -2112,6 +2166,13 @@ impl ConstraintMachine {
          #[cfg(not(test))]
          let _ = is_included;
          #[cfg(test)]
@@ -416,7 +432,7 @@ index 14860e366..2291cf255 100644
          self.record_semantic_projectability_transition(lower_record, was_included, is_included);
          Some(intent)
      }
-@@ -2369,6 +2414,10 @@ impl ConstraintMachine {
+@@ -2369,6 +2430,10 @@ impl ConstraintMachine {
              return;
          }
          let epoch = self.bump_epoch();
@@ -443,7 +459,7 @@ index 416ddcc27..e4254b733 100644
                  proof::ProjectionDecision::Excluded => continue,
                  proof::ProjectionDecision::Unclaimed => {
 diff --git a/crates/infer/src/lowering/expr/block_local.rs b/crates/infer/src/lowering/expr/block_local.rs
-index a406f4f9b..ec076769f 100644
+index a406f4f9b..973827d1a 100644
 --- a/crates/infer/src/lowering/expr/block_local.rs
 +++ b/crates/infer/src/lowering/expr/block_local.rs
 @@ -996,6 +996,11 @@ impl<'a> ExprLowerer<'a> {
@@ -451,7 +467,7 @@ index a406f4f9b..ec076769f 100644
          let effect = self.fresh_exact_pure_effect();
          let reference = self.session.poly.add_ref();
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "source-reference parent={:?} label={label:?} target={target:?} reference={reference:?} source_range={source_range:?} value={value:?} effect={effect:?}",
 +            self.parent,
 +        ));
@@ -463,28 +479,28 @@ index a406f4f9b..ec076769f 100644
          };
          let upper = self.alloc_neg(Neg::Var(value));
 +        #[cfg(test)]
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "operation-instance parent={:?} target={target:?} operation={:?} value={value:?} signature_pos={predicate:?} upper={upper:?}",
 +            self.parent, operation_decl.name,
 +        ));
 +        #[cfg(test)]
 +        {
 +            let types = self.session.infer.constraints().types();
-+            crate::constraints::research_choice_trace(format_args!(
++            crate::constraints::research_choice_frontier_trace(format_args!(
 +                "operation-native-signature target={target:?} value={value:?} signature_pos={predicate:?} shape={:?}", types.pos(predicate),
 +            ));
 +            if let Pos::Fun { ret_eff, .. } = types.pos(predicate) {
-+                crate::constraints::research_choice_trace(format_args!(
++                crate::constraints::research_choice_frontier_trace(format_args!(
 +                    "operation-native-return target={target:?} signature_pos={predicate:?} ret_eff={ret_eff:?} shape={:?}", types.pos(*ret_eff),
 +                ));
 +                if let Pos::Row(items) = types.pos(*ret_eff) {
 +                    for (item_index, item) in items.iter().enumerate() {
-+                        crate::constraints::research_choice_trace(format_args!(
++                        crate::constraints::research_choice_frontier_trace(format_args!(
 +                            "operation-native-row-item target={target:?} ret_eff={ret_eff:?} item_index={item_index} item={item:?} shape={:?}", types.pos(*item),
 +                        ));
 +                        if let Pos::Con(_, args) = types.pos(*item) {
 +                            for (arg_index, arg) in args.iter().enumerate() {
-+                                crate::constraints::research_choice_trace(format_args!(
++                                crate::constraints::research_choice_frontier_trace(format_args!(
 +                                    "operation-native-row-argument target={target:?} ret_eff={ret_eff:?} item_index={item_index} item={item:?} arg_index={arg_index} neutral={arg:?} shape={:?}", types.neu(*arg),
 +                                ));
 +                            }
@@ -497,14 +513,14 @@ index a406f4f9b..ec076769f 100644
              predicate,
              upper,
 diff --git a/crates/infer/src/lowering/tests/case_05.rs b/crates/infer/src/lowering/tests/case_05.rs
-index 45d1b6d26..633d9c7d9 100644
+index 45d1b6d26..f68634642 100644
 --- a/crates/infer/src/lowering/tests/case_05.rs
 +++ b/crates/infer/src/lowering/tests/case_05.rs
 @@ -201,6 +201,9 @@ fn recursive_loop_for_in_callback_annotation_terminates() {
  
  #[test]
  fn parser_choice_callback_annotation_terminates() {
-+    crate::constraints::research_choice_trace(format_args!(
++    crate::constraints::research_choice_frontier_trace(format_args!(
 +        "fixture-begin parser_choice_callback_annotation_terminates baseline=a58eefc31e22141574b6f20c6a5748151c6d79f1",
 +    ));
      let root = parse(concat!(
@@ -517,14 +533,14 @@ index 45d1b6d26..633d9c7d9 100644
 +    if std::env::var_os("YULANG_RESEARCH_CHOICE_TRACE").is_some() {
 +        let module = lower.modules.root_id();
 +        let (choice, _) = binding_def_and_order(&lower.modules, module, "choice");
-+        crate::constraints::research_choice_trace(format_args!(
++        crate::constraints::research_choice_frontier_trace(format_args!(
 +            "fixture-choice-def def={choice:?}",
 +        ));
 +    }
  
      let output = lower_binding_bodies(&root, lower);
  
-+    crate::constraints::research_choice_trace(format_args!("fixture-end errors={:?}", output.errors));
++    crate::constraints::research_choice_frontier_trace(format_args!("fixture-end errors={:?}", output.errors));
      assert!(output.errors.is_empty(), "{:?}", output.errors);
  }
  
