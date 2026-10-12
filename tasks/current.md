@@ -1,17 +1,16 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-08 UTC
+Date: 2026-10-12 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
-## 2026-10-12 controlling document-first Oracle audit
+## 2026-10-12 completed Oracle document-audit slice
 
-The user has redirected the immediate critical path to an exhaustive audit of
-Oracle historical inference designs, specs and research drafts, followed by
-their proof dependency graph and current Simple-sub transfer obligations.
-Implementation changes and executable inference experiments are excluded from
-this stage. The candidate remains frozen. Prior unexecuted instrumentation is
-preserved in the isolated Oracle worktree; it is not run or integrated.
+The user directed a documentary audit of Oracle historical inference designs,
+specifications and research drafts, followed by their proof dependency graph
+and current Simple-sub transfer obligations. That bounded documentary slice is
+complete; it did not replace the active implementation objective or close its
+proof gates. The historical candidate remains a comparison artifact.
 
 The [audit corpus and reports](../notes/theory/oracle-inference-document-audit/README.md)
 pin Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`, legacy inference refs,
@@ -62,27 +61,48 @@ all-revision proof/approval verification is not declared complete.
 
 The original current soundness, principality, normal progress, termination,
 complete Call, effect hygiene, qualified intrusion and F5 replacement gates
-remain OPEN. Next: return to the mathematical critical path. The audit found no
-Oracle storage/provenance design that supplies the missing source-to-Simple-sub
-theorem bridge. Resume the actual source-value/type-occurrence association for
-cross-level mutual recursion, then prove or refute the qualified extrusion
-parent/copy equality from that construction. Keep complete Call, principality,
-effect hygiene, termination and F5 replacement gates OPEN. The unreviewed
-previous choice §11 and pre-existing negative-residual draft remain outside
-this checkpoint.
+remain OPEN. The Oracle audit found no storage/provenance result that supplies
+the missing source-to-Simple-sub theorem bridge. The next mathematical gate is
+the actual source-value/type-occurrence association for cross-level recursion,
+then qualified extrusion equality. Current association clarification is
+recorded in `2026-10-12-intrusion-value-type-association.md`; the owner law for
+specific App/Function type occurrences remains unresolved after the latest
+constructive discriminator.
 
 Research-only appendix checkpoints pushed to `research/simple-sub-intrusion`:
 `f4cfc0585` (B initial coverage), `863c9b98f` (C), `a9949026c` (D),
-`23fe32ca4` (A), and `bab969651` (B full-read addendum). The latest audit
-records still need their shared catalogue/README/lab synchronization commit;
-those edits contain no implementation change. The historical audit is a
-completed documentary slice, not completion of the active inference objective.
+`23fe32ca4` (A), and `bab969651` (B full-read addendum), followed by the shared
+catalogue/README/task synchronization commit `0e621f549`. The historical audit
+is a completed documentary slice, not completion of the active inference
+objective.
 
 Latest controlling intrusion clarification (2026-10-12): see
 [value-to-type association](../notes/design/2026-10-12-intrusion-value-type-association.md).
 Value-reference SCCs classify semantic value variables; intrusion acts on
 their associated extrusion-related type variables. Earlier type-copy-vertex
 nonqualification conclusions below do not establish this activation condition.
+
+### 2026-10-12 actual association discriminator
+
+At baseline `0e621f549`, a constructive `prover` derivation of the original
+Simple-sub nested `f/g` level crossing established actual polar parent/copy
+pairs `(C,B,+,1)` and `(D,R,-,1)` with completed ordinary bound replay. The
+approved Value graph gives `F ↔ G` while formal `Y` and Apply result `V_R` lie
+outside that root SCC. Two still-unselected occurrence associations produce
+different activation results on those same pairs: `(F,Y)/(F,V_R)` do not
+qualify, while `(F,G)` qualifies both. Original Simple-sub and current source
+constructors do not select between them. This is an underdetermination result,
+not an unsoundness counterexample or parent theorem closure.
+
+The proof artifact and independent source-constructor audit passed one fresh
+`compiler_referee` review with no findings. Source inspection confirms the
+current Apply/extrusion path retains no association certificate; implementation
+remains gated. A scoped question asks the user to select the exact owner rule
+or state another rule; its directory remains uncommitted under the question-
+board contract. The dependent intrusion/equality work waits only on that
+association; independent effect-hygiene work continues. See the [constructive
+discriminator](../notes/theory/2026-10-12-intrusion-association-proof.md) and
+[source audit](../notes/progress/2026-10-12-intrusion-association-source-audit.md).
 
 ## User objective and branch boundary
 

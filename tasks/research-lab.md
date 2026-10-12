@@ -597,3 +597,45 @@ association for nested cross-level recursion, followed by proof or refutation
 of qualified extrusion parent/copy equality. Soundness, principality, normal
 progress, termination, complete Call, effect hygiene and F5 replacement remain
 OPEN.
+
+### 2026-10-12 Value-SCC/type-occurrence association discriminator
+
+| Assignment | Method / lease | Result |
+| --- | --- | --- |
+| `intrusion_assoc_proof` | Constructive original Simple-sub term derivation; `notes/theory/2026-10-12-intrusion-association-proof.md` only | Frozen by actual `prover` role; derives nested `f/g` polar copies and replay, then distinguishes two candidate occurrence associations. No parent theorem closure. |
+| `intrusion_assoc_source_audit` | Independent static source ownership; `notes/progress/2026-10-12-intrusion-association-source-audit.md` only | Frozen; actual source fields preserve binders/type rows but not the associated Value witnesses through App demand/extrusion. Exact source admission and compiler-wide absence remain unverified. |
+| `intrusion_assoc_review` | Fresh independent M3 semantic review of both frozen artifacts | No blocking, major or minor findings. It checked the original constructors, graph discriminator, user correction and source paths; it did not certify the universal equality theorem. |
+| `effect_source_owner_architecture` | Independent read-only architecture on approved Oracle-hygiene transfer | Complete; existing authority suffices for a bounded source-evidence prototype, but the paired negative interface/call/output invariant needs constructive proof first. No additional semantic vote identified. |
+| `oracle_effect_port_transfer` | Pinned Oracle Git-object to Y3 source correspondence; `notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md` only | Running at last inspection; exact pinned commit reads required because the local Oracle worktree is dirty. |
+
+The intrinsic association premise is now demonstrated to be a real decision
+boundary: the reduced source `let rec f = let g = lambda y. f y in g in f`
+creates `(C,B,+,1)` and `(D,R,-,1)` in ordinary Simple-sub. On the same
+approved Value graph, associating parents to immediate formal/result Values
+gives `(F,Y)/(F,V_R)` and no qualifying equality; associating their enclosing
+callable-description occurrences to `(F,G)` qualifies both because
+`F <-> G`. These are candidate completions only; no actual owner convention
+has been established. The current question board contains the exact scoped
+decision prompt at `questions/2026-10-12-type-value-occurrence-association/`.
+Keep only association-dependent construction and intrusion equality waiting;
+continue independent effect work.
+
+Historical Oracle Simple-sub has no Value-reference graph or this association
+law. Current `ApplySourceInput`/extrusion/`Parent` structures likewise do not
+carry the associated Value pair; their current bound-derived SCC is not the
+approved consumer. No compiler code changed. The proof/source artifacts received
+one fresh `compiler_referee` review with no findings in their bounded scope.
+
+Next effect gate: prove or refute the existing-policy construction invariant
+for a paired negative formal interface, actual resolved call/output forwarding,
+and attachment-qualified residual consumption before a private prototype.
+This is distinct from completing global H; Oracle's pinned conditional lemmas
+and Y3's local positive annotation bridge do not close it.
+
+Budget: M3 proof/semantic artifact with one independent reviewer; M2
+architecture packet with no review yet. Zero builds/tests/probes/benchmarks and
+zero measurement samples. Requested prover route was the registered
+`prover`; runtime model/effort metadata was not available. No Astra. The source
+crosswalk agent used no Git, and all current child outputs are frozen. The two
+pre-existing dirty theory drafts remain untouched; the new question directory
+is intentionally unstaged/uncommitted.
