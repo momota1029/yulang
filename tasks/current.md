@@ -13784,3 +13784,25 @@ This is not a source-wide absence result or counterexample. Keep actual cO/cE,
 base provenance, exposed-arm readouts, complete check clauses and L4 OPEN; do
 not conflate this operator/source-owner input with the permission-field
 decision. No code, tests, builds, probes or measurements changed or ran.
+
+### 2026-10-13 candidate fallback ownership audit
+
+The bounded [candidate fallback audit](../notes/progress/2026-10-13-candidate-fallback-withdrawal-owner-audit.md)
+received an independent `spec_auditor` PASS against the Authoritative legacy
+withdrawal policy. It shows `candidate_legacy_actions` adapts retained live
+constraints and is not itself an F5 caller. The actual fallback facts/recipes
+feed value/effect propagation; candidate graph SCC and incoming-use consumers
+return through graph owners before legacy closed-scheme consumers. A rootless
+Integer is a static source-branch witness, not an execution test. No fallback
+retirement is established.
+
+The first migration boundary is expression-to-source construction: fallback
+Apply has `source_input=None` and fallback formal/Name paths lack the authentic
+LocalSource registrations. Replacing these constraints requires preserving the
+accepted HIR inputs, identities, checking, effects, scopes/levels, provenance
+and use-time generalization while forming the required Call/formal inputs.
+Keep the fallback live until that bridge and focused coverage exist. The audit
+does not close complete Call, source correspondence, soundness, principality,
+or F5. No code or tests changed or ran. Next independent evidence lane: map the
+exact source constructor and consumer for fallback Apply's missing
+`ApplySourceInput`, then stop at any unsupported original rule or authority.

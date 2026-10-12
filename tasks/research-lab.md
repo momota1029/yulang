@@ -1034,3 +1034,19 @@ inputs. This bounded stop is neither source-wide absence nor a counterexample.
 Keep cO/cE, base readouts, complete check clauses and L4 OPEN and separate from
 the permission-field question. No tests, builds, probes, measurements or code
 changes ran.
+
+### 2026-10-13 candidate fallback owner audit
+
+The bounded [candidate fallback ownership audit](../notes/progress/2026-10-13-candidate-fallback-withdrawal-owner-audit.md)
+received a `spec_auditor` PASS. It traces the retained-expression fallback
+through its Fact/Candidate/Lambda/Module consumers: the adapter does not call
+F5, while its constraints still reach candidate value/effect propagation.
+Graph SCC and incoming-use routing return through live graph owners before
+legacy closed consumers. This does not authorize fallback retirement.
+
+The unresolved migration boundary is authentic source construction for
+fallback Apply (`source_input=None`) and fallback formal/Name registrations.
+Next: map the original producer and consumer for that source input, preserving
+current identities, effects, checking, scopes/levels and use-time
+generalization; stop if the original constructor rule or source authority is
+missing. No compiler edits, tests, builds, probes or measurements changed.
