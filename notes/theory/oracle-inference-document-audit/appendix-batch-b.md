@@ -450,3 +450,313 @@ Commit packet:
   for eight blobs only; three pending rows; scoped approvals; cycle memo,
   missing metadata, attribution and endpoint supersession edges; current
   transfer ledger and aggregate coverage. No shared record was edited.
+
+## 12. Completion addendum B-v2 — 2026-10-12
+
+Status: unreviewed historical document audit; all eleven assigned pinned texts READ
+Method: complete pinned text reading plus document-only corrective revision diffs
+Baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`, unchanged
+Previous checkpoint: Y3 `f4cfc0585`, SHA256
+`3081757d417f0d64fb76738353c06c8fc861a3474da30ac54bd1c900f69faa34`
+
+The previous checkpoint's first 26,659 bytes, including §§1–11, are preserved
+verbatim. Its pending-coverage statements describe that earlier checkpoint.
+This dated addendum supplies the subsequent completion evidence; it does not
+rewrite those statements, promote any theorem or certify historical code.
+
+### 12.1 Completed source reads and history
+
+| Pinned source under `notes/design/` | Declared date | Blob | Additional full read |
+| --- | --- | --- | --- |
+| `2026-08-02-replay-claim-parent-factorization.md` | 2026-08-02 | `4861ae800c62ffbd21e3675e6eed00a177c0740a` | 1–2106 |
+| `2026-08-03-rcpf-d-materialization-projection-addendum.md` | 2026-08-03 | `c0ad9b2f271347d54d3d96ae9829202277eab14d` | 1–1326 |
+| `2026-08-05-cpk-0-projection-admission-addendum.md` | 2026-08-05 | `4800e3f19687d397a2a4edbcf50c705776272337` | 1–1591 |
+
+Every line was read in consecutive chunks with sufficient output budgets and
+no truncation. This adds 5,023 lines to the earlier 6,060, completing 11,083
+lines across eleven unique blobs. These three now have complete declared-date
+and body coverage. Exact ADD timestamps/commits remain as recorded in §2.
+
+The complete document-only diffs of all eight non-ADD revisions were read:
+
+- RCPF: `7594f331d2498821567d42cddd4c90f397bbe9e9` (August 2,
+  153 insertions/32 deletions); `269a84c663d78341daed4e80b39d319614eca4cb`
+  (August 5, 14/1); `bece729738b952ac7a2c1a83462ab1b7c27f0df1`
+  (August 5, 17/0).
+- RCPF-D: `87afed201a46e999878fd69b17c6cdd33e576f38` (August 3,
+  178/1); `77faba6dae94295cff7eaa0272c37440af36abf1` (August 3,
+  88/1); `59650fd4ac8be955e2f711e254d4b0e8457ddbcc` (August 3,
+  219/4); `aac375da27020b7644c784f20ba508c9af30a773` (August 3,
+  192/3); `c1df9f39647156bb16c848783e2ad03b5b7d9138` (August 4,
+  101/0).
+- CPK-0 has no non-ADD in-baseline revision. Its ADD message and complete
+  pinned body record the approval and supersession directly.
+
+All-ref `--follow --name-status` histories show exact ADD/MODIFY/DELETE
+lineage and no rename for these three paths. All were deleted at the August
+18 clean-slate commit `9f03827ff`; no later path-specific correction appears
+in the inspected history. Later differently named CPK addenda remain distinct
+dependencies and are not excluded by that path-history result.
+
+### 12.2 RCPF: lossless relation factorization and conditional consumer premises
+
+RCPF declares user approval (lines 3–7 and 2104–2106); exact ADD is August 2
+11:34:10 JST. The document supplies no separate direct approval receipt/date
+beyond this dated approval record and approval-labelled landing message.
+
+Its exact relation is
+
+```text
+(result, canonical coverage root, parent side, exact carrier)
+    -> first accepted representative claim
+```
+
+An occurrence is `(result, carrier)`, where carrier retains pivot, lower,
+upper and rule (§4, 410–515). Each side references an immutable finite map
+`coverage_root -> representative_claim`; side is retained by attachment,
+not duplicated in parent-set identity (§6.3–5). Original admission order
+chooses each winner before canonicalization. Later iterators must not
+reconstruct that choice. Exact root/side/carrier identity differs from
+clause-link identity, which intentionally deduplicates the same root arriving
+through both sides (§4.5).
+
+The August 2 revision `7594f331d…` removes first-admission permutation from
+persistent parent-set identity, preserving selected representatives and first
+witnesses. Its measured motivation is precise: order-bearing sets used
+15.52% of logical replay entries, failing the <10% gate; order-free
+representative maps used 8.27%, and total membership/map entries were
+4,648,988. Global default plus carrier override used 12.05% with 95.37%
+overrides, so it was rejected (§2.6, 207–231). These are recorded workload
+measurements, not universal compression guarantees.
+
+The physical target is `O(Cq + S + A + RR + BR + clauses + dependency edges)`
+while the logical exact relation remains intact (§5). Distinct parent sets
+can prevent sharing, and O(L·U) carrier generation remains. The document's
+all-pair lower-bound discussion does not prove that every inferencer must
+physically allocate one heap object per implication (531–585). No complete
+algorithmic lower-bound or source-termination proof appears.
+
+Twenty-three invariants (§10) and sixteen stop conditions (§11.1) specify
+required migration behavior. In particular: occurrence-new/root-old is
+distinct from new claimed support; no-op causes no allocation/evaluation/
+publication; storage sharing is not an atomic event boundary; current live
+endpoints cannot reconstruct event-time parent selection. The old missing-
+factored-metadata projectable fallback (§8.5, 1249) must be read with the
+later quarantine/CPK mandatory-failure rules, already identified in §§6–9
+of this report.
+
+Approval versus proof status: the text gives a design model, cost model,
+required equalities and executable oracles. It has no named complete
+soundness/principality theorem and no proof deriving the selected source
+rules. Equality against a legacy ledger establishes representation parity
+only under that ledger's correct and complete construction/consumer premises.
+
+The August 5 E closure (`269a84c66…`, 1730–1743) covers the four named
+consumer bullets and reports known-failure-only scoped verification. Its
+quantitative performance and F soak gates remained uncompleted. The later
+same-day F attempt (`bece72973…`, 1745–1760) finds five unconditional flat
+readers outside that closure. The complete commit message records explicit
+user risk acceptance for a branch-isolated attempt skipping the soak gate;
+this is historical permission for that attempt, not proof that the gate
+passed. No physical removal was performed. CPK's subsequent rebuild route
+replaces the attempted construction-specific migration, preserving the
+genuine semantic and performance requirements.
+
+### 12.3 RCPF-D: scoped approval, retained winners and changed observable order
+
+RCPF-D declares August 3 **blanket advance approval**, explicitly distinct
+from individual content review. Lines 9–21 quote the 10:28 JST authorization
+to work until 17:00 and explain its scope/provenance. The later §11 and §12
+ordering changes have separate explicit user decisions, recorded in their
+bodies and full revision messages. Do not infer that the original blanket
+approval alone supplied those later decisions.
+
+Initial construction (§§2–4): add a result-local root index without copying
+witness authority; return exact same-event accepted deltas; process Phase A
+unconditional legacy mutation, Phase B factored commit/health, then Phase C
+derived mutation and complete-state publication. A publication fence cannot
+make incomplete evaluator input safe. This is an operational transaction
+contract; historical whole-attempt discard/retry is not a general current
+Simple-sub recovery mandate.
+
+The correction chain is sequential and substantive:
+
+1. §9 / `87afed201…`: splitting Replay and NonReplay stores discarded
+   which kind won the same root. Retain `FirstQualifiedParentSource` at the
+   common writer; neither replay priority nor later iterator reconstruction
+   establishes the selected first winner.
+2. §10 / `77faba6da…`: two histories,
+   `NonReplay(root_b); Replay(root_a)` and the reverse, have identical
+   retained root/winner maps but different legacy proof-vector order
+   (741–760). That order reaches generalized parents, truncated explanation,
+   portable IDs and duplicate-span survivors (762–805). Thus root/winner
+   equality alone is insufficient consumer evidence.
+3. §11 / `59650fd4a…`: user-approved lower ordering uses claimed roots
+   ascending, then independent carriers under a complete explicit comparator.
+   It changes already-shipped legacy diagnostic behavior independently of
+   RCPF authority cutover, potentially changing primary spans and truncation
+   survivors (819–986). A proposed four-event oracle covers all 24
+   permutations and the 256-edge witness cap. These finite checks do not
+   prove arbitrary source-order independence.
+4. §12 / `aac375da2…`: a two-root target-late fixture exposes historical
+   upper claim order to later replay under both authorities. Equality between
+   legacy and factored behavior therefore does not establish the stronger
+   intended invariance (1039–1081). Canonical root ordering is introduced at
+   all three upper claim writers, with same-root winners and source admission
+   evidence retained. The text records explicit user approval after the FAIL.
+5. §13 / `c1df9f396…`: reports landed slices and migration-correctness
+   checks, including claim-move index repair and one end-to-end quarantine
+   retry comparison. Its discarded D4-3 attempt confused a logical equality
+   map with a lossless mutation plan, causing 21 failures (1261–1276).
+
+The final body says D migration is correctness-complete but performance-
+incomplete. Its one warm-release full-std observation reports
+`std::text::parse` 53.239 seconds, 9.31% worse than 48.705 seconds, missing
+15-second intermediate and 0.5-second product targets (§13.3). It explicitly
+says the F soak matrix is broader than the single retry comparison and one
+timing observation (§13.4). Historical completion must remain scoped to
+these reported gates; later flat-reader discovery and classifier supersession
+prevent treating it as complete source soundness or total dependency removal.
+
+The RCPF diagnostic-isolation premise in main §10 invariant 23 is consequently
+conditional: a separate explanation traversal does not guarantee unchanged
+output when its incoming generalized-parent sequence changes. The later D
+text exposes that indirect dependency and records authorized canonicalization.
+This audit preserves the original claim and its later repaired premise rather
+than treating the original separation assertion as an unconditional theorem.
+
+### 12.4 CPK-0: exact supersession of the Bound/Carrier classifier
+
+CPK-0 declares August 5 explicit approval (5, 1586–1591), confirmed by exact
+ADD `89a6de2289079c42a85d788fefa98ad19c50d5d1`, 20:57:21 JST. Scope is
+design plus test-only CPK-0a/b/c baseline preparation; it does not authorize
+production behavior change or immediate CPK-1 cutover (23–37, §12).
+
+It supersedes **only** D §3's rule (CPK-0 §3.1, 628–648):
+
+```text
+new roots nonempty && lower previously had no claimed roots -> Bound(producer)
+otherwise                                                -> Carrier(event)
+```
+
+The later document classifies this as an **incomplete model**, not simply a
+wrong boolean. It conflates new claimed roots with the producer's first
+qualified-parent batch and cannot represent necessary independent-support
+bootstrap (CPK-0 §1.2 and §3).
+
+The replacement retains four independent facts: producer-qualified membership
+before the event, ledger existence before the event, new roots, and exact
+event carrier. `ProjectionAdmissionPlan` has separate claimed-root and
+independent-support plans (§3.2–4, 650–755):
+
+- no target or exact no-op: no work;
+- ledger absent and no roots after event: create no ledger;
+- ledger absent and roots present: full root bootstrap plus full bound-record
+  derivation bootstrap;
+- ledger present and first newly inserted qualified-parent batch: root delta
+  if any, plus producer full scan;
+- later ordinary event: root delta plus exact event-carrier work;
+- record bootstrap subsumes an overlapping producer scan.
+
+The smallest documented discriminator (§4.2, 795–819) has a pre-existing
+direct claimed root/ledger, a producer with no qualified parent, and its
+first replay arriving with that same root. New-root delta is empty, yet
+producer full scan is required. Therefore a test of new roots cannot replace
+the first-qualified-batch signal. Independently, §4.1 preserves a prior
+independent bound derivation when the first claimed arrival creates the
+ledger. These are document-contract witnesses, not new source-program
+counterexamples or executed compiler findings.
+
+Other D rules remain explicitly retained: Phase A/B/C order, complete
+pre-event view, same-root first winner, canonical lower and upper order,
+diagnostic isolation, attempt authority and failed-output nonpublication
+(641–648). CPK-0 further requires ordered action vectors with all lookups/
+allocations preflighted; an unordered root/lineage map is not a mutation plan
+(§§5–7).
+
+Inventory expansion (§2.4): four additional flat dependencies directly block
+RCPF-F—structural-root propagation, target-late clause bootstrap, reduction
+exact dedup, independent/qualified carrier classification. Two more require
+CPK cutover but are not themselves replay-parent removal blockers—flat clause
+ID mapping and independent expanded-link reads. Of the original five readers,
+dependency-chain propagation was already dispatched at `2b810745`; the
+remaining four had unresolved semantics. This distinguishes scoped E
+completion from a complete producer/consumer inventory.
+
+Two reference surfaces are defined (§8): `SemanticExecutionSnapshot`
+preserves actual queue/frontier/replay/publication/SCC/output order;
+`LogicalProofSnapshot` canonicalizes relation/graph identity while preserving
+consumer-visible provenance and truncation. Raw flat Vec length, Bound/Carrier
+tags, known inconsistent legacy state and partial helper fixtures are
+explicitly forbidden oracles (1314–1327). This repairs the premise of the
+legacy comparison; it does not independently prove the selected source rules.
+
+Proof status: thirty operational invariants and twenty-three stop conditions,
+four fixture-directed plan explanations and a required future baseline matrix.
+No general inference theorem is proved. CPK-0's "resolved" entries are scoped
+design decisions, distinct from implementation completeness or mathematical
+closure.
+
+### 12.5 Transfer, checks and frozen completion packet
+
+The repaired historical dependency chain is:
+
+```text
+exact carrier + event-time parents + direct first-winner capture
+  -> RCPF immutable finite-map representation
+  -> D result-local deltas and event-complete publication
+  -> cross-kind winner retention
+  -> authorized lower/upper consumer ordering
+  -> later inventory and Bound/Carrier insufficiency discovery
+  -> CPK-0 independent claimed/independent admission plans
+  -> separately specified CPK projection/routing consumers and removal gates
+```
+
+Current transfer remains conditional on authentic source constructors and
+consumers: preserve ownership, scope, lineage, exact admitted action and
+required correlated evidence at construction; prove any generalization/export
+projection preserves the original solution and observation requirements.
+Canonical numeric ordering is not a causal rank, a runtime identity theorem
+or the current Value-reference SCC qualification condition. Historical proof
+ledger equalities do not establish native Simple-sub soundness, principality,
+Complete Call or parent/copy type equality. Conversely, current retirement
+does not require reconstructing every obsolete ledger before proving those
+genuine obligations; identify actual consumers and retained certificates.
+
+Verification: initial local and `f4cfc0585` report hashes both matched the
+expected checkpoint; all three pinned blobs, declared dates and line totals
+resolved; full non-ADD document diffs and approval messages were read; exact
+ADD and all-ref follow/deletion histories were inspected. After appending,
+the original 26,659-byte prefix is checked against its original SHA256.
+No source code inspection, tests, builds, runtime probes, performance samples
+or Git mutations occurred. Historical measurements and test outcomes are
+reported as read, not rerun. Sequential lightweight text/Git processes were
+used; aggregate CPU/RAM and exact wall time remain unmeasured.
+
+Unverified scope: underlying implementation/test artifacts, full source laws,
+general correctness of the legacy oracles, every external dependency, later
+differently named CPK-8/CPK-SV corrective bodies and current production
+correspondence. No unread body remains inside this exact eleven-document
+lease. Full reading is not proof closure or fresh independent review.
+
+Recommended next action: primary/curator records the three additional READ
+rows and the exact scoped supersession edges, then subjects the coherent
+document audit to its assigned independent review before any status promotion.
+
+Commit packet B-v2:
+
+- Exact write lease: `notes/theory/oracle-inference-document-audit/appendix-batch-b.md`.
+- Frozen historical baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`;
+  report dependency checkpoint: Y3 `f4cfc0585`.
+- Changed dependency hashes: none; the three source blobs are pinned in §12.1.
+- Changed output: append-only dated B-v2 addendum; §§1–11 preserved verbatim.
+- Claim/review status: complete leased reading, unreviewed historical audit;
+  operational/conditional evidence, no theorem closure.
+- Checks already run: full reads, blob/line identity, full corrective
+  document diffs, approval/ADD/follow/deletion history and preserved-prefix
+  integrity; zero tests/builds/probes.
+- Proposed checkpoint message: `docs(research): complete Oracle RCPF and CPK-0 appendix reads`.
+- Shared deltas deferred to primary/curator: three READ rows, all-eleven
+  coverage totals, D §3-only supersession, indirect diagnostic-order premise,
+  scoped migration-completion/performance status and current transfer edges.
+  No shared task/index/catalogue was edited. Writing stops for frozen handoff.
