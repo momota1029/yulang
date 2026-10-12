@@ -11716,3 +11716,42 @@ closure follows yet. The source audit and proof are frozen, review-clean, and
 ready for a research-only checkpoint; no tests, builds or Oracle runs were
 performed in this slice. H, complete Call, soundness, principality, ordinary
 inference and F5 replacement remain OPEN.
+
+### 2026-10-12 Simple-sub extrusion and Value-intrusion discriminator
+
+The constructive
+[`intrusion core proof attempt`](../notes/theory/2026-10-12-intrusion-core-equality-proof.md)
+works the pinned Simple-sub positive extrusion of one shared
+`Function(α,α)`: it creates distinct `α−`/`α+` copies and an order-sensitive
+`α− ≤ α+` occurrence, while retaining `α− ≤ α ≤ α`. A reference source AST
+reaches that operation through a negative outer Apply demand. The independent
+[`original correspondence audit`](../notes/progress/2026-10-12-simple-sub-intrusion-correspondence-audit.md)
+builds a recursive record example whose two independent fresh uses distinguish
+Int and Bool. If parent/copy equality removes the generic variable and lowers
+its level, those uses conflict. Both artifacts are static; the latter is a
+conditional discriminator, not a source-qualified Yulang counterexample.
+
+The decisive premise remains OPEN: establish the constructor-owned Value
+content carried by those exact polar copies and whether that actual
+parent/copy pair qualifies in the selected Value-reference SCC. Neither the
+paper nor original Scala Typer defines Yulang's Value graph or intrusion rule.
+Independent compiler-referee review found no issue in either bounded
+artifact. Original all-source soundness, required principality, and equality
+preservation remain OPEN. The correspondence audit is a reviewed conditional
+falsifier, not a source-qualified counterexample. The
+`odd/even` cross-level source SCC does not supply the missing copy-pair premise.
+No tests, builds, Oracle execution, or Yulang3 implementation changes occurred.
+
+The next proof owner is the actual source/copy-content constructor and its
+transport through polarity-specific extrusion; continue only from an authentic
+creation-to-SCC trace. In parallel, the same-family Oracle effect lane is
+trying to establish the actual B-bound-to-compact/generalized/use image for its
+unchanged H scope. Complete Call, effects, ordinary source correspondence,
+soundness, principality and F5 replacement stay OPEN.
+
+### 2026-10-12 copied-row incidence decision integrated
+
+The user-approved revision 2 of the copied-row question is now integrated in
+[`Value-reference ownership on copied rows`](../notes/design/2026-10-12-value-reference-copied-row-ownership.md): extrusion and per-use freshening copy type descriptions/bounds but do not inherit Value-reference incidences. An independent source-owner constructor may assign incidences to a copied row while retaining original resolved-binder targets. Any adopted SCC shortcut must preserve SCC membership and parent-qualified intrusion eligibility, with a computational-cost justification. This does not authorize implementation or F5 cutover.
+
+The user's exact nested `odd`/`even` program is recursion across lexical/inference levels, not same-level mutual recursion. Under the approved definition-root ownership rule its original roots have `O → E` and `E → O`, hence a nontrivial Value-reference SCC. The accepted no-inheritance copy rule leaves that original SCC intact but does not put an extrusion copy into it. The smallest remaining intrusion obligation is to identify actual independent source-owner incidences on copied rows, then trace a real retained parent/copy pair into the selected SCC consumer and prove equality preservation. The exact source still lacks an end-to-end current HIR route. Bundle integration is recorded in the matching question receipt. H, complete Call, soundness, principality, ordinary inference, and F5 replacement remain OPEN.

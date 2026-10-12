@@ -73,6 +73,12 @@ This index is a navigation aid. The listed source document remains authoritative
   now include recursive nested-Apply Name membership and definition-root
   ownership across lexical levels; source construction, transport, qualifying
   parent/copy membership, and equality preservation remain open. The
+  [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
+  fixes extrusion and per-use freshening as description/bound copies that do
+  not inherit Value-reference incidences; independent source-owner construction
+  remains responsible for any such edge. Adopting an SCC-preserving shortcut
+  requires both a preservation argument and a computational-cost justification;
+  no shortcut implementation or F5 authorization follows. The
   [implementation checkpoint](../progress/2026-10-10-parent-copy-intrusion-implementation.md)
   connects canonical equality, live use-time recapture and actual open recursive
   uses, with bounded M2 reviews and owning builds. The
