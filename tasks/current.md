@@ -4,6 +4,26 @@ Date: 2026-10-12 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## 2026-10-12 resumed proof and effect-source slices
+
+The fixed native `odd/even` post-intrusion ground model now has a fresh
+independent `compiler_referee` PASS. Its minor replay-schedule ambiguity is
+repaired: obtaining `Y <: V` requires an explicit third-owner replay of
+`L(j) × U(j)` after the quotient, not merely `constrain(Y,j)`. The model
+remains conditional on the event endpoints `(E,O)` and equality pairs
+`C=T,D=R`; the wrapped-source endpoint question is still pending, and source
+admission, native leveled-merge correspondence, preservation, principality,
+complete Call and F5 remain OPEN.
+
+The live-attachment source-construction bridge received an independent
+`spec_auditor` PASS with no findings. It locates the missing producer at
+annotation-to-live-operation formation before/at `source_weight`: HIR retains
+resolved row data but no live attachment; earlier negative empty-bundle IDs
+are inert provenance; the concrete `LocalWeight` payload has empty operation
+words. This narrows the effect implementation seam but does not prove complete
+Call/output/residual transport or authorize a production cutover. H, complete
+Call and F5 remain OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as
