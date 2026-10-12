@@ -13739,8 +13739,22 @@ the written selector governs an entry contribution. An alternative map may
 retain entry as a separate checked observation. The conditional entry-effect
 discriminator separates permission applicability; actual removal still
 requires the missing realization law, and no authentic annotated-formal
-admission was established. A bounded `compiler_referee` review passed the
-audit. The constructive field-map lane remains active. Next: integrate its
-explicit map derivation or exact remaining premise; preserve the possibility
-of a user decision if both maps remain consistent with current authority. No
-compiler code, tests, builds, probes or measurements changed or ran.
+admission was established. The constructive
+[entry-effect field-map derivation](../notes/theory/2026-10-13-negative-formal-entry-effect-field-maps.md)
+is now frozen. It constructs body-subfield and complete-invocation
+correspondences, then inverts the adopted clauses: neither supplies the
+written permission-field association. Complete Function membership retains
+the whole `J_call` obligation but does not choose which subfield the
+annotation permission governs. The discriminator is conditional on authentic
+carrier/challenge admission, legal resumption and local permission
+realization; it proves no admitted source counterexample or outward scheme
+difference. A fresh `compiler_referee` review passed the bounded quantifier,
+constructor and authority claims. All 32 direct dependency bytes match
+baseline `4555abdd4`; 18 links and document formatting checks pass. No tests,
+builds, probes or measurements ran. The annotation/H gate remains OPEN, as do
+concrete Row demand, residual construction, complete Call/output, soundness,
+principality and F5. Next: obtain the original Parameter/Lambda
+annotation-to-invocation field law and its same-callable checking proof; if
+current authority cannot determine it, present the reviewed conditional
+permission-incidence difference through the existing decision path. No
+compiler code changed.

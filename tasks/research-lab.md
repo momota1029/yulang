@@ -975,11 +975,11 @@ The architect's follow-up narrowed the missing premise to the mapping from a
 written Function effect selector to a dependent field in the actual formal
 callable's complete invocation observation. It proposes an entry-effect
 discriminator to compare complete-invocation and post-entry/body-only maps;
-neither is selected yet. Two distinct current-baseline lanes are running:
+neither is selected yet. Two distinct current-baseline lanes were dispatched:
 
 | Lane | Method | Output lease | Status |
 |---|---|---|---|
-| `/root/prove_entry_field_maps` | Constructive original-interface map derivation | `notes/theory/2026-10-13-negative-formal-entry-effect-field-maps.md` | running |
+| `/root/prove_entry_field_maps` | Constructive original-interface map derivation | `notes/theory/2026-10-13-negative-formal-entry-effect-field-maps.md` | frozen; compiler-referee PASS |
 | `/root/falsify_entry_field_maps` | Independent source-owner search/falsification | `notes/progress/2026-10-13-formal-entry-effect-field-falsification.md` | frozen; compiler-referee PASS |
 
 The source audit confirms adopted rules retain entry effects in complete
@@ -990,7 +990,23 @@ conditional one-call discriminator separates permission applicability; actual
 removal still depends on the unconstructed local realization, and no
 authentic annotated-formal admission is established. Independent
 `compiler_referee` review found no issue in the bounded source/quantifier
-claims. The constructive lane is still running.
+claims. The constructive lane is now frozen at
+[`entry-effect field-map derivation`](../notes/theory/2026-10-13-negative-formal-entry-effect-field-maps.md).
+It constructs two candidate field correspondences and gives a bounded inversion result:
+adopted Parameter/Lambda, producer-entry, complete Function, annotation,
+signature and Generalize clauses consume or preserve the original
+annotation-to-field law but do not derive it. The conditional entry-E/body-pure
+reduction distinguishes permission applicability only after separately
+assumed source carrier/challenge admission, legal resumption and local
+realization; it establishes neither an admitted source witness nor an
+outward scheme difference. A fresh `compiler_referee` PASS covers the bounded
+constructor, quantifier, conditional-reduction and authority claims. All 32
+direct dependency bytes match baseline `4555abdd4`. No tests, builds, probes,
+measurements or code changes ran. Next: obtain the original annotation to
+actual-invocation field law and checking proof, then use the existing decision
+path only if adopted authority cannot determine it. The original annotation/H,
+concrete-formal admission, concrete Row/residual, Call/output, soundness,
+principality and F5 gates remain OPEN.
 
 Both lanes retain the original H domain and keep concrete-formal admission,
 concrete Row/residual, Call/output and production cutover separate. Neither
