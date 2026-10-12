@@ -3,7 +3,7 @@
 Date: 2026-10-13
 Branch supplied by primary: `research/simple-sub-intrusion`
 Pinned baseline supplied by primary: `3e489f7ac9507023d0901bf882d68375529334c6`
-Status: frozen, unreviewed, non-authoritative source characterization
+Status: frozen, independently reviewed, non-authoritative source characterization
 Method: bounded static producer/dispatch/consumer audit; no executable experiment
 Lease: this new note only; target absence checked before writing
 Budget: one researcher, no descendants, at most 30 minutes; lightweight reads only
@@ -294,8 +294,9 @@ these hashes; no changed dependency hash was observed during that check.
 - Baseline: `3e489f7ac9507023d0901bf882d68375529334c6`, primary pinned.
 - Dependency hash changes: none observed between the two recorded snapshots;
   primary commit-baseline equality remains to be checked.
-- Claim/review status: frozen unreviewed bounded source characterization;
-  no theorem closure, retirement claim or production authority.
+- Claim/review status: frozen bounded source characterization; independent
+  `spec_auditor` PASS with no findings; no theorem closure, retirement claim or
+  production authority.
 - Checks already run: target absence; exact source branch/field/consumer reads;
   dependency SHA-256 snapshots. No tests/builds/probes/measurements.
 - Proposed message: `research: audit candidate fallback constraint owners and withdrawal boundary`.
@@ -304,3 +305,20 @@ these hashes; no changed dependency hash was observed during that check.
   role from historical closed consumers; retain complete migration and F5
   gates OPEN at the authentic source/Call constructor bridge. No shared index,
   authority, theory or question record was changed.
+
+## Primary review and disposition
+
+Independent `spec_auditor` review passed with no findings. It checked the
+Authoritative withdrawal policy, the actual producer/dispatch/consumer
+distinction, and preservation of source, Call, effect, scope, and generalization
+obligations. The reviewer confirmed that graph SCC and incoming-use dispatch
+return through live graph owners before legacy closed consumers, while fallback
+facts/recipes still reach live propagation. It accepted the unresolved
+`ApplySourceInput`/formal-name construction boundary as a migration dependency,
+not proof that the fallback is obsolete.
+
+Review scope: bounded source characterization and withdrawal-policy
+conformance. Runtime behavior, grammar-wide coverage, downstream proof
+invariants, observer clients outside the identified cone, and public cutover
+remain uninspected. The fifteen dependency hashes match this frozen note. No
+tests, builds, probes, measurements, or Git operations were part of review.
