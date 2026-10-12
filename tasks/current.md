@@ -12441,25 +12441,44 @@ separately frozen research artifacts:
 
 These results refute the specific strategy “enforce `C=B` in each helper-use
 frame while preserving the reference's shared low-level C” for that native
-construction. They do **not** refute the complete original Yulang A/B gate.
-The proposed heterogeneous witness uses Record/Selection, absent from the
-inspected private `LocalSource` carrier; its admission through the complete
-Yulang source judgment is unestablished. More fundamentally, authority fixes
-G→F for the displayed bare discriminator but does not yet give a general
-owner rule for an extrusion demand nested under wrappers, nor does it classify
-the live outer root/copy C as a fixed anchor or a jointly fresh eligible
-description at nested g publication. The two-use transport of the occurrence
-equality is likewise not derived. None of these may be inferred from numeric
-levels, Value SCC membership, or the current module `owner` field.
+construction. They do **not** yet refute the complete original Yulang A/B
+gate. The proposed heterogeneous witness uses Record/Selection, absent from
+the inspected private `LocalSource` carrier; its admission through the
+complete Yulang source judgment is unestablished.
 
-The smallest remaining source gate is the owning Call-demand/extrusion
-constructor: retain the actual event endpoints and all its pairs through
-nesting/replay; then derive nested g's publication component, C's
-fixed/template status, and the equality in both independent frames from the
-selected Source-Generalize scopes. Until then, equality preservation,
-principality, normal progress, termination, complete Call/effect hygiene and
-F5 replacement stay OPEN. No compiler code, tests, or language expectations
-changed in these checkpoints.
+The approved answer to the nested extrusion-origin question now resolves the
+previously missing owner rule: a call-demand extrusion inside a function's
+initializer/body uses that enclosing definition as origin, including through
+wrappers, and the resolved recursive callee definition as receiver. Thus the
+old `f/g` witness normatively uses `(G,F)`, whose approved Name-reference SCC
+qualifies its actual native pairs `(C,B,+)` and `(D,R,-)`. The user's
+`odd/even` call analogously uses `(E,O)` and the actual pairs `(C,T,+)` and
+`(D,R,-)`. These origin decisions are recorded in the approved answer bundle
+`c0b67771d` and design decision `452f0f06b`; they do not establish that the
+current Yulang source/replay/extrusion carrier emits and preserves those event
+certificates.
+
+A bounded read-only source falsification check rederived the old `f/g`
+witness's native g publication and two independent fresh uses. If the
+qualified equality is active at publication and both frames retain the same C
+anchor, the second use requires `bool <: int`. The first missing premise is
+whether Yulang's validating component, `Desc` classifications, fixed/template
+closure, and the equality's frame incidences actually give that allocation
+equation. Source Generalize defines the construction but does not generate the
+missing witness records. Numeric levels or Value SCC membership alone do not
+establish it. The conditional rejection therefore remains a strategy
+counterexample, not a source-qualified refutation of the full A/B theorem.
+
+The smallest remaining source gate is to construct the approved event
+endpoints and all actual polar pairs through nested source ownership, demand
+replay, and extrusion; then derive the nested publication component,
+C's fixed/template status, and equality incidence in both independent frames
+from the selected Source-Generalize scopes. The current carrier's Apply owner
+still defaults to the module root, and its extrusion Parent has no event
+origin/receiver. Until the construction and preservation theorem close,
+equality preservation, principality, normal progress, termination, complete
+Call/effect hygiene and F5 replacement stay OPEN. No compiler code, tests, or
+language expectations changed in these checkpoints.
 
 ### 2026-10-12 Y3 annotation/Call/output effect gate
 
@@ -12526,3 +12545,45 @@ complete Call/effect obligations. Both artifacts are checkpointed together at
 `944708509`; all source admission, intrusion-preservation, principality,
 soundness, complete Call/effect and F5 replacement gates remain OPEN. No
 compiler code or tests changed or ran.
+
+### 2026-10-12 occurrence-cut quotient and live contextual attachment follow-up
+
+The fixed `odd/even` reference derivation has a repaired, independently
+reviewed cache boundary in
+[`odd-even qualified intrusion derivation`](../notes/theory/2026-10-12-odd-even-qualified-intrusion-derivation.md), committed at
+`8e71b15d3`. Native `constrain(o,F(T,R))` caches its suspended key before
+extrusion; canonicalizing that cache would make the resumed call return before
+it inserts the quotient demand. The derivation now explicitly discards that
+single suspended cache, replays changed quotient bounds under fresh `K_eq`,
+and resumes the demand under fresh `K_resume`. The independent
+`compiler_referee` delta review verified the exact keys and `U(o)` insertion
+with no findings. This is a fixed-cut mathematical interpretation premise,
+not stock Scala behavior or a general cache-restart theorem. Under that
+premise, the eleven-App finite trace completes, E freshens exactly e/B/V, and
+the fixed output remains `int -> bool`. Source admission, actual Yulang event
+and equality transport, general soundness/principality, complete Call, global
+termination, and F5 replacement remain OPEN.
+
+The independent bounded source check for the older recursive `f/g` witness
+confirms that its approved origin/receiver are `(G,F)`, its native pairs
+`(C,B,+)` and `(D,R,-)` qualify in the approved Value SCC, and its g scheme
+has two real independent uses. If the equality reaches both frames while
+preserving one shared C anchor, the second use forces `bool <: int`. The
+missing premise is Yulang's actual nested publication component, declaration
+classification, and equality/frame incidence; this remains a conditional
+rejection of the fixed-anchor strategy, not a source-qualified refutation of
+the original theorem.
+
+The effect lane now has a frozen
+[`live attachment constructor proof`](../notes/theory/2026-10-12-contextual-live-push-prover.md), committed at
+`0870e63b3` and independently reviewed with PASS for its bounded operational
+claim. Authentic attachment metadata survives view construction, but
+`source_weight` stores empty live words and a dormant marker; an open
+`[io; 't]` view has no `closed_weight`, so source context seeding cannot
+activate it. The returned Function has no selected POP wrapper or residual
+lineage consumer. This establishes a current-carrier construction gap, not a
+semantic impossibility theorem or global hygiene counterexample. The next
+effect obligation is a source-owned live PUSH plus its matching result POP,
+residual lineage, and consumers through direct/aliased Calls; the original
+effect-hygiene and production gates remain OPEN. No compiler code or tests
+changed or ran in these follow-ups.
