@@ -1,11 +1,13 @@
 # Pinned Oracle effect source transfer audit
 
 Date: 2026-10-12
-Status: frozen unreviewed research checkpoint; parent hygiene and negative-formal gates OPEN
+Status: reviewed bounded source-correspondence checkpoint; parent hygiene and negative-formal gates OPEN
 Method: independent pinned-source correspondence audit, not constructive theorem review
 Y3 baseline: `0e621f549035537e4d3e799c78f79dd9385df350`
 Oracle baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Exclusive lease: this file only; leaf, no delegation or Git mutations
+Review: `oracle_effect_transfer_review`; no blocking, major, or minor findings
+within the bounded audit scope; effective model/effort unknown.
 
 ## 1. Objective and authority
 
@@ -294,10 +296,29 @@ revision; Oracle worktree identity is irrelevant. No dependency hash changed.
 - Exact changed/leased path: `notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md`.
 - Baseline: Y3 `0e621f549035537e4d3e799c78f79dd9385df350`; Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - Changed dependency hashes: none; exact pinned blob identities below.
-- Review: unreviewed producer audit, frozen at handoff; no independent certification or theorem promotion.
+- Review: independent `oracle_effect_transfer_review` PASS on the bounded source-correspondence audit; no correctness findings, effective model/effort unknown. This review does not certify global H or the Y3 implementation.
 - Checks already run: static pinned owner tracing, source/dependency byte checks, note whitespace/link and lease inspection; no builds/tests/runtime.
 - Proposed message: `research: audit pinned Oracle effect source transfer boundary`.
-- Shared-record deltas left for primary/curator: link this checkpoint to the negative-formal lane; record emitted-pairing/local-consumer/export-observation distinctions; retain NEGATIVE-FORMAL-SOURCE-STEP, global H, complete Call and cutover OPEN. No task/index/theory record was edited.
+- Shared-record deltas left for primary/curator: link this checkpoint to the negative-formal lane; record emitted-pairing/local-consumer/export-observation distinctions; retain NEGATIVE-FORMAL-SOURCE-STEP, global H, complete Call and cutover OPEN. No task/index/theory record was edited by the producer.
+
+## 9. Independent review and bounded conclusion
+
+The fresh read-only review compared this frozen audit with the governing
+hygiene, concrete-annotation, attachment-admission, residual-lineage and
+top-level inference designs; the pinned Oracle constructors/consumers/export
+transformations; and the Y3 operation owners and test contracts. It found no
+blocking, major, or minor correctness issue in the stated construction.
+
+The reviewed result is the direct-formal singleton spine only: one fresh
+set-wide subtraction identity remains associated across the resolved formal
+callee, its Call frame, and the enclosing output operation. The emitted pair
+does not establish complete consumption, global H after compaction/pruning/
+quantification/export, arbitrary aliases/copies, complete Call, or a Y3 live
+attachment implementation. The reviewer did not inspect exhaustive paths,
+complete replay, provider compatibility, runtime semantics, soundness,
+principality and cutover. No tests, builds, probes, or Git actions were part of
+the review. Requested review HEAD `056cf817c` was supplied by the primary and
+not independently rechecked.
 
 
 Y3 dependency blobs:

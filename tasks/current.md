@@ -314,7 +314,12 @@ rejects it, and the paired formal constructor independently has no such route.
 The actual call/output incidence and current/future residual consumers still
 need one source-owned executable attachment invariant. The reports were
 independently reviewed; the Oracle audit received a minor wildcard-scope
-repair, and the proof received a minor preflight-branch quantifier repair.
+repair, then a fresh `oracle_effect_transfer_review` PASS with no findings in
+the bounded correspondence claim. The negative-formal proof received a minor
+preflight-branch quantifier repair. The Oracle result is only the direct-formal
+singleton source spine; emitted PUSH/POP pairing does not establish complete
+consumption, global H, or Y3 live attachment behavior. Reviewer scope and
+exclusions are recorded in the [pinned transfer audit](../notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md).
 No compiler code or tests changed. The next effect gate is to construct or
 refute that coupled Y3 call/output/residual invariant before any dependent
 admission implementation. Global H, complete Call, hygiene, soundness,
