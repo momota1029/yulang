@@ -493,3 +493,88 @@ Commit packet:
 - Checks already run: pinned source-owner reads/searches and hash capture; no execution/build/test/probe/measurement.
 - Proposed checkpoint message: `research: trace choice cut through native output POP and argument-image seam`.
 - Shared-record delta for primary/curator: link this bounded native b_R/actual POP derivation and the precise weighted four-argument collection/merge/recollection premise. Preserve original H and returned-scheme/complete-Call/soundness/principality/production gates OPEN. No shared task/index/theory-status files edited.
+
+## 8. Passive constructor evidence prototype
+
+The research-only [trace patch](../../tools/research_choice_recollection_trace.patch)
+applies to pinned Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+Its frozen SHA-256 is
+`42fb29a070d09048a87a9de511a7d519978c77341d40fb1b0c184ef26b37294d`.
+It is applied only in the isolated detached worktree
+`/home/momota1029/rust/yulang2-choice-recollection-trace`; the dirty original
+Oracle checkout and Y3 candidate remain unchanged.
+
+One independent `compiler_referee` reviewed the prototype and its four-file
+repair. Static delta review closed the missing native-row-to-weighted-compact
+correspondence observations and the direct invariant-merge observation gap,
+with no remaining findings. The observations reuse immutable type shapes and
+already computed decisions; they introduce no solver/projection queries,
+constraints, origins, epoch mutations, caches or admission reordering.
+Test-only snapshotting, formatting and I/O add work and perturb timing.
+
+Enable `YULANG_RESEARCH_CHOICE_TRACE` only for the exact existing test
+`lowering::tests::case_05::parser_choice_callback_annotation_terminates`.
+The original source, test name and assertions are preserved. Events record
+source signature/native row IDs and all four neutral coordinates, their
+actual weights and completed compact images, finalized invariant operands,
+producer/lower-record/claim decisions and collection/publication epochs.
+The logger caps output at 12,000 events and 8,192 bytes per event, marking
+either truncation explicitly. Missing or truncated observations cannot
+establish absence of an inference operation.
+
+Runtime sufficiency is a separate gate. The execution below establishes
+compilation and exact fixture completion; untruncated tuple coverage and the
+resulting proof remain OPEN. This prototype does not close the returned-image
+premise or H.
+
+### First bounded execution
+
+Primary executed the reviewed patch on Rust/Cargo 1.95.0. The initial compile
+failed with signal 25 under a 128 MiB file-size limit: that limit also applied
+to compiler artifacts. The unchanged sources compiled successfully after
+raising that per-file limit to 2 GiB. Both compile invocations used one Cargo
+job, a 12 GiB address-space limit, 300-second wall/CPU bounds, locked offline
+dependencies and debug information disabled. The successful compile took
+42.47 seconds; this is one observed build, not a performance measurement.
+
+Reproduction, from the isolated worktree:
+
+```sh
+prlimit --as=12884901888 --cpu=300 --fsize=2147483648 -- \
+  timeout --signal=TERM --kill-after=5s 300s \
+  env CARGO_BUILD_JOBS=1 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 \
+  CARGO_TARGET_DIR="$PWD/target-choice-trace" \
+  cargo test --locked --offline -p infer --lib \
+  lowering::tests::case_05::parser_choice_callback_annotation_terminates --no-run
+prlimit --as=12884901888 --cpu=60 --fsize=134217728 -- \
+  timeout --signal=TERM --kill-after=5s 60s \
+  env YULANG_RESEARCH_CHOICE_TRACE=1 \
+  target-choice-trace/debug/deps/infer-b635c7ec75460551 \
+  lowering::tests::case_05::parser_choice_callback_annotation_terminates \
+  --exact --nocapture --test-threads=1
+```
+
+The exact fixture passed: one passed, zero failed, 1,392 filtered out,
+15.87 seconds. Nine warnings concern pinned Oracle unused imports/dead code;
+their declarations were not introduced by the patch. Removing them would
+change the historical comparison source and is outside this evidence lease.
+No broad suite or Y3 production test ran.
+
+The runtime log is retained at
+`/home/momota1029/rust/yulang2-choice-recollection-trace/research-logs/choice-runtime.log`,
+SHA-256 `d561bb77fc5f50aba8c736896e6e659ae7b665d120c6771e12a3790d05c934dc`.
+It explicitly reaches the 12,000-event cap: tuple/publication coverage is
+incomplete despite fixture success. The prefix contains 5,844 inclusion,
+4,098 carrier-delta and 1,149 lower-support-delta observations. The absence
+of later collector/publication events establishes nothing about those owners.
+
+The actual independent arm reference is recorded at source range `393..403`:
+`RefId(2)`, value `TypeVar(79)`, operation `cut`/`DefId(2)`, signature
+`PosId(109)`, return row `PosId(108)` and row item `PosId(107)`. Its ordered
+neutral arguments are `NeuId(28..31)`, with native bounds
+`(PosId(103),NegId(90))`, `(PosId(104),NegId(91))`,
+`(PosId(105),NegId(92))`, `(PosId(106),NegId(93))`.
+These are captured identities, not a proof of their final compatibility or
+preservation. Independent prefix/source audit remains pending. The next
+capture must reach the actual weighted collection and publication owners;
+another count-only lemma cannot substitute for that missing correspondence.

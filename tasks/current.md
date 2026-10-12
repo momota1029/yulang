@@ -11867,15 +11867,31 @@ next action.
 
 Primary created isolated detached Oracle worktree
 `/home/momota1029/rust/yulang2-choice-recollection-trace` at the immutable pin
-`a58eefc31e22141574b6f20c6a5748151c6d79f1`. A bounded `implementer` is actually
-running on passive test-only instrumentation of those existing construction
-owners; its sole main-tree output lease is
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`. The bounded `implementer` and its
+repair packet have frozen passive test-only instrumentation of those existing
+construction owners; their sole main-tree output lease is
 `tools/research_choice_recollection_trace.patch`. This is explicitly provisional
 source-evidence scaffolding, not successor semantics or production adoption.
-The existing fixture, assertions and source remain fixed. Primary will review
-the frozen hooks and own the one focused verification process. Memory/disk and
-the historical infer-test incidents were inspected; no Cargo/test process has
-run in this slice. The dirty original Oracle checkout is preserved.
+The existing fixture, assertions and source remain fixed. One independent
+`compiler_referee` closed both initial capture findings in static delta review;
+the frozen patch SHA-256 is
+`42fb29a070d09048a87a9de511a7d519978c77341d40fb1b0c184ef26b37294d`.
+Primary owns focused runtime verification. Memory/disk and the historical
+infer-test incidents were inspected. The initial single-job compile stopped
+with signal 25 because the primary's 128 MiB file limit also capped compiler
+artifacts. The retry used the unchanged patch with a 2 GiB per-file limit,
+12 GiB address-space limit and 300-second timeout. That compile passed in
+42.47 seconds. One exact isolated fixture then passed in 15.87 seconds under
+12 GiB/60-second/128 MiB-output bounds (1 passed, 1,392 filtered out).
+Its trace hit the explicit 12,000-event cap before final collection, so runtime
+tuple/publication coverage remains OPEN. The retained prefix identifies the
+independent arm cut's actual signature and four native argument coordinates;
+a read-only researcher is auditing that source crosswalk and the cap's
+dominant already-computed support/inclusion events. See the proof note §8 for
+commands, log hash and exact IDs. No broad suite ran. The nine pinned Oracle
+unused-import/dead-code warnings belong to the historical comparison source;
+cleanup would alter the immutable source evidence and is outside this lease.
+The dirty original Oracle checkout is preserved.
 
 The reviewed proof checkpoint's artifact hash, 29 pinned Oracle dependency
 hashes, 10 Y3 direct dependency hashes, local links and whitespace passed

@@ -1,0 +1,528 @@
+diff --git a/crates/infer/src/analysis/session/generalize.rs b/crates/infer/src/analysis/session/generalize.rs
+index fbf8473ae..63e80d88a 100644
+--- a/crates/infer/src/analysis/session/generalize.rs
++++ b/crates/infer/src/analysis/session/generalize.rs
+@@ -59,12 +59,21 @@ impl AnalysisSession {
+             }
+             self.timing.record_generalize_iteration();
+             let compact_epoch = self.infer.constraints().epoch();
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "root-iteration def={def:?} root={root:?} iteration={generalize_iteration} epoch={compact_epoch:?}",
++            ));
+             if let Some(shadow) = self.generalize_compact_shadow.as_mut() {
+                 let hit = shadow.observe(root, compact_epoch);
+                 self.timing.record_generalize_compact_shadow(hit);
+             }
+             let phase = Instant::now();
+             let (next_compact, mut merge_constraints) = self.compact_root_for_generalize(root);
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "root-collected def={def:?} root={root:?} iteration={generalize_iteration} epoch={:?} image={next_compact:?}",
++                self.infer.constraints().epoch(),
++            ));
+             let elapsed = phase.elapsed();
+             self.timing.record_generalize_compact(elapsed);
+             metrics.record_compact_iteration(&next_compact);
+@@ -341,6 +350,11 @@ impl AnalysisSession {
+                     view.normalized_roles.len() == coalesced_role_constraints.len()
+                         && view.dispositions.len() == coalesced_role_constraints.len()
+                 });
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "root-selected def={def:?} root={root:?} iteration={generalize_iteration} collection_epoch={compact_epoch:?} current_epoch={:?} image={compact:?}",
++                self.infer.constraints().epoch(),
++            ));
+             break FinalRoleSolveSnapshot {
+                 coalesced_roles: coalesced_role_constraints,
+                 raw_compact: capture_raw_compact.then(|| compact.clone()),
+@@ -574,6 +588,11 @@ impl AnalysisSession {
+         {
+             oracle.publish(observation);
+         }
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "root-generalized def={def:?} root={root:?} epoch={:?} image={generalized:?}",
++            self.infer.constraints().epoch(),
++        ));
+         (generalized, metrics)
+     }
+ 
+@@ -584,6 +603,10 @@ impl AnalysisSession {
+         let compact_epoch = self.infer.constraints().epoch();
+         if let Some(cache) = self.generalize_compact_cache.as_ref() {
+             if let Some(cached) = cache.get(root, compact_epoch) {
++                #[cfg(test)]
++                crate::constraints::research_choice_trace(format_args!(
++                    "root-cache-hit root={root:?} epoch={compact_epoch:?}",
++                ));
+                 self.timing.record_generalize_compact_cache(true);
+                 return cached;
+             }
+@@ -596,6 +619,11 @@ impl AnalysisSession {
+             self.infer.constraints_mut(),
+             root,
+         );
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "root-recollected root={root:?} input_epoch={compact_epoch:?} output_epoch={:?}",
++            self.infer.constraints().epoch(),
++        ));
+         if let Some(cache) = self.generalize_compact_cache.as_mut() {
+             cache.insert(root, compact_epoch, &out.0, &out.1);
+             self.timing.record_generalize_compact_cache_insert();
+diff --git a/crates/infer/src/compact/collect/mod.rs b/crates/infer/src/compact/collect/mod.rs
+index 2e0e8ac84..1022a32fd 100644
+--- a/crates/infer/src/compact/collect/mod.rs
++++ b/crates/infer/src/compact/collect/mod.rs
+@@ -401,6 +401,10 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+                 .iter()
+                 .filter(|family| &family.path == row_path && family.args.len() == row_args.len())
+             {
++                #[cfg(test)]
++                crate::constraints::research_choice_trace(format_args!(
++                    "stack-row-coexistence path={row_path:?} stack_args={:?} row_args={row_args:?}", family.args,
++                ));
+                 self.record_merge_bound_args(&family.args, row_args);
+             }
+         }
+@@ -416,6 +420,10 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+             .iter()
+             .filter(|family| family.path == path && family.args.len() == args.len())
+         {
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "stack-row-item-coexistence path={path:?} stack_args={:?} row_args={args:?}", family.args,
++            ));
+             self.record_merge_bound_args(&family.args, args);
+         }
+     }
+@@ -594,6 +602,10 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+         if lhs.len() != rhs.len() {
+             return;
+         }
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "coexistence-ordered-args lhs={lhs:?} rhs={rhs:?}",
++        ));
+         record_merge_bound_args_with_sink(&mut self.merge_constraints, lhs, rhs);
+     }
+ 
+@@ -866,7 +878,13 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+                 .map(|entries| {
+                     entries
+                         .into_iter()
+-                        .map(|entry| entry.bound.clone())
++                        .map(|entry| {
++                            #[cfg(test)]
++                            crate::constraints::research_choice_trace(format_args!(
++                                "collect-included owner={var:?} outer_weight={outer_weight:?} entry={entry:?}",
++                            ));
++                            entry.bound.clone()
++                        })
+                         .collect::<Vec<_>>()
+                 })
+         };
+@@ -907,7 +925,17 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+             let left_weight = bound.weights.left.to_stack_weight();
+             let mut bound_stack_families = self.compact_weight_stack_families(&left_weight);
+             bound_stack_families.extend(self.compact_pos_stack_families(bound.pos));
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "compact-bound-input owner={var:?} bound={bound:?} outer_weight={outer_weight:?} effective_weight={:?} active_sides={:?}",
++                left_weight.union(outer_weight), self.in_progress,
++            ));
+             let compact = self.compact_pos_bound_id(bound.pos, left_weight.union(outer_weight));
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "compact-bound-output owner={var:?} bound={bound:?} outer_weight={outer_weight:?} effective_weight={:?} result={compact:?} active_sides={:?}",
++                left_weight.union(outer_weight), self.in_progress,
++            ));
+             self.record_stack_families_row_coexistence(&pending_stack_families, &compact);
+             self.record_stack_families_row_coexistence(&bound_stack_families, &acc);
+             self.record_stack_families_row_coexistence(&bound_stack_families, &compact);
+diff --git a/crates/infer/src/compact/collect/type_nodes.rs b/crates/infer/src/compact/collect/type_nodes.rs
+index 3cc7de8d3..3b19471c4 100644
+--- a/crates/infer/src/compact/collect/type_nodes.rs
++++ b/crates/infer/src/compact/collect/type_nodes.rs
+@@ -263,7 +263,16 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+         id: PosId,
+         weight: ConstraintWeight,
+     ) -> Option<(Vec<String>, Vec<CompactBounds>)> {
+-        match self.pos_shape(id) {
++        let shape = self.pos_shape(id);
++        #[cfg(test)]
++        let input_weight = weight.clone();
++        #[cfg(test)]
++        let input_shape = shape.clone();
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "compact-row-item-input id={id:?} weight={weight:?} shape={shape:?} active_sides={:?}", self.in_progress,
++        ));
++        let result = match shape {
+             Pos::Con(path, args) => Some((
+                 path,
+                 args.into_iter()
+@@ -286,7 +295,12 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+                 item
+             }
+             _ => None,
+-        }
++        };
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "compact-row-item-output id={id:?} weight={input_weight:?} native_shape={input_shape:?} result={result:?} active_sides={:?}", self.in_progress,
++        ));
++        result
+     }
+ 
+     pub(in crate::compact) fn compact_neg_row_item(
+@@ -320,7 +334,16 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+         id: NeuId,
+         weight: ConstraintWeight,
+     ) -> CompactBounds {
+-        match self.neu_shape(id) {
++        let shape = self.neu_shape(id);
++        #[cfg(test)]
++        let input_weight = weight.clone();
++        #[cfg(test)]
++        let input_shape = shape.clone();
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "compact-neutral-input id={id:?} weight={weight:?} shape={shape:?} active_sides={:?}", self.in_progress,
++        ));
++        let result = match shape {
+             Neu::Bounds(lower, upper) => CompactBounds::Interval {
+                 lower: self.compact_pos_id(lower, weight),
+                 upper: self.compact_neg_id(upper, ConstraintWeight::empty()),
+@@ -373,7 +396,12 @@ impl<'scope, 'query> CompactCollector<'scope, 'query> {
+                     .map(|item| self.compact_neu_id(item, weight.clone()))
+                     .collect(),
+             },
+-        }
++        };
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "compact-neutral-output id={id:?} weight={input_weight:?} native_shape={input_shape:?} result={result:?} active_sides={:?}", self.in_progress,
++        ));
++        result
+     }
+ 
+     pub(in crate::compact) fn compact_effect_neu_id(
+diff --git a/crates/infer/src/compact/surface.rs b/crates/infer/src/compact/surface.rs
+index 0c79a4678..47364f039 100644
+--- a/crates/infer/src/compact/surface.rs
++++ b/crates/infer/src/compact/surface.rs
+@@ -344,16 +344,29 @@ pub(crate) fn apply_compact_merge_constraints(
+     let mut changed = false;
+     for constraint in constraints {
+         let CompactMergeConstraint { key, lhs, rhs } = constraint;
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "merge-consume lhs={lhs:?} rhs={rhs:?} epoch={:?}", machine.epoch(),
++        ));
+         if lhs == rhs || !applied.insert(key) {
+             continue;
+         }
+         let phase = Instant::now();
+         if let Some(pairs) = var_only_interval_merge_pairs(&lhs, &rhs) {
+             if pairs.len() > VAR_ONLY_INTERVAL_DIRECT_MERGE_THRESHOLD {
+-                changed |= machine.constrain_var_var_pairs_direct(
++                #[cfg(test)]
++                crate::constraints::research_choice_trace(format_args!(
++                    "merge-direct-before lhs={lhs:?} rhs={rhs:?} pairs={pairs:?} epoch={:?}", machine.epoch(),
++                ));
++                let direct_changed = machine.constrain_var_var_pairs_direct(
+                     pairs,
+                     crate::constraints::OriginId::unknown_internal(),
+                 );
++                #[cfg(test)]
++                crate::constraints::research_choice_trace(format_args!(
++                    "merge-direct-after lhs={lhs:?} rhs={rhs:?} changed={direct_changed} epoch={:?}", machine.epoch(),
++                ));
++                changed |= direct_changed;
+                 trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
+                 continue;
+             }
+@@ -365,6 +378,10 @@ pub(crate) fn apply_compact_merge_constraints(
+                 finalizer.finalize_bounds(&rhs),
+             )
+         };
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "merge-finalized lhs={lhs:?} rhs={rhs:?} lhs_neu={lhs_neu:?} rhs_neu={rhs_neu:?} epoch={:?}", machine.epoch(),
++        ));
+         changed |= machine.constrain_invariant_neu(
+             lhs_neu,
+             rhs_neu,
+diff --git a/crates/infer/src/constraints/machine/bounds.rs b/crates/infer/src/constraints/machine/bounds.rs
+index 365ed25a8..3155396f3 100644
+--- a/crates/infer/src/constraints/machine/bounds.rs
++++ b/crates/infer/src/constraints/machine/bounds.rs
+@@ -2395,6 +2395,10 @@ impl ConstraintMachine {
+             .iter()
+             .map(|parent| parent.parent_claim())
+             .collect::<Vec<_>>();
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "producer-lower producer={producer:?} lower_record={lower_record:?} parents={parents:?} claims={claims:?} bootstrap={bootstrap}",
++        ));
+         self.register_lower_projection_delta(
+             lower_record,
+             &claims,
+@@ -2440,6 +2444,10 @@ impl ConstraintMachine {
+     ) {
+         #[cfg(test)]
+         self.record_cdm_lower_carrier_event(carrier);
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "carrier-delta producer={producer:?} parents={parents:?} carrier={carrier:?}",
++        ));
+         let delta = if !parents.is_empty()
+             && self.proof_store.qualified_parent_count(producer) == parents.len()
+         {
+@@ -2524,6 +2532,10 @@ impl ConstraintMachine {
+                 return;
+             }
+         };
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "lower-support-delta record={lower_record:?} claims={claims_to_link:?} supports={independent_supports:?} ledger_exists={ledger_exists} epoch={:?}", self.epoch,
++        ));
+         if let Some(fence) = publication_fence.as_deref_mut() {
+             if self
+                 .defer_scheme_projection_mutation(fence, mutation)
+diff --git a/crates/infer/src/constraints/machine/entry.rs b/crates/infer/src/constraints/machine/entry.rs
+index d75544523..5288d66d8 100644
+--- a/crates/infer/src/constraints/machine/entry.rs
++++ b/crates/infer/src/constraints/machine/entry.rs
+@@ -663,6 +663,10 @@ impl ConstraintMachine {
+         origin: OriginId,
+     ) -> bool {
+         let constraint_count = self.canonical_constraint_count();
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "invariant-before count={constraint_count} epoch={:?} origin={origin:?}", self.epoch,
++        ));
+         for (lower, upper) in pairs {
+             self.timing.record_constrain_invariant_neu_call();
+             self.enqueue_root_invariant_neu(lower, upper, ConstraintWeights::empty(), origin);
+@@ -670,6 +674,12 @@ impl ConstraintMachine {
+         if !self.queue.is_empty() {
+             self.drain();
+         }
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "invariant-after count={} epoch={:?} changed={}",
++            self.canonical_constraint_count(), self.epoch,
++            self.canonical_constraint_count() != constraint_count,
++        ));
+         self.canonical_constraint_count() != constraint_count
+     }
+ 
+@@ -1033,6 +1043,10 @@ impl ConstraintMachine {
+     ) {
+         let (lower_pos, lower_neg) = self.neu_bounds(lower);
+         let (upper_pos, upper_neg) = self.neu_bounds(upper);
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "invariant-directions lower={lower:?} upper={upper:?} forward=({lower_pos:?},{upper_neg:?}) reverse=({upper_pos:?},{lower_neg:?}) weights={weights:?} origin={origin:?}",
++        ));
+         self.enqueue_root_subtype(lower_pos, weights.clone(), upper_neg, origin);
+         self.enqueue_root_subtype(upper_pos, weights.swapped(), lower_neg, origin);
+     }
+@@ -1373,6 +1387,10 @@ impl ConstraintMachine {
+                     }
+                 }
+                 if let Some(origin) = inserted_origin {
++                    #[cfg(test)]
++                    super::super::research_choice_trace(format_args!(
++                        "occupied-origin producer={existing_record_id:?} key={constraint:?} origin={origin:?} epoch={:?}", self.epoch,
++                    ));
+                     self.proof_store
+                         .record_constraint_root(existing_record_id, origin);
+                     self.register_constraint_projection_carrier_delta(
+@@ -1395,6 +1413,10 @@ impl ConstraintMachine {
+             }
+         };
+         self.observe_routing_shadow(&constraint);
++        #[cfg(test)]
++        super::super::research_choice_trace(format_args!(
++            "canonical-new producer={record_id:?} key={constraint:?} origin={origin:?} epoch={:?}", self.epoch,
++        ));
+         self.constraint_records.push(ConstraintRecord {
+             key: constraint.clone(),
+             root_origins: origin.into_iter().collect(),
+diff --git a/crates/infer/src/constraints/mod.rs b/crates/infer/src/constraints/mod.rs
+index 14860e366..085d6cb4f 100644
+--- a/crates/infer/src/constraints/mod.rs
++++ b/crates/infer/src/constraints/mod.rs
+@@ -44,6 +44,44 @@ mod trace;
+ #[cfg(test)]
+ use std::cell::Cell;
+ 
++// Provisional, passive evidence for the pinned choice fixture; never production metadata.
++#[cfg(test)]
++pub(crate) fn research_choice_trace(args: std::fmt::Arguments<'_>) {
++    use std::fmt::Write;
++    use std::sync::atomic::{AtomicUsize, Ordering};
++    static EVENTS: AtomicUsize = AtomicUsize::new(0);
++    if std::env::var_os("YULANG_RESEARCH_CHOICE_TRACE").is_none() {
++        return;
++    }
++    let event = EVENTS.fetch_add(1, Ordering::Relaxed);
++    if event >= 12000 {
++        if event == 12000 {
++            eprintln!("[choice-research] TRUNCATED event cap; evidence incomplete");
++        }
++        return;
++    }
++    struct BoundedLine {
++        bytes: [u8; 8192],
++        len: usize,
++    }
++    impl Write for BoundedLine {
++        fn write_str(&mut self, text: &str) -> std::fmt::Result {
++            if text.len() > self.bytes.len() - self.len {
++                return Err(std::fmt::Error);
++            }
++            self.bytes[self.len..self.len + text.len()].copy_from_slice(text.as_bytes());
++            self.len += text.len();
++            Ok(())
++        }
++    }
++    let mut line = BoundedLine { bytes: [0; 8192], len: 0 };
++    let truncated = line.write_fmt(args).is_err();
++    // write_str accepts complete UTF-8 strings only.
++    let text = std::str::from_utf8(&line.bytes[..line.len]).expect("trace UTF-8");
++    eprintln!("[choice-research] event={event} {text}{}",
++        if truncated { " TRUNCATED line cap; evidence incomplete" } else { "" });
++}
++
+ #[cfg(test)]
+ thread_local! {
+     static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
+@@ -2112,6 +2150,11 @@ impl ConstraintMachine {
+         #[cfg(not(test))]
+         let _ = is_included;
+         #[cfg(test)]
++        research_choice_trace(format_args!(
++            "inclusion record={lower_record:?} before={was_included} after={is_included} epoch={:?}",
++            self.epoch,
++        ));
++        #[cfg(test)]
+         self.record_semantic_projectability_transition(lower_record, was_included, is_included);
+         Some(intent)
+     }
+@@ -2369,6 +2412,10 @@ impl ConstraintMachine {
+             return;
+         }
+         let epoch = self.bump_epoch();
++        #[cfg(test)]
++        research_choice_trace(format_args!(
++            "projection-owners owners={owners:?} before_epoch={semantic_before_epoch:?} after_epoch={epoch:?}",
++        ));
+         for owner in owners {
+             self.bounds.record_var_epoch(owner, epoch);
+         }
+diff --git a/crates/infer/src/constraints/structural_kernel/access.rs b/crates/infer/src/constraints/structural_kernel/access.rs
+index 416ddcc27..e4254b733 100644
+--- a/crates/infer/src/constraints/structural_kernel/access.rs
++++ b/crates/infer/src/constraints/structural_kernel/access.rs
+@@ -868,6 +868,10 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
+         let mut lowers = Vec::new();
+         for (record, bound) in records {
+             let decision = self.view.project_lower(record, round)?;
++            #[cfg(test)]
++            crate::constraints::research_choice_trace(format_args!(
++                "scoped-lower-decision owner={var:?} record={record:?} bound={bound:?} decision={decision:?}",
++            ));
+             let (reason, projection_evidence) = match decision {
+                 proof::ProjectionDecision::Excluded => continue,
+                 proof::ProjectionDecision::Unclaimed => {
+diff --git a/crates/infer/src/lowering/expr/block_local.rs b/crates/infer/src/lowering/expr/block_local.rs
+index a406f4f9b..ec076769f 100644
+--- a/crates/infer/src/lowering/expr/block_local.rs
++++ b/crates/infer/src/lowering/expr/block_local.rs
+@@ -996,6 +996,11 @@ impl<'a> ExprLowerer<'a> {
+         let value = self.fresh_type_var();
+         let effect = self.fresh_exact_pure_effect();
+         let reference = self.session.poly.add_ref();
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "source-reference parent={:?} label={label:?} target={target:?} reference={reference:?} source_range={source_range:?} value={value:?} effect={effect:?}",
++            self.parent,
++        ));
+         if let Some(labels) = self.labels.as_mut() {
+             labels.set_ref_label(reference, label);
+         }
+@@ -1041,6 +1046,37 @@ impl<'a> ExprLowerer<'a> {
+             return;
+         };
+         let upper = self.alloc_neg(Neg::Var(value));
++        #[cfg(test)]
++        crate::constraints::research_choice_trace(format_args!(
++            "operation-instance parent={:?} target={target:?} operation={:?} value={value:?} signature_pos={predicate:?} upper={upper:?}",
++            self.parent, operation_decl.name,
++        ));
++        #[cfg(test)]
++        {
++            let types = self.session.infer.constraints().types();
++            crate::constraints::research_choice_trace(format_args!(
++                "operation-native-signature target={target:?} value={value:?} signature_pos={predicate:?} shape={:?}", types.pos(predicate),
++            ));
++            if let Pos::Fun { ret_eff, .. } = types.pos(predicate) {
++                crate::constraints::research_choice_trace(format_args!(
++                    "operation-native-return target={target:?} signature_pos={predicate:?} ret_eff={ret_eff:?} shape={:?}", types.pos(*ret_eff),
++                ));
++                if let Pos::Row(items) = types.pos(*ret_eff) {
++                    for (item_index, item) in items.iter().enumerate() {
++                        crate::constraints::research_choice_trace(format_args!(
++                            "operation-native-row-item target={target:?} ret_eff={ret_eff:?} item_index={item_index} item={item:?} shape={:?}", types.pos(*item),
++                        ));
++                        if let Pos::Con(_, args) = types.pos(*item) {
++                            for (arg_index, arg) in args.iter().enumerate() {
++                                crate::constraints::research_choice_trace(format_args!(
++                                    "operation-native-row-argument target={target:?} ret_eff={ret_eff:?} item_index={item_index} item={item:?} arg_index={arg_index} neutral={arg:?} shape={:?}", types.neu(*arg),
++                                ));
++                            }
++                        }
++                    }
++                }
++            }
++        }
+         self.session.infer.subtype(
+             predicate,
+             upper,
+diff --git a/crates/infer/src/lowering/tests/case_05.rs b/crates/infer/src/lowering/tests/case_05.rs
+index 45d1b6d26..633d9c7d9 100644
+--- a/crates/infer/src/lowering/tests/case_05.rs
++++ b/crates/infer/src/lowering/tests/case_05.rs
+@@ -201,6 +201,9 @@ fn recursive_loop_for_in_callback_annotation_terminates() {
+ 
+ #[test]
+ fn parser_choice_callback_annotation_terminates() {
++    crate::constraints::research_choice_trace(format_args!(
++        "fixture-begin parser_choice_callback_annotation_terminates baseline=a58eefc31e22141574b6f20c6a5748151c6d79f1",
++    ));
+     let root = parse(concat!(
+         "act parse 'item 'err 'pos 'snap:\n",
+         "  pub fail: 'err -> never\n",
+@@ -220,9 +223,17 @@ fn parser_choice_callback_annotation_terminates() {
+         "      catch q(): parse::fail e2, _ -> parse::fail: e1.merge e2\n",
+     ));
+     let lower = lower_module_map(&root);
++    if std::env::var_os("YULANG_RESEARCH_CHOICE_TRACE").is_some() {
++        let module = lower.modules.root_id();
++        let (choice, _) = binding_def_and_order(&lower.modules, module, "choice");
++        crate::constraints::research_choice_trace(format_args!(
++            "fixture-choice-def def={choice:?}",
++        ));
++    }
+ 
+     let output = lower_binding_bodies(&root, lower);
+ 
++    crate::constraints::research_choice_trace(format_args!("fixture-end errors={:?}", output.errors));
+     assert!(output.errors.is_empty(), "{:?}", output.errors);
+ }
+ 
