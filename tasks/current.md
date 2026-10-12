@@ -12716,6 +12716,27 @@ conformance review found only a minor premise-placement clarity issue, which
 was corrected; it found no blocking or major issue. The complete Call and
 original A/B gates remain OPEN.
 
+The next joint-map attempt used two different methods at the same baseline:
+native-first construction and exact candidate/source-owner tracing, plus an
+independent falsification audit. They derive the scalar equivalence
+`alpha <: Function(Int,r) iff exists s. Int <: s <: Int and
+alpha <: Function(s,r)`, but find no map from the native ports to an original
+complete `F_c` and its `CarrierContract(F_c)` at the actual Apply telescope.
+The selected whole-argument emitter can form its original clause given those
+authentic complete inputs; it does not project them from the native demand.
+No source-qualified counterexample or semantic impossibility was found. Fresh
+`compiler_referee` reviews passed both frozen bounded artifacts; the 45
+captured dependency hashes match baseline `4ae7ac4659312ba3c0f214b9c8697cc2af64ea56`.
+The minimum open owner output is the complete demand, its `delta_WF` formation
+and scope permission, and its joint provider/result/future incidences linked
+to `alpha,s,ae,e,r`. See
+[`scoped map derivation`](../notes/theory/2026-10-12-app-call-scoped-native-map-proof.md)
+and
+[`projection audit`](../notes/theory/2026-10-12-app-call-projection-countermodel.md).
+The soundness, required principality, complete Call, effect hygiene, progress,
+termination, intrusion preservation and F5 gates remain OPEN; no compiler
+code or tests changed.
+
 The original soundness, principality, progress, termination, effect hygiene,
 complete Call and F5 gates remain OPEN.
 
