@@ -2,7 +2,8 @@
 
 Date: 2026-10-12
 Status: independently reviewed bounded constructor obstruction and
-conditional application of the selected closure/allocation rules
+conditional application of the selected closure/allocation rules;
+2026-10-13 native-clause correspondence correction independently reviewed
 Assigned baseline: `ba93e1739`, branch `research/simple-sub-intrusion`
 Exclusive lease: this file only; prover leaf, no delegation
 
@@ -31,14 +32,17 @@ The required question ranges over every lawful finite independent client
 allocation of this publication and its monomorphic aliases, retaining the
 whole dependent source program and all its active clauses. At p_g, identify
 the registered validating component K_g, f's typed relation/contract edge,
-Parameter's B declaration, and the source operands/telescopes of both
-qualified equalities `C=B` and `D=R`. Apply the selected least retain/fix
+Parameter's B declaration, and the faithful scoped incidence of the generated
+demand and qualified equalities `C=B` and `D=R` in the complete source program.
+Apply the selected least retain/fix
 closure and whole-component allocation. A native cutoff is not a premise
 that C is a source fixed anchor.
 
 **Claim class and result:** bounded source-to-construction obstruction. The
 inspected producers do not supply the registration/dependency input or the
-typed extrusion operands required to instantiate this closure on the witness.
+generation-to-complete-source clause correspondence required to instantiate
+this closure on the witness. C/D may remain native internal coordinates;
+neither needs a separate source declaration, endpoint term or Desc.
 Consequently no actual fixed-versus-frame-relative classification of C, and
 no complete allocated equality clause, is derived. Sections 4–5 give a
 constructive conditional discriminator and show exactly why the existing
@@ -60,7 +64,18 @@ Governing sources are [top-level inference principles](../design/2026-10-11-yula
 Definition-root ownership and Retained boundary, together with the association
 clarification's Approved extrusion-event qualification and Definition-root
 origin section, fix qualification only. They do not supply registration K_g
-or the source realization of a native copied coordinate.
+or native-constraint-to-complete-source publication correspondence.
+
+Correction, 2026-10-13: the reviewed
+[publication incidence bridge](2026-10-12-intrusion-publication-incidence-bridge.md)
+§§3–5 explicitly permits C/D as native coordinates inside the complete scoped
+constraint relation. This note's initial demand for a separate source
+declaration/field/endpoint term for them was too strong and is withdrawn.
+The missing second bridge is faithful entry and scoped dependency transport
+of the actual generated demand/bounds/equality clause. The older
+[publication construction](2026-10-12-qualified-intrusion-publication-construction.md)
+is historical input; its source-operand requirement is corrected by the
+reviewed incidence bridge and is not used here.
 
 The reference `Typer.scala:48–55,62–83,115–156,166–188,201–207` constructs:
 
@@ -94,8 +109,10 @@ complete Function checking proof for actual recursive f is assumed.
 
 ## 3. Owning constructors and their actual output boundary
 
-The selected source grammar requires original local operands and §3.3 typed
-records *before* §4 Build and §5's dependency walk. Semantic satisfaction is
+The selected source grammar requires the actual scoped local clauses and
+§3.3 owning dependency records before §4 Build and §5's dependency walk.
+Native C/D may remain internal coordinates of those clauses; no separate
+source syntax term or Desc for either is required. Semantic satisfaction is
 later: missing L4 validity does not prevent structurally registering K_g,
 but a structural registration is not a proof of L4 validity.
 
@@ -115,7 +132,7 @@ It is complementary evidence, not independent review of this derivation.
 | `crates/yu-solver/src/candidate_source.rs:12–34,200–217,254–328,369–410` | Slots; formal endpoint incidence; active f lookup becomes `Action::Link`, later g lookup becomes `Action::Local`; `Action::Install` retains slot/initializer/boundary | `Desc(K_g,y,Value,sigma_y,Delta_y)` with semantic dependencies; f's `Internal(K_g,f)` versus full `Mono/Established` contract |
 | `crates/yu-solver/src/candidate_source.rs:624–651`; `candidate_scheme.rs:116–120,1320–1334` | Native publication stage stores `LocalScheme { id, root, boundary }` | p_g's source Generalize package, final full root and complete validating relation |
 | `crates/yu-solver/src/candidate_call.rs:12–56,83–124,215–250` | Formal/Apply source incidences and native interface; explicit missing complete-Call suppliers | Original Gen-Call operands, whole carrier, receiver/entry, complete result/future interface and their source telescopes |
-| `crates/yu-solver/src/lib.rs:12411–12439`; `candidate_extrusion.rs:21–35,95–126,210–250` | Crossing dispatch passes endpoint/polarity/level; copy retained before selected bound traversal; four-port polarity recursion | Original source declaration/field/term realized by C/D, its scope/dependencies, and one complete scoped occurrence equality clause |
+| `crates/yu-solver/src/lib.rs:12411–12439`; `candidate_extrusion.rs:21–35,95–126,210–250` | Crossing dispatch passes endpoint/polarity/level; copy retained before selected bound traversal; four-port polarity recursion | Faithful entry of the actual generated demand/bounds and occurrence-qualified equality clause into the complete source program, with original scope/dependency transport; C/D can remain native coordinates in that clause |
 | `crates/yu-solver/src/candidate_intrusion.rs:171–219,358–402` | `Parent { copy,parent,polarity,target }`; settlement starts a graph over native endpoints/bounds | Approved source-Value occurrence qualification and source registration/classification. Native endpoint graph is not K_g |
 | `crates/yu-solver/src/candidate_scheme.rs:301–321,568–572,981–1020,1354–1378` | Native locality/copy test uses boundary, level, non_generic and representative; coherent capture/fresh maps and bound restoration | Correspondence to the selected source retain/fix result and whole-component dependent allocation |
 
@@ -138,20 +155,25 @@ the reference merely refrains from allocating g a self placeholder.
 Inferring singleton K_g, merging F/G by their Value SCC, or classifying f from
 its raw provider would fill the missing registration by an unsupported rule.
 
-There is a second independent obstruction even if K_g were supplied. C/D
-are fresh native rows with polar parents. No inspected source introduction
-identifies them with an ordinary Desc, a fixed field, or a well-scoped derived
-endpoint term in T. Parameter's B record cannot stand in for the complete
-call-demand/extrusion realization. The Source Generalize walk classifies
-existing records; it does not manufacture the missing operand from its row
-number. Build cannot append `C=B,D=R` as source clauses without those operands
-and their legal scopes.
+There is a second independent obstruction even if K_g were supplied. The
+native construction already supplies C/D and their polar parent bounds;
+approved occurrence qualification selects `C=B,D=R`. What is missing is proof
+that this same generated demand/bound/equality relation enters the complete
+source clause program consumed at publication, with its actual complete Call
+interfaces and lawful scope/dependency incidences. C/D can remain internal
+coordinates in that relation or be represented through their equality aliases.
+Parameter's B record alone does not establish that correspondence. Build
+retains actual source clauses; existence of a native bound does not prove its
+faithful entry into that program or later whole-frame transport. No extra
+source declaration or endpoint term for C/D is a prerequisite.
 
 The focused symbol search for `Desc(`, `MemberEntry`, `Internal(`,
 `Established(` and `ScopedClosure` found no such implementations in the
 inspected HIR/solver source trees. This is bounded evidence about these
 constructors, not a theorem that no differently named or future implementation
-can provide the records. The field/body traces above are the operative evidence.
+can provide the records. It does not establish a need for Desc on C/D; the
+missing native-to-source clause bridge is independent of those spellings.
+The field/body traces above are the operative evidence.
 
 ## 4. Conditional least-closure derivation and a constructive discriminator
 
@@ -175,10 +197,12 @@ eligible(q) iff retained(q) and not fixed_mark(q).
 
 If q is eligible, §5.2 `new(p_g,i,g)` gives `(i,q)` at the translated original
 scope. If fixed, its original field/binder incidence is shared. Aliases route
-to the same frame. For an endpoint *term* C rather than a Desc, apply the
-declaration map to its actual free operands in its legal telescope; this can
-give a frame-relative term without creating a new C declaration. Frame-relative
-incidence does not guarantee different semantic values in different frames.
+to the same frame. If a lawful endpoint term is used, translate its actual free
+operands at its legal scope. If C remains a native internal coordinate, its
+incidence instead comes from the established whole-clause correspondence and
+allocation, possibly through the approved B alias. Neither case requires a
+new C declaration. Frame-relative incidence does not guarantee different
+semantic values in different frames.
 
 Here is the requested constructive discriminator, **conditional on real owner
 records**, with no claim that either footprint is emitted for this witness:
@@ -186,13 +210,13 @@ records**, with no claim that either footprint is emitted for this witness:
 | Typed footprint to be tested | Selected walk and allocation consequence |
 | --- | --- |
 | The actual f capture is `Mono(h_f,Contract_f)` with a free C field in that complete established contract | Fix reaches C and every free dependency required by Contract_f. Uses retain that original C incidence even when B is eligible |
-| The actual f edge is Internal to K_g; C is an own-K_g ordinary Desc or a lawful term of eligible own-K_g declarations; no actual fixed contract/Shared/OneShot dependency reaches those declarations | Raw f provider is fixed separately; Internal enters retain mode. Those declarations are eligible, and C's source incidence follows the whole frame's translated terms |
+| The actual f edge is Internal to K_g; the complete clause correspondence routes native C through the frame's eligible description incidences (for example its B alias); no actual fixed contract/Shared/OneShot dependency reaches those descriptions | Raw f provider is fixed separately; Internal enters retain mode. Those descriptions are eligible, and C follows their proven whole-frame clause incidence without needing its own Desc |
 
 Same-K Internal alone is insufficient for the second conclusion: an actual
 external or executed dependent field can still mark those descriptions fixed.
 Established f alone is insufficient for the first conclusion unless its
 **complete contract actually has C free**. These qualifications are exactly why
-the missing operand/dependency output matters.
+the missing clause/dependency correspondence matters.
 
 An active inequality or equality does not by itself create an Established
 dependency edge. For example B can be an allocated eligible declaration with
@@ -211,8 +235,8 @@ It does not establish that both inputs are legal completions of the witness.
 Suppose the real owners supply one complete well-scoped extrusion/equality
 clause Q_c with C/B/D/R operands, the same origin/receiver and every dependent
 Call/checking/effect/residual field. Whole-frame allocation must apply one
-coherent declaration/term map m_i to **that whole clause in its original binder
-region**, alongside all background and component conjuncts:
+coherent whole-clause incidence map m_i to **that whole clause in its original
+binder region**, alongside all background and component conjuncts:
 
 ```text
 Q_c,i = m_i(Q_c), including m_i(C)=m_i(B), m_i(D)=m_i(R).
@@ -258,27 +282,34 @@ The smallest decision-relevant source output has two independent parts:
    edge, and Parameter's `Desc(K_g,y,Value,sigma_y,Delta_y)` with its actual
    dependency telescope. Its fixed seeds and field edges must expose every
    free dependency relevant to C/B; provider and lexical IDs are locators.
-2. **Complete Call-demand/extrusion owner at c:** the source declaration,
-   field or lawful endpoint term realized by each native C/D/B/R occurrence;
-   their original sorts, scope/dependency maps; and the qualified whole clause
-   Q_c with all dependent fields, retaining the actual generated pairs. This
-   output must come from an authentic source construction law, not a guessed
-   tag attached after observing native success.
+2. **Complete Call-demand/extrusion owner at c:** correspondence showing that
+   the actual generated demand, signed parent/copy bounds and occurrence-qualified
+   whole equality clause Q_c enter the complete source program, retaining their
+   original sorts, scope/dependency incidences, complete Call interfaces and
+   dependent fields. Show that whole-relation allocation transports that same
+   relation. C/D can remain native coordinates in Q_c or be represented through
+   the approved equality aliases; no distinct source term, binder or Desc is
+   required solely for either. Native generation and source publication must
+   be related by the actual owning law, rather than a guessed fixed/template
+   tag or an assumption inferred from native success.
 
 For the classification query, a complete typed dependency cone from the
-selected seeds to those operands suffices for the walk. Omitting K/edge
-classification leaves Internal-versus-fixed traversal undefined. Omitting the
-operand realization leaves no source node to traverse or substitute. Omitting
-free dependencies makes the least fixed set unjustified. Omitting the clause
+selected seeds to the complete clause's incidences suffices for the walk.
+Omitting K/edge classification leaves Internal-versus-fixed traversal undefined.
+Without generation-to-source correspondence, the native clause's faithful
+entry into the source program remains unproved. Omitting free dependencies
+makes the least fixed set unjustified. Omitting the clause
 scope leaves allocation transport undefined. Full semantic admission and L4
 remain separate obligations even after these structural outputs exist.
 This specifies a necessary interface cut, not a proposed runtime representation
 or an authorized implementation policy.
 
-The prior publication construction and quotient/allocation audit already left
-this source operand/classification premise untouched. This pass refines its
-two independent producers and conditional consumer test; it does not claim
-closure or new evidence for the absent producer. Economy audit: faithful
+The reviewed incidence bridge and quotient/allocation audit already left this
+native-to-source clause/classification premise untouched. This correction
+removes the older overstrong source-operand prerequisite; it does not construct
+the absent correspondence. The two producer cuts and conditional consumer
+test do not claim closure or new evidence for the absent producer.
+Economy audit: faithful
 scope/publication/equality transport is A, ordinary independent helper use and
 required principality are B, while recovering original incidence/owner data
 from numeric rows is D debt inside that bridge. A retained constructor output
@@ -286,16 +317,16 @@ can remove reconstruction debt but cannot invent a recursive law, complete
 Call admission, or equality-preservation theorem. No A/B gate is relabeled.
 
 **One next action:** the primary assigns a bounded constructive owner packet
-for the above registration plus c's source operand/dependency output, supplying
-the already selected source laws and preserving T. Consume that real output
-with §4's discriminator before another fixed-anchor proof or quotient probe.
+for the above registration plus c's complete clause-entry/scope correspondence,
+supplying the already selected source laws and preserving T. Consume that real
+output with §4's discriminator before another fixed-anchor proof or quotient probe.
 If no selected law constructs the output, return that precise unprovided law
 to the existing authority path. This leaf neither selects a replacement
 classification nor asks the user for a new decision.
 
 ## 7. Checks, dependencies, resources and frozen handoff
 
-Checks performed: static rules/skill/configuration and exact source/design
+Initial checks performed: static rules/skill/configuration and exact source/design
 reads; manual native constructor trace, least-closure argument, conditional
 whole-clause allocation and transitivity derivation; focused producer-symbol
 search; dependency SHA-256 capture. No tests/builds/probes, parser runs,
@@ -304,15 +335,20 @@ command was awaited at a time; no heavy process. CPU/RSS and OS descendant
 counts were not instrumented; 30-minute wall ceiling. A failed reference-path
 lookup was corrected by `rg --files`, with no state mutation.
 
+Correction checks: static consistency with the reviewed incidence bridge
+§§3–5 and the repaired claim/owner/handoff wording; artifact-local
+`git diff --check`; no tests/builds or Git mutations. Initial dependency hashes
+below are the historical snapshot; the newly consumed bridge hash is added.
+
 Requested runtime: `gpt-6.1-sol/high`. Observed effective model/effort: unknown;
 this leaf received no effective runtime metadata. `.codex/config.toml`
 registers prover and normal Sol/high defaults; prover.toml has no model/effort
 pins. The live schema exposes prover. Those facts do not certify this session's
 effective routing. No Astra, reload or child launch is claimed.
 
-Only the exact leased artifact is changed. It is unreviewed and frozen at
-handoff; the primary owns fresh independent review and any promotion. All
-classification, admission, source-to-native and parent closure limits above
+Only the exact leased artifact is changed. Its initial version and the
+2026-10-13 native-clause correspondence correction were independently
+reviewed. All classification, admission, source-to-native and parent closure limits above
 remain unverified beyond the stated bounded derivations. Dependencies were
 read from the shared filesystem and hashed; no Git commands were used to
 establish equality with the pinned revision. Primary must compare the snapshot
@@ -331,6 +367,7 @@ against `ba93e1739` and revalidate any movement before integration.
 | Quotient/allocation audit | `692903a8e5c8866b24102b5223700d50815a4b8a9cc6239c17027555936c1953` |
 | Existing correlated helper | `ef308b68e967d916278b2d6e106731c723368f0477ecc947a12eb99c7f17a956` |
 | Prior publication construction | `f103bfd39d7cca5012315246e154bd6c1c7f8c3f044b1f27bc2219be2b41d0a1` |
+| Reviewed publication incidence bridge; supplied baseline `e5e7b5878` | `5ce57b450d52cf575aed227d943b7856a8cf1a77d73c067df8f043f3201be94a` |
 | HIR local_source.rs | `906864b15edd43c33cd675ebff86e2652655d6fd1000ed47fe197a4cfd7ed7ed` |
 | candidate_source.rs | `13f5d3eebeaac00e298878da0b1f7b7e7335bb88baa93c875056237501be1a49` |
 | candidate_extrusion.rs | `fd360f784a763b9d76824b630eec2e9665cf1b9c44775246718ce9ae91315ff0` |
@@ -347,21 +384,24 @@ against `ba93e1739` and revalidate any movement before integration.
   `notes/theory/2026-10-12-source-publication-classification-proof.md`.
 - Assigned baseline: `ba93e1739`; no dependency was changed by this leaf.
   Direct hashes above; pinned-revision comparison remains primary-owned.
-- Honest status: unreviewed bounded producer obstruction and conditional
+- Honest status: initial version and bounded native-clause correspondence
+  correction independently reviewed; producer obstruction and conditional
   closure/allocation discriminator; no actual C classification, source
   refutation, theorem status promotion or implementation authority.
 - Checks already run: static producer/consumer tracing, manual conditional
   derivations and dependency hashes; zero tests/builds/probes. Artifact
   integrity and dependency stability are reported in the final handoff.
-- Proposed checkpoint: `research: isolate source publication classification producer cut`.
+- Proposed checkpoint: `research: correct native clause publication bridge premise`.
 - Shared-record delta left to primary/curator: keep C classification and
   allocated equality OPEN; record registration/typed-f-edge and scoped
-  extrusion-operand output as separate missing producers. Retain the existing
+  native-clause entry/scope correspondence as separate missing producers.
+  Withdraw the requirement for separate source terms or Desc for C/D.
+  Retain the existing
   correlated-helper contradiction as conditional on shared C plus active
   complete equality transport. Keep L4, complete Call/effects, soundness,
   required principality, full allocation and F5 OPEN. No shared record edited.
 
-## Independent review
+## Initial independent review and correction boundary
 
 A fresh `compiler_referee` reviewed the frozen artifact and all 18 listed
 dependency hashes. The reviewer confirmed that the least-closure result is
@@ -370,9 +410,27 @@ asserted to be actual. The `bool <: int` chain requires shared C, complete
 well-scoped clause transport and activation in both frames. The original
 Simple-sub Record/Bool AST and the distinct Yulang Int/Unit fixture remain
 separate. Direct owner inspection supports the bounded missing-output claim
-for K_g, typed dependency edges, C/D source operands and scoped equality.
+for K_g and typed dependency edges. The original note also required C/D source
+operands; the primary found this too strong against the already reviewed
+incidence bridge, and the 2026-10-13 correction withdraws that prerequisite.
 
-The review found no blocking, major, or minor correctness finding. It does not
-establish actual C eligibility, a source-qualified contradiction, parser or
+The initial review reported no blocking, major, or minor correctness finding.
+It does not certify this correction. Neither the initial review nor this
+correction establishes actual C eligibility, a source-qualified contradiction, parser or
 inference behavior, complete Call validity, replay, soundness, required
 principality or parent-theorem closure.
+
+## Independent delta review, 2026-10-13
+
+A fresh `compiler_referee` reviewed the correction against the reviewed
+publication-incidence bridge, the governing Source Generalize construction,
+occurrence qualification and the scoped Call/extrusion interfaces. The review
+passed with no blocking, major or minor findings. It confirmed that C/D need
+no separate source declaration, endpoint term or `Desc`; they may remain
+native coordinates in the complete scoped `Q_c` or use established equality
+aliases. It also confirmed that `K_g`, the typed f edge, B's telescope, and
+faithful generation-to-complete-source clause/scope correspondence remain
+open premises, and that the two classification footprints and shared-C
+contradiction remain conditional. This review does not establish actual C
+classification, source admission, equality transport, a source-qualified
+counterexample, or closure of the parent inference theorems.
