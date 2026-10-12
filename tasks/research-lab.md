@@ -812,3 +812,20 @@ review; source-byte/hash checks were separate.
 The root retains the original source construction/coverage gate OPEN.
 A passing review of the limited report is not task success. The two
 rejected draft theories are not added as redundant repository proof notes.
+
+### 2026-10-13 odd/even Value-SCC intrusion preservation slice
+
+| Producer / artifact | Result and boundary |
+| --- | --- |
+| `prove_odd_even_intrusion` — [`odd/even finite preservation derivation`](../notes/theory/2026-10-13-odd-even-intrusion-preservation.md) | Derives the pinned effect-free lambda analogue's four polar/replay constraints, proves ordinary/intruded equality of boundary projections, and proves relative scheme-subsumption equivalence. Exact source stops at `n_E - 1`'s authentic argument/Call judgment. |
+| `falsify_odd_even_intrusion` — [`independent projection and countermodel check`](../notes/progress/2026-10-13-odd-even-intrusion-falsification.md) | Independently derives finite multi-use projection elimination; raw old private valuations are not preserved, and a one-polar mutation shows the boundary of the theorem. It constructs no exact-source counterexample. |
+| `review_odd_even_intrusion_proof`, `review_odd_even_intrusion_falsification` | Both compiler-referee reviews PASS with no BLOCKING, major or minor findings within their finite claim scopes. |
+
+The original nested-call event is qualified by approved source endpoints `E`
+and `O` in their Value SCC; the retained actual argument/result pairs are
+equated. The conditional finite algebra does not prove the exact source's
+subtraction, literal, comparison, Branch, recursive registration, complete
+Call, effects, or scoped equality transport. Soundness, required principality,
+progress, termination and F5 remain OPEN. No implementation, tests, or build
+changed or ran. Next action is to construct the exact source argument
+`n_E - 1` and its complete operator Call under the actual source rules.

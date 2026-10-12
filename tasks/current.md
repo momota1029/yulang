@@ -13470,3 +13470,32 @@ The next-action selector rejected another unchanged conditional producer
 packet and directed adjudication of the two changed-method retries. Parent
 source soundness, required principality, complete Call/effects, progress,
 termination and F5 remain OPEN. No compiler implementation was changed.
+
+## 2026-10-13 nested odd/even intrusion preservation checkpoint
+
+The user's nested `odd/even` example was checked against the approved
+definition-root reference edges and extrusion-occurrence qualification. For
+an actual inner call event, origin `E` and receiver `O` share the Value SCC;
+its actual argument/result polar pairs qualify for their corresponding
+equalities. The copied type rows do not inherit Value incidences.
+
+Two independently produced, independently reviewed derivations establish a
+bounded result for the effect-free original Simple-sub lambda analogue:
+the exact four arrow constraints and replay directions; equality of the
+ordinary and intruded systems' projections to the boundary coordinates; and
+equivalence in the relative scheme-subsumption order between
+`forall B,R. (B <: C and D <: R) => B -> R` and `C -> D`. The reviews found no
+issues. A separate old valuation shows that equality does not preserve raw
+private assignments; a one-polar mutated scheme loses an `Int -> Int` use,
+so the bounded elimination cannot be generalized without its polarity
+premise. Neither witness refutes the selected exact source operation.
+
+The exact source derivation remains OPEN at the authentic complete argument
+judgment for `n_E - 1`, including its subtraction/literal contract, scope,
+world and Call interfaces. `true`, `<=`, Branch, recursive introduction,
+complete Calls, effects and equality transport are also OPEN. The lambda
+analogue does not complete these obligations or establish universal
+recursive-let principality. No compiler code or tests changed or ran.
+Next evidence: construct the original `n_E - 1` argument and complete operator
+Call at their owning source rules, then check each actual extrusion pair and
+its transported complete clause before applying the bounded projection proof.
