@@ -50,6 +50,28 @@ equalities preserves soundness, required principality, normal progress or
 termination. Those proof gates remain open, and no implementation or F5
 cutover is approved by this decision.
 
+### Definition-root origin for nested call-demand extrusion (user-approved 2026-10-12)
+
+Approval is recorded in the integrated answer for
+[`nested-extrusion-origin-value`](../../questions/2026-10-12-nested-extrusion-origin-value/approved-answer.md),
+revision 1, integrated at commit `c0b67771d`.
+
+For a call-demand extrusion, its origin Value is the root of the definition
+whose source-owned initializer/body contains the call, including calls nested
+under `if`, operators, or other expression wrappers. A nested definition owns
+calls in its own initializer/body. For the inner `odd(n - 1)` call inside
+`even`, the origin is `E` and the receiver is the resolved callee `O`; since
+they share the approved Value-reference SCC, this occurrence qualifies its
+actual retained pairs for `C=T` and `D=R`.
+
+This assigns an origin to that extrusion occurrence only. It does not identify
+the definition root with an Apply-result Value, assign every type occurrence
+or Function port to the definition root, change Value-reference edges, or
+qualify pairs from another occurrence. Source construction and transport of
+the origin and pairs, and preservation of soundness, required principality,
+normal progress and termination, remain open. This decision authorizes no
+production implementation or F5 cutover.
+
 ## Qualification
 
 Let `G = (V, Ref)` be the approved graph of value variables and actual references

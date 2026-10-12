@@ -11890,11 +11890,17 @@ Simple-sub `extrude` and `freshenAbove` copy type/bound structure and provide
 no Value-owner transport rule. Finite interface graphs show that incidence
 inheritance and description-only copies differ in adjacency, but neither
 qualifies the displayed retained pair or establishes a typing difference.
-The two operations' copied-owner/frame rules remain a genuine open design
-seam; no policy is adopted, and the pending question remains uncommitted.
-Original incidence emission is a separate implementation bridge. Call/Lambda/
-Block admission and all equality-preservation, soundness and principality
-gates remain OPEN. No compiler code or tests changed.
+The user has now selected the definition-root origin for call-demand extrusion
+occurrences, including calls nested under wrappers; a nested definition owns
+calls in its own initializer/body. For the wrapped inner odd/even call, the
+origin is E and receiver O, so its retained pairs qualify under their shared
+Value SCC. The approved answer bundle was committed and pushed at
+`c0b67771d`; see the receipt and the durable clarification in
+[`intrusion-value-type-association`](../notes/design/2026-10-12-intrusion-value-type-association.md).
+This resolves the origin-choice seam only. Original incidence emission,
+occurrence/pair construction and transport, equality preservation,
+Call/Lambda/Block admission, soundness and principality remain OPEN. No
+compiler code or tests changed.
 
 The reviewed §9 source derivation in the [native negative residual artifact](../notes/theory/2026-10-12-native-negative-residual-constructor-derivation.md)
 adds the Oracle fixture's `(u,v,s,t,r)` map. `[ev] 'a` has `Top` as the row
