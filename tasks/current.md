@@ -26,12 +26,22 @@ independent `compiler_referee` found no issue in this bounded claim. The note
 does not establish source rejection, impossibility, or an intrusion
 counterexample; complete Call and intrusion remain OPEN.
 
-A registered `prover` has now returned worker identity for a direct constructive
-attempt at this exact nested L4 instance and the user's cross-level `odd/even`
-witness. Requested settings are Sol/high; effective runtime settings remain
-unknown. Its exclusive output is
-`notes/theory/2026-10-12-nested-recursive-l4-proof.md`; the primary retains the
-parent proof gate and independent review. No compiler code or tests changed.
+The direct registered `prover` attempt at this nested L4 instance and the
+user's cross-level `odd/even` witness is checkpointed at `988ef4ae1`. Its
+bounded constructor audit finds that O-pair's body/capture equations and
+captured Step's ordinary hereditary captured-f premise do not cover this
+source. The exact remaining clause is actual-f postfixedness across the
+event-indexed g/drop worlds; this is a construction-scope obstruction, not
+source rejection or impossibility. The odd/even source-root cycle is supported
+by approved ownership, while exact-source HIR reachability stays OPEN.
+
+One fresh independent `compiler_referee` review found no findings. Its first
+launch received a temporary capacity error; a retry with the same review
+assignment/settings returned a worker identity and completed. Review model and
+effort are unknown. The constructive worker was the registered `prover`,
+requested Sol/high, with observed model/effort unknown. L4, Call, inference,
+intrusion, effects, and F5 replacement remain OPEN. No compiler code or tests
+changed.
 
 ## 2026-10-12 completed Oracle document-audit slice
 
