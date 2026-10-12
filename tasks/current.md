@@ -12746,3 +12746,32 @@ and
 [`Call-owner inversion for native extrusion correspondence`](../notes/theory/2026-10-12-fg-call-c-endpoint-construction.md).
 No semantic change, implementation, tests or cutover is authorized by this
 correction.
+
+### 2026-10-12 Original App demand declaration boundary
+
+The reviewed [`App demand instantiation`](../notes/theory/2026-10-12-apply-demand-instantiation-proof.md)
+extends `my invoke f = f 1` through the actual native constraint consumer. It
+confirms `alpha <: Function(Int,r)` in the original Simple-sub trace and the
+candidate's active `Int <: s <: Int`, four-port Function demand, and effect
+edges. The scalar projection equivalence is valid under the stated preorder
+and Function variance, but proves no complete Call correspondence.
+
+The direct ordered source-schema specialization stops before a typed
+`WF_Dec(F_c;xi)` application: the inspected source contracts require an
+independently typed original declaration but supply no authentic ordered
+`delta_WF` telescope or application rule. Independent `compiler_referee` and
+`spec_auditor` reviews found no issue in the bounded derivation; a separate
+architect audit confirmed this as a missing declaration supplier within the
+direct dependency cone, not repository-wide absence or source rejection. No
+new semantic choice is established. The artifact is checkpointed and pushed
+at `9e0506754`. No compiler code, tests, builds, or Oracle runs changed.
+
+The complete Call and original soundness, required principality, progress,
+termination, effect hygiene and F5 gates remain OPEN. The App lane needs the
+authentic declaration locator and its selection provenance, or a reviewed
+definition decision if no existing declaration exists. In parallel, a new
+bounded proof lane is deriving the full generalization/fresh-use result for a
+minimal cross-level `let rec`/Lambda/App term using only the original
+Simple-sub grammar; it must preserve the approved Value-reference and
+occurrence-qualified intrusion rules and does not stand in for the full
+Yulang source bridge.
