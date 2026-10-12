@@ -174,6 +174,23 @@ for that bounded reduction. Both artifacts preserve original quantifiers and
 do not show source rejection or impossibility. H_f, L3-at-c, L4, complete Call,
 inference, soundness/principality and F5 remain OPEN. No code or tests changed.
 
+A further registered `prover` assignment tested whether the selected existing
+Function membership, CalRet/Return, Entry and finite checking constructors can
+fill that D child for the actual recursive f. The reviewed
+[membership dependency trace](../notes/theory/2026-10-12-fy-existing-membership-bridge.md)
+finds the same first unproved judgment: for each complete `d ∈ D_F_c(e)`,
+construct same-carrier `Acc(I_x; d.wholeCarrier, ...)`, actual receiver guards,
+and the original complete `A_f` challenge. Theorem F consumes D/P and ordinary
+`A_f` membership; R consumes hereditary f membership plus a checked source
+operand; CalRet/Return also requires the existing hereditary binding. None
+constructs its own premise, and `J_y → F_c` has different operands and
+quantifiers. A fresh `compiler_referee` review passed with no findings and all
+17 dependency hashes matching the current tree. This is a bounded route
+obstruction, not impossibility or source rejection. Next: construct the
+original Entry/Call D tree from its authentic c-specific argument, effect,
+guard and interface children, keeping P-at-S and recursive L4 separate.
+L3-at-c, L4, complete Call, soundness, principality and F5 remain OPEN.
+
 For the independent effect lane, the actual registered `prover` artifact
 [live attachment through Call and residuals](../notes/theory/2026-10-12-live-attachment-call-residual-proof.md)
 is checkpointed at `639841c32`. It reuses, rather than repeats, the reviewed
