@@ -279,10 +279,12 @@ not a custom prover execution. This worker has no observable launch model or
 effort metadata; observed model/effort are unknown. No Astra execution, model
 override or hot reload is claimed. The primary is the verification/integration
 owner. A fresh independent `compiler_referee` M3 review passed with no
-blocking, major, or minor finding. It covered the bounded carrier lemma and
-source/consumer correspondence only; global hygiene and the original parent
-theorem remain OPEN. The producer does not certify this obstruction. Runtime
-model/effort metadata was unavailable.
+blocking, major, or minor finding. A second generic independent semantic
+review of the exact committed artifact also found no issue. Both covered the
+bounded carrier lemma and source/consumer correspondence only; global hygiene
+and the original parent theorem remain OPEN. The producer does not certify
+this obstruction. Runtime model/effort metadata was unavailable for both
+reviews.
 
 Omitted verification: source execution, accepted binary examples, general
 negative-formal admission, full Call/provider compatibility, coupled output

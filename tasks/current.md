@@ -12214,18 +12214,20 @@ rejected by the private candidate before action execution, which is not a
 language restriction. The coupled proof establishes the bounded current-carrier
 obstruction: every live `LocalWeight` has structurally empty PUSH/POP words,
 and source annotation, formal, copy and replay paths return to that constructor.
-The note received an independent `compiler_referee` review with no blocking,
-major, or minor finding. This does not prove semantic impossibility or the
-original A/B hygiene theorem. Call/output pairing, live negative attachment,
-current/future residual fan-out, reverse gamma feedback, and full source
-coverage remain OPEN.
+The coupled note received independent `compiler_referee` and generic semantic
+reviews with no blocking, major, or minor finding. A separate generic semantic
+review of the alias trace also found no issue. These bounded reviews do not
+prove semantic impossibility or the original A/B hygiene theorem. Call/output
+pairing, live negative attachment, current/future residual fan-out, reverse
+gamma feedback, and full source coverage remain OPEN.
 
 The registered `prover` launch and the `compiler_referee` launch for the alias
 trace encountered model-capacity errors. A prover-equivalent generic worker
 produced the bounded obstruction; actual model/effort metadata is unknown. A
-fresh `compiler_referee` review passed for the obstruction, while a separate
-generic independent review of both artifacts is still running for the alias
-trace. No code or tests changed or ran. The next owning gate is
+fresh `compiler_referee` review and a second generic review passed for that
+obstruction; a generic independent review also passed for the alias trace.
+Reviewer model/effort metadata is unknown. No code or tests changed or ran. The
+next owning gate is
 source-owned live attachment formation and its same-ID transport through direct
 and aliased Calls into output and residual consumers; keep dependent production
 implementation gated until that construction is authorized and proved.

@@ -1,7 +1,7 @@
 # Y3 effect attachment, alias Call, and output counterexample search
 
 Date: 2026-10-12
-Status: frozen unreviewed research checkpoint; bounded source gap, no counterexample
+Status: frozen, independently reviewed bounded source gap; no counterexample
 Baseline: `99cd86fd9`, branch `research/simple-sub-intrusion`
 Lease: this file only; complementary source falsification, leaf, no implementation
 
@@ -153,7 +153,10 @@ chunks. No compiler edits, tests, builds, runtime probes, checker, mutations,
 random seed/range, benchmark, Git operation, delegation, or model-policy change.
 CPU/RSS and elapsed wall time were not instrumented; no heavyweight process.
 The packet gave one bounded attempt but no numeric wall/RAM quota.
-Runtime model/effort metadata was unavailable: observed settings unknown.
+Runtime model/effort metadata was unavailable: observed settings unknown. A
+fresh generic independent semantic review passed with no blocking, major, or
+minor finding; actual model/effort metadata remained unavailable. Its source
+scope was the exact frozen artifact and its dependencies, not global hygiene.
 
 No execution oracle was used. Oracle evidence is the primary's pinned audit,
 independent of this Y3 alias trace; it cannot validate Y3's missing rule.
@@ -195,7 +198,7 @@ are appended below.
 - Exact leased/changed path: `notes/progress/2026-10-12-y3-effect-call-output-counterexample-search.md`.
 - Baseline: `99cd86fd9`; branch `research/simple-sub-intrusion`.
 - Changed dependency hashes: none observed; committed-baseline validation left to primary.
-- Review: frozen unreviewed producer evidence; no independent certification or closure.
+- Review: frozen producer evidence passed a fresh generic independent semantic review with no findings; no theorem closure.
 - Checks: static owner trace and polarity/rejection derivation, dependency hashes, note integrity; zero builds/tests/probes.
 - Proposed message: `research: trace effect attachment through alias Call boundary`.
 - Shared deltas left for primary/curator: record bounded source gap and alias/capture consumer premise; retain negative formation, output/residual lifecycle, complete Call, hygiene and production gates OPEN. No shared task/index/authority/theory or question file changed.
