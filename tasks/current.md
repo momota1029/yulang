@@ -12913,3 +12913,28 @@ approval-pending; that API question does not supply the primitive constructor.
 Source construction, Call, effects, intrusion preservation, soundness,
 principality, normal inference and F5 replacement remain OPEN. No compiler
 code, tests, builds, probes or Oracle execution changed or ran.
+
+### 2026-10-12 fixed-term quotient continuation under H
+
+The frozen original-Simple-sub term in
+[`fixed-term intrusion quotient proof`](../notes/theory/2026-10-12-fixed-term-intrusion-quotient-proof.md)
+now carries a fresh independent `compiler_referee` PASS. Under the explicitly
+unproved live-state operation H, the hand derivation retains both actual
+polarized extrusion pairs, proves the literal pending-cache keys remain
+distinct, traces all native comparisons/replays and levels through both
+generalization boundaries, and computes the final principal interface
+`Top -> Bot`. The stock fixed-term source typing/principality argument is
+separate from the conditional operational trace.
+
+This closes only the reviewed conditional implication for that fixed term.
+H's live-context/result transport and historical cache/memo preservation,
+actual early Value-graph production, and realization of H remain OPEN. The
+approved operation does not yet select this schedule or transport. The exact
+user-provided `odd/even` source also remains without its authentic `<=`
+declaration/application and other primitive/Branch/Call construction. All
+source-wide soundness, required principality, normal progress, termination,
+complete Call, effect hygiene, Yulang correspondence and F5 gates remain OPEN.
+Next evidence: construct or refute the finite quotient transition at the
+extrusion-return seam while preserving raw pending keys and live operand
+identity, then review whether its premises arise from the approved source
+construction. No compiler code, tests, builds or probes changed or ran.
