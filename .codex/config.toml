@@ -53,6 +53,10 @@ description = "Read-only exact-conformance auditor for Authoritative designs, la
 config_file = "agents/task-decomposer.toml"
 description = "Read-only dependency-aware decomposition into concrete proof, falsification, source-correspondence and implementation packets without taking primary coordination."
 
+[agents.next_action_selector]
+config_file = "agents/next-action-selector.toml"
+description = "Read-only selection of the next executable evidence-producing action from current gates, owning constructors and prior attempts; primary retains scheduling and authority."
+
 [agents.theory_curator]
 config_file = "agents/theory-curator.toml"
 description = "Synchronize leased theory maps with adjudicated results and user corrections without inventing proofs, semantics or implementation authority."

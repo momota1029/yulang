@@ -4,6 +4,23 @@ Date: 2026-10-12 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## 2026-10-12 next-action selection workflow
+
+The user requested a subagent and skill to help the Luna primary identify the
+next useful work. The Authoritative additive workflow is recorded in
+[`next-action-selection`](../notes/design/2026-10-12-next-action-selection.md).
+The read-only Sol/medium `next_action_selector` chooses one evidence-producing
+action from current authority, owning constructors and prior attempts;
+`task_decomposer` continues to split a selected direction when needed. The
+repository-discoverable `yulang-next-action` skill teaches the same bounded
+workflow. An independent `spec_auditor` reviewed the design: its major
+proof-first finding was repaired and delta review passed. A separate frozen
+implementation review passed with no findings. Python `tomllib` parsed and
+checked role registration/settings; the skill creator validator and metadata
+YAML parse passed; `git diff --check` passed. No compiler code, tests or builds
+changed or ran. Live runtime role registration/skill discovery and behavioral
+effectiveness in a resumed Luna session remain unverified.
+
 ## 2026-10-12 resumed proof and effect-source slices
 
 The fixed native `odd/even` post-intrusion ground model now has a fresh

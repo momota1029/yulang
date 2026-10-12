@@ -1,0 +1,6 @@
+interface:
+  display_name: "Yulang Next Action"
+  short_description: "Choose the next executable Yulang task from evidence"
+  default_prompt: "Use $yulang-next-action to select the next executable task from Yulang's current gates and latest evidence."
+policy:
+  allow_implicit_invocation: true

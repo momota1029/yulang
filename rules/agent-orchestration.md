@@ -38,6 +38,7 @@ The primary's reread and a producer's self-review do not count as independent re
 | `architect` | read-only | unresolved design, invariants, gates, rollback and decisions |
 | `implementer` | workspace-write | implement confirmed design or accepted findings on leased files |
 | `task_decomposer` | read-only | locate the critical path and return a small dependency-ordered set of executable packets; no scheduling or status changes |
+| `next_action_selector` | read-only | select one executable evidence-producing next action from authority, owning constructions and prior attempts; no scheduling, status changes or certification |
 | `prover` | workspace-write | construct proofs and exact source-to-proof bridges on leased research paths; bounded proof coordination only when assigned; no self-certification |
 | `researcher` | workspace-write | complementary counterexamples, checkers, bounded prototypes and source/artifact evidence on leased research-only paths; no semantic adoption or self-certification |
 | `theory_curator` | workspace-write | synchronize leased theory maps after meaningful adjudicated changes; no new proofs or semantic decisions |
@@ -58,8 +59,9 @@ settings rather than replacing them to match old Terra/Sol descriptions.
 `prover` deliberately omits both model and effort pins: ordinary proof work
 inherits the configured GPT-6.1 Sol/high defaults, while an eligible explicit
 Astra spawn can actually override them. `task_decomposer` pins GPT-6.1
-Sol/medium for bounded read-only planning. The two roles do not replace the
-primary, `architect`, or the independent `compiler_referee`.
+Sol/medium for bounded read-only planning. `next_action_selector` uses the same
+Sol/medium read-only pin for single-action selection. Neither planning role
+replaces the primary, `architect`, or the independent `compiler_referee`.
 
 Choose the role by its deliverable and concrete risk. Sol specialist work does
 not make the specialist a second primary. Use the normal configured model first;
@@ -102,6 +104,18 @@ Authority: the user's 2026-10-10 request for Sol proof/task-decomposition roles,
 including proof parallelism and Sol-to-Astra escalation. This is the only
 exception to the ordinary child-delegation prohibition. It does not transfer
 semantic decisions, primary-owned records, Git, or independent certification.
+
+Use `next_action_selector` when the next productive action is unclear, a restart
+reveals conflicting current records, or repeated attempts leave the same premise
+untouched. It returns one priority evidence-producing action, the first missing
+premise and its owner, relevant prior attempts and a bounded executable packet.
+Require a method/input/owner change that can affect that exact premise;
+otherwise route to its owning construction or existing authority path. It is
+read-only and never schedules, allocates a lease, contacts the user, changes
+status or certifies closure. Already-ready work proceeds directly. Revisit only
+after a material evidence/authority/critical-path change or repeated unchanged
+obstruction, not after every result. See the repository
+[`yulang-next-action` skill](../.agents/skills/yulang-next-action/SKILL.md).
 
 Use `task_decomposer` when several open obligations, a changed premise, or a
 stalled critical path need concrete separation. Its read-only result contains
@@ -247,7 +261,7 @@ does not establish launch success.
    outputs before assigning a fresh independent `compiler_referee`; fallback
    does not relax source reachability, semantics, budgets or review isolation.
 
-All eleven project roles are declared in `.codex/config.toml`; in some CLI
+All twelve project roles are declared in `.codex/config.toml`; in some CLI
 versions project-local declarations are not registered when the runtime's role
 table is built. For a **fresh standalone CLI invocation**,
 `tools/codex-prover.sh '<proof obligation>'` explicitly supplies the same
@@ -294,7 +308,8 @@ whole-goal concurrency limits. The expected-output pre-write gate is retained.
 |---|---|---|---|
 | file/symbol/current-state lookup | primary or built-in `explorer` | — | none |
 | read-only root cause | focused exploration; `architect` only for unresolved design | — | `compiler_referee` for difficult semantics |
-| multi-gate research or unclear critical path | `task_decomposer` only when concrete separation is needed | primary dispatches ready packets; no automatic repeated planning | no proof/status promotion from a plan |
+| unclear next action or unchanged obstruction | `next_action_selector` selects one evidence-producing action | primary validates/dispatches; no repeated automatic planning | no proof/status promotion from a recommendation |
+| multi-gate research needing separation | `task_decomposer` proposes dependency-aware packets | primary dispatches ready packets; no automatic repeated planning | no proof/status promotion from a plan |
 | open proof/conjecture or production bridge | freeze statement, source assumptions and exclusions | `prover` for construction; complementary `researcher` packets and read-only source work; bounded proof coordination when assigned | fresh `compiler_referee` for closure; add `spec_auditor` only for a distinct conformance risk |
 | exhaustive/differential/mutation experiment | named hypothesis, independent oracle scope and resource envelope | `researcher` on unique research paths | review the model's assumptions and independence, not only green counts |
 | theory status/supersession/dependency change | adjudicated result and exact evidence | `theory_curator` on leased maps | M0 synchronization; disputed mathematical implication returns to review |
@@ -348,7 +363,9 @@ reviewer of a result they helped construct. Preserve role permissions regardless
 of model. The question-board workflow remains primary-only; research children
 neither edit its answer bundles nor acquire Git rights.
 
-`task_decomposer` proposes packets, not new semantics, leases or live workers.
+`next_action_selector` chooses a recommendation, not new semantics, leases or
+live workers. `task_decomposer` proposes packets, not new semantics, leases or
+live workers.
 `prover` follows the proof contract above; all leaf reports return through their
 delegator for primary adjudication. `researcher` may explore an explicitly
 labeled candidate or added hypothesis without adopting it. Production code

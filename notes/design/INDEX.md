@@ -4,6 +4,14 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active workflow navigation (2026-10-10)
 
+- [Evidence-based next-action selection](2026-10-12-next-action-selection.md)
+  — Authoritative under the user's explicit request for a subagent and skill
+  that help Luna identify the next executable work. Adds read-only
+  `next_action_selector` for one evidence-producing action; the primary retains
+  dispatch and authority, while `task_decomposer` retains multi-packet
+  decomposition. Proof-first gates, original theorem scope and existing budgets
+  remain binding.
+
 - [Sol proof and task-decomposition roles](2026-10-10-proof-and-task-decomposition-roles.md)
   — Authoritative under the user's explicit 2026-10-10 workflow request;
   independent conformance/lifecycle review passed. Adds constructive `prover` and
