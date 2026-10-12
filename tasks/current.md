@@ -15,6 +15,24 @@ independent `spec_auditor` review with no findings and `git diff --check`.
 No compiler code, tests, builds or runtime agent-capacity behavior were changed
 or exercised. This policy correction does not alter the active inference gates.
 
+## 2026-10-12 nested recursive Call and L4
+
+The frozen [complete `f y` Call construction attempt](../notes/theory/2026-10-12-fy-complete-call-construction.md)
+is checkpointed at `3c3047077`. It supplies conditional static Call-instance
+positions but no complete original source judgment. Its first unavailable
+semantic input is the actual hereditary recursive `f` binding and joint-world
+introduction at the nested `g`-body event (Source Generalize L4). A fresh
+independent `compiler_referee` found no issue in this bounded claim. The note
+does not establish source rejection, impossibility, or an intrusion
+counterexample; complete Call and intrusion remain OPEN.
+
+A registered `prover` has now returned worker identity for a direct constructive
+attempt at this exact nested L4 instance and the user's cross-level `odd/even`
+witness. Requested settings are Sol/high; effective runtime settings remain
+unknown. Its exclusive output is
+`notes/theory/2026-10-12-nested-recursive-l4-proof.md`; the primary retains the
+parent proof gate and independent review. No compiler code or tests changed.
+
 ## 2026-10-12 completed Oracle document-audit slice
 
 The user directed a documentary audit of Oracle historical inference designs,
