@@ -12697,6 +12697,25 @@ native correspondence before C quotient or Generalize transport can close.
 The plain-App derivation and bounded quotient calculation passed a fresh
 `compiler_referee` review after adding the missing `freshenAbove` source range;
 this review does not close source adequacy or the parent theorem.
+
+For the literal child, the selected tagged Reify direction can build the
+actual delayed argument and the registered Result-view operand can be emitted
+into `WholeArgCompatible(J_check,CarrierContract(F_c))` before satisfaction,
+provided the original child, registration and complete-view inputs are
+authentic. The selected MIN-ORIG-WHOLEARG theorem does not make this predicate
+true for every inferred `F_c`; rejection is expected. The current candidate
+separately emits the literal-row constraints `Int <: s <: Int` and the
+Function demand `alpha <: Function(s,r)`. No existing result proves a joint
+scoped map from these endpoints to the whole `F_c` predicate, its provider,
+alternatives and future coordinates. The remaining minimum is that forward
+Apply projection/reflection law; a literal `WholeArg` clause alone does not
+imply the unrelated scalar row bounds. Independent falsification found no
+counterexample to unsolved clause emission and confirmed the selected literal
+theorem is too narrow to prove this universal projection. The fresh source
+conformance review found only a minor premise-placement clarity issue, which
+was corrected; it found no blocking or major issue. The complete Call and
+original A/B gates remain OPEN.
+
 The original soundness, principality, progress, termination, effect hygiene,
 complete Call and F5 gates remain OPEN.
 

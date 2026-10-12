@@ -291,6 +291,36 @@ relation between its copied `alpha` and `r`. This is a direct native
 derivation from original `Typer.scala:48–83,115–117,166–188,200–207`; it
 contains no C/B pair.
 
+Given the authentic pre-Call declaration graph and original child, reference,
+registration and scope inputs required by the adopted pre-Call construction,
+the selected tagged Reify direction yields
+`q_ca : Code(T_c,result(literal(a,1)),Comp(empty,Int))`, the original and
+structural literal images, and a licensed `ReifyOrigin†` from which
+`Carrier-Delay†` is formed. The registered complete Result view can be
+assembled as `J_check = DataArg(Int,o_arg)` with identity readouts of its
+whole tuple. At the owning Apply, the forward source schema can emit
+`WholeArgCompatible(J_check,CarrierContract(F_c);xi,e_arg)` before checking
+its truth. This is a comparison-independent clause formation, conditional on
+the authentic child, registration, complete-view and original-scope inputs;
+it does not claim that every `F_c` accepts the literal. `J_old`, the
+structural literal image, its suspension, `t_a`, and the registered checking
+view remain distinct.
+
+The frozen candidate separately creates literal occurrence row `s` and
+generates `Int⁺ <: s⁻`, `s⁺ <: Int⁻`, and
+`alpha⁺ <: Function⁻(s⁺,ae⁺,e⁻,r⁻)`. Erasing effects yields the native scalar
+projection `Int <: s <: Int` and `alpha <: Function(s,r)`. This is the
+candidate's own source-to-native construction. The complete `WholeArg`
+predicate does not by itself prove the two literal bounds for unrelated `s`,
+and these scalar constraints do not reconstruct its whole carrier, registered
+alternatives, provider or future obligations. The still-open lemma is a
+single scoped map that connects the actual literal registration and `s`, the
+formal/result coordinates `alpha,r`, and the complete demand `F_c`, with
+forward preservation of all dependent fields and any required reflection.
+The existing selected literal satisfaction theorem is for its actual native
+`id`/Int inlet; it does not prove this universal map for arbitrary inferred
+`F_c`.
+
 Therefore `C ↦ B` cannot supply a missing App-to-complete-Call constructor.
 The selected `Code-Call` still requires an authentic Application/Gen-Call
 record, whole argument, complete demand, emitted operand-check origins and
@@ -318,11 +348,16 @@ An independent `compiler_referee` located the same complete App-owner gap in
 `shadow_apply.rs` and `candidate_call.rs`. It also found that the frozen
 candidate extrusion path retains only copy/parent/polarity/level and classifies
 SCCs over solver type rows; it does not retain or consume the approved Value
-event `(origin,receiver,pairs)`. These are implementation-correspondence gaps,
-not reasons to alter the selected operation. No compiler edits, tests, builds
-or executable inference were made. The original soundness, required
-principality, progress, termination, effect hygiene, complete Call and F5
-gates remain OPEN. A fresh `compiler_referee` reviewed the native derivation,
-quotient calculation and gap distinction; the one citation-range finding was
-closed. Uninspected: production correspondence beyond the stated gap and
-runtime tests.
+event `(origin,receiver,pairs)`. A separate source audit found no
+counterexample to emitting the unsolved whole-argument predicate, while
+confirming that the selected literal theorem does not establish its native
+projection for arbitrary `F_c`. The fresh `spec_auditor` found no blocking or
+major finding; its sole minor scope-clarity finding was closed by moving the
+authentic declaration/registration/scope premise before the tagged-Reify
+construction. These are implementation-correspondence gaps, not reasons to
+alter the selected operation. No compiler edits, tests, builds or executable
+inference were made. The original soundness, required principality, progress,
+termination, effect hygiene, complete Call and F5 gates remain OPEN. A fresh
+`compiler_referee` reviewed the native derivation, quotient calculation and
+gap distinction. Uninspected: production correspondence beyond the stated
+gap and runtime tests.
