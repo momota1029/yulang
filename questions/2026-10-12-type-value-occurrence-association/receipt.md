@@ -20,8 +20,11 @@ text matches the current draft from its title through the final scope paragraph.
 The approved file omits the draft's final workflow-only “承認と受け渡し” block;
 that discrepancy is recorded here and does not alter the approved decision text.
 Bundle rechecked immediately before staging.
-Approved handoff commit: pending this commit.
-Current files match committed question/draft/answer: pending post-commit check.
+Approved handoff commit: `836f0b46e` on the intended branch; archived revision 1
+and its receipt update were added in `1bdcedffd` at the user's direction.
+Current files match committed question, both draft revisions, approved answer
+and receipt: verified at `2544f57b7` by clean worktree status and an empty
+worktree diff for the question directory.
 
 ## Validation
 
