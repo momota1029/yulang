@@ -907,3 +907,23 @@ soundness, principality, progress, termination or F5. Keep those parent gates
 OPEN. Next source owner remains the authentic `n_E - 1`/complete-Call
 construction, followed by joint endpoint closure/readouts for the actual
 finite check trees. No code/tests/builds changed or ran.
+
+### 2026-10-13 negative FormalAnnotation construction/consumer contract
+
+At baseline `8963c6b58`, a read-only `architect` pass distinguished the
+already selected attachment-local subtraction meaning from its missing
+original governed-port/contribution-incidence constructor. The
+non-authoritative [construction/consumer contract draft](../notes/theory/2026-10-13-negative-formal-construction-consumer-draft.md)
+specifies the candidate Lambda-before-body incidence output, separates the
+later concrete-`Row` demand from annotation formation and `Allowance`
+forwarding, and preserves each correlated residual lineage/tail.
+
+M3 review used one `compiler_referee` for incidence/residual/transport and one
+`spec_auditor` for authority/scope. Both PASSed the bounded draft; neither
+establishes an original source derivation, demand reachability, H, complete
+Call or implementation correspondence. No repair was needed. Next: construct
+the finite original negative annotation application at its actual binder/port
+indices and locate the source-owned concrete-`Row` demand producer/consumer.
+If an adopted clause is absent, return the precise missing source rule and its
+consequences through the existing authority path. No compiler code, tests,
+builds, probes or measurements changed or ran.

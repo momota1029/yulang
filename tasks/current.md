@@ -13645,3 +13645,24 @@ likewise records only the missing original annotation derivation and its
 operational owners. Both artifacts remain unreviewed research checkpoints;
 the original H, complete Call, source correspondence and F5 gates remain
 OPEN. No code, tests or builds changed or ran.
+
+### 2026-10-13 negative FormalAnnotation construction contract
+
+The non-authoritative [construction/consumer contract draft](../notes/theory/2026-10-13-negative-formal-construction-consumer-draft.md)
+was independently reviewed in M3 scope: `compiler_referee` passed its bounded
+incidence/residual/transport claims and `spec_auditor` passed authority and
+scope conformance. The reviewers agree the current adopted native signature
+clauses consume, rather than construct, the original negative annotation
+application. The proposed `Inc` constructor remains unproved; no policy
+meaning, general admission, or F5 cutover was adopted.
+
+The actual concrete-`Row` demand source also remains unlocated. Inspected
+Apply lowering has an invocation effect variable; the supported concrete
+signature path builds an `Allowance`, not the required row with actual heads,
+exact tail and context. Next: construct the finite original annotation rule
+application at its true binder/port indices and separately locate the
+source-owned concrete-row demand/consumer. If existing rules cannot supply
+either, return the exact missing clause and consequences through design
+authority before implementation. H, complete Call, soundness, principality,
+general admission and F5 remain OPEN. No code, tests, builds or measurements
+changed or ran.
