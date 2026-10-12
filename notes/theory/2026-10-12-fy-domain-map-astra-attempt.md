@@ -1,7 +1,7 @@
 # f y: bounded native domain-map attempt
 
 Date: 2026-10-12
-Status: frozen, unreviewed research; conditional partial derivation only
+Status: reviewed bounded research; conditional partial derivation only
 Baseline supplied by primary: `28f0f7fd1ae667997d1ecdf1b4c482909c7722c8`
 Branch supplied by primary: `research/simple-sub-intrusion`
 Producer: leaf `/root/fy_domain_map_astra`; no delegation
@@ -253,10 +253,17 @@ Astra/low and the inspected prover role has no model/effort pins. No effective
 runtime metadata is exposed to this worker; actual model/effort remain unknown.
 The role configuration and packet prose do not establish that an override ran.
 
+Independent review: `compiler_referee` PASS on the frozen artifact at SHA-256
+`f4b677e44c8f00bc5e025a3e57e87224d3ef0e642722bc80b451e0356a43d070`. It
+verified the conditional native chain, fixed-domain scope of allowance
+weakening, and explicit stop before full carrier formation, execution/future
+transport, guards and P. No D/P conclusion or refutation is promoted. Effective
+reviewer model/effort were not exposed.
+
 Unverified: original D/P, source admission, full semantic extrusion and
 qualifying intrusion preservation, actual complete replay, generalization,
 L4, soundness, required principality, effect hygiene and production cutover.
-Independent review remains primary-owned. Shared records were not edited.
+Shared records were not edited by the producer.
 
 Direct dependency snapshot (no leaf edits; primary owns baseline comparison):
 
@@ -282,8 +289,8 @@ Commit packet:
 - Baseline SHA: `28f0f7fd1ae667997d1ecdf1b4c482909c7722c8`.
 - Changed dependency hashes: none observed between snapshots; baseline equality
   remains primary-owned, not inferred from the supplied SHA.
-- Claim/review: frozen unreviewed conditional partial derivation; no theorem
-  promotion, lawful counterexample or independent certification.
+- Claim/review: conditional partial derivation independently reviewed by
+  `compiler_referee`; no theorem promotion or lawful counterexample.
 - Checks already run: static source/semantic clause derivation, hashes and
   leased-note integrity only; no executable compiler verification.
 - Proposed checkpoint message: `research: record bounded native carrier domain-map attempt`.

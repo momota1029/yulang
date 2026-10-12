@@ -56,11 +56,15 @@ producer readiness/dependent observations. A fresh `compiler_referee` PASS
 found no overclaim in either characterization. The artifacts classify D/P as
 required A/B work and retained source incidence as separate reconstruction
 debt. A proposed explicit backlink would address only that D seam and has not
-been implemented or approved. D, P, L3-at-c, recursive L4, complete Call,
-soundness, principality and F5 remain OPEN; the active prover is pursuing one
-bounded direct `f y` D construction attempt with requested Astra/low after Sol
-localized this exact semantic bottleneck. Effective model/effort remain
-unobserved until runtime evidence is returned.
+been implemented or approved. The bounded Astra/low `f y` domain-map attempt is
+checkpointed at `8952e70cd` and passed a fresh `compiler_referee` review. It
+derives only conditional native level/extrusion chains; original carrier
+formation/license, full execution/future transport, actual challenge guards
+and P remain unconstructed. Effective Astra model/effort were not exposed.
+D, P, L3-at-c, recursive L4, complete Call, soundness, principality and F5
+remain OPEN. Next: adjudicate the owning Entry/Call complete-interface
+construction at that precise formation cut before another equivalent D-tree
+attempt; keep any required source decision on the existing authority path.
 
 Two further bounded proof checkpoints were pushed: `f548faa80` for the
 annotation fresh-use/capture construction and `83f1bd78a` for the recursive
