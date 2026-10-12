@@ -58,6 +58,10 @@ proof/implementation gate.
 Affected work waiting: all-path extrusion identity and pair retention,
 Value-reference SCC construction, soundness/principality/progress proof, and
 faithful implementation. No F5 cutover follows.
-History retained: unapproved revision 1 remains in
-`answer-draft-revision-1.md` and is excluded from the integration bundle.
+History retained: revision 1 is preserved in
+`answer-draft-revision-1.md` as non-authoritative answer history. The user
+explicitly clarified that this archived revision is part of the answer-draft
+record and directed its inclusion; it is not treated as approved or as the
+selected decision. Its separate follow-up integration is recorded after this
+receipt's initial answer bundle.
 User-facing rejection returned: not applicable.
