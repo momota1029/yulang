@@ -13186,6 +13186,39 @@ equality transport, allocation, source-preservation, required principality,
 complete Call, effects, termination and F5 OPEN. No implementation or tests
 were changed/run.
 
+### 2026-10-13 intrusion scheduling and publication readiness
+
+An independent `compiler_referee` review confirms that the approved
+occurrence rule does not require equality to be consumed before
+`Generalize(g)`. Scheduling and transport remain unselected; a qualified
+equality must affect solving and later uses. `K_g` is not an activation
+premise, though the separate Source Generalize construction still needs its
+authentic registration and component.
+
+For the correlated helper, definition-root ownership places the reference
+incidences at their respective definition publications: c1 supplies the
+source reference underlying `G → F`, while c3/c5 supply those underlying
+`F → G`. Their ownership rules alone therefore do not entail a complete
+`F/G` SCC at g's publication. This is a bounded non-entailment result, not a
+source rejection or compiler counterexample. A static source pass retaining
+both authentic, resolved root edges before inference is a possible schedule.
+Conditionally, those two genuine edges suffice for this positive SCC test, and
+later edge additions cannot remove their paths. The source-to-inference
+identities and construction are not established.
+
+The reviewed active-root proposal's eager-before-Generalize schedule is now
+classified as a provisional implementation hypothesis, not a chosen semantic
+rule. The smallest remaining bridge is a source-to-inference certificate for
+the actual two root incidences and c1's occurrence with all produced pairs,
+followed by proof that its equality action reaches the original publication
+and every later capture/freshening map. The shared-C obstruction remains
+conditional on that missing original-scoped allocation: only if the same C is
+transported to both helper frames do the admitted scalar bounds derive
+`bool <: int`. Do not infer that transport from levels, SCC membership, or
+native row identity. Source admission, complete Call/effects, equality
+preservation, soundness, required principality, termination and F5 remain
+OPEN. No compiler implementation or tests changed/run.
+
 ### 2026-10-13 negative-formal effect source and consumer boundary
 
 Two disjoint effect-hygiene artifacts now have independent review. The

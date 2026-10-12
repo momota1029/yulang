@@ -701,3 +701,24 @@ Next owner: actual source call-demand/extrusion occurrence production and
 complete candidate first-App/constructor/use correspondence. Proposed research
 storage/scheduling is unselected; all-source equality preservation, source
 eligibility, soundness/principality, complete Call/effects and F5 remain OPEN.
+
+### 2026-10-13 active-root occurrence readiness follow-up
+
+| Assignment | Method | Result |
+| --- | --- | --- |
+| `assess_active_root_semantic_choice` | Read-only architecture analysis of the selected G/F occurrence rule | Confirmed `K_g` is not an activation premise; the source-scheme/allocation proof still needs it. Eager equality before `Generalize(g)` is only a proposed schedule. |
+| `prove_intrusion_schedule_readiness` | Source-rule non-entailment analysis and positive SCC witness lemma | Publication-owned edge rules do not entail `F/G` SCC readiness at g publication. For an authentic occurrence, two retained root paths suffice conditionally; static preconstruction is feasible as a proposal but its semantic-root/Call/pair/use transport is open. |
+| `research_active_root_event_coverage` | Static producer/consumer audit of graph and extrusion-event readiness | Current HIR/candidate owners retain syntax/type endpoints but do not establish the approved Value graph, occurrence grouping or publication/fresh-use correspondence. |
+| `review_active_root_bridge_conformance`, `review_active_root_bridge_semantics`, `review_intrusion_readiness_result` | Independent spec and compiler-referee review | Occurrence trigger conforms; the initial bridge proposal is not a completed source bridge. Review requires readiness/coverage and original-scope transport; it corrected edge timing and limits static preconstruction to authentic retained edges. |
+
+The provisional eager schedule is not adopted. The approved semantic obligation
+remains: a genuinely qualified occurrence's actual parent/copy equalities must
+affect solving and later uses. The exact next proof packet is the source-to-
+inference certificate for c1's origin/receiver, all actual produced pairs, the
+two authentic F/G reference paths, and equality transport through g publication
+and both later capture/freshening routes. Stop at the first absent original
+Call/scope law; do not infer allocation from levels, SCC membership or native
+row IDs. The correlated helper remains conditional, and the parent soundness,
+required-principality, complete-Call, effect, termination and F5 gates remain
+OPEN. No compiler code, tests, builds, probes or measurements were run in this
+follow-up.
