@@ -148,6 +148,20 @@ shared-C contradiction remain conditional. This correction is research-only;
 source admission, equality transport, complete Call, soundness, required
 principality and F5 remain OPEN.
 
+A bounded scalar projection now shows why “shared outer f type” alone cannot
+settle the fixed-versus-frame-relative C incidence: with f's shared type
+`Top -> {a:Int,b:Bool}`, per-frame choices `C0=B0=Int` and `C1=B1=Bool`
+satisfy the projected variance, wrapper, use and `succ` constraints. A fresh
+`compiler_referee` checked the projection, including the pending `drop` Force:
+it contributes `R_i <: Z_i` but no `R_i=B_i`. This is not a lawful source allocation or an
+acceptance result. The read-only architect and spec audit found no selected
+rule that constructs nested `p_g(h)` registration or proves either complete
+incidence; they also found no two genuinely lawful alternatives yet, so a
+user design question would be premature. Next evidence is one authentic
+nested derivation exposing `p_g(h)`, the live f certificate, B's telescope,
+full Qc incidence/transport and L4. Keep the complete Call, frame incidence,
+source admission and parent A/B gates OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as

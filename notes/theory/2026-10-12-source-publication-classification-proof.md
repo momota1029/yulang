@@ -263,6 +263,23 @@ give no C0=C1, so this particular transitivity chain cannot be imported.
 Additional retained component clauses may correlate them; no satisfiable
 complete alternative allocation is proved here.
 
+A separate bounded scalar-projection check supplies a consistent assignment
+for the displayed native constraints without identifying the two C rows. Let
+`T={a:Int,b:Bool}`, `o=Function(Top,T)`, and choose
+`(B0,S0,V0)=(Int,Int,Int)`, `(B1,S1,V1)=(Bool,Bool,Bool)`,
+`C0=B0`, `C1=B1`, and `Di=Ri=T`. Choose `Zi=T` for the wrapper's generated
+`Ri <: Zi`. Function variance gives `o <: Function(Bi,Ri)` from
+`Bi <: Top` and `T=Ri`; the projected `Bi <: Si <: Vi` constraints, both
+actual argument constraints, and the `succ` result constraint all hold.
+The ordered `drop` suffix keeps `f y`'s result under `Ri <: Zi` while its
+body returns captured y; it adds no `Ri=Bi` equation. A fresh
+`compiler_referee` checked this scalar projection at baseline `e70c3acd9`
+and found no inconsistency. This shows only that the shared outer `f` type
+does not itself imply the `Bool <: Int` chain. The assignment does not
+establish that `C0/C1` are lawful source incidences, that the complete
+dependent clause admits this allocation, or that the source witness is
+accepted; those remain open.
+
 The reviewed [ALG theorem](2026-10-12-quotient-solution-correspondence-proof.md)
 §§3–6 can represent the equality-augmented allocated presentation *after* its
 coordinate interpretation and telescope transport have been established.
