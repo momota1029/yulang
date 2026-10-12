@@ -13173,3 +13173,29 @@ transport to both frames, which remain unproved. Keep source admission,
 equality transport, allocation, source-preservation, required principality,
 complete Call, effects, termination and F5 OPEN. No implementation or tests
 were changed/run.
+
+### 2026-10-13 negative-formal effect source and consumer boundary
+
+Two disjoint effect-hygiene artifacts now have independent review. The
+[coupled-generation audit](../notes/theory/2026-10-13-negative-formal-coupled-generation.md)
+passed `spec_auditor`: Y3's negative concrete-formal gate blocks executable
+attachment generation; the Oracle direct-formal route has a real binder and
+whole-annotation wildcard condition; ordinary aliases do not inherit that
+direct route. The note does not infer language rejection or alias failure,
+and leaves scheme transport open.
+
+The [consumer discriminator](../notes/progress/2026-10-13-negative-formal-consumer-discriminator.md)
+passed `compiler_referee`: Y3 retains the actual operand and schedules both
+insertion orders, but its Allowance check does not install per-lineage gamma
+feedback plus exact outgoing-tail projection. The pinned Oracle residual owner
+does enqueue each invocation's own feedback and projection even when gamma
+cache reuse skips allocation. This is a bounded consumer difference, not a
+source-qualified hygiene counterexample, admission result, or proof of H.
+
+The minimal next proof obligation is the source-owned negative-attachment
+constructor and its authentic call/output or alias transport, preserving the
+same attachment instance and separate residual lineages. Keep concrete-formal
+admission, coupled preservation, complete Call, generalization, soundness,
+principality and F5 cutover OPEN. The notes used no tests, builds or compiler
+edits; Oracle evidence was read from immutable source objects at the recorded
+pin.
