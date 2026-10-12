@@ -13529,3 +13529,37 @@ Other historical/source routes and any actual imported operator declarations
 remain unverified. The exact argument, all enclosing Calls/effects, intrusion
 transport, soundness, principality and F5 remain OPEN. No implementation or
 tests changed or ran.
+
+### 2026-10-13 singleton recursive-introduction frontier
+
+A bounded architect pass tried to extend the selected positive immutable
+coinduction to the user's cross-level singleton outer `odd`, with actual
+sequential `even` allocations indexed by outer invocation history. It did not
+produce an adopted rule or close recursive L4. Independent
+`compiler_referee` and `spec_auditor` reviews agree that the candidate is a
+conditional proof architecture only: treating E allocations as event-indexed
+avoids installing E simultaneously with O, but it does not supply hereditary
+membership or the complete Call proofs.
+
+The first decisive recursive-use seam is `cO`: Name returns the same O at its
+original endpoint, while Application needs the same callable at its checked
+Function endpoint. A valid finite local checking derivation could supply the
+same-carrier domain map D and positive observation map P without assuming O
+membership, but no actual `cO`/`cE` proof trees or exhaustive background-field
+correspondence have been constructed. P must come from the real checking
+constructors; it cannot be inferred from monotonicity of the greatest-fixed-
+point operator. Every original independent challenge, off-diagonal carrier,
+pending effect/resumption, provider decomposition and future remains in scope.
+E enters each world only after its actual formation and rebind.
+
+The proposed rule exceeds the selected simultaneous-pair constructor's proved
+scope and is not an existing theorem. No user-facing semantic alternative was
+established; do not promote the proposal or ask for approval yet. The next
+proof action is to construct the actual local check trees at `cO` and `cE`,
+starting with the authentic `n_E - 1` source/operator judgment and its complete
+Call inputs, then derive D/P by the original check constructors. The current
+source path still has no selected method-resolution/operator-introduction
+owner for this exact term, so stop at that owner if it remains unavailable.
+Recursive L4, complete Call/effects, source correspondence, soundness,
+principality, progress, termination and F5 remain OPEN. No implementation,
+tests, or builds changed or ran.

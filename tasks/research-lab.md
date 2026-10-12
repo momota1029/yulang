@@ -865,3 +865,26 @@ actual selected operator-resolution/semantic introduction law and construct
 the source instance at `Γ_E,W_E`, retaining literal `1`, effects and the
 complete enclosing Call unchanged. The original inference and F5 gates remain
 OPEN.
+
+### 2026-10-13 singleton recursive-introduction review
+
+The architect's source-directed singleton rule proposal was independently
+reviewed by `compiler_referee` and `spec_auditor`. Both keep the original
+recursive-introduction/L4 gate OPEN. The positive coinductive family can
+represent an O self-reference and separately allocated E values, but the
+proposal is not an introduction theorem: its checked-call clauses must be
+derived from authentic finite source checks rather than assumed as complete
+body validity. The exact first recursive application needs D (the same whole
+carrier at the actual entry) and P (the same observation at the checked
+Function endpoint), with every original guard, provider, result, effect,
+pending suffix and future preserved. `Phi` monotonicity alone supplies neither.
+
+The reviews also require event-indexed actual worlds: E appears only after its
+source formation/rebind. This fits the selected sequential LocalSelfRec
+behavior and creates no user decision by itself. No proof note or design rule
+was created. The next producer should construct the authentic cO/cE check
+trees from their owning source/operator constructors and derive D/P by those
+constructors; the exact `n_E - 1` operator-resolution/introduction owner
+remains open and is the first source boundary. No tests/builds/compiler code
+changed or ran; soundness, principality, source correspondence, complete Call,
+effects, termination and F5 remain OPEN.
