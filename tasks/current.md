@@ -12621,3 +12621,18 @@ effect obligation is a source-owned live PUSH plus its matching result POP,
 residual lineage, and consumers through direct/aliased Calls; the original
 effect-hygiene and production gates remain OPEN. No compiler code or tests
 changed or ran in these follow-ups.
+
+The focused [Call-owner inversion for extrusion endpoint C](../theory/2026-10-12-fg-call-c-endpoint-construction.md)
+adds the owning original Call/IF check: Call formation returns its existing
+callee, whole-argument, complete-demand, receiver/result and future interfaces;
+IF-Use places an already formed field under an already lawful whole scoped
+substitution. Neither constructor identifies an original typed field/endpoint
+term with the native positive copy C. The native polar extrusion memo supplies
+only C and its parent/bound relation. A fresh independent `compiler_referee`
+PASS reviewed this bounded inversion; it assumes no complete C0, D/P or
+recursive f membership and establishes no source rejection. The minimum next
+input is the original source formation and typed occurrence map for C, with its
+scope and dependencies, from the owning Call-demand/extrusion constructor.
+Then apply the existing IF placement and Source Generalize walk. The original
+intrusion soundness/principality, complete Call and F5 gates remain OPEN; no
+compiler code or tests changed.
