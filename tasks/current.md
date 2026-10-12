@@ -4,6 +4,30 @@ Date: 2026-10-12 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## 2026-10-12 fixed-term H executable construction
+
+The fixed recursive odd/even packet now has an independently reviewed finite
+H implementation and code/field refinement:
+[verdict and review](../notes/progress/2026-10-12-fixed-term-h-review.md).
+The explicit-cell research machine transports actual suspended Lam/App
+operands, both bound sides and original scopes, while preserving raw cache,
+polar memo and event identities. It realizes the two pairwise low-anchor
+actions and both original publications/fresh uses. The unchanged Scala
+constructor-local references cannot realize that postcondition.
+
+The candidate audit proves only a conditional scalar interpretation of its
+parent-selected minimum-level representatives. Actual source E/O occurrence
+retention and approved Value-SCC activation, the complete candidate facade/
+four-port/context continuation, and source eligibility remain OPEN. This
+does not adopt the research prepass, storage or schedule or close general
+soundness, required principality, complete Call/effects, termination or F5.
+
+Next evidence: derive the actual source-owned call/extrusion event and real
+first-App candidate state, then prove the constructor/consumer correspondence
+or identify its first distinguishing operation. Reuse the finite H proof;
+another conditional suffix or arbitrary quotient store does not supply that
+source owner. No compiler implementation changed.
+
 ## 2026-10-12 next-action selection workflow
 
 The user requested a subagent and skill to help the Luna primary identify the

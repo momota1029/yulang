@@ -678,3 +678,26 @@ absence theorem. Matching output POP, attachment/recipe lineage, complete
 replay and publication remain OPEN. No compiler code, tests or expectations
 changed. Checkpoint `ea45f0786` is committed locally; task records are being
 synchronized separately.
+
+### 2026-10-12 fixed-term H executable refinement
+
+| Assignment | Method / exact output lease | Integrated result |
+| --- | --- | --- |
+| construct_h | Native constructor/continuation proof; notes/theory/2026-10-12-fixed-term-h-state-construction.md | Finite code/field refinement, immutable-local obstruction and exact pairwise/batch timing lemma |
+| finite_checker | Explicit stack-machine construction; tools/research_fixed_term_h_machine.py and its evidence note | Four fixed runs; live-cell and raw-cache omissions discriminate required state duties despite the same final interface |
+| candidate_audit | Direct candidate producer/consumer inspection; fixed-term-h-candidate-audit.md | Conditional parent-representative scalar interpretation; actual occurrence/Value-graph activation and full candidate trace remain open |
+| h_referee | Fresh read-only independent review of the frozen component | PASS in the stated research scope; no BLOCKING/major, one minor Name-count correction integrated |
+
+The [integration review](../notes/progress/2026-10-12-fixed-term-h-review.md)
+contains reviewed/released hashes, source locations, exact scope and all
+verification details. Three producers requested Sol/high and one referee
+Sol/medium; effective runtime telemetry unavailable. Maximum active team size
+four including primary. Six bounded Python executions total (four development,
+one primary, one referee), no builds/compiler tests/benchmarks; no compiler or
+authority changes. Primary preserved all concurrent remote work through
+2654f22056b8ba0acba86bfa0c8d850b5a25142c before integration.
+
+Next owner: actual source call-demand/extrusion occurrence production and
+complete candidate first-App/constructor/use correspondence. Proposed research
+storage/scheduling is unselected; all-source equality preservation, source
+eligibility, soundness/principality, complete Call/effects and F5 remain OPEN.
