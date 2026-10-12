@@ -1,6 +1,6 @@
 # Odd/even subtraction: original scoped owner instance
 
-Status: frozen unreviewed research checkpoint; requested child judgment unconstructed
+Status: frozen, independently reviewed bounded research checkpoint; requested child judgment unconstructed
 Claim class: bounded source/owner characterization and precise missing input
 Baseline: `8f0c9cbb5ac207b18ad374d2e26610c02922604d`
 Branch: `research/simple-sub-intrusion`
@@ -283,14 +283,27 @@ source acceptance, method selection execution, complete C0, Branch/guards,
 recursive-world closure, intrusion transport, soundness, required principality,
 termination and F5/cutover. No theorem or aggregate gate is promoted.
 
-## 8. Commit packet
+## 8. Independent review
+
+`compiler_referee` PASS, no blocking, major or minor findings. The review
+confirms that the selected Source Generalize and Complete Call rules consume
+but do not supply the scoped declaration/law; current `SemanticImports(())`
+has no import payload; historical `Sub`/`IntSub` evidence is not Y3 adoption;
+and the missing-environment and missing-local-law branches remain distinct.
+The reviewer confirmed the artifact hash and all twenty listed Y3 dependency
+hashes against the pinned baseline. The actual environment/provider selection,
+specialized law, recursive-world closure and all parent inference gates remain
+uninspected or open as listed above.
+
+## 9. Commit packet
 
 - Exact leased/changed path: `notes/theory/2026-10-13-odd-even-subtraction-owner-instance.md`.
 - Baseline SHA: `8f0c9cbb5ac207b18ad374d2e26610c02922604d`.
 - Changed direct dependency hashes versus baseline: none in the twenty checked
   Y3 dependencies. Historical snapshot is foreign evidence, not a baseline delta.
 - Claim/review status: bounded characterization and missing input; frozen,
-  unreviewed research only. Original child and parent gates remain OPEN.
+  independently reviewed with PASS, research only. Original child and parent
+  gates remain OPEN.
 - Checks already run: static owner/authority reads, baseline/hash comparisons
   (29 hashes match, twenty Y3 files match the pinned baseline), read-only
   repository state and leased artifact inspection; no tests/builds.

@@ -13600,10 +13600,10 @@ unconstructed and unrefuted.
 An independent architect audit likewise confirms that Source Generalize and
 Complete Call consume an authentic scoped declaration/law but do not provide
 it. Evidence does not yet distinguish missing original environment data from a
-genuinely unselected local semantic law. The source-owner note is a frozen,
-unreviewed research checkpoint; its parent L4, complete Call, source
-correspondence, soundness, required principality, progress, termination and F5
-gates remain OPEN. No compiler implementation or tests changed or ran.
+genuinely unselected local semantic law. The source-owner note received a
+fresh `compiler_referee` PASS with no findings; its parent L4, complete Call,
+source correspondence, soundness, required principality, progress, termination
+and F5 gates remain OPEN. No compiler implementation or tests changed or ran.
 
 Next: obtain the original source import/resolution/provider instance for this
 occurrence, then construct its literal and whole local semantic law at
