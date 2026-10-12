@@ -722,3 +722,20 @@ row IDs. The correlated helper remains conditional, and the parent soundness,
 required-principality, complete-Call, effect, termination and F5 gates remain
 OPEN. No compiler code, tests, builds, probes or measurements were run in this
 follow-up.
+
+### 2026-10-13 nested-recursion and effect-hygiene proof slices
+
+| Assignment | Method / artifact | Reviewed result |
+| --- | --- | --- |
+| `prove_nested_odd_even_intrusion` | Exact source-incidence and origin derivation; `notes/theory/2026-10-13-cross-level-odd-even-source-intrusion-proof.md` | `compiler_referee` PASS after a minor wording correction. O/E SCC and E/O origin are established from approved source rules; actual native integer-reference pairs qualify conditionally. Original `b - 1` typed Call input remains missing; no source success/refutation. Commit `c2aeac371`. |
+| `map_nested_odd_even_source_path` | Parser/HIR/solver owner audit; `notes/progress/2026-10-13-nested-odd-even-source-owner-audit.md` | `spec_auditor` and `compiler_referee` PASS. Inline and indented spellings have distinct current-carrier cuts, not language rejection; nested source origin and event endpoints are absent from inspected native records. Commit `3338f6492`. |
+| `prove_negative_formal_residual_hygiene` | Pinned Oracle residual emissions and indexed information-sufficiency derivation; `notes/theory/2026-10-13-negative-formal-residual-hygiene-proof.md` | `spec_auditor` PASS. Oracle owner emits each invocation's feedback and exact-tail projection, including cache hits; no attachment-to-independent-fiber license or native transport is proved. H remains OPEN. Commit `2e8e816a1`. |
+| `construct_negative_effect_source_owner` | Y3/Oracle annotation, Call and residual-owner crosswalk; `notes/progress/2026-10-13-negative-formal-source-call-output-bridge.md` | Frozen; independent review pending. `FormalAnnotation` is the earliest Y3 construction site, but negative paired generation is blocked and accepted Call/IF consume rather than generate the missing scoped negative-annotation→Row-demand judgment. |
+
+The nested example's exact `b - 1` operator/complete Call judgment is the next
+source proof owner; guard/Branch and recursive L4 remain separate. Effect work
+is narrowed to proving the authentic annotation-local contribution license and
+its actual delivery from source Call/output to Row demand, preserving alias
+identity and separate residual lineages. No effect source admission or code
+change is authorized by the current conditional Oracle result. Parent soundness,
+principality, natural progress, termination and F5 replacement remain OPEN.
