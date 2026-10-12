@@ -1,7 +1,7 @@
 # Nested helper: source registration and allocation owner audit
 
 Date: 2026-10-12
-Status: frozen unreviewed research; bounded source/API characterization
+Status: independently reviewed bounded source/API characterization
 Assigned baseline: `ba93e1739`, branch `research/simple-sub-intrusion`
 Producer: `/root/audit_source_registration_owners`, complementary researcher leaf
 Exclusive write lease: this file only; no implementation authority
@@ -236,4 +236,23 @@ c21376746b2c6d022d4e7c709c0c88e61d8b9c10eb260d617479f4f10b901a94 crates/yu-solve
   transport. `tasks/current.md`, design/index/authority files, questions and
   all compiler paths remain unmodified by this worker.
 
-Writes stop at this handoff; independent review must use this frozen artifact.
+Writes stop at this handoff; the independent review below uses this frozen
+artifact.
+
+## Independent review
+
+A fresh `compiler_referee` inspected the governing Source Generalize
+construction, approved occurrence qualification and nested-origin decision,
+and the cited HIR/solver producers and consumers. It passed with no blocking,
+major, or minor finding. It confirmed that LocalSource preserves identities
+and syntax but does not emit the selected validating component or typed
+Internal/Established distinction; candidate publication/fresh-use, Call,
+extrusion and intrusion records do not supply the selected Desc telescope or
+scoped source equality. Numeric levels and solver Value dependencies do not
+establish the Source Generalize classification.
+
+The review is limited to the bounded source/API characterization. It did not
+establish universal route absence, source rejection, complete Call behavior,
+source admission, or any parent theorem closure. Review baseline was
+`ac64bffd9`; this is distinct from the producer's assigned baseline
+`ba93e1739`. The frozen artifact SHA-256 matched the review input.

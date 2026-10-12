@@ -1,7 +1,7 @@
 # Source publication classification: nested recursive-f helper
 
 Date: 2026-10-12
-Status: frozen unreviewed research; bounded constructor obstruction and
+Status: independently reviewed bounded constructor obstruction and
 conditional application of the selected closure/allocation rules
 Assigned baseline: `ba93e1739`, branch `research/simple-sub-intrusion`
 Exclusive lease: this file only; prover leaf, no delegation
@@ -360,3 +360,19 @@ against `ba93e1739` and revalidate any movement before integration.
   correlated-helper contradiction as conditional on shared C plus active
   complete equality transport. Keep L4, complete Call/effects, soundness,
   required principality, full allocation and F5 OPEN. No shared record edited.
+
+## Independent review
+
+A fresh `compiler_referee` reviewed the frozen artifact and all 18 listed
+dependency hashes. The reviewer confirmed that the least-closure result is
+conditional on supplied well-formed typed records; the two footprints are not
+asserted to be actual. The `bool <: int` chain requires shared C, complete
+well-scoped clause transport and activation in both frames. The original
+Simple-sub Record/Bool AST and the distinct Yulang Int/Unit fixture remain
+separate. Direct owner inspection supports the bounded missing-output claim
+for K_g, typed dependency edges, C/D source operands and scoped equality.
+
+The review found no blocking, major, or minor correctness finding. It does not
+establish actual C eligibility, a source-qualified contradiction, parser or
+inference behavior, complete Call validity, replay, soundness, required
+principality or parent-theorem closure.
