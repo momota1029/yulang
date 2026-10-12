@@ -11756,6 +11756,15 @@ checks remain OPEN. Complete Call, effects,
 ordinary source correspondence, soundness, principality and F5 replacement
 stay OPEN.
 
+The separately leased [independent handler-arm image derivation](../notes/theory/2026-10-12-same-family-handler-independent-image-proof.md)
+applies that B-origin map jointly with the actual annotated scrutinee route in
+P+. Independent `compiler_referee` review found no findings. It confirms the
+bounded B→T→R→scheme→provider/use→outer O path for this fixed source while the
+scrutinee view is processed. P+ has no action-alpha output POP, so this does
+not prove survival through such an output subtraction or the original H
+attachment/residual/current-future interface. H and all broader inference,
+Call, soundness, principality and cutover gates remain OPEN.
+
 ### 2026-10-12 copied-row incidence decision integrated
 
 The user-approved revision 2 of the copied-row question is now integrated in
