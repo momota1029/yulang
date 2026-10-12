@@ -13141,3 +13141,35 @@ apply the Source Generalize fixed-closure/allocation rules to that record.
 Do not substitute another flat quotient calculation or numeric-level
 argument. No compiler code, tests, builds, executable probes or design
 authority changed in this step.
+
+### 2026-10-13 shared-C representation obstruction and source bridge
+
+The bounded [shared-C source bridge falsification](../notes/progress/2026-10-13-shared-c-source-bridge-falsification.md)
+now has an independent `compiler_referee` PASS. Its four-clause reduct proves
+that any representation commuting with the fixed native endpoint map and
+transporting `C=B` to both independent helper frames entails
+`bool <: b1 = C = b0 <: int`, contradicting the retained scalar separation.
+Adding endpoint terms or per-frame proof witnesses cannot repair that
+conditional reduct. The note does **not** establish that source rules impose
+the correspondence premises, and it claims no admitted Yulang counterexample
+or source rejection.
+
+The first absent source constructor remains a nested helper's dependency on
+another active recursive component's still-open root, plus authentic
+introduction and transport of the call's extrusion operand `C`. Existing
+Source Generalize records cover same-component `Live/Internal` and installed
+`Mono/Established`; they do not derive this cross-component application. The
+constructive source lane is still checking the actual App/extrusion operand
+path. Do not change `C` to per-frame coordinates or alter the equality
+meaning. The [correlated-frame equality derivation](../notes/theory/2026-10-13-correlated-frame-equality-obstruction-proof.md)
+has a fresh `compiler_referee` PASS after correcting one replay-step reference.
+For the displayed native two-use assignment, shared constraint equality or a
+fully transported canonical merge preserves the conditional chain
+`bool <: B1 <: C <: B0 <: S0 <: V0 <: int`. The bounded native calculation
+accounts for level-aware reverse equality using shared E/H coordinates and
+ordered bound replay; it does not assume eager transitive closure. The result
+still depends on source admission and active original-scoped equality
+transport to both frames, which remain unproved. Keep source admission,
+equality transport, allocation, source-preservation, required principality,
+complete Call, effects, termination and F5 OPEN. No implementation or tests
+were changed/run.
