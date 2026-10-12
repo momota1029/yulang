@@ -12197,3 +12197,35 @@ selected Source-Generalize scopes. Until then, equality preservation,
 principality, normal progress, termination, complete Call/effect hygiene and
 F5 replacement stay OPEN. No compiler code, tests, or language expectations
 changed in these checkpoints.
+
+### 2026-10-12 Y3 annotation/Call/output effect gate
+
+The current Y3 effect lane produced two research-only artifacts from baseline
+`99cd86fd9`, independently committed and pushed: the [alias Call source
+trace](../notes/progress/2026-10-12-y3-effect-call-output-counterexample-search.md)
+at `aeb5ab305` and the [coupled source-obstruction
+proof](../notes/theory/2026-10-12-y3-effect-call-output-coupled-proof.md) at
+`73dae9fcf`.
+
+The alias trace distinguishes direct formal Calls (with `formal_name`) from a
+local alias Call that uses capture/freshening and has no `formal_name`. It
+found no hygiene counterexample: the tested negative concrete formal rows are
+rejected by the private candidate before action execution, which is not a
+language restriction. The coupled proof establishes the bounded current-carrier
+obstruction: every live `LocalWeight` has structurally empty PUSH/POP words,
+and source annotation, formal, copy and replay paths return to that constructor.
+The note received an independent `compiler_referee` review with no blocking,
+major, or minor finding. This does not prove semantic impossibility or the
+original A/B hygiene theorem. Call/output pairing, live negative attachment,
+current/future residual fan-out, reverse gamma feedback, and full source
+coverage remain OPEN.
+
+The registered `prover` launch and the `compiler_referee` launch for the alias
+trace encountered model-capacity errors. A prover-equivalent generic worker
+produced the bounded obstruction; actual model/effort metadata is unknown. A
+fresh `compiler_referee` review passed for the obstruction, while a separate
+generic independent review of both artifacts is still running for the alias
+trace. No code or tests changed or ran. The next owning gate is
+source-owned live attachment formation and its same-ID transport through direct
+and aliased Calls into output and residual consumers; keep dependent production
+implementation gated until that construction is authorized and proved.

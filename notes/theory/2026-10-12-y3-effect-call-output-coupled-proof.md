@@ -1,7 +1,7 @@
 # Y3 annotation, Call, output and residual coupling obstruction
 
 Date: 2026-10-12
-Status: frozen unreviewed research checkpoint; original source/consumer gate OPEN
+Status: frozen, independently reviewed bounded source obstruction; original source/consumer gate OPEN
 Method: one direct constructor induction and static consumer trace
 Baseline and inspected HEAD: `99cd86fd9a8733e45869eb1ea67a86aeb1e9ec55`
 Branch: `research/simple-sub-intrusion`
@@ -278,8 +278,11 @@ Requested launch: registered `prover`, reported by the primary as failing with
 not a custom prover execution. This worker has no observable launch model or
 effort metadata; observed model/effort are unknown. No Astra execution, model
 override or hot reload is claimed. The primary is the verification/integration
-owner and must obtain fresh independent review; the producer does not certify
-this obstruction.
+owner. A fresh independent `compiler_referee` M3 review passed with no
+blocking, major, or minor finding. It covered the bounded carrier lemma and
+source/consumer correspondence only; global hygiene and the original parent
+theorem remain OPEN. The producer does not certify this obstruction. Runtime
+model/effort metadata was unavailable.
 
 Omitted verification: source execution, accepted binary examples, general
 negative-formal admission, full Call/provider compatibility, coupled output
@@ -317,7 +320,7 @@ Exact leased path:
 `notes/theory/2026-10-12-y3-effect-call-output-coupled-proof.md`.
 Baseline: `99cd86fd9a8733e45869eb1ea67a86aeb1e9ec55`.
 Changed dependency hashes: none.
-Review status: unreviewed frozen producer obstruction; original parent OPEN.
+Review status: independently reviewed frozen producer obstruction; original parent OPEN.
 Checks already run: static source/consumer trace, baseline dependency equality,
 note whitespace check; no executable verification.
 Proposed subject: `research: localize Y3 coupled effect construction obstruction`.
