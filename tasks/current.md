@@ -11691,3 +11691,28 @@ trying to carry the same correlated lower through the selected output, using
 immutable Oracle source only. The original universal H, complete Call,
 soundness, principality, ordinary/public inference and F5 replacement remain
 OPEN. No Oracle invocation/build budget was used for either candidate.
+
+The independently reviewed
+[`recursive skeleton source audit`](../notes/progress/2026-10-12-same-family-recursive-skeleton-source-audit.md)
+corrects the recursive-owner map: the annotated inner `run` call uses local
+self Value S, distinct from public root G; the final Function returns through
+R. The user's nested odd/even witness is recorded as a nontrivial SCC in the
+approved source-owner Value-reference graph across lexical/inference levels.
+That specified source graph is distinct from evidence that current solver rows
+materialize the SCC or that odd/even names an extrusion parent/copy pair.
+The exact odd/even spelling still lacks the current Y3 HIR route described in
+its admission audit.
+
+The bounded
+[`recursive-return derivation`](../notes/theory/2026-10-12-same-family-handler-recursive-return-proof.md)
+is independently reviewed after one narrow repair. It derives the actual
+`T → R` Direct claim and included B-based ReplayConjunction, including both
+arrival orders, then the final public Function whose return port is R. The
+first OPEN parent obligation is now the B-bound-to-compact/generalized/use
+image: exact decisive-certificate selection is only one attempted proof route,
+since collection consumes the actual bound endpoint regardless of which
+included clause was selected. No same-witness output, P+ acceptance, or H
+closure follows yet. The source audit and proof are frozen, review-clean, and
+ready for a research-only checkpoint; no tests, builds or Oracle runs were
+performed in this slice. H, complete Call, soundness, principality, ordinary
+inference and F5 replacement remain OPEN.
