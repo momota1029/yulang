@@ -754,3 +754,19 @@ source Call/output to Row demand, preserving alias identity and separate
 residual lineages. No effect source admission or code change is authorized by
 the conditional Oracle result. Parent soundness,
 principality, natural progress, termination and F5 replacement remain OPEN.
+
+### 2026-10-13 correlated helper publication/source-frame follow-up
+
+| Assignment | Method | Reviewed result |
+| --- | --- | --- |
+| `derive_correlated_helper_source_frames` | Apply selected Source-Generalize registration, publication and allocation rules to the exact nested helper witness | The open-root reference to `f` is established, but the actual `f y` Call clause, qualified pair's source-coordinate incidence and publication-indexed `N_g` dependencies are not constructed. No `Desc` declaration for `C` is required; the complete relation must supply its operand incidence and lawful telescope. `compiler_referee` and `spec_auditor` PASS the bounded obstruction claim. |
+
+This result does not decide whether both `g` use frames share `C`, and does not
+qualify the conditional `bool <: int` discriminator as a source counterexample.
+It confirms the already frozen [active-root Call construction frontier](../notes/theory/2026-10-13-active-root-call-source-construction.md)
+without adding another equivalent proof note. The next owner is the actual
+source `f y` Application/Call constructor and its source-to-native coordinate
+map, followed by the publication-indexed fixed-field walk and lawful
+substitution into both real use frames. Parent soundness, principality,
+complete Call, effects, progress, termination and F5 remain OPEN. No compiler
+code, tests, builds, probes or measurements were run in this follow-up.

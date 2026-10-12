@@ -13356,3 +13356,28 @@ only the current executable seam after HIR/preflight. No source rejection, H
 refutation/closure, admission, or implementation follows. Alias transport,
 global H, soundness, principality and F5 remain OPEN. No implementation or
 tests changed/run.
+
+### 2026-10-13 correlated helper source-allocation frontier
+
+For the exact nested helper witness in
+[`active-root helper source registration and Call construction frontier`](../notes/theory/2026-10-13-active-root-call-source-construction.md),
+the direct recursive `f` reference is settled: the approved LocalSelfRec rule
+keeps one open monomorphic root through nested `g`. Two independent reviews
+(`compiler_referee` and `spec_auditor`) pass the bounded conclusion that this
+does not construct the complete `f y` Call clause, its source-indexed
+interpretation of the qualified native pair `(C,B,+,1)`, or the complete
+`g` publication/dependency records consumed by Source Generalize §§5.1–5.2.
+The latest source-frame derivation reaches the same exact frontier without
+assuming a `Desc` for `C`: the missing item is its operand incidence and
+lawful telescope in the complete source relation, including whether that
+operand is shared across both genuine `g` use frames.
+
+Accordingly the conditional `bool <: int` discriminator is still neither a
+source-qualified counterexample nor a source witness. Do not infer `K_g`,
+allocation, or frame transport from Value-SCC membership, native level, or row
+identity. The smallest live proof task is construction of the original scoped
+`f y` Application/Call judgment at its source owner and the corresponding
+publication-indexed dependency/coordinate map; only then apply the existing
+fixed-field walk and allocation theorem. Soundness, required principality,
+source adequacy, complete Call, effects, progress, termination and F5 remain
+OPEN. No implementation or tests changed/run.
