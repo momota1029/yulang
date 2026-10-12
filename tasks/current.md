@@ -11817,11 +11817,26 @@ continues; it is unaffected by this correction. Complete Call, effect hygiene,
 normal inference, soundness/principality, implementation correspondence and F5
 replacement remain OPEN.
 
-A bounded `architect` lane is actually running on that source association
-construction, using the original Simple-sub constructors and the unchanged
-odd/even, id/konst and opposite-polarity shared-variable examples. It owns no
-files or semantic adoption; primary will adjudicate its concrete construction
-before assigning the corrected preservation statement to prover.
+A bounded `architect` lane completed its source-association proposal, and an
+independent `compiler_referee` source audit identified the exact missing rule:
+App-demand construction/extrusion does not yet choose the values associated
+with parent/copy suboccurrences. The minimal nested-call trace is recorded in
+the addendum's construction-frontier section. Operand/result ownership and
+enclosing description-occurrence ownership produce different activation
+decisions; neither is silently adopted. The primary asked the user for the
+intended value pairs, including copied-port association. Only dependent core
+construction/implementation waits on that decision. The original source
+soundness, required principality and progress gate is retained; no arbitrary
+pre-intrusion store-fiber equality theorem is imposed as a new prerequisite.
+
+The prior Oracle `choice_output_pop_proof` handle disappeared after interruption
+and produced no artifact. The primary confirmed its handle and output path
+were absent, then actually launched `choice_output_pop_proof_resume` on the
+same exact fixture and lease. Its inspected pinned source establishes distinct
+`alpha_p`, `alpha_q` and result-row `rho` POPs on the unit Function output;
+the parameterized contribution's native projection/inclusion is still under
+constructive proof. Mutable Oracle working files remain excluded by reading
+the pinned commit's blobs. No runtime check or theorem closure follows.
 
 The association clarification and its applicability withdrawals passed one
 independent `compiler_referee` review with no findings (M3 semantic record,
