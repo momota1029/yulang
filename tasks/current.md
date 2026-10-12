@@ -47,6 +47,21 @@ intrusion transport, or the parent theorem. The next proof dependency remains
 the original `f y` complete Call/source-admission judgment; its actual
 receiver/entry/return interfaces stay OPEN.
 
+Checkpoint `28f0f7fd1` adds paired constructive and source-audit slices for
+that exact `f y` call. The native negative Function and four port directions
+are derived, and FunctionPort/replay incidence is retained. The original D
+carrier/guard interpretation and S-indexed P observation children are not
+constructed; the candidate evidence reader explicitly reports incomplete
+producer readiness/dependent observations. A fresh `compiler_referee` PASS
+found no overclaim in either characterization. The artifacts classify D/P as
+required A/B work and retained source incidence as separate reconstruction
+debt. A proposed explicit backlink would address only that D seam and has not
+been implemented or approved. D, P, L3-at-c, recursive L4, complete Call,
+soundness, principality and F5 remain OPEN; the active prover is pursuing one
+bounded direct `f y` D construction attempt with requested Astra/low after Sol
+localized this exact semantic bottleneck. Effective model/effort remain
+unobserved until runtime evidence is returned.
+
 Two further bounded proof checkpoints were pushed: `f548faa80` for the
 annotation fresh-use/capture construction and `83f1bd78a` for the recursive
 `f y` native Call tree. The annotation artifact derives a shared mapped tail

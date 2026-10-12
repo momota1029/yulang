@@ -1,7 +1,7 @@
 # Application c: native constraints and finite-checking evidence audit
 
 Date: 2026-10-12
-Status: frozen, unreviewed bounded source/implementation characterization
+Status: reviewed bounded source/implementation characterization
 Baseline: `d61a66ed02c22aaa454d8b864dc68a4db7eb6aac`, branch `research/simple-sub-intrusion`
 Producer: leaf `/root/fy_native_constraint_check_source_audit`
 Exclusive lease: this file only
@@ -316,8 +316,11 @@ Commit packet:
 - Baseline SHA: `d61a66ed02c22aaa454d8b864dc68a4db7eb6aac`.
 - Changed dependency hashes: none between initial/final snapshots; baseline
   blob comparison remains primary-owned.
-- Review status: frozen unreviewed research characterization; no theorem or
-  parent-gate promotion and no independent review claimed.
+- Review: `compiler_referee` PASS on this note and the paired prover derivation
+  at their frozen hashes. It confirmed the native Link/Apply/Lambda equations,
+  Function child directions/context, pending Call suppliers, and the distinction
+  between retained incidences and original semantic checking evidence. D, P,
+  L4 and the parent gates remain OPEN; no theorem is promoted.
 - Checks already run: static constructor/consumer derivation, dependency
   hashes, whitespace/fence/local-link integrity; no compiler checks.
 - Proposed checkpoint message: `research: trace f-y native checking constraints and evidence gaps`.

@@ -1,7 +1,7 @@
 # f y: native constraint origins and the finite checking-tree boundary
 
 Date: 2026-10-12
-Status: frozen unreviewed research; direct construction trace and minimized
+Status: reviewed bounded research; direct construction trace and minimized
 obstruction. Original D/P, Source Generalize L3/L4, complete Call and parent
 inference/intrusion theorems remain OPEN.
 Baseline: `d61a66ed02c22aaa454d8b864dc68a4db7eb6aac`, branch
@@ -350,9 +350,17 @@ limit. Requested routing is the resumed registered prover, normal Sol/high;
 observed identity `/root/two_use_source_bridge`, effective model/effort unknown.
 No override, fallback, Astra or hot reload is inferred from this resumption.
 
-Unverified: independent review, original complete interface assembly, the
-remaining D/P trees, semantic seed authentication, scope-preserving interpretation
-of all canonical/extruded/replayed evidence, complete recursive introduction,
+Independent review: `compiler_referee` PASS on both frozen artifacts at their
+recorded hashes. It confirmed native Link/Apply/Lambda polarities, Function
+port directions and context operations, pending Call suppliers, retained-input
+incompleteness and the distinction between native evidence and original
+checking trees. It found no overstatement of the D/P obstruction and confirmed
+that D/P, L4 and parent gates remain OPEN. Replay-history execution and full
+semantic interpretation were not reviewed.
+
+Unverified: original complete interface assembly, the remaining D/P trees,
+semantic seed authentication, scope-preserving interpretation of all
+canonical/extruded/replayed evidence, complete recursive introduction,
 all-source preservation, soundness, required principality, effects and F5.
 The code inspection is the stated dependency cone, not a repository-wide
 absence theorem or an executed propagation trace.
@@ -388,8 +396,9 @@ e4055100f6e75b9c8a6294ec6c68643d8677d7b35b45e430450f7e2c2ad97eb1 rules/design-au
 * Exact lease: `notes/theory/2026-10-12-fy-constraint-to-check-tree-construction.md`.
 * Baseline SHA: `d61a66ed02c22aaa454d8b864dc68a4db7eb6aac`.
 * Changed dependency hashes: none in this producer's before/after snapshot.
-* Claim/review: frozen unreviewed source/solver characterization and minimized
-  finite-tree obstruction; D/P and all parent theorems OPEN. No certification.
+* Claim/review: bounded source/solver characterization and minimized finite-tree
+  obstruction, independently reviewed by `compiler_referee`; D/P and all parent
+  theorems OPEN. No certification.
 * Checks: constructor/consumer audit, exact source/dependency/hash/whitespace
   integrity; no executable compiler checks.
 * Proposed checkpoint: `research: trace f-y native evidence to original checking boundary`.
