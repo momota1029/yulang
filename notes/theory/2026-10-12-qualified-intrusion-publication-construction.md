@@ -1,13 +1,16 @@
 # Qualified intrusion: original publication construction cut
 
 Date: 2026-10-12
-Status: unreviewed bounded source-construction obstruction; original parent A/B OPEN
+Status: reviewed bounded source-construction obstruction; original parent A/B OPEN
 Baseline: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`
 Branch: `research/simple-sub-intrusion`
 Producer: `/root/qualified_intrusion_publication_construction`, proof leaf
 Exclusive lease: this file; no implementation or semantic authority
 Method: direct application of selected source rules to one resolved source;
 no tests, builds, probes, delegation or Git mutation
+Review: `compiler_referee` `/root/publication_source_association_review`; no
+blocking or major findings; one minor registration/L4 wording correction
+repaired by the primary; effective model/effort unknown.
 
 ## 1. Frozen obligation and outcome
 
@@ -355,8 +358,8 @@ Requested routing: normal `gpt-6.1-sol/high` per the proof-leaf policy.
 Observed effective model/effort: unknown; launch metadata was not supplied
 to this leaf. Config registers prover and omits model/effort pins; it is
 not execution evidence. No Astra assignment or hot reload occurred.
-Independent review of this new note is pending; the input witness's existing
-review is not a review of this output.
+Independent review of this note is complete; the input witness's existing
+review was not used as review of this output.
 
 Twenty-four direct dependencies match baseline bytes. The one explicitly
 supplied live handoff differs from the baseline as follows:
@@ -388,8 +391,9 @@ Commit packet for the primary:
 - Baseline: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`.
 - Changed dependency hashes: only the supplied live witness differs, as
   recorded above; none changed by this producer.
-- Claim/review: unreviewed bounded source construction cut; parent A/B OPEN;
-  no source counterexample, completed theorem or production certification.
+- Claim/review: reviewed bounded source construction cut; parent A/B OPEN;
+  one minor registration/L4 precision finding was repaired by the primary.
+  No source counterexample, completed theorem or production certification.
 - Checks already run: direct owning-source/rule reads, explicit hand proof
   cut, baseline-byte/hash and leased-note integrity checks; no execution.
 - Proposed message: `research: trace complete Call scopes to intrusion publication operand`.
@@ -401,4 +405,5 @@ Commit packet for the primary:
   not proof progress.
   `tasks/current.md`, theory maps, indexes and authority were not edited.
 
-Writes stop at handoff; independent review and integration remain primary-owned.
+Writes stop at handoff; independent review is complete and integration is
+primary-owned.

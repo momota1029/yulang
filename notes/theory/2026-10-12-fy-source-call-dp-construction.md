@@ -1,7 +1,7 @@
 # Recursive f-y: native construction and the first complete-check judgment
 
 Date: 2026-10-12
-Status: frozen, unreviewed research; bounded constructor derivation obstruction
+Status: reviewed research; bounded constructor derivation obstruction; parent gates OPEN
 Parent D/P, Source Generalize L3-at-c/L4, complete Call and inference: OPEN
 Baseline: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`
 Branch: `research/simple-sub-intrusion`
@@ -10,6 +10,9 @@ Exclusive output: this file; no implementation or definition authority
 Method: instantiate the native four-port construction, then try the original
 complete checking rule at its actual operands and original telescopes
 Budget: static inspection and hand derivation only; zero tests/builds/probes
+Review: `compiler_referee` `/root/fy_call_construction_review`; no blocking or
+major findings; one minor Gen-Call-0 wording correction repaired in `849e417a7`
+by the primary; effective model/effort unknown.
 
 ## 1. Frozen claim and scope
 
@@ -497,8 +500,9 @@ f968f33615855eaa087a8127d042876867994ca8f1c7dc5d95e9bdd18c43c1e9 /home/momota102
 - Baseline SHA: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`.
 - Changed dependency hashes: none; initial/final snapshot comparison passed.
   No dependency file was written.
-- Claim/review: bounded native construction and original finite-derivation
-  obstruction; unreviewed research, no theorem or parent-gate promotion.
+- Claim/review: reviewed bounded native construction and original
+  finite-derivation obstruction; one minor wording correction repaired by the
+  primary; no theorem or parent-gate promotion.
 - Checks already run: static constructor/rule inspection, hand four-port
   derivation and failed original tree, dependency snapshot and leased-file
   integrity; zero executable compiler checks.

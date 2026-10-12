@@ -53,6 +53,17 @@ remain open. Its independent review passed after correcting that Gen-Call-0
 introduces, rather than receives, the complete scoped variable. These artifacts
 do not close source completeness, H, soundness, required principality or F5.
 
+The reviewed [qualified-publication construction](../notes/theory/2026-10-12-qualified-intrusion-publication-construction.md)
+was pushed at `056cf817c`. It expands the `f y` Call under drop's argument
+Force, preserving its receiver, pending suffix, and event scopes, then traces
+where the current Source Generalize/extrusion constructors stop. The current
+approved occurrence decision remains revision 2: the reviewer found no
+function-wide ownership contradiction. A minor distinction between structural
+`K_g` registration and the separate open L4 validity proof was corrected.
+The note provides no admitted source witness, new admission map, C realization,
+or equality transport; it explicitly records no new progress on that repeated
+cut. The C-source-occurrence and publication gates remain OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as

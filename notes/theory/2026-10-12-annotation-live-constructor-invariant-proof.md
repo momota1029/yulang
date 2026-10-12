@@ -1,10 +1,13 @@
 # Annotation live-constructor invariant: native emission obstruction and one-use transport
 
 Date: 2026-10-12
-Status: frozen research checkpoint; independent review pending; original gates OPEN
+Status: reviewed research checkpoint; precision findings repaired; original gates OPEN
 Claim classes: bounded constructor refutation; constructive source-to-fresh-map derivation; proposed emission transition
 Assigned baseline: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`
 Exclusive lease: this file only; constructive proof leaf, no delegation
+Review: `compiler_referee` `/root/annotation_live_constructor_review`; initial
+major/minor findings repaired; fresh delta review PASS; effective model/effort
+unknown.
 
 ## 1. Frozen objective, authority and quantifiers
 
@@ -549,8 +552,9 @@ dae388e4e811c346727ec6688472c7fcf6341ddc5466168cfaa03fdcc0b8e17a  .codex/config.
 - Baseline: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`.
 - Changed dependency hashes: none written; exact read fingerprints above.
 - Claim/review: bounded native constructor refutation and captured-source
-  common-tail/fresh-map derivation; proposed emission transition only;
-  independent review pending; L/H and complete Call remain OPEN.
+  common-tail/fresh-map derivation; proposed emission transition only. The
+  independent review's quantifier/transport findings were repaired in
+  `849e417a7`; the fresh delta review passed. L/H and complete Call remain OPEN.
 - Checks already run: static owning-constructor/consumer reads and final
   dependency/link/whitespace inspection. No executable verification.
 - Proposed one-line message: `research: derive annotation fresh-use incidence and isolate live emission premise`.
