@@ -773,3 +773,30 @@ map, followed by the publication-indexed fixed-field walk and lawful
 substitution into both real use frames. Parent soundness, principality,
 complete Call, effects, progress, termination and F5 remain OPEN. No compiler
 code, tests, builds, probes or measurements were run in this follow-up.
+
+### 2026-10-13 exact g source investigation: original goal not solved
+
+Baseline `38bda20257d58069097a3e42c358b6759fb26d58`; later
+`f8166d3`/`beceb0bc` changed shared records only. Reviewed native
+checkpoint: `0bae7392c350e0d66244aaf8ea2a502ff1d2aa78`.
+See the [consolidated verdict](../notes/progress/2026-10-13-exact-g-source-verdict-review.md).
+
+| Assignment / method | Disposition and evidence |
+| --- | --- |
+| g_native_source — exact named-drop boundary, reference operators and current consumers | Bounded native evidence/checker PASS; explicit Unit/Group/annotation assumptions; absolute target 2, two g maps retain C, supplied use equalities fail unit <: int. First-owned reference correction delta PASS. |
+| g_registration_proof — constructor inversion | Rejected as original-goal resolution: an excluded owner tuple and unverified explicit-input grammar repeat the prior Reg_g premise. |
+| g_independence — model/term-closure attack | Rejected as semantic insufficiency/independence: empty new Corr is vacuous; an external map need not be a literal native-event field of Q. |
+| g_fresh_referee — independent adversarial review | BLOCKING against promoting the above two attempts; bounded native evidence PASS. Findings accepted by primary. |
+| Positive registration and exact structural/coinductive retries | No complete source witness. Generic installed outer-frame Mono is potentially valid; conditional no-finite-Return descent established for the structural core, with complete admission/guards/worlds/W/Z/Call still unproved. |
+| g_next_action — repository selector skill | No independent supplied third producer input; adjudicate changed-method retries, do not add an equivalent frontier note or ask for an unsupported semantic choice. |
+
+Four runtime slots including the primary bounded concurrency. Sol/high
+producer-equivalent assignments and repository-pinned Sol/medium read-only
+referee/selector were requested; effective backend settings were unobserved.
+No compiler changes/builds/parser or compiler runs. The research scalar
+checker ran once in production of the evidence and once in independent
+review; source-byte/hash checks were separate.
+
+The root retains the original source construction/coverage gate OPEN.
+A passing review of the limited report is not task success. The two
+rejected draft theories are not added as redundant repository proof notes.

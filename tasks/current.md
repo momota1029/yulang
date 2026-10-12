@@ -13403,3 +13403,47 @@ publication-indexed dependency/coordinate map; only then apply the existing
 fixed-field walk and allocation theorem. Soundness, required principality,
 source adequacy, complete Call, effects, progress, termination and F5 remain
 OPEN. No implementation or tests changed/run.
+
+### 2026-10-13 exact named-drop g request: goal not solved; rejected completion claims
+
+The stronger request to directly settle the exact Int/Unit source's g
+publication and independent-use proof has **not been solved**. The
+[consolidated verdict and review](../notes/progress/2026-10-13-exact-g-source-verdict-review.md)
+distinguishes the reviewed native evidence, conditional structural lemma,
+rejected proof attempts and still-unconstructed source instances. It claims
+neither source preservation/principality, a source-qualified counterexample,
+nor logical independence/insufficiency of the selected semantics.
+
+The [native evidence and checker](../notes/progress/2026-10-13-exact-g-native-source-evidence.md)
+were saved at `0bae7392c350e0d66244aaf8ea2a502ff1d2aa78`.
+The exact answer/f/g/drop/first nesting has absolute copy target 2; target 1
+is an explicit relative convention. Named drop's fresh-use map and first's
+higher use level are retained. The scalar analogue has distinct B0/B1 and
+one retained C; supplied use-image equalities imply unit <: int. Unit,
+Group and annotated-let extensions are explicit assumptions, not a Yulang
+source theorem. Current Rust formal/facade and four-port observations have
+separate bounded scope. First owns g 0; final g () supplies F -> G.
+
+Fresh independent review rejected the proposed registration-support and
+empty-correspondence/term-origin arguments as solutions: they restated the
+existing missing owner/map, did not establish exhaustive rule extraction,
+and could wrongly require a literal native-event field inside Q. A lawful
+external correspondence witness is possible in principle. These attempts
+are not integrated as another equivalent proof-theory packet.
+
+Two changed-method retries tested generic registration/actual installed
+outer-frame Mono and an exact structural/coinductive source construction.
+Native f-before-Install chronology does not forbid runtime Mono capture at
+p_g(h), after f closure formation. Under the original structural core and
+capture inputs, minimum Return-derivation height proves no finite f Return:
+g 0 requires drop's Value-entry Force of another f invocation. This does not
+erase the pending g ()/annotation clauses or establish full challenge,
+guard, world, W/Z, Call or typing evidence.
+
+The original source-producing registration/Application instances and lawful
+whole source/native map remain unconstructed. This is not proof that no
+such instance exists, and no genuine user-facing semantic choice was found.
+The next-action selector rejected another unchanged conditional producer
+packet and directed adjudication of the two changed-method retries. Parent
+source soundness, required principality, complete Call/effects, progress,
+termination and F5 remain OPEN. No compiler implementation was changed.

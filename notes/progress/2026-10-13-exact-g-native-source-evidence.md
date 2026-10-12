@@ -527,7 +527,7 @@ leaf recommends no compiler change, registration policy or activation schedule.
 - Baseline: `38bda20257d58069097a3e42c358b6759fb26d58`; reference baseline above.
 - Changed dependencies: none by this worker; parent supplied lib.rs during
   the pass with the reported pinned blob, then it was read and hash-checked.
-- Claim/review status: unreviewed bounded native characterization and current
+- Claim/review status at original producer handoff: unreviewed bounded native characterization and current
   implementation observations; no source theorem, principality closure,
   source-qualified counterexample or production authority.
 - Checks already run: exact bounded source/consumer reads; manual boundary,
@@ -540,3 +540,10 @@ leaf recommends no compiler change, registration policy or activation schedule.
   distinguish runtime p_g(h) after f closure publication from active native
   f inference; retain complete Call/effect/equality transport, actual
   qualification/readiness, source admission and all parent A/B gates OPEN.
+
+Subsequent independent bounded review and the First -> G ownership delta
+both passed. The reviewed evidence checkpoint is
+`0bae7392c350e0d66244aaf8ea2a502ff1d2aa78`. The
+[consolidated source verdict and review](2026-10-13-exact-g-source-verdict-review.md)
+records the exact scope and frozen hashes. Its original source task remains
+NOT SOLVED; this native review is not source preservation or principality.
