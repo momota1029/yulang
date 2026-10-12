@@ -888,3 +888,22 @@ constructors; the exact `n_E - 1` operator-resolution/introduction owner
 remains open and is the first source boundary. No tests/builds/compiler code
 changed or ran; soundness, principality, source correspondence, complete Call,
 effects, termination and F5 remain OPEN.
+
+### 2026-10-13 finite-check transport proof and falsification
+
+`prove_check_derivation_transport` produced the conditional
+[finite-check transport derivation](../notes/theory/2026-10-13-source-check-positive-transport-proof.md).
+It derives identity, composition and logical-shell actions while identifying
+the first nonidentity positive-child premise as the same-tuple action
+`S.V(A,a,r,e) -> S.V(B,a,r,e)`. Its nested Function construction is a bounded
+non-entailment witness: background containment `B_H ⊆ S` alone does not give
+P[S] for every relative family. `falsify_check_derivation_transport`
+independently located the selected record-width/Function-Return instance;
+fresh independent review found no findings on both artifacts' scoped claims.
+
+Neither artifact constructs the actual cO/cE tree, gives a source-qualified
+counterexample, or closes relative endpoint closure, L4, Call/effect,
+soundness, principality, progress, termination or F5. Keep those parent gates
+OPEN. Next source owner remains the authentic `n_E - 1`/complete-Call
+construction, followed by joint endpoint closure/readouts for the actual
+finite check trees. No code/tests/builds changed or ran.

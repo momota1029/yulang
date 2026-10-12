@@ -13563,3 +13563,26 @@ owner for this exact term, so stop at that owner if it remains unavailable.
 Recursive L4, complete Call/effects, source correspondence, soundness,
 principality, progress, termination and F5 remain OPEN. No implementation,
 tests, or builds changed or ran.
+
+### 2026-10-13 finite-check transport proof checkpoint
+
+The constructive [finite-check transport derivation](../notes/theory/2026-10-13-source-check-positive-transport-proof.md)
+and independently reviewed [constructor falsification](../notes/progress/2026-10-13-check-transport-falsification.md)
+pin the first missing relative action: a nonidentity positive result check
+needs `S.V(A,a,r,e) -> S.V(B,a,r,e)` at the same complete tuple. Ordinary
+inclusion establishes this at `V*`; unfolding candidate clauses yields
+`Phi(S)` readouts, neither of which alone introduces the target atom in `S`.
+Identity, composition and logical-shell actions are derived conditionally.
+A nested Function witness shows `B_H ⊆ S` alone does not entail the needed P
+map for arbitrary relative S. Independent review found no issue in the
+bounded obstruction or witness.
+
+This is not a cO/cE source counterexample and does not show that a
+source-directed S cannot be closed under its actual check tree. The actual
+`cO`/`cE` constructors, their positive endpoint family/readouts, subtraction
+operator introduction and L4 remain OPEN. Complete Call/effects, source
+correspondence, soundness, principality, progress, termination and F5 remain
+OPEN. No compiler code, tests or builds changed or ran. Next: obtain the
+authentic cO/cE checks from the owning source/operator rules, then prove their
+endpoint closure and relative readouts jointly, stopping at the first missing
+source law rather than assuming D/P.
