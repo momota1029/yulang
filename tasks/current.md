@@ -12899,9 +12899,15 @@ syntax limitation and does not refute the intended typing judgment.
 The note does not establish source acceptance/refusal, a finite native image,
 an intrusion pair for this exact source, or any parent theorem. It identifies
 the next source owner: locate the actual `<=` declaration, its ordered operand
-telescope and selection provenance; if no selected original declaration
-exists, return that concrete semantic choice through the existing authority
-path. Do not infer an Int comparison or Boolean Branch law from spelling.
+telescope and selection provenance. A bounded architect audit traced the
+semantic-import path: the syntax operator table selects spelling/fixity only;
+the inspected Resolve/Lower input has no supplied semantic declaration, and
+the current `SemanticImports` handoff is empty/ignored. A fresh `spec_auditor`
+found this supports only a bounded missing-evidence conclusion. It does not
+show global nonexistence, source rejection, or that an approved semantic
+decision is underspecified. Find the actual original/library supplier first;
+only route a concrete unselected required choice through the authority path.
+Do not infer an Int comparison or Boolean Branch law from spelling.
 Separately, the standalone module-expression receiving-context design remains
 approval-pending; that API question does not supply the primitive constructor.
 Source construction, Call, effects, intrusion preservation, soundness,

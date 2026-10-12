@@ -176,6 +176,21 @@ Bool branch result and then choosing an Int comparison would assume the
 missing derivation. The source has no parameter annotation that licenses
 such a choice here.
 
+A later bounded owner audit followed the semantic-import/declaration path
+beyond this governing cone. The architecture phase map places semantic
+resolution in Resolve/Lower over parsed source plus a semantic imported
+interface, while the syntax operator table/compiler record and select only
+spelling, fixity, binding power and source provenance. In the inspected
+current path, `SemanticImports` has no supplied content and module lowering
+does not consume an imported semantic declaration. No authentic selected
+`<=` declaration or application was found in these owners. This remains a
+bounded missing-evidence result: it does not prove repository-wide or legacy
+nonexistence, show that the intended source is untypable, or establish that
+an approved language decision is missing. Generalize construction still
+requires the real declaration; whether one is supplied by another original
+environment must be resolved at that source owner before considering a new
+semantic decision.
+
 This is the first **operation-specific** cut with the Name/formal context
 held fixed. It is not a claim that every upstream original entry-port or
 joint-world registration has been constructed: the bounded invoke note
@@ -267,13 +282,15 @@ facts are actually known. A certificate does not establish an unknown local
 law, so adding another reconstruction relation cannot close this cut.
 The parent gate remains OPEN without changing its classification or domain.
 
-One next action: the primary should obtain the actual independently typed
-`<=` declaration and complete source application at this fixed condition
-occurrence from its original primitive/overload owner, including the original
-Int and test/selection interfaces it uses. A bounded follow-up can then apply
-the existing placement rules to that exact supplied declaration. Return a
-concrete absent source decision through the existing authority path if the
-owner has no selected law; this note chooses none.
+One next action: the primary should locate the authentic `<=` declaration
+supplier and selection authority outside the inspected current pipeline, if
+one exists, and obtain its complete application at this fixed occurrence,
+including the original Int and test/selection interfaces it uses. A bounded
+follow-up can then apply existing placement rules to that exact supplied
+declaration. Missing evidence alone does not establish an underspecified
+semantic decision; use the existing approval path only if the owning authority
+confirms a concrete choice is genuinely unselected and required. This note
+chooses none.
 
 One static constructive pass within the assigned 45-minute ceiling. Read-only
 `rg`, `cat`, `sed`, Git ref/status/object reads and SHA-256 comparisons; one
@@ -300,8 +317,11 @@ effects and production/cutover remain unverified.
 
 Independent review: `compiler_referee` PASS, no blocking, major or minor
 findings, for the bounded source/judgment, owner-attribution, syntax-boundary
-and non-claim scope. The review did not certify dependency hashes or broader
-primitive declarations, and it leaves all parent gates OPEN.
+and non-claim scope. The later independent `spec_auditor` review of the owner
+audit initially found an overstatement risk; the bounded-evidence wording above
+closed that major finding in delta review. The owner audit did not certify new
+dependency hashes or broader/legacy primitive declarations, and it leaves all
+parent gates OPEN.
 
 ## Dependency snapshot
 
