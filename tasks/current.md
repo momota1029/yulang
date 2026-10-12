@@ -135,6 +135,19 @@ The note provides no admitted source witness, new admission map, C realization,
 or equality transport; it explicitly records no new progress on that repeated
 cut. The C-source-occurrence and publication gates remain OPEN.
 
+The follow-up [publication-classification proof](../notes/theory/2026-10-12-source-publication-classification-proof.md)
+was corrected and independently delta-reviewed at `9bd31d30f`. The earlier
+requirement for a separate source declaration, endpoint term or `Desc` for
+extrusion-created C/D was too strong: the reviewed publication-incidence
+bridge permits them as native coordinates in the complete scoped `Q_c`, or
+through established equality aliases. What remains unconstructed is `K_g`,
+the typed f relation/contract edge, B's source telescope, and faithful entry
+and scoped transport of the actual generated demand/bounds/equality clause
+into the complete source program. The fixed/frame-relative footprints and
+shared-C contradiction remain conditional. This correction is research-only;
+source admission, equality transport, complete Call, soundness, required
+principality and F5 remain OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as
@@ -385,9 +398,14 @@ The user-directed revision-1 answer draft is committed as part of the answer
 history; answer revision 2 remains the approved operative decision.
 
 The occurrence bridge bundle adds a bounded proof-equivalent generic worker
-result: the selected Source Generalize input does not provide the source
-declaration/term realization of extrusion-created `C`, so it cannot determine
-the fixed/template incidence or show equality transport through lawful uses.
+result: the selected Source Generalize input does not by itself provide `K_g`,
+the typed f relation/contract edge, B's source telescope, or the faithful
+generation-to-complete-source clause/scope correspondence needed to determine
+fixed/frame-relative incidence or show equality transport through lawful uses.
+The follow-up corrected and reviewed at `9bd31d30f` confirms that C/D need no
+separate source declaration, endpoint term or `Desc`; they can remain native
+coordinates in `Q_c` or use equality aliases. The earlier stronger source-term
+prerequisite is withdrawn.
 The registered `prover` launch was attempted once and failed at runtime
 capacity; the supported generic fallback ran with effective model/effort
 unobserved. The two-use candidate, publication-incidence obstruction, and
