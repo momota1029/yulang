@@ -12654,6 +12654,52 @@ and actual source admission are established. These findings do not refute
 the approved operation and do not close the source-soundness/principality
 parent theorem.
 
+#### Plain App isolates the source Call-generation gap (2026-10-12)
+
+The constructive `my invoke f = f 1` discriminator was expanded against the
+original Simple-sub `Typer.scala`. At level 1, Lambda introduces `alpha`;
+the App introduces level-1 `r` and generates
+`alpha <: Function(Int,r)`. The demand is at the same level, so it is stored
+as an upper bound and no extrusion occurs. The inferred function is
+`Function(alpha,r)` with that relation retained at a fresh use. This gives a
+real native derivation independent of any C/B extrusion quotient.
+
+The proof then stops at the owner-specific complete source App constructor.
+Code-Call consumes an actual Application/Gen-Call record, whole argument,
+complete demand, original operand-check emissions, receiver/provider and
+complete result/future suffix. Source Generalize Build retains such original
+clauses; it does not import native scalar bounds by itself. The exact missing
+work is a syntax-directed App-generation rule that forms those complete
+interfaces and local clauses at their original scopes, plus a proof that its
+native projection/reflection preserves every represented value, alternative,
+effect and future dependency. This is an obligation in the supported normal
+inference path, not an exception-recovery requirement.
+
+For nested `f/g`, imposing approved `C=B,D=R` reduces the restricted native
+constraints to reflexive bounds and `o <: Function(B,R)`. This proves local
+equality elimination only; a complete source-clause substitution and the
+whole-frame incidence still need proof. If C remains one shared anchor while
+B is independently allocated, two retained equalities force the two B-use
+coordinates equal. That allocation condition remains conditional for source
+Yulang. No C-specific source term is needed.
+
+An independent `compiler_referee` located the same missing App owner in
+`shadow_apply.rs`/`candidate_call.rs` and also found the frozen candidate does
+not retain or consume the approved extrusion event `(origin,receiver,pairs)`:
+its intrusion path still classifies SCCs over solver type rows. These are
+candidate correspondence failures, not a refutation of the approved
+semantics. No compiler edits or tests were made. A read-only architect audit
+found no demonstrated need for a new user decision yet: the missing complete
+App constructor may be formalized if it preserves the existing domains,
+sharing, entry, annotation authority and alternatives. The next proof owner is
+the source Application generator; it must form the full telescope and prove
+native correspondence before C quotient or Generalize transport can close.
+The plain-App derivation and bounded quotient calculation passed a fresh
+`compiler_referee` review after adding the missing `freshenAbove` source range;
+this review does not close source adequacy or the parent theorem.
+The original soundness, principality, progress, termination, effect hygiene,
+complete Call and F5 gates remain OPEN.
+
 Corrected in
 [`intrusion-publication-incidence-bridge`](../notes/theory/2026-10-12-intrusion-publication-incidence-bridge.md)
 and
