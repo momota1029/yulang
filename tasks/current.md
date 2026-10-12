@@ -12938,3 +12938,39 @@ Next evidence: construct or refute the finite quotient transition at the
 extrusion-return seam while preserving raw pending keys and live operand
 identity, then review whether its premises arise from the approved source
 construction. No compiler code, tests, builds or probes changed or ran.
+
+### 2026-10-12 fixed-cut quotient construction and falsification
+
+The next step produced two disjoint, independently reviewed artifacts:
+[`fixed-term quotient transition proof`](../notes/theory/2026-10-12-fixed-term-quotient-transition-proof.md)
+and
+[`fixed-term quotient dependency falsification`](../notes/progress/2026-10-12-fixed-term-quotient-transition-falsification.md).
+The constructive lane defines finite Q on the exact extrusion-return state,
+merges B=C and R=D at existing low anchors, transfers bounds, rewrites the
+enumerated live App/Lambda/context slots, and retains raw cache/polar history.
+The complete native suffix again computes the stock principal interface
+`Top -> Bot`. An independent census found no complete-Q counterexample, but
+gave a concrete discriminator against context-only rewriting: the suspended
+`Lam.param=B` local would still make the native constructor emit `F(B,D)` at
+level 2. Both artifacts passed fresh `compiler_referee` review within their
+fixed-term scopes.
+
+This establishes a bounded construction for a proposed mathematical machine,
+not an existing Yulang/Scala transition. The owning consumer must still make
+the forced `App.res` and immutable `Lam.param` observe representatives while
+preserving source scopes and raw historical cache/provenance. The early
+occurrence-certificate producer is also absent. No general schedule, storage
+policy or implementation was adopted. Original soundness, required
+principality, normal progress, termination, complete Call, effect hygiene,
+Yulang correspondence and F5 remain OPEN; the exact user `odd/even` source
+still lacks its authentic comparison/primitive and Branch construction.
+
+Executed lanes: `prover` `prove_fixed_quotient_transition` (requested
+gpt-6.1-sol/high; effective model/effort unknown) and `researcher`
+`falsify_fixed_quotient_transition` (configured Sol/high; effective
+model/effort unknown), with exclusive output leases matching the two artifacts
+above. Each received an independent `compiler_referee` PASS. No tests, builds,
+execution probes or compiler edits ran. Next gate: prove the exact source-owned
+certificate and representative-consuming constructor/read bridge, or isolate
+the first premise that prevents its construction; do not reopen the completed
+finite calculation without contradictory evidence.
