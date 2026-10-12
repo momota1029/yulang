@@ -12840,3 +12840,23 @@ reports. The fixed intrusive continuation, Yulang source/effect/Call
 correspondence, soundness, principality and all parent gates remain OPEN. The
 two reports are checkpointed and pushed at `0fe1a4a4f` and `8f5470615`; no
 compiler code, tests, builds or probes changed.
+
+The [`pending-call source construction`](../notes/theory/2026-10-12-cross-level-pending-call-source-construction.md)
+then formed the closest source/HIR spelling conditionally, preserving both
+named functions, both formal binders, both Apps, local even publication and
+the final resolved odd Name. An independent `spec_auditor` found no issue in
+the scoped carrier construction or admission claim. This is not an executed
+parse or a proof that module publication equals the reference recursive Let.
+
+The decisive stop is `CandidateInference::solve`: after it accepts odd's
+binding carrier and its placeholder, the separate final `Name(odd)` item is
+rejected at `shadow_apply.rs:97–100`, before candidate collection/session
+creation. The neighboring observation API has the same standalone-integer
+limit. This is specific to those candidate entrypoints, not evidence that the
+language rejects the source or that other backends cannot admit it. No
+occurrence-qualified event or pending `k/Qc` state is produced on that API
+path. The artifact is pushed at `307d03ac9`; the next owner is the candidate
+source-admission/API boundary for a faithful complete-module entrypoint. Until
+that constructor is grounded, the candidate event, finite intrusive
+continuation, Call/effects, soundness, principality and all parent gates remain
+OPEN. No compiler changes or tests were made.
