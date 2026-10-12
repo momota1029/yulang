@@ -36,6 +36,23 @@ This is neither a source acceptance/refusal result nor a counterexample to the
 parent theorem. Complete Call, qualified-intrusion preservation and their
 source-to-Yulang bridge remain OPEN.
 
+Two further bounded proof checkpoints were pushed: `f548faa80` for the
+annotation fresh-use/capture construction and `83f1bd78a` for the recursive
+`f y` native Call tree. The annotation artifact derives a shared mapped tail
+and payload key from the actual capture path, while confirming that the
+current successful positive constructor emits only zero-word payloads; the
+negative concrete path is still stopped by its guard. Its first review found
+that the positive zero-word fact did not refute the negative-only hygiene
+obligation; `849e417a7` narrows that claim and corrects the transport/restoration
+ownership description. The fresh delta review passed. The bounded result still
+does not supply the missing negative live-operation producer or complete
+Call/output/residual route. The `f y` proof derives all four native variance
+chains, but its first unavailable original judgment is whole-carrier domain
+admission at the actual Entry/Call interface; the complete P children also
+remain open. Its independent review passed after correcting that Gen-Call-0
+introduces, rather than receives, the complete scoped variable. These artifacts
+do not close source completeness, H, soundness, required principality or F5.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as
