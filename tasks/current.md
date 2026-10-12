@@ -12574,6 +12574,23 @@ classification, and equality/frame incidence; this remains a conditional
 rejection of the fixed-anchor strategy, not a source-qualified refutation of
 the original theorem.
 
+A constructive Source Generalize bridge attempt fixed the next premise more
+precisely: conditional on an independently lawful source derivation, this
+nested `g` publication is `p_g(h)` under the original outer invocation `h`.
+The selected rules do not supply a lawful source realization for C or its
+scope, telescope and typed dependencies. C need not be a newly allocated
+`Desc`; the owning constructor may realize an existing typed field or a
+well-scoped endpoint term, with a `Desc` required only if that actual source
+rule introduces it as a flexible declaration. Given authentic active equality
+and a registered component where the fix walk marks C, Source Generalize does
+force both g-use frames to share `C_base(h)`. Whether this source produces
+those premises—and therefore whether the conditional `bool <: int` route is
+source-real—is not established. A fresh `spec_auditor` review found no major
+conformance issue and made the above precision correction. The exact owner
+remains the Call/demand/extrusion source-realization constructor, followed by
+the existing registration and Source Generalize walk; the parent A/B gate
+stays OPEN.
+
 The effect lane now has a frozen
 [`live attachment constructor proof`](../notes/theory/2026-10-12-contextual-live-push-prover.md), committed at
 `0870e63b3` and independently reviewed with PASS for its bounded operational
