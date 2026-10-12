@@ -36,6 +36,17 @@ This is neither a source acceptance/refusal result nor a counterexample to the
 parent theorem. Complete Call, qualified-intrusion preservation and their
 source-to-Yulang bridge remain OPEN.
 
+The exact 116-byte two-use witness now has a reviewed parser/CST → LocalSource
+→ opt-in candidate-construction bridge in
+[`two-use exact source bridge`](../notes/theory/2026-10-12-two-use-exact-source-bridge.md).
+The primary's focused probe confirmed recovery-free parsing, 20 LocalSource
+expressions, binder resolutions, and four Apply records at levels 3/3/3/2;
+`spec_auditor` passed the bounded construction review. This does not establish
+semantic source admission, complete Call, publication/generalization,
+intrusion transport, or the parent theorem. The next proof dependency remains
+the original `f y` complete Call/source-admission judgment; its actual
+receiver/entry/return interfaces stay OPEN.
+
 Two further bounded proof checkpoints were pushed: `f548faa80` for the
 annotation fresh-use/capture construction and `83f1bd78a` for the recursive
 `f y` native Call tree. The annotation artifact derives a shared mapped tail
