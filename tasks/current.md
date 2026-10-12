@@ -13320,3 +13320,23 @@ derivation remains required afterward. This is a missing proof premise, not
 source rejection. Guard/Branch, recursive-world closure, event transport,
 equality preservation, soundness, required principality, termination and F5
 remain OPEN. No code or tests changed/run.
+
+### 2026-10-13 negative annotation fiber permission owner
+
+A bounded Y3 source-map pass found that native signature rules
+`L-Annotation`, `A-Annotation`, and `SF-Annotation` consume an independent
+original negative-annotation rule and its permission/realization evidence;
+they do not generate the permission. The earliest present operational site is
+`FormalAnnotation` at Lambda-before-body. Current `Contribution` and
+`AttachmentSet` records do not associate the same attachment instance with an
+eligible concrete contribution. Operation `Support` retains source identity
+but does not mint such a contribution, and the selected residual policy still
+requires separate per-lineage current/future fanout.
+
+This remains an unreviewed bounded owner characterization, not a source
+rejection or H refutation. An independent spec review is pending. The next
+proof packet asks whether an original source rule licenses the authentic
+attachment-local fiber and transports that same evidence to its actual
+`Neg::Row` residual demand; if not, it must name the smallest missing semantic
+leaf and owner. Annotation admission, alias transport, H, soundness,
+principality and F5 remain OPEN. No implementation or tests changed/run.
