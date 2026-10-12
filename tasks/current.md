@@ -13284,6 +13284,23 @@ closure follows. Concrete-formal admission, coupled preservation, complete
 Call, generalization, soundness, principality and F5 cutover remain OPEN.
 No code or tests changed/run.
 
+### 2026-10-13 reviewed local intrusion preservation lemma
+
+The constructive note
+[`native intrusion equality lift`](../notes/theory/2026-10-13-intrusion-source-preservation-proof.md)
+now has an independent `compiler_referee` PASS. For native demand extrusion
+with its initially empty polar memo, a pointwise diagonal assignment maps each
+fresh positive/negative copy to its actual parent; the induced comparison
+preserves the original demand, and retained polar approximations imply the
+original lower/upper relation. Opposite-polar bounds inserted during recursive
+extrusion are included. This is a local constraint-satisfaction result only.
+
+It does not establish the source-scoped joint strategy needed across
+publication and independent generalization/use frames, nor source-demand
+correspondence, required principality, progress or termination. The reviewer
+explicitly noted that arbitrary prepopulated extrusion caches are outside this
+lemma. Parent preservation remains OPEN; no implementation or tests changed/run.
+
 ### 2026-10-13 nested subtraction source judgment
 
 The exact operator-owner lookup found frozen-Oracle library evidence for

@@ -1,11 +1,17 @@
 # Occurrence-qualified intrusion: native equality lift and source-scope obstruction
 
 Date: 2026-10-13
-Status: unreviewed constructive research; original preservation theorem OPEN
+Status: reviewed local constructive lemma; original preservation theorem OPEN
 Baseline: `bf0420584b190654eca081257c9d7698361210f0`
 Branch: `research/simple-sub-intrusion`
 Reference: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Exclusive lease: this file; proof leaf, no further delegation
+
+Independent review: `compiler_referee` PASS for the native local lift and
+polar approximation implications, with no findings. Review explicitly scopes
+the lift to native demand extrusion with its initially empty polar memo; it
+does not establish source-scoped strategy transport, required principality,
+progress or termination.
 
 ## 1. Frozen original statement
 
