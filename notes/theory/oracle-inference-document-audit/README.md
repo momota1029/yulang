@@ -78,8 +78,10 @@ may verify a documented premise; code behavior cannot supply the specification.
 
 ## 3. Dependency graph and transfer ledger
 
-The original integrated theorem remains OPEN under audit. The first detailed
-DAG, with exact claims and statuses DW01–DW26 / RT01–RT07, is in
+The original integrated theorem is **refuted as stated** because the required
+colored fundamental theorem fails on an admitted CBV `I-Let` example; its
+termination and principality components remain separately unproved/open. The
+first detailed DAG, with exact claims and statuses DW01–DW26 / RT01–RT07, is in
 [directed weights and termination](directed-weights-termination.md).
 [Imported base and transfer boundaries](import-and-transfer.md) separately
 records the original Simple-sub proof scope, interval compatibility and the
@@ -130,7 +132,7 @@ Known decisive checks at this checkpoint:
 | Entry monoid, coherent budget descent, finite word-graph potential | Direct derivations in the original models, independently checked | Reusable mathematics with original premises retained; source/consumer translation remains separate. |
 | Complete draft flattened-counter homomorphism | Minimized legal-label counterexample; not a source-program counterexample | Repair this equation or prove the actual generated composition domain before using the route. |
 | Source lexical bracketing / cycle balance | Missing matching-pop/atomization constructor and replay invariant bridge | The old unconditional source termination proof remains unclosed. |
-| CBV `I-Let` effect sequencing | Ground literal-rule counterexample, independently checked in [typing/generalization](typing-generalization.md) | The written colored fundamental theorem is refuted under its CBV semantics; no Oracle compiler bug inferred. |
+| CBV `I-Let` effect sequencing | Ground literal-rule counterexample, independently checked in [typing/generalization](typing-generalization.md) | The written colored fundamental theorem, and therefore the integrated conjunction that requires it, are refuted in their printed scope; no Oracle compiler bug inferred. |
 | Public projected principality and full implementation termination | Explicitly OPEN in the June 23 explanatory brief | The old text itself does not claim these completed production proofs. |
 | Current parent/copy intrusion | Different graph domain and association/equality obligation | Neither row SCC potential nor graph contraction proves corresponding type equality sound. |
 
@@ -247,9 +249,9 @@ scope, definitions/theorems/invariants, proof status and reading coverage.
 Every locator resolves to its recorded frozen blob; every exact ADD commit
 exists. The producer checked all 645 locator/blob pairs and 365 distinct ADD
 commits. Primary checks confirmed TSV shape, unique paths and frozen handoff
-hash, and corrected one overstatement: the CBV witness refutes the colored
-fundamental theorem, while the integrated main proof is unsupported rather
-than every main conclusion separately refuted.
+hash. The CBV witness refutes the colored fundamental theorem and therefore
+the integrated theorem as a conjunction; it does not independently refute the
+termination or principality components.
 
 | Coverage class | Historical paths | Meaning |
 | --- | ---: | --- |

@@ -182,13 +182,16 @@ shared theorem gate.
 | DW23 | unique least saturation,1360–1367 | DW22; fair monotone closure with fixed identities | C |
 | DW24 | whole infer/compact/generalize terminates,1371–1400 | DW09,DW14,DW22; finite compact/generalize; strengthened environment induction | C/G |
 | DW25 | fresh factorization/compact representation/principality,1960–2054 | DW03,DW05,DW08; ordinary Simple-sub and generalization laws | C/G |
-| DW26 | integrated termination/soundness/principality,2127–2169 | DW22–DW25; separate colored preservation/fundamental theorem | C/U |
+| DW26 | integrated termination/soundness/principality,2127–2169 | DW22–DW25; separate colored preservation/fundamental theorem | REFUTED as a conjunction in the printed scope: the required colored fundamental theorem fails for admitted CBV `I-Let`; termination remains unproved and principality remains conditional/open |
 
 The dependency order is definitional algebra → bounded abstract graph result
 plus source-generation bridge → residual-generation correspondence → solver
 termination → whole inference. CP's proof writes the source bridge before
 the abstract graph result; this graph separates their logical dependencies.
-The principal and colored branches are not consequences of termination.
+The principal and colored branches are not consequences of termination. The
+integrated theorem as printed is refuted because its required colored
+fundamental branch has a concrete admitted-term counterexample; this does not
+refute termination or principality as separate claims.
 
 RT's separate edges are `RT01 entry/weight/pair monoids → RT02 budget descent`,
 `RT03 stagewise cycle neutrality → RT04 closed-walk identity → RT05 finite
