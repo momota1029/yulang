@@ -11949,6 +11949,32 @@ this entry records the current code/checkpoint accurately in the meantime.
 The primary remains owner of this parent gate, interpretation and integration.
 This is not F5 cutover or production solver adoption.
 
+The registered prover froze §9's source-qualified weighted-direct consumer
+bridge and minimized obstruction. Fresh independent `compiler_referee` review
+found no issues in that bounded claim. Var-only merging discards weights before
+empty-weight native admission; native beta/filter comparisons may justify its
+pairs, but their complete source-qualified correspondence was not established.
+No source-qualified counterexample or fixture theorem was claimed.
+
+The source mapper distinguished the pre-generalization method-role pass at
+`selection.rs:270` from final scoped choice collection; partial ordinary
+collector output is not a scheme support certificate. Primary obtained the
+complete scoped inputs and selected/generalized images through a reviewed
+streamed Debug prototype. Current patch SHA-256 is
+`2f5aebb481a000085f2d5683b1ca4447e181db2307602dfc7d44c75ca7352ae1`.
+Root images and merge inputs reserve separate 2 MiB budgets (total unchanged),
+with explicit completion/partial and indexed chunk records. The exact existing
+test passed in 15.80 seconds after a 12.65-second compile; bounds remain as
+above, and no broad suite ran. See choice proof note §10 for final log/object
+hashes and complete captures. Root choice iteration 1/2 and selected iteration 2
+are observed at epoch 3352, followed by the complete generalized image. The
+second merge vector and later support remain partial; no proof premise may be
+filled by their absence. The direct branch's actual scalar result is
+`changed=false`, epoch 3178 before and after, which alone is no correctness
+proof. The next proof/source packet consumes these actual operands, substitutions
+and scopes rather than repeating a count-only conditional lemma. H and the
+full inference/F5-replacement objective remain OPEN.
+
 The reviewed proof checkpoint's artifact hash, 29 pinned Oracle dependency
 hashes, 10 Y3 direct dependency hashes, local links and whitespace passed
 static checks. Measurement samples remain zero. Complete argument-image

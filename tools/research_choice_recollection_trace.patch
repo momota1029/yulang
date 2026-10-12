@@ -1,8 +1,8 @@
 diff --git a/crates/infer/src/analysis/session/generalize.rs b/crates/infer/src/analysis/session/generalize.rs
-index fbf8473ae..46221c406 100644
+index fbf8473ae..72ef4fd27 100644
 --- a/crates/infer/src/analysis/session/generalize.rs
 +++ b/crates/infer/src/analysis/session/generalize.rs
-@@ -59,12 +59,21 @@ impl AnalysisSession {
+@@ -59,12 +59,26 @@ impl AnalysisSession {
              }
              self.timing.record_generalize_iteration();
              let compact_epoch = self.infer.constraints().epoch();
@@ -17,38 +17,43 @@ index fbf8473ae..46221c406 100644
              let phase = Instant::now();
              let (next_compact, mut merge_constraints) = self.compact_root_for_generalize(root);
 +            #[cfg(test)]
-+            crate::constraints::research_choice_frontier_trace(format_args!(
-+                "root-collected def={def:?} root={root:?} iteration={generalize_iteration} epoch={:?} image={next_compact:?}",
++            crate::constraints::research_choice_publication_trace(format_args!(
++                "root-collected def={def:?} root={root:?} iteration={generalize_iteration} collection_epoch={compact_epoch:?} current_epoch={:?} image={next_compact:?}",
++                self.infer.constraints().epoch(),
++            ));
++            #[cfg(test)]
++            crate::constraints::research_choice_merge_input_trace(format_args!(
++                "root-collected-merge-input def={def:?} root={root:?} iteration={generalize_iteration} collection_epoch={compact_epoch:?} current_epoch={:?} merge_constraints={merge_constraints:?}",
 +                self.infer.constraints().epoch(),
 +            ));
              let elapsed = phase.elapsed();
              self.timing.record_generalize_compact(elapsed);
              metrics.record_compact_iteration(&next_compact);
-@@ -341,6 +350,11 @@ impl AnalysisSession {
+@@ -341,6 +355,11 @@ impl AnalysisSession {
                      view.normalized_roles.len() == coalesced_role_constraints.len()
                          && view.dispositions.len() == coalesced_role_constraints.len()
                  });
 +            #[cfg(test)]
-+            crate::constraints::research_choice_frontier_trace(format_args!(
++            crate::constraints::research_choice_publication_trace(format_args!(
 +                "root-selected def={def:?} root={root:?} iteration={generalize_iteration} collection_epoch={compact_epoch:?} current_epoch={:?} image={compact:?}",
 +                self.infer.constraints().epoch(),
 +            ));
              break FinalRoleSolveSnapshot {
                  coalesced_roles: coalesced_role_constraints,
                  raw_compact: capture_raw_compact.then(|| compact.clone()),
-@@ -574,6 +588,11 @@ impl AnalysisSession {
+@@ -574,6 +593,11 @@ impl AnalysisSession {
          {
              oracle.publish(observation);
          }
 +        #[cfg(test)]
-+        crate::constraints::research_choice_frontier_trace(format_args!(
++        crate::constraints::research_choice_publication_trace(format_args!(
 +            "root-generalized def={def:?} root={root:?} epoch={:?} image={generalized:?}",
 +            self.infer.constraints().epoch(),
 +        ));
          (generalized, metrics)
      }
  
-@@ -584,6 +603,10 @@ impl AnalysisSession {
+@@ -584,6 +608,10 @@ impl AnalysisSession {
          let compact_epoch = self.infer.constraints().epoch();
          if let Some(cache) = self.generalize_compact_cache.as_ref() {
              if let Some(cached) = cache.get(root, compact_epoch) {
@@ -59,7 +64,7 @@ index fbf8473ae..46221c406 100644
                  self.timing.record_generalize_compact_cache(true);
                  return cached;
              }
-@@ -596,6 +619,11 @@ impl AnalysisSession {
+@@ -596,6 +624,11 @@ impl AnalysisSession {
              self.infer.constraints_mut(),
              root,
          );
@@ -210,7 +215,7 @@ index 3cc7de8d3..0bec01cd2 100644
  
      pub(in crate::compact) fn compact_effect_neu_id(
 diff --git a/crates/infer/src/compact/surface.rs b/crates/infer/src/compact/surface.rs
-index 0c79a4678..b89bacd53 100644
+index 0c79a4678..62464f98c 100644
 --- a/crates/infer/src/compact/surface.rs
 +++ b/crates/infer/src/compact/surface.rs
 @@ -344,16 +344,29 @@ pub(crate) fn apply_compact_merge_constraints(
@@ -230,7 +235,7 @@ index 0c79a4678..b89bacd53 100644
 -                changed |= machine.constrain_var_var_pairs_direct(
 +                #[cfg(test)]
 +                crate::constraints::research_choice_frontier_trace(format_args!(
-+                    "merge-direct-before lhs={lhs:?} rhs={rhs:?} pairs={pairs:?} epoch={:?}", machine.epoch(),
++                    "merge-direct-before epoch={:?} pairs={pairs:?} lhs={lhs:?} rhs={rhs:?}", machine.epoch(),
 +                ));
 +                let direct_changed = machine.constrain_var_var_pairs_direct(
                      pairs,
@@ -238,7 +243,7 @@ index 0c79a4678..b89bacd53 100644
                  );
 +                #[cfg(test)]
 +                crate::constraints::research_choice_frontier_trace(format_args!(
-+                    "merge-direct-after lhs={lhs:?} rhs={rhs:?} changed={direct_changed} epoch={:?}", machine.epoch(),
++                    "merge-direct-after epoch={:?} changed={direct_changed} lhs={lhs:?} rhs={rhs:?}", machine.epoch(),
 +                ));
 +                changed |= direct_changed;
                  trace_slow_compact_merge_constraint(&lhs, &rhs, phase.elapsed());
@@ -354,10 +359,10 @@ index d75544523..5288d66d8 100644
              key: constraint.clone(),
              root_origins: origin.into_iter().collect(),
 diff --git a/crates/infer/src/constraints/mod.rs b/crates/infer/src/constraints/mod.rs
-index 14860e366..e10b5f8b9 100644
+index 14860e366..960b5b4e1 100644
 --- a/crates/infer/src/constraints/mod.rs
 +++ b/crates/infer/src/constraints/mod.rs
-@@ -44,6 +44,60 @@ mod trace;
+@@ -44,6 +44,164 @@ mod trace;
  #[cfg(test)]
  use std::cell::Cell;
  
@@ -415,10 +420,114 @@ index 14860e366..e10b5f8b9 100644
 +        if truncated { " TRUNCATED line cap; evidence incomplete" } else { "" });
 +}
 +
++// Only OBJECT-COMPLETE certifies a full object with contiguous tagged parts.
++#[cfg(test)]
++pub(crate) fn research_choice_publication_trace(args: std::fmt::Arguments<'_>) {
++    use std::sync::atomic::AtomicUsize;
++    static OBJECTS: AtomicUsize = AtomicUsize::new(0);
++    static REMAINING: AtomicUsize = AtomicUsize::new(2 * 1024 * 1024);
++    research_choice_publication_stream(args, &OBJECTS, &REMAINING, "root-image");
++}
++
++#[cfg(test)]
++pub(crate) fn research_choice_merge_input_trace(args: std::fmt::Arguments<'_>) {
++    use std::sync::atomic::AtomicUsize;
++    static OBJECTS: AtomicUsize = AtomicUsize::new(0);
++    static REMAINING: AtomicUsize = AtomicUsize::new(2 * 1024 * 1024);
++    research_choice_publication_stream(args, &OBJECTS, &REMAINING, "merge-input");
++}
++
++#[cfg(test)]
++fn research_choice_publication_stream(
++    args: std::fmt::Arguments<'_>,
++    objects: &std::sync::atomic::AtomicUsize,
++    remaining: &std::sync::atomic::AtomicUsize,
++    stream: &'static str,
++) {
++    use std::fmt::Write;
++    use std::sync::atomic::Ordering;
++    if std::env::var_os("YULANG_RESEARCH_CHOICE_TRACE").is_none() {
++        return;
++    }
++    let object = objects.fetch_add(1, Ordering::Relaxed);
++    // Bound framing independently: at most 2000 attempts, each with two markers.
++    if object >= 2000 {
++        if object == 2000 {
++            eprintln!("[choice-research] stream={stream} TRUNCATED object cap=2000; evidence incomplete");
++        }
++        return;
++    }
++    eprintln!("[choice-research] stream={stream} object={object} OBJECT-START attempt");
++    struct PublicationParts<'a> {
++        stream: &'static str,
++        remaining: &'a std::sync::atomic::AtomicUsize,
++        object: usize,
++        part: usize,
++        payload_bytes: usize,
++        budget_exhausted: bool,
++        bytes: [u8; 8192],
++        len: usize,
++    }
++    impl PublicationParts<'_> {
++        fn flush(&mut self) -> std::fmt::Result {
++            if self.len == 0 {
++                return Ok(());
++            }
++            self.remaining.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
++                remaining.checked_sub(self.len)
++            }).map_err(|_| {
++                self.budget_exhausted = true;
++                std::fmt::Error
++            })?;
++            let text = std::str::from_utf8(&self.bytes[..self.len]).expect("trace UTF-8");
++            eprintln!("[choice-research] stream={} object={} part={} {text}",
++                self.stream, self.object, self.part);
++            self.part += 1;
++            self.payload_bytes += self.len;
++            self.len = 0;
++            Ok(())
++        }
++    }
++    impl Write for PublicationParts<'_> {
++        fn write_str(&mut self, mut text: &str) -> std::fmt::Result {
++            while !text.is_empty() {
++                let mut end = text.len().min(self.bytes.len() - self.len);
++                while !text.is_char_boundary(end) {
++                    end -= 1;
++                }
++                if end == 0 {
++                    self.flush()?;
++                    continue;
++                }
++                self.bytes[self.len..self.len + end].copy_from_slice(text[..end].as_bytes());
++                self.len += end;
++                text = &text[end..];
++                if self.len == self.bytes.len() {
++                    self.flush()?;
++                }
++            }
++            Ok(())
++        }
++    }
++    let mut parts = PublicationParts {
++        stream, remaining, object, part: 0, payload_bytes: 0, budget_exhausted: false, bytes: [0; 8192], len: 0,
++    };
++    let complete = parts.write_fmt(args).and_then(|()| parts.flush()).is_ok();
++    if complete {
++        eprintln!("[choice-research] stream={stream} object={object} OBJECT-COMPLETE bytes={} parts={} remaining_payload={} cap=2097152",
++            parts.payload_bytes, parts.part, remaining.load(Ordering::Relaxed));
++    } else {
++        eprintln!("[choice-research] stream={stream} object={object} OBJECT-PARTIAL bytes={} parts={} reason={} remaining_payload={} cap=2097152; evidence incomplete",
++            parts.payload_bytes, parts.part,
++            if parts.budget_exhausted { "payload-cap" } else { "format-error" },
++            remaining.load(Ordering::Relaxed));
++    }
++}
++
  #[cfg(test)]
  thread_local! {
      static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
-@@ -2112,6 +2166,13 @@ impl ConstraintMachine {
+@@ -2112,6 +2270,13 @@ impl ConstraintMachine {
          #[cfg(not(test))]
          let _ = is_included;
          #[cfg(test)]
@@ -432,7 +541,7 @@ index 14860e366..e10b5f8b9 100644
          self.record_semantic_projectability_transition(lower_record, was_included, is_included);
          Some(intent)
      }
-@@ -2369,6 +2430,10 @@ impl ConstraintMachine {
+@@ -2369,6 +2534,10 @@ impl ConstraintMachine {
              return;
          }
          let epoch = self.bump_epoch();

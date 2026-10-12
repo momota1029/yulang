@@ -586,7 +586,7 @@ another count-only lemma cannot substitute for that missing correspondence.
 
 ### Inclusion observation filter
 
-The current patch SHA-256 is
+The inclusion-filter checkpoint `e3cde6d5e` has patch SHA-256
 `808ebcab1d5115dc47640354e58791c8e5800fb8dc732aa6d153e9ad6640fb12`.
 A second narrow independent delta review found no issues. The only additional
 source change suppresses the inclusion logger when its already computed
@@ -620,3 +620,228 @@ source/collector/merge/root frontier, so support-volume truncation cannot
 silence those owners. Any omitted support observations remain explicitly
 incomplete. Once actual final operands are known, the owning proof can target
 their real support cone; frontier capture alone cannot establish it.
+
+## 9. Actual weighted-direct consumer and the unresolved joint judgment
+
+Status: frozen **independently reviewed source bridge and minimized obstruction**; no new
+fixture theorem or counterexample. This section uses primary baseline
+`e3cde6d5e` on `research/simple-sub-intrusion`, immutable Oracle
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`, and the independently reviewed
+passive patch at primary checkpoint `e162e549a`, SHA-256
+`b2f6de7e1dd550596d6b6c44ce64fa3f26568fdfe3742641e087258892ffe66f`.
+Earlier sections and their review scope are preserved. The retained stream log is
+`/home/momota1029/rust/yulang2-choice-recollection-trace/research-logs/choice-runtime-streams.log`,
+SHA-256 `47d14c23e9d994998a702c39ade7ad33058f30f49a04349a2f4bed30b28e5ed9`.
+Its passing test is primary evidence; this leaf ran no inference.
+
+### Frozen statement and evidence boundary
+
+For **every actual normal successful final collection/publication of the
+unchanged §1 fixture at the Oracle pin**, B's independent parse contribution
+must survive the actual `alpha_p`, `alpha_q`, `rho` subtraction with one jointly
+scoped ordered four-argument/check image, through generated invariant
+comparisons, projection changes/recollection and the final selected output,
+including the actual `e1.merge e2` demand. All original declaration, annotation,
+parameter, continuation and error binders in §1 remain fixed. There is no
+invented subsequent choice invocation. Shared premises remain immutable source,
+fresh arena allocation and normally completed owning calls; successful
+publication in the quantifier does not supply the survivor judgment. The
+reviewed §§2–4 derivations are inputs, not reproved here. Universal H, later
+cleanup/fresh-use preservation, soundness, principality and complete Call remain
+parent obligations. No arbitrary preservation of pre-intrusion fibers is added.
+
+IDs below identify this single run/arena only. `(stream,event)` identifies an
+observation, not a causal edge. Support ends at 12,000 events and frontier at
+2,000; individual operand lines also truncate. Neither missing post-state
+fields nor missing late operations can be inferred from these caps.
+
+### Independently grounded source/consumer bridge
+
+The B allocation in §8 still has source range `393..403`, Ref2/TV79,
+signature Pos109, return row Pos108/item Pos107 and ordered Neu28–31 with
+bounds `(103,90),(104,91),(105,92),(106,93)`. Frontier471 actually reaches
+`compact_neu_id(Neu28,W)` with native bounds `(103,90)`, filter
+`Set(parse,[Neu16,Neu17,Neu18,Neu19])` and one POP each for SubtractId0/3/6;
+its active sides include TV22. Frontier498 and560 contain complete returned
+intervals for Neu28 and30. Neu29/31 and the enclosing row-item output truncate;
+these observations do not supply the entire jointly scoped tuple.
+
+A new decisive **owning consumer** is source-established, rather than inferred
+from a canonical count. Oracle `compact/surface.rs:398–438` accepts an interval
+when its four CompactTypes contain only variables and no other shape. It does
+**not** inspect their weights or occurrence origins. It extracts just `var.var`,
+and `419–422,441–448` forms the distinct nonself Cartesian pairs
+
+```text
+vars(lhs.lower) × vars(rhs.upper)
+  union vars(rhs.lower) × vars(lhs.upper).
+```
+
+Above 32 such pairs (`surface.rs:6,351–359`), it bypasses CompactFinalizer.
+`constraints/machine/entry.rs:676–699` allocates bare positive/negative Var
+nodes, enqueues each pair with **empty ConstraintWeights**, and drains the
+queue. The ordinary branch instead finalizes each actual operand
+(`surface.rs:361–372`); `finalize.rs:586–601,837–839` preserves POP entries
+in Stack nodes, while clearing the filter. Thus the two constructors are
+syntactically different for weighted variable operands. This establishes
+neither semantic inequivalence nor a wrong fixture output.
+
+Frontier1835/1836 actually surrounds that direct call. Its complete lhs is an
+unweighted interval; the retained beginning of rhs.lower includes primary
+TV54 and secondary TV28 under the same nonempty Set/three-POP weight above.
+The control location establishes that this actual call passed the var-only
+criterion and the greater-than-32 threshold. Both lines truncate before the
+pair list and after-state result/epoch; neither exact pairs nor `changed`
+are recoverable. The unweighted lhs and weighted rhs must not be exchanged
+or completed by guessed aliases.
+
+The batch occurs before `generalize_root_with_prepasses`' first recorded choice
+iteration (frontier1992, Def7/TV22, epoch3352). The primary's independent mapper
+located the caller at `analysis/session/selection.rs:255–294`; this source was
+reread at the pin. That owner collects a root, applies its merges at270, then
+collects method-tainted roles and applies their merges at286. Its restart guards
+are the actual apply results. This prepass is distinct from the final scheme
+collector, and its TV22 reachability does not make its operands the final
+selected root image.
+
+The first final-root scoped query is present: frontier1993 includes TV22
+Bound2157/Pos233, producer1811, an Original Standalone arm with uncovered
+claim12902. Frontier1994 includes Bound2159/Pos232, a ReplayConjunction at
+TV183 with lower2156/upper2158 and result producer1812, under the same claim.
+These are real included root bounds; their observations do not trace their
+nested unit return to B or establish all deeper support/check incidences.
+The source consumer `structural_kernel/access.rs:862–895` selects precisely
+such scoped decisions; `collect/mod.rs:833–875` distinguishes scheme projection
+from raw-bound collection.
+
+### Derivation attempts and exact obstruction
+
+The native support induction uses actual clauses, not source-family equality:
+`proof/mod.rs:11735–11763` evaluates Standalone support, a DerivedUnary's
+premise and **both** ReplayConjunction premises. Its support/coverage selection
+at `10059–10083,11650–11665` reads live coverage. Adding bounds or clauses alone
+therefore does not prove that an existing B clause remains decisive after the
+prepass. The two recorded final-root arms ground the root step, but not the
+B-to-unit-return chain, the four argument sides or their changing coverage.
+An unexamined clause is not an independently retained B witness.
+
+The second method compares the actual weighted and direct constructors. The
+real retained filters can supply stronger native facts: `row_effect.rs:925–934`
+emits invariant comparisons of the **actual** family arguments and filter
+arguments with empty weights; `bounds.rs:3243–3253,3285–3315` invokes these
+checks on existing/future lowers. These are possible source justifications for
+bare equality of particular argument variables. They do not establish that
+**every extracted pair** in this truncated direct operand is already justified
+by those same four scoped coordinates. A Value coordinate can contain a
+Function with effect ports; the var-only test supplies no restriction making
+its weight irrelevant. No generic weight-erasure law follows from that test.
+Conversely, existing genuine coordinate equalities could make a particular
+bare pair redundant, so the observed weighted direct call is not itself a
+counterexample.
+
+The unresolved actual judgment is therefore: **for the prepass's generated
+weighted operands and actual direct pair set, do the admitted empty-weight
+relations retain the same jointly compatible B/family/check observation at
+the final unit return, and do all relevant projection changes receive an
+actual recollection or an independently valid surviving collected image?**
+Its first omitted source owner is the weighted-variable extraction and direct
+admission above, together with the existing native comparison derivations
+that could justify its particular pairs. The final selection consumer is
+`analysis/session/generalize.rs:67–125,327–351`; it does not supply a general
+weight-equivalence premise. This judgment is not replaced by a numerical
+restart lemma. No complete Call/role solution or final tuple is asserted.
+
+These two methods leave this judgment unresolved; no third equivalent proof
+attempt was made. Economy audit: preserving the independent contribution,
+joint check meaning and ordinary polymorphic inference is A/B. Recovering
+operand provenance from bare IDs after extraction would be D: the collector
+and merge constructor already know the weighted operands and their source
+sides. A bounded observation of those existing facts can discriminate the
+actual semantic question; inventing a reconstruction layer, requiring empty
+weights, restricting source arguments or choosing four marginal witnesses
+cannot discharge it. The semantic observation law itself remains A/B and is
+not reclassified away.
+
+One next action: primary obtain complete bounded per-coordinate operands,
+the actual extracted pairs and their pre-admission native comparison/support
+cone from these owners, then prove their effect on the original B/check image
+or exhibit the first failing source-qualified pair. This is evidence for the
+existing theorem, not a proposed compiler invariant or semantic change.
+
+### Freeze and commit packet
+
+Only §9 of this leased note was appended. Pinned `git show`/owner searches,
+bounded static log inspection and SHA-256 checks ran; no build, test, probe,
+measurement, network call, Git mutation, delegation or other write ran. A failed
+read of nonexistent `analysis/session/role_solve/selection.rs` was corrected to
+`analysis/session/selection.rs`. At most two light read processes ran together;
+CPU/RSS were not instrumented. The assigned limit is20 minutes, no heavy jobs.
+Requested runtime is Sol/high; observed effective model/effort is unknown.
+Fresh independent `compiler_referee` review of §9 against frozen note SHA-256
+`b224f1b214234e94935ee80ee6a17cd8bde99f0a29a05595e1808f776ae3602a`
+found no issues in its bounded source/obstruction claims. It establishes no
+fixture theorem, semantic inequivalence, counterexample or universal H.
+
+- Exact lease: `notes/theory/2026-10-12-oracle-choice-output-pop-proof.md`;
+  writes stop at handoff. Its pre-append bytes equal the e3cde6d5e note,
+  SHA-256 `5e9b1c6202e4e4af10d3f4f609b563c7b1513c82b63efc02be5f88c6bd46ec51`.
+- Baseline: `e3cde6d5e`; Oracle pin above. Primary checkpoint e162e549a
+  supplies the reviewed b2f6 trace dependency; the older §8 revisions remain
+  historical. The trace patch subsequently changed in the live tree to
+  `790cd6e2124c50e0dfdfe11286e65c71fd2515ef35d20f20e090779c269e3970`;
+  that new patch/capture is excluded here. The immutable old log hash rechecks.
+- Newly inspected pinned dependency: `analysis/session/selection.rs`,
+  SHA-256 `18865934a6b9d5a86e246f45f9cf6cfe950d7867d4ec533d79ff3490c03c5b33`.
+  Existing Oracle source dependencies retain the §7 pin; no dependency edited.
+- Claim/review: source-qualified weighted-direct activation and exact unresolved
+  observation judgment, independently reviewed; no theorem/refutation or
+  parent-gate status promotion.
+- Proposed checkpoint: `research: isolate actual weighted-direct choice image obligation`.
+- Shared-record delta left for primary/curator: link this actual direct-consumer
+  seam and final-root query evidence; preserve original H, fixture joint image,
+  complete Call, soundness/principality and production gates OPEN. No shared
+  record was edited.
+
+## 10. Complete scoped input and generalized-image evidence
+
+The current passive patch SHA-256 is
+`2f5aebb481a000085f2d5683b1ca4447e181db2307602dfc7d44c75ca7352ae1`.
+Its observation changes passed independent delta review. Root images and
+merge inputs have separate 2 MiB payload budgets, retaining the same total
+4 MiB reservation, fixed UTF-8 chunks and explicit partial markers. Complete
+objects require matching `(stream,object)`, contiguous parts and the declared
+byte total. No solver operation or query is added.
+
+Primary's resource-capped compile passed in 12.65 seconds; the same exact
+fixture passed in 15.80 seconds (one passed, 1,392 filtered out). Commands and
+12 GiB/300-second compile, 12 GiB/60-second runtime bounds are as in §8.
+No broad suite or performance sample ran. The nine pinned warnings persist.
+
+The final log `research-logs/choice-runtime-partitioned.log` in the isolated
+worktree has SHA-256
+`f5bea54332825041117e2f957255b4409fc589d057a78987712746385b4f186f`.
+Primary reconstructed 25 complete objects, checked each part index, byte total
+and UTF-8 decoding, and saved them under `research-logs/partitioned-objects/`.
+The choice objects are:
+
+| Object | Complete bytes | SHA-256 |
+| --- | ---: | --- |
+| `root-image-15.txt`, collected iteration 1 | 84,111 | `a3b19eeeff836779ec237b9e0152bd6b12866f89e119a44289e5ce7e20dce075` |
+| `merge-input-5.txt`, iteration 1 | 1,952,606 | `274161d2677d8822066f2b7975d659b16e72a63ce345781cceec995eee3165fb` |
+| `root-image-16.txt`, collected iteration 2 | 84,111 | `04dc44b84d74ffd5fa0eaa36278a318cde8c23944d25d040785902ff486a65e7` |
+| `root-image-17.txt`, selected iteration 2 | 84,110 | `8cd393e6d2420f57b2aa5a79a068eb34b2732e82a16c6a558a3b8100ca45acbf` |
+| `root-image-18.txt`, generalized | 19,692 | `ee1ca6e3c5a7a26f240002b6f39befbddde3ee3c9af2ecf0a3dff1a81de73986` |
+
+All choice objects identify `DefId(7)`/`TypeVar(22)` and epoch 3352. Support
+and frontier logs still truncate; `merge-input` iteration 2 is partial. The
+preceding reviewed shared-publication capture retains complete iteration 1/2
+constraint vectors, but this run's partial vector must not be treated as
+complete merely because the earlier run had matching bytes.
+
+Moving scalar fields ahead of large direct-merge operands also retained its
+actual pre/post epoch 3178 and `changed=false`. Count stability alone does not
+prove source justification, projection stability or future hygiene. Complete
+compact/generalized bytes establish the missing result observation, not
+semantic compatibility or preservation. They now permit the original proof
+owner to derive the actual tuple/substitution/support correspondence. Actual
+definition publication/fresh use and the original universal H remain OPEN.
