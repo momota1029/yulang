@@ -13159,12 +13159,20 @@ registered, preallocated open `f` root and finite monomorphic cycles, so an
 unfinished hereditary `f` certificate alone does not block `Name(f)`. The
 independently reviewed [active-root constructor derivation](../notes/theory/2026-10-13-active-root-call-source-construction.md)
 and [Y3 owner crosswalk](../notes/progress/2026-10-13-active-root-call-owner-crosswalk.md)
-locate the first missing bridges at c1's complete native-App/extrusion/equality
-interpretation and at g publication's authentic component/dependency records
-and source telescope. `Code-Call`, IF and Source Generalize consume such inputs;
-the inspected owners do not derive them from bounds or Value-SCC membership.
-This is missing construction evidence, not a source prohibition. Do not change
-`C` to per-frame coordinates or alter the equality meaning. The
+locate two representation/proof bridges: the actual c1 App/extrusion must be
+connected to the approved occurrence's G/F endpoints and retained pairs, and
+g publication needs authentic component/dependency records and a source
+telescope for allocation. `Code-Call`, IF and Source Generalize consume such
+inputs; inspected owners do not derive them from bounds or Value-SCC
+membership. This does not suspend the selected intrusion operation: when an
+actual same-SCC parent/copy event with its pairs is established, it requires
+the type-variable equalities to affect solving and later uses. The
+independent architecture audit confirms `K_g` is not an activation premise;
+it is needed for the source-scheme/allocation correspondence. The exact
+scheduling point remains open, and a deferred implementation must preserve
+the same later-use effect. This is missing source/implementation evidence, not
+a source prohibition. Do not change `C` to per-frame coordinates or alter the
+equality meaning. The
 [correlated-frame equality derivation](../notes/theory/2026-10-13-correlated-frame-equality-obstruction-proof.md)
 has a fresh `compiler_referee` PASS after correcting one replay-step reference.
 For the displayed native two-use assignment, shared constraint equality or a
