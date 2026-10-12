@@ -12817,3 +12817,26 @@ falsification are now examining the extracted merge law on the already
 reviewed pure-core live state; both must treat it as candidate behavior and
 keep approved activation, Yulang implementation, and parent theorem gates
 OPEN until proved.
+
+The independent [`merge falsification`](../notes/progress/2026-10-12-fixed-intrusion-merge-falsification.md)
+found no lost scalar bound at this finite event: each copied row has empty
+bounds, so candidate merges produce canonical self-bounds and empty immediate
+replay products. It found the first consumer difference at boundary-1 use:
+the candidate's minimum-level merge retains B/R as anchors, while stock Scala
+freshens their immutable level-2 rows. This is a missing preservation bridge,
+not a counterexample. The proof lane then derived the same exact scalar prefix
+but could not construct a candidate session for Scala's pending comparison
+`(o,Q)` and transformed demand `Qc`, including the admitted relation, retained
+child, bound evidence and metadata. The boundary review found no defect in
+this limited claim. See
+[`fixed-event continuation boundary`](../notes/theory/2026-10-12-fixed-intrusion-merge-continuation-proof.md).
+
+The smallest next owner output is the source App-demand/extrusion construction
+that retains this outstanding comparison and transformed child in a candidate
+session so the existing generation-sensitive consumer can resume it after
+both qualified merges. This remains an OPEN source-to-operational bridge; no
+equality consumer, level/capture rule, or cache repair is selected by these
+reports. The fixed intrusive continuation, Yulang source/effect/Call
+correspondence, soundness, principality and all parent gates remain OPEN. The
+two reports are checkpointed and pushed at `0fe1a4a4f` and `8f5470615`; no
+compiler code, tests, builds or probes changed.
