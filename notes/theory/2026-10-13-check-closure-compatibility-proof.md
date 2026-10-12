@@ -1,9 +1,9 @@
 # Finite check closure: activated-edge readout compatibility
 
 Date: 2026-10-13
-Status: frozen, unreviewed constructive research checkpoint
+Status: frozen constructive research checkpoint; independently reviewed after repair
 Claim classes: algebraic closure derivation; displayed-constructor compatibility;
-conditional full-Function reduction; precise missing source law
+conditional full-Function reduction; bounded union-elimination obstruction
 Parent recursive L4, actual cO/cE and complete Call/inference gates: OPEN
 Baseline: `8087cc483e08e387d72c74f340c421e2a433c8c0`
 Producer: leaf `/root/prove_check_closure_compatibility`; no delegation
@@ -36,7 +36,10 @@ Let E contain the endpoint edges of the fixed finite checking presentation
 and its genuine premise nodes, instantiated at **all** their original legal
 operand telescopes. An edge carries its actual constructor tag, guard and
 whole tuple; it is not inferred from endpoint shape or successful comparison.
-Distinct alternatives retain their original selectors. Recursive nodes retain
+Here legal operand telescopes mean their independent scope/incidence/guard
+premises; ordinary V* membership of the tested source is not assumed merely
+to instantiate a same-value implication. Actual source reachability is a
+separate application premise. Distinct alternatives retain their original selectors. Recursive nodes retain
 their registered operands and original unfolding paths. E is mathematical
 proof data: no claim is made that compiler constraints emit or activate E.
 
@@ -136,7 +139,7 @@ also an application/embedding obligation.
 
 ## 4. Displayed constructors: direct compatibility calculations
 
-The following calculations apply to actual instances with the stated
+The following independent fragment calculations apply to actual instances with the stated
 unchanged fixed guards and actual child edges. They derive their readout
 conclusion locally. An unspecified extra conjunct is not covered by the
 calculation simply because its descriptor has a familiar printed head.
@@ -178,17 +181,26 @@ For intersection introduction `X -> A & B`, the two genuine premise
 edges and the activated source atom `R.V(X,v,r,e)` put both A and B atoms
 in R. The target conjunction uses these atoms on the identical decorated
 value and sigma. If intersection is instead unfolded inline in an
-independently fixed descriptor clause, apply the already derived premise
-readout actions to the same source readout. These two representations
+independently fixed descriptor clause, its premise readouts alone do not
+activate the premise edges: `Compat_R` still requires `R.V(X,v,r,e)`.
+That inline case needs either an independently established source atom or
+separate unrestricted premise-readout actions. These two representations
 are distinguished; neither permits `PhiV(X)[R] -> R.V(X)`.
 
 For union injection, closure of the actual child/injection operand supplies
 the positive selected-arm atom when the target clause uses an R atom.
 Retain the actual alternative; its original guard and full provider tuple
 establish the target union readout. For finite union elimination, source
-readout supplies the actual arm and its positive atom (or its explicit
-inline readout). The branch premise at that same guard supplies the target
-atom/readout by closure or the already derived branch compatibility.
+readout may supply the actual arm's **R atom**, rather than its Phi(R)
+readout. Branch compatibility cannot consume that atom as a readout.
+Closure supplies the branch's target atom, also not its readout. This is
+the first unavailable premise; the exact obstruction is isolated in §5.
+For an independently supplied inline arm readout, branch compatibility
+applies only when the selected arm tuple is also in R. The inline readout
+does not insert that tuple into R. Otherwise this branch needs an independently
+proved unrestricted readout action, distinct from `Compat_R`. The selected
+general inventory does not require an atom-exposing representation for every
+positive field.
 No other branch's witness is substituted. For Top/Any use its independently
 fixed membership meaning on the same value/root; an extra guard not entailed
 by that meaning would require its own law.
@@ -287,7 +299,76 @@ The definition labels a component changing those fields ineligible for
 this particular lemma; this is a theorem applicability boundary, not a new
 source restriction. General guarantee constructors still need their laws.
 
-## 5. Complete Function and finite equation references: the stopping point
+## 5. First obstruction: exposed positive arms lack readouts
+
+The structural union-elimination case precedes the full-Function envelope
+problem. In the selected positive-field interpretation, a union value clause
+can expose `R.V(A,v,r,e) or R.V(B,v,r,e)`. Its ordinary interpretation at
+the greatest fixed point supports the finite case check of §3.2(2).
+On candidate R it exposes an atom. The actual A -> F branch compatibility
+instead requires `PhiV(A,v,r,e)[R]`. Its missing premise is exactly
+
+```text
+the selected arm tuple has a Phi(R) readout,
+at its same root/provider/event and the same original strategy.
+```
+
+This is not another changed-index membership gap: R already contains
+both the exposed arm and its checked target when their edges activate.
+Readout availability is separate. Assuming `R subset Phi(R)` here is
+the postfixed conclusion the construction was meant to establish.
+
+### 5.1 Bounded non-entailment calculation
+
+This is a small mathematical witness for the atom-exposing union clause
+permitted by the selected positive-field interpretation. It is not an actual
+cO/cE source derivation or a refutation of source-directed closure under its
+full original base restrictions. If a particular host unfolds unions inline
+or normalizes them differently, it needs its own explicit clause correspondence;
+the witness is not claimed for that uninspected representation.
+
+Fix one lawful original event and registered Unit value u at its actual root.
+Let A and B be **distinct** complete Function descriptors with the same
+independent Value-entry interface, challenge domain and all non-result
+conjuncts, respectively returning Any and Unit. They have the genuine finite
+same-callable check B -> A by the result child Unit -> Any; its domain proof
+is identity and every remaining full conjunct is identical. Let X be their
+union, with the positive readout
+
+```text
+PhiV(X,u,r,e)[R] = R.V(A,u,r,e) or R.V(B,u,r,e)
+```
+
+and the original inherited union guards. The finite case check X -> A has
+identity branch A -> A and that finite B -> A branch. No recursive proof
+leaf or inclusion oracle is used. These are ordinary inclusion derivations;
+they do not assert Unit belongs to any Function.
+
+Take B0 to contain only the decorated X tuple of u, and close under that
+finite proof's endpoint edges. The root edge places the same A tuple in R.
+Branch/positive-field edges change no raw value or provider. Therefore the
+displayed PhiV(X)[R] holds via its A atom: the sole base tuple has its
+Phi(R) readout. But PhiV(A,u,r,e)[R] is false, since the registered Unit u
+has no genuine immutable callable `Act(u,U,r)` decomposition. A Function
+readout demands that independent guard before any recursive obligation.
+Extra endpoint insertion cannot create it. Thus even an **activated**
+X -> A edge does not have readout compatibility in this witness.
+
+All worlds, scopes, provider incidences, strategy and challenge domains are
+fixed. The failure is at the independent actual-provider guard; it does not
+depend on execution, termination, row support or witness reselection. The
+union branches are ordinary sound implication proofs on authentic source
+membership. The circular candidate base readout illustrates why that
+ordinary theorem plus endpoint closure is insufficient.
+
+The arbitrary B0 union hole is outside the selected pair's exact two
+Function holes. Consequently this is a bounded non-entailment witness to
+the generic compatibility rule, **not** a source-qualified counterexample
+or proof that the actual source coalgebra has the same failure. Establishing
+that actual base/premise provenance supplies all needed arm readouts is a
+distinct possible route; no such theorem is claimed here.
+
+### 5.2 Consequences for Function and recursive equation cases
 
 For a complete Function edge A -> F, an authentic independent D proof
 acts on every `d in D_F(e)` and yields the **same** complete challenge in
@@ -302,14 +383,18 @@ transported using §4 and closure. Common guards and the original provider
 decompositions are retained. If the **entire actual** observation proof is
 made of those displayed constructors with those unchanged fields or genuine
 independent guard/domain laws, the constructor calculations establish
-`P_A[R](d) -> P_F[R](d)`. Retain all original formation/profile/scope/incidence
-guards using their actual independent implications; use every same provider,
-not a convenient alternative. This then gives the complete target PhiV(F)
-readout. This is a conditional Function derivation with all its nonpositive
-premises explicitly located.
+`P_A[R](d) -> P_F[R](d)` only when each activated premise edge has its source
+tuple in R. In particular, an inline intersection or union readout does not
+itself supply that atom; such a case needs separate source provenance or an
+independently proved unrestricted readout action. Retain all original
+formation/profile/scope/incidence guards using their actual independent
+implications; use every same provider, not a convenient alternative. This
+then gives the complete target PhiV(F) readout. This is a conditional Function
+derivation with all its nonpositive premises explicitly located.
 
 The requested theorem for **every selected finite §3.2 check** cannot yet
-instantiate that condition. The first unavailable adopted law is:
+instantiate that condition. Its first unavailable premise is §5's arm
+readout. A subsequent independent missing adopted law is:
 
 ```text
 For each actually used full observation/descriptor-check constructor,
@@ -319,7 +404,7 @@ EVERY changed positive Phi-component field by its original child edge,
 with the same joint strategy on all admitted challenges and futures.
 ```
 
-The missing part is exhaustive complete-clause ownership/action, not the
+This subsequent missing part is exhaustive complete-clause ownership/action, not the
 already supplied `R.V(A) -> R.V(B)` atom insertion. Contextual Function
 definition §§1–2 explicitly does not adopt an exhaustive concrete D/P
 interpretation. Simultaneous introduction §3 says P retains the full
@@ -360,7 +445,7 @@ conversion output, code and effects; same-provider transport does not
 identify them. No supplied exact method/conversion instance is analyzed
 here, and no generic method axiom closes its relative readouts.
 
-**Stop:** do not infer the full missing clause law from ordinary V* inclusion,
+**Stop:** do not infer an exposed arm readout or the full missing clause law from ordinary V* inclusion,
 the adjective “genuine,” successful checking, endpoint closure or finite
 presentation. No source-qualified refutation, source rejection, contradiction
 to adopted semantics, or impossibility of a complete construction follows.
@@ -370,20 +455,24 @@ to adopted semantics, or impossibility of a complete construction follows.
 The earlier constructor-fit/direct lift and the reviewed arbitrary-S
 transport attempt left a positive endpoint atom unavailable. This changed
 method establishes that atom on R and derives its Return/depth consumers.
-It leaves a narrower original owner: the complete actual check-constructor
-law needed to cover the remaining full Function envelope and recursive
-equation nodes. A third generic monotonicity or assumed-transition checker
-would leave that exact premise untouched.
+It leaves a different, explicit premise: readout availability for an
+R-atom exposed by structural elimination or equation unfolding. The actual
+positive constructor and source/base provenance own that fact. The complete
+actual check-constructor law for the full Function envelope is another
+remaining premise. A generic monotonicity or assumed-transition checker
+would leave both untouched.
 
 The complete Call/readout obligation is A/B because it is needed for
 sound accepted output and intended recursive inference. Exhaustive
 arbitrary-view characterization remains distinct. Potential D debt is
 recovering actual check operands/guards from endpoints after construction;
 an authentic retained proof tree could preserve those known facts, but
-retention alone does not prove its relative semantic law. The present
-missing law belongs to independently interpreted P/descriptor/check
-constructors, so adding a certificate that merely asserts it would not
-remove the semantic obligation. This audit changes no authority or gate.
+retention alone does not prove its relative semantic law. The exposed readout
+might follow from a genuine construction-directed provenance invariant, but
+requiring or asserting it without constructing it is not proof progress.
+Independently interpreted P/descriptor/check constructors also retain their
+genuine full clause laws. Adding a certificate that merely asserts those laws
+would not remove the semantic obligation. This audit changes no authority or gate.
 
 The exact cO/cE trees remain unsupplied, with the authentic scoped
 `n_E - 1` operator/argument/complete-Call source judgment still a prior
@@ -393,11 +482,12 @@ pair theorem is not automatically the singleton rule. No compiler emission,
 accumulation, activation/replay, propagation, levels, extrusion, qualifying
 intrusion or generalization behavior was audited or implemented here.
 
-**One next action:** obtain the actual complete observation-check/equation
-constructor law at its original source owner, starting from the authentic
-cO/cE check tree when available; match its full clause inventory to the
-calculations above and return the first concrete unmatched conjunct or
-recursive premise. Do not dispatch another generic closure calculation.
+**One next action:** inspect the authentic cO/cE checking presentation and
+source/base construction for any elimination/unfolding that exposes a
+positive R atom; establish its actual source-provenance readout, or return
+that exact unavailable constructor premise. If no such case occurs, continue
+to its first unmatched complete-envelope/equation conjunct. Do not dispatch
+another generic closure calculation.
 
 ## 7. Checks, resources and frozen handoff
 
@@ -434,8 +524,9 @@ abc6aa520c073f2e62c1d80a2aeb20819d6b5d6590e8b0c1ffafe7f5229a3189  tasks/current.
 bacced6e3db771ea9a78232d6b2cec582e7d65562be0f93186ff540b564129cd  tasks/research-lab.md
 ```
 
-This is producer construction, not independent review or certification.
-Full Function/equation compatibility, actual cO/cE, original L4, foreign
+This is a bounded research result, not certification of the original theorem.
+Structural elimination readout availability, full Function/equation compatibility,
+actual cO/cE, original L4, foreign
 embedding, complete Call/effects, source correspondence, soundness,
 principality, progress, termination and F5 replacement remain unverified.
 
@@ -452,8 +543,25 @@ Commit packet:
 - Proposed checkpoint message: `research: derive activated check closure readouts`.
 - Shared-record deltas left to primary/curator: distinguish the proved R
   child-atom insertion and displayed Return/depth compatibility from the
-  unsupplied full observation-check/equation clause law; preserve the stronger
+  unsupplied exposed-arm readout and full observation-check/equation clause law; preserve the stronger
   unrestricted compatibility distinction, cO/cE and all parent gates OPEN.
 
 Writes stop at handoff. Fresh independent review, status adjudication and
 Git integration remain primary-owned.
+
+### Primary review and repair
+
+Independent `compiler_referee` review found a major gap in the inline
+intersection/union cases: an inline `Phi(R)` readout does not establish that
+the source tuple belongs to R, which `Compat_R` requires. The review also
+identified the same premise in the conditional Function reduction. This
+artifact was repaired at all three sites by requiring explicit R provenance
+or a separately proved unrestricted readout action. The exact finite
+union-elimination countercalculation remains bounded and does not claim an
+actual cO/cE source derivation.
+
+A fresh independent delta review passed after repair with no remaining
+findings. `git diff --check` passed. No test, build, compiler edit, or
+measurement was run. The parent cO/cE, original L4, complete Call/effects,
+source correspondence, soundness, principality, progress, termination and F5
+gates remain OPEN.

@@ -13610,3 +13610,25 @@ occurrence, then construct its literal and whole local semantic law at
 `Γ_E,W_E`; only afterward return to authentic cO/cE and their complete
 readouts. Do not choose an overload, primitive/Call route or effects from the
 historical catalogue.
+
+### 2026-10-13 activated check-closure compatibility review
+
+The bounded [finite-check closure compatibility derivation](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+received an independent `compiler_referee` review. The reviewer found that
+inline `Phi(R)` readouts for intersection/union premises had been used as if
+they established source membership in R, which `Compat_R` requires. The
+artifact now requires explicit source-atom provenance or a separately proved
+unrestricted readout action at those sites and in its conditional Function
+reduction. A fresh independent delta review passed with no remaining
+findings; `git diff --check` passed.
+
+The bounded union-elimination non-entailment calculation remains a generic
+countermodel, not an actual cO/cE counterexample. No actual source/base
+provenance establishing exposed-arm readouts has been constructed. The
+complete Function/equation clause law, authentic cO/cE, original L4, complete
+Call/effects, source correspondence, soundness, principality, progress,
+termination and F5 remain OPEN. Next: inspect the actual cO/cE checking
+presentation and source/base construction for an exposed positive R atom;
+prove its source-provenance readout or identify the exact missing constructor
+premise, then continue to any unmatched complete-envelope/equation conjunct.
+No compiler code, tests or builds changed or ran.
