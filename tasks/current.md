@@ -13586,3 +13586,27 @@ OPEN. No compiler code, tests or builds changed or ran. Next: obtain the
 authentic cO/cE checks from the owning source/operator rules, then prove their
 endpoint closure and relative readouts jointly, stopping at the first missing
 source law rather than assuming D/P.
+
+### 2026-10-13 scoped subtraction owner-input checkpoint
+
+The bounded [original scoped owner instance](../notes/theory/2026-10-13-odd-even-subtraction-owner-instance.md)
+records the exact inner `n_E - 1` judgment and inspects the current import,
+operator, literal and historical provider routes. The current Y3
+`SemanticImports(())` route supplies no original ambient operator/provider
+instance; historical `Sub`/`IntSub` alternatives are implementation evidence,
+not a selected source declaration. The original child judgment remains
+unconstructed and unrefuted.
+
+An independent architect audit likewise confirms that Source Generalize and
+Complete Call consume an authentic scoped declaration/law but do not provide
+it. Evidence does not yet distinguish missing original environment data from a
+genuinely unselected local semantic law. The source-owner note is a frozen,
+unreviewed research checkpoint; its parent L4, complete Call, source
+correspondence, soundness, required principality, progress, termination and F5
+gates remain OPEN. No compiler implementation or tests changed or ran.
+
+Next: obtain the original source import/resolution/provider instance for this
+occurrence, then construct its literal and whole local semantic law at
+`Γ_E,W_E`; only afterward return to authentic cO/cE and their complete
+readouts. Do not choose an overload, primitive/Call route or effects from the
+historical catalogue.
