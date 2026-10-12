@@ -207,16 +207,32 @@ not prove source preservation or principality.
 An independent design pass also isolated the unresolved registration output
 at nested publication: `K_g(h)`, the whole `N_g(h)`, the typed inherited-f
 edge, and B's original telescope. The existing Source Generalize constructors
-consume but do not generate these records. A bounded constructive pass is now
-testing whether source formation uniquely determines the live-root capture
-and allocation behavior, without treating the Value SCC as `K_g`.
+consume but do not generate these records. The [nested live-root derivation](../notes/theory/2026-10-13-nested-live-root-generalization-derivation.md)
+traces the native correlated-helper history through `freshenAbove`: the same
+level-1 C is retained across both independent g uses while B and S receive
+per-use copies. Its scalar comparison shows that translating `C=B` into both
+frames requires `bool <: int`; an alternate fresh `C_i` assignment is
+satisfiable but does not match the reference's allocation map. A concrete
+reference-source typing shape for the ordinary program keeps f monomorphic
+and g's bounded identity descriptions independent; its uses return int and
+bool and the enclosing record has type T. A compiler referee and spec auditor
+reviewed this note; both passed, and a minor return-type wording correction
+was inspected and integrated. This is a native allocation result plus a
+conditional source/equality discriminator, not an admitted complete Yulang
+counterexample, source-principality theorem, or preserving allocation law.
+No adopted registration classifies the active f edge or determines how C's
+equality is represented in source description frames.
 
-Next: settle the complete nested live-root registration/allocation derivation;
-then apply it to the correlated helper's independent uses and decide whether
-the local diagonal lift extends at the original source scopes. Do not derive a
-registration component from Value SCC membership alone. Keep complete `Q_c`,
-L4, allocation, source-wide soundness, required principality, Call/effect
-hygiene, termination and F5 OPEN.
+Next: prove the source/operational law for the complete g description's
+dependency on active f, including whether the actual qualified equality is
+retained at the original shared C across independent g frames. The exact native
+map is already determined; do not adopt fresh `C_i` as a preserving fix. If an
+admitted Yulang derivation forces the shared-C equality and rejects the
+ordinary two-use typing, route that concrete contradiction through the
+existing design-authority path. Do not derive a registration component from
+Value SCC membership alone. Keep complete `Q_c`, L4, allocation, source-wide
+soundness, required principality, Call/effect hygiene, termination and F5
+OPEN.
 
 ## 2026-10-12 agent-dispatch capacity retry correction
 
