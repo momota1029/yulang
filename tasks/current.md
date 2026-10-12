@@ -12860,3 +12860,24 @@ source-admission/API boundary for a faithful complete-module entrypoint. Until
 that constructor is grounded, the candidate event, finite intrusive
 continuation, Call/effects, soundness, principality and all parent gates remain
 OPEN. No compiler changes or tests were made.
+
+### 2026-10-12 Standalone module-expression receiving context
+
+An architect audit of the candidate admission owner found that relaxing the
+integer-only preflight alone cannot admit the final Name. Collection assigns
+standalone expressions no `DefinitionOrderId` (`lib.rs:985–986`), while
+`emit_candidate_expression` requires one to consume a resolved module Name
+(`shadow_apply.rs:1193–1203`) and otherwise returns
+`MissingDefinitionEndpoint`. The neighboring observation API has no final
+module-result route either. Thus the next missing contract is a receiving
+context for a standalone module expression, distinct from a source definition,
+including level, occurrence, scheduling and private result observation.
+
+The architect's minimum proposal is to retain the complete HIR module and
+final Name under an explicit module-expression context, then use a faithful
+published-definition capture/freshening path. This remains unverified design
+inference; no selected authority specifies it, and no definition ID may be
+fabricated or wrapper introduced. Read-only tracing is complete; a durable
+API/ownership extension requires a reviewed scoped design and user approval.
+The candidate source admission, `k/Qc` session, intrusive continuation and
+parent theorem remain OPEN. No implementation, tests or builds were made.
