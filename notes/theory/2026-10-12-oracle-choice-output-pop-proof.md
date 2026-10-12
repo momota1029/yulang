@@ -1,7 +1,8 @@
 # Oracle choice: independent cut contribution at the actual output POP
 
 Date: 2026-10-12
-Status: frozen research derivation; independent review pending; original H OPEN
+Status: frozen bounded derivation; independent compiler_referee review clean;
+original H and returned-scheme preservation OPEN
 Claim class: bounded native source/projection and local collection derivation; exact remaining operational premise
 Y3 baseline: `c5c8a6f29`
 Oracle baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -422,8 +423,14 @@ Requested runtime: `gpt-6.1-sol`/high. Project config registers unpinned prover
 with Sol/high defaults. Observed effective model/effort: unknown; no runtime
 metadata was provided. No Astra or reload claim.
 
-This is producer evidence awaiting fresh independent compiler_referee review.
-The local derivation is not self-certified. H, returned-scheme preservation,
+Independent `compiler_referee` review found no blocking, major or minor issue
+in §§2–5 at frozen SHA-256
+`3301a0ac6baccbe9d81ab1b45889a11aaa62dc4c2535680371eef11c375636d2`.
+It checked the actual three-POP construction, bounded native B-to-R inclusion,
+local weighted four-argument collector map and stated remaining seam against
+the pinned source. It did not certify acceptance, returned-scheme equivalence,
+cleanup/instantiation, later uses, resource paths or the separate recollection
+result. This review closes only the bounded artifact review. H, returned-scheme preservation,
 complete Call, soundness, required principality and production/cutover remain
 OPEN. The fixture's test assertion was read, not run.
 
@@ -481,7 +488,8 @@ Commit packet:
 - Exact changed/leased path: `notes/theory/2026-10-12-oracle-choice-output-pop-proof.md`; writing stops at handoff.
 - Baseline: Y3 `c5c8a6f29`; Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - Changed dependency hashes: none; every semantic/source dependency above was read from the pinned object, and none was edited. Live policy/config dependency changes require primary revalidation.
-- Review status: unreviewed producer derivation; no closure or certification claimed.
+- Initial checkpoint: unreviewed producer derivation. Subsequent independent
+  review is recorded in §6; original parent gates remain OPEN.
 - Checks already run: pinned source-owner reads/searches and hash capture; no execution/build/test/probe/measurement.
 - Proposed checkpoint message: `research: trace choice cut through native output POP and argument-image seam`.
 - Shared-record delta for primary/curator: link this bounded native b_R/actual POP derivation and the precise weighted four-argument collection/merge/recollection premise. Preserve original H and returned-scheme/complete-Call/soundness/principality/production gates OPEN. No shared task/index/theory-status files edited.

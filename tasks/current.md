@@ -11844,3 +11844,41 @@ one-reviewer budget). Static source locators, local document links and diff
 whitespace are the verification scope; no tests, builds or measurements were
 run. This closes only the faithful decision-recording slice, not the original
 inference theorem or corrected compiler implementation.
+
+### 2026-10-12 actual three-POP parameterized Oracle contribution
+
+The [choice output-POP derivation](../notes/theory/2026-10-12-oracle-choice-output-pop-proof.md)
+was checkpointed at `e1ec5b7ce`. Fresh independent `compiler_referee` review
+found no issues in its bounded §§2–5. It derives the independent arm's actual
+parameterized `cut` contribution to the body Effect and the local collector
+map under distinct `alpha_p`, `alpha_q` and result `rho` POPs, keeping all four
+invariant family arguments. Its returned-scheme image and original H remain
+OPEN; family-head retention does not establish argument/check preservation.
+
+The source-owner and read-only prover lanes identified an authentic conditional
+mutation route: an occupied canonical invariant admission can add an origin,
+change projection inclusion and advance epochs while the generalizer's
+count-based `changed` result stays false. Neither lane established that the
+choice fixture takes that route or publishes a stale image. The exact missing
+source premise is its actual collected/finalized four-coordinate tuple map to
+canonical producers, lower records, claims and scoped inclusion decisions in
+the selected output/role dependency cone. Another count-only proof is not the
+next action.
+
+Primary created isolated detached Oracle worktree
+`/home/momota1029/rust/yulang2-choice-recollection-trace` at the immutable pin
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`. A bounded `implementer` is actually
+running on passive test-only instrumentation of those existing construction
+owners; its sole main-tree output lease is
+`tools/research_choice_recollection_trace.patch`. This is explicitly provisional
+source-evidence scaffolding, not successor semantics or production adoption.
+The existing fixture, assertions and source remain fixed. Primary will review
+the frozen hooks and own the one focused verification process. Memory/disk and
+the historical infer-test incidents were inspected; no Cargo/test process has
+run in this slice. The dirty original Oracle checkout is preserved.
+
+The reviewed proof checkpoint's artifact hash, 29 pinned Oracle dependency
+hashes, 10 Y3 direct dependency hashes, local links and whitespace passed
+static checks. Measurement samples remain zero. Complete argument-image
+preservation, source-qualified publication validity, H, complete Call,
+soundness/principality, intrusion construction and F5 replacement remain OPEN.
