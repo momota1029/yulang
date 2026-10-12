@@ -11893,6 +11893,20 @@ unused-import/dead-code warnings belong to the historical comparison source;
 cleanup would alter the immutable source evidence and is outside this lease.
 The dirty original Oracle checkout is preserved.
 
+The subsequent source audit verified the B/body source range against the
+distinct pattern and identified safe filtering of equal-inclusion logs only.
+No ledger/carrier/support filter is justified: a metadata no-op can still
+register claim-parent clause links. The minimal filter passed one independent
+delta review, compiled in 8.54 seconds and passed the same exact fixture in
+17.06 seconds. Current patch SHA-256 is
+`808ebcab1d5115dc47640354e58791c8e5800fb8dc732aa6d153e9ad6640fb12`.
+The second capture still hits 12,000 events before retaining root/neutral/merge
+observations; its actual carrier/support volume defeats the single shared
+observation budget. Primary's next source-evidence method is a separately
+bounded frontier stream followed by proof/source work on its actual operands
+and support cone. The universal theorem and returned-image gate remain OPEN;
+two exact passes do not close them. Do not repeat either unchanged capture.
+
 The reviewed proof checkpoint's artifact hash, 29 pinned Oracle dependency
 hashes, 10 Y3 direct dependency hashes, local links and whitespace passed
 static checks. Measurement samples remain zero. Complete argument-image

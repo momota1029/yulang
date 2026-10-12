@@ -354,7 +354,7 @@ index d75544523..5288d66d8 100644
              key: constraint.clone(),
              root_origins: origin.into_iter().collect(),
 diff --git a/crates/infer/src/constraints/mod.rs b/crates/infer/src/constraints/mod.rs
-index 14860e366..085d6cb4f 100644
+index 14860e366..2291cf255 100644
 --- a/crates/infer/src/constraints/mod.rs
 +++ b/crates/infer/src/constraints/mod.rs
 @@ -44,6 +44,44 @@ mod trace;
@@ -402,19 +402,21 @@ index 14860e366..085d6cb4f 100644
  #[cfg(test)]
  thread_local! {
      static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
-@@ -2112,6 +2150,11 @@ impl ConstraintMachine {
+@@ -2112,6 +2150,13 @@ impl ConstraintMachine {
          #[cfg(not(test))]
          let _ = is_included;
          #[cfg(test)]
-+        research_choice_trace(format_args!(
-+            "inclusion record={lower_record:?} before={was_included} after={is_included} epoch={:?}",
-+            self.epoch,
-+        ));
++        if was_included != is_included {
++            research_choice_trace(format_args!(
++                "inclusion record={lower_record:?} before={was_included} after={is_included} epoch={:?}",
++                self.epoch,
++            ));
++        }
 +        #[cfg(test)]
          self.record_semantic_projectability_transition(lower_record, was_included, is_included);
          Some(intent)
      }
-@@ -2369,6 +2412,10 @@ impl ConstraintMachine {
+@@ -2369,6 +2414,10 @@ impl ConstraintMachine {
              return;
          }
          let epoch = self.bump_epoch();

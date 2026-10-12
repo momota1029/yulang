@@ -498,7 +498,7 @@ Commit packet:
 
 The research-only [trace patch](../../tools/research_choice_recollection_trace.patch)
 applies to pinned Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
-Its frozen SHA-256 is
+Its first reviewed revision at `60a2003a2` has SHA-256
 `42fb29a070d09048a87a9de511a7d519978c77341d40fb1b0c184ef26b37294d`.
 It is applied only in the isolated detached worktree
 `/home/momota1029/rust/yulang2-choice-recollection-trace`; the dirty original
@@ -575,6 +575,48 @@ neutral arguments are `NeuId(28..31)`, with native bounds
 `(PosId(103),NegId(90))`, `(PosId(104),NegId(91))`,
 `(PosId(105),NegId(92))`, `(PosId(106),NegId(93))`.
 These are captured identities, not a proof of their final compatibility or
-preservation. Independent prefix/source audit remains pending. The next
+preservation. Independent prefix/source audit verified that this is the arm
+body's cut, distinct from the pattern reference at `368..378`. Signature
+admission is `ConstraintRecordId(79)`, empty weights, epoch 86; the subsequent
+return-Effect structural comparison is `ConstraintRecordId(85)` with parent
+claim `UpperReplayClaimId(40)`. This is not the complete B-to-body support
+crosswalk. The next
 capture must reach the actual weighted collection and publication owners;
 another count-only lemma cannot substitute for that missing correspondence.
+
+### Inclusion observation filter
+
+The current patch SHA-256 is
+`808ebcab1d5115dc47640354e58791c8e5800fb8dc732aa6d153e9ad6640fb12`.
+A second narrow independent delta review found no issues. The only additional
+source change suppresses the inclusion logger when its already computed
+before/after Boolean is equal. All 5,844 inclusion events in the first prefix
+were `true -> true`. Pinned `constraints/mod.rs:2125` classifies equality as
+`MetadataOnly` or `None`, never `OwnersChanged`; actual projection work and
+the existing semantic transition recorder remain unchanged. Nonidentity
+inclusion transitions still log, and both original caps remain fixed.
+
+Carrier/support observations cannot be filtered by the same criterion.
+All 4,098 retained carriers are distinct. Even when ledger preparation returns
+no metadata mutation (`proof/mod.rs:5781`), the owning admission independently
+registers claim-parent clause links (`machine/bounds.rs:2373`). An unchanged
+inclusion Boolean or empty independent-support vector therefore does not
+establish a whole-operation support no-op. Every carrier, producer, support,
+claim and projection-owner observation is retained. The next bounded capture
+tests coverage; this source audit proves no returned-image theorem.
+
+The filtered revision compiled in 8.54 seconds and its exact fixture passed
+in 17.06 seconds, using the same commands and bounds as above. The second
+capture remains truncated at 12,000 events: 9,147 carrier, 1,611 lower-support
+and 1,022 producer observations consume almost all retained events. It has no
+retained root/neutral/merge observations. Its 53,249,776-byte runtime log is
+`research-logs/choice-runtime-filtered.log` in the isolated worktree, SHA-256
+`21e9452021a481c59d6315c0e7bc371620c5ea9dd231a33e9498999e338a70d8`.
+Suppressing equal-inclusion logs therefore does not solve the capture gap.
+Do not repeat this unchanged capture or claim absent propagation.
+
+The next observation method must reserve a separate bounded budget for the
+source/collector/merge/root frontier, so support-volume truncation cannot
+silence those owners. Any omitted support observations remain explicitly
+incomplete. Once actual final operands are known, the owning proof can target
+their real support cone; frontier capture alone cannot establish it.
