@@ -13666,3 +13666,47 @@ either, return the exact missing clause and consequences through design
 authority before implementation. H, complete Call, soundness, principality,
 general admission and F5 remain OPEN. No code, tests, builds or measurements
 changed or ran.
+
+### 2026-10-13 negative FormalAnnotation rule and concrete Row owner cuts
+
+The frozen [original-rule application attempt](../notes/theory/2026-10-13-negative-formal-original-rule-proof-attempt.md)
+constructs the actual HIR/Lambda association, composed polarity and selected
+local subtraction permission. It stops at `d_ann`: the original Parameter/
+Lambda annotation law connecting the governed port to an actual contribution
+route and same-environment checking/realization. `L-Annotation`,
+`A-Annotation`, `SF-Annotation` and Source Generalize consume that input; the
+attempt does not derive it. This repeats the same premise reached by the
+instance and source-owner audits, so stop equivalent proof variants and route
+the exact missing clause through the existing source-definition authority
+path. No new source rule, source-wide absence result, or change to subtraction
+meaning is adopted.
+
+The bounded [Row-demand owner audit](../notes/progress/2026-10-13-negative-formal-row-demand-owner-audit.md)
+finds that the inspected Y3 cone builds symbolic invocation rows and
+Support/Allowance views; its consumers forward an Allowance to its exact tail
+or retain filter context, without the required correlated concrete-Row,
+gamma-feedback and per-tail-projection recipe. A pinned Oracle Catch path is a
+comparative producer of handled heads plus its actual residual tail and Stack
+view, but Y3 has no corresponding LocalSource Catch constructor in the
+inspected route. This supplies no Y3 source judgment or adoption authority.
+Keep the original annotation incidence, concrete demand, H, complete Call and
+F5 gates OPEN. No compiler code, tests, builds, probes or measurements changed
+or ran.
+
+The user's linked [activated check-closure derivation](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+is a separate recursive-call gate. Its independent review passed after
+repairing the source-membership premise for inline intersection/union cases.
+Endpoint closure supplies target atoms only for edges whose source tuple is
+already in R; it does not give a `Phi(R)` readout for an exposed union arm.
+The bounded union witness is generic non-entailment, not an actual cO/cE
+counterexample. Authentic cO/cE/base provenance and complete check-clause laws
+remain open. Keep this gate separate from negative-formal H; its next action
+remains to inspect the actual cO/cE checks for exposed positive atoms and
+construction-owned readouts. No tests, builds or compiler edits were made.
+
+Research-only checkpoints: `506094bd0` (original-rule attempt) and `8da0063e7`
+(Row-demand owner audit). Push was attempted after inspecting the outbound
+range, but DNS resolution for `github.com` failed; both coherent commits remain
+local and the branch is ahead of its upstream by two commits. Shared status is
+recorded here; soundness, required principality, source correspondence,
+complete Call/effects, termination and F5 remain OPEN.

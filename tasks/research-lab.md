@@ -927,3 +927,28 @@ indices and locate the source-owned concrete-`Row` demand producer/consumer.
 If an adopted clause is absent, return the precise missing source rule and its
 consequences through the existing authority path. No compiler code, tests,
 builds, probes or measurements changed or ran.
+
+### 2026-10-13 original annotation and concrete Row owner cuts
+
+The [original-rule application attempt](../notes/theory/2026-10-13-negative-formal-original-rule-proof-attempt.md)
+derives actual HIR/Lambda indices, composed polarity and selected permission,
+then stops at the original `d_ann` law for governed-port/contribution-route
+incidence and same-environment checking. Earlier instance/source-owner methods
+hit the same premise; stop equivalent proof variants and route the exact source
+clause to the existing authority path. The [Row-demand audit](../notes/progress/2026-10-13-negative-formal-row-demand-owner-audit.md)
+finds no required concrete-Row/gamma/projection recipe in the inspected Y3
+cone. Oracle Catch supplies only a comparative concrete Row plus actual tail
+and Stack view; current LocalSource has no Catch constructor in that route.
+Both outputs are bounded, unreviewed research characterizations and claim no
+Y3 source judgment or absence theorem. No builds, tests, probes, measurements
+or compiler changes ran.
+
+These H/annotation gaps remain independent of the reviewed
+[activated check-closure derivation](../notes/theory/2026-10-13-check-closure-compatibility-proof.md).
+That derivation proves endpoint target-atom closure and displayed conditional
+cases; it still lacks source-provenance readouts for exposed positive arms,
+complete check-clause laws, and authentic cO/cE/base evidence. Its generic
+union non-entailment witness is not source-qualified. Keep both parent gates
+OPEN and do not conflate them. Checkpoint commits: `506094bd0` and
+`8da0063e7`; push is pending because this session could not resolve
+`github.com`.
