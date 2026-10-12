@@ -49,9 +49,12 @@ exact path creation; a rename's predecessor is recorded separately.
 
 The catalogue also includes the archived May effect seed/detail, June cooccur
 and optimization material, July generalization/cache/epoch/row-reduction
-designs, and July–August provenance and proof-kernel decisions. Their individual
-definitions, approval scopes, supersession and proof statuses remain to be
-integrated rather than inferred from their directory or commit author.
+designs, and July–August provenance and proof-kernel decisions. The four
+appendix audits below now record full selected-text coverage for all 33 named
+implementation contracts: 32 texts in the Oracle anchor and one June effect
+plan recovered from the separately pinned rescue ref. Each appendix separates
+approval scope, theorem claims, operational invariants, reported checks,
+withdrawals and current transfer limits.
 
 ## 2. Verification method and authority
 
@@ -250,55 +253,35 @@ than every main conclusion separately refuted.
 
 | Coverage class | Historical paths | Meaning |
 | --- | ---: | --- |
-| Complete selected text read | 73 | 63 distinct blobs, including 16 additional defining/operational reads; reading is not theorem certification. |
-| Implementation contracts with normative section inventories | 33 | Status, revisions and named claims inspected; full appendices remain unverified. |
+| Earlier complete selected-text reads | 73 | 63 distinct blobs, including 16 additional defining/operational reads; reading is not theorem certification. |
+| Historical implementation-contract appendices fully read | 33 | 32 Oracle-anchor texts plus one separately pinned rescue-only text; 36,499 lines across four audit reports. No source theorem or compiler correspondence is certified by reading alone. |
 | TeX definition/theorem inventories | 6 | Assigned proof groups audited by two provers and independently reviewed; not every external auxiliary proof checked. |
 | Imported PDF screen | 20 | Ten distinct papers; bibliography and model boundaries, not independent full proof certification. |
 | Other text content screen | 513 | Classified for relevance; no claim of full manual reading. |
 
-No priority defining/operational queue remains. Exhaustive path discovery and
-this core proof audit are completed slices; full corpus precision/approval
-receipts, every revision body and the following implementation appendices are
-not declared completed. Their remaining status is kept explicitly in the TSV.
-The parent inference/replacement goal remains active. The appendix queue is
-historical audit work, not a new automatic prerequisite for every current
+No priority defining/operational document remains unread in the selected
+historical design/specification/research corpus. The reports are:
+
+| Report | Historical source coverage | Main dependency results |
+|---|---|---|
+| [Appendix A](appendix-batch-a.md) | 11 paths; 10 Oracle-anchor bodies and one rescue-only June flow plan; 10,468 lines | OD scheduler evidence is conditional on the complete dependency frontier; suffix prediction was abandoned; OC/PU/SU approval is scoped; DCP→MPC→DPN keeps lineage, conjunction and typed premises distinct; allocation-ID rank is withdrawn; URR-v3 evaluator B and its motivating witness are retired. |
+| [Appendix B](appendix-batch-b.md) | 11 Oracle-anchor bodies; 11,083 lines, including the dated B-v2 completion addendum | CPK-0 supersedes only RCPF-D §3; exact first-winner/event ordering remains distinct from set equality; RCPF/D/CPK migration parity has no general source-typing theorem. |
+| [Appendix C](appendix-batch-c.md) | 9 Oracle-anchor bodies; 8,461 lines | Projection and routing require exact payload/endpoint ownership; SV-C cache validity is conditional on complete constructors, commits, reads and consumers; recorded suite work remained unfinished. |
+| [Appendix D](appendix-batch-d.md) | 2 Oracle-anchor bodies; 6,487 lines | Typestate-only read exhaustiveness was withdrawn; cache reuse and poison isolation remain conditional on named source reachability and publication gates. |
+
+Each report has a fresh independent documentary review with no correctness
+findings in its bounded scope. This means the reports match the selected
+historical sources; it does not independently validate the old compiler,
+unread intermediate revision bodies, direct external approval receipts, or the
+historical implementation claims.
+
+No priority defining/operational queue remains. Full corpus proof/approval
+precision, every historical revision body, 513 screened text paths and
+unreachable drafts are still outside completed reading. The selected appendix
+coverage and core proof audit are completed slices; the parent
+inference/replacement goal remains active. Historical cache, provenance and
+diagnostic mechanisms are not automatic prerequisites for every current
 Simple-sub construction.
-
-Remaining full appendices, all under `notes/design/`:
-
-- `2026-06-22-effect-flow-lowering-plan.md`
-- `2026-07-15-owner-level-dirty-scheduling-spec.md`
-- `2026-07-15-suffix-safety-oracle-spec.md`
-- `2026-07-21-constraint-provenance-redesign-spec.md`
-- `2026-07-21-ordinary-cast-resolution-spec.md`
-- `2026-07-22-parameter-use-site-provenance-spec.md`
-- `2026-07-22-subtype-explanation-bridge-spec.md`
-- `2026-07-30-derived-row-claim-propagation-gap.md`
-- `2026-07-31-claim-parent-delta-materialization.md`
-- `2026-07-31-mixed-proof-conjunctive-ownership.md`
-- `2026-08-01-derived-unary-premise-nodes.md`
-- `2026-08-01-urr-v3-causal-qualification.md`
-- `2026-08-02-mpc-dpn-projection-evaluation-round.md`
-- `2026-08-02-replay-claim-parent-factorization.md`
-- `2026-08-03-rcpf-d-materialization-projection-addendum.md`
-- `2026-08-04-mutable-reference-act-template-instantiation.md`
-- `2026-08-05-constraint-proof-kernel-separation-plan.md`
-- `2026-08-05-cpk-0-projection-admission-addendum.md`
-- `2026-08-05-rcpf-e-clause-link-attribution-and-ordering-addendum.md`
-- `2026-08-06-cpk-7-route-endpoint-decoupling-addendum.md`
-- `2026-08-06-cpk-projection-decision-addendum.md`
-- `2026-08-06-cpk-replay-routing-decision-addendum.md`
-- `2026-08-07-cpk-8-legacy-removal-plan.md`
-- `2026-08-07-cpk-8g-4b-cycle-cut-parity-addendum.md`
-- `2026-08-07-cpk-8g-physical-removal-plan.md`
-- `2026-08-11-projection-clause-link-factorization.md`
-- `2026-08-12-cpk-preflight-structural-validity-addendum.md`
-- `2026-08-12-qualified-parent-replay-occurrence-factorization.md`
-- `2026-08-13-cpk-sv-c-dynamic-dependency-synchronization-addendum.md`
-- `2026-08-13-cpk-sv-d-sealed-conservative-cache-plan.md`
-- `2026-08-14-cpk-sv-d-ss2-read-foundation-resequencing-addendum.md`
-- `partial-compilation-cache-plan.md`
-- `std-special-case-audit.md`
 
 Verification: fixed Git documents/history, source blob/hash checks, relative
 links, Markdown fences, TSV shape and whitespace. Metadata/records are M0;

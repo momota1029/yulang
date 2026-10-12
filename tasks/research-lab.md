@@ -556,12 +556,44 @@ choice §11 and pre-existing negative-residual material remain outside this
 slice. Value association/intrusion, complete Call, hygiene, normal progress,
 termination, soundness, principality and F5 replacement stay OPEN.
 
-Final discovery/core-audit coverage: 73 complete selected-read path rows / 63
-blobs, six TeX claim inventories with assigned proof audits, 20 PDF path screens,
-33 named implementation-contract inventories with full appendices unverified,
-and 513 other text content screens. No priority defining/operational queue
-remains; exact appendix paths, unknown receipts and unverified revision bodies
-are listed in the consolidated audit. The catalogue initially overstated the
-CBV witness as refuting every main conclusion; primary corrected it to the
-reviewed colored-fundamental refutation and unsupported integrated proof.
-No full-corpus theorem or source acceptance gate is certified.
+Final discovery/core-audit coverage: 73 earlier complete selected-read path
+rows / 63 blobs, six TeX claim inventories with assigned proof audits, 20 PDF
+path screens, 33 implementation-contract appendix bodies now fully read, and
+513 other text content screens. The 33 comprise 32 Oracle-anchor texts plus one
+separately pinned rescue-only effect-flow plan, totaling 36,499 lines. Four
+appendix reports each received one fresh independent compiler-referee review;
+all returned no correctness findings within scope. This is documentary
+consistency review, not validation of the old compiler or source correspondence.
+No priority defining/operational document remains unread in the selected
+historical design/specification/research corpus; full-corpus precision,
+external approval receipts, every intermediate revision body, and the 513
+screened paths remain incomplete. The catalogue initially overstated the CBV
+witness as refuting every main conclusion; primary corrected it to the reviewed
+colored-fundamental refutation and unsupported integrated proof. No full-corpus
+theorem or source acceptance gate is certified.
+
+### 2026-10-12 Oracle appendix completion and synchronization
+
+All four selected-document appendices are committed and pushed in five
+research-only checkpoints: `f4cfc0585`, `863c9b98f`, `a9949026c`, `23fe32ca4`,
+and `bab969651`. The shared catalogue/README/current-task updates and this lab
+record are synchronized in a separate records-only commit. The frozen corpus
+hashes and per-report source lists are in
+[`oracle-inference-document-audit`](../notes/theory/oracle-inference-document-audit/README.md).
+
+The audit contributes historical dependency distinctions, not a current
+Simple-sub proof: bounded directed-weight algebra and potential descent need a
+source-level measure bridge; the printed colored fundamental theorem is
+refuted by a ground CBV let-effect witness; generalization/extraction, complete
+Call and effect hygiene have no closed joint source theorem. Storage, cache,
+provenance and routing contracts do not supply the missing relation between
+source occurrences, Value owners and associated type variables.
+
+Budget: M0 shared-record synchronization after M3 documentary audit; one
+independent reviewer per frozen report, all clean; zero builds, tests, runtime
+probes, benchmarks or measurement samples. No compiler files changed. The next
+critical proof gate remains construction of the source-occurrence/Value/type
+association for nested cross-level recursion, followed by proof or refutation
+of qualified extrusion parent/copy equality. Soundness, principality, normal
+progress, termination, complete Call, effect hygiene and F5 replacement remain
+OPEN.

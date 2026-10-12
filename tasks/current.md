@@ -16,9 +16,13 @@ preserved in the isolated Oracle worktree; it is not run or integrated.
 The [audit corpus and reports](../notes/theory/oracle-inference-document-audit/README.md)
 pin Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`, legacy inference refs,
 deleted/renamed drafts and the later main history. Enumeration covers 645
-historical document paths, not 645 verified proofs. Approval scope, reported
-proof status, independently checked validity and current applicability are
-separate fields. Missing/unread material remains explicit.
+historical document paths, not 645 verified proofs. The four appendix audits
+now cover all 33 selected implementation-contract documents (32 at the Oracle
+anchor and one separately recovered rescue-only flow plan), across 36,499
+lines. Their claims are separated from implementation evidence and from current
+Simple-sub applicability. All four report audits passed bounded independent
+documentary review with no correctness findings; that review does not certify
+the historical compiler or source correspondence.
 
 Research lanes: two actual `prover` assignments for weights/termination and
 typing/generalization, a historical hygiene/change-reason researcher, a
@@ -43,23 +47,36 @@ exact models; their source/consumer translations remain separate obligations.
 First reviewed checkpoint `030bac06a` is pushed to the research branch.
 The reviewed typing/history slice is also pushed as `d7fd2b0c6`.
 
-The catalogue is now frozen and integrated: 645 unique historical paths,
-19 metadata fields; 73 complete selected-read path rows representing 63 blobs;
-six TeX inventories with the assigned mathematical audits; 20 PDF paths
-representing ten screened works. The additional 16 defining/operational
-documents were fully read. No priority defining/operational queue remains.
-Thirty-three implementation contracts have named normative inventories but
-unverified full appendices; 513 other text rows are content-screened rather
-than fully manually read. Exact remaining paths and coverage limitations are
-in the audit README/TSV. Full-corpus and all-revision proof/approval verification
-is not declared complete.
+The catalogue has 645 unique historical paths and 19 metadata fields. Its 73
+earlier full selected-read rows represent 63 blobs; 33 additional appendix
+documents now have full body reads, with dates, approvals, revision history,
+definitions, theorem status and supersession recorded in [appendices A–D](../notes/theory/oracle-inference-document-audit/README.md).
+The six TeX inventories and assigned mathematical audits remain separately
+scoped; 20 PDF paths represent ten screened works. The additional 16
+defining/operational documents were also fully read. No priority
+defining/operational document remains unread in the selected historical
+design/specification/research corpus. Another 513 text rows are content-screened
+rather than fully manually read; unreachable drafts, every intermediate revision
+body and external approval receipts remain unverified. Full-corpus and
+all-revision proof/approval verification is not declared complete.
 
 The original current soundness, principality, normal progress, termination,
 complete Call, effect hygiene, qualified intrusion and F5 replacement gates
-remain OPEN. Next: inspect remaining historical appendix claims where they
-own an actual proof/transfer dependency; use the reviewed precise dependency
-graph to select the next mathematical construction. The unreviewed previous choice §11 and
-pre-existing negative-residual draft remain outside this checkpoint.
+remain OPEN. Next: return to the mathematical critical path. The audit found no
+Oracle storage/provenance design that supplies the missing source-to-Simple-sub
+theorem bridge. Resume the actual source-value/type-occurrence association for
+cross-level mutual recursion, then prove or refute the qualified extrusion
+parent/copy equality from that construction. Keep complete Call, principality,
+effect hygiene, termination and F5 replacement gates OPEN. The unreviewed
+previous choice §11 and pre-existing negative-residual draft remain outside
+this checkpoint.
+
+Research-only appendix checkpoints pushed to `research/simple-sub-intrusion`:
+`f4cfc0585` (B initial coverage), `863c9b98f` (C), `a9949026c` (D),
+`23fe32ca4` (A), and `bab969651` (B full-read addendum). The latest audit
+records still need their shared catalogue/README/lab synchronization commit;
+those edits contain no implementation change. The historical audit is a
+completed documentary slice, not completion of the active inference objective.
 
 Latest controlling intrusion clarification (2026-10-12): see
 [value-to-type association](../notes/design/2026-10-12-intrusion-value-type-association.md).
