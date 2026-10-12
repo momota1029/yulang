@@ -13403,3 +13403,27 @@ publication-indexed dependency/coordinate map; only then apply the existing
 fixed-field walk and allocation theorem. Soundness, required principality,
 source adequacy, complete Call, effects, progress, termination and F5 remain
 OPEN. No implementation or tests changed/run.
+
+### 2026-10-13 raw c1 Application owner result
+
+The constructive [raw Application owner pass](../notes/theory/2026-10-13-c1-raw-application-owner-construction.md)
+and independent [scope falsification](../notes/progress/2026-10-13-c1-raw-application-owner-falsification.md)
+were separately reviewed by `compiler_referee` and `spec_auditor`; both passed
+their bounded claims. Typed-core §6 supplies a conditional result/consumer
+skeleton for `App(Name(f),Name(y))` with the active monomorphic f root. It is a
+Draft and does not emit the authentic c1 Application/Gen-Call-0, whole-argument
+reification, operand-check origins or complete provider/result suffix required
+by Code-Call. The earlier `apply/step` `Role_0` construction is scoped to an
+unannotated formal and cannot supply recursive f's record. The native demand,
+signed extrusion pairs and approved `C=B,D=R` equalities still have no lawful
+action on the complete source tuple; actual `p_g/K_g/N_g` records and their use
+maps are also absent. This is a missing constructor/transport premise, not
+source rejection, a source counterexample, or a need for a `Desc` for C.
+
+The prior conditional Code-Call review remains valid only with its stated
+complete authentic Application inputs; it does not prove those inputs are
+generated here. The first unresolved owner is the raw c1 Application
+introduction and its dependent native-to-source action, followed by actual g
+publication/allocation. Original soundness, required principality, complete
+Call, effects, natural progress, termination and F5 remain OPEN. No compiler
+code or tests changed or ran.

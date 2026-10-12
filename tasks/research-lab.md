@@ -773,3 +773,16 @@ map, followed by the publication-indexed fixed-field walk and lawful
 substitution into both real use frames. Parent soundness, principality,
 complete Call, effects, progress, termination and F5 remain OPEN. No compiler
 code, tests, builds, probes or measurements were run in this follow-up.
+
+The raw c1 pass produced a construction-directed conditional §6 substitution
+and an independent rule-scope falsification. `compiler_referee` and
+`spec_auditor` respectively passed the bounded artifacts. §6 supports a
+conditional application result skeleton when lexical/declaration interfaces
+are supplied, including active recursive f; it does not emit the original
+complete Code-Call input. The prior §4.2–5 decorated route cannot stand in for
+this: its exact `apply/step` premises include `Role_0` for an unannotated
+formal. Authentic c1 Application origins and the native-to-whole-clause action
+remain OPEN, as do actual g-publication component/dependency records and both
+fresh-use maps. This is not source rejection or parent-theorem closure. See
+[`c1 raw Application construction`](../notes/theory/2026-10-13-c1-raw-application-owner-construction.md)
+and [its independent falsification](../notes/progress/2026-10-13-c1-raw-application-owner-falsification.md).
