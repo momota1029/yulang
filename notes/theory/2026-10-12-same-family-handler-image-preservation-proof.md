@@ -1,7 +1,7 @@
 # Same-family handler contribution through Oracle scheme images
 
 Date: 2026-10-12
-Status: frozen producer forward-image derivation; independent review pending; full H/P+ identity OPEN
+Status: frozen bounded forward-image derivation; independent `compiler_referee` review and minor-finding delta review clean; full H/P+ identity OPEN
 Claim class: bounded conditional source-to-current-output image preservation
 Oracle source: immutable `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Exclusive lease: this file only; leaf, no delegation
@@ -419,19 +419,20 @@ a newly registered generalized return-path certificate. The generalized
 provenance owner skips that root return position, as the preceding note
 records; that does not contradict the forward semantic result.
 
-For the full original H conclusion, the earliest transformation whose
-**complete attachment/projection identity correspondence** has not been
-established in this derivation is variable rewriting during compact
-generalization: `compact/analysis/occurrence/substitution.rs:109–169` can
-remove a variable occurrence, replace it by a representative and union
-weights at the representative. The subsequent stack cleanup can remove
-subtract IDs from variable weights (`generalize/core/prune.rs:504–557,
-865–930`). This proof establishes that these operations preserve B's
-concrete nullary return key; it does not establish the original source
-attachment / symbolic-tail / all-current-and-future-check relation for
-every transformed variable position and original scope/binder. Saved
-substitutions and the consistent fresh-use map show where to prove that
-larger correspondence, but do not prove its semantic adequacy by themselves.
+For the full original H conclusion, variable rewriting during compact
+generalization is an **identified next interface seam**, not a proved earliest
+gap: `compact/analysis/occurrence/substitution.rs:109–169` can remove a
+variable occurrence, replace it by a representative and union weights at the
+representative. The subsequent stack cleanup can remove subtract IDs from
+variable weights (`generalize/core/prune.rs:504–557,865–930`). This proof
+establishes that these operations preserve B's concrete nullary return key;
+it does not establish the original source attachment / symbolic-tail /
+all-current-and-future-check relation for every transformed variable
+position and original scope/binder. Earlier collection was followed only for
+this positive endpoint, not for the complete annotation/interface
+correspondence. Saved substitutions and the consistent fresh-use map show
+where to prove the larger correspondence, but do not prove its semantic
+adequacy by themselves.
 
 This is an **unproved portion**, not a demonstrated loss. No extra runtime
 certificate dependency, injectivity requirement, new semantic relation or
@@ -464,12 +465,13 @@ must concern the original variable attachment/residual/current-and-future
 interface correspondence, not an equivalent proof that positive row merging
 retains the nullary E key.
 
-One next action: primary independently review this actual forward map, then
-apply it to H's independent-contribution clause and assign the precise
-variable rewrite / stack-cleanup interface correspondence still needed by
-H, preserving original scopes, binders, attachment and residual quantifiers.
-No new job, instrumentation, semantic adoption or implementation authority
-is created by this leaf.
+The bounded forward-map derivation has passed independent `compiler_referee`
+review and delta review. The minor finding on the word “earliest” is repaired
+above. Next, apply the actual map to H's independent-contribution clause and
+assign the precise collection/interface plus variable rewrite / stack-cleanup
+correspondence still needed by H, preserving original scopes, binders,
+attachment and residual quantifiers. No new job, instrumentation, semantic
+adoption or implementation authority is created by this leaf.
 
 ## 9. Checks, dependency freeze, resources, and commit packet
 
@@ -497,8 +499,10 @@ Primary commit packet:
   `d4d77622765d986cb46cbbe0b79fdfa6b18d9099ec53129c877b4cfc0e6f367f`.
 - Source-route dependency SHA-256:
   `5b797e286e5ce787e31d4a63a2a70981f03c0b3d1077677cfd4c216c223efa70`.
-- This producer changed no dependency. Review of this new note is pending;
-  prior reviews are inputs, not independent review of this continuation.
+- This producer changed no dependency. Independent `compiler_referee` review
+  found no blocking or major issue and one minor wording correction to the
+  claimed earliest OPEN seam; the correction passed delta review. Prior
+  reviews are inputs, not independent review of this continuation.
 - Proposed checkpoint message: `research: trace same-family handler contribution through Oracle scheme images`.
 - Shared-record delta for primary/curator: record the bounded B-origin
   positive image through the actual current outer Call, including normal
@@ -509,7 +513,8 @@ Primary commit packet:
 Final mechanical checks passed: whitespace, final newline, fence balance,
 local links and draft-residue inspection; the three frozen input hashes
 matched their initial snapshots. These are document checks, not inference
-verification or independent proof review. Freeze checkpoint:
+verification. The forward-image mathematics and bounded wording repair are
+frozen after independent and delta review. Freeze checkpoint:
 2026-10-12 00:45:22 UTC, approximately 23 minutes after packet start, within
-the 45-minute ceiling. This file is frozen for primary-assigned independent
-review. No H status promotion or additional proof expansion follows.
+the 45-minute ceiling. No H status promotion or additional proof expansion
+follows.

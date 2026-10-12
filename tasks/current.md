@@ -11746,10 +11746,13 @@ The next proof owner is the actual source/copy-content constructor and its
 transport through polarity-specific extrusion; continue only from an authentic
 creation-to-SCC trace. The same-family Oracle effect lane has now derived a
 bounded B-origin positive image from the actual included `b_R` endpoint through
-compact collection, generalization, publication/copy and the outer Call. The
-artifact is committed at `daf140cb5`, but its independent review remains
-pending. It does not close H: attachment/residual identity, arbitrary variable
-rewrites and current/future checks remain OPEN. Complete Call, effects,
+its selected compact collection path, generalization, publication/copy and the
+outer Call. Independent `compiler_referee` review found no blocking or major
+issue and one minor wording issue: variable rewriting is an identified next
+interface seam, not proved to be the earliest H gap. The correction passed
+delta review. This does not close H: complete collection/interface correspondence,
+attachment/residual identity, arbitrary variable rewrites and current/future
+checks remain OPEN. Complete Call, effects,
 ordinary source correspondence, soundness, principality and F5 replacement
 stay OPEN.
 
