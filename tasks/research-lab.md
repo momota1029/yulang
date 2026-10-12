@@ -663,3 +663,18 @@ remain OPEN. Verification was documentary/static only: whitespace and
 dependency hashes; no builds, tests, probes, benchmarks or measurements.
 The next action is to ground the authentic annotation-to-live-PUSH constructor
 and consumer relation, not to expand the finite algebra model.
+
+### 2026-10-12 contextual live-PUSH source obstruction
+
+| Assignment | Method / lease | Result |
+| --- | --- | --- |
+| `context_live_push_source_audit` | Static producer/consumer trace; `notes/progress/2026-10-12-contextual-live-push-source-audit.md` only | Frozen; paired-ascription path retains `SourceUnitPush` metadata, but `LocalWeight` has empty live words, symbolic-tail views lack `closed_weight`, and context admission selects only a closed zero-word Allowance. Detached materialization has no non-test caller in the inspected solver tree. |
+| `live_push_spec_review` | Fresh independent `spec_auditor` review of the frozen source audit | No blocking, major or minor findings. Confirms the named constructor boundary and honest stop scope; exact source acceptance, output POP, lineage, generalization, lifecycle and public output unreviewed. |
+
+The absent live PUSH is the first missing construction premise for applying the
+reviewed cycle-image algebra to these source shapes. This is bounded source
+correspondence evidence, not a source-program counterexample or a general
+absence theorem. Matching output POP, attachment/recipe lineage, complete
+replay and publication remain OPEN. No compiler code, tests or expectations
+changed. Checkpoint `ea45f0786` is committed locally; task records are being
+synchronized separately.

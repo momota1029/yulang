@@ -144,6 +144,19 @@ remains open at attachment-to-live-PUSH construction. No compiler code or tests
 changed. The proof checkpoint `98f34a91d` is pushed; the association question
 and unrelated research drafts remain untouched and uncommitted.
 
+The follow-up [source-conformance audit](../notes/progress/2026-10-12-contextual-live-push-source-audit.md)
+confirms that the paired-ascription path currently retains `SourceUnitPush`
+metadata but constructs no live PUSH payload: `LocalWeight` has empty word
+fields, and the closed Allowance path admits only a zero-word filter. The
+detached unit-PUSH adapter has no non-test caller in the inspected solver tree.
+An independent `spec_auditor` found no findings. This is a bounded obstruction
+for the named route, not a compiler-wide absence theorem or a source-program
+counterexample. Matching output POP, residual lineage, replay and publication
+remain OPEN. Checkpoint `ea45f0786` contains the reviewed audit; no compiler
+code or tests changed. The next owner is the approved contextual annotation
+constructor/consumer path; no arbitrary concrete-formal admission or public
+cutover follows from this finding.
+
 ## User objective and branch boundary
 
 The active user objective is to complete type inference and replace the F5
