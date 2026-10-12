@@ -191,6 +191,23 @@ original Entry/Call D tree from its authentic c-specific argument, effect,
 guard and interface children, keeping P-at-S and recursive L4 separate.
 L3-at-c, L4, complete Call, soundness, principality and F5 remain OPEN.
 
+The follow-up direct Entry/Lambda/Application/IF construction is in
+[the complete-D attempt](../notes/theory/2026-10-12-fy-complete-d-construction.md).
+It reaches the same first missing judgment directly at the owning finite
+Function-check node: for an arbitrary complete `d ∈ D_F_c(e)`, prove
+`Acc(I_x; d.wholeCarrier, C_e, w_e, eta0, xi)` at the unchanged event, then
+supply receiver guards and the authentic complete `A_f` challenge. Required-
+child inversion and a strictly formation-only projection show why ports,
+origins and entry construction do not entail that semantic action; the
+projection is not a full semantic countermodel. A fresh independent
+`compiler_referee` PASS checked the constructor trace, quantifiers and claim
+limits, and all 17 dependency hashes match the current tree. No D/P theorem,
+source counterexample, H_f postfixedness or L4 introduction follows. The next
+proof owner remains the original Entry/Call domain action and its authentic
+c-specific argument/effect/guard/interface children. Keep P-at-S and recursive
+L4 separate; complete Call, inference, soundness/principality and F5 remain
+OPEN. No compiler code or tests changed.
+
 For the independent effect lane, the actual registered `prover` artifact
 [live attachment through Call and residuals](../notes/theory/2026-10-12-live-attachment-call-residual-proof.md)
 is checkpointed at `639841c32`. It reuses, rather than repeats, the reviewed
