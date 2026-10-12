@@ -12140,3 +12140,60 @@ collision and the joint tuple/substitution image, but not that skipped weighted
 comparisons are discharged by the native filter/call/replay constructors. The
 exact remaining judgment and source owners are in §11; the fixture theorem and
 H remain OPEN. No compiler code or test expectation changed.
+
+### 2026-10-12 extrusion-occurrence intrusion and equality preservation
+
+The user clarified that the archived `answer-draft-revision-1.md` is part of
+the answer-draft history. It is preserved as non-authoritative revision history
+in commit `1bdcedffd`; the approved decision remains revision 2, integrated in
+`836f0b46e`, and the receipt keeps the two statuses separate.
+
+The corrected occurrence-qualified operation is now exercised by three
+separately frozen research artifacts:
+
+- The [source-construction audit](../notes/progress/2026-10-12-extrusion-occurrence-source-audit.md)
+  was independently `spec_auditor` reviewed with PASS and checkpointed in
+  `67dc9d79b`. It confirms that current Apply/demand/replay/extrusion records
+  do not retain the approved event identity, origin/receiver Values, or the
+  produced polar pairs as one event. The current intrusion consumer still
+  constructs SCCs over type solver rows and Function/bound structure. The
+  original reference derivation supplies the native pair construction only;
+  it supplies no Yulang Value certificate.
+- The [correlated-helper counterexample search](../notes/progress/2026-10-12-intrusion-occurrence-counterexample-search.md)
+  was independently `compiler_referee` reviewed as a correct conditional
+  native derivation and checkpointed in `b00668d31`. It constructs a complete
+  successful original Simple-sub typing for a recursive `f` and nested `g`
+  with two independent uses. If the qualifying equality is enforced against
+  the same fixed level-1 `C` in both use frames, the integer consumer and
+  boolean argument force `bool <: int`. The reviewer confirmed the native
+  trace, but not an admitted Yulang derivation or complete source bridge.
+- The [preservation proof attempt](../notes/theory/2026-10-12-extrusion-occurrence-intrusion-proof.md)
+  was produced by a generic worker after the registered `prover` launch failed
+  with “selected model at capacity”; requested Sol/high, observed model/effort
+  unknown. Its fresh independent `compiler_referee` review found no blocking or
+  major finding. One inaccurate claim that D's lower replay propagated to R/Z
+  was corrected: D has no upper edges at recursive completion, and the
+  existing inequalities remain consistent. The artifact is checkpointed in
+  `29c71f537` as reviewed conditional research.
+
+These results refute the specific strategy “enforce `C=B` in each helper-use
+frame while preserving the reference's shared low-level C” for that native
+construction. They do **not** refute the complete original Yulang A/B gate.
+The proposed heterogeneous witness uses Record/Selection, absent from the
+inspected private `LocalSource` carrier; its admission through the complete
+Yulang source judgment is unestablished. More fundamentally, authority fixes
+G→F for the displayed bare discriminator but does not yet give a general
+owner rule for an extrusion demand nested under wrappers, nor does it classify
+the live outer root/copy C as a fixed anchor or a jointly fresh eligible
+description at nested g publication. The two-use transport of the occurrence
+equality is likewise not derived. None of these may be inferred from numeric
+levels, Value SCC membership, or the current module `owner` field.
+
+The smallest remaining source gate is the owning Call-demand/extrusion
+constructor: retain the actual event endpoints and all its pairs through
+nesting/replay; then derive nested g's publication component, C's
+fixed/template status, and the equality in both independent frames from the
+selected Source-Generalize scopes. Until then, equality preservation,
+principality, normal progress, termination, complete Call/effect hygiene and
+F5 replacement stay OPEN. No compiler code, tests, or language expectations
+changed in these checkpoints.
