@@ -95,14 +95,19 @@ constructors do not select between them. This is an underdetermination result,
 not an unsoundness counterexample or parent theorem closure.
 
 The proof artifact and independent source-constructor audit passed one fresh
-`compiler_referee` review with no findings. Source inspection confirms the
-current Apply/extrusion path retains no association certificate; implementation
-remains gated. A scoped question asks the user to select the exact owner rule
-or state another rule; its directory remains uncommitted under the question-
-board contract. The dependent intrusion/equality work waits only on that
-association; independent effect-hygiene work continues. See the [constructive
-discriminator](../notes/theory/2026-10-12-intrusion-association-proof.md) and
-[source audit](../notes/progress/2026-10-12-intrusion-association-source-audit.md).
+`compiler_referee` review with no findings. The user then selected intrusion
+qualification per extrusion occurrence: retain its origin Value, receiving
+Value, and produced parent/copy pairs; intrude those pairs when the two Values
+share a Value-reference SCC. In the displayed `f/g` construction, `G` is the
+origin, `F` the receiver, and the event carries `(C,B,+,1)` and `(D,R,-,1)`.
+This resolves the association discriminator, not its all-path construction,
+equality-preservation proof, implementation, or F5 gate. The approved handoff
+is integrated in question receipt
+[`type-value-occurrence-association`](../questions/2026-10-12-type-value-occurrence-association/receipt.md).
+The current Apply/extrusion path still retains no such event certificate.
+See the [constructive discriminator](../notes/theory/2026-10-12-intrusion-association-proof.md),
+[source audit](../notes/progress/2026-10-12-intrusion-association-source-audit.md),
+and [authoritative occurrence rule](../notes/design/2026-10-12-intrusion-value-type-association.md).
 
 ### 2026-10-12 effect-hygiene source transfer checkpoint
 
@@ -141,8 +146,8 @@ states it explicitly. This does not establish authentic source attachment to a
 live PUSH relation, downstream POP/output correspondence, arbitrary mixed
 components, or certificate lifecycle correctness. The first source bridge
 remains open at attachment-to-live-PUSH construction. No compiler code or tests
-changed. The proof checkpoint `98f34a91d` is pushed; the association question
-and unrelated research drafts remain untouched and uncommitted.
+changed. The proof checkpoint `98f34a91d` is pushed; unrelated research drafts
+remain separately tracked for review and checkpointing.
 
 The follow-up [source-conformance audit](../notes/progress/2026-10-12-contextual-live-push-source-audit.md)
 confirms that the paired-ascription path currently retains `SourceUnitPush`

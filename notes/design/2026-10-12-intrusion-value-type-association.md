@@ -1,7 +1,9 @@
 # Intrusion qualification through value-to-type association
 
-Status: Authoritative clarification of the user's selected operation
-Scope: the graph domain and the connection from Value SCCs to type intrusion
+Status: Authoritative clarification of the user's selected operation and
+extrusion-event qualification
+Scope: the graph domain, extrusion occurrence identity, and the connection
+from Value SCCs to type intrusion
 Approved-by: user, direct clarification in the working conversation
 Approved-at: 2026-10-12; exact message timestamp unavailable
 Reviewed-by: independent compiler_referee, no findings, 2026-10-12;
@@ -18,6 +20,35 @@ The values whose references define SCCs and the type variables changed by
 intrusion are distinct mathematical objects. A solver row of kind Value is a
 type coordinate; its name does not establish that it is a semantic value
 variable.
+
+## Approved extrusion-event qualification
+
+The user selected qualification by the actual extrusion occurrence:
+
+1. Give each extrusion occurrence an identity and retain with it the source
+   Value at the extrusion origin, the receiving Value, and the actual retained
+   type-variable parent/copy pairs produced by that occurrence.
+2. If the origin and receiving Values belong to the same component of the
+   approved Value-reference graph, intrude that occurrence's retained
+   parent/copy pairs.
+3. Do not infer a permanent single Value owner from a type-variable ID, assign
+   every suboccurrence of a function description to its enclosing function, or
+   copy/retarget Value-reference incidences. Freshening alone is not an
+   extrusion occurrence.
+
+For the recorded nested `f/g` discriminator, the source is `G` and the
+receiver is `F`. The actual pairs `(C,B,+,1)` and `(D,R,-,1)` belong to that
+extrusion occurrence. Since `F` and `G` share a Value-reference SCC, its
+qualified operation adds `C=B` and `D=R`.
+
+This selects the occurrence identity and its two Value endpoints; it does not
+choose an encoding, caching policy, SCC scheduling point, or transport scheme
+for every compiler path. Those must faithfully retain the actual occurrence
+and its produced pairs through sharing, memoization, polarity-specific copies,
+scope and generalization. It also does not prove that adding the qualified
+equalities preserves soundness, required principality, normal progress or
+termination. Those proof gates remain open, and no implementation or F5
+cutover is approved by this decision.
 
 ## Qualification
 
@@ -36,12 +67,12 @@ variables. It does not compute SCC membership of `alpha_copy` and
 `alpha_parent` in a graph of type coordinates. It does not equate arbitrary
 types merely because their associated values lie in one SCC.
 
-The association must come from the actual source/type construction and be
-preserved through its operations. No one-to-one association, assignment for
-every Function port, or transport rule for polarity-specific copies is inferred
-solely from this clarification. These are the next concrete construction
-obligations; they must not be replaced by requiring an incoming reference edge
-into a freshly allocated type row.
+The extrusion-event record must come from the actual source/type construction
+and be preserved through its operations. No one-to-one association or
+assignment of every Function port to one permanent Value owner is inferred.
+Polarity-specific parent/copy pairs remain distinct members of their actual
+extrusion occurrence; they must not be replaced by requiring an incoming
+reference edge into a freshly allocated type row.
 
 SCC equality does not require a nontrivial component. When actual associations
 select the same value variable, that vertex belongs to the same component as
@@ -81,22 +112,23 @@ the component IDs of the type parent/copy endpoints directly. That consumer
 does not implement the qualification above. Existing runtime regressions and
 mechanism reviews do not establish this corrected source correspondence.
 
-The next owning work is to construct and retain value identities, their
-reference graph, and the association of actual type occurrences with those
-values, including recursive sharing, polar extrusion and fresh use. From that
-construction, prove parent-qualified equality preservation and derive the
-smallest faithful implementation. Do not modify the frozen candidate merely
-by reversing bound edges or adding type-copy vertices.
+The next owning work is to construct and retain extrusion occurrence identity,
+its actual origin/receiver Values and produced polar parent/copy pairs through
+recursive sharing and generalization. Construct the approved Value-reference
+graph independently, then prove that the occurrence-qualified equalities
+preserve the original source typing conclusions and required principality. Do
+not modify the frozen candidate merely by reversing bound edges or adding
+type-copy vertices.
 
 Soundness, required principality, normal progress, termination of the combined
 algorithm, complete Call, effect hygiene and F5 replacement remain OPEN. This
 clarification records the graph domain and activation criterion; it supplies
 no proof of equality preservation and approves no new transport convention.
 
-## Reviewed source-construction frontier
+## Earlier source-construction discriminator
 
-The following is source characterization and an unresolved design boundary,
-not an adopted association rule. An independent `compiler_referee` audit
+The following source characterization established the discriminator that led
+to the approved occurrence rule. An independent `compiler_referee` audit
 identified the missing constructor at App-demand generation and extrusion.
 
 Use the minimal original-Simple-sub term
@@ -131,16 +163,19 @@ association conventions illustrate the decision that is still missing:
 The second convention qualifies these pairs from the known `F/G` SCC. The
 first does not follow from that SCC; in the graph generated by the shown
 root/Apply incidence rules alone, `Y` and `R_value` are outside it. This is
-a discriminator between conventions, not a nonqualification theorem for
-the final algorithm. Neither convention is selected here.
+a discriminator between the old conventions, not a nonqualification theorem
+for the final algorithm. The approved occurrence rule selects the extrusion
+source and receiver Values, rather than assigning each pair endpoint a
+permanent owner by either convention.
 
 Source Generalize's `Desc` introductions and `Build` preserve each original
 declaration and scope; containment in a complete function description does
 not establish an additional describing-value association. Nor does storage
 of `Function(C,D)` on `o` establish the proposed copy-to-`F` association for
 its suboccurrences. Both conventions require an explicit source/extrusion
-association construction, including that copied-port rule. The primary has
-asked the user for the intended value pairs on this concrete example.
+occurrence construction, including its copied-port pairs. The approved answer
+resolves this discriminator for the displayed extrusion; general source
+construction and transport remain proof obligations.
 
 The owning proof must establish original source soundness, required
 principality and normal progress for the selected construction. Preservation
