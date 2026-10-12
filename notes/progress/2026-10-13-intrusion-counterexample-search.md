@@ -1,7 +1,7 @@
 # Qualified intrusion: monomorphic counterexample search boundary
 
-Status: frozen unreviewed research; bounded analytical characterization,
-no source-qualified counterexample, theorem closure or implementation authority.
+Status: independently reviewed bounded analytical characterization; no
+source-qualified counterexample, theorem closure or implementation authority.
 Baseline: `bf0420584b190654eca081257c9d7698361210f0`.
 Branch: `research/simple-sub-intrusion`.
 Lease: this file only; researcher leaf, no delegation or Git mutation.
@@ -169,7 +169,12 @@ original parent theorem OPEN.
 - Baseline SHA: `bf0420584b190654eca081257c9d7698361210f0`; reference SHA above.
 - Dependency changes: none by this worker; snapshots above use the pinned
   current baseline, including the integrated nested-origin clarification.
-- Review status: frozen unreviewed bounded research; no independent review.
+- Review status: frozen bounded research; one independent delta review passed.
+- Independent `compiler_referee` review: PASS, no blocking/major/minor finding.
+  It confirmed the comparison directions, satisfying assignment and the
+  distinction from the earlier correlated-helper attack. It did not inspect or
+  establish source admission, Call/effects, registration/allocation, or any
+  universal preservation/principality claim.
 - Checks run: manual source constraint direction/assignment inspection,
   original revision and dependency hashes; zero production verification.
 - Proposed checkpoint message: `research: bound monomorphic intrusion counterexample attack`.

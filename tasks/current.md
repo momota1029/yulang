@@ -171,6 +171,34 @@ owning constructor; if not, route the exact missing local law through design
 authority before applying §5.1 to an authentic `Q_c`. Keep the complete Call,
 frame incidence, source admission and parent A/B gates OPEN.
 
+### 2026-10-13 occurrence intrusion and nested registration are separate
+
+The authority audit found no adopted source constructor that supplies the
+nested `K_g(h)` registration, inherited live-f edge and parameter telescope.
+That is a real open input to the selected Source Generalize allocation for
+nested g. It is **not** an input to the already approved occurrence
+qualification: for the fixed odd/even call, origin E and receiver O share the
+approved Value-reference SCC, so the recorded extrusion pairs `C=T,D=R` are
+qualified. Keep the source-registration/generalization proof separate from
+that intrusion trigger.
+
+A fresh, frozen counterexample attack also found no source-qualified
+rejection in a distinct monomorphic case. The second recursive demand yields
+`bool <: A`, while recursive completion yields `C <: A`; Function
+contravariance supplies no `bool <: C`. A regular-type assignment satisfies
+the displayed native constraints and both selected equalities. This only
+refutes that attempted contradiction; it does not prove all typings survive
+or that principal schemes are preserved. One `compiler_referee` reviewed the
+artifact and passed the bound claim. The full equality-preservation proof is
+being constructed independently, with a separate adversarial lane.
+
+Next: complete the original-scope preservation/refutation attempt, then
+construct a preserving nested-definition registration law from the existing
+Source Generalize authorization and independently review it. Do not derive a
+registration component from Value SCC membership alone. Keep complete `Q_c`,
+L4, allocation, soundness, required principality, Call/effect hygiene,
+termination and F5 OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as
