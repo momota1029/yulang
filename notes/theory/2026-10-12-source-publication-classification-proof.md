@@ -3,7 +3,9 @@
 Date: 2026-10-12
 Status: independently reviewed bounded constructor obstruction and
 conditional application of the selected closure/allocation rules;
-2026-10-13 native-clause correspondence correction independently reviewed
+2026-10-13 native-clause correspondence correction independently reviewed;
+§8 h-indexed source-rule instantiation independently reviewed as a bounded
+unavailable-rule application
 Assigned baseline: `ba93e1739`, branch `research/simple-sub-intrusion`
 Exclusive lease: this file only; prover leaf, no delegation
 
@@ -451,3 +453,263 @@ open premises, and that the two classification footprints and shared-C
 contradiction remain conditional. This review does not establish actual C
 classification, source admission, equality transport, a source-qualified
 counterexample, or closure of the parent inference theorems.
+
+## 8. H-indexed source-rule instantiation, 2026-10-13
+
+Assigned baseline: `7fff1e7244da28329858ba4adb87164283b9be88`, branch
+`research/simple-sub-intrusion`. Exclusive lease: this file; leaf only.
+Method: instantiate the selected constructors in their original tree at each
+outer invocation, rather than infer classification from a record graph.
+Result: **independently reviewed bounded unavailable rule application**.
+This is not a source theorem,
+source counterexample or registration impossibility theorem.
+
+### 8.1 Frozen statement and inputs
+
+Keep the exact Record/Bool AST in §1, resolved introductions `q_x,q_y,q_z`,
+actual definition roots F/G, binder tree T and approved occurrence c:(G,F).
+For every lawful finite independent client allocation and its monomorphic
+aliases, and every independently admitted outer-f invocation h in its
+finite developments, attempt to construct the actual publication instance
+
+```text
+Reg_g(h) = (p_g(h), K_g(h), N_g(h), R_g(h), edge_f(h),
+            Desc(K_g(h),q_y,Value,sigma_y(h),Delta_y(h))).
+```
+
+`Reg_g` abbreviates the requested tuple of existing constructor outputs;
+it is not a new source predicate. `N_g(h)` retains every active dependent
+component/background conjunct at its original scope. The further required
+input is the authentic complete scoped `Q_c` representing the native
+demand/bounds and selected equalities with the whole Call interface. Only
+after those inputs exist may §5.1 classify descriptions and §5.2 allocate
+them. The quantifiers are not restricted to the two displayed g uses.
+
+Inherited inputs are the reviewed native generation in §2, the approved
+qualification `(C,B,+,1),(D,R,-,1)` yielding `C=B,D=R`, the selected source
+schemas, and the scalar projection's limited result in §5. Genuine L1–L5
+laws remain independent where needed. C/D can remain native coordinates
+or equality aliases; no extra `Desc` is required. Preserve the single
+monomorphic f certificate, every actual runtime operand and residual
+lineage. No numerical-level/SCC classification, initializer replay,
+fresh f certificate, independent marginal witnesses or source restriction
+is introduced. Parent A/B and all §1 gates remain OPEN.
+
+### 8.2 Original constructor tree indexed by h
+
+Fix any lawful incoming outer description frame, if one exists, and retain
+its one recursive f tuple throughout this tree. At validation, f is its
+still-live registered recursive root. After publication its Internal uses
+retain that relation (§5.3). A runtime invocation does not turn a recursive
+reference into an external imported scheme.
+
+```text
+original f registration/closure formation at base event b
+  sigma_x: x-description before f's challenge; f description region
+    h: original f invocation challenge/event
+      receipt -> designated Force of h's whole argument
+        actual Return/rebind x/current world, or original pending suffix
+      f body under that same entry/rebind
+        g definition/closure formation, with f's original resolved capture
+          sigma_y(h): y-description before g's challenge
+          g description region
+            k: original g invocation challenge/event
+              receipt -> Force -> Return/rebind y, or pending suffix
+              g body under that same y/current world
+                callee: Result(lambda z.y), capturing rebound y
+                  sigma_z(h,k), before this wrapper's challenge
+                argument: Delay(the whole Call f (Delay(Result y)))
+                w: wrapper invocation, receipt and designated argument Force
+                  c: inner f-y Call during that carrier's execution
+                    Name f -> actual returned F/current configuration
+                    whole y carrier -> F receiver/entry -> full return/future
+                  Return/rebind z, then Result of that same captured y
+                  original pending Force/Call/Bind suffixes if no Return yet
+        p_g(h): actual g RHS Return/rebind/publication inside f's body
+        ordered suffix: record a=succ(g 0), b=g true
+          two actual g Name instantiations; aliases share their chosen frame
+        complete f invocation Return or original pending continuation
+original f completion/publication and original final Name f
+```
+
+This is a source-schema tree, not an execution or completion claim. The
+latent g body is not executed while publishing its inert closure. That
+publication's actual g initializer/provider is fixed for h. Another actual
+f invocation can execute its own nested definition; another type frame of
+this same p_g(h) does not execute it again. G remains the original definition
+root in the approved Value graph, not a fresh h-indexed graph vertex. The
+actual nested closure, definition root and incoming description frame are
+distinct objects.
+
+Event labels abbreviate original constructor paths. In particular c's
+actual enclosing path passes through k and w's Force. It is not a g
+initializer event or a sibling of h. References to the same actual event
+share the same §5.2 key. `sigma_y(h)` precedes k's argument witness; its
+exact free telescope `Delta_y(h)` cannot be replaced by all fields of h.
+The static native B/R/C/D are not thereby four freely scoped event
+variables. Their coordinate interpretation still needs this original tree.
+No body-result/complete-invocation equation is introduced.
+
+### 8.3 Exhausting selected registration constructors
+
+“Constructor-derived” below means the stated output follows from the
+selected schema given its existing operands. It does not assert complete
+semantic typing of this source witness.
+
+| Owner application | Derived or inherited output | Unavailable input/conclusion at p_g(h) |
+| --- | --- | --- |
+| Recursive f registration/introduction, §3.1/§3.3 | Inherited actual registration, when supplied, has `Live(K_f,f)`/`Internal(K_f,f)` and one simultaneous f relation; semantic introduction additionally needs L4 | No stated output adds the h-created nonrecursive g to that original member list or chooses its validating K |
+| Name f and Lambda capture, §3.1; IF §5 | Constructor-derived reference to f's same existing complete certificate along the actual resolved capture edge | Preserves K_f provenance; emits neither `Internal(K_g(h),f)` nor a newly Established f contract merely because capture crosses a lambda |
+| Parameter y, §3.1/§3.3 | Given K and actual introduction telescope, emits `Desc(K,q_y,Value,sigma_y,Delta_y)` | The rule uses its validating component; it does not choose K from nonrecursion, level 2 or the capture |
+| Lambda g, Result and sequential Bind, §3.1/§3.3 | Inert closure/capture incidence and actual Return/rebind under h; raw object OneShot remains separate from own-description Internal | Returning a closure does not register the component to which its Internal field must point |
+| External immutable capture/monomorphic rebind, §3.3 | Given actual installed `Mono(h_f,Contract_f)`, preserves its complete Established free fields | f's resolved recursive capture has not been independently classified as that operand; native monomorphism does not supply it |
+| Recursive reference, §3.1/§3.3 | Uses registered members monomorphically in their existing relation | Requires membership in the chosen component; the reference itself does not establish membership |
+| Build, §4 | Generates actual conjuncts/binders/references and retains each rule's owning records | Does not choose a nested-definition registration policy |
+| IF-Insert/IF-Use and finite cyclic IF, §§3.2, 5–6 | Given actual registered roots, whole interfaces, node/operand records and authentic Q, constructs complete contextual slots without solving L4 | First-pass interface-node allocation does not select validating components or Internal/Established provenance |
+| §5.3 selected pair, external capture, nested apply/step | The stated cases start with simultaneous registration, an established contract, or an actually rebound outer formal | This g captures a recursive ancestor; none supplies that operand or the nested component rule |
+| FinalRoot/publication and §5.1 | Given registration, selects the actual final complete synthesis root here and consumes its whole K relation | FinalRoot selects a root, not K/edge_f; closure has no repair transition for unavailable registration |
+
+Neither putting all reachable roots in one K nor declaring a singleton K_g
+is derived here. Either chooses the disputed registration. The table
+exhausts the relevant selected source constructors, not every possible
+future rule or compiler route.
+
+### 8.4 Minimized unavailable application
+
+At the original nested-definition node under h the required structural
+judgment is, in descriptive notation,
+
+```text
+Gamma_h contains resolved r_f and its one existing recursive certificate
+T_h contains original outer entry/rebind and current-world dependencies
+S_g = lambda y. (lambda z.y) (f y), with actual q_y/capture edge
+original RHS formation returns that one g closure at p_g(h)
+---------------------------------------------------------------- [nested definition registration owner]
+K_g(h), complete registered N_g(h), edge_f(h),
+Desc(K_g(h),q_y,Value,sigma_y(h),Delta_y(h))
+```
+
+The source identities, Lambda/Bind incidence and resolved f edge are
+constructor-derived; native monomorphic o and extrusion pairs are inherited.
+The event ordering is fixed by §8.2's source schemas. Complete semantic
+validity of those premises, including L4, is unverified and stays separate.
+Even as an unsatisfied symbolic structural instance, this conclusion
+requires an **actual nested-definition registration law** connecting this
+node to its validating K and prescribing its inherited recursive f edge.
+That is the first indispensable unavailable premise. The bar locates the
+missing application; it does not adopt a new rule.
+
+Its normative owner is recursive-group/definition registration in §3.3,
+explicitly consumed by §5.1. Its bounded implementation responsibility is
+`local_source.rs::Builder::block`/`Work::Initializer`, transported through
+`ConstraintBatch::emit_candidate_source`. The complete bodies preserve
+original IDs/scopes and temporary self resolution. `active_initializers`
+routes f via `Action::Link` while g is formed; g's `Work::Install` removes
+g's own initializer and stores `LocalScheme { id,root,boundary }`.
+They confirm the same native f incidence and publication seam, without
+supplying the structural judgment. The distinct Int/Unit source fixture
+is not used to assert admission of this Record/Bool AST.
+
+### 8.5 Complete clause boundary and stop
+
+At c the required IF instance retains callee `IF(r_f)`, the **whole** inert
+y carrier with latent/capture contract, callee Return F/current C1, F's
+actual receiver/receipt/entry/consumer, separate complete Call Return/current
+C2 and dependent future-provider interface, all original arms/guards,
+`xi=(nu,K,D)`, lexical `u_f`, checking `u`, exposure and ElimOrigin. The
+effect/result clause retains the ordered Bind image and residual attachment,
+provider, witness and future lineage. Native C/D may occur inside it.
+The wrapper Force retains this Call and its same pending suffix. The native
+two-port inequalities supply no empty-effect clause or independent residual
+witness.
+
+IF constructs the frame from authentic Q, genuine registered whole
+interfaces and actual formation records. It does not translate the native
+`o <: Function(B,R)` into Q or insert qualified equalities by itself. Those
+later inputs remain unavailable; the complete interface cut above is
+recorded without another attempt after the earlier registration stop.
+Stored bounds prove neither complete-source clause entry nor activation/
+replay into use frames.
+
+§5.1 is therefore not applied to an invented Reg_g. No fixed mark on B/C,
+eligibility result, lawful frame-relative C incidence or shared-C
+contradiction is obtained. The §5 scalar assignment still shows only that
+shared f type alone does not force shared C in that projection. Structural
+registration, L4 validity, later clause entry and allocation remain distinct.
+
+Economy audit after the prior incidence and classification attempts:
+scope-faithful publication/equality transport remains A; natural independent
+helper use and required principality remain B. Retaining known owner/scope
+at HIR can remove D reconstruction debt. Choosing K_g or turning inherited
+Live f into an Established contract is not already-known syntax metadata;
+storing a guessed tag cannot establish that law. This attempt stops at its
+registration owner without adding another quotient/record reconstruction
+or downgrading a parent obligation.
+
+**One next action:** the primary routes this exact nested registration
+application to its authority owner: supply a selected applicable law if
+one exists beyond these constructors; otherwise a new registration policy
+needs the existing design-authority draft/review/adoption path. This leaf
+proposes no policy or user question. After that judgment is established,
+construct its authentic complete Q_c instance and consume §5.1.
+
+### 8.6 Checks, dependencies and frozen commit packet
+
+Checks: governing rules/skill/config reads; selected Source Generalize
+§§3.1–3.4, 4, 5.1–5.3; IF inputs/frame/constructor/finite-cycle bodies;
+owner audit, corrected incidence bridge and witness; exact reference
+`typeLetRhs`, Lambda/App, extrusion and freshening bodies; actual HIR
+initializer/block and candidate emission/publication/Call owner bodies.
+Commands: `cat`, bounded `sed -n`, `rg`, `sha256sum`, read-only baseline/
+branch/status and artifact-local diff inspection. Early batch captures
+truncated and decisive bodies were reread in bounded slices. One patch
+failed its context check without writes; the corrected patch touched only
+this lease. No tests/builds/probes/benchmarks, external messages, child
+launches, compiler edits or Git mutations.
+
+Resources: one reasoning leaf, at most three independent lightweight shell
+reads in a batch; later reads sequential. Zero heavy processes/measurement
+samples. CPU/RSS and exact wall use not instrumented; no numerical
+CPU/RAM/wall ceiling was specified in this packet. Requested routing:
+`gpt-6.1-sol/high`; prover pins absent and configured defaults Sol/high.
+Observed effective model/effort metadata unavailable. No Astra/reload claim.
+
+Read-only HEAD/branch matched the assigned baseline at start. The old
+dependency table is historical; decisive reread inputs match its hashes
+except the owner audit's later reviewed body. Current delta/new inputs:
+
+| Path | Current SHA-256 |
+| --- | --- |
+| `notes/progress/2026-10-12-source-registration-owner-audit.md` | `58114e28b215587f6475b5956d8e741e2f673789125a07a6a476a6027756f7c0` |
+| `notes/design/2026-10-08-call-source-interface-definition.md` | `20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c` |
+| `notes/theory/2026-10-08-call-source-interface-construction.md` | `278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98` |
+
+No dependency changed by this leaf. Complete primitive/L4 validity, exact
+Yulang admission, exact Desc telescope, native-to-Q correspondence,
+clause allocation/replay and universal source coverage remain unverified.
+All parent completeness/soundness/principality/progress/termination/Call/
+effect/F5 gates stay OPEN. The appendix's bounded claim is reviewed below;
+it makes no self-certification.
+
+Fresh `compiler_referee` delta review, 2026-10-13: PASS with no blocking,
+major or minor finding on §8. The reviewer confirmed the h-indexed binder/event
+ordering, the unavailable `K_g(h)`/typed-f-edge/B-telescope application, the
+separate L4 and complete-Qc cuts, and that native C/D need no separate Desc.
+The review does not establish source admission, registration impossibility,
+complete clause transport, lawful allocation, soundness or principality.
+
+Commit packet:
+
+- Exact leased path: `notes/theory/2026-10-12-source-publication-classification-proof.md`.
+- Baseline: `7fff1e7244da28329858ba4adb87164283b9be88`; changed dependencies
+  by this leaf: none. Historical/current delta and additional inputs above.
+- Status: independently reviewed bounded h-indexed derivation ending at one
+  unavailable registration application; the reviewer did not certify source
+  admission or impossibility.
+- Checks: static source/rule derivation, dependency hashes and leased
+  diff/whitespace inspection; no executable inference verification.
+- Proposed checkpoint: `research: locate nested helper registration rule application`.
+- Shared deltas for primary/curator: consume this attempt as the structural
+  registration-law cut at p_g(h), preserving inherited Live f and original
+  y scope. Keep L4/Q_c/allocation and all parent gates separately OPEN.
+  No shared record edited.

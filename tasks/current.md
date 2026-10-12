@@ -157,10 +157,19 @@ it contributes `R_i <: Z_i` but no `R_i=B_i`. This is not a lawful source alloca
 acceptance result. The read-only architect and spec audit found no selected
 rule that constructs nested `p_g(h)` registration or proves either complete
 incidence; they also found no two genuinely lawful alternatives yet, so a
-user design question would be premature. Next evidence is one authentic
-nested derivation exposing `p_g(h)`, the live f certificate, B's telescope,
-full Qc incidence/transport and L4. Keep the complete Call, frame incidence,
-source admission and parent A/B gates OPEN.
+user design question would be premature. The h-indexed constructor-tree
+instantiation in the same proof note is now independently reviewed. It finds
+that selected Source Generalize constructors preserve f's live recursive
+certificate, but do not register nested g into a validating `K_g(h)` or
+produce the corresponding typed f edge and B telescope. This is an unavailable
+recursive-group/definition-registration application, not an impossibility
+result. The complete `Q_c`/transport and L4 remain separate cuts; §5.1 has not
+been applied to an invented registration. No lawful allocation, source
+admission, soundness or principality follows. Next evidence: determine whether
+an existing original source rule derives this nested registration at its
+owning constructor; if not, route the exact missing local law through design
+authority before applying §5.1 to an authentic `Q_c`. Keep the complete Call,
+frame incidence, source admission and parent A/B gates OPEN.
 
 ## 2026-10-12 agent-dispatch capacity retry correction
 
