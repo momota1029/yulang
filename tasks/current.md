@@ -24,6 +24,18 @@ words. This narrows the effect implementation seam but does not prove complete
 Call/output/residual transport or authorize a production cutover. H, complete
 Call and F5 remain OPEN.
 
+The ordinary-form two-use intrusion candidate in
+[`intrusion-admitted-two-use-witness.md`](../notes/progress/2026-10-12-intrusion-admitted-two-use-witness.md)
+passed a fresh current-baseline `compiler_referee` review. The only finding was
+an ownership label: `g 0` is First's initializer reference; F owns the final
+`g ()` reference. The correction is integrated and all 15 source dependency
+hashes match the current baseline. The conditional chain showing that a fixed
+shared C plus C=B conflicts with the Int/Unit uses remains conditional on the
+actual original `f y` Call, g-publication classification and equality transport.
+This is neither a source acceptance/refusal result nor a counterexample to the
+parent theorem. Complete Call, qualified-intrusion preservation and their
+source-to-Yulang bridge remain OPEN.
+
 ## 2026-10-12 agent-dispatch capacity retry correction
 
 `rules/agent-orchestration.md` now treats explicit model-capacity errors as

@@ -1,10 +1,12 @@
 # Two-use intrusion witness: supported source candidate and admission obstruction
 
-Status: frozen, unreviewed research checkpoint; source-grounded candidate and
-precise evidence obstruction. No Yulang semantic counterexample or theorem
-closure is claimed.
+Status: frozen, independently reviewed research checkpoint; source-grounded
+candidate and precise evidence obstruction. No Yulang semantic counterexample
+or theorem closure is claimed.
 Baseline: `e5e7b5878ced01b8cc4682492b6187c3907fd014`, branch
 `research/simple-sub-intrusion`.
+Current source revalidation: `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`; all 15
+recorded source dependency hashes match.
 Lease: this file only. Method: static constructor/source audit, one candidate.
 
 ## Objective and governing dependencies
@@ -103,7 +105,8 @@ not prove Source Generalize's lawful allocation classification.
 Apply the accepted definition-root incidence rule to actual resolved Names
 in each declaration's own body, excluding nested initializers:
 
-* F owns the two g Names, giving F→G. It does not acquire drop's y Name or
+* F owns the final g Name, giving F→G. The earlier `g 0` Name belongs to
+  First's initializer. F does not acquire drop's y Name or
   g's f Name by lexical containment.
 * G owns `drop (f y)`, giving G→Drop, G→F and G→Y.
 * Drop owns its body y, giving Drop→Y.
@@ -238,8 +241,12 @@ test, build, experiment, benchmark, seed enumeration, mutation or Git mutation.
 Coverage: one source candidate and its direct producer/consumer seams.
 There is no independent executable oracle; authority and candidate source
 share the stated Simple-sub interpretation, while the original Call bridge
-is deliberately left unproved. No global search or independent review of
-this artifact occurred. Peak RAM/CPU and precise elapsed worker time were
+is deliberately left unproved. A fresh independent `compiler_referee` review
+passed the bounded candidate/conditional-obstruction claim. Its minor finding
+on the owner of the `g 0` Name is repaired above; the exact-baseline hash audit
+found all 15 recorded source dependencies unchanged. Reviewer identity:
+`/root/two_use_intrusion_current_baseline_review`; effective model/effort
+unknown. Peak RAM/CPU and precise elapsed worker time were
 not measured; shell work was lightweight and sequential except independent
 read commands. Runtime model/effort metadata: unknown.
 
@@ -271,10 +278,11 @@ lane. Do not count another native value projection as original admission.
 
 * Exact leased path: `notes/progress/2026-10-12-intrusion-admitted-two-use-witness.md`.
 * Baseline SHA: `e5e7b5878ced01b8cc4682492b6187c3907fd014`.
-* Dependency changes: none by this producer; snapshot above. Primary must
-  revalidate hashes before integration.
-* Review status: frozen, unreviewed source candidate/obstruction; no theorem
-  promotion, production conformance or semantic-counterexample status.
+* Dependency changes: none by this producer; the current-baseline review
+  revalidated all 15 dependency hashes against `5cb4ba6f9cc8fa65d347c3b53b6d4e6e5196d02f`.
+* Review status: independent bounded PASS; the minor ownership correction is
+  closed by primary inspection. No theorem promotion, production conformance
+  or semantic-counterexample status.
 * Checks: static source correspondence, authority/hash/path and whitespace
   integrity only; no executable verification authorized or performed.
 * Proposed message: `research: isolate supported two-use intrusion candidate and Call obstruction`.
