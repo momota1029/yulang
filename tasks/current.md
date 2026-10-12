@@ -13706,7 +13706,31 @@ construction-owned readouts. No tests, builds or compiler edits were made.
 
 Research-only checkpoints: `506094bd0` (original-rule attempt) and `8da0063e7`
 (Row-demand owner audit). Push was attempted after inspecting the outbound
-range, but DNS resolution for `github.com` failed; both coherent commits remain
-local and the branch is ahead of its upstream by two commits. Shared status is
-recorded here; soundness, required principality, source correspondence,
-complete Call/effects, termination and F5 remain OPEN.
+range, but DNS resolution for `github.com` failed. The subsequent source-rule
+artifact is checkpointed at `4555abdd4`; the current branch is ahead of its
+upstream by four commits. No network-state change has been observed since the
+DNS failure, so another push attempt is deferred. Soundness, required
+principality, source correspondence, complete Call/effects, termination and
+F5 remain OPEN.
+
+### 2026-10-13 negative FormalAnnotation finite precursor
+
+The reviewed [source-rule construction](../notes/theory/2026-10-13-negative-formal-annotation-source-rule-construction.md)
+constructs authentic paired written-port selectors, composed polarity,
+resolved members and source scope directly from the finite annotation tree.
+It does not assume `d_ann` or an `Inc` certificate. Independent
+`compiler_referee` and `spec_auditor` reviews passed with no findings in their
+bounded scopes.
+
+The first missing input is now narrower: the original Parameter/Lambda law
+must identify the written negative-concrete selector with the actual complete
+formal observation fields and their checking/exposed correspondence, then
+support same-callable, same-environment local checking. The note establishes
+neither that law, its conservativity, contribution-route incidence nor H. It
+is non-authoritative research and does not enable concrete formal admission.
+Keep concrete-Row demand, residual construction, Call/output transport, H,
+soundness, required principality and F5 OPEN. The next action is to construct
+the original negative-concrete paired observation/checking clause at this
+Parameter/Lambda owner and independently test whether it follows from the
+selected policy without adding observable behavior. No compiler code, tests,
+builds, probes or measurements changed or ran.

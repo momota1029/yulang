@@ -952,3 +952,23 @@ union non-entailment witness is not source-qualified. Keep both parent gates
 OPEN and do not conflate them. Checkpoint commits: `506094bd0` and
 `8da0063e7`; push is pending because this session could not resolve
 `github.com`.
+
+### 2026-10-13 negative FormalAnnotation source-rule construction
+
+The [finite source-rule precursor](../notes/theory/2026-10-13-negative-formal-annotation-source-rule-construction.md)
+constructs actual written-port selectors, composed polarity, member ordinals
+and scope without taking `d_ann` or `Inc` as a premise. A `compiler_referee`
+review passed its bounded construction/quantifier claims, and a `spec_auditor`
+review passed its authority/scope boundary. Both found no blocking, major or
+minor issue.
+
+The minimized remaining clause is the original Parameter/Lambda
+negative-concrete interpretation identifying the written selector with the
+complete formal observation fields and their checking/exposed correspondence,
+followed by same-callable, same-environment local checking. This is not proved
+conservative or adopted. The original annotation/H, concrete-Row demand,
+residual-consumer, complete Call, soundness, principality and F5 gates remain
+OPEN. Next, construct that exact local paired observation/checking clause and
+review whether it follows from the selected policy without new observable
+behavior. No compiler code or tests/builds/probes/measurements changed. Artifact
+checkpoint: `4555abdd4`; shared status was synchronized afterward.
