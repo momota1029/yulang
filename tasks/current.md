@@ -12881,3 +12881,29 @@ fabricated or wrapper introduced. Read-only tracing is complete; a durable
 API/ownership extension requires a reviewed scoped design and user approval.
 The candidate source admission, `k/Qc` session, intrusive continuation and
 parent theorem remain OPEN. No implementation, tests or builds were made.
+
+### 2026-10-12 exact nested odd/even source constructor boundary
+
+The frozen [`exact nested odd/even source elaboration`](../notes/theory/2026-10-12-odd-even-user-source-elaboration.md)
+records the user's source without moving the final `even(n - 1)` call or
+inserting a wrapper. Its independent `compiler_referee` review passed with no
+findings in the bounded scope. The first operation-specific missing judgment,
+after fixing the inner formal/Name context, is the actual resolved `<=`
+declaration and complete independently typed application at `n <= 0`.
+Generalize/IF placement rules retain and place supplied primitive/Branch
+contracts; they do not create the missing local declaration law. Int/`true`,
+both subtraction applications, the original Branch contract and both complete
+Calls remain separate debts. Syntax-v0's colon requirement is only a surface
+syntax limitation and does not refute the intended typing judgment.
+
+The note does not establish source acceptance/refusal, a finite native image,
+an intrusion pair for this exact source, or any parent theorem. It identifies
+the next source owner: locate the actual `<=` declaration, its ordered operand
+telescope and selection provenance; if no selected original declaration
+exists, return that concrete semantic choice through the existing authority
+path. Do not infer an Int comparison or Boolean Branch law from spelling.
+Separately, the standalone module-expression receiving-context design remains
+approval-pending; that API question does not supply the primitive constructor.
+Source construction, Call, effects, intrusion preservation, soundness,
+principality, normal inference and F5 replacement remain OPEN. No compiler
+code, tests, builds, probes or Oracle execution changed or ran.
