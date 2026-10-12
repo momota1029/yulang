@@ -4,6 +4,17 @@ Date: 2026-10-12 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## 2026-10-12 agent-dispatch capacity retry correction
+
+`rules/agent-orchestration.md` now treats explicit model-capacity errors as
+transient for every subagent role: retry the identical launch at most three
+times, then use the existing fallback. Persistent routing/configuration errors
+fall back immediately; capacity does not disable later use of the role or
+authorize an automatic Sol-to-Astra change. The frozen rule change passed one
+independent `spec_auditor` review with no findings and `git diff --check`.
+No compiler code, tests, builds or runtime agent-capacity behavior were changed
+or exercised. This policy correction does not alter the active inference gates.
+
 ## 2026-10-12 completed Oracle document-audit slice
 
 The user directed a documentary audit of Oracle historical inference designs,

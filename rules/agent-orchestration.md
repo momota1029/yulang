@@ -190,18 +190,54 @@ while independent implementation proceeds. Native `prover` is preferred; an
 unavailable agent name must not cancel the theorem or become a mandatory setup
 or re-planning task. No additional user command is required to try the lane.
 
-1. Inspect the actual `spawn_agent` interface and attempt the registered
-   `prover` at most once per session when available. Launch success means an
-   actual returned worker identity, **not** a valid TOML file, a prompt naming
-   `prover`, a CLI exit status, or a past session's successful launch.
-2. On `unknown agent_type`, unavailable custom roles, model/effort override
-   rejection, or another runtime routing failure, immediately use a
-   runtime-supported generic worker with the exact proof task, governing
-   baseline, output lease, and the applicable instructions from
+#### Runtime capacity retry policy
+
+This policy applies to every `spawn_agent` launch, including `prover`,
+`task_decomposer`, and reviewers. A requested launch succeeds only when the
+runtime returns an actual worker identity. Sending a launch request, writing a
+role configuration, or receiving a CLI success code without a worker identity
+does not establish launch success.
+
+1. When the runtime clearly reports temporary model capacity pressure, such as
+   `Selected model is at capacity` or `server_overloaded`, retry that exact
+   `spawn_agent` request up to three total attempts: the initial attempt plus at
+   most two retries. Keep the role, model, effort, sandbox, task, output lease,
+   and every other setting unchanged. If the runtime specifies a retry delay,
+   use it; otherwise wait only a short bounded interval before retrying. Never
+   loop without a retry limit or wait unnecessarily for a long interval.
+2. After three consecutive capacity failures, use the existing runtime-supported
+   fallback for that task. A capacity failure is transient: it does not mark the
+   role unavailable for the session and does not prevent a later, separately
+   assigned task from trying that role under the same bounded retry rule.
+3. Errors that indicate a persistent routing/configuration problem, including
+   `unknown agent_type`, an unavailable custom role, an invalid model/effort
+   override, or an unsupported override, go directly to the existing fallback
+   without retrying the unchanged request. Do not repeatedly probe a role that
+   the runtime has confirmed is unregistered in the current session unless its
+   registration/runtime state changes.
+4. Usage-limit, rate-limit, authentication, and permission errors are not model
+   capacity errors. Do not label them as capacity failures or apply this retry
+   rule; use the runtime's applicable existing fallback/limitation handling.
+5. Capacity pressure never authorizes an automatic model change, including a
+   change from Sol to Astra. Astra escalation remains governed solely by the
+   mathematical/semantic criteria above.
+6. Record each attempt and its result, the actual worker identity and role when
+   returned, the requested model/effort, and the observed effective model/effort
+   when available. Keep requested and observed settings distinct.
+
+#### Proof-specific fallback
+
+1. Inspect the actual `spawn_agent` interface and request the registered
+   `prover` with the settings required by its packet. Apply the bounded capacity
+   retry policy above; do not impose a once-per-session limit on attempts that
+   fail only because of temporary capacity pressure.
+2. For a persistent routing/configuration failure or exhausted capacity retries,
+   immediately use a runtime-supported generic worker with the exact proof task,
+   governing baseline, output lease, and the applicable instructions from
    `.codex/agents/prover.toml` supplied in its task packet. Use only role and
    model options actually supported by that spawn interface; request Sol/high
-   when supported, otherwise record the effective choice as unknown. This is
-   a **prover-equivalent generic worker**, not an observed custom `prover`.
+   when supported, otherwise record the effective choice as unknown. This is a
+   **prover-equivalent generic worker**, not an observed custom `prover`.
 3. If *no* agent spawn is supported, the primary continues the same constructive
    proof/source audit itself and returns the derivation or the precise missing
    premise. A routing error alone cannot justify `blocked`, `done`, or a
@@ -221,8 +257,10 @@ an already-running team or to halt in-session fallback. It does not prove
 that a tool-backed runtime supports named roles or Astra overrides.
 
 Do not bypass runtime limits, change a role's pin to fake a model switch,
-invent configuration keys, claim Astra ran, or retry an unavailable route.
-Continue feasible proof work and report genuine mathematical blockers separately.
+invent configuration keys, or claim Astra ran. The bounded retry above is only
+for explicitly temporary capacity errors; it does not authorize retries of an
+unavailable route. Continue feasible proof work and report genuine mathematical
+blockers separately.
 
 Report each child's identity, role, effective settings when observable, lease,
 dependency and state to the primary's queue. Release a leaf's outputs only
