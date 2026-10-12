@@ -521,3 +521,47 @@ obtain the actual `WF_Dec` application signature. Resume qualified equality
 proof only after the first law is grounded. Keep soundness, required
 principality, normal progress, termination, complete Call, effect hygiene,
 production correspondence and F5 replacement OPEN.
+
+### 2026-10-12 Oracle documents before implementation
+
+User steering freezes implementation/probes while historical Oracle designs,
+specifications and research drafts are audited. Corpus discovery pins 645
+historical document paths, six TeX lineages, archived material, rescue alternate
+and ten distinct imported PDFs. Discovery/content screening, normative reading,
+proof validation, scoped approvals and current applicability remain separate.
+The consolidated [audit](../notes/theory/oracle-inference-document-audit/README.md)
+owns the detailed status and dependency graph.
+
+| Assignment | Method / lease | Result |
+| --- | --- | --- |
+| `oracle_document_catalogue` | Read-only history/discovery | Complete discovery packet; no proof certification. |
+| `oracle_catalogue_enrichment` | `catalogue.tsv` only; dates, revisions, approval evidence and coverage | Frozen; 645 rows/19 fields, exact locator/blob and ADD integrity; unknown and unread material explicit. |
+| `oracle_weights_termination_audit` | `directed-weights-termination.md` only; constructive audit | Frozen; legal-label projection counterexample, valid bounded algebra/potential results and exact source-termination gaps. |
+| `oracle_typing_generalization_audit` | `typing-generalization.md` only; original theorem audit | Frozen; ground CBV I-Let effect omission refutes the written colored theorem; joint generalization/extraction remains open. |
+| `oracle_hygiene_history_audit` | `effect-hygiene-history.md` only; historical corrections and transfer | Frozen; URR-v3 invalid motivating witness, DPN rank withdrawal, scoped approvals and source/scheme/runtime bridge conjunction. |
+| `oracle_imported_paper_coverage` | Read-only ten unique historical PDFs and import sites | Complete bounded screen; Koka inference, backend/runtime results and missing translation distinguished. |
+| `oracle_cache_generalization_documents` | Five defining documents, read-only complete text coverage | 4,209 lines read; partial/held gates, actual capture requirements and unreconciled lifecycle caveat distinguished from universal proofs. |
+| `oracle_boundary_spec_coverage` | Five boundary/spec documents, read-only complete text coverage | 6,793 lines read; retired premises, URR domain/semantic replacement gap, diagnostic provenance and informal language report separated. |
+| `oracle_hygiene_operational_documents` | Six runtime bridge documents, read-only complete text coverage | 3,334 lines read; proposed soundness/visibility simulation, selected track versus unapproved permission candidate, restricted native certificates. |
+| `oracle_document_proof_review` | One fresh independent semantic reviewer of frozen coherent bundle | No correctness findings; original parent theorems/implementation and full later appendices uninspected. |
+| Primary | `README.md`, `import-and-transfer.md`, shared status and Git | Integrated review, interval kernel and graph-domain boundaries; checkpoints `030bac06a` and `d7fd2b0c6` pushed; catalogue coverage/records synchronized. |
+
+Actual tool calls confirm two `prover` roles ran; requested/configured routing
+and observed runtime model metadata are distinguished in their reports. No
+Astra ran. Budget: M0 metadata, M3 substantive proof audit with one reviewer;
+zero builds/tests/runtime experiments or benchmark samples. Historical Git
+objects, document hashes, dependencies and text integrity supply the evidence.
+No compiler source or unexecuted harness is integrated. Unreviewed previous
+choice §11 and pre-existing negative-residual material remain outside this
+slice. Value association/intrusion, complete Call, hygiene, normal progress,
+termination, soundness, principality and F5 replacement stay OPEN.
+
+Final discovery/core-audit coverage: 73 complete selected-read path rows / 63
+blobs, six TeX claim inventories with assigned proof audits, 20 PDF path screens,
+33 named implementation-contract inventories with full appendices unverified,
+and 513 other text content screens. No priority defining/operational queue
+remains; exact appendix paths, unknown receipts and unverified revision bodies
+are listed in the consolidated audit. The catalogue initially overstated the
+CBV witness as refuting every main conclusion; primary corrected it to the
+reviewed colored-fundamental refutation and unsupported integrated proof.
+No full-corpus theorem or source acceptance gate is certified.

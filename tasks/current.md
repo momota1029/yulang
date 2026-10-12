@@ -4,6 +4,63 @@ Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## 2026-10-12 controlling document-first Oracle audit
+
+The user has redirected the immediate critical path to an exhaustive audit of
+Oracle historical inference designs, specs and research drafts, followed by
+their proof dependency graph and current Simple-sub transfer obligations.
+Implementation changes and executable inference experiments are excluded from
+this stage. The candidate remains frozen. Prior unexecuted instrumentation is
+preserved in the isolated Oracle worktree; it is not run or integrated.
+
+The [audit corpus and reports](../notes/theory/oracle-inference-document-audit/README.md)
+pin Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`, legacy inference refs,
+deleted/renamed drafts and the later main history. Enumeration covers 645
+historical document paths, not 645 verified proofs. Approval scope, reported
+proof status, independently checked validity and current applicability are
+separate fields. Missing/unread material remains explicit.
+
+Research lanes: two actual `prover` assignments for weights/termination and
+typing/generalization, a historical hygiene/change-reason researcher, a
+catalogue researcher, and a bounded imported-PDF coverage explorer. Producers
+have disjoint leases and no Git duties. Metadata is M0; substantive proof
+audit is M3 with one fresh semantic reviewer for the coherent audit bundle.
+Verification is document/reference integrity only; zero builds, runtime probes,
+tests or performance samples. Convergence requires original statement and
+scope preservation, exact failure/transfer dependencies, and review closure;
+it does not require declaring an old or current parent theorem proved.
+
+The bounded weights/termination, typing/generalization, hygiene-history and
+import/interval bundle has passed one fresh independent `compiler_referee`
+review with no correctness findings. The legal-label counterexample refutes
+the complete draft's flattened-counter homomorphism. The ground CBV
+`let x = perform_h(()) in ()` refutes its printed colored fundamental theorem:
+the generated result omits the evaluated initializer's effect. These are
+document-model results, not claimed Oracle compiler bugs. Entry monoids,
+coherent-lineage budget descent, fixed-word-graph potential bounds and the
+consistent-interval cross-condition lemma were independently checked in their
+exact models; their source/consumer translations remain separate obligations.
+First reviewed checkpoint `030bac06a` is pushed to the research branch.
+The reviewed typing/history slice is also pushed as `d7fd2b0c6`.
+
+The catalogue is now frozen and integrated: 645 unique historical paths,
+19 metadata fields; 73 complete selected-read path rows representing 63 blobs;
+six TeX inventories with the assigned mathematical audits; 20 PDF paths
+representing ten screened works. The additional 16 defining/operational
+documents were fully read. No priority defining/operational queue remains.
+Thirty-three implementation contracts have named normative inventories but
+unverified full appendices; 513 other text rows are content-screened rather
+than fully manually read. Exact remaining paths and coverage limitations are
+in the audit README/TSV. Full-corpus and all-revision proof/approval verification
+is not declared complete.
+
+The original current soundness, principality, normal progress, termination,
+complete Call, effect hygiene, qualified intrusion and F5 replacement gates
+remain OPEN. Next: inspect remaining historical appendix claims where they
+own an actual proof/transfer dependency; use the reviewed precise dependency
+graph to select the next mathematical construction. The unreviewed previous choice §11 and
+pre-existing negative-residual draft remain outside this checkpoint.
+
 Latest controlling intrusion clarification (2026-10-12): see
 [value-to-type association](../notes/design/2026-10-12-intrusion-value-type-association.md).
 Value-reference SCCs classify semantic value variables; intrusion acts on
