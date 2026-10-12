@@ -13707,9 +13707,9 @@ construction-owned readouts. No tests, builds or compiler edits were made.
 Research-only checkpoints: `506094bd0` (original-rule attempt) and `8da0063e7`
 (Row-demand owner audit). Push was attempted after inspecting the outbound
 range, but DNS resolution for `github.com` failed. The subsequent source-rule
-artifact is checkpointed at `4555abdd4`; the current branch is ahead of its
-upstream by four commits. No network-state change has been observed since the
-DNS failure, so another push attempt is deferred. Soundness, required
+artifact is checkpointed at `4555abdd4`. The local outbound range remains
+unpublished; no network-state change has been observed since the DNS failure,
+so another push attempt is deferred. Soundness, required
 principality, source correspondence, complete Call/effects, termination and
 F5 remain OPEN.
 
@@ -13729,8 +13729,18 @@ support same-callable, same-environment local checking. The note establishes
 neither that law, its conservativity, contribution-route incidence nor H. It
 is non-authoritative research and does not enable concrete formal admission.
 Keep concrete-Row demand, residual construction, Call/output transport, H,
-soundness, required principality and F5 OPEN. The next action is to construct
-the original negative-concrete paired observation/checking clause at this
-Parameter/Lambda owner and independently test whether it follows from the
-selected policy without adding observable behavior. No compiler code, tests,
-builds, probes or measurements changed or ran.
+soundness, required principality and F5 OPEN. A bounded architect adjudication
+located the narrowest unresolved map: the written Function effect selector to
+the dependent field of the actual formal callable's complete invocation
+observation. The enclosing Lambda's body/return/invocation slots do not supply
+that correspondence. The independent source audit confirms complete
+invocation checks must retain entry effects, but they do not determine whether
+the written selector governs an entry contribution. An alternative map may
+retain entry as a separate checked observation. The conditional entry-effect
+discriminator separates permission applicability; actual removal still
+requires the missing realization law, and no authentic annotated-formal
+admission was established. A bounded `compiler_referee` review passed the
+audit. The constructive field-map lane remains active. Next: integrate its
+explicit map derivation or exact remaining premise; preserve the possibility
+of a user decision if both maps remain consistent with current authority. No
+compiler code, tests, builds, probes or measurements changed or ran.

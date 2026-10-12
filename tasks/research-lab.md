@@ -968,7 +968,30 @@ complete formal observation fields and their checking/exposed correspondence,
 followed by same-callable, same-environment local checking. This is not proved
 conservative or adopted. The original annotation/H, concrete-Row demand,
 residual-consumer, complete Call, soundness, principality and F5 gates remain
-OPEN. Next, construct that exact local paired observation/checking clause and
-review whether it follows from the selected policy without new observable
-behavior. No compiler code or tests/builds/probes/measurements changed. Artifact
-checkpoint: `4555abdd4`; shared status was synchronized afterward.
+OPEN. The artifact checkpoint is `4555abdd4`; shared status was synchronized
+afterward.
+
+The architect's follow-up narrowed the missing premise to the mapping from a
+written Function effect selector to a dependent field in the actual formal
+callable's complete invocation observation. It proposes an entry-effect
+discriminator to compare complete-invocation and post-entry/body-only maps;
+neither is selected yet. Two distinct current-baseline lanes are running:
+
+| Lane | Method | Output lease | Status |
+|---|---|---|---|
+| `/root/prove_entry_field_maps` | Constructive original-interface map derivation | `notes/theory/2026-10-13-negative-formal-entry-effect-field-maps.md` | running |
+| `/root/falsify_entry_field_maps` | Independent source-owner search/falsification | `notes/progress/2026-10-13-formal-entry-effect-field-falsification.md` | frozen; compiler-referee PASS |
+
+The source audit confirms adopted rules retain entry effects in complete
+invocation checking, but do not tell whether the written selector governs that
+entry contribution. A post-entry/body-only map that retains entry as a
+separate checked observation is not refuted by the inspected clauses. Its
+conditional one-call discriminator separates permission applicability; actual
+removal still depends on the unconstructed local realization, and no
+authentic annotated-formal admission is established. Independent
+`compiler_referee` review found no issue in the bounded source/quantifier
+claims. The constructive lane is still running.
+
+Both lanes retain the original H domain and keep concrete-formal admission,
+concrete Row/residual, Call/output and production cutover separate. Neither
+may choose source meaning or use endpoint/family equality to invent incidence.
