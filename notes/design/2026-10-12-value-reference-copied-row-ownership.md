@@ -11,6 +11,12 @@ Source: `questions/2026-10-12-value-reference-copy-content-owner/approved-answer
 
 ## Decision
 
+Read this decision with the later
+[value-to-type association clarification](2026-10-12-intrusion-value-type-association.md).
+Description copying and Value-reference incidence are distinct from the
+association that connects a type occurrence to a value. No-incidence inheritance
+does not imply that the associated values occupy different SCCs.
+
 Simple-sub extrusion and per-use freshening both copy type descriptions and
 their applicable bounds without copying Value-reference incidences from the
 source row. Recording an extrusion parent or allocating a fresh-use row does

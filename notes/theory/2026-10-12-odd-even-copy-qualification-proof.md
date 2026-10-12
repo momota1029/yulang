@@ -5,6 +5,15 @@ Status: frozen constructive research derivation; independently reviewed with no 
 Baseline: `a40ce73bb749e5694d10ee68f036897cc240ac70`, `research/simple-sub-intrusion`
 Lease: this file only; leaf, no delegation or compiler implementation authority
 
+Applicability correction (2026-10-12): the user's
+[value-to-type association clarification](../design/2026-10-12-intrusion-value-type-association.md)
+withdraws this note's application of type-copy vertex nonreachability to the
+original intrusion gate. SCCs belong to associated value variables. The
+source-root paths and abstract graph lemmas remain bounded historical facts;
+the nonqualification conclusion for extrusion type pairs is not established
+by them under the clarified rule. The earlier review did not cover this
+distinction. Reconstruct the actual association before using any pair result.
+
 ## 1. Frozen claim, scopes and exclusions
 
 Keep the user's source unchanged:

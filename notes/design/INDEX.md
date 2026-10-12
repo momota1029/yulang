@@ -64,6 +64,11 @@ This index is a navigation aid. The listed source document remains authoritative
   inference, public export, Call, hygiene, soundness/principality, or F5 gate.
 
 - **Current user-selected intrusion operation (2026-10-10):**
+  The [value-to-type association clarification](2026-10-12-intrusion-value-type-association.md)
+  controls qualification: compute SCCs on value-variable references, then
+  intrude associated extrusion-related type variables. Type copies need not
+  themselves be graph vertices. Earlier copy-vertex nonreachability results
+  do not establish nonqualification under this rule.
   [parent-copy SCC equality](2026-10-10-parent-copy-scc-intrusion.md) retains
   parents at extrusion and equates parent/copy variables when they enter the
   same SCC. The user directly authorized implementation. Actual equality and

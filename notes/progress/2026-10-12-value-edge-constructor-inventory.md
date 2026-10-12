@@ -5,6 +5,15 @@ Status: frozen static research characterization; one minor coverage finding repa
 Baseline: `ab477fb78ebe43859b581e168b559ea9da775a2d`, `research/simple-sub-intrusion`
 Lease: this note only; complementary source audit, no delegation or implementation authority
 
+Applicability correction (2026-10-12): under the user's
+[value-to-type association clarification](../design/2026-10-12-intrusion-value-type-association.md),
+the absence of a type-copy-to-binder installer or incoming edge into a type-copy
+row does not establish nonqualification. The original gate compares SCCs of
+the values associated with the type occurrences. Retain the bounded installer
+inventory, but replace its proposed incoming-copy-edge critical path with
+actual value/type association construction and transport. The earlier review
+did not certify this corrected application.
+
 ## Objective and exact premise
 
 Audit the source constructors and pre-qualification identity operations needed

@@ -25,6 +25,12 @@ Do not demand another approval for this already selected operation.
 
 ## Selected operation and compiler responsibility
 
+The later [value-to-type association clarification](2026-10-12-intrusion-value-type-association.md)
+controls the graph domain and activation test: SCCs belong to value variables;
+intrusion acts on their associated extrusion-related type variables. References
+below to parent/copy SCC membership must be read through that association,
+not as placing type-copy rows themselves in the Value-reference graph.
+
 Retain the actual parent when extrusion creates a copy. When that copy and its
 parent enter the same SCC, equate the type variable with its parent. Equality
 must affect actual solving and later use, not just an observation or printed

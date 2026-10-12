@@ -4,6 +4,12 @@ Date: 2026-10-08 UTC
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+Latest controlling intrusion clarification (2026-10-12): see
+[value-to-type association](../notes/design/2026-10-12-intrusion-value-type-association.md).
+Value-reference SCCs classify semantic value variables; intrusion acts on
+their associated extrusion-related type variables. Earlier type-copy-vertex
+nonqualification conclusions below do not establish this activation condition.
+
 ## User objective and branch boundary
 
 The active user objective is to complete type inference and replace the F5
@@ -11773,3 +11779,53 @@ The user-approved revision 2 of the copied-row question is now integrated in
 The user's exact nested `odd`/`even` program is recursion across lexical/inference levels, not same-level mutual recursion. Under the approved definition-root ownership rule its original roots have `O → E` and `E → O`, hence a nontrivial Value-reference SCC. The independently reviewed [copy-qualification derivation](../notes/theory/2026-10-12-odd-even-copy-qualification-proof.md) computes the closed graph from the approved root and Apply incidences plus the finite native Call analogue: `{O,E}` is the only nontrivial SCC; retained pairs `(C,B)` and `(D,R)` are not in it. Its conditional canonical-class lemma proves that edges whose targets remain original binder rows cannot give a distinct copy class an incoming path. Global nonqualification remains OPEN because the complete Value-edge constructor set and prior binder/copy canonicalization history are not yet established. The current candidate SCC consumer still scans bound payloads and Function/Effect structure rather than the approved source-reference incidences, so it cannot certify this graph. The exact source still lacks an end-to-end current HIR route. The copied-row decision bundle is integrated in the matching [receipt](../questions/2026-10-12-value-reference-copy-content-owner/receipt.md); the proof checkpoint is `0a84e986b`. H, complete Call, equality preservation, soundness, principality, ordinary inference, and F5 replacement remain OPEN.
 
 The independently `spec_auditor`-reviewed [Value-edge constructor inventory](../notes/progress/2026-10-12-value-edge-constructor-inventory.md) closes the inspected current LocalSource/action installer route: no operation, primitive, group, local, formal, annotation, or module installer found there assigns an extrusion copy as a binder target before intrusion. The only forward candidate canonical union remains the intrusion consumer itself. This does not prove global nonqualification: approved Apply/root incidences are not declared an exhaustive Value-edge catalogue, and the exact source's Branch/If admission remains absent. A source-level incoming/reverse path to an actual copy, or an approved exhaustive owner law plus justified canonical separation, remains the decisive proof obligation. No compiler implementation or tests changed.
+
+### 2026-10-12 intrusion activation corrected through value/type association
+
+The user's direct clarification is recorded in the Authoritative
+[value-to-type association addendum](../notes/design/2026-10-12-intrusion-value-type-association.md).
+The original parent gate is still equality preservation, soundness and required
+principality for actual extrusion pairs qualified through their associated
+values' SCCs, over the original supported source domain. The graph domain is
+semantic values; type variables and their polar copies are a separate domain.
+No one-to-one association or missing transport rule has been silently assumed.
+
+The previous odd/even type-copy nonqualification application and the inventory's
+proposed incoming-copy-edge critical path are withdrawn. Their bounded source
+and graph facts remain historical; the earlier independent reviews did not
+establish their applicability under this distinction. In particular, a type
+copy can associate with a value already in an SCC without being installed as a
+source binder or receiving an incoming reference edge itself. The cross-level
+value-root paths `O -> E` and `E -> O` remain valid. The no-incidence-inheritance
+decision remains distinct from association transport.
+
+Static inspection of `candidate_intrusion.rs::settle_candidate_intrusion`
+shows the current consumer interns Value/Effect solver endpoints, walks bound
+and Function structure, and compares the parent/copy type endpoints' component
+IDs directly. This does not implement the clarified activation test. A bounded
+independent explorer audit confirms the wrong vertex domain and that inspected
+parent records retain RowKeys/polarity/target rather than associated source
+value identities; its source-occurrence mapping inventory is not a proof of
+transport. No candidate code, expected result or test has been changed.
+
+Primary owns the corrected construction gate: define source value identities,
+references, and actual type-occurrence associations through recursive sharing,
+polar extrusion and fresh use; assign constructive proof and independent source
+correspondence before dependent implementation. The frozen candidate remains a
+comparison artifact. The independent Oracle `choice` output-POP proof lane
+continues; it is unaffected by this correction. Complete Call, effect hygiene,
+normal inference, soundness/principality, implementation correspondence and F5
+replacement remain OPEN.
+
+A bounded `architect` lane is actually running on that source association
+construction, using the original Simple-sub constructors and the unchanged
+odd/even, id/konst and opposite-polarity shared-variable examples. It owns no
+files or semantic adoption; primary will adjudicate its concrete construction
+before assigning the corrected preservation statement to prover.
+
+The association clarification and its applicability withdrawals passed one
+independent `compiler_referee` review with no findings (M3 semantic record,
+one-reviewer budget). Static source locators, local document links and diff
+whitespace are the verification scope; no tests, builds or measurements were
+run. This closes only the faithful decision-recording slice, not the original
+inference theorem or corrected compiler implementation.
