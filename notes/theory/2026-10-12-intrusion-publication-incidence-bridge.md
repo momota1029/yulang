@@ -1,12 +1,15 @@
-# Intrusion publication incidence: exact source-construction obstruction
+# Intrusion publication incidence: native-to-publication adequacy gap
 
 Date: 2026-10-12
-Status: unreviewed bounded source bridge; original parent A/B theorem OPEN
+Status: reviewed bounded source-correspondence audit; source-to-publication bridge OPEN; original parent A/B theorem OPEN
 Baseline supplied: `e5e7b5878`, branch `research/simple-sub-intrusion`
 Producer: prover-equivalent generic fallback, leaf only
 Exclusive lease: this file
 Authority: existing selected source Generalize and occurrence qualification only
 Budget: one bounded reasoning attempt, at most 30 minutes; no executable inference
+Correction review: `compiler_referee` and `spec_auditor` confirm that separate
+C-term formation is not a qualification premise; `compiler_referee` PASS on
+the corrected falsifier and shared-record handoff, 2026-10-12
 
 ## 1. Original claim and result
 
@@ -23,16 +26,17 @@ not preservation of every arbitrary pre-intrusion solver assignment.
 
 This packet tests the decisive nested source incidence from the frozen
 [occurrence proof](2026-10-12-extrusion-occurrence-intrusion-proof.md), §§1–8.
-It neither proves nor refutes the parent claim. The first missing premise is
-the **source realization of the actual extrusion copy C**, including its
-declaration/term incidence and typed dependency edges. The selected source
-Generalize rules consume that premise but do not produce it. Consequently,
-they do not force `rho_i(B)=rho_i(C)=C_base` for this actual event, and they
-do not establish a lawful mechanism avoiding that equation either.
+It neither proves nor refutes the parent claim. Its original attempt asked
+for a source declaration or endpoint term for C. Independent review found
+that requirement too strong: approved intrusion qualification needs the
+actual event, Value endpoints and native parent/copy pairs, not a separate
+source term, binder or `Desc` for C. The result below is a bounded audit of
+the missing **native-constraint-generation to complete-source-publication
+correspondence**. It does not establish that correspondence, nor does it
+prove the fixed-anchor rejection for admitted Yulang source.
 
-This is an owning-constructor obstruction, not a new conditional preservation
-theorem. Work stops at this missing premise. No classification, schedule,
-source restriction or implementation decision is adopted.
+The parent A/B theorem remains open. No classification, schedule, source
+restriction or implementation decision is adopted.
 
 ## 2. Frozen sources and source instance
 
@@ -89,16 +93,18 @@ The owning-rule audit gives this exact partial incidence derivation:
 | Coordinate or edge | Actual owner and output | Selected source incidence obtained |
 | --- | --- | --- |
 | B | Native Lambda parameter `y`, reference `Typer.scala:64–67`; Yulang Parameter schema, construction §3.1 | Its source introduction is `q_y`; if the source derivation is supplied, Parameter emits `Desc(K_g,q_y,Value,sigma_y,Delta_y)`. `sigma_y` precedes g's challenge. The actual `K_g` and its registration remain required. |
-| C | Native `extrude`, `Typer.scala:143–156`, calls `freshVar` at target level 1 and emits the positive parent/copy bound | No selected source rule identifies C with a source declaration, existing typed field or endpoint term. No source provenance or dependency telescope follows from this allocation. |
-| R,D | Native App result and negative extrusion copy | Their numeric generation is known. Complete Yulang Call distinguishes body and invocation ports; the native two-port spelling cannot establish their source port/declaration realization. |
-| `C=B`, `D=R` | Approved occurrence-qualified intrusion | Actual solver operands and activation are selected. Their incidence as original source local clauses, including scope and publication history, requires the same missing realization. |
+| C | Native `extrude`, `Typer.scala:143–156`, calls `freshVar` at target level 1 and emits the positive parent/copy bound | C is a native solver coordinate and the approved event associates this actual copy with receiver F for qualification. No separate source declaration, endpoint term or `Desc` is required. What remains unproved is how the native demand/bound occurrence is represented in the complete source clause relation passed to publication, with lawful dependencies. |
+| R,D | Native App result and negative extrusion copy | Their numeric generation is known. Complete Yulang Call distinguishes body and invocation ports; the native two-port derivation does not by itself prove the source-to-complete-Call translation or its dependency incidence. |
+| `C=B`, `D=R` | Approved occurrence-qualified intrusion | Actual solver operands and activation are selected. The missing bridge is to show that these same generated constraints/equalities occur in the complete source relation and are retained through publication/use allocation. |
 | F/G references | Definition-root source ownership | Value-graph SCC qualification only. No equality with `K_g` or validation tuple is emitted by this rule. |
 
 This table deliberately does not identify every type coordinate with a fresh
-Desc declaration. C might represent an existing source field or a derived
-endpoint term. That possibility requires its real constructor law and is
-not excluded. The obstruction is the absence of **any established lawful
-realization** of C, rather than a requirement to invent a new source binder.
+`Desc` declaration. Native C can be carried as an internal endpoint in the
+generated constraint relation and, after the approved equality, may be
+represented through its B alias. The proof obligation is to establish how
+the actual App/extrusion generation and event record enter the complete
+source program and its scopes. No separate source endpoint term is a
+prerequisite.
 
 The current compiler seam confirms the missing producer input:
 
@@ -120,43 +126,41 @@ The current compiler seam confirms the missing producer input:
   selected typed fixed-dependency walk of source Generalize.
 
 These are direct interface/constructor observations. They do not claim that
-searching all other compiler files could never find related metadata, or
-that a source realization cannot be constructed. The selected governing
-source clauses themselves contain no extrusion realization law.
+the native copy lacks a semantic association: the approved event record
+provides its qualification. They show that candidate extrusion metadata is
+not itself a proof that the generated constraint graph is faithfully
+embedded in the complete source publication relation.
 
 ## 4. Exact failed declaration/frame derivation
 
-Write `chi_e(t)` for the source declaration, field or well-scoped endpoint
-term realized by an actual coordinate t of e. This is notation for the
-required correspondence evidence, not a newly adopted semantic relation.
-If its operands existed, the qualified equality would be the source clause
-
-```text
-E_e = [chi_e(C) = chi_e(B)] and [chi_e(D) = chi_e(R)].
-```
+Let `N_e` be the actual native Call-demand/extrusion graph for occurrence e,
+including its coordinates, signed parent/copy bounds, memoized images and
+approved event record. Let `S_g` be the complete source clause program
+consumed when g is published. The missing correspondence must relate `N_e`
+and its qualified quotient to `S_g` at their actual scopes. This is a proof
+relation between generated constraints and the complete source program; it
+does not require a separate source term for each coordinate.
 
 Attempt the prescribed construction in its actual dependency order:
 
-1. Construction §3.3 gives Parameter's declaration at `q_y`, conditional on
-   the actual source derivation and registration. It does not classify a
-   later solver row from level or provider identity.
-2. Construction §4 `Build` allocates one symbolic declaration per **actual
-   inference introduction**, and generates each original local clause with
-   its original operands and typed records. Its clause generation needs the
-   source owner of `chi_e(C)`. The occurrence decision names the solver pair
-   but supplies no such source introduction/field law. Therefore E_e's
-   source operands cannot yet be formed by the selected Build rules.
-3. Construction §5.1 seeds the complete registered K relation and follows
-   actual Established/OneShot dependencies in fix mode and same-K Internal
-   dependencies in retain mode. It cannot run this decision for C from its
-   native level or from `SCC(F)=SCC(G)`. Even a known raw F provider is
-   insufficient: an Internal description edge and an Established full
-   contract have different behavior under this exact walk.
-4. Construction §5.2 `new(p_g,i,g)` allocates the already classified entire
-   K relation. It gives eligible declarations frame keys and routes fixed
-   fields to base incidences. Allocation supplies no rule that repairs the
-   absent source operands/classification. There is thus no actual derived
-   `rho_i(C)` for this event in the premises presently available.
+1. The native source derivation constructs `N_e`, and approved Value SCC
+   qualification adds its selected equalities. This part requires no new C
+   declaration.
+2. The complete source Call constructor must represent the same call demand,
+   its original carrier/receiver/result/effect/future interfaces, and the
+   native constraint graph (or a proved equivalent quotient) in `S_g`. The
+   selected Code-Call construction records complete interfaces and checking
+   origins; those origins are not semantic inclusion truth and do not
+   currently state this native-to-source translation.
+3. Source Generalize §4 Build can retain actual local source clauses and
+   their owning dependency records. It cannot import every native solver
+   bound merely because it exists in the candidate/native graph. The missing
+   premise is that actual App/extrusion generation supplies the matching
+   complete source clause and scope incidences.
+4. Given that premise, §5.1's registered-component walk and §5.2's
+   `new(p_g,i,g)` allocation must preserve the same relation through two
+   independent whole frames. Their rules preserve the actual source input;
+   they do not prove the missing generation-to-source correspondence.
 
 This stops the construction before a valid scheme input exists; it is not
 a derived rejection of g's publication. The remaining consumer obligations
@@ -164,16 +168,17 @@ are located exactly, rather than assumed:
 
 | Consumer | Consequence of its selected rule | Missing event input |
 | --- | --- | --- |
-| Publication `p_g` | Retain every original local conjunct and the complete K relation, including constraints to fixed fields | Well-formed E_e operands and their owning component/scopes; if equality is discovered later, its faithful source publication incidence |
-| Two independent published Names of g | Distinct `new` events open complete frames, not marginal g-only fragments | Whether C refers to a shared base field, an eligible frame declaration or a legally derived term |
+| Publication `p_g` | Retain every original local conjunct and the complete K relation, including constraints to fixed fields | The source-to-generated-constraint correspondence for `N_e` and its scoped equality incidence in `S_g` |
+| Two independent published Names of g | Distinct `new` events open complete frames, not marginal g-only fragments | Whether the retained native equality and dependencies route to one shared base relation or frame-local coordinates under the original source allocation |
 | Alias of either use | Same handle routes to the same complete frame and binders | No alternate incidence can be created by Alias |
 | Recursive reference inside either frame | Same validation tuple and complete simultaneous relation | Actual registration of f relative to g's K; no per-reference `new` |
 | Record/join of the two uses | One shared context; base fields and Shared witnesses are literally common | Actual equality incidences for both frames |
 | Final f publication/use | Retain final formed root and all original relations at their source scopes | Does not reconstruct the missing original e incidence or silently replace earlier use handles |
 
-Thus the desired equation does not follow merely from the existence of
-Source Generalize. Its allocation theorem is total on its **well-formed,
-source-produced input**, not a constructor for missing extrusion provenance.
+Thus the desired use-frame equations do not follow merely from the existence
+of Source Generalize. Its allocation theorem is total on its well-formed,
+source-produced input; it is not itself the proof that native extrusion
+constraints and event-qualified equalities occur in that input.
 
 ## 5. Counterexample attempt and exact residual premise
 
@@ -185,20 +190,23 @@ first actual use:   int <: B0 <: S0 <: V0 <: int
 second actual use:  bool <: B1
 ```
 
-If source construction proves that the retained equality is present at both
-uses and `chi_e(C)` is a shared fixed field while B is eligible, the frozen
-allocation lemma yields `B0=C_base=B1`; the source path requires
-`bool <: int` and native inference rejects. If B is fixed as well, the same
-shared-incidence rejection follows under those established operands. This
-consumes the frozen result as a precise conditional falsifier. It does not
-establish those premises for this Yulang source.
+If the complete source construction proves that the qualified native equality
+is represented across both independent use frames and its quotient routes the
+copy-side C through one shared base incidence while parent-side B is an
+independent template in each frame, the frozen allocation lemma yields
+`B0=C_base=B1`; the source path requires `bool <: int` and native inference
+rejects. If B is fixed as well,
+the same shared-incidence rejection follows under those established operands.
+This consumes the frozen result as a precise conditional falsifier. It does
+not establish those premises for this Yulang source.
 
 Neither of the following is a derivation of the missing premise:
 
 - `C.level=1`: the source fixed walk follows typed contract dependencies,
   not levels.
-- `F,G` in one Value SCC: this activates E_e, but does not register source
-  component K, classify C or select its allocation scope.
+- `F,G` in one Value SCC: this activates the native equality, but does not
+  establish its complete source-publication incidence or register source
+  component K for Generalize.
 
 Nor is preservation established by assuming both rows can be independently
 freshened, retaining only g's marginal root, delaying equality past its uses,
@@ -206,36 +214,37 @@ or reclassifying f's still-live root as an environmental scheme. Each changes
 an unestablished construction/transport fact and would need its actual owning
 law while preserving the complete recursive relation.
 
-The single reduced producer premise is:
+The single reduced correspondence obligation is:
 
-> **Source realization of the extrusion occurrence.** At the owning complete
-> Call/demand construction of e, establish the lawful source declaration,
-> field or endpoint-term realization of each actual signed pair, beginning
-> with C and B; retain its actual validating registration, original telescope
-> and typed Internal/Established/Description dependencies through publication
-> and existing/new use incidences. Show that the active equality has those
-> same operands on the complete source relation.
+> **Native generation to complete source publication.** At the owning App/
+> Call-demand/extrusion constructor for e, show that the actual native demand,
+> signed parent/copy constraints and event-qualified equality are represented
+> in the complete source clause program consumed at g publication, with the
+> original complete interfaces, scopes, recursive registration and dependency
+> incidences. Show that the existing whole-relation allocation transports
+> this same relation into lawful independent use frames. C is a native
+> coordinate; no distinct source term or `Desc` is required solely for C.
 
-This premise names evidence needed to apply existing rules. It does not
-prescribe a new semantic rule, force C to be fixed/template, choose the SCC
-schedule, or authorize code. The owning producer is Call/demand plus
-extrusion's source bridge, with recursive registration providing K;
-Generalize consumes the resulting typed incidence. Adding an event ID alone
-does not discharge the premise.
+This premise names the evidence needed to connect the already selected
+operation to source soundness/principality. It does not prescribe a new
+semantic rule, force C to be fixed/template, choose the SCC schedule, or
+authorize code. The owning producer is App/Call-demand plus extrusion's
+generation correspondence, with recursive registration providing K;
+Generalize consumes the resulting complete source program. Adding an event ID
+alone does not discharge the premise.
 
 The parent A/B gate remains OPEN under the primary's existing ownership.
-The absence of a source realization is not a counterexample to the approved
-operation and not proof that a lawful realization exists. This packet adds
-the exact first failing construction step to the previous conditional result;
-it does not close or reclassify the original obligation.
+The absence of this correspondence proof is not a counterexample to the
+approved operation and not proof that no adequate translation exists. This
+packet identifies the first unresolved construction/adequacy step; it does
+not close or reclassify the original obligation.
 
-One next action: the primary should route this exact missing source
-construction to the existing design/authority path, before another proof
-attempt or a large dependent implementation slice. A lawful owner-supplied
-realization permits the fixed-walk/use derivation to resume; evidence of an
-admitted actual fixed-base realization would immediately activate the frozen
-source rejection falsifier. The exact source admission and complete Call
-premises remain separately required for an actual Yulang refutation.
+One next action: prove the exact App/extrusion-to-complete-Call clause
+correspondence above, first using the approved equality quotient `C ↦ B` and
+preserving complete interfaces and original scopes. Then apply the existing
+Generalize allocation to independent uses. The fixed-anchor source rejection
+falsifier remains conditional until this construction and actual source
+admission are established.
 
 ## 6. Verification, runtime and commit packet
 
@@ -252,15 +261,18 @@ not instrumented; this bounded attempt stayed within its 30-minute cap.
 
 Requested role/settings: generic proof leaf, `gpt-6.1-sol/high`.
 Observed assignment identity: `/root/intrusion_publication_bridge_fallback`;
-effective model/effort metadata: **unknown**. No custom prover execution,
-Astra escalation, independent review or closure is claimed. The
+effective model/effort metadata: **unknown**. No custom prover execution or
+Astra escalation is claimed. Fresh independent reviewers established the
+qualification/publication distinction and found no overlooked source rule;
+the corrected record passed delta review. No parent theorem closure is
+claimed. The
 `yulang-proofs` skill and `.codex/agents/prover.toml` contract were applied
 under the explicit generic fallback/no-delegation packet.
 
-Unverified: whole-source Yulang admission, complete source Call and effects,
-actual source realization/registration of e's pairs, all equality scheduling
-and existing-frame transport paths, public principal coverage, normal
-progress, termination and production/F5 cutover. No dependency was edited.
+Unverified: whole-source Yulang admission, native-generation to complete
+source Call/effect correspondence, recursive registration, all equality
+scheduling and existing-frame transport paths, public principal coverage,
+normal progress, termination and production/F5 cutover. No dependency was edited.
 
 Direct dependency SHA-256 snapshot:
 
@@ -283,9 +295,9 @@ Commit packet for the primary:
 
 - Exact changed lease: `notes/theory/2026-10-12-intrusion-publication-incidence-bridge.md` only.
 - Baseline: supplied `e5e7b5878`; branch/ref/blob comparison remains primary-owned.
-- Claim/review: unreviewed source-construction obstruction; original parent A/B OPEN; no theorem promotion.
+- Claim/review: reviewed bounded native-generation/source-publication gap; original parent A/B OPEN; no theorem promotion.
 - Checks: direct reads, hand incidence derivation, dependency hashes and leased-note whitespace inspection; no executable verification.
-- Proposed checkpoint message: `research: locate extrusion copy source incidence obstruction`.
-- Shared-record delta: record the missing C realization at Build's owning input, with Call/demand/extrusion and registration as producers; preserve the existing native fixed-anchor refutation and unchanged parent scope. Primary owns tasks/progress/theory-map synchronization.
+- Proposed checkpoint message: `research: record native Call publication gap`.
+- Shared-record delta: record the missing native-generation to complete-source-clause correspondence, including its original scopes and independent-frame transport; preserve the fixed-anchor result as conditional and retain the unchanged parent scope. Primary owns tasks/progress/theory-map synchronization.
 
 Writes stop at handoff; artifact hashing is reported separately.

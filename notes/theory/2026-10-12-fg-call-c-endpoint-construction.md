@@ -1,38 +1,41 @@
-# Bare f y: Call-constructor inversion for extrusion endpoint C
+# Bare f y: Call-constructor inversion for native extrusion correspondence
 
 Date: 2026-10-12
-Status: reviewed bounded constructor inversion; no parent proof closure
+Status: reviewed bounded constructor inversion with qualification-scope correction; native-to-publication bridge and parent theorem remain OPEN
 Baseline: `ed705d0ea121c775ce84e9cb694ada1aa0189889`
 Producer: prover-equivalent generic leaf `/root/call_c_operand`
 Exclusive lease: this file; one static pass, at most 60 minutes
 Independent review: `compiler_referee` PASS, no findings; scope §§1–6,
 2026-10-12
+Correction review: fresh `compiler_referee` and `spec_auditor` review confirm
+the qualification/publication distinction; a fresh three-path diff review
+confirmed this correction and the synchronized task record, 2026-10-12
 Requested/effective model and effort: unknown; no runtime metadata supplied
 
 ## 1. Question and result
 
-The [publication-incidence obstruction](2026-10-12-intrusion-publication-incidence-bridge.md)
-§§3–5 requires an authentic source realization of the actual positive
-extrusion copy C. This note performs the missing **Call-owner inversion**:
-which operand of the existing original Call rule could supply that realization
-at the bare `f y` occurrence?
+The [publication-incidence audit](2026-10-12-intrusion-publication-incidence-bridge.md)
+§§3–5 identified a missing correspondence between native generated
+constraints and the complete source relation. This note performs the
+**Call-owner inversion**: which fields and interfaces does the existing
+original Call rule construct at the bare `f y` occurrence, and does that rule
+translate the native extrusion graph into its complete checking clause?
 
 The Call rule constructs the actual Name-y whole carrier, retains the complete
 checking demand, and inserts the actual callee, receiver and result interfaces.
 Its interface constructors generate contextual occurrences of those original
-fields. Inversion reduces a proposed realization of C to an independently
-formed field/endpoint term in an original operand, or to that field under an
-already supplied lawful whole scoped substitution. Neither the negative
-Function's native argument port nor the scalar extrusion memo supplies that
-source input. No supplied original constructor identifies C with any such
-field or term at its scope. The derivation therefore stops at **field
-formation and typed source incidence for C**, before Generalize can classify
-it. This is distinct from the full carrier inclusion D, observation inclusion
-P, and recursive f membership; none is assumed or attempted here.
+fields. They do not, in the inspected rules, translate the native
+`Function(C,D)` demand, its signed parent/copy bounds and approved event
+equality into the complete source checking relation. This is the bounded
+obstruction. It does **not** imply that C needs a separate source field,
+endpoint term, binder or `Desc`: the approved event association directly
+qualifies the native pair. This is distinct from the full carrier inclusion
+D, observation inclusion P, and recursive f membership; none is assumed or
+attempted here.
 
-This adds the precise elimination of Call/IF inputs to the earlier report's
-unspecified C-realization cut. It establishes neither source rejection nor
-impossibility of an owner-supplied realization. No semantic rule is selected.
+This adds the precise elimination of Call/IF inputs to the generation-to-source
+correspondence gap. It establishes neither source rejection nor impossibility
+of an adequate translation. No semantic rule is selected.
 
 ## 2. Frozen source, scopes and contracts
 
@@ -130,19 +133,20 @@ provider; it supplies no already accepted actual f challenge.
 
 Theorem IF places this inventory in the ordered FrameCall slots:
 
-| Slot | Original field/interface recovered by projection | What would be needed to recover C there |
+| Slot | Original field/interface recovered by projection | Correspondence question for the native extrusion graph |
 | --- | --- | --- |
-| callee | The same f registration/interface under its authentic scoped reference use | A genuine field/endpoint term of that original interface and its incidence to the actual C copy |
-| argument | WholeCarrierSlot with J_y and its latent/capture interface; generic hole retained separately | A genuine original field/term and C incidence; pure Name-y formation returns A_y, not a copy declaration |
-| callee result / receiver | Actual returned provider/current world and that provider's complete declared phases | An authentic producer field/term and the typed occurrence map; I_x as an entire carrier interface is not the scalar C port |
-| return / future | Complete original A_c/result and output-provider-dependent future schemas | An actual result/future formation record with C incidence; no argument-copy inference follows from result sort |
-| original alternatives | Whole interfaces of actual clauses at their actual insertions/references | The clause's own complete formation and lawful maps; no arm is invented or discarded to supply C |
+| callee | The same f registration/interface under its authentic scoped reference use | Show how the native `o <: Function(C,D)` demand and event provenance relate to the complete callee/checking clause |
+| argument | WholeCarrierSlot with J_y and its latent/capture interface; generic hole retained separately | Preserve the whole argument contract and show the signed native bounds in the corresponding complete checking relation |
+| callee result / receiver | Actual returned provider/current world and that provider's complete declared phases | Preserve provider-dependent ports while mapping native result coordinates; do not identify I_x with scalar C |
+| return / future | Complete original A_c/result and output-provider-dependent future schemas | Show the native result demand's relation to these complete result/future interfaces without dropping dependencies |
+| original alternatives | Whole interfaces of actual clauses at their actual insertions/references | Preserve every alternative and its lawful map in the correspondence; no arm is invented or discarded |
 
 In particular, the independent demand variable F_c and native copy C are not
-identified by the fact that both participate in Function checking. If an
-original demand formation already has a suitable endpoint term, its authentic
-formation and typed occurrence map would be sufficient static inputs to
-resume this question. The displayed formation rule does not produce them.
+identified merely because both participate in Function checking. The
+required result is a scoped relation between the complete source Call clause
+and the native graph; it may carry C as an internal endpoint or identify it
+with B after the approved quotient. A separate source endpoint term is not
+required by intrusion qualification.
 
 ## 4. Invert the only available interface transformations
 
@@ -168,42 +172,39 @@ projects its original complete declaration and parameter instantiation.
 Union/Conj retain their real alternatives/shared tuple. Delay retains its
 whole child plus original captures.
 
-Thus, following a proposed C field through the finite Call frame returns an
-original operator/declaration field or endpoint term, together with every
-actual substitution on that path. In the cyclic extension a Ref terminates
-at its registered interface; it does not unfold recursion to synthesize a
-new field. The constructors can generate a contextual *slot* for an input
-field, but that operation cannot authenticate which native extrusion copy
-the field realizes. If C is already in an authentic primitive/root input,
-inversion can return that input; this note does not exclude that possibility.
+Thus, following a proposed source field through the finite Call frame returns
+an original operator/declaration field and its actual substitutions. In the
+cyclic extension a Ref terminates at its registered interface; it does not
+unfold recursion. These constructors can place a complete source checking
+clause, but the inspected rules do not establish that the native Call demand
+and extrusion graph are represented by that clause. The missing item is this
+generation correspondence, not a separately named C field.
 
 Applying this inversion at c gives the minimal obstruction:
 
 ```text
-native copy C and its signed B->C bound
-    [no supplied source field/term formation plus typed occurrence map]
-original field/term at (sigma_C,Delta_C), possibly under lawful whole m
-    -> IF-Use / contextual insertion
-typed C occurrence in the same complete FrameCall
-    -> Source Generalize's dependency walk.
+native App demand, extrusion graph and approved event/pair record
+    [no proved generation-to-complete-source-clause correspondence]
+complete Call/checking clause with original carrier/result/effect/future fields
+    -> IF contextual insertion / Source Generalize Build
+same scoped constraints and equality in independent whole-use frames.
 ```
 
-The missing input is the middle source formation/incidence, not the last
-placement operation. Theorem IF already constructs placement when that input
-exists. This requires neither assuming D/P nor obtaining f membership first.
-It also cannot be discharged by labeling C with F's Value root: the approved
-Value association activates actual pairs and does not select their source
-description field, type scope or dependency edges.
+The missing input is the middle source/checking translation, not the last
+placement operation. Theorem IF already constructs placement for a supplied
+complete clause. This requires neither assuming D/P nor obtaining f
+membership first. The approved Value association selects the actual pairs;
+the separate source correspondence must retain their relation and scopes.
 
-The native polar memo is not itself the required whole m. Scala's extrude
-returns a SimpleType, memoizes by `(Variable,polarity)` and adds one-sided
-bounds; its interface has no original Call telescope or source typed action.
-The same original variable can have separate positive and negative copies.
-Providing a polar memo entry therefore supplies neither an ordinary whole
-source substitution nor an action on the carrier/world/license/future
-fields. A separately proved typed extrusion construction could supply such
-formation or a different legitimate endpoint-term realization; no claim
-that it must be an ordinary rename, or that it is impossible, is made here.
+The native polar memo is not itself a whole scoped substitution. Scala's
+`extrude` returns a `SimpleType`, memoizes by `(Variable,polarity)` and adds
+one-sided bounds; its interface has no original Call telescope or source
+typed action. The same original variable can have separate positive and
+negative copies. A polar memo entry therefore does not establish the
+generation-to-complete-Call correspondence or a whole action on the
+carrier/world/license/future fields. The missing proof may retain the native
+coordinates directly or use the approved quotient, provided it derives the
+complete scoped relation; it need not invent a source term for every copy.
 
 Complete contribution/membership inversion does not add the missing input.
 The selected C-Call retains its authentic Q_c and independent complete C0;
@@ -215,26 +216,27 @@ native-to-source C incidence. No complete C0 instance is proved in this note.
 ## 5. Generalize consumer and precise next input
 
 [Source Generalize](2026-10-08-source-generalize-definition-and-proof.md)
-§3.3 permits an ordinary Desc declaration only at its actual Parameter/hole
-or independently specified inference introduction. Existing fields and
-derived endpoint terms remain possible realizations; no new source binder
-is required merely because extrusion allocated a row.
+§§3.3–4 consumes source-produced clauses and their actual dependency records;
+§§5.1–5.2 retains the whole relation and allocates independent component
+frames. It does not need a new `Desc` solely because native extrusion
+allocated C. The missing premise is that the owning App/Call/extrusion
+generation is represented by a complete source clause with the original
+carrier, result/effect/future interfaces and scope incidences. Generalize
+cannot infer this translation from native levels, the G/F Value SCC, or a
+successful Function comparison.
 
-For any such realization the rule must supply its actual component and
-original telescope, plus the genuine Description/Internal/Established or
-other owning field edges. The §5.1 fixed walk and §5.2 whole-frame allocation
-consume these records. They cannot infer them from C's native level, the
-G/F Value SCC, or a successful Function comparison. Consequently this
-inversion supplies no `rho_i(C)`, no fixed/template choice, and no derived
-`rho_i(B)=rho_i(C)=C_base` for the two uses. The earlier conditional
-fixed-anchor falsifier keeps its exact original hypotheses and status.
+Consequently this inversion supplies neither a frame equation for C nor a
+fixed/template classification. The earlier fixed-anchor falsifier remains
+conditional because the native equality and its source-clause incidence have
+not been transported through actual independent Yulang use frames.
 
-One next action: at the Call-demand/extrusion owner, construct or obtain the
-**single C field/endpoint-term formation and typed occurrence map**, with
-its actual sigma_C/Delta_C and whole-interface action if it uses one. Freeze
-its dependencies before independent review. Once supplied, existing IF
-placement and the Generalize walk can be applied; no further full D/P tree
-attempt is needed to answer this narrower producer question.
+One next action: prove the **native App/extrusion to complete Call-clause
+correspondence**, including the approved event and actual signed pairs; first
+try the quotient `C ↦ B`, preserve all complete interfaces and original
+dependencies, then apply the existing Generalize allocation to independent
+uses. Stop if that quotient requires a scope or sharing rule absent from the
+selected constructors. No extra D/P membership derivation or C-specific
+source binder is the goal of this next step.
 
 ## 6. Verification and handoff
 
@@ -253,8 +255,9 @@ leaf lease. Requested/effective model and effort remain unknown. Configuration
 and role prose are not runtime execution evidence.
 
 Unverified: original complete Call admission, recursive world introduction,
-D/P, C's lawful source realization/classification, equality activation/frame
-transport, soundness, required principality, normal progress and cutover.
+D/P, native-generation to complete-source-clause adequacy, equality
+activation/frame transport, soundness, required principality, normal progress
+and cutover.
 The parent gate remains OPEN; independent review is primary-owned.
 
 Commit packet:
@@ -262,11 +265,12 @@ Commit packet:
 - Exact changed path: this leased note only.
 - Baseline: `ed705d0ea121c775ce84e9cb694ada1aa0189889`.
 - Changed dependency hashes: none; direct compared inputs matched baseline.
-- Status: frozen unreviewed constructor inversion, no new semantic authority.
+- Status: reviewed bounded inversion with correction, no new semantic authority.
 - Verification: static derivation and dependency comparison; no executable checks.
-- Proposed checkpoint message: `research: invert Call source inputs for extrusion endpoint C`.
-- Shared-record delta for primary: refine the existing C-realization cut to
-  original field/term formation and its typed occurrence map, before IF-Use;
-  retain all parent scopes/statuses and separate D/P/L4 obligations.
+- Proposed checkpoint message: `research: record native Call publication gap`.
+- Shared-record delta for primary: qualify the bounded inversion as a
+  generation-to-complete-source-clause gap; do not treat separate C term,
+  binder or `Desc` formation as required by intrusion. Retain all parent
+  scopes/statuses and separate D/P/L4 obligations.
 
 Writes stop at handoff.

@@ -12586,27 +12586,24 @@ confirms that its approved origin/receiver are `(G,F)`, its native pairs
 `(C,B,+)` and `(D,R,-)` qualify in the approved Value SCC, and its g scheme
 has two real independent uses. If the equality reaches both frames while
 preserving one shared C anchor, the second use forces `bool <: int`. The
-missing premise is Yulang's actual nested publication component, declaration
-classification, and equality/frame incidence; this remains a conditional
+missing premise is Yulang's actual nested publication component,
+recursive registration and equality/frame incidence; this remains a conditional
 rejection of the fixed-anchor strategy, not a source-qualified refutation of
 the original theorem.
 
 A constructive Source Generalize bridge attempt fixed the next premise more
 precisely: conditional on an independently lawful source derivation, this
 nested `g` publication is `p_g(h)` under the original outer invocation `h`.
-The selected rules do not supply a lawful source realization for C or its
-scope, telescope and typed dependencies. C need not be a newly allocated
-`Desc`; the owning constructor may realize an existing typed field or a
-well-scoped endpoint term, with a `Desc` required only if that actual source
-rule introduces it as a flexible declaration. Given authentic active equality
-and a registered component where the fix walk marks C, Source Generalize does
-force both g-use frames to share `C_base(h)`. Whether this source produces
-those premises—and therefore whether the conditional `bool <: int` route is
-source-real—is not established. A fresh `spec_auditor` review found no major
-conformance issue and made the above precision correction. The exact owner
-remains the Call/demand/extrusion source-realization constructor, followed by
-the existing registration and Source Generalize walk; the parent A/B gate
-stays OPEN.
+The attempt then asked for a separate source realization of C. Fresh
+independent reviews found that too strong as an intrusion prerequisite: C is
+already a native coordinate selected by the approved event/pair association.
+The actual missing fact is whether the generated call demand, bounds and
+equality occur in the complete source relation supplied to Build, with
+original scopes/dependencies, and whether that relation routes copy-side C
+to a shared base while parent-side B is frame-local. Under those conditional
+premises, Source Generalize's whole-frame allocation yields the fixed-anchor
+route; source admission and those incidences remain unproved. The parent A/B
+gate stays OPEN.
 
 The effect lane now has a frozen
 [`live attachment constructor proof`](../notes/theory/2026-10-12-contextual-live-push-prover.md), committed at
@@ -12622,17 +12619,44 @@ residual lineage, and consumers through direct/aliased Calls; the original
 effect-hygiene and production gates remain OPEN. No compiler code or tests
 changed or ran in these follow-ups.
 
-The focused [Call-owner inversion for extrusion endpoint C](../theory/2026-10-12-fg-call-c-endpoint-construction.md)
-adds the owning original Call/IF check: Call formation returns its existing
-callee, whole-argument, complete-demand, receiver/result and future interfaces;
-IF-Use places an already formed field under an already lawful whole scoped
-substitution. Neither constructor identifies an original typed field/endpoint
-term with the native positive copy C. The native polar extrusion memo supplies
-only C and its parent/bound relation. A fresh independent `compiler_referee`
-PASS reviewed this bounded inversion; it assumes no complete C0, D/P or
-recursive f membership and establishes no source rejection. The minimum next
-input is the original source formation and typed occurrence map for C, with its
-scope and dependencies, from the owning Call-demand/extrusion constructor.
-Then apply the existing IF placement and Source Generalize walk. The original
-intrusion soundness/principality, complete Call and F5 gates remain OPEN; no
-compiler code or tests changed.
+The focused [Call-owner inversion for native extrusion correspondence](../theory/2026-10-12-fg-call-c-endpoint-construction.md)
+establishes that the original Call/IF constructors retain complete callee,
+whole-argument, demand, receiver/result and future interfaces but do not state
+how the native App/extrusion graph enters the complete source checking clause.
+This does not require a separate typed field or endpoint term for C. The
+bounded inversion and corrected publication audit have independent
+`compiler_referee`/`spec_auditor` review; they assume no complete C0, D/P or
+recursive f membership and establish no source rejection. The next proof is
+the App/extrusion-to-complete-Call generation correspondence, followed by the
+existing IF placement and Source Generalize whole-frame allocation. The
+original intrusion soundness/principality, complete Call and F5 gates remain
+OPEN; no compiler code or tests changed.
+
+#### Qualification/publication correction (2026-10-12)
+
+Fresh independent `compiler_referee` and `spec_auditor` reviews found that the
+earlier C-field/endpoint-term obstruction overstates the premise needed for
+intrusion. Approved event qualification directly uses `(G,F)` plus the actual
+native parent/copy pairs; it does not require a separate source term, binder,
+`Desc`, or incoming Value edge for C. The bounded native derivation still
+produces `Function(C,D)` in the demand graph and the selected event still
+qualifies `C=B,D=R` when the Value SCC premise holds.
+
+The actual open obligation is the source-to-publication adequacy bridge:
+prove that the App/extrusion demand, signed bounds and event-qualified
+equalities are represented in the complete source Call/checking relation
+consumed at `g` publication, with original interfaces, scopes, recursive
+registration and dependency incidences, then show the whole-relation
+allocation transports them to independent uses. Source Generalize is a
+consumer of this relation, not a proof that native bounds were generated into
+it. The fixed-anchor rejection remains conditional until this correspondence
+and actual source admission are established. These findings do not refute
+the approved operation and do not close the source-soundness/principality
+parent theorem.
+
+Corrected in
+[`intrusion-publication-incidence-bridge`](../notes/theory/2026-10-12-intrusion-publication-incidence-bridge.md)
+and
+[`Call-owner inversion for native extrusion correspondence`](../notes/theory/2026-10-12-fg-call-c-endpoint-construction.md).
+No semantic change, implementation, tests or cutover is authorized by this
+correction.
