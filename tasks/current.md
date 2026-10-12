@@ -12797,3 +12797,23 @@ and pushed at `623491760`. Next is the exact live equality-consumer and
 continuation proof for this event; source correspondence to the full Yulang
 example, complete Call/effects, general preservation and all original parent
 gates remain OPEN. No compiler code, tests, builds or probes changed.
+
+### 2026-10-12 Candidate intrusion consumer boundary
+
+The bounded [`candidate consumer-law audit`](../notes/progress/2026-10-12-intrusion-consumer-law-owner-audit.md)
+extracts the current candidate merge behavior: it canonicalizes parent/copy,
+appends both bound lists, takes the minimum level, invalidates the equality
+generation, reopens/replays live roots, and later scheme capture/use reads the
+merged representatives and levels. This is source characterization only;
+it proves neither preservation nor complete consumer coverage.
+
+The first source-to-consumer gap is earlier than that merge: retained
+`Parent` records have no approved extrusion-occurrence identity, origin Value
+or receiver Value. Activation tests SCCs of solver rows and cannot establish
+the approved E/O-qualified event. A direct effect-origin helper also reports
+an origin-to-fiber association gap. The artifact is checkpointed and pushed
+at `53915a1a5`. A constructive finite continuation and independent
+falsification are now examining the extracted merge law on the already
+reviewed pure-core live state; both must treat it as candidate behavior and
+keep approved activation, Yulang implementation, and parent theorem gates
+OPEN until proved.
