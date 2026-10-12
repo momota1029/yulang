@@ -13327,16 +13327,21 @@ A bounded Y3 source-map pass found that native signature rules
 `L-Annotation`, `A-Annotation`, and `SF-Annotation` consume an independent
 original negative-annotation rule and its permission/realization evidence;
 they do not generate the permission. The earliest present operational site is
-`FormalAnnotation` at Lambda-before-body. Current `Contribution` and
-`AttachmentSet` records do not associate the same attachment instance with an
-eligible concrete contribution. Operation `Support` retains source identity
-but does not mint such a contribution, and the selected residual policy still
-requires separate per-lineage current/future fanout.
+the `FormalAnnotation` executable construction seam at Lambda-before-body,
+after HIR retention and preflight. Current `Contribution` and `AttachmentSet`
+records do not associate the same attachment instance with an eligible
+concrete contribution. Operation `Support` retains source identity but does
+not mint such a contribution; the selected residual policy still requires
+separate per-lineage current/future fanout.
 
-This remains an unreviewed bounded owner characterization, not a source
-rejection or H refutation. An independent spec review is pending. The next
-proof packet asks whether an original source rule licenses the authentic
-attachment-local fiber and transports that same evidence to its actual
-`Neg::Row` residual demand; if not, it must name the smallest missing semantic
-leaf and owner. Annotation admission, alias transport, H, soundness,
-principality and F5 remain OPEN. No implementation or tests changed/run.
+The exact semantic dependency is an authentic original negative governed-port
+annotation rule with attachment-local permission that preserves independent
+same-family contributions. Evidence must be correlated at the original scope
+and distinguish licensed subtraction from independent siblings, but it may
+retain complete fibers symbolically: no particular `Gamma_ann` record,
+per-witness table, or construction allocation has been selected. An independent
+spec review corrected this boundary; a clean delta review confirms the narrowed
+wording. The authentic source consumer and reached `Neg::Row` demand remain
+separate open obligations. This is not source rejection or an H refutation.
+Annotation admission, alias transport, H, soundness, principality and F5 remain
+OPEN. No implementation or tests changed/run.
