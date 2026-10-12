@@ -13154,14 +13154,18 @@ conditional reduct. The note does **not** establish that source rules impose
 the correspondence premises, and it claims no admitted Yulang counterexample
 or source rejection.
 
-The first absent source constructor remains a nested helper's dependency on
-another active recursive component's still-open root, plus authentic
-introduction and transport of the call's extrusion operand `C`. Existing
-Source Generalize records cover same-component `Live/Internal` and installed
-`Mono/Established`; they do not derive this cross-component application. The
-constructive source lane is still checking the actual App/extrusion operand
-path. Do not change `C` to per-frame coordinates or alter the equality
-meaning. The [correlated-frame equality derivation](../notes/theory/2026-10-13-correlated-frame-equality-obstruction-proof.md)
+The source-construction pass refines the gap: IF permits static capture of a
+registered, preallocated open `f` root and finite monomorphic cycles, so an
+unfinished hereditary `f` certificate alone does not block `Name(f)`. The
+independently reviewed [active-root constructor derivation](../notes/theory/2026-10-13-active-root-call-source-construction.md)
+and [Y3 owner crosswalk](../notes/progress/2026-10-13-active-root-call-owner-crosswalk.md)
+locate the first missing bridges at c1's complete native-App/extrusion/equality
+interpretation and at g publication's authentic component/dependency records
+and source telescope. `Code-Call`, IF and Source Generalize consume such inputs;
+the inspected owners do not derive them from bounds or Value-SCC membership.
+This is missing construction evidence, not a source prohibition. Do not change
+`C` to per-frame coordinates or alter the equality meaning. The
+[correlated-frame equality derivation](../notes/theory/2026-10-13-correlated-frame-equality-obstruction-proof.md)
 has a fresh `compiler_referee` PASS after correcting one replay-step reference.
 For the displayed native two-use assignment, shared constraint equality or a
 fully transported canonical merge preserves the conditional chain
