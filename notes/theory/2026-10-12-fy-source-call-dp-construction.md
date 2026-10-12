@@ -270,9 +270,10 @@ execution, response/raw-continuation/future fields and original entry guards.
 Strict §3.1 takes that entire I as input. It does not define I from the pair
 of a native value row and an effect row.
 
-Likewise Gen-Call-0 already takes a **complete** scoped F_c. OSig-Demand
-and OC-CallEff retain and project its full invocation root. They do not
-define CarrierContract(F_c) from `Fn-(Y,E_y,Q_c,R)`. Code-Call §3.4 retains
+Likewise Gen-Call-0 introduces the dependent **complete** scoped F_c variable;
+its interpretation and admission law remain unsupplied here. OSig-Demand and
+OC-CallEff retain and project its full invocation root. They do not define
+CarrierContract(F_c) from `Fn-(Y,E_y,Q_c,R)`. Code-Call §3.4 retains
 VIncl/WholeArgCompatible origins; it expressly contains no truth of those
 relations. Source Generalize §4 generates the original local evidence
 clauses, not an interpretation of missing operands by shape.

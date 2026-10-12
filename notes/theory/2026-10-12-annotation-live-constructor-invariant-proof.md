@@ -221,22 +221,28 @@ genuine resolved explicit source row a
   -> jointly indexed executable attachment operation required by L.
 ```
 
-It is not an established theorem of the pinned implementation. There are two
-exact constructor failures, without assuming any source execution result:
+It is not an established theorem of the pinned implementation. The following
+are two distinct bounded findings, without assuming any source execution
+result:
 
 1. A composed-negative nonempty C meets the direct guard before
    `candidate_signature_view`. The missing source-formation conclusion cannot
    be obtained by quantifying only over the already successful negative views;
    their nonempty domain is empty in this cone. This does not refute H or make
    those ordinary source programs invalid language inputs.
-2. On the successful concrete view branch, `LocalWeight.left_word` and
-   `right_pops` have Rust types `[();0]` (`candidate_context.rs:115–123`).
+2. Separately, on the successful concrete view branch,
+   `LocalWeight.left_word` and `right_pops` have Rust types `[();0]`
+   (`candidate_context.rs:115–123`).
    The constructor equations in §2 therefore force both to be empty for every
    payload it returns, including a payload with `SourceUnitPush`. The actual
    executor in §3 only consumes the zero-word filter fragment. The private
    `materialize_unit_push:2200–2215` returns a `DetachedWeight` and installs no
    ContextExpr, relation, bound, registration or live word. Its detached result
-   is not the missing conclusion.
+   is not a live word. This establishes representational absence of nonempty
+   words in the inspected implementation; it does **not** independently refute
+   L for the successful positive-view branch, whose executable closed allowance
+   is established in §3. The actual negative-constructor obstruction to L is
+   §4(1).
 
 This is a bounded static refutation of a purported **current-source bridge**,
 not a source-qualified counterexample to semantic hygiene. The first absent
@@ -309,11 +315,14 @@ R_u(WithoutLeftFilter(c))     = WithoutLeftFilter(R_u(c)).
 
 Each child is older than its parent; induction on that constructor DAG proves
 these equations, preserves Replay order and shared children, and returns the
-same copied token for every reference to i. Reconstructed bound restoration
-at `candidate_scheme.rs:1221–1267` passes those actual endpoint terms, this use's
-context root and original bound evidence into `candidate_context_fresh_transport`.
-This is a source-to-transport bridge for the captured graph, not an arbitrary
-renaming assumed to be well formed.
+same copied token for every reference to i. At
+`candidate_scheme.rs:1221–1267`, fresh bound reconstruction passes the actual
+endpoint terms and this use's context root to
+`candidate_context_fresh_transport`; that transport records the source-bound
+key and mapped relation. `candidate_begin_bound_restoration` then receives the
+original bound evidence and source-bound provenance for restoration. This is
+a source-to-transport bridge for the captured graph, not an arbitrary renaming
+assumed to be well formed.
 
 Limits are essential. Context discovery only visits post-check contexts of
 the bounds actually captured. It rejects `BothFromRight` at
