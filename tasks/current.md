@@ -13758,3 +13758,29 @@ annotation-to-invocation field law and its same-callable checking proof; if
 current authority cannot determine it, present the reviewed conditional
 permission-incidence difference through the existing decision path. No
 compiler code changed.
+
+### 2026-10-13 negative FormalAnnotation permission-field decision
+
+The adopted clauses do not determine whether the written composed-negative
+Function selector governs the actual formal callable's complete invocation
+effect field, including entry, or only its body-effect subfamily while entry
+remains separately checked. The complete [question q1](../questions/2026-10-13-negative-formal-permission-field-law/question.md)
+states the exact alternatives and conditional consequences. M3 review passed:
+`compiler_referee` corrected and then passed the A/B permission-incidence
+wording; `spec_auditor` passed authority and scope conformance. No option is
+selected, and no source witness, removal, output difference, or implementation
+is established. The unintegrated question remains unstaged and uncommitted;
+only the affected annotation-to-field law and dependent application wait.
+
+The linked [activated check-closure proof](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+was also checked against its explicit next action. The bounded source mapping
+found no authentic cO/cE tree from which to inspect an exposed-arm elimination
+or its readout. The first missing input precedes that check: the original
+`Γ_E` import/declaration association, resolution and provider instance for
+`n_E - 1`, followed by the declaration's whole local semantic law at `W_E`
+(including literal-1 introduction and dependent operand/Call incidences).
+Current `SemanticImports(())` and scalar integer emissions do not supply it.
+This is not a source-wide absence result or counterexample. Keep actual cO/cE,
+base provenance, exposed-arm readouts, complete check clauses and L4 OPEN; do
+not conflate this operator/source-owner input with the permission-field
+decision. No code, tests, builds, probes or measurements changed or ran.

@@ -1011,3 +1011,26 @@ principality and F5 gates remain OPEN.
 Both lanes retain the original H domain and keep concrete-formal admission,
 concrete Row/residual, Call/output and production cutover separate. Neither
 may choose source meaning or use endpoint/family equality to invent incidence.
+
+### 2026-10-13 permission-field question and independent check-closure mapping
+
+The exact unresolved selector-to-invocation-field choice is now published as
+the unintegrated [question q1](../questions/2026-10-13-negative-formal-permission-field-law/question.md).
+Its M3 semantic and authority reviews passed after one wording repair. The
+question asks whether the negative Function selector governs complete
+invocation effect including entry, or only the body-effect subfamily while
+entry remains separately checked. No option is selected; no source admission,
+local removal, output difference, or compiler change is established. Keep the
+question directory unstaged/uncommitted and wait only on this dependent
+annotation-field law.
+
+For the separate activated check-closure gate, a bounded source mapping found
+no authentic cO/cE tree or base provenance to test for exposed positive-arm
+readouts. The first missing premise occurs earlier: the original `Γ_E`
+import/declaration association, resolution and provider instance for
+`n_E - 1`, plus that declaration's complete local law at `W_E`. Current
+`SemanticImports(())` and scalar integer emission do not construct these
+inputs. This bounded stop is neither source-wide absence nor a counterexample.
+Keep cO/cE, base readouts, complete check clauses and L4 OPEN and separate from
+the permission-field question. No tests, builds, probes, measurements or code
+changes ran.
