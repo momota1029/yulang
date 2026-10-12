@@ -606,7 +606,10 @@ OPEN.
 | `intrusion_assoc_source_audit` | Independent static source ownership; `notes/progress/2026-10-12-intrusion-association-source-audit.md` only | Frozen; actual source fields preserve binders/type rows but not the associated Value witnesses through App demand/extrusion. Exact source admission and compiler-wide absence remain unverified. |
 | `intrusion_assoc_review` | Fresh independent M3 semantic review of both frozen artifacts | No blocking, major or minor findings. It checked the original constructors, graph discriminator, user correction and source paths; it did not certify the universal equality theorem. |
 | `effect_source_owner_architecture` | Independent read-only architecture on approved Oracle-hygiene transfer | Complete; existing authority suffices for a bounded source-evidence prototype, but the paired negative interface/call/output invariant needs constructive proof first. No additional semantic vote identified. |
-| `oracle_effect_port_transfer` | Pinned Oracle Git-object to Y3 source correspondence; `notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md` only | Running at last inspection; exact pinned commit reads required because the local Oracle worktree is dirty. |
+| `oracle_effect_port_transfer` | Pinned Oracle Git-object to Y3 source correspondence; `notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md` only | Frozen; derives conditional production PUSH→resolved call→output POP pairing and locates open H/export and Y3 residual-transfer premises. One minor whole-callable wildcard-premise repair; independently reviewed, no blocking/major findings. |
+| `negative_formal_source_prover` | Constructive attack on mini-language generation and Y3 negative formal availability; `notes/theory/2026-10-12-negative-formal-source-proof.md` only | Frozen and independently reviewed; printed Oracle I-Lam/I-App rules generate the callback PUSH but no matching output POP or concrete residual-split endpoint. Y3 preflight cannot accept the source and the paired constructor rejects it independently. One minor preflight-branch quantifier repair. No global H closure. |
+| `oracle_effect_transfer_review` | Fresh independent review of pinned source transfer audit | Verified pinned blobs and direct source/call/output pairing; no blocking/major findings. Excluded global H, complete replay/export, runtime, soundness/principality and production admission. |
+| `negative_formal_source_proof_review` | Fresh independent review of constructive derivation | Confirmed mini-language/production distinction, wildcard guard, and Y3 rejection site; no blocking/major findings. Excluded H, complete Call, generalization, source-wide replay and production admission. |
 
 The intrinsic association premise is now demonstrated to be a real decision
 boundary: the reduced source `let rec f = let g = lambda y. f y in g in f`
@@ -626,16 +629,19 @@ carry the associated Value pair; their current bound-derived SCC is not the
 approved consumer. No compiler code changed. The proof/source artifacts received
 one fresh `compiler_referee` review with no findings in their bounded scope.
 
-Next effect gate: prove or refute the existing-policy construction invariant
-for a paired negative formal interface, actual resolved call/output forwarding,
-and attachment-qualified residual consumption before a private prototype.
-This is distinct from completing global H; Oracle's pinned conditional lemmas
-and Y3's local positive annotation bridge do not close it.
+Next effect gate: construct or refute the source-owned Y3 invariant coupling a
+negative formal occurrence, its actual resolved call and output, and each
+attachment-qualified current/future residual consumer. The bounded Oracle
+production pairing is only a constructor guide; the printed mini-language
+rules omit the matching exit bridge, and the Y3 route is currently rejected.
+No admission implementation is authorized by these audit results. This stays
+distinct from completing global H; Oracle's pinned conditional lemmas and
+Y3's local positive annotation bridge do not close it.
 
-Budget: M3 proof/semantic artifact with one independent reviewer; M2
-architecture packet with no review yet. Zero builds/tests/probes/benchmarks and
-zero measurement samples. Requested prover route was the registered
-`prover`; runtime model/effort metadata was not available. No Astra. The source
-crosswalk agent used no Git, and all current child outputs are frozen. The two
-pre-existing dirty theory drafts remain untouched; the new question directory
-is intentionally unstaged/uncommitted.
+Budget: M3 proof/semantic artifacts with one fresh independent reviewer each;
+M2 architecture packet remains unreviewed. Zero builds/tests/probes/benchmarks
+and zero measurement samples. The registered `prover` ran; runtime model/effort
+metadata was unavailable, with configured defaults Sol/high. No Astra. Pinned
+source workers read Git objects but made no Git mutations; primary performed
+the research checkpoints. The two pre-existing dirty theory drafts remain
+untouched; the new question directory is intentionally unstaged/uncommitted.

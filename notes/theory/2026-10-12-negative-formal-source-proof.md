@@ -1,7 +1,7 @@
 # Negative concrete formal: exact source generation and output obstruction
 
 Date: 2026-10-12
-Status: frozen research derivation awaiting independent review; no parent gate closure
+Status: bounded derivation independently reviewed; no parent gate closure
 Claim class: bounded formal source-generation characterization and current-Y3 unavailability derivation
 Primary baseline: `0e621f549035537e4d3e799c78f79dd9385df350`
 Oracle document baseline: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -66,11 +66,14 @@ For the **Y3 subclaim Y**, quantify over any successfully formed LocalSource
 whose Lambda parameter retains a Function annotation with a concrete result
 row at composed-negative position. The singleton has one member E and zero
 symbolic variables; the argument also covers a concrete E with one retained
-symbolic tail. **Y:** the actual candidate solve route returns Unsupported
-at formal preflight, before constructing its formal action, call demand or
-lambda output. The paired constructor has an independent rejection as well.
-This is the packet's alternative (ii), a concrete implementation boundary;
-it does not authorize rejecting those sources in the supported language.
+symbolic tail. **Y:** candidate preflight cannot accept this source. If
+traversal reaches the matching formal, its `preflight_formal` test returns
+false. Earlier unsupported checks may stop traversal before that branch. In
+all cases, preflight failure precedes construction or execution of the formal
+action, call demand and lambda output. The paired constructor has an
+independent rejection as well. This is the packet's alternative (ii), a
+concrete implementation boundary; it does not authorize rejecting those
+sources in the supported language.
 
 Shared premises: the exact inspected bytes; ordinary fresh allocation without
 ID exhaustion; successful HIR formation where Y explicitly assumes it. No
@@ -250,9 +253,11 @@ row.concrete.is_empty() && row.variables.len() == 1
 ```
 
 At a concrete result row E this is false, with or without one symbolic tail.
-Preflight returns `CandidateError::Unsupported`. This derives Y without
-assuming a successful negative-formal action, completed replay or an output
-consumer. The source policy and source-support gate remain separate.
+If traversal reaches this branch, preflight returns
+`CandidateError::Unsupported`; earlier unsupported checks may terminate first.
+Either way, candidate preflight cannot accept this source, before assuming a
+successful negative-formal action, completed replay or an output consumer.
+The source policy and source-support gate remain separate.
 
 Removing preflight alone cannot complete the missing cut:
 
@@ -326,6 +331,15 @@ Keep H, complete Call, generalization, soundness/principality, admission and
 F5 replacement OPEN until their original evidence is established.
 
 ## 6. Checks, resources, runtime and commit packet
+
+Independent `compiler_referee` review found no blocking or major issue and one
+minor quantifier-precision point. Y3's formal branch is reached only if earlier
+preflight checks succeed; the claim now separates universal preflight
+non-acceptance from branch-specific `preflight_formal` rejection. This does
+not narrow H or the supported source domain. The reviewer also checked the
+Oracle mini-language/production-constructor distinction, the wildcard guard,
+and the Y3 owner localization; it did not certify H, generalization, complete
+Call, source-wide replay, soundness, principality, or production admission.
 
 Only this leased note was written. Static evidence: bounded `cat`, `sed`, `rg`
 and Python SHA-256 reads; authorized read-only `git show` for the three

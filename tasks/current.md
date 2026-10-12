@@ -104,6 +104,30 @@ association; independent effect-hygiene work continues. See the [constructive
 discriminator](../notes/theory/2026-10-12-intrusion-association-proof.md) and
 [source audit](../notes/progress/2026-10-12-intrusion-association-source-audit.md).
 
+### 2026-10-12 effect-hygiene source transfer checkpoint
+
+The pinned Oracle/Y3 transfer audit and a reviewed bounded proof now separate
+two constructions. Oracle's production direct-formal path emits a paired
+annotation PUSH, resolved local-call predicate, and defined-frame output POP
+for the same fresh SubtractId, under a whole-callable no-wildcard premise.
+The printed mini-language `I-Lam`/`I-App` generation rules do not construct
+that matching POP or a concrete upper-row residual endpoint; their lexical
+bracket proof assumes an exit bridge not present in those constructors. This
+is a missing bridge in that formal draft, not an Oracle production bug or a
+refutation of global H.
+
+Current Y3 cannot accept the composed-negative concrete formal row: preflight
+rejects it, and the paired formal constructor independently has no such route.
+The actual call/output incidence and current/future residual consumers still
+need one source-owned executable attachment invariant. The reports were
+independently reviewed; the Oracle audit received a minor wildcard-scope
+repair, and the proof received a minor preflight-branch quantifier repair.
+No compiler code or tests changed. The next effect gate is to construct or
+refute that coupled Y3 call/output/residual invariant before any dependent
+admission implementation. Global H, complete Call, hygiene, soundness,
+principality and F5 cutover remain OPEN. See the [pinned transfer audit](../notes/progress/2026-10-12-oracle-effect-source-transfer-audit.md)
+and [negative-formal derivation](../notes/theory/2026-10-12-negative-formal-source-proof.md).
+
 ## User objective and branch boundary
 
 The active user objective is to complete type inference and replace the F5
