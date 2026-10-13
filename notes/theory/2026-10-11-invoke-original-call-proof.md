@@ -165,17 +165,62 @@ These facts are required to apply the source Lambda/Name/Call rules for the
 original domain. They cannot be obtained by treating the formal as an already
 typed returned value.
 
-The precise unresolved source premise is consequently:
+The selected native uniform-inlet constructor does settle the actual-provider
+side for this formal. At the authentic unannotated Value Parameter
+`d_f`, it forms `I_schema = ValueInletSchema(d_f,A_f;Delta_f)` before
+challenges; at the corresponding Value-entry Lambda it forms the same actual
+`U_L` with
+`CarrierContract(U_L) = GenericValueInlet(d_f,IF0)`. This is the constructor
+in [uniform Value entry](2026-10-08-uniform-value-entry-constructor.md)
+§§4.1,5.1, not the projection-limited Uniform-ID whole-body theorem. It
+preserves the actual source operation, captures, receipt, one designated
+Force, rebind and invocation interface; it assumes no body purity. For an
+admission already indexed by `I_schema`, the constructor's exact witness
+injection followed by `PackGeneric` establishes actual admission at the same
+carrier and event.
 
-> At the original Parameter/entry owner for `L,d_f`, construct the actual
-> complete received view and its source/profile/guard/port interpretation
-> before challenges, and prove that each independently admitted complete
-> challenge has lawful actual receipt and one-layer entry. Every Return
-> supplies the same-result hereditary ValueBind at the original typed paths;
-> every nonreturning prefix preserves its original request/continuation and
-> remaining entry obligations. Static and event-dependent fields retain
-> their original predecessors. None of these conclusions is an added premise
-> of the parent source theorem.
+The unresolved step is now on the checked-descriptor side. An original
+challenge `d in D_F_L` supplies
+
+```text
+chi_d : Acc(CarrierContract(F_L); d.wholeCarrier,e_d).
+```
+
+The selected rules do not yet derive from this field
+
+```text
+gamma_d : Check(I_schema; d.wholeCarrier,e_d),
+```
+
+or an evidence-preserving map with that result. `Description(C,d_f)` retains
+`I_schema`; the actual generic admission retains `GenericValueInlet`; neither
+identifies the independently interpreted admission interface of the complete
+checked descriptor `F_L`. The captured-closure `Strict(I,formal:A,R,IF)`
+constructor supplies challenge inversion when a descriptor was formed by
+that constructor, but no selected original rule identifies this `F_L` with
+`Strict(I_schema,...)` or maps every `D_F_L` challenge into its same-frame
+domain. Its direct inversion therefore cannot be imported here. This is an
+underdetermination result relative to the inspected rules, not a
+source-qualified counterexample.
+
+If `gamma_d` is supplied, the existing PackGeneric/ActualAdm construction
+and Lemma S give the original Return/rebind and pending Request suffix at the
+same value, provider, world, response, raw handle and event. All J
+alternatives and their Delta checks remain under their original binders. The
+parent derivation still stops before the body Call; no challenge is discarded.
+
+The precise remaining source premise is consequently:
+
+> At original complete Function formation for `L`, identify its checked
+> admission interface with the Parameter-owned `I_schema`, or construct a
+> total evidence-preserving map from every `d in D_F_L` to
+> `Check(I_schema;d.wholeCarrier,e_d)`. The map must preserve each challenge's
+> original J contract and all licensed alternatives, Delta checks, provider,
+> world, response, raw continuation, future and proof-choice dependencies.
+> Then apply the existing generic inlet injection, Lemma S, and original
+> Value-entry Return/rebind and pending-suffix rules. Static and
+> event-dependent fields retain their actual predecessors. None of the map or
+> its conclusion is an added premise of the parent source theorem.
 
 This is the semantic content needed at the seam. It does **not** demand a
 total raw inlet action for carriers lacking complete compatible challenges:

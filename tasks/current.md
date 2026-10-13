@@ -14035,6 +14035,35 @@ The theory navigation and generated ledger commentary are synchronized at the
 owning render function. One lightweight generation consistency check passed
 (89 nodes, 193 edges, 32 families); NODES/data and JSON remained unchanged.
 
+### 2026-10-13 invoke actual-inlet application and checked-frame residual
+
+The selected uniform Value-inlet constructor applies to the actual unannotated
+Value formal of `my invoke f = f 1`: Parameter forms the pre-challenge
+`ValueInletSchema(d_f,A_f;Delta_f)`, and Lambda forms the same actual `U_L`
+with `CarrierContract(U_L)=GenericValueInlet(d_f,IF0)`. This closes the
+actual-provider constructor half without using Uniform-ID's projection-only
+whole-body result. The parent proof now records the direct PackGeneric route
+for any admission indexed by that schema.
+
+An independent fixed-frame owner audit found the remaining first step on the
+checked-description side. Contextual assembly gives
+`chi_d : Acc(CarrierContract(F_L);t,e)` for `d in D_F_L`; no selected source
+Lambda rule identifies that independently interpreted checked inlet with the
+Parameter-owned schema or maps every challenge to its same-frame checked
+record. `Strict(I,...)` inversion supplies that record only for descriptors
+formed by the selected captured-closure constructor; no rule identifies the
+original `F_L` with that constructor. Its bounded Any/J alternative model
+shows non-entailment from the displayed independent-interface rules, not an
+inhabited source counterexample. Preserve the original challenge domain and
+all J/Delta/provider/world/response/raw/future evidence. Defining or adopting
+a new `F_L` admission constructor cannot be selected under the current
+no-semantic-change instruction unless its owner shows that it merely fills an
+undefined case without changing an independently fixed `D_F_L`. Parent theorem
+remains OPEN; this is REDUCED only by the actual `U_L` constructor
+instantiation. No tests, builds, probes or Git operations ran. Next: obtain
+the authentic original `F_L` formation/admission equation or its total
+same-frame map; do not repeat generic-sum projection or C_J reconstruction.
+
 ### 2026-10-13 checked-inlet original field typing cut
 
 The [field-by-field derivation](../notes/theory/2026-10-13-checked-inlet-field-formation.md)
