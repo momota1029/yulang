@@ -14352,3 +14352,41 @@ general copy/merge/Effect, L4, soundness/principality and F5 OPEN. Another diamo
 restatement leaves this premise unchanged. Thirteen dependency hashes and
 static links/fences/whitespace pass; no builds/tests/probes/measurements. Task,
 laboratory and design navigation records are synchronized; no compiler change.
+
+### 2026-10-13 Application_N arm readout and literal O0 construction
+
+For the frozen `invoke f = f 1` source/native parent, direct construction from
+the selected `Application_N` now takes `Q_N(c)` from the actual complete Kernel
+reference and projects every retained Call arm from that object. The complete
+Kernel `WholeContract.typing` transports along its lawful scoped use to the
+same-index C0 contribution, preserving its open whole-carrier inlet, all
+admitted alternatives, providers, worlds, prefixes, resumptions and futures.
+A fresh independent compiler-referee passed this bounded construction. This
+discharges the proposed ArmDecl/C0 assembly premise as **REDUCED**; it does not
+prove the original source/native correspondence or parent theorem.
+
+The next exact original-consumer seam is O0's source record. A candidate
+`GC-Literal-N` constructor was directly formed from the actual N build/table
+and selected literal Result/Code-Result evidence, then threaded through the
+unchanged `Inv(Id(F_c),F_c)` root and all eight O0 projections. Independent
+compiler-referee and spec-auditor review found the construction acyclic and
+the root interpretation unchanged, but classified it as a new original
+`Gen-Call-0`/`OC-CallEff` semantic-definition case: existing Authoritative O0
+only covers actual emitted old records, q1/q2 permit construction but exclude
+adoption, and N's `ElimOrigin_N` is not an original `ElimOrigin`. Keep this
+candidate unadopted; do not use it as the selected IF source field without
+explicit approval or an independently established typed realization into the
+existing original record family. The first missing owner remains the literal
+Application-to-original-Call-record construction, not Call solving or
+receiver semantics.
+
+The linked [check-closure compatibility checkpoint](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+is a separate L4 obligation: endpoint saturation gives activated edge targets
+in R but does not give their `Phi(R)` readouts. Its exposed positive-union arm
+calculation is a bounded non-entailment for arbitrary bases, not a source
+counterexample; actual source-root readout supply remains open. No O0/IF bridge
+or parent-theorem result is inferred from that checkpoint.
+
+No compiler code, tests, builds or Git mutations changed in this slice. The
+excluded untracked question directory remains untouched. Source/native, L4,
+complete Call, soundness, principality and F5 gates remain OPEN.
