@@ -536,8 +536,9 @@ Commit packet:
 - Baseline SHA: `8087cc483e08e387d72c74f340c421e2a433c8c0`.
 - Changed dependency hashes: none at frozen producer handoff; primary rechecks
   any concurrent dependency movement before review/integration.
-- Claim/review status: unreviewed closure and displayed-case derivations;
-  conditional full-Function reduction; no original theorem/L4 promotion.
+- Claim/review status: closure and displayed-case derivations independently
+  reviewed after repair; conditional full-Function reduction; no original
+  theorem/L4 promotion.
 - Checks already run: static source/clause analysis and dependency/artifact
   integrity; zero tests/builds/probes/Git mutations.
 - Proposed checkpoint message: `research: derive activated check closure readouts`.
