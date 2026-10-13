@@ -4,7 +4,7 @@ Date: 2026-10-13
 Baseline: `dd19f91a2c4922e5687276885973d8badbb179b7`
 Exclusive lease: this file only
 Producer: `/root/prove_apply_formal_entry_declaration`, prover leaf; no delegation
-Status: frozen unreviewed bounded constructive/source characterization
+Status: frozen, independently reviewed bounded constructive/source characterization
 Theorem, source acceptance, implementation authority and parent closure: none
 Budget: one Sol/high assignment, 30 minutes, static reads only; zero builds/tests/probes/measurements
 
@@ -296,7 +296,16 @@ and F5 replacement. No repository-wide original-rule absence is asserted.
 
 - Exact leased/changed path: `notes/theory/2026-10-13-apply-formal-entry-declaration-proof.md`.
 - Baseline SHA: `dd19f91a2c4922e5687276885973d8badbb179b7`; changed dependency hashes: none in 27 compared direct inputs.
-- Claim/review status: frozen unreviewed bounded constructive/source characterization; original premise and parent gates OPEN; no producer certification.
+- Claim/review status: frozen, independently reviewed bounded constructive/source characterization; original premise and parent gates OPEN; no producer certification.
 - Checks already run: static owner reads, last-rule inversion/partial alignment, read-only HEAD and pinned dependency SHA-256/byte comparisons; zero compiler or executable semantic checks.
 - Proposed checkpoint message: `research: isolate invoke original formal-entry declaration application`.
 - Shared-record deltas left for primary/curator: consume this as the unchanged authentic declaration/application premise with its source owner; distinguish existing adopted APIs and active native demand from that unprovided application; keep complete-Call/natural-inference/semantic correspondence gates OPEN. No shared record changed.
+
+### Independent review and disposition
+
+`compiler_referee` found no blocking, major or minor issues in the bounded
+source/consumer and last-rule claims. It confirmed that the adopted APIs are
+distinguished from their unsupplied original full application, and that the
+note does not treat Gen-Call-0 as universal or infer source rejection. This
+review does not certify the original telescope, source admission, complete
+Call, soundness, principality or F5 cutover.

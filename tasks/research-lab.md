@@ -1064,3 +1064,24 @@ constraints live and the source/Call/generalization/public-cutover gates OPEN.
 No tests, builds or code changes ran. Next: locate the original source rule
 and complete-Call suppliers for the missing authentic construction; do not
 infer them from retained HIR syntax identity.
+
+### 2026-10-13 Invoke formal-entry declaration cut
+
+The bounded [formal-entry declaration derivation](../notes/theory/2026-10-13-apply-formal-entry-declaration-proof.md)
+received a fresh `compiler_referee` PASS. An independent read-only architect
+audit reached the same owner boundary: for `my invoke f = f 1`, the unresolved
+application is `Γ_form^src(P) ⊢ μ : Δ_in^orig` followed by authentic
+`intro_orig[μ]`. Existing adopted Header/Declare-Owned-Port/FormalOwner-Ports
+APIs establish candidate alignment but do not provide the complete original
+ordered declaration signature or all its typed arguments. The full telescope
+is not displayed, so no earliest hidden binder or source rejection follows.
+The native Apply constraints remain live; `ApplySourceInput` and syntax
+identity do not complete this declaration or the original Call. This is the
+same declaration-owner premise exposed by the prior registry and pre-Call
+attempts; another conditional entry derivation would repeat it. Next: inspect
+the original formal-origin and carrier/entry-port declaration owner for the
+complete telescope and introduction. If current authority supplies no local
+rule, return that exact missing definition through the existing authority
+path before implementation. Parent Call, natural-inference, source
+correspondence, soundness, principality and F5 gates remain OPEN. No compiler
+edits, tests, builds, probes or measurements ran.
