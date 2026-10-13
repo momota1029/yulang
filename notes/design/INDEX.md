@@ -696,6 +696,15 @@ This index is a navigation aid. The listed source document remains authoritative
   conformance hypotheses remain scoped to that route; the complete source
   declaration/Entry/Call semantic law and native correspondence remain OPEN.
 
+- **Reviewed structural source-formal-port Draft (2026-10-13; unapproved):**
+  [constructor proposal](2026-10-13-source-formal-ports-declaration-proposal.md)
+  retains the actual source header, flexible Desc and intrinsic port addresses
+  in dependent structural outputs. Fresh delta review passed after repairs to
+  their predecessor indices and contextual substitution. Genuine original
+  carrier/port applications and introductions/maps into Entry-Value remain
+  OPEN; this Draft is not adoption ready for actual invoke and supplies no
+  production or F5 authority. It adds no mandatory old-registry prerequisite.
+
 - **Reviewed source-owned invoke registry construction (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
   build the actual formal/Name/literal pre-Call registry from source recipes,

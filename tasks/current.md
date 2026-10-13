@@ -14049,3 +14049,37 @@ has consumed that concrete premise; its proposal supplies no actual original
 invoke instance yet. Original source/Entry/Call, native semantic correspondence
 and F5 remain OPEN. Static links/fences/whitespace pass; no tests, builds,
 semantic probes or measurements ran.
+
+### 2026-10-13 structural source-formal-port review checkpoint
+
+The [source-formal-port Draft](../notes/design/2026-10-13-source-formal-ports-declaration-proposal.md)
+now supplies explicit dependent structural outputs, constructor/eliminator
+types and contextual substitution equations from a complete retained input
+base. M3 conformance review passed; semantic review's omitted predecessor
+context was repaired with the full `(h,A,desc,intr)` index. Fresh delta review
+then identified a distinct cross-context eliminator-motive error. Its focused
+repair uses metatheoretic substitution of complete typing derivations; fresh
+independent delta review passed with no remaining findings.
+
+The primary consumes only this structural formation/substitution result. The
+actual original carrier-domain application, complete Receipt/Force/Rebind
+schemas and genuine maps into original Entry-Value remain OPEN at their source
+owners. The unapproved Draft is not adoption ready for actual invoke and gives
+no implementation or F5 authority. Direct original families remain permitted;
+the retired mandatory old-registry production edge stays retired.
+
+The user-linked [check-closure proof](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+was reread and kept separate: it proves endpoint insertion and displayed
+activated compatibility, while exposed positive-arm readouts, complete
+Function/equation laws and actual cO/cE source provenance remain OPEN. Its
+bounded union witness is not an actual source counterexample. A read-only
+next-action selector distinguished the general L4/checking invariant from the
+particular subtraction-dependent cO/cE application. Its READY recommendation
+was dispatched as a constructive `prove_source_check_arm_provenance` leaf and
+independent `audit_source_check_union_origin` source-coverage/falsification
+lane, on disjoint new research paths. They inspect original certificate origins
+and the first union-elimination consumer instead of repeating a conditional
+closure or missing-subtraction scan; no result or closure is claimed yet.
+Design navigation and task/laboratory records are synchronized. Static
+link/fence/whitespace checks pass; zero tests, builds, semantic probes and
+measurements for this slice.

@@ -1230,3 +1230,29 @@ the original local source declarations. The architecture lane received that
 premise with direct original families explicitly allowed. The complete source
 parent and native correspondence stay OPEN. Zero tests, builds, semantic
 probes and measurements; no production authority.
+
+### 2026-10-13 structural formal-port and check-closure handoff
+
+The [structural formal-port Draft](../notes/design/2026-10-13-source-formal-ports-declaration-proposal.md)
+received M3 conformance/semantic review and fresh focused delta reviews.
+Repairs retain complete predecessor indices and transport complete contextual
+typing derivations into the destination context. Its structural outputs do
+not supply authentic original carrier/port inputs or introductions/maps into
+Entry-Value. Actual invoke adoption, complete source/Call, native semantic
+correspondence and F5 remain OPEN; no production implementation is authorized.
+
+The primary also consumed the user-linked
+[activated check-closure proof](../notes/theory/2026-10-13-check-closure-compatibility-proof.md).
+Endpoint insertion and displayed constructor compatibility are established;
+exposed-arm readout and complete Function/equation/source-provenance premises
+are distinct missing inputs. The finite union witness does not refute actual
+cO/cE. The bounded read-only `select_check_closure_parent_action` returned a
+READY original certificate-provenance action and distinguished the general
+invariant from the particular subtraction-dependent example application.
+The primary dispatched `prove_source_check_arm_provenance` (constructive leaf)
+and `audit_source_check_union_origin` (independent source coverage/falsification)
+on distinct new research paths, each with a 15-minute static budget. Their
+results and fresh independent review remain pending; parent gates stay OPEN.
+Do not dispatch another generic conditional closure or repeat unchanged
+subtraction absence scans. Static artifact checks only; zero tests, builds,
+semantic probes and measurements.
