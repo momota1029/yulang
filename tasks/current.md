@@ -14444,3 +14444,77 @@ No source restriction or alternate body-success admission was introduced.
 No code, tests, builds or probes ran. Next owner: directly construct and
 discharge the `f 1` body Call under each original `R_L` telescope; keep its
 licensed whole-Call alternatives and same-provider Function elimination.
+
+### 2026-10-13 direct ordinary Application/Call construction attempt
+
+I rechecked the frozen parent and directly tried to form its `f 1` body Call
+from the actual typed-core `X[call]` spine and the selected `Application_N`
+complete-kernel reference. The structural prefix is fixed:
+`Return(lookup f)`, inert `Delay(Return(1))`, then `ExecuteCallable` on that
+same provider/current world. A genuine complete `Q_N` preserves every
+whole-Call arm and its evidence fiber by identity under its scoped reference;
+the earlier “arms cannot be composed” claim is too strong once that complete
+kernel is supplied.
+
+The first unproved original source field is the authentic complete Call
+operator declaration and its local typed source-use law at this Application:
+the predecessor telescope `Delta_in(delta_Call)`, substitution `mu_c` from
+the actual formal, literal/Reify, result and scope inputs, and the original
+Call typing/emission judgment at `c`. Typed-core translation consumes an
+already typed derivation; C-Call consumes an authentic operation plus C0; IF
+places actual typed declarations and uses; none generates this original
+operator typing from the child rules. `Application_N` has a reusable Kernel
+input and conditional Q_N construction, but remains a separate non-authoritative
+family and expressly requires original-consumer realization. Its kernel
+reference alone therefore does not close the original source rule.
+
+This is **UNCHANGED** for the original parent theorem: no unconditional
+premise, theorem lemma, counterexample or source typing was discharged. The
+exact missing source owner is the ordinary Application/Call constructor,
+including its authentic complete-kernel supplier/typing and scoped use at
+`c`. No third equivalent ArmDecl derivation is scheduled. No implementation,
+tests, builds, probes or Git mutation ran; the question directory stays
+excluded. Source/native, complete Call/C0, L4, soundness, principality and F5
+remain OPEN.
+
+### 2026-10-13 direct whole-Function projection attempt
+
+I tested a different construction: reuse the actual complete Function
+description at the inner Application and derive its Call view by dependent
+projection, composing the actual Name/Return, literal Reify, Bind and
+same-provider Function elimination. This preserves the same returned `f`,
+provider, whole carrier, event, current world and the complete receiver-local
+`D_F/P_F` evidence. It does not set `A_f = F_c` or choose a principal formal.
+
+The first unavailable field is the authentic complete **whole-Call** clause
+family at `c`, including its declaration/domain licenses, independent
+alternatives, changed-provider/admission evidence, output-dependent futures
+and witness fibers. The selected Function membership contract supplies
+receiver execution and its receiver-local alternatives; the selected complete
+Call contract separately requires whole-Call alternatives that need not pass
+through receiver execution. Parameter, outer Lambda, Application checking,
+Code-Call, C-Call and IF-Insert/IF-Use do not introduce this family from the
+Function record and source children. The owner must form and reference the
+authentic complete Call root before the existing placement and contribution
+rules can consume it.
+
+This is **UNCHANGED** for the original theorem: no source counterexample or
+new parent lemma was obtained. The attempt was distinct from prior
+Kernel/ArmDecl-parametric attempts; another Function projection or conditional
+ArmDecl derivation would repeat the same cut. Frozen scratch evidence is in
+`/tmp/yulang-invoke-body-call-proof/attempt.md` and
+`/tmp/yulang-invoke-body-call-proof/falsify-function-owner-route.md`; neither
+is an authoritative repository result. The independent adjudication confirms
+that no inspected rule determines whole-Call alternatives from the receiver.
+Whether an independently fixed complete declaration for this source
+occurrence already exists is still unverified; adding a fresh `Q_c` premise to
+the parent would not prove it. The exact next proof owner is the original
+generic Application/Call primitive-formation rule at `c`.
+
+The [finite-check-closure compatibility note](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+remains a separate OPEN L4 gate: endpoint closure does not by itself provide
+the required `Phi(R)` readouts. No Call or source/native result follows from
+that note. Native correspondence, complete Call/C0, literal whole-carrier
+checking, soundness, principality and F5 remain OPEN. No code, tests, builds,
+probes or Git mutations ran; the untracked question directory remains
+excluded.
