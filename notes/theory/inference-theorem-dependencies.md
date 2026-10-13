@@ -5,6 +5,26 @@ Status: research dependency navigation; not an Authoritative design
 Canonical ledger: [complete successor DAG](successor-proof-obligations.md)
 Machine form: [machine audit data](successor-proof-obligations.json)
 
+## Selected source-check provenance (2026-10-13)
+
+The user-linked [activated check-closure result](2026-10-13-check-closure-compatibility-proof.md)
+establishes endpoint insertion and displayed constructor compatibility, not
+general exposed-arm readouts or full Function/equation action. The later
+independently reviewed [source-provenance derivation](2026-10-13-source-check-arm-readout-provenance.md)
+and [source qualification audit](../progress/2026-10-13-source-check-union-origin-audit.md)
+derive original B_H arm readouts and exact selected K hole replacement.
+They exclude the particular generic Unit/Function-union witness from that
+source base, without proving the activated-target or general L4 law.
+
+For an already genuinely postfixed selected S0, ordinary sound checking
+laws transport ordinary V* membership by insertion rank. The R-postfixed
+compatibility construction is an additional sufficient route for that
+selected ordinary-membership conclusion, not its necessary prerequisite.
+The requested R-readout theorem remains OPEN. General recursive K/L4,
+complete local checking laws, source-to-native correspondence and the
+particular subtraction-dependent cO/cE application retain their own owners.
+No canonical graph status or edge changes from these bounded results.
+
 ## Current proof architecture (2026-10-07)
 
 The current user instruction replaces sequential OPEN-node attacks with a

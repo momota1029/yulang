@@ -14077,9 +14077,24 @@ next-action selector distinguished the general L4/checking invariant from the
 particular subtraction-dependent cO/cE application. Its READY recommendation
 was dispatched as a constructive `prove_source_check_arm_provenance` leaf and
 independent `audit_source_check_union_origin` source-coverage/falsification
-lane, on disjoint new research paths. They inspect original certificate origins
-and the first union-elimination consumer instead of repeating a conditional
-closure or missing-subtraction scan; no result or closure is claimed yet.
-Design navigation and task/laboratory records are synchronized. Static
+lane, on disjoint new research paths. Their frozen
+[constructive provenance result](../notes/theory/2026-10-13-source-check-arm-readout-provenance.md)
+and [source-origin audit](../notes/progress/2026-10-13-source-check-union-origin-audit.md)
+passed one fresh independent M3 compiler-referee review with no findings.
+Original B_H certificate elimination supplies the arm readout; exact selected
+K constructors replace H leaves. The specific generic Unit/Function-union
+witness cannot originate from that selected base. A checking target's full
+relative readout action remains OPEN at its actual constructor.
+
+For the already genuinely postfixed selected S0, genuine ordinary local check
+laws also give ordinary V* membership of the endpoint closure by insertion-rank
+induction. Every-edge Phi(R) compatibility is an additional sufficient route
+for that selected membership conclusion, not a necessary prerequisite. This
+does not prove R postfixed, the original requested readout theorem, general
+K/L4, actual cO/cE or native correspondence; no parent gate is retired.
+Next: obtain the actual activated checking/equation constructor and its full
+source premises at the first unmatched union consumer. Do not rerun a generic
+closure proof or a missing-subtraction scan at the unchanged premise.
+Design/theory navigation and task/laboratory records are synchronized. Static
 link/fence/whitespace checks pass; zero tests, builds, semantic probes and
 measurements for this slice.

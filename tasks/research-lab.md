@@ -1252,7 +1252,21 @@ invariant from the particular subtraction-dependent example application.
 The primary dispatched `prove_source_check_arm_provenance` (constructive leaf)
 and `audit_source_check_union_origin` (independent source coverage/falsification)
 on distinct new research paths, each with a 15-minute static budget. Their
-results and fresh independent review remain pending; parent gates stay OPEN.
+[constructive provenance derivation](../notes/theory/2026-10-13-source-check-arm-readout-provenance.md)
+and [source-origin audit](../notes/progress/2026-10-13-source-check-union-origin-audit.md)
+are frozen; one fresh independent M3 compiler-referee review passed both
+bounded results with no findings. Original B_H arm readouts and exact selected
+K hole replacement are derived; newly checked union targets still need their
+actual full relative constructor action. The generic Unit witness fails
+qualification against the selected base, not all possible source graphs.
+
+For an already proved selected S0, genuine ordinary checking laws give
+ordinary V* membership by insertion rank; the additional R-postfixed route
+is unnecessary for that particular conclusion. The original requested
+R-readout theorem, general L4/K, local complete laws, actual cO/cE and native
+correspondence remain OPEN. No parent gate or canonical edge is retired.
+The next source lane must supply the actual first activated constructor and
+its original premises; no new ready implementation slice follows here.
 Do not dispatch another generic conditional closure or repeat unchanged
 subtraction absence scans. Static artifact checks only; zero tests, builds,
 semantic probes and measurements.
