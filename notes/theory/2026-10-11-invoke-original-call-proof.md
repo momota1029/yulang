@@ -5,7 +5,7 @@ Baseline: `72de8a8389825b395bc910654aa030ad82a289b0`
 Branch: `research/simple-sub-intrusion`
 Reference: `9bae772624c23b52a93c1b226157e16898b4d9db`
 Producer: `/root/invoke_original_call_proof`; leaf, no delegation
-Status: independently reviewed bounded ordinary derivation/source-bridge result; original Yulang theorem OPEN
+Status: independently reviewed bounded ordinary derivation and complete-bound Call-edge application; original Yulang theorem OPEN
 Lease: `notes/theory/2026-10-11-invoke-original-call-proof.md` only
 Requested runtime: `gpt-6.1-sol` / `high`; observed model/effort: unknown
 Semantic adoption, implementation, Git integration and certification authority: none
@@ -321,8 +321,10 @@ the Call-owned whole literal carrier must form an independent checked challenge.
 Function elimination then gives acceptance and observations for that same
 returned provider. Ordinary `alpha <: Int->beta` supplies only its ordinary
 value demand, not these full Yulang interpretation/formation conclusions.
-The current attempt cannot reach that cut with a completed source derivation
-because the post-entry environment premise above is unresolved.
+The selected source Lambda formation above supplies the post-entry environment
+for its constructed root; the missing step at this cut is the source-owned
+complete Application/Call derivation for the body, including the same literal
+whole-carrier challenge and its complete dependent residual.
 
 ## 5. Exact current construction/consumer bridge
 
@@ -362,33 +364,91 @@ activation completeness or Generalize is imported from this observation.
 In particular, Source Generalize's SRC/GS/GC uses original local laws L1–L5;
 using it here cannot manufacture the missing L2 entry/Call instance.
 
+### 5.1 Applying complete-bound Simple-sub to an original Call derivation
+
+Do not derive an ordinary arrow inequality from semantic `VIncl`. Fix an
+actual derivation node at the body occurrence `c` whose constructor is the
+selected representation-preserving original Call rule. Invert that Call
+node, keeping any outer checking or conversion node and its separate premise
+unchanged. The fixed Call rule supplies one jointly indexed witness `(F_c,e)`
+with, among its fields,
+
+```text
+e_value : VIncl(A_f,F_c; xi,e_value_index).
+```
+
+The original edge is at its actual Call scope: `A_f` is the Parameter-owned
+endpoint referenced through that scope's original map, while `F_c` and its
+event-dependent fields remain under their original `Delta_c` binders. Keep
+that map and the complete `e` tuple unchanged.
+
+Instantiate the independently proved finite complete-bound accumulation
+theorem at this exact endpoint-reference fiber. The source `VIncl` witness is
+the original edge occurrence; no new inclusion proof is chosen. The theorem
+then yields
+
+```text
+F_c in Upper_at_Call(A_f)
+```
+
+and retains the complete original witness/residual tuple by its identity
+projection and reconstruction maps. This is exactly the use of BOUND
+§§3, 9: an unknown formal may receive a complete upper bound before any
+provider selection, role resolution, lower bound, semantic satisfiability, or
+Call execution. `WF_Dec(F_c)`, whole-argument compatibility, complete result
+inclusion, `TypedCallCert_Dec`, and all dependent scopes remain attached to
+the same original Call record.
+
+Where the finite row-only conditions of BOUND's ROW theorem hold, its existing
+same-level storage calculation also applies: injective scheduling rows store
+the endpoint-reference edge, while the original complete descriptors and
+evidence stay in the external semantic record. This is a bounded storage
+correspondence, not an adopted production wrapper or full compiler bridge.
+
+This discharges one direction of the Simple-sub correspondence **conditional
+on an instance of the selected original Call rule**: that rule's actual
+`VIncl` conjunct is accepted by complete-bound accumulation without reducing
+it to four scalar ports. It does not establish that every original derivation
+of this source exposes that rule instance without a separate source-syntax
+inversion proof, and it does not construct the Call instance from its children.
+It also does not identify this opaque complete edge with the
+current native `alpha <: Function4(q,arg_eff,inv_eff,beta)` graph, prove a
+common assignment for the two graphs, discharge the complete residual, or
+establish public principality. In particular, the imported ordinary
+`lambda f. f 1` proof remains a separate already-closed base and is not
+repeated here.
+
 ## 6. Economy audit, stopping point and handoff
 
 The earlier raw local-family route and carrier-elimination route left actual
-source formation untouched. The direct ordinary-rule route here tests whether
-that work was required by the imported base: it is absent from the ordinary
-theorem, but the **contextual entry/admission/transport content** remains required
-by the selected Yulang theorem. This audit makes no gate-status or semantic
-change. Stop here instead of producing another equivalent conditional lemma.
+source formation untouched. The selected source Lambda rule in §4.1 now forms
+the complete root and proves its same-frame entry map. The body Application's
+complete Call formation is a separate source rule and is not supplied by that
+Lambda result. The direct ordinary-rule route here confirms that this work is
+outside the imported ordinary theorem; it does not remove the Call obligation.
 
-The complete same-provider source entry/Call correspondence is A/B: soundness
-and natural inference require it. An arbitrary raw-inlet totality theorem is
-a stronger C route unless separately required by Authority. Reconstructing a
-path map after an owner already produced and justified it would be D; the
-inspected native owner retains source identity and scalar entry provenance,
-but no such complete justified map has been established there. More IDs or
-a new package would not prove its original semantic formation.
+The body Call/source-native correspondence is A/B: soundness and natural
+inference require it. An arbitrary raw-inlet totality theorem is a stronger C
+route unless separately required by Authority. Reconstructing a path map after
+an owner already produced and justified it would be D; the inspected native
+owner retains source identity and scalar entry provenance, but no complete
+Call map has been established there. More IDs or a new package would not prove
+its original semantic formation.
 
-One next action: assign the source Parameter/entry owner the exact contextual
-premise in §4, with the actual received typed domains and source guards, and
-require its direct application at `L,d_f`. Permit either a constructive
-source-law proof or its authentic typed-interface application; do not impose
-the stronger raw ViewInlet route. Only after this premise is established can
-the body Call use the original complete literal challenge and same-provider
-Function elimination. Fresh independent review remains primary-owned.
+The source Lambda entry case in §4.1 is now independently reviewed and the
+complete Call `VIncl` edge has a direct BOUND accumulation application in
+§5.1. The next proof target is their actual source-owned composition at `c`:
+construct the complete literal Application/Call record from the children,
+then preserve that same joint record when the native constraint generation is
+related to the opaque BOUND edge. Do not re-prove ordinary arrow typing and do
+not infer arrow subtyping from semantic `VIncl`. The remaining native bridge
+must establish whether the current four-port graph and the complete residual
+share one original assignment; neither BOUND nor the native endpoint erasure
+alone proves that correspondence.
 
-Unverified: this required entry premise, literal Reify/whole challenge, complete
-Call and all W/Z alternatives, source/native full interpretation, extended
+Unverified: body Call formation from the actual children; literal
+Reify/whole-carrier challenge; complete Call and all W/Z alternatives;
+source/native full interpretation; extended
 constraining soundness/completeness, effect hygiene, cross-level extrusion and
 intrusion, source Generalize correspondence, principal public output,
 successful suspension/abnormal publication, ordinary HIR adoption and F5.
@@ -436,5 +496,19 @@ f968f33615855eaa087a8127d042876867994ca8f1c7dc5d95e9bdd18c43c1e9 Typer.scala
 5ab2bd4122caee17c20134e4cbe8dc8a4848c142de1e576b5fd178aed8787698 simple-sub-reference-paper.pdf
 ```
 
-The producer's writes are frozen on return. A new independent review and
-primary adjudication are still required before any proof-status promotion.
+The producer's original writes were frozen on return; review status at that
+version was pending. The dated delta below records the subsequent independent
+review. Parent-theorem promotion remains out of scope for that review.
+
+### 2026-10-14 complete-bound application delta
+
+The bounded result in §5.1 applies the existing complete-bound Simple-sub
+theorem to the exact `VIncl` conjunct of an instance of the selected original
+Call rule. A fresh `compiler_referee` review passed the scoped derivation and
+the §4/§6 status corrections. It does not promote the original source/native
+parent theorem or adopt a new source rule.
+
+Verification for this delta: `git diff --check` passed. No tests, builds,
+probes or measurements ran. The original Call syntax-construction premise,
+current native Function4 correspondence, full residual discharge,
+principality and F5 replacement remain open.
