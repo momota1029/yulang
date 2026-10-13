@@ -13865,3 +13865,17 @@ and F5 gates remain OPEN. Next: fill the draft's exact local declaration
 telescope and equations from existing source authority, or identify the
 specific declaration choice that requires explicit user approval; do not use
 an opaque `Fam_delta` placeholder or repeat a conditional derivation.
+
+### 2026-10-13 negative permission-field answer validation
+
+The local q1/r1 bundle was checked under the question-board handoff. Its
+question/draft/approved-answer identities match, the saved approval provenance
+records the explicit `OK`, and the embedded approved content hash matches the
+current draft. The cited annotation and native-signature authority files are
+unchanged since the question's source revision. However, the approved answer
+corrects the `io.read_int()` example while explicitly selecting no A/B/C field
+map; q1 requires an exact field map. The questioner recorded this scope
+mismatch in the local [`receipt`](../questions/2026-10-13-negative-formal-permission-field-law/receipt.md).
+The full question directory remains unstaged and uncommitted. No permission
+meaning is consumed. The annotation/H gate remains OPEN; the correction does
+not affect the independent check-closure or formal-entry gates.

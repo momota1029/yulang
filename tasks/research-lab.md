@@ -1106,3 +1106,15 @@ selected and implementation remains unauthorized. Next: supply each exact
 original local declaration field and predecessor-typed argument from existing
 authority, or prepare the precise reviewed decision needed to add those
 equations; the A/B formal-entry and complete Call gates remain OPEN.
+
+### 2026-10-13 negative permission-field answer validation
+
+The local q1/r1 bundle has matching identities, an explicit saved approval
+provenance and a matching approved-draft hash. The relevant cited annotation
+and native-signature sources are unchanged since the question revision. The
+approved answer corrects the concrete-`io` example but explicitly declines to
+select the field map required by q1. The questioner recorded this mismatch in
+the local [`receipt`](../questions/2026-10-13-negative-formal-permission-field-law/receipt.md);
+the full question directory stays uncommitted. No answer is consumed, no
+annotation meaning is selected, and the annotation/H gate remains OPEN. This
+does not affect the separate check-closure or formal-entry gates.
