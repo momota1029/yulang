@@ -209,7 +209,11 @@ same value, provider, world, response, raw handle and event. All J
 alternatives and their Delta checks remain under their original binders. The
 parent derivation still stops before the body Call; no challenge is discarded.
 
-The precise remaining source premise is consequently:
+The initial source-owner cut above is now filled by the reviewed Lambda
+formation case in §4.1 below. The original same-frame implication is proved
+for the root produced by that case; the rest of the parent remains open.
+
+The precise source premise that this construction supplies is:
 
 > At original complete Function formation for `L`, identify its checked
 > admission interface with the Parameter-owned `I_schema`, or construct a
@@ -232,8 +236,84 @@ Entry-Value inputs/application; scalar endpoint or type-variable equality
 does not supply them. Generic result-prefix/identity transport is already
 available once its actual typed domains are formed.
 This distinction waives no original typed-port/map premise of an active
-consumer, and it does not establish that the previously missing formal
-interface has been constructed.
+consumer. The source-owned `Strict` interface and same-frame entry map are
+now constructed in §4.1; native emission of its full `IF_L` and the complete
+body Call remain separate.
+
+### 4.1 Source-owned complete Lambda formation
+
+The missing formation case is completed here using the definition authority
+for native Source Generalize §1 and the already selected complete `Strict`
+constructor. This defines the internal source synthesis root for this
+unannotated Value-entry Lambda; it adds no source type, runtime object, or
+solver rule. It does not itself select a public scheme; public projection
+remains a separate obligation. Independent `spec_auditor` and
+`compiler_referee` reviews passed this bounded rule and its entry consequence.
+
+At the original Parameter scope, before any invocation challenge, retain
+
+```text
+Desc(C,d_f,ValueEndpoint,sigma_f,Delta_f):A_f
+I_f = ValueInletSchema(d_f,A_f;Delta_f)
+```
+
+Capture-Lambda gives `Empty` from the actual resolution
+`Resolve(u_f,d_f)`. The top-level unannotated Lambda has no handler-capable
+expected context, so the existing callback-context rule fixes its actual Pure
+role; the body’s provisional view of the supplied formal does not change that
+role. Its entry remains the original Value entry.
+
+Let `R_L` be the complete body descriptor family at the original post-Force,
+typed-rebind telescope. Its returned value, provider, current world, response,
+raw continuation and future fields stay at their existing event binders. Let
+`IF0` be the actual source registration from the uniform-inlet constructor.
+Form `IF_L` from the same original receipt, receiver, entry, consumer, return,
+guard, and future ports, with the explicit identity projection
+`intrinsic(IF_L)=IF0`. The source Lambda constructor emits
+
+```text
+F_L = Strict(I_f, formal:A_f, R_L, IF_L).
+```
+
+`R_L` is formed from the original body rule program before challenges; its
+typing proof remains the recursive body premise. It is not defined by
+successful execution, actual-provider acceptance, or a post-challenge choice.
+For this `Strict` root, the original complete challenge domain is exactly the
+independent context/whole-carrier domain for `I_f` and `IF_L`, including every
+licensed alternative and complete J contract.
+
+**Same-frame map.** Fix arbitrary `d∈D_F_L` at its original event. Invert the
+`Strict` challenge constructor to project its exact checked-inlet record
+
+```text
+gamma_d : Check(I_f; d.wholeCarrier,e_d).
+```
+
+This is record elimination, so J, `kappa_J`, `carrier_J`, `mu_result`, the
+whole original port map, `delta_static`, every event-indexed `delta_check`
+alternative and all current guards remain the same fields at the same
+scopes. Nothing is rebuilt or selected from the runtime trace. The
+`intrinsic(IF_L)=IF0` identity permits the already defined injection
+
+```text
+PackGeneric(kappa_f,gamma_d)
+  : Acc(GenericValueInlet(d_f,IF0); d.wholeCarrier,e_d),
+```
+
+which gives `ActualAdm(v_L,U_L,d)` with the original guards. Lemma S then types
+the same designated Force observations. A Return supplies the same
+`A_f`-member and current world for the original rebind; Request retains the
+same response/raw handle and pending `rebind; body; invocation return`
+suffix. Divergence creates no formal binding, and receipt is not replayed.
+The proof uses neither body safety to form `d` nor a smaller challenge domain.
+
+This closes the checked-frame/actual-entry map for the source root defined by
+this constructor. It does **not** prove `R_L`'s body Call, its same-provider
+complete Function elimination, the source-to-native construction of `IF_L`,
+the public principal projection, or the full parent theorem. No equivalence to
+a separately supplied opaque Function descriptor is claimed; if such a
+descriptor is introduced on another path, its complete D/P correspondence
+remains its own obligation.
 
 There is a second, downstream cut for the inner body Call. The same received
 `f` must meet a **complete** callable description at the actual body use, and

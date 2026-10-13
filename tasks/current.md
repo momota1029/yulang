@@ -14419,3 +14419,28 @@ or parent-theorem result is inferred from that checkpoint.
 No compiler code, tests, builds or Git mutations changed in this slice. The
 excluded untracked question directory remains untouched. Source/native, L4,
 complete Call, soundness, principality and F5 gates remain OPEN.
+
+### 2026-10-13 `invoke` source-Lambda descriptor formation
+
+The missing checked-`F_L` interface is now supplied as an explicit internal
+Source-Generalize synthesis case in the [original `invoke` proof](../notes/theory/2026-10-11-invoke-original-call-proof.md#41-source-owned-complete-lambda-formation).
+At the original prechallenge Parameter scope, retain
+`I_f=ValueInletSchema(d_f,A_f;Delta_f)` and the actual `IF0`; form the complete
+Lambda root as `F_L=Strict(I_f,formal:A_f,R_L,IF_L)` with
+`intrinsic(IF_L)=IF0`. The source role is Pure by the no-handler-expected
+ordinary-literal rule, independently of Value entry. `Strict` inversion now
+constructs the same-frame complete `Check(I_f;d.wholeCarrier,e_d)` for every
+challenge of this newly defined root; `PackGeneric` and Lemma S give actual
+same-provider entry typing. All J alternatives, scoped Delta evidence,
+providers, worlds, response/raw continuations, futures, guards and proof
+choices retain their original binders.
+
+Independent `spec_auditor` and `compiler_referee` reviews passed the source
+rule and its entry derivation. This is a **REDUCED** result for the
+checked-frame/actual-entry premise, not completion of the original parent:
+`R_L` body typing and the `f 1` complete Call remain open, as do native
+construction of the full descriptor/IF map, public principality and F5.
+No source restriction or alternate body-success admission was introduced.
+No code, tests, builds or probes ran. Next owner: directly construct and
+discharge the `f 1` body Call under each original `R_L` telescope; keep its
+licensed whole-Call alternatives and same-provider Function elimination.
