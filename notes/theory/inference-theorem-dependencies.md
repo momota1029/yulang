@@ -408,6 +408,31 @@ history; the generated current ledger records the retirement separately.
 
 ## Production and final dependencies
 
+The [2026-10-13 adjudicated dependency correction](../progress/2026-10-13-old-registry-production-proof-edge-retirement.md#1-exact-correction-and-authority)
+retires only the working frontier's mandatory `successor production ->
+old-component RawRegistry / Reg_src / typed-decoder conformance` edge under
+the [legacy withdrawal](../design/2026-10-10-simple-sub-legacy-withdrawal.md#mechanism-by-mechanism-completion-evidence).
+No corresponding machine-graph edge exists, so canonical counts, statuses and
+theorem classifications are unchanged. The
+[adopted registry API](../design/2026-10-10-original-registry-constructor-adoption-proposal.md#1-exact-adopted-decision)
+and complete typed-map hypotheses remain authoritative for that bounded
+old-component route; its adapter is not a mandatory successor production
+prerequisite.
+
+The [surviving source/Entry/Call A/B obligation](../progress/2026-10-13-old-registry-production-proof-edge-retirement.md#3-replacement-owner-and-exact-surviving-requirement)
+and source-to-native correspondence remain OPEN. Actual formal-origin
+construction must supply the complete predecessor-typed ParameterOrigin and
+carrier/Receipt/designated-Force/rebind interface consumed by Entry-Value and
+complete Call, preserving provider identity, scopes, genuine licenses and
+all original observations and future behavior. The
+[inspected native consumer cone](../progress/2026-10-13-old-registry-production-proof-edge-retirement.md#2-former-route-and-actual-native-consumers)
+uses actual formal/Name/Apply incidence, scheduled fact admission, negative
+Function demands, native effect interfaces and live constraint accumulation;
+no selected registry/decoder consumer was found in that bounded cone. Those
+operations still need their semantic correspondence. This correction removes
+no code, completes no observer migration, and makes no implementation or
+cutover gate ready.
+
 The independently reviewed [continued constructor attacks](../progress/2026-10-07-successor-round3-review.md#12-downstream-attacks-after-sound-no-further-promotion)
 retain SOURCE_ADEQUACY and IFACE_FORM as OPEN-PROOF. RAW_SOURCE's typing
 emission/inversion and decorated REF_SIM do not alone prove the actual raw

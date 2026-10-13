@@ -690,6 +690,12 @@ This index is a navigation aid. The listed source document remains authoritative
   Call, compiler implementation, inference closure, or F5 cutover. The
   candidate's conditional construction proof remains the mathematical basis.
 
+  [Successor production dependency correction](../progress/2026-10-13-old-registry-production-proof-edge-retirement.md)
+  retires a mandatory production edge to this particular old-registry route
+  under the selected legacy-withdrawal authority. The API and its theorem
+  conformance hypotheses remain scoped to that route; the complete source
+  declaration/Entry/Call semantic law and native correspondence remain OPEN.
+
 - **Reviewed source-owned invoke registry construction (2026-10-10):**
   [construction and proofs](../theory/2026-10-10-source-owned-original-registry-construction.md)
   build the actual formal/Name/literal pre-Call registry from source recipes,

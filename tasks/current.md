@@ -13996,8 +13996,41 @@ inventory is not established as a parent requirement; the earlier syntax
 attempt's boundary remains local to that attempted representation. The original
 declaration/application A/B gate stays OPEN at ParameterOrigin and the complete
 received-carrier/receipt/Force/rebind interface. Next: supply or construct that
-actual predecessor-typed local declaration and its original-to-candidate map;
+actual predecessor-typed local declaration and its source-to-native semantic map;
 use the reviewed package equations without treating them as its supplier.
 The separate check-closure and negative-formal gates retain their previous
 inputs. No compiler edits, tests, builds, probes or measurements ran. Static
 artifact integrity and governing-dependency checks pass. F5 remains OPEN.
+
+### 2026-10-13 retire the mandatory old-registry production proof edge
+
+Independent `spec_auditor` scope audit found a major conflation between the
+genuine source declaration/Entry/Call A/B obligation and conformance to the
+chosen old-component registry APIs. Fresh `compiler_referee` consumer-edge
+adjudication accepted retirement of that exact mandatory production edge under
+the existing withdrawal decision. The [disposition](../notes/progress/2026-10-13-old-registry-production-proof-edge-retirement.md)
+records the inspected source recipe -> scheduled action -> native demand and
+constraint accumulation path; no selected RawRegistry/Reg_src/decoder consumer
+was found in that bounded execution cone. The pending supplier inventory is an
+observer, not a generation prerequisite.
+
+The registry theorem keeps its own conformance premise and the approved API
+keeps its scope. The production replacement owner is actual source construction
+and native generation/accumulation, with complete source/Entry/Call semantic
+correspondence still OPEN for every independently admitted whole argument.
+No code, machine-graph edge or canonical status is removed/promoted, no complete
+observer migration is claimed, and no implementation gate becomes ready from
+this correction alone. The formal-entry Draft now states its route scope.
+
+The current source-formal-port constructor and field-by-field proof lanes
+address the genuine declaration independently of mandatory old registry
+bootstrap. Independent proof review narrowed the first checked-inlet cut to
+original carrier-domain typing and the complete Car-family application at
+its actual predecessors. Schema-term elimination is one possible route;
+direct independently typed original domains/families are also permitted.
+The proof artifact's major necessity overclaim is being repaired, and the
+architecture lane has consumed the corrected premise. No tests, builds,
+probes or measurements ran.
+The theory navigation and generated ledger commentary are synchronized at the
+owning render function. One lightweight generation consistency check passed
+(89 nodes, 193 edges, 32 families); NODES/data and JSON remained unchanged.

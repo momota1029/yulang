@@ -12,6 +12,14 @@ This document records a missing A/B source-construction premise and the
 smallest decision object needed to resolve it. It selects no new source
 behavior, declaration equation, compiler representation or implementation.
 
+Production-scope clarification (2026-10-13): the genuine original complete
+declaration/Entry/Call semantic requirement remains OPEN. Conformance to this
+Draft's particular adopted old-component registry route is a separate
+route-specific obligation, not a mandatory native successor-production edge.
+The [reviewed dependency correction](../progress/2026-10-13-old-registry-production-proof-edge-retirement.md)
+records its actual consumer scope and replacement semantic owner. This Draft
+retains its registry-construction objective and hypotheses.
+
 ## 1. Frozen objective and boundary
 
 For the accepted unannotated Value formal in `my invoke f = f 1`, connect the
@@ -76,8 +84,9 @@ The bounded source audit establishes this prefix for the selected example:
 4. `candidate_source.rs` associates the formal/Name registrations and actual
    Apply source occurrence. `shadow_apply.rs` forms and submits the live
    negative Function demand and invocation-effect constraints.
-5. The next source judgment is the authentic original declaration
-   introduction shown in §1. Only after that may `Entry-Value` form the body
+5. On this registry research route, the next source judgment is the authentic
+   original declaration introduction shown in §1. Only after that may
+   `Entry-Value` form the body
    binding, followed by registration and the downstream Name/Call consumers.
 
 The inspected HIR/native paths retain incidence and activate real constraints.

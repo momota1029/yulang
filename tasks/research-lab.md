@@ -1200,3 +1200,20 @@ Three distinct research methods ran (architecture, source necessity,
 constructive lemma); the proposal received semantic/conformance review and
 fresh context delta review, and the independent lemma received its own fresh
 mathematical/source review. Zero tests, builds, probes and measurements.
+
+### 2026-10-13 successor frontier registry-route correction
+
+The [reviewed edge retirement](../notes/progress/2026-10-13-old-registry-production-proof-edge-retirement.md)
+removes the working frontier's mandatory old-component registry-conformance
+edge under existing withdrawal authority. Independent scope and actual native
+consumer audits support this correction; registry API/theorem conformance
+remains valid for that route. The genuine complete source declaration/Entry/
+Call semantics and source-to-native correspondence remain OPEN. No runtime
+dependency, canonical gate status or machine-graph edge is changed by this
+record. Actual source-formal-port construction and concrete checked-inlet field
+formation are running on unique lanes; original carrier-domain/full-Car typing
+at actual predecessors is the current field-owner premise. Schema projection
+is optional, with the proof necessity overclaim under repair. One lightweight generated
+ledger consistency check passed (89 nodes, 193 edges, 32 families); NODES/data
+and JSON stayed unchanged. Zero tests, builds, semantic probes or measurements;
+no new production implementation authority.
