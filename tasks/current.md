@@ -13842,3 +13842,26 @@ carrier/entry-port declaration owner for the complete telescope and authentic
 introduction; if current authority provides no such local rule, return that
 specific missing definition through the existing authority path before
 implementation.
+
+### 2026-10-13 formal-entry constructor decision draft
+
+The bounded architect adjudication and fresh M3 reviews are recorded in
+[`original formal-entry constructor Draft`](../notes/design/2026-10-13-original-formal-entry-constructor-draft.md).
+The architect confirmed that existing authority fixes the accepted Value
+role, pre-challenge Desc, raw-P ordering, adopted owner-port API and operational
+Receive/Receipt/Force/rebind order, but supplies no complete
+`Delta_in^orig`, typed substitution or authentic `intro_orig[mu]`. The draft
+keeps that declaration explicitly unresolved and does not reopen the six
+adopted registry choices.
+
+Independent `compiler_referee` and `spec_auditor` reviews passed with one
+minor correction each; the primary corrected the declaration-binder versus
+substitution-term notation and clarified that approval selects equations but
+does not close the application proof. `git diff --check` passes. No code,
+tests, builds, probes or measurements ran. The reviewed artifact remains Draft,
+with no user approval and no implementation authority. The complete Call,
+natural inference, source correspondence, soundness, principality, production
+and F5 gates remain OPEN. Next: fill the draft's exact local declaration
+telescope and equations from existing source authority, or identify the
+specific declaration choice that requires explicit user approval; do not use
+an opaque `Fam_delta` placeholder or repeat a conditional derivation.

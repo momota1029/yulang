@@ -1085,3 +1085,24 @@ rule, return that exact missing definition through the existing authority
 path before implementation. Parent Call, natural-inference, source
 correspondence, soundness, principality and F5 gates remain OPEN. No compiler
 edits, tests, builds, probes or measurements ran.
+
+### 2026-10-13 formal-entry constructor authority and review
+
+The read-only architect found no complete original `Delta_in^orig`, typed
+substitution or `intro_orig[mu]` in the inspected authority cone. It separated
+the already fixed source identity, Value role, raw-P ordering, owner-port
+permission and operational Receive/Receipt/Force/rebind sequence from the
+unprovided field telescope, local laws and candidate-to-original typed map.
+No source-wide absence, rejection or competing observable behavior follows.
+
+The primary prepared a non-authoritative
+[`formal-entry constructor Draft`](../notes/design/2026-10-13-original-formal-entry-constructor-draft.md).
+Independent `compiler_referee` and `spec_auditor` reviews each reported one
+minor finding and no blocking/major issue. After the single repair pass, the
+primary corrected dependent telescope notation and separated declaration
+approval from proof-gate closure. `git diff --check` passes. No compiler code,
+tests, builds, probes or measurements changed or ran. No new equation is
+selected and implementation remains unauthorized. Next: supply each exact
+original local declaration field and predecessor-typed argument from existing
+authority, or prepare the precise reviewed decision needed to add those
+equations; the A/B formal-entry and complete Call gates remain OPEN.
