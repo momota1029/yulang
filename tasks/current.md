@@ -13916,3 +13916,31 @@ proposal before asking for adoption or implementing it. Do not reuse the
 rejected A/B placement question or infer original semantics from current
 native constraint placement. No compiler edits, tests, builds, probes or
 measurements ran.
+
+### 2026-10-13 invoke carrier-contract domain construction cut
+
+The bounded architect attempt and its independent reviews are recorded in the
+[carrier-contract domain cut](../notes/progress/2026-10-13-invoke-carrier-contract-domain-cut.md).
+No complete `C_J` constructor can be derived from the inspected adopted source
+contracts. The original missing input is the pre-challenge domain declaration
+and formation/elimination rules for the complete carrier-contract argument.
+The earlier notation `mu_CJ : C_J` at formal scope was too strong: the selected
+uniform-inlet rule supplies each `J` contract from its typed argument, so a
+particular domain inhabitant must not be required before that challenge absent
+an original owner rule. The progress artifact now records only
+`Gamma_form^src(P) |- C_J type` as a minimum formation obligation and leaves
+its exact constructor unresolved.
+
+Independent `spec_auditor` review passed. `compiler_referee` found one minor
+scope-precision issue; the primary removed the unsupported pre-challenge
+inhabitance claim and checked the focused delta. Neither source-owned contract
+syntax with typed decoding nor an imported typed argument-contract interface
+is adopted, and their behavior equivalence is unproved. The `J/Any` broad
+contract example also rules out defining this domain from actual execution
+traces alone. Keep formal introduction, complete Apply/Call, natural
+inference, source correspondence, soundness, principality and F5 OPEN. The
+independent task decomposition found no ready production implementation lane;
+the other selected source gates still require their exact original input or
+adopted field law. No tests, builds, probes, compiler edits or measurements
+ran. Next: obtain the existing typed domain introduction or prepare a fully
+specified constructor proposal for independent review and explicit approval.

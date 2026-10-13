@@ -1144,3 +1144,19 @@ the original carrier-domain declaration and typed supplier at its formal
 owner; only if authority does not supply it should a new, fully specified
 source-constructor proposal proceed through independent review and user
 adoption. No code, tests, builds, probes or measurements ran.
+
+The follow-up bounded [carrier-contract domain attempt](../notes/progress/2026-10-13-invoke-carrier-contract-domain-cut.md)
+could not derive a complete `C_J` introduction from current authority. A
+`compiler_referee` minor finding corrected an overstatement: the uniform
+constructor supplies each `J` contract from the typed argument, so a pre-J
+inhabitant `mu_CJ : C_J` is not an established formal-scope premise. The
+minimum remaining input is the original pre-challenge carrier-domain
+declaration and its typed formation/elimination/action rules. `spec_auditor`
+passed the bounded authority/scope claims; the primary inspected the precise
+minor repair. Source-owned contract syntax and an imported typed argument
+interface remain alternative proposals with no established equivalence or
+adoption. A read-only task decomposition found no independent production
+implementation packet ready; it identified the exact subtraction owner input
+and negative-annotation field law as separate blocked source lanes. No code,
+tests, builds, probes or measurements changed or ran. Formal entry, complete
+Call, natural inference and F5 remain OPEN.
