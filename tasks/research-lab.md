@@ -1050,3 +1050,17 @@ Next: map the original producer and consumer for that source input, preserving
 current identities, effects, checking, scopes/levels and use-time
 generalization; stop if the original constructor rule or source authority is
 missing. No compiler edits, tests, builds, probes or measurements changed.
+
+The bounded [Apply source-input owner map](../notes/progress/2026-10-13-candidate-apply-source-input-owner-map.md)
+received `spec_auditor` and `compiler_referee` PASS reviews. It locates the
+authentic arena/index/occurrence/lexical scope with `Builder` in
+`module/local_source.rs`; `lower_module_with_counters` forms the namespace and
+definition root before `lower_plan` forms parameters and the carrier. Fallback
+Apply retains live operands and submits the same demand/effect constraints, but
+has no authentic source arena bridge or formal/Name registrations. Even the
+source path's `ApplySourceInput` does not complete the original Call judgment.
+No rule, semantic decision, or implementation is supplied. Keep Apply
+constraints live and the source/Call/generalization/public-cutover gates OPEN.
+No tests, builds or code changes ran. Next: locate the original source rule
+and complete-Call suppliers for the missing authentic construction; do not
+infer them from retained HIR syntax identity.

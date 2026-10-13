@@ -13806,3 +13806,18 @@ does not close complete Call, source correspondence, soundness, principality,
 or F5. No code or tests changed or ran. Next independent evidence lane: map the
 exact source constructor and consumer for fallback Apply's missing
 `ApplySourceInput`, then stop at any unsupported original rule or authority.
+
+### 2026-10-13 candidate Apply source-input owner map
+
+The bounded [Apply source-input owner map](../notes/progress/2026-10-13-candidate-apply-source-input-owner-map.md)
+received `spec_auditor` and `compiler_referee` PASS reviews. `Builder` in
+`module/local_source.rs` owns authentic Apply arena indices, children,
+occurrences and lexical scopes. `lower_module_with_counters` forms the
+namespace/root before `lower_plan` forms parameters and the carrier. Fallback
+Apply retains live operands and submits the same demand/effect constraints,
+but lacks that arena bridge and formal/Name registrations. `ApplySourceInput`
+also does not complete the original Call judgment. No source rule, semantic
+decision or implementation was supplied. Keep the live constraints and
+source/Call/generalization/public-cutover gates OPEN. No tests, builds or code
+changed. Next: locate the original construction rule and complete-Call
+suppliers; do not infer them from retained HIR syntax identity.
