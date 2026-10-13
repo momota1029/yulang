@@ -4,7 +4,7 @@ Status: Draft
 Scope: define the original source-owned formal-origin and entry-port declaration needed to apply the adopted pre-Call registry API
 Baseline: `84c856e9ee7d7d133ca14e4feb754c3e5cb2fcf9`
 Prepared-by: primary from the bounded architect/authority audit
-Reviewed-by: none
+Reviewed-by: compiler_referee, spec_auditor
 Approved-by: none
 Supersedes: none
 
