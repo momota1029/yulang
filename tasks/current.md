@@ -14188,3 +14188,25 @@ Checks are static source/trace analysis and dependency/link/fence/whitespace
 integrity only; zero additional builds, tests, runtime probes or measurements.
 The scalar routes are applied to the original construction seam, but complete
 coverage, source/Call, general L4, soundness, principality and F5 remain OPEN.
+
+### 2026-10-13 restoration live-index constructor discriminator
+
+The [reentrant constructor trace](../notes/progress/2026-10-13-restoration-live-index-pair-audit.md)
+derives selections `[f1,f1]` from initially present exact uppers `[f1,f2]`.
+A synchronous Function child compares equal-level rows `a <= r`, appends a
+direct upper at `a`, and shifts the live direct/exact separator before the
+next saved index. Fresh independent delta review passed with no BLOCKING or
+major issue; the primary corrected the one minor capture-order description
+to direct lowers, direct uppers, exact lowers, exact uppers.
+
+This refutes count-only initial-incidence enumeration at the private
+restoration constructor. It conforms to the Authoritative live-index contract.
+The scalar store still retains `g <= a <= f2`; missing direct selection proves
+neither loss of every represented disposition nor a natural-inference failure.
+Authentic public/source FreshUse reachability and contextual compensation are
+unproved. The next evidence belongs to capture/preparation/restoration: derive
+an authentic saved graph, exact lane order, sharing/remap and prior/later
+consequences before adjudicating a compiler or authority contradiction.
+No snapshot repair, source restriction, theorem promotion or new production
+prerequisite is authorized. Static trace/hash/format checks only; no additional
+build, test, probe or measurement. All original inference/F5 gates stay OPEN.

@@ -1322,3 +1322,14 @@ census or solve-at-generation is required. Authoritative saved-count/live-index
 restoration remains selected; its incidence preservation is not established by
 these artifacts. Static source and artifact checks only, zero new executable
 processes or samples. Bulk coverage, source/Call, L4 and F5 stay OPEN.
+
+The [restoration discriminator](../notes/progress/2026-10-13-restoration-live-index-pair-audit.md)
+is a frozen, independently reviewed constructor delta. A real synchronous
+Function callback appends a direct upper and makes two saved live indices select
+`[f1,f1]` instead of the initial `[f1,f2]`. This refutes an initial-enumeration
+shortcut only; the scalar store still represents `g <= a <= f2`. It conforms to
+selected §4 ordering and establishes no source failure or invalid disposition.
+One referee delta review passed; the minor capture lane order was corrected.
+Next: authentic capture/FreshUse reachability and inherited/later contextual
+compensation, before any authority contradiction or repair. Static evidence
+only, no new executable check or measurement; original coverage/F5 gates OPEN.
