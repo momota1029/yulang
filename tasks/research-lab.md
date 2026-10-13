@@ -1372,3 +1372,19 @@ space and no allocation. The reader remains private and has no authorization
 consumer. Same-live-State/route lifetime applies; bare retired/cross-State IDs
 cannot authenticate source records. Original joint coverage, source/Call/L4,
 soundness/principality and F5 gates remain OPEN.
+
+### 2026-10-13 original-entry unchanged-premise stop
+
+`derive_invoke_original_entry` completed its bounded static packet without an
+artifact: generated Desc/direct original-family construction repeats the
+existing missing carrier-domain/application judgment. No proof status changes.
+The [linked closure note](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+now carries its already reviewed provenance/application handoff. M0 links and
+record synchronization only; zero builds/tests/probes/measurements.
+
+A distinct `prove_restoration_temporal_coverage` proof packet and independent
+`audit_restoration_lower_prefix_owner` source packet are dispatched on disjoint
+new paths, at `de56edf90`, with static ten-minute budgets and no code, Git or
+heavy-process authority. They examine the complete captured row block rather
+than another single shifted-index example; an unchanged premise produces no
+new artifact. Fresh independent review is required for any substantive result.

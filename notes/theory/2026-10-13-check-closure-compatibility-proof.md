@@ -541,6 +541,26 @@ Commit packet:
   theorem/L4 promotion.
 - Checks already run: static source/clause analysis and dependency/artifact
   integrity; zero tests/builds/probes/Git mutations.
+
+## 8. Subsequent reviewed application
+
+The later [source-provenance derivation](2026-10-13-source-check-arm-readout-provenance.md)
+§§3–4,8 and [source-origin audit](../progress/2026-10-13-source-check-union-origin-audit.md)
+received one fresh independent M3 compiler-referee review with no findings.
+They discharge the arm readout at an original B_H certificate and replace
+declared H leaves using the exact selected K constructors. The generic Unit
+union witness in §5 is not a counterexample originating from that selected
+base. A newly activated checking target still needs its actual complete
+constructor/action law. These results apply to the selected immutable pair;
+they do not supply the original cO/cE source derivation or general L4.
+
+For the already proved selected S0, genuine ordinary whole-tuple checking
+laws also give `R subset V*` by insertion-rank induction. This establishes
+ordinary checked membership without the additional R-postfixed route; it
+does not prove `R subset Phi(R)` or the original requested readout theorem.
+Complete Function/equation actions, source/Call correspondence and F5 remain
+OPEN. Sections 1–7 and their dependency hashes retain their frozen checkpoint
+scope; this appendix records the later application rather than a new proof.
 - Proposed checkpoint message: `research: derive activated check closure readouts`.
 - Shared-record deltas left to primary/curator: distinguish the proved R
   child-atom insertion and displayed Return/depth compatibility from the

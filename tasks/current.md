@@ -14276,3 +14276,22 @@ Retired/cross-State IDs, stale capture/import lifetime, multi-hop/fresh-use
 association and actual consumer use remain separate premises. Joint opposite-
 pair disposition, complete source/Car/Call, L4, soundness, principality and F5
 remain OPEN; no canonical parent edge or original source domain changes.
+
+### 2026-10-13 unchanged original-entry premise and check-proof handoff
+
+At baseline `de56edf90`, a real bounded prover compared generated Desc and
+actual Parameter/Lambda/Apply owners with the prior direct-family attempts.
+It stopped without an artifact: the original predecessor-typed carrier domain
+and complete Car-family application remain unprovided. Generated flexible rows
+and activated Function4 constraints supply no missing primitive signature.
+This is an unchanged-premise stop, not proof progress or a source rejection.
+No equivalent conditional package is dispatched again.
+
+The user-linked [check-closure checkpoint](../notes/theory/2026-10-13-check-closure-compatibility-proof.md)
+now points to its already reviewed background-arm and selected-K application,
+and distinguishes ordinary R membership from R postfixedness. This is M0
+reference/status synchronization, with zero new reviewers or executable checks.
+The next independent native lane changes method to temporal coverage over the
+complete captured Value-row block, paired with an actual lower-prefix owner
+audit; their results require fresh review before application. Original source,
+Call, L4, soundness/principality and F5 gates remain OPEN.
