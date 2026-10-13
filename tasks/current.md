@@ -14098,3 +14098,39 @@ closure proof or a missing-subtraction scan at the unchanged premise.
 Design/theory navigation and task/laboratory records are synchronized. Static
 link/fence/whitespace checks pass; zero tests, builds, semantic probes and
 measurements for this slice.
+
+### 2026-10-13 flat LocalSource formation invariant
+
+The [internal formation proof](../notes/theory/2026-10-13-flat-local-source-formation-proof.md)
+received a fresh independent compiler-referee PASS. The existing explicit
+Work stack terminates on the actual finite source tree; erasing expression
+depth preserves slot ownership, identities, lexical scopes and old-supported
+outputs. Root recovery exclusion also justifies removing the redundant nested
+statement scan. Slot/task counts and remaining header/annotation/copy costs
+are explicit; no whole-lowering linear-time or RSS claim follows.
+
+Independent source coverage found a genuine downstream blocker: successful
+formation is followed by recursive association constructing a discarded
+HirExpr before simple projection rejects a composite body. Therefore the
+expression cap remains in code. Root parameter and annotation caps protect
+separate recursive owners and remain required in this slice.
+
+A private actual formed-binding projection is now the owning remedy under
+investigation. It would reuse direct_atom and lower_leaf or the existing outer
+Unsupported error without building the unused association tree. Authority
+audit permits a proved optimization within the opt-in formation scope; ordinary
+HIR source migration remains unapproved. Constructive equivalence is pending.
+Independent source falsification found no parsed-source counterexample, but
+identified a forged-CST counterexample outside the authenticated caller scope.
+Static performance review confirmed both owning removals are necessary before
+lifting the cap and found no additional quadratic formation kernel. Code is
+held until those decisive premises close. No tests, builds, probes or
+measurements have run.
+
+The original complete carrier/domain supplier still remains OPEN at the outer
+invoke input. A bounded owner construction could not exhibit either its actual
+supplier or competing owner laws at one fixed primitive interpretation; a new
+user decision is not established merely by that gap. Native bound replay is
+unsolved inequality propagation, not a completed semantic union-elimination
+proof. Neither missing premise is added as a generation-time solve requirement.
+General L4, complete Call, native semantic correspondence and F5 remain OPEN.

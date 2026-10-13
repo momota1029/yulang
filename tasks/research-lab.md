@@ -1270,3 +1270,25 @@ its original premises; no new ready implementation slice follows here.
 Do not dispatch another generic conditional closure or repeat unchanged
 subtraction absence scans. Static artifact checks only; zero tests, builds,
 semantic probes and measurements.
+
+### 2026-10-13 flat source formation and owning projection seam
+
+The [flat LocalSource invariant](../notes/theory/2026-10-13-flat-local-source-formation-proof.md)
+is frozen and independently reviewed: proper-descendant scheduling, single
+slot writes, exact source identity/scope projection and recovery ancestry.
+The source cap-removal gate remains OPEN because successful formation currently
+reaches recursive legacy association before rejecting an unusable atom.
+The cap is retained until its owning consumer is repaired; root-parameter
+and annotation limits remain separate safeguards.
+
+The primary dispatched a distinct formed-body projection proof, independent
+source-coverage/falsification, and static performance audit. The proposed
+phase output is consumed only after successful actual binding formation;
+direct roots and ordinary/default/public association stay on their original
+route. Authority review permits this internal optimization once preservation
+is independently established. Source coverage supports only authenticated
+parsed plans, with a forged-CST counterexample to a broader statement. Static
+performance review requires both owning removals and identifies no additional
+quadratic formation kernel; the projection proof remains pending.
+No compiler edit, test, build or measurement
+has run for this gate. Source/Call semantics, general L4 and F5 stay OPEN.
