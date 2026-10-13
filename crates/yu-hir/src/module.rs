@@ -1408,8 +1408,8 @@ fn lower_plan(
     }
     let parameters = parameters.into_boxed_slice();
     #[cfg(any(feature = "shadow", test))]
-    if counters.local_source {
-        let carrier = local_source::form(
+    let simple_body_projection = if counters.local_source {
+        let (carrier, projection) = local_source::form(
             plan,
             &definition_root,
             &parameters,
@@ -1425,7 +1425,10 @@ fn lower_plan(
         counters
             .local_sources
             .insert(definition_root.clone(), carrier);
-    }
+        Some(projection)
+    } else {
+        None
+    };
     let mut lambda_occurrences = Vec::with_capacity(parameters.len());
     for ordinal in 0..parameters.len() {
         lambda_occurrences.push(if ordinal == 0 {
@@ -1455,6 +1458,8 @@ fn lower_plan(
         scope,
         next_occurrence_ordinal,
         128 - parameters.len(),
+        #[cfg(any(feature = "shadow", test))]
+        simple_body_projection,
     );
     scope.restore(guard);
     let (value, body_semantic_error) = lowered?;
@@ -1573,6 +1578,8 @@ fn lower_body(
     scope: &ScopeStack,
     _next_occurrence_ordinal: &mut u32,
     _body_depth_budget: usize,
+    #[cfg(any(feature = "shadow", test))]
+    simple_body_projection: Option<local_source::SimpleBodyProjection>,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -1667,14 +1674,35 @@ fn lower_body(
             return Ok((expression, None));
         }
     }
-    match lower_simple_chain(
+    #[cfg(any(feature = "shadow", test))]
+    let lowered = match simple_body_projection {
+        Some(local_source::SimpleBodyProjection::Atom(atom)) => {
+            lower_leaf(atom, namespace, counters, occurrence.clone(), scope)?
+        }
+        Some(local_source::SimpleBodyProjection::Unsupported) => {
+            SimpleChainLowering::Unsupported {
+                range: range_of(chain),
+            }
+        }
+        None => lower_simple_chain(
+            parsed,
+            chain,
+            namespace,
+            counters,
+            occurrence.clone(),
+            scope,
+        )?,
+    };
+    #[cfg(not(any(feature = "shadow", test)))]
+    let lowered = lower_simple_chain(
         parsed,
         chain,
         namespace,
         counters,
         occurrence.clone(),
         scope,
-    )? {
+    )?;
+    match lowered {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,

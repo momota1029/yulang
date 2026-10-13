@@ -343,6 +343,14 @@ This index is a navigation aid. The listed source document remains authoritative
   Solver consumption with raised initializer levels and per-use freshening is
   implemented by the live local scheme checkpoint below; the sidecar alone
   does not establish local inference.
+  The [flat source projection integration](../progress/2026-10-13-flat-local-source-projection-integration.md)
+  removes the private expression-depth counter and redundant initializer
+  recovery scan after proving formation and larger-input projection invariants.
+  A successful formed-binding phase result replaces construction of a discarded
+  recursive association tree. M2 semantic/resource reviews and three scoped
+  compile checks pass; runtime depth/return/drop tests remain unexecuted.
+  Root parameter/annotation safeguards and ordinary/public/direct-root consumers
+  retain their separate scope; no ordinary migration or F5 cutover is adopted.
   The [complete Call source-spine packet](../progress/2026-10-10-complete-call-source-spine-next-packet.md)
   identifies existing symbolic formation constructors and their actual input
   dependencies. Unknown-provider collection can precede role refinement;

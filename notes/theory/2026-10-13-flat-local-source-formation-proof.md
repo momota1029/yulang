@@ -391,6 +391,15 @@ complete source/inference, Call, soundness, principality or F5 gate is closed.
 Checks for this checkpoint are static dependency, link/fence/whitespace and
 diff-scope inspection only. Zero tests, builds, probes or measurements.
 
+The later [projection proof and F-success bridge](2026-10-13-formed-local-source-simple-projection-proof.md)
+received fresh independent review and were consumed by the exact two-file
+[implementation](../progress/2026-10-13-flat-local-source-projection-integration.md).
+That record separates the completed internal source/code correspondence and
+compile checks from unexecuted runtime verification and remaining recursive
+consumers. Section 8 and its hashes describe this proof's original baseline;
+they are not a current-code claim that the formed-binding consumer still
+constructs the discarded tree.
+
 Commit packet: exact path `notes/theory/2026-10-13-flat-local-source-formation-proof.md`;
 baseline `593b81ff5d2c9da39a3ba459e3e3f1671049ea3c`; dependency hashes above;
 claim/review status unreviewed conditional source derivation with explicit

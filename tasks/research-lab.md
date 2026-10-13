@@ -1276,9 +1276,9 @@ semantic probes and measurements.
 The [flat LocalSource invariant](../notes/theory/2026-10-13-flat-local-source-formation-proof.md)
 is frozen and independently reviewed: proper-descendant scheduling, single
 slot writes, exact source identity/scope projection and recovery ancestry.
-The source cap-removal gate remains OPEN because successful formation currently
-reaches recursive legacy association before rejecting an unusable atom.
-The cap is retained until its owning consumer is repaired; root-parameter
+The source cap-removal gate initially remained OPEN because successful formation
+reached recursive legacy association before rejecting an unusable atom.
+The initial checkpoint retained the cap; root-parameter
 and annotation limits remain separate safeguards.
 
 The primary dispatched a distinct formed-body projection proof, independent
@@ -1289,6 +1289,16 @@ route. Authority review permits this internal optimization once preservation
 is independently established. Source coverage supports only authenticated
 parsed plans, with a forged-CST counterexample to a broader statement. Static
 performance review requires both owning removals and identifies no additional
-quadratic formation kernel; the projection proof remains pending.
-No compiler edit, test, build or measurement
-has run for this gate. Source/Call semantics, general L4 and F5 stay OPEN.
+quadratic formation kernel. The projection proof and larger F-success bridge
+subsequently passed fresh independent reviews.
+
+The [implemented seam](../notes/progress/2026-10-13-flat-local-source-projection-integration.md)
+is frozen and reviewed by semantic/performance specialists with no findings.
+The private formed-binding consumer avoids the discarded recursive tree;
+expression depth and repeated statement recovery scans are removed together.
+Root parameter/annotation guards and all excluded association routes remain.
+Three sequential owning compile checks pass without warnings; test targets
+were compiled but no tests ran. Zero runtime probes and benchmark samples.
+The next local verification evidence is runtime depth/identity/recovery and
+small-stack return/drop; no whole-module or production cutover closure.
+Source/Call semantics, general L4 and F5 stay OPEN.

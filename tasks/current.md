@@ -14109,23 +14109,23 @@ outputs. Root recovery exclusion also justifies removing the redundant nested
 statement scan. Slot/task counts and remaining header/annotation/copy costs
 are explicit; no whole-lowering linear-time or RSS claim follows.
 
-Independent source coverage found a genuine downstream blocker: successful
+Independent source coverage initially found a genuine downstream blocker: successful
 formation is followed by recursive association constructing a discarded
-HirExpr before simple projection rejects a composite body. Therefore the
-expression cap remains in code. Root parameter and annotation caps protect
+HirExpr before simple projection rejects a composite body. The initial proof
+checkpoint therefore retained the expression cap. Root parameter and annotation caps protect
 separate recursive owners and remain required in this slice.
 
-A private actual formed-binding projection is now the owning remedy under
-investigation. It would reuse direct_atom and lower_leaf or the existing outer
+A private actual formed-binding projection became the owning remedy. It reuses
+direct_atom and lower_leaf or the existing outer
 Unsupported error without building the unused association tree. Authority
 audit permits a proved optimization within the opt-in formation scope; ordinary
-HIR source migration remains unapproved. Constructive equivalence is pending.
+HIR source migration remains unapproved. Constructive equivalence and its
+larger F-success bridge subsequently passed fresh independent reviews.
 Independent source falsification found no parsed-source counterexample, but
 identified a forged-CST counterexample outside the authenticated caller scope.
 Static performance review confirmed both owning removals are necessary before
-lifting the cap and found no additional quadratic formation kernel. Code is
-held until those decisive premises close. No tests, builds, probes or
-measurements have run.
+lifting the cap and found no additional quadratic formation kernel. The
+implementation and verification checkpoint below consumes those premises.
 
 The original complete carrier/domain supplier still remains OPEN at the outer
 invoke input. A bounded owner construction could not exhibit either its actual
@@ -14134,3 +14134,25 @@ user decision is not established merely by that gap. Native bound replay is
 unsolved inequality propagation, not a completed semantic union-elimination
 proof. Neither missing premise is added as a generation-time solve requirement.
 General L4, complete Call, native semantic correspondence and F5 remain OPEN.
+
+### 2026-10-13 implemented flat source projection
+
+The [integration record](../notes/progress/2026-10-13-flat-local-source-projection-integration.md)
+records the implemented private formation/projection seam. Successful binding
+formation now returns the exact root-body simple projection alongside its
+carrier; the validated body consumer uses unchanged lower_leaf or the same
+Unsupported error without constructing the discarded recursive HirExpr.
+The expression/initializer depth state and three artificial 128 refusals are
+removed together with the redundant nested statement recovery scan. Lexical
+Publish/Restore, root parameter and annotation limits, identity/syntax checks,
+default/public/direct-root and other unformed association routes remain.
+
+The independently reviewed [projection and larger-input bridge](../notes/theory/2026-10-13-formed-local-source-simple-projection-proof.md)
+supports the code. M2 semantic and static performance code reviews passed with
+no findings. Three sequential scoped Cargo checks passed without warnings:
+HIR shadow/all-target compilation, HIR default, and solver candidate feature.
+All-target compilation executes no tests; no tests, runtime probes or benchmark
+measurements were added/run. Focused runtime depth, identity/recovery and
+small-stack return/drop evidence remains unverified. Whole-module/parser stack
+safety, ordinary carrier migration, source/Call correspondence, general L4,
+soundness, principality and F5 retain their original OPEN gates.

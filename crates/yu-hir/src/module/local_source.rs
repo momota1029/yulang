@@ -171,9 +171,14 @@ pub struct LocalSourceBinding {
     pub scope: LocalSourceScope,
 }
 
+pub(super) enum SimpleBodyProjection {
+    Atom(crate::OwnedAtom),
+    Unsupported,
+}
+
 enum Work {
-    Expression(SyntaxNode, LocalSourceIndex, usize, LocalSourceScope),
-    Initializer(u32, SyntaxNode, usize),
+    Expression(SyntaxNode, LocalSourceIndex, LocalSourceScope),
+    Initializer(u32, SyntaxNode),
     Publish(u32, usize),
     Restore(usize),
 }
@@ -262,7 +267,7 @@ pub(super) fn form(
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
     next_occurrence: &mut u32,
-) -> Result<LocalSource, HirAvailabilityError> {
+) -> Result<(LocalSource, SimpleBodyProjection), HirAvailabilityError> {
     if has_recovery(&plan.node) || parameters.len() >= 128 {
         return Err(invalid());
     }
@@ -316,17 +321,18 @@ pub(super) fn form(
         current = next;
         scope = LocalSourceScope::Parameter(parameter.id);
     }
+    let body_chain = body(&plan.node)?;
     push(
         &mut builder.work,
-        Work::Expression(body(&plan.node)?, current, parameters.len() + 1, scope),
+        Work::Expression(body_chain.clone(), current, scope),
     )?;
     while let Some(work) = builder.work.pop() {
         match work {
-            Work::Expression(node, index, depth, scope) => {
-                builder.expression(node, index, depth, scope)?
+            Work::Expression(node, index, scope) => {
+                builder.expression(node, index, scope)?
             }
             Work::Restore(depth) => builder.restore(depth),
-            Work::Initializer(binding, node, depth) => {
+            Work::Initializer(binding, node) => {
                 let guard = builder.lexical.len();
                 let data = &builder.bindings[binding as usize];
                 let mut scope = LocalSourceScope::LocalInitializer(data.id.clone());
@@ -360,7 +366,7 @@ pub(super) fn form(
                 }
                 push(
                     &mut builder.work,
-                    Work::Expression(body(&node)?, index, depth + count, scope),
+                    Work::Expression(body(&node)?, index, scope),
                 )?;
             }
             Work::Publish(binding, guard) => {
@@ -380,13 +386,18 @@ pub(super) fn form(
     for expression in builder.expressions {
         expressions.push(expression.ok_or_else(invalid)?);
     }
-    Ok(LocalSource {
+    let source = LocalSource {
         owner: owner.clone(),
         body: root,
         expressions,
         bindings: builder.bindings,
         annotation: source_annotation::form(&plan.node, owner, counters)?,
-    })
+    };
+    // Successful formation establishes that this actual root chain has the
+    // same simple result without constructing a discarded associated tree.
+    let projection = crate::direct_atom(&body_chain)
+        .map_or(SimpleBodyProjection::Unsupported, SimpleBodyProjection::Atom);
+    Ok((source, projection))
 }
 impl Builder<'_> {
     fn push_binding(
@@ -478,12 +489,8 @@ impl Builder<'_> {
         &mut self,
         node: SyntaxNode,
         index: LocalSourceIndex,
-        depth: usize,
         scope: LocalSourceScope,
     ) -> Result<(), HirAvailabilityError> {
-        if depth > 128 {
-            return Err(invalid());
-        }
         match node.kind() {
             SyntaxKind::OperatorChain => {
                 let mut children = Vec::new();
@@ -499,11 +506,8 @@ impl Builder<'_> {
                 } else {
                     all_tails
                 };
-                if depth + tails.len() > 128 {
-                    return Err(invalid());
-                }
                 let mut current = index;
-                for (ordinal, tail) in tails.iter().enumerate().rev() {
+                for tail in tails.iter().rev() {
                     if tail.kind() == SyntaxKind::TypeAnnotationTail {
                         let annotation = source_annotation::parse_expression_ascription(
                             tail,
@@ -565,12 +569,7 @@ impl Builder<'_> {
                     if let Some(argument_node) = argument_node {
                         push(
                             &mut self.work,
-                            Work::Expression(
-                                argument_node,
-                                argument,
-                                depth + tails.len() - ordinal,
-                                scope.clone(),
-                            ),
+                            Work::Expression(argument_node, argument, scope.clone()),
                         )?;
                     } else {
                         self.set(argument, tail, scope.clone(), LocalSourceForm::Unit)?;
@@ -629,7 +628,7 @@ impl Builder<'_> {
                 } else {
                     push(
                         &mut self.work,
-                        Work::Expression(head.clone(), current, depth + tails.len(), scope),
+                        Work::Expression(head.clone(), current, scope),
                     )?;
                 }
             }
@@ -687,10 +686,10 @@ impl Builder<'_> {
                 )?;
                 push(
                     &mut self.work,
-                    Work::Expression(child, inner, depth + 1, scope),
+                    Work::Expression(child, inner, scope),
                 )?;
             }
-            SyntaxKind::BracedStatementBlockExpression => self.block(node, index, depth, scope)?,
+            SyntaxKind::BracedStatementBlockExpression => self.block(node, index, scope)?,
             _ => return Err(invalid()),
         }
         Ok(())
@@ -699,7 +698,6 @@ impl Builder<'_> {
         &mut self,
         node: SyntaxNode,
         index: LocalSourceIndex,
-        depth: usize,
         scope: LocalSourceScope,
     ) -> Result<(), HirAvailabilityError> {
         let mut statements = Vec::new();
@@ -725,13 +723,13 @@ impl Builder<'_> {
         let mut bindings = Vec::new();
         let mut initializers = Vec::new();
         for statement in statements {
-            if statement.kind() != SyntaxKind::BindingStatement || has_recovery(&statement) {
+            if statement.kind() != SyntaxKind::BindingStatement {
                 return Err(invalid());
             }
             let annotation = source_annotation::form(&statement, &self.owner, self.counters)?;
             let (visibility, name, parameters) =
                 plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
-            if visibility != HirVisibility::Private || depth + parameters.len() + 1 > 128 {
+            if visibility != HirVisibility::Private {
                 return Err(invalid());
             }
             body(&statement)?;
@@ -819,13 +817,10 @@ impl Builder<'_> {
         push(&mut self.work, Work::Restore(self.lexical.len()))?;
         push(
             &mut self.work,
-            Work::Expression(final_node, final_expression, depth + 1, block_scope),
+            Work::Expression(final_node, final_expression, block_scope),
         )?;
         for (ordinal, statement) in initializers.into_iter().rev() {
-            push(
-                &mut self.work,
-                Work::Initializer(ordinal, statement, depth + 1),
-            )?;
+            push(&mut self.work, Work::Initializer(ordinal, statement))?;
         }
         Ok(())
     }
