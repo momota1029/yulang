@@ -1213,7 +1213,20 @@ dependency, canonical gate status or machine-graph edge is changed by this
 record. Actual source-formal-port construction and concrete checked-inlet field
 formation are running on unique lanes; original carrier-domain/full-Car typing
 at actual predecessors is the current field-owner premise. Schema projection
-is optional, with the proof necessity overclaim under repair. One lightweight generated
+is optional; the proof necessity overclaim was repaired and fresh delta review
+passed. One lightweight generated
 ledger consistency check passed (89 nodes, 193 edges, 32 families); NODES/data
 and JSON stayed unchanged. Zero tests, builds, semantic probes or measurements;
 no new production implementation authority.
+
+### 2026-10-13 checked-inlet original typing handoff
+
+The [checked-inlet field artifact](../notes/theory/2026-10-13-checked-inlet-field-formation.md)
+passed fresh delta review after withdrawing compulsory schema elimination.
+Its conditional J/kappa prefix does not supply the actual original carrier
+domain or full Car-family application. Those exact predecessor-typed inputs,
+and the subsequent payload/image/member/rebind applications, remain owned by
+the original local source declarations. The architecture lane received that
+premise with direct original families explicitly allowed. The complete source
+parent and native correspondence stay OPEN. Zero tests, builds, semantic
+probes and measurements; no production authority.

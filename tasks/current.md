@@ -14028,9 +14028,24 @@ bootstrap. Independent proof review narrowed the first checked-inlet cut to
 original carrier-domain typing and the complete Car-family application at
 its actual predecessors. Schema-term elimination is one possible route;
 direct independently typed original domains/families are also permitted.
-The proof artifact's major necessity overclaim is being repaired, and the
-architecture lane has consumed the corrected premise. No tests, builds,
+The proof artifact's major necessity overclaim was repaired and fresh delta
+review passed; the architecture lane has consumed the corrected premise. No tests, builds,
 probes or measurements ran.
 The theory navigation and generated ledger commentary are synchronized at the
 owning render function. One lightweight generation consistency check passed
 (89 nodes, 193 edges, 32 families); NODES/data and JSON remained unchanged.
+
+### 2026-10-13 checked-inlet original field typing cut
+
+The [field-by-field derivation](../notes/theory/2026-10-13-checked-inlet-field-formation.md)
+forms only the proposed J/kappa type prefix and supplied original predicate
+applications. Fresh independent review found a major claim that schema-term
+elimination was necessary; its focused repair and fresh delta review passed.
+The exact remaining input is original carrier-domain typing and the full Car
+application at its actual predecessors, followed by payload, whole-port image,
+complete-member/checking and rebind types. Direct original families and actual
+original eliminators are both permitted. The source-formal declaration lane
+has consumed that concrete premise; its proposal supplies no actual original
+invoke instance yet. Original source/Entry/Call, native semantic correspondence
+and F5 remain OPEN. Static links/fences/whitespace pass; no tests, builds,
+semantic probes or measurements ran.
