@@ -1333,3 +1333,24 @@ One referee delta review passed; the minor capture lane order was corrected.
 Next: authentic capture/FreshUse reachability and inherited/later contextual
 compensation, before any authority contradiction or repair. Static evidence
 only, no new executable check or measurement; original coverage/F5 gates OPEN.
+
+### 2026-10-13 FreshUse producer and later contextual disposition
+
+The [constructive capture/FreshUse route](../notes/theory/2026-10-13-fresh-use-restoration-disposition-proof.md)
+and [independent source audit](../notes/progress/2026-10-13-fresh-use-reentrant-source-audit.md)
+are frozen and independently reviewed under M3 by one referee. No BLOCKING or
+major findings; the one minor original queue-order correction retains Unit
+before g in the r block. Both real entry routes recapture immediately; generic
+row maps are injective over distinct captured representatives and start empty,
+while shared Value anchors have no restoring owner block.
+
+An earlier-block actual producer reaches repeated live selections despite the
+captured direct row (physical duplicates append). Its later captured upper
+restoration supplies actual joint mapped-fiber replay and retains the missed
+Int/Unit comparison's diagnostic. The seed already conflicts; parsed source
+qualification, general physical incidence and nonidentity/Effect/merge duties
+stay OPEN. The results are applied to the existing bulk construction gate,
+without snapshot repair, eager solving, a new registry or parent promotion.
+Next evidence is an authentic lower-prefix/merge/contextual disposition at its
+own callback/transport constructor. Static source/artifact checks only; zero
+new builds/tests/probes or measurement samples. F5 remains OPEN.

@@ -14210,3 +14210,37 @@ consequences before adjudicating a compiler or authority contradiction.
 No snapshot repair, source restriction, theorem promotion or new production
 prerequisite is authorized. Static trace/hash/format checks only; no additional
 build, test, probe or measurement. All original inference/F5 gates stay OPEN.
+
+### 2026-10-13 actual FreshUse capture and later replay disposition
+
+The [constructive FreshUse derivation](../notes/theory/2026-10-13-fresh-use-restoration-disposition-proof.md)
+and [independent producer audit](../notes/progress/2026-10-13-fresh-use-reentrant-source-audit.md)
+consume the previous private restoration discriminator at the actual capture,
+preparation and replay owners. DefinitionUse and LocalUse recapture immediately;
+no typed drain/merge runs between capture and row preparation. Local generic
+rows receive fresh empty identities; shared rows provide no saved Value-owner
+block. Captured Value blocks retain direct lowers, direct uppers, exact lowers,
+then exact uppers. A delayed stored-Graph coalescence is not a current production
+explanation for the disputed pre-state.
+
+An actual native producer construction with earlier row blocks reaches the
+shifted selection `[r',f1',f1']`; physical duplicate row emissions are retained.
+Later restoration of captured f2 constructs and consumes `g' <= f2` with both
+authentically remapped relation inputs, preserving the Int/Unit diagnostic.
+The seed already has a conflict, so this is no accepted-program counterexample.
+This later replay is a concrete contextual disposition, not scalar entailment
+or a new queue assumption. It closes the missing direct comparison for the
+stated construction without closing universal physical-incidence coverage.
+
+One fresh independent M3 referee reviewed both artifacts with no BLOCKING or
+major finding. The primary corrected the audit's sole minor r-lower order:
+the queued original callback stores Unit before g, and capture retains that
+order. No production code, authority, original scope or canonical proof edge
+is changed. Checks are static source/dependency/link/fence/whitespace integrity;
+zero builds, tests, runtime probes or measurement samples.
+
+The original bulk gate remains OPEN at actual callbacks that change lower
+indexing before compensating upper restoration, qualifying merges, Effect/
+nonidentity transport and original source scheduling/lineage. These owners,
+rather than another shifted-vector or delayed-Graph variant, supply the next
+evidence. Complete source/Call, L4, soundness, principality and F5 stay OPEN.
