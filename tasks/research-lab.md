@@ -1407,3 +1407,21 @@ physical duplicates, broader copy/merge/Effect and source/Call/F5 gates OPEN.
 Checks: 23 recorded dependency hashes plus static links/fences/whitespace;
 zero builds/tests/probes/heavy processes/measurement samples. Shared task and
 design navigation records synchronized by the primary.
+
+### 2026-10-13 joint FunctionPort record bridge consumed
+
+The follow-on constructive packet produced the reviewed
+[joint retention/field-substitution bridge](../notes/theory/2026-10-13-fresh-use-function-port-joint-transport.md).
+One independent M3 referee passed it with no findings. The complementary
+source audit was read-only and produced no duplicate artifact. Same original
+Replay parent and same FreshUse identity jointly retain both parent and child
+fibers, including memo-reused result and coincident Effect-port incidence.
+Actual dependency-reader closure exposes the tuple. FreshUse is distinct from
+FiberTransform; the prior direct-transform reader is not its consumer.
+
+The parent is consumed at the exact remaining semantic Function-action law,
+owned by native/source correspondence. No mapped activation or full semantic
+disposition follows from the retained tuple. Do not rerun another shifted-index
+or diamond proof at that unchanged law. Original source/Car/Call, evidence and
+F5 gates OPEN. Thirteen dependency hashes and static integrity checks pass;
+zero builds/tests/probes/measurements. Primary synchronized shared records.

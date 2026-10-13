@@ -14324,3 +14324,31 @@ source-history premises separate. Static dependency/link/fence/whitespace
 checks pass: 11 proof and 12 audit dependencies; zero builds/tests/probes or
 measurement samples. The design navigation and laboratory queue are synchronized.
 No compiler edit, semantic decision, canonical parent promotion or F5 cutover.
+
+### 2026-10-13 retained joint FunctionPort/FreshUse bridge
+
+The [joint retention and field-substitution bridge](../notes/theory/2026-10-13-fresh-use-function-port-joint-transport.md)
+passed independent M3 compiler-referee review with no findings. A separate
+read-only source audit confirms the existing tuple: original Replay carries
+both parent fibers/BoundKeys; argument and result FunctionPorts retain the same
+parent before child memo reuse; parent and child transports carry the same
+FreshUse identity. The actual reader exposes this dependency closure jointly.
+All four structural fields use one map and preserve argument/result polarity.
+Original relation incidence is retained in this seed; no new mapped parent
+record, certificate or registry is required to retain it.
+
+FreshUse creates no FiberTransform, so the earlier private direct-transform
+reader cannot consume this distinct chain. Imported snapshot references and
+coverage gaps remain; no original admission authentication or destination
+emission pairing is promoted. Mapped scalar children also need not dispatch a
+new typed child when their opposite counts are zero.
+
+The concrete record/substitution premise is discharged only for this live seed.
+The next original semantic premise is a lawful joint mapped Function action
+from the same-use diamond at the native/source Function correspondence owner.
+Operational forward port generation does not prove that action or complete
+Car/Call meaning. Keep source reachability, physical-incidence/authentication,
+general copy/merge/Effect, L4, soundness/principality and F5 OPEN. Another diamond
+restatement leaves this premise unchanged. Thirteen dependency hashes and
+static links/fences/whitespace pass; no builds/tests/probes/measurements. Task,
+laboratory and design navigation records are synchronized; no compiler change.

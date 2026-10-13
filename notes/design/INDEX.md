@@ -199,7 +199,9 @@ This index is a navigation aid. The listed source document remains authoritative
   identity/effect-leaf conditions. The independent [mixed-level owner audit](../progress/2026-10-13-restoration-lower-prefix-owner-audit.md)
   identifies negative extrusion as an actual lower-prefix producer. Its missed
   direct Function comparison has restored argument/result constraints; their
-  joint per-use FunctionPort transport remains open. Neither result changes
+  [joint record-retention bridge](../theory/2026-10-13-fresh-use-function-port-joint-transport.md)
+  preserves the original common parent and one FreshUse map. Its lawful joint
+  semantic Function action remains open. These results do not change
   live-index semantics, source admission, original coverage or F5 authority.
 
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
