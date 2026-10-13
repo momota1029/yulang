@@ -62,3 +62,14 @@ supported retry after such withdrawal remain unimplemented. General mixed
 recursive components, full effect hygiene, soundness/principality, default
 solver routing, and F5 replacement remain open. This slice is not evidence
 that those goals are achieved.
+
+## Later direct source-admission association correction
+
+The [direct transport integration](2026-10-13-direct-transport-admission-integration.md)
+uses the already frozen source-admission prefix to read its exact origin/fiber
+association. Valid direct prefixes do not receive an additional missing
+association gap; inherited gaps and the separate operational origin-table
+fallback remain. Its one existing assertion update received pre-write
+conformance review and semantic delta review. The test result above records
+this note's original implementation; the later slice was compile-checked and
+does not claim a rerun of those tests or closure of its parent gates.

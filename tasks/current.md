@@ -14244,3 +14244,35 @@ indexing before compensating upper restoration, qualifying merges, Effect/
 nonidentity transport and original source scheduling/lineage. These owners,
 rather than another shifted-vector or delayed-Graph variant, supply the next
 evidence. Complete source/Call, L4, soundness, principality and F5 stay OPEN.
+
+### 2026-10-13 direct transport admission correspondence implementation
+
+Checkpoint `8d90a83e5` preserves the independently reviewed authentic FreshUse
+construction and later contextual compensation. A distinct source-owner audit
+then found exact processing-origin/fiber associations already jointly emitted
+in BoundAdmission records. The projected operational origin table loses that
+association, but frozen snapshots retain its admission prefix. This is not an
+effect OperationOrigin or source-authentication result.
+
+The [local source proof](../notes/theory/2026-10-13-direct-transport-admission-association-proof.md)
+passed fresh independent review before implementation. The [implemented slice](../notes/progress/2026-10-13-direct-transport-admission-integration.md)
+adds a private borrowed reader keyed by the actual transform ID, preserving
+exact source records, multiplicity and frozen-head order. Transform coverage
+inherits every source bit and adds the local missing-association gap only
+without a valid direct prefix. The ambiguous operational fallback remains
+gapped. There is no new stored field, arena, cache, destination admission or
+emission, executable replay change, or readiness promotion.
+
+M1 semantic code review passed with no findings; mandatory pre-write conformance
+review approved the sole existing two-fiber assertion change to source-coverage
+equality. Source artifacts and historical retention/index/task records are
+synchronized. Candidate/all-target and default solver compile checks passed
+without warnings. No tests were added/run, runtime query/failure/rollback probe
+or broad suite executed; zero measurement samples. The reader remains private
+to BoundEvidence with no State/CircuitEvidence consumer integration.
+
+The local same-live-State/route correspondence is implemented and compile-checked.
+Retired/cross-State IDs, stale capture/import lifetime, multi-hop/fresh-use
+association and actual consumer use remain separate premises. Joint opposite-
+pair disposition, complete source/Car/Call, L4, soundness, principality and F5
+remain OPEN; no canonical parent edge or original source domain changes.

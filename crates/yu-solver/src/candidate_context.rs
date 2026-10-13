@@ -374,6 +374,27 @@ struct FiberTransform {
     source_relation: RelationId, child_relation: RelationId, reason: TransportReason,
     coverage: EvidenceCoverage,
 }
+// Borrowed only in the owning live State/route. Bare IDs do not authenticate
+// cross-State or rollback-retired records, nor destination admissions/emissions.
+#[allow(dead_code, reason = "inert direct association has no authorization consumer")]
+struct DirectTransportAdmissions<'a> {
+    admissions: &'a [BoundAdmission], transform: &'a FiberTransform,
+    group: Option<BoundEvidenceGroupId>, next: Option<BoundAdmissionId>,
+}
+impl<'a> Iterator for DirectTransportAdmissions<'a> {
+    type Item = Result<(BoundAdmissionId, &'a BoundAdmission, &'a FiberTransform), InputGap>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let id = self.next.take()?;
+        let Some(record) = self.admissions.get(id.0) else { return Some(Err(InputGap::MissingReference)); };
+        if record.bound != self.transform.from || record.relation != self.transform.source_relation
+            || Some(record.group) != self.group
+            || record.previous_on_group.is_some_and(|previous| previous.0 >= id.0) {
+            return Some(Err(InputGap::InconsistentReference));
+        }
+        self.next = record.previous_on_group;
+        Some(Ok((id, record, self.transform)))
+    }
+}
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(not(test), allow(dead_code, reason = "typed inert reverse incidence has no authorization consumer"))]
 enum EvidenceDependent { Admission(BoundAdmissionId), FiberTransform(FiberTransformId) }
@@ -586,11 +607,37 @@ impl BoundEvidence {
         self.groups[record.group.0].emission_head = Some(id);
         id
     }
+    fn direct_admission_head(&self, snapshot: &EvidenceSnapshot, from: BoundKey,
+        source_relation: RelationId) -> Result<Option<BoundAdmissionId>, InputGap> {
+        if snapshot.source_bound != from || snapshot.relation != Some(source_relation) {
+            return Err(InputGap::InconsistentReference);
+        }
+        let Some(head) = snapshot.admission_head else { return Ok(None); };
+        let record = self.admissions.get(head.0).ok_or(InputGap::MissingReference)?;
+        if record.bound != from || record.relation != source_relation
+            || record.previous_on_group.is_some_and(|previous| previous.0 >= head.0) {
+            return Err(InputGap::InconsistentReference);
+        }
+        Ok(Some(head))
+    }
+    #[allow(dead_code, reason = "inert direct association has no authorization consumer")]
+    fn direct_transport_admissions(&self, id: FiberTransformId) -> Result<DirectTransportAdmissions<'_>, InputGap> {
+        let transform = self.transforms.get(id.0).ok_or(InputGap::MissingReference)?;
+        let snapshot = self.snapshots.get(transform.antecedent.0).ok_or(InputGap::MissingReference)?;
+        let next = self.direct_admission_head(snapshot, transform.from, transform.source_relation)?;
+        let group = next.map(|head| self.admissions[head.0].group);
+        Ok(DirectTransportAdmissions { admissions: &self.admissions, transform, group, next })
+    }
     fn transform(&mut self, antecedent: EvidenceSnapshotId, witness: TransportWitness,
         source_relation: RelationId, child_relation: RelationId) -> Result<FiberTransformId, SolveAvailabilityError> {
         self.counters.witness_attempts += 1;
-        let mut coverage = self.snapshots[antecedent.0].coverage;
-        coverage.add(CoverageGap::MissingOriginAssociation);
+        let snapshot = self.snapshots.get(antecedent.0).ok_or_else(exhausted)?;
+        let mut coverage = snapshot.coverage;
+        // The frozen exact source prefix supplies direct admission association.
+        // Inherited gaps and the ambiguous operational origin fallback stay intact.
+        if !matches!(self.direct_admission_head(snapshot, witness.from, source_relation), Ok(Some(_))) {
+            coverage.add(CoverageGap::MissingOriginAssociation);
+        }
         let transform = FiberTransform { antecedent, from: witness.from, to: witness.to,
             source_relation, child_relation, reason: witness.reason, coverage };
         if let Some(&id) = self.transform_keys.get(&transform) { self.counters.transform_hits += 1; return Ok(id); }

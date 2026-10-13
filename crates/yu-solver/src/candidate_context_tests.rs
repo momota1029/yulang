@@ -3883,7 +3883,7 @@ fn support_retention_actual_extrusion_freezes_exact_fiber_heads_and_rolls_back()
             for (index, &source_relation) in parents.iter().enumerate() {
                 let transform = *transforms.iter().find(|transform| transform.source_relation == source_relation).unwrap();
                 assert_eq!(state(session).evidence.snapshots[transform.antecedent.0], frozen[index]);
-                assert!(transform.coverage.contains(CoverageGap::MissingOriginAssociation));
+                assert_eq!(transform.coverage, frozen[index].coverage);
                 assert!(state(session).dependency_keys.contains(&Dependency::Transport { child: transform.child_relation,
                     parent: source_relation, use_origin: 0, witness: Some(TransportWitness { from, to: transform.to, reason: transform.reason }) }));
                 let count = state(session).evidence.transforms.len();

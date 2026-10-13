@@ -1354,3 +1354,21 @@ without snapshot repair, eager solving, a new registry or parent promotion.
 Next evidence is an authentic lower-prefix/merge/contextual disposition at its
 own callback/transport constructor. Static source/artifact checks only; zero
 new builds/tests/probes or measurement samples. F5 remains OPEN.
+
+### 2026-10-13 direct source-admission association implementation
+
+The [source-prefix law](../notes/theory/2026-10-13-direct-transport-admission-association-proof.md)
+was derived from actual admission/group/snapshot constructors and passed fresh
+independent review. Existing snapshots already freeze the needed association;
+no new field or admission-copy arena is required. The [M1 implementation](../notes/progress/2026-10-13-direct-transport-admission-integration.md)
+has a borrowed exact-transform reader and truthful local gap classification,
+with all inherited gaps and ambiguous operational fallback preserved.
+
+One semantic referee passed the frozen code; the mandatory pre-write spec
+review approved the single existing assertion update. Two scoped solver
+compile checks pass without warnings, including test configuration compilation;
+no test/run/probe/benchmark occurred. Query cost is O(Avisited), constant cursor
+space and no allocation. The reader remains private and has no authorization
+consumer. Same-live-State/route lifetime applies; bare retired/cross-State IDs
+cannot authenticate source records. Original joint coverage, source/Call/L4,
+soundness/principality and F5 gates remain OPEN.

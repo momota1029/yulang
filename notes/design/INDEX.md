@@ -175,6 +175,12 @@ This index is a navigation aid. The listed source document remains authoritative
   Catch/complete Call, and public/default/F5 cutover remain open. The original
   carrier answer bundle is integrated at `7a6490172`.
 
+  The [direct transport association integration](../progress/2026-10-13-direct-transport-admission-integration.md)
+  consumes exact frozen source-admission records at the private evidence owner.
+  Its borrowed reader and local gap correction are reviewed and compile-checked;
+  runtime cases and consumer integration remain unverified. Operational origin
+  fallback and all source/Call/L4/F5 gates retain their separate scope.
+
 - [Private candidate suspension contract](2026-10-11-private-candidate-suspension-contract.md)
   — Authoritative after the user's explicit approval “承認して実装を進めて”.
   Specifies the private continuation stack, retained source/SCC progress,
