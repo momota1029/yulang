@@ -1160,3 +1160,20 @@ implementation packet ready; it identified the exact subtraction owner input
 and negative-annotation field law as separate blocked source lanes. No code,
 tests, builds, probes or measurements changed or ran. Formal entry, complete
 Call, natural inference and F5 remain OPEN.
+
+### 2026-10-13 carrier-domain kernel boundary
+
+The read-only source-owned grammar attempt stops at an unselected primitive
+declaration kernel; it did not produce a complete syntax or a source-qualified
+counterexample. A fresh `compiler_referee` passed the bounded non-entailment
+claim and limited “first constructor” to that attempted grammar. A fresh
+`spec_auditor` qualified the approval boundary: using an existing authoritative
+typed interface is ordinary evidence work; a new semantic or architecture
+choice needs renewed approval. The per-challenge `J` remains argument-supplied,
+with no pre-challenge inhabitance requirement; actual traces cannot define its
+whole licensed domain. The next-action selector marks this invoke gate
+DECISION-REQUIRED at the original declaration/interface owner. The separate
+check-closure gate still lacks the authentic `Gamma_E,W_E` subtraction
+declaration/provider/local law. No independent implementation lane was ready.
+No tests, builds, probes or measurements ran. Both parent gates and F5 remain
+OPEN.

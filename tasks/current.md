@@ -13944,3 +13944,27 @@ the other selected source gates still require their exact original input or
 adopted field law. No tests, builds, probes, compiler edits or measurements
 ran. Next: obtain the existing typed domain introduction or prepare a fully
 specified constructor proposal for independent review and explicit approval.
+
+### 2026-10-13 carrier-domain kernel boundary adjudication
+
+The bounded source-owned grammar attempt did not produce a complete invoke
+domain syntax. It reaches an unselected primitive declaration kernel at the
+first atomic declaration/relation in that attempted grammar. `source-contracts`
+§3.7 leaves the concrete W/Z relations unselected, while Source Generalize
+requires independently supplied primitive telescopes and laws. The
+`compiler_referee` passed the bounded non-entailment claim and narrowed
+“first constructor” to this attempted grammar, not a repository-wide earliest
+owner. The `spec_auditor` qualified pass: applying an existing authoritative
+interface remains evidence work; renewed approval is needed only if a proposal
+selects a new semantic or architectural alternative.
+
+The per-challenge `J` and its contract evidence still come from the typed
+argument; no pre-challenge inhabitant is required. The broad `J/Any` contract
+must retain licensed observations beyond actual traces. No syntax artifact,
+new kernel, source rejection, or impossibility result was produced. The
+read-only next-action selection marks the invoke domain gate
+DECISION-REQUIRED: locate the original typed declaration/interface at its
+owner, or prepare a fully specified proposal for any genuinely new equations.
+The check-closure `cO/cE` gate remains separate and still awaits its original
+`Gamma_E,W_E` subtraction declaration/provider/local law. No implementation
+lane became ready. No code, tests, builds, or measurements changed or ran.
