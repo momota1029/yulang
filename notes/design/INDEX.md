@@ -194,6 +194,14 @@ This index is a navigation aid. The listed source document remains authoritative
   selected. Production certificate creation remains gated on complete
   readiness and recognition evidence.
 
+  The reviewed [complete Value-block restoration subcase](../theory/2026-10-13-restoration-temporal-coverage-proof.md)
+  derives activation under authentic all-local equal-level preparation and
+  identity/effect-leaf conditions. The independent [mixed-level owner audit](../progress/2026-10-13-restoration-lower-prefix-owner-audit.md)
+  identifies negative extrusion as an actual lower-prefix producer. Its missed
+  direct Function comparison has restored argument/result constraints; their
+  joint per-use FunctionPort transport remains open. Neither result changes
+  live-index semantics, source admission, original coverage or F5 authority.
+
 - **Contextual cyclic algebra results (2026-10-10, research scope):**
   [exact cyclic-word representation and upward-observation theorem](../progress/2026-10-10-contextual-effect-path-theorem.md)
   proves finite exact one-ID normal-form automata and terminating multi-ID

@@ -1388,3 +1388,22 @@ new paths, at `de56edf90`, with static ten-minute budgets and no code, Git or
 heavy-process authority. They examine the complete captured row block rather
 than another single shifted-index example; an unchanged premise produces no
 new artifact. Fresh independent review is required for any substantive result.
+
+### 2026-10-13 temporal coverage and shared lower-prefix results
+
+The two disjoint packets above completed with substantive frozen artifacts:
+[bounded temporal proof](../notes/theory/2026-10-13-restoration-temporal-coverage-proof.md)
+and [mixed-level owner audit](../notes/progress/2026-10-13-restoration-lower-prefix-owner-audit.md).
+One fresh independent M3 referee reviewed both with no findings. All-local
+Value preparation enforces equal mapped levels, yielding fixed callback lower
+prefixes and full-block record-pair activation. Shared older rows permit a
+negative-extrusion lower-prefix trace that misses direct Function comparisons.
+
+Actual mapped argument/result constraints still restore in the latter trace;
+this is no source or semantic bug. The ready next evidence is their joint
+FunctionPort/FreshUse transport from the original two parent fibers and source
+BoundKeys, rather than another shifted-index trace. Original authentication,
+physical duplicates, broader copy/merge/Effect and source/Call/F5 gates OPEN.
+Checks: 23 recorded dependency hashes plus static links/fences/whitespace;
+zero builds/tests/probes/heavy processes/measurement samples. Shared task and
+design navigation records synchronized by the primary.

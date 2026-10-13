@@ -14295,3 +14295,32 @@ The next independent native lane changes method to temporal coverage over the
 complete captured Value-row block, paired with an actual lower-prefix owner
 audit; their results require fresh review before application. Original source,
 Call, L4, soundness/principality and F5 gates remain OPEN.
+
+### 2026-10-13 complete-block activation and mixed-level owner
+
+The [temporal coverage derivation](../notes/theory/2026-10-13-restoration-temporal-coverage-proof.md)
+and [independent lower-prefix owner audit](../notes/progress/2026-10-13-restoration-lower-prefix-owner-audit.md)
+passed one fresh independent M3 compiler-referee review with no findings. For
+authentic all-local Value capture under identity/effect-leaf/no-parent conditions,
+preparation gives every structural row the same use level. Actual row/row
+callbacks then add uppers only; complete DL/DU/EL/EU lane order gives every
+captured relation pair a stable later lookup, joint Replay and typed receipt.
+This closes only that bounded operational activation premise, not original
+physical-incidence coverage, authentication or source admission.
+
+The mixed-level construction supplies a different real lower-prefix owner:
+shared low-row callbacks negatively extrude a Function and append parent copies
+as direct lowers. Saved-count selections [s,c,e1,e2] omit the Function lowers
+through the complete stated block. It has no displayed scalar conflict, and no
+parsed source acceptance/rejection is established. The actual restored
+t' <= IntNegative and s <= a' are the missed g2 <= f' argument/result children.
+Thus direct dispatch absence is not a semantic failure.
+
+Next decisive evidence: derive joint per-use transport of the original
+g2 <= f FunctionPort dependencies to those two captured child incidences,
+retaining both mapped parent fibers, original BoundKeys and the same FreshUse
+identity. Keep general negative-copy, shared/merge/Effect/nonidentity and
+source-history premises separate. Static dependency/link/fence/whitespace
+checks pass: 11 proof and 12 audit dependencies; zero builds/tests/probes or
+measurement samples. The design navigation and laboratory queue are synchronized.
+No compiler edit, semantic decision, canonical parent promotion or F5 cutover.
