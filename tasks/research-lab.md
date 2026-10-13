@@ -1118,3 +1118,29 @@ the local [`receipt`](../questions/2026-10-13-negative-formal-permission-field-l
 the full question directory stays uncommitted. No answer is consumed, no
 annotation meaning is selected, and the annotation/H gate remains OPEN. This
 does not affect the separate check-closure or formal-entry gates.
+
+### 2026-10-13 invoke formal-entry exact carrier-domain supplier
+
+The attempted A/B placement question was not published to the user. Fresh
+`compiler_referee` and `spec_auditor` reviews rejected its premise that
+`ValueInletSchema` was adopted for invoke and its claim that this was the first
+original binder/equation. The invalid unapproved draft was removed. No
+decision was consumed.
+
+A bounded architect construction attempt reached the first concrete missing
+term in the checked-inlet prefix: an authentic typed supplier
+`Gamma_form^src(P) |- mu_CJ : C_J` for the complete carrier-contract domain
+at the formal scope, before event binder J. Existing inlet clauses specify
+what each J contract must retain but do not type this domain or substitution.
+This is a conditional construction boundary, not source-wide absence or
+impossibility. A separate researcher audit found the current solver retains a
+formal-row correlation with Apply-owned negative Function demand/effect
+constraints; this establishes neither original `VIncl` nor complete Apply
+semantic checking.
+
+Keep the formal declaration, authentic carrier domain, complete Apply/Call,
+source correspondence, soundness, principality and F5 gates OPEN. Next, seek
+the original carrier-domain declaration and typed supplier at its formal
+owner; only if authority does not supply it should a new, fully specified
+source-constructor proposal proceed through independent review and user
+adoption. No code, tests, builds, probes or measurements ran.

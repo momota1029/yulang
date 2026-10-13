@@ -13879,3 +13879,40 @@ mismatch in the local [`receipt`](../questions/2026-10-13-negative-formal-permis
 The full question directory remains unstaged and uncommitted. No permission
 meaning is consumed. The annotation/H gate remains OPEN; the correction does
 not affect the independent check-closure or formal-entry gates.
+
+### 2026-10-13 invoke formal-entry construction attempt and exact supplier cut
+
+The proposed A/B placement question for `my invoke f = f 1` was rejected
+before user publication. Independent `compiler_referee` and `spec_auditor`
+reviews found that it treated the id/pick-only `ValueInletSchema` as already
+adopted for invoke and called the placement the “first” original equation,
+although the original formal-entry proof explicitly says the full telescope
+does not reveal an earliest hidden binder. The question draft was removed;
+no decision or approval was sought.
+
+A new read-only constructor attempt specialized the generic checked-inlet
+record. It reaches a concrete first missing term: the authentic introduction
+and typed source substitution for the complete carrier-contract domain `C_J`
+at the formal scope, before its event binder `J`. The uniform-inlet note
+defines the required J fields but treats their complete contract as an
+independent input; it does not supply `mu_CJ`. Defining this domain from native
+four-port terms or extending the id/pick constructor would be a new source
+definition, not an established original application. No absence or
+impossibility theorem follows.
+
+Independent native source tracing confirms only a candidate-level
+correlation: the formal Name resolves to the same parameter recipe/row;
+body Apply owns a separate `ApplySourceInput` and emits a negative four-port
+Function demand, with callee inclusion at Apply slot 0 and effects at slots
+1/2. This is B-like native constraint placement only. It supplies neither
+original `VIncl(A_f,F_c)` nor the complete source Call/domain/observation and
+whole-carrier witnesses. Keep `intro_orig[mu]`, authentic `C_J`, complete
+Apply, Call, source correspondence, soundness, principality and F5 OPEN.
+
+Next: obtain the original carrier-contract domain introduction and its
+predecessor-typed supplier at the formal owner. If no such original rule is
+available, prepare a fully specified, independently reviewed new-constructor
+proposal before asking for adoption or implementing it. Do not reuse the
+rejected A/B placement question or infer original semantics from current
+native constraint placement. No compiler edits, tests, builds, probes or
+measurements ran.
