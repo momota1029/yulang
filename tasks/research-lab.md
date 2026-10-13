@@ -1177,3 +1177,26 @@ check-closure gate still lacks the authentic `Gamma_E,W_E` subtraction
 declaration/provider/local law. No independent implementation lane was ready.
 No tests, builds, probes or measurements ran. Both parent gates and F5 remain
 OPEN.
+
+### 2026-10-13 open declaration interface feasibility handoff
+
+The [open typed interface Draft](../notes/design/2026-10-13-open-typed-carrier-interface-proposal.md)
+is independently reviewed after repairing declaration-dependent predecessor
+contexts; it is unapproved and lacks an actual original declaration instance.
+The separate [open-package formation lemma](../notes/theory/2026-10-13-open-declaration-package-formation.md)
+passed fresh mathematical and bounded source-bridge review. It preserves each
+genuinely supplied declaration by identity and forms its dependent domain
+without a later J inhabitant. The primary consumes it at the proposed package
+formation step, retaining original-domain coverage and actual source
+application as missing owner premises.
+
+The independent source-necessity audit found no required closed global W/Z
+inventory: registry §4.1 permits those complete original parameter families
+at their predecessors. The former closed-syntax obstruction is specific to
+that attempted representation. The next source owner remains the actual
+ParameterOrigin/received-carrier/receipt/Force/rebind declaration and its
+typed candidate map; parent Call, natural inference and F5 remain OPEN.
+Three distinct research methods ran (architecture, source necessity,
+constructive lemma); the proposal received semantic/conformance review and
+fresh context delta review, and the independent lemma received its own fresh
+mathematical/source review. Zero tests, builds, probes and measurements.

@@ -13968,3 +13968,36 @@ owner, or prepare a fully specified proposal for any genuinely new equations.
 The check-closure `cO/cE` gate remains separate and still awaits its original
 `Gamma_E,W_E` subtraction declaration/provider/local law. No implementation
 lane became ready. No code, tests, builds, or measurements changed or ran.
+
+### 2026-10-13 open declaration interface and formation feasibility
+
+A new method retains independently typed original declarations as an open
+dependent interface. The [concrete Draft equations](../notes/design/2026-10-13-open-typed-carrier-interface-proposal.md)
+preserve declaration-dependent arguments, the fixed original schema projection
+and separately supplied `kappa_J`. `spec_auditor` passed conformance;
+`compiler_referee` found a major argument-telescope predecessor-context error.
+The focused repair types it under `Gamma_decl,d:declarations`, and a fresh
+independent delta review passed. The Draft is unapproved and not ready for
+adoption because no actual original complete declaration was instantiated.
+
+The separate [conditional formation lemma](../notes/theory/2026-10-13-open-declaration-package-formation.md)
+received fresh independent mathematical/source-bridge review with no findings.
+For genuinely supplied complete original declarations, domain formation needs
+types under symbolic original predecessors, not a future J inhabitant; identity
+retention preserves the full original record, witnesses and licensed
+observations. The primary applies it only to the proposed mathematical
+formation step. It supplies neither the missing original domain/index interface
+nor presentation coverage, actual source substitution, `intro_orig[mu]`,
+primitive actions or complete Call correspondence.
+
+The independent necessity audit confirms registry construction §4.1 permits
+arbitrary independently typed W/Z and opaque families. A closed global primitive
+inventory is not established as a parent requirement; the earlier syntax
+attempt's boundary remains local to that attempted representation. The original
+declaration/application A/B gate stays OPEN at ParameterOrigin and the complete
+received-carrier/receipt/Force/rebind interface. Next: supply or construct that
+actual predecessor-typed local declaration and its original-to-candidate map;
+use the reviewed package equations without treating them as its supplier.
+The separate check-closure and negative-formal gates retain their previous
+inputs. No compiler edits, tests, builds, probes or measurements ran. Static
+artifact integrity and governing-dependency checks pass. F5 remains OPEN.
