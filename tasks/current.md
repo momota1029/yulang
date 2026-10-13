@@ -14156,3 +14156,35 @@ measurements were added/run. Focused runtime depth, identity/recovery and
 small-stack return/drop evidence remains unverified. Whole-module/parser stack
 safety, ordinary carrier migration, source/Call correspondence, general L4,
 soundness, principality and F5 retain their original OPEN gates.
+
+### 2026-10-13 native bulk-bound construction and joint disposition
+
+Checkpoint `9a30a208b` integrates the reviewed flat LocalSource code, proofs and
+records and is pushed. The next-action lane selected repaired rebuilt-core
+Lemma 1's actual bulk bound owners rather than another conditional source/Call
+closure calculation. An independent caller audit establishes that every
+candidate extrusion invocation creates fresh local polar maps; retained
+rewritten comparison children are a separate memo mechanism.
+
+The [constructive native route](../notes/theory/2026-10-13-native-bulk-bound-coverage.md)
+and [independent owner audit](../notes/progress/2026-10-13-native-bulk-pair-owner-audit.md)
+identify the actual retained copied bounds for positive/negative parent-link
+pairs, including later opposite-polar links. The absence of direct enqueue
+therefore does not establish a bug. IncomingAllowance can make an Effect copy
+two-sided. Fresh-use bounds go through sequential restoration; merge has its
+own explicit parent product replay.
+
+One independent M3 compiler-referee review passed both bounded artifacts with
+no BLOCKING or major finding. The sole minor correction includes the actual
+two-identity-context specialization while retaining ordered Replay dependencies.
+The parent bulk-coverage gate stays OPEN at joint disposition of both original
+admissions/fibers, ordered contexts and future dependencies through the actual
+extrusion/capture consumers. No full Function/effect semantic law is assumed.
+No all-pair registry, eager solve, compulsory enqueue or source restriction is
+adopted. Saved-count/live-index restoration is Authoritative and cannot be
+silently replaced by initial-endpoint snapshots.
+
+Checks are static source/trace analysis and dependency/link/fence/whitespace
+integrity only; zero additional builds, tests, runtime probes or measurements.
+The scalar routes are applied to the original construction seam, but complete
+coverage, source/Call, general L4, soundness, principality and F5 remain OPEN.

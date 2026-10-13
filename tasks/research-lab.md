@@ -1302,3 +1302,23 @@ were compiled but no tests ran. Zero runtime probes and benchmark samples.
 The next local verification evidence is runtime depth/identity/recovery and
 small-stack return/drop; no whole-module or production cutover closure.
 Source/Call semantics, general L4 and F5 stay OPEN.
+
+### 2026-10-13 native bulk bound owner handoff
+
+The flat projection slice is integrated and pushed at `9a30a208b`. A bounded
+next-action selection moved to actual bulk-pair construction. Caller coverage
+confirms fresh per-invocation polar memos; the persistent rewritten-child memo
+is distinct. The [constructive route](../notes/theory/2026-10-13-native-bulk-bound-coverage.md)
+and [independent source matrix](../notes/progress/2026-10-13-native-bulk-pair-owner-audit.md)
+are frozen and independently reviewed under M3. One compiler referee found no
+BLOCKING/major issue; the primary corrected identity Replay specialization.
+
+Actual positive/negative and later opposite-polar parent-link pairs have
+retained copied-bound scalar routes. IncomingAllowance adds a separate
+two-sided-copy seam. The exact remaining proof is joint original admission/
+fiber/context/dependency disposition through extrusion/capture and future
+consumption. Missing direct enqueue is not a compiler defect, and no runtime
+census or solve-at-generation is required. Authoritative saved-count/live-index
+restoration remains selected; its incidence preservation is not established by
+these artifacts. Static source and artifact checks only, zero new executable
+processes or samples. Bulk coverage, source/Call, L4 and F5 stay OPEN.
