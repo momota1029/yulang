@@ -133,6 +133,23 @@ plus branches versus branches only, including the proposed direct-If Apply
 extension. Current fragments retain their existing boundary. No implementation
 authority or conditional-result SCC completeness is inferred from this draft.
 
+The subsequent source audit at `e9a7700b7` corrects the draft's claimed A/B
+consequence: no current edge targets an Expression Value, and named definition
+owners reach only named Values. Either proposed helper extension leaves semantic
+Value SCC membership and intrusion qualification unchanged. The choice still
+specifies outgoing reference ownership; it is not a blocker for independent
+effects/handler work. An independent architect confirmed the construction fact;
+no semantic choice, new incoming edge or identity alias was approved.
+
+The next concrete effects work is the source-owned permission/protection
+constructor and live consumer, followed by handler source formation and residual
+consumption. Operations and covariant concrete allowance checks already execute.
+Source context words are still empty, negative concrete formals remain rejected,
+and LocalSource has no Catch carrier. Reuse the established hygiene proof at
+these owners. The old negative-formal answer is a correction to its example,
+not an approved complete field map; do not treat it as either permission to
+invent that map or a reason to repeat the retracted comparison.
+
 ## 2026-10-12 fixed-term H executable construction
 
 The fixed recursive odd/even packet now has an independently reviewed finite

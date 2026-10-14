@@ -50,17 +50,45 @@ The same constructor and wrapper boundaries apply.
 Thus `if p: f else: g` contributes `f` and `g` but not `p` for the result's
 own adjacency. Definition-root references still include `p` in either choice.
 
-These choices can change SCC membership when the condition refers back to a
-definition involved in the result's extrusion. They therefore cannot be
-selected by an implementation convenience or by the branch-join proof.
+These choices differ in source-reference ownership and outgoing reachability.
+They do not change semantic Value SCC membership or intrusion qualification in
+the exact current construction, as established by the source audit below.
+The branch-join proof does not select either adjacency convention.
+
+## Current graph consequence: clarification after `e9a7700b7`
+
+The earlier statement that A/B could change current SCC membership was
+incorrect for this proposal's exact scope. Independent read-only architecture
+inspection of `candidate_value_graph.rs` establishes:
+
+- Resolved Name targets are Module, Local or Parameter Values.
+- Definition-owner edges target only those named Values. All remaining edge
+  targets are auxiliary fragment helpers; no edge targets an Expression Value.
+- Event origins are definition Module/Local Values. Group/Ascription unwrapping
+  does not identify an Expression with its enclosing definition.
+- Both proposed choices add only Expression-to-helper and helper-to-child-
+  helper/Name edges. The helper links follow the finite source tree.
+
+Named Values therefore cannot reach Expression Values or their helpers.
+Expression Values remain singleton SCCs; named SCC membership remains the same
+in A and B. Expression receivers cannot qualify with named event origins, and
+named-receiver qualification is unchanged. Numeric SCC labels are incidental.
+An actual distinguishing cycle would require an additional incoming Expression
+edge or identity relation, neither supplied nor approved by this proposal.
+
+The adjacency question remains open, but it is not a prerequisite for continuing
+independent effect/handler construction. No current type or intrusion difference
+is claimed, and no additional graph edge is authorized by this correction.
 
 ## Verification and scope
 
 After the choice is reviewed and selected by the user, check source-generated
 conditional callees and arguments, both constant conditions, nested If/elsif,
-condition-only reference cycles, lexical/module identity, and existing wrapper
+condition-only outgoing references, lexical/module identity, and existing wrapper
 boundaries. Extend the helper-path projection proof to the selected constructor
 edges; reuse the established activation theorem after that source premise.
+Check that semantic SCC membership and qualification remain unchanged under
+this exact extension; do not fabricate a condition-only distinguishing cycle.
 Require linear retained fragments/edges in source incidences. Do not infer
 global typing preservation, principality or hygiene from those checks.
 

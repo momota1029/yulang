@@ -95,6 +95,15 @@ assumed. Existing Name/Apply fragment boundaries remain in force. The earlier
 intrusion activation theorem is reused only under its established graph/event
 premises; complete conditional-result SCC correspondence is still open.
 
+Follow-up clarification at `e9a7700b7`: an independent architecture audit found
+that the proposed A/B extension cannot change current semantic SCC membership
+or intrusion qualification. No existing edge enters an Expression Value, and
+named owners reach only named Values. The draft now records this correction.
+The open choice concerns outgoing source-reference ownership and does not block
+independent effect/handler construction. The reviewed join derivation and its
+code dependencies are unchanged; its recorded Draft hash identifies the earlier
+review snapshot, not this subsequent explanatory correction.
+
 Global soundness, required principality, source-global event applicability,
 intrusion typing preservation, effects/hygiene constructor correspondence and
 production/F5 cutover retain their original open gates. The established hygiene
