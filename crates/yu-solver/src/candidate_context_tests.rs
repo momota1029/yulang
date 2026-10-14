@@ -758,6 +758,89 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
                             _ => None,
                         }
                     };
+                    // Query the existing root-output index using the authenticated
+                    // source pair and the actual final FreshUse input, never IDs.
+                    let source_key = context.relations[source.0 as usize].key;
+                    let root_witnesses: Vec<_> = context.dependencies.iter().filter_map(|edge| {
+                        let Dependency::Transport { child, parent: antecedent, witness: Some(witness), .. } = *edge else { return None; };
+                        (child == upper && witness.to == upper_input && seen.contains(&antecedent)
+                            && matches!(witness.reason, TransportReason::FreshUse)
+                            && context.dependencies.iter().any(|edge| matches!(*edge,
+                                Dependency::Derived { child, parent } if child == antecedent && parent == source)))
+                            .then_some((edge, witness))
+                    }).collect();
+                    if root_witnesses.len() != 1 {
+                        eprintln!("root_output_obstruction source={source:?}: exact consumer FreshUse with direct source Derived ancestry has {} witnesses", root_witnesses.len());
+                    } else {
+                        let (edge, witness) = root_witnesses[0];
+                        let intrusion = &session.candidate_graph.as_ref().unwrap().intrusion;
+                        let groups = intrusion.observed_output_groups(source_key.pair, witness.from.2);
+                        eprintln!("root_output_groups source={source:?} key={source_key:?} edge={edge:?} groups={groups:?}; output membership does not authenticate rewrite-enqueue activation");
+                        if groups.len() != 1 {
+                            eprintln!("root_output_obstruction source={source:?}: exact output index has {} groups", groups.len());
+                        } else {
+                            let (group_id, occurrence, start, end, _) = groups[0];
+                            let census_matches = matching_copy_parents.len() == 4 && end.checked_sub(start) == Some(4)
+                                && intrusion.parents.get(start..end).is_some_and(|parents| parents.iter().enumerate().all(|(offset, parent)|
+                                    matching_copy_parents.contains(&(start + offset)) && parent.occurrence == occurrence
+                                        && parent.comparison == Some(source_key.pair) && parent.sources == source_key.sources));
+                            eprintln!("root_output_group_census group={group_id} occurrence={occurrence} span={start}..{end} exact_four_parent_census={census_matches}");
+                            if !census_matches {
+                                eprintln!("root_output_obstruction: unique group does not equal the exact four source/pair census Parents");
+                            } else {
+                                let ports = |endpoint| match endpoint {
+                                    ValueEndpointKey::PositiveFunction(_) => InferenceSession::positive_function_children(&session.store, endpoint),
+                                    ValueEndpointKey::NegativeFunction(_) => InferenceSession::negative_function_children(&session.store, endpoint),
+                                    _ => None,
+                                };
+                                let original = match source_key.pair { TypedPairKey::Value(pair) => ports(pair.upper), _ => None };
+                                let root = match witness.from.2 { ExtrusionEndpoint::Value(endpoint) => ports(endpoint), _ => None };
+                                let consumer = match witness.to.2 { ExtrusionEndpoint::Value(endpoint) => ports(endpoint), _ => None };
+                                if let (Some(original), Some(root), Some(consumer)) = (original, root, consumer) {
+                                    let polarity = witness.from.1;
+                                    let opposite = match polarity { Polarity::Positive => Polarity::Negative, Polarity::Negative => Polarity::Positive };
+                                    let fields = [
+                                        (FunctionField::Argument, original.0, root.0, consumer.0, opposite, ComponentKind::Value),
+                                        (FunctionField::ArgumentEffect, original.1, root.1, consumer.1, opposite, ComponentKind::Effect),
+                                        (FunctionField::ResultEffect, original.2, root.2, consumer.2, polarity, ComponentKind::Effect),
+                                        (FunctionField::Result, original.3, root.3, consumer.3, polarity, ComponentKind::Value),
+                                    ];
+                                    eprintln!("root_output_raw_fields original={original:?} root={root:?} consumer={consumer:?} fields={fields:?} exact_consumer_relation={upper:?} exact_consumer_input={upper_input:?}");
+                                    if witness.to.1 != polarity {
+                                        eprintln!("root_output_obstruction: FreshUse changes bound polarity");
+                                    } else {
+                                        let mut complete = true;
+                                        for index in start..end {
+                                            let copy = &intrusion.parents[index];
+                                            let matches: Vec<_> = fields.iter().filter(|&&(_, before, copied, _, field_polarity, kind)|
+                                                copy.polarity == field_polarity && raw_row(before, field_polarity, kind) == Some(copy.parent)
+                                                    && raw_row(copied, field_polarity, kind) == Some(copy.copy)).collect();
+                                            eprintln!("root_output_parent_fields parent_index={index} raw_parent={:?} raw_copy={:?} polarity={:?} candidates={matches:?}; same-position FreshUse terms belong to the exact consumer BoundKey", copy.parent, copy.copy, copy.polarity);
+                                            if matches.len() != 1 {
+                                                complete = false;
+                                                eprintln!("root_output_obstruction parent_index={index}: {} direct raw field candidates; selected descendants and shared fields remain unresolved", matches.len());
+                                                break;
+                                            }
+                                            let &&(field, _, _, output, field_polarity, kind) = matches.first().unwrap();
+                                            let consumer_row = raw_row(output, field_polarity, kind);
+                                            let shared_consumer_fields: Vec<_> = fields.iter().filter_map(|&(candidate, _, _, term, sign, candidate_kind)|
+                                                (sign == field_polarity && candidate_kind == kind && consumer_row.is_some()
+                                                    && raw_row(term, sign, candidate_kind) == consumer_row).then_some(candidate)).collect();
+                                            eprintln!("root_output_fresh_field field={field:?} raw_consumer_row={consumer_row:?} shared_consumer_fields={shared_consumer_fields:?} exact_consumer_relation={upper:?} exact_consumer_input={upper_input:?}");
+                                            if consumer_row.is_none() || shared_consumer_fields.len() != 1 {
+                                                complete = false;
+                                                eprintln!("root_output_obstruction parent_index={index}: same-position FreshUse raw consumer field is missing or shared");
+                                                break;
+                                            }
+                                        }
+                                        eprintln!("root_output_field_observation complete={complete}; bounded raw field correspondence only, no rewrite-enqueue activation or profile/protection claim");
+                                    }
+                                } else {
+                                    eprintln!("root_output_obstruction: source upper, exact indexed root output, or exact consumer input is not a decodable Function");
+                                }
+                            }
+                        }
+                    }
                     let mut function_witnesses = 0;
                     for edge in &context.dependencies {
                         let Dependency::Transport { child: transported, parent: antecedent,

@@ -92,6 +92,13 @@ fn representative(forest: &[u32], mut row: u32) -> u32 {
     row
 }
 impl State {
+    #[cfg(test)]
+    pub(super) fn observed_output_groups(&self, pair: TypedPairKey, output: ExtrusionEndpoint) -> Vec<(usize, usize, usize, usize, bool)> {
+        self.by_output.get(&(pair, output)).into_iter().flatten().map(|&id| {
+            let group = self.groups[id];
+            (id, group.occurrence, group.start, group.end, group.activated)
+        }).collect()
+    }
     pub fn observed_groups(&self) -> impl Iterator<Item = (usize, usize, usize, usize, bool)> + '_ {
         self.groups.iter().enumerate().map(|(id, group)| (id, group.occurrence, group.start, group.end, group.activated))
     }
