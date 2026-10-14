@@ -39,9 +39,14 @@ source relation, but the later consumer ancestry is `FreshUse 66→13` then
 observe any Parent-to-field candidate or exact consumer-input flag. The
 independent static `Work::Function`/`Work::Bound` seam is not established as
 the first runtime break. A bounded source audit of root Function rewrite,
-relation admission and captured-bound/FreshUse restoration is active. No
-profile positions or protection semantics were selected; H1/H2/U remain OPEN,
-H3/P disabled.
+relation admission and captured-bound/FreshUse restoration is frozen and
+reviewed in the [root Function lineage audit](../notes/theory/2026-10-15-root-function-extrusion-bound-lineage-audit.md).
+It explains the observed constructor shape conditionally, but cannot yet
+authenticate `term 269` as the root extrusion output for source relation 5.
+The next test-only observation will inspect the existing `by_output` PairGroup
+and its Parent span, then follow raw fields only if the group join is unique.
+No profile positions or protection semantics were selected; H1/H2/U remain
+OPEN, H3/P disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.

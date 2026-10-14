@@ -71,11 +71,20 @@
    1件の minor な報告表現を直し、focused test を再実行した。protection、profile positions、H1/H2/U
    は変わらず OPEN、H3/P は無効。
 
-   現在の bounded lane は、同じ fixture の root Function rewrite/extrusion、relation admission、
-   captured-bound restoration、後続 FreshUse までを source から監査する。`lib.rs::dispatch_live_item`
-   の再投入経路と `candidate_context_admit` が `Derived 13→5` を説明するか、後続 consumer が
-   `FreshUse 66→13` を介してその root を受け取るかを照合し、最初の未認証遷移で止める。
-   test-only の field trace をもう一度数えること、production field や profile rule の追加は対象外。
+   root Function の rewrite/extrusion、relation admission、captured-bound restoration、後続 FreshUse
+   を追う [bounded lineage audit](../notes/theory/2026-10-15-root-function-extrusion-bound-lineage-audit.md)
+   は fresh M1 review を通過した。source 上では root `Work::Function` が再構成 endpoint を返し、
+   rewrite admission が Derived、FreshUse restoration が Transport を作る条件付き経路を確認した。
+   ただし exact run の `term 269` が source `RelationId(5)` の root extrusion output か、また
+   `RelationId(13)` がその rewrite admission かは未認証。既存の `intrusion.by_output` は
+   `(processing pair, returned endpoint)` から PairGroup と Parent span を引ける。
+
+   次は test-only に、認証済み source pair と後続 FreshUse の `witness.from` endpoint で
+   `by_output` を引き、全 PairGroup occurrence/span と4件の Parent を照合する。singleton の
+   root output が得られた場合だけ Function の raw four fields と FreshUse `from/to` を比較し、
+   exact Replay upper input までの全 field match を列挙する。0件・複数 group・共有 field は
+   そのまま停止条件にする。RelationId 13 の enqueue activation、profile positions、protection
+   semantics、production retention は主張しない。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
