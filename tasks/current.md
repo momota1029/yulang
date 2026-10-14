@@ -2,7 +2,7 @@
 
 Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic continuation audit is reviewed and leaves pending/remapped contextual activation OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic continuation pair is reviewed and leaves source reachability for pending/remapped activation OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
 
 ## Current checkpoint (2026-10-15)
 
@@ -47,6 +47,16 @@ Status: full objective remains active. H1-L has a reviewed bounded obstruction; 
   later ordinary lower replays them. The genuinely remapped and pending cases
   still lack a joint contextual completion argument. This is no counterexample
   and does not close H2/U. See the [owner audit](../notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md).
+- **Pending/remapped continuation:** the constructive application and
+  independent conditional falsifier were reviewed together by a fresh M2
+  `compiler_referee` with no findings. The completed-scan/reused-row/plain
+  later-lower subcase is derived from actual incidence, replay and typed-drain
+  owners. A conditional native trace shows a possible missing route when the
+  original cut is still pending during copy and q is later admitted directly
+  to a genuinely remapped row. Its combined source schedule/use premise is not
+  authenticated, so this is no source counterexample and closes no parent
+  gate. See the [application](../notes/theory/2026-10-15-pending-symbolic-cut-continuation-application.md)
+  and [falsifier](../notes/progress/2026-10-15-pending-symbolic-cut-continuation-falsifier.md).
 
 The user's selected local protection law remains fixed at the original upper
 Function demand's `Eout`; older broader-position notes do not reopen that
@@ -15720,11 +15730,10 @@ its H1/H2 prerequisites are met.
 
 ### 2026-10-15 current copied-Allowance activation wave
 
-The next decisive H2 premise is current-pair activation at
-`Work::IncomingAllowance` / `Work::Bound`. These constructors store copied
-bounds and transfer evidence; that fact alone neither proves nor disproves
-their later comparison consequences. Keep stored bounds, queued work, drained
-work and resulting obligations distinct.
+The remaining decisive H2 premise is whether an admitted source and one typed
+drain can realize the pending-cut/remapped-row/direct-use combination from the
+conditional native discriminator before any repair owner runs. Keep stored
+bounds, queued work, drained work and resulting obligations distinct.
 
 At baseline `d8a6209c1`, three disjoint methods were assigned. The proof,
 falsifier, test-only observer and follow-up static owner audit are frozen. The
@@ -15753,9 +15762,11 @@ audit was reviewed by a fresh M2 `compiler_referee` with no findings:
   pending/remapped case. No source counterexample or H2/U closure follows. See
   `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md`.
 
-The next action applies this direct incidence route to the parent and isolates
-the remaining pending/remapped contextual obligation at its typed-drain and
-forwarding owners. Keep the original quantifiers and source Catch bridge.
+The bounded application now discharges the completed-scan/reused-row/plain
+subcase. A source-correspondence lane is checking whether an admitted source
+and one typed drain can realize the conditional pending/remapped schedule and
+direct copied-row consumer before any repair owner runs. Keep source admission,
+ordered contexts and all original quantifiers explicit.
 
 The test is finite native evidence only; it establishes neither source Catch
 reachability nor a lost source effect. Parent H2 remains OPEN until the original
