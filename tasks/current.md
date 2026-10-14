@@ -45,6 +45,9 @@ It explains the observed constructor shape conditionally, but cannot yet
 authenticate `term 269` as the root extrusion output for source relation 5.
 The next test-only observation will inspect the existing `by_output` PairGroup
 and its Parent span, then follow raw fields only if the group join is unique.
+In parallel, a bounded proof lane is deriving the local `Work::Function`
+child-key/output-field correspondence and its Parent-group span premises; it
+will remain a source lemma, separate from this fixture's runtime attribution.
 No profile positions or protection semantics were selected; H1/H2/U remain
 OPEN, H3/P disabled.
 

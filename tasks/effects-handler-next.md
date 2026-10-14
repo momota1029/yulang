@@ -85,6 +85,9 @@
    exact Replay upper input までの全 field match を列挙する。0件・複数 group・共有 field は
    そのまま停止条件にする。RelationId 13 の enqueue activation、profile positions、protection
    semantics、production retention は主張しない。
+   並行する bounded proof lane は `Work::Function` の child-key/output-field 対応と
+   `PairGroup` span の局所構築則を証明対象にする。これは fixture の runtime attribution を代替せず、
+   H1/H2/U の親 gate も閉じない。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
