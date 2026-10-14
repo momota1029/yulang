@@ -142,20 +142,37 @@ findings. The user's standing authorization covers reversible playground
 evidence work, but the packet alone grants no durable graph or production
 authority. The next-action selector found that a graph shell would duplicate
 the existing pending-supplier observer while `T_f` and `R_f` remain absent.
-The bounded H1-I construction and independent falsifier now establish the
-authentic positive prefix through the
+The H1-I construction establishes the authentic positive prefix through the
 shared symbolic native Value row, lexical Name routes and Apply provenance,
-then stop at formation of the complete original dependent Value-interface
-family and its scoped interpretation at formal registration. A fresh
-`compiler_referee` found no findings. This is a bounded construction
+then stops at formation of the complete original dependent Value-interface
+family and its scoped interpretation at formal registration. Its fresh M2
+`compiler_referee` review covered only the construction artifact; the paired
+source falsifier remains unreviewed. This is a bounded construction
 obstruction, not source impossibility or parent proof closure. The architect
 confirmed that current authority does not construct this family from the
 unannotated formal and native row; the missing input is an independently
 formed descriptor-interface basis plus its source/native interpretation and
-lawful joint action. This alone does not require a semantic decision. The
-next-action selector chose a bounded non-authoritative construction of that
-basis, with independent falsification, before native integration. No graph
-code has been added; H1/H2/U remain OPEN and H3/P remain disabled.
+lawful joint action. This alone does not require a semantic decision.
+
+H1-J attempted that basis directly. Its reviewed prover/researcher pair derives
+same-`sigma` specialization only conditionally and stops at the original local
+Value-descriptor domain, its complete dependent interpretation and lawful
+scoped action at ParameterOrigin, plus correspondence to the shared native
+row. The source attack found no source-qualified counterexample: equal native
+shape with differing provider contracts rejects shape-only reconstruction,
+not a dependent family retaining both providers. Fresh M2
+`compiler_referee` and `spec_auditor` found no findings. H1-J therefore closes
+only as a reviewed bounded derivation/obstruction; H1/H2/U remain OPEN and
+H3/P remain disabled.
+
+The next action is H1-K: a bounded read-only architect audit starting at the
+original descriptor-kernel introduction/elimination clauses, not another
+formal-row or generic-variable construction. It must either derive local
+formation/elimination and its native interpretation from independently owned
+premises, or isolate the first unsupported primitive constructor/action law
+and its owner. Stop there; raise a user decision only if concrete incompatible
+completions have observable consequences. No graph code or production route
+has been added.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.

@@ -1,7 +1,7 @@
 # Formal registration: constructing the declared interface before use
 
 Date: 2026-10-15
-Status: unreviewed research-only bounded derivation and precise obstruction; frozen on handoff
+Status: reviewed research-only bounded derivation and precise obstruction; fresh M2 `compiler_referee` found no blocking, major or minor findings on this construction artifact. The complementary source falsifier remains unreviewed.
 Assigned baseline: `e53493916`, branch `research/simple-sub-intrusion`
 Exclusive lease: this file only
 Parent: original all-admitted shallow Catch hygiene under one scoped `sigma`
@@ -350,8 +350,10 @@ e902da1c9a7f0fb4dcd806c87563d1ae46d35bbb999e69b7fee51c3c0f6e4bf5  crates/yu-solv
 - Baseline SHA: primary-supplied `e53493916`; full SHA and equality require primary validation.
 - Changed dependency hashes: no worker edits; baseline differences unverified;
   inspected hashes above identify the frozen read snapshot.
-- Review status: unreviewed research-only bounded derivation/obstruction;
-  producer inspection is not independent review or proof certification.
+- Review status: reviewed research-only bounded derivation/obstruction;
+  fresh M2 `compiler_referee` found no blocking, major or minor findings on
+  this construction artifact only. The complementary source falsifier was
+  not reviewed in that round. This does not certify a theorem or close H1.
 - Checks already run: exact source-constructor/consumer and governing-section
   inspection, dependency hashes, final lease/whitespace inspection. No tests,
   builds or semantic checks.
