@@ -2,7 +2,7 @@
 
 Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic continuation pair is reviewed and leaves source reachability for pending/remapped activation OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The pending/remapped continuation pair and source-owner audit are reviewed; copied AnnotationMember lineage remains open. H1/H2/U and production correspondence remain open, with H3/P disabled.
 
 ## Current checkpoint (2026-10-15)
 
@@ -57,6 +57,14 @@ Status: full objective remains active. H1-L has a reviewed bounded obstruction; 
   authenticated, so this is no source counterexample and closes no parent
   gate. See the [application](../notes/theory/2026-10-15-pending-symbolic-cut-continuation-application.md)
   and [falsifier](../notes/progress/2026-10-15-pending-symbolic-cut-continuation-falsifier.md).
+- **Source-owner disposition:** a static source reachability audit, reviewed
+  by a fresh M2 `compiler_referee` with no findings, confirms an intra-drain
+  overtaking seam but no full accepted-source witness. Source-only operations
+  emit `AnnotationMember`, not a seeded `Contribution`; a positive Result
+  carrier does not provide the required direct receiver. `IncomingAllowance`
+  can nevertheless create a negative copied cut with a positive tail, so a
+  polarity-only exclusion is invalid. The original/copy/view-map disposition
+  remains OPEN. See the [source audit](../notes/progress/2026-10-15-pending-remapped-source-reachability.md).
 
 The user's selected local protection law remains fixed at the original upper
 Function demand's `Eout`; older broader-position notes do not reopen that
@@ -15762,11 +15770,12 @@ audit was reviewed by a fresh M2 `compiler_referee` with no findings:
   pending/remapped case. No source counterexample or H2/U closure follows. See
   `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md`.
 
-The bounded application now discharges the completed-scan/reused-row/plain
-subcase. A source-correspondence lane is checking whether an admitted source
-and one typed drain can realize the conditional pending/remapped schedule and
-direct copied-row consumer before any repair owner runs. Keep source admission,
-ordered contexts and all original quantifiers explicit.
+The bounded application discharges the completed-scan/reused-row/plain
+subcase. The source audit rules out two shortcuts and confirms the intra-drain
+schedule seam, then leaves the authentic positive-tail AnnotationMember route
+open. A constructive lane is tracing that member through original/copy view
+maps, cut and gamma alternatives, ordered contexts and typed-drain completion.
+Keep source admission and all original quantifiers explicit.
 
 The test is finite native evidence only; it establishes neither source Catch
 reachability nor a lost source effect. Parent H2 remains OPEN until the original
