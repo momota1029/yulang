@@ -93,7 +93,12 @@ This index is a navigation aid. The listed source document remains authoritative
   constructs the Value graph, retains call-demand occurrence associations and
   actual polar pairs through replay and transformed-output reuse, and applies
   qualified equalities once. Focused tests and semantic/resource review cover
-  that slice; source-global correspondence and equality preservation remain open. The
+  that slice. The independently reviewed
+  [retained-event activation theorem](../theory/2026-10-14-value-intrusion-activation-correspondence.md)
+  proves original-Value SCC projection, exact once-per-pair qualification and
+  equality consumption, immutable reuse ownership and rollback for the actual
+  private mechanism. Source-global event applicability and typing/equality
+  preservation remain open. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction

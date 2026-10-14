@@ -67,6 +67,33 @@ is independently reproduced: its `fresh_use` observation is suppressed for all
 uses when the candidate has any conflict, so absence cannot count recursive
 uses. That test/API mismatch is outside this implementation change.
 
+## 2026-10-14 executable playground and mechanism proof
+
+The user explicitly selected implementing a playground while proving the
+necessary properties and repairing the implementation. This continues the
+[executable research direction](../notes/design/2026-10-04-inference-research-playgrounds.md).
+The source CLI is being integrated against the actual candidate; its review
+requires a shared output budget before completion. Production cutover is not
+part of this observation tool.
+
+The [retained-event activation theorem](../notes/theory/2026-10-14-value-intrusion-activation-correspondence.md)
+has passed fresh independent `compiler_referee` review at `e450c1836`.
+The primary accepts its four bounded mechanism conclusions: Fragment projection
+preserves original Value SCCs; authentic original/reuse associations activate
+exactly their retained groups; each requested pair is consumed once and yields
+the required equivalence closure; rollback restores the logical state. The
+review's sole provenance correction is integrated. This result is now available
+to source extension and the source-global proof; it is not another pending
+proof of that same mechanism.
+
+The remaining source-global premise is the applicability of transported event
+sets to every newly formed extrusion, owned by source/replay/fresh-use and
+generalization constructors. Typing preservation, principality and hygiene
+constructor/consumer correspondence remain separate open obligations. Continue
+the user's executable loop by extending actual source construction, reusing
+the accepted mechanism and existing hygiene results; no constant evaluation
+prerequisite or repeated conditional Call investigation is introduced.
+
 ## 2026-10-12 fixed-term H executable construction
 
 The fixed recursive odd/even packet now has an independently reviewed finite
