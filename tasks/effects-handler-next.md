@@ -114,10 +114,15 @@
    が見つけた per-call full binding scan は source registration に scope を保持する修正で除去し、
    focused delta review で binding 数に依存しない scope validation を確認した。
    ただしこの record は executable protection / live context consumer ではなく、H1 を閉じない。
-   **次は source record から contextual protection consumer までの構築則と、既存 hygiene proof
-   の premises を実コードへ対応づける bounded proof/source gate。** consumer または保護 profile の
-   根拠が不足する場合、residual activation は止めて正確な不足点を保持する。late seed、
-   capture/freshening、all-path transport は別 gate。`RelationId(13)` の enqueue activation
+   **残る H1 作業は、記号的 introduction を実行可能な保護へ結ぶ source/representation bridge。**
+   read-only architect inspection では `candidate_context_source` が元の Apply Value comparison に
+   `IDENTITY` を与え、`candidate_function_port_admit` は introduction を消費せず、`LocalWeight` /
+   `SourceUnitPush` にもライブ保護 consumer がないと判明した。必要なのは receiver/boundary と
+   activation/lifetime がソース上正当化された保護 instance を、元の upper `ResultEffect` consumer
+   へ結ぶこと。symbolic playground を重複実装せず、receiver の根拠が決まる前に inert metadata や
+   live implementation を足さない。既存 hygiene proof は実コードの guard/family/bracketing/
+   entry-snapshot premises が対応した後で使う。residual activation はその premises が揃うまで止める。
+   late seed、capture/freshening、all-path transport は別 gate。`RelationId(13)` の enqueue activation
    も独立した source-provenance 課題のまま。H1/H2/U OPEN、H3/P disabled。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
@@ -294,7 +299,8 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - The static owner audit at `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` is reviewed by a fresh M2 `compiler_referee` with no findings. Completed original symbolic admission registers incoming incidence before the gamma snapshot; positive traversal reconstructs copied cuts on reused `x`, and later ordinary lower admission replays them through the typed drain. The genuinely remapped and pending case, including arbitrary ordered contexts, remains unsupported. No source counterexample or H2/U closure follows.
 - The constructive application and independent falsifier at `notes/theory/2026-10-15-pending-symbolic-cut-continuation-application.md` and `notes/progress/2026-10-15-pending-symbolic-cut-continuation-falsifier.md` were reviewed together by a fresh M2 `compiler_referee` with no findings. The completed-scan/reused-row/plain-later-lower case is derived. The remapped trace is conditional on a pending original cut during copy and later direct use of x'; its source schedule and consumer remain unauthenticated. No source counterexample or H2/U closure follows.
 - The bounded source-owner audit at `notes/progress/2026-10-15-pending-remapped-source-reachability.md` is reviewed by a fresh M2 `compiler_referee` with no findings. It confirms intra-drain sibling overtaking but finds no accepted-source witness. Source effects use `AnnotationMember`, not the discriminator's unseeded `Contribution`; the positive Result carrier exposes x' as a lower. `IncomingAllowance`'s positive copied tail is an exception to a simple polarity exclusion and remains the exact lineage seam.
-- Next action: trace the authentic source `AnnotationMember` through its original cut/source/tail and shared copied view map, then all gamma/link alternatives and typed-drain completion. No Cargo budget remains; preserve every source category and one scoped assignment. H1/H2/U stay OPEN, H3/P disabled, production/F5 separate.
+- The constructive `AnnotationMember` / copied-tail derivation is recorded in `notes/theory/2026-10-15-annotation-member-copied-tail-lineage.md`. A fresh M2 `compiler_referee` found no blocking, major, or minor findings on reviewed content SHA-256 `dc618bc321d252974ffdec8116423fb191393f8d1cce71de3e6d047263e9e164`; the note now also records that review. It derives exact Support-to-member identity, the closed/open view-map split, same-key sharing, and an original-route counterpart for the reused-upstream IncomingAllowance positive tail. It does not establish the remapped-upstream source disposition or exact ordered-context discharge before dependent completion.
+- Active next action: trace one source-owned IncomingAllowance route with a genuinely remapped upstream source/view from Support(w), through exact `AnnotationMember(w,k)` and its map/fiber ancestry, to the first dependent rewritten-Value completion. Preserve original/copy/gamma alternatives and distinguish storage, transport, enqueue, completion, and reuse. No Cargo budget remains; preserve every source category and one scoped assignment. H1/H2/U stay OPEN, H3/P disabled, production/F5 separate.
 
 ## 5. 判定に使う最小の確認
 

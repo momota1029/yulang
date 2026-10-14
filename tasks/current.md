@@ -15724,17 +15724,30 @@ source-owned early constructor remains possible. This is bounded source
 correspondence, not a runtime counterexample, an all-path no-backflow proof,
 or H1 closure.
 
-Next implement only a private playground/candidate slice: create an
-occurrence- and scope-qualified witness from the original omitted formal and
-original upper exposure, then make the exact upper `ResultEffect` consumer
-apply it before constraint admission. Preserve separate provider lower rows
-and do not mark `Ein`, nested `B`, or copied equal rows by equality alone. Prove
-and test the local constructor/consumer invariant, including the authentic
-`apply f = f 1; id x = x; out = apply id` distinction. Late seeds, capture and
-freshening, aliases/returns, complete source-path transport, dynamic
-Receive/Observe, H1/H2/U, Catch residual H3, complete Call, soundness,
-principality, and production/F5 cutover remain OPEN; H3 stays disabled until
-its H1/H2 prerequisites are met.
+The authorized symbolic playground slice is already implemented and reviewed
+in the [directional introduction checkpoint](../notes/progress/2026-10-15-directional-introduction-playground.md):
+`candidate_source::emit_candidate_source` retains omission, formal identity
+and scope; `shadow_apply::admit_candidate_fact` joins those facts to the
+original Apply occurrence, complete demand and raw invocation `ResultEffect`
+before constraint admission. Do not duplicate that slice.
+
+A read-only architect pass over the exact local owners found that the
+`DirectionalIntroduction` remains symbolic. `candidate_context_source` gives
+the original Apply Value comparison `IDENTITY` absent a closed Allowance;
+`candidate_function_port_admit` preserves the inherited Function operation
+but does not consume the introduction. `LocalWeight` has zero live words,
+`SourceUnitPush` is detached preparation, and no current API executes an
+omitted-formal protection mark. The remaining H1 premise is an
+operationally justified protection instance with its receiver/boundary and
+activation/lifetime tied to the exact upper `ResultEffect` consumer. Resolve
+that source/representation bridge before assigning another live implementation
+slice. This does not reopen the selected Eout-only law or establish source
+impossibility.
+
+Late seeds, capture and freshening, aliases/returns, complete source-path
+transport, dynamic Receive/Observe, H1/H2/U, Catch residual H3, complete Call,
+soundness, principality, and production/F5 cutover remain OPEN; H3 stays
+disabled until its H1/H2 prerequisites are met.
 
 ### 2026-10-15 current copied-Allowance activation wave
 
@@ -15772,10 +15785,15 @@ audit was reviewed by a fresh M2 `compiler_referee` with no findings:
 
 The bounded application discharges the completed-scan/reused-row/plain
 subcase. The source audit rules out two shortcuts and confirms the intra-drain
-schedule seam, then leaves the authentic positive-tail AnnotationMember route
-open. A constructive lane is tracing that member through original/copy view
-maps, cut and gamma alternatives, ordered contexts and typed-drain completion.
-Keep source admission and all original quantifiers explicit.
+schedule seam. The bounded [AnnotationMember/copied-tail derivation](../notes/theory/2026-10-15-annotation-member-copied-tail-lineage.md)
+now has a fresh M2 `compiler_referee` review with no findings. It establishes
+the exact Support-to-member identity, closed/open view-map split, same-key
+sharing, and an original-route counterpart for a reused upstream source's
+IncomingAllowance positive tail. It leaves a genuinely remapped upstream
+source disposition and exact ordered-context discharge before dependent
+completion unresolved. A source lane is tracing one such route through the
+first dependent rewritten-Value completion. Keep source admission and all
+original quantifiers explicit.
 
 The test is finite native evidence only; it establishes neither source Catch
 reachability nor a lost source effect. Parent H2 remains OPEN until the original
