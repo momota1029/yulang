@@ -15518,3 +15518,39 @@ falsifier and direct-extrusion audit do not establish source acceptance or
 unsoundness. The theorem, generic implementation, lifecycle, full Call,
 hygiene, soundness, principality and F5 remain OPEN. No generic implementation
 or cutover follows from this bounded evidence.
+
+### 2026-10-15 directional protection source-construction gate
+
+The user's selected local law was verified in the existing
+[directional protection addendum](../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+§§1–4: for omitted protected formal `f` and its original upper Function demand
+`f <: A [Ein] -> [Eout] B`, introduce protection only at that upper occurrence's
+`Eout`. Do not add it to `Ein`, positions inside `B`, or a provider/recursive
+lower Function by backflow; independently inherited marks remain. The wider
+nested-position matrix is not a prerequisite for this scoped rule, and the
+decision does not authorize production cutover.
+
+The bounded M2 [source correspondence](../notes/theory/2026-10-15-directional-protection-source-correspondence.md)
+and independent [source falsifier](../notes/progress/2026-10-15-directional-protection-source-falsifier.md)
+are frozen and reviewed by `compiler_referee` and `spec_auditor` with no
+findings. Authentic omission/scope is retained in the collection plan, while
+the original Apply upper demand and its fresh `ResultEffect` are available
+before satisfiability. No current producer joins them into protected-at-exposure
+evidence or introduces protection at that exact occurrence. The existing
+`FormalConstruction` and FunctionPort preservation metadata do not fill this
+gap. Since omission evidence already exists before body Apply admission, a
+source-owned early constructor remains possible. This is bounded source
+correspondence, not a runtime counterexample, an all-path no-backflow proof,
+or H1 closure.
+
+Next implement only a private playground/candidate slice: create an
+occurrence- and scope-qualified witness from the original omitted formal and
+original upper exposure, then make the exact upper `ResultEffect` consumer
+apply it before constraint admission. Preserve separate provider lower rows
+and do not mark `Ein`, nested `B`, or copied equal rows by equality alone. Prove
+and test the local constructor/consumer invariant, including the authentic
+`apply f = f 1; id x = x; out = apply id` distinction. Late seeds, capture and
+freshening, aliases/returns, complete source-path transport, dynamic
+Receive/Observe, H1/H2/U, Catch residual H3, complete Call, soundness,
+principality, and production/F5 cutover remain OPEN; H3 stays disabled until
+its H1/H2 prerequisites are met.

@@ -24,8 +24,12 @@
    に残すこと。一方、未注釈 formal の source profile 導入と、同じ profile/view incidence
    をその Argument 対応へ結び付ける判断はまだ native に存在しない。dynamic Receive/Observe、
    earlier extrusion lineage、alias/return の完全な保存も別の OPEN premise。
-   source-profile 実装試行は、unknown formal に対する適用位置表が未選択という判断に達し、
-   差分なしで終了した。`A [Ein] -> [Eout] B` のどの位置を保護するかは未決定のまま。
+   当時の source-profile 実装試行は、適用位置表を未確認として差分なしで終了した。
+   その後、[directional protection addendum](../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+   §§1–4 の既存決定を architect が照合し、protected omitted formal `f` の元の上位需要
+   `f <: A [Ein] -> [Eout] B` では、その上位 occurrence の `Eout` だけを新規保護すると確定した。
+   `Ein`、`B` 内、provider/recursive lower への逆流は含めず、独立 inherited protection は保持する。
+   全 nested-position matrix の再決定は不要。これは production cutover authority ではない。
    意味を使わない D-only source-incidence certificate は実装・focused verification・delta review
    を完了し、[checkpoint](../notes/progress/2026-10-15-omitted-formal-structural-incidence.md)
    に記録した。認証範囲は captured FreshUse から一つの source Name handoff を通る経路までで、
@@ -97,12 +101,17 @@
    は保持する。全 nested-position matrix の再投票は不要。この意味選択は production cutover authority
    を代替しない。
 
-   次はこの law の M2 source-to-construction/consumer correspondence。annotation absence と scope、元の
-   source upper-demand witness、対象 Function の `ResultEffect`、candidate constructors/consumers を結ぶ。
-   owner は `candidate_source.rs`, `candidate_effect.rs`, `lib.rs::admit_lambda_fact`,
-   `candidate_context.rs` と後続の `candidate_scheme.rs`。現状の `FormalConstruction` は source identity
-   を保持するだけで protection を生成・消費しない。`RelationId(13)` の enqueue activation は独立した
-   帰属課題で、選択済み law の代替証拠にしない。H1/H2/U OPEN、H3/P disabled。
+   M2 source-to-construction/consumer correspondence は
+   [frozen note](../notes/theory/2026-10-15-directional-protection-source-correspondence.md)
+   と [falsifier](../notes/progress/2026-10-15-directional-protection-source-falsifier.md)
+   にまとまり、fresh `compiler_referee` と `spec_auditor` は blocking / major / minor なしと判定した。
+   actual omission/scope と元の Apply upper demand の fresh `ResultEffect` は各 owner に残るが、
+   それらを結ぶ protected-at-exposure producer と exact ResultEffect consumer はまだない。
+   `OmittedFormal` は Apply より前の collection plan にあるので、source-owned early constructor は可能。
+   次は private candidate/playground で、source omission + original upper exposure から exact
+   `ResultEffect` だけへ occurrence/scope-qualified witness を作る最小の可逆な構築差分と、
+   provider no-backflow の実証に進む。late seed、capture/freshening、all-path transport は別 gate。
+   `RelationId(13)` の enqueue activation は独立課題のまま。H1/H2/U OPEN、H3/P disabled。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
@@ -133,7 +142,7 @@ production cutover の完了を意味しない。元の U の主張範囲を狭�
 
 | 段階 | 状態・着手条件 | 実施内容と成果物 | 完了判定 |
 | --- | --- | --- | --- |
-| **H1: source 境界から live context まで** | OPEN。H1-A/B と bounded source-to-reconstruction/Argument correspondence は frozen・independently reviewed。D-only source-incidence certificate は実装・focused verification・delta review 済みだが、captured FreshUse と source Name handoff の経路だけを認証し、earlier extrusion を除外する。omitted-formal profile matrix が未決定のため protection implementation は pending。 | 決定された omitted-callback profile を元の owner・型上の位置・寿命から生成し、authentic Function Argument correspondence と consumer まで運ぶ。 | unknown formal、遅延 Function demand、alias/return、fresh use で同じ source protection を保存する。実コードの producer→consumer 対応と必要な不変条件を独立査読で確立する。dynamic Receive/Observe と full Call は別 gate。metadata だけ、detached PUSH だけ、新ノートだけでは完了しない。 |
+| **H1: source 境界から live context まで** | OPEN。H1-A/B と bounded source-to-reconstruction/Argument correspondence は frozen・independently reviewed。D-only source-incidence certificate は captured FreshUse と bounded source Name handoff の経路だけを認証し、earlier extrusion を除外する。選択済み local law は元の upper Function demand の `ResultEffect` のみを新規保護する。M2 correspondence packet は reviewed; it identifies retained source inputs but the protection producer/consumer edge is absent. | private playground に occurrence/scope-qualified producer and exact `ResultEffect` consumer を最小構築し、provider no-backflow を確認する。 | まず構築と exact local invariant を独立査読する。late demand, capture/freshening, alias/return, and all-path transport remain separate. dynamic Receive/Observe and full Call are separate gates. metadata alone does not complete H1. |
 | **H2: 後から来る制約とコピーへの保存** | H1 の構築と意味が固定されてから、その差分に着手。 | replay、extrusion、capture/freshening、Value-SCC intrusion へ H1 の context を接続する。既存の経路を拡張し、別の配送機構を足さない。 | 後着 lower/upper にも検査が届く。同じ use 内の共有と別 use の独立性を保ち、row の等化で権限や recipe の出自が混ざらない。H1/H2 の証明と source 対応が成立する。 |
 | **H3: Catch の残余に接続** | H1/H2 の必要な仮定が実装で成立し、選択・coverage の根拠を確認できた後。 | resolved operation ID と実際の arm coverage を用い、適格な入力に P を適用する。保護された経路は除去を通さず、arm・応答計算・raw k は外側へ流す。 | 直接処理した寄与は消え、未処理操作と保護された同 family の寄与は残る。現在・将来の gamma feedback が働く。playground で成功例と拒否例を観測し、U のうち実装した範囲と未対応の source を明示する。 |
 | **H4: 使い方を広げた回帰と衛生性の適用** | H3 の最小例が動いた後。 | nested Catch、local alias、返された callback、複数 use、同 family の再送出、raw suffix の後続操作を source から確認する。既存の衛生性定理の各仮定を code owner に対応させる。 | source から compiler consumer までの対応に穴がない。対応済み範囲の衛生性の結論を適用し、未解決の complete Call / lifecycle 前提を残したまま全体を閉じない。 |
