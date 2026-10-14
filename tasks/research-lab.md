@@ -14,6 +14,14 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+Latest direction: the [compose scope-release decision](../notes/design/2026-10-15-compose-scoped-effect-release.md)
+selects output `['e?, 'f] 'b`. If `'e` occurs in `'f`, the same `'e` scope's
+protection is removed there, including identity forwarding; other scopes and
+effect membership survive. Prioritize this concrete compose rule before
+committing to a protection representation. Internal push/pop-like operations
+remain possible. The earlier compose scheme is superseded, while its old
+proof attempts remain historical and current implementation gates stay open.
+
 The user asked for collaborative implementation from concrete hygiene examples.
 The [baseline record](../notes/progress/2026-10-15-hygiene-example-baseline.md)
 retains four runnable source inputs, seven initial CLI observations and four

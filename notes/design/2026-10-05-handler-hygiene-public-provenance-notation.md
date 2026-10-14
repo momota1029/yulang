@@ -7,6 +7,15 @@ Governing sources: [ordinary computation semantics](2026-10-02-ordinary-computat
 Implementation authority: none
 Supersedes: none; withdraws this draft's prior optional-provenance-edge interpretation of `'e?`
 
+**Current compose clarification (2026-10-15):** the user's
+[scope-release decision](2026-10-15-compose-scoped-effect-release.md)
+selects the expected compose output `['e?, 'f] 'b`. Where `'e` occurs within
+the output effect `'f`, release removes the protection of the `'e` scope,
+including identity forwarding. It preserves other scopes and effect
+membership. A separately released summand with a still-protected occurrence
+inside `'f` is insufficient. That scoped decision supplements this draft;
+the general elaboration, representation and grammar remain open.
+
 This note records the user's selected local meaning for `'e?` and identifies
 the remaining source-to-public interpretation work. That local reading is
 settled: for an effect contribution independently established as originating

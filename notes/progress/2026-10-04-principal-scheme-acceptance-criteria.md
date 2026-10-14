@@ -3,6 +3,15 @@
 Status: user-directed acceptance criteria; successor derivation remains open.
 Date: 2026-10-04.
 
+**Compose clarification, 2026-10-15:** the user's
+[scope-release decision](../design/2026-10-15-compose-scoped-effect-release.md)
+supersedes only the earlier compose presentation. The active example below
+now includes `['e?, 'f]` and releases the `'e` protection scope also where
+`'e` occurs within `'f`, including the identity-forwarding case. Other
+examples are unchanged. The historical follow-ups below predate this change;
+their claims about unchanged schemes and conditional derivations do not
+certify the updated compose expectation.
+
 **Reviewed direct follow-up:**
 [joint presentation and safe context preimages](../design/2026-10-04-common-allowance-context-preimage.md)
 now prove finite forward complete-view presentation and the exact
@@ -63,9 +72,9 @@ my call f x = f x
   call : ('a -> ['b] 'c) -> 'a -> ['b] 'c
 
 my compose f g x = f (g x)
-  compose : ('a ['b] -> ['c] 'd)
-         -> ('e -> ['b] 'a)
-         -> 'e -> ['c] 'd
+  compose : ('a ['e] -> ['f] 'b)
+         -> ('c -> ['e] 'a)
+         -> 'c -> ['e?, 'f] 'b
 
 my twice f x = { f x; f x }
   twice : ('a -> ['b] 'c) -> 'a -> ['b] 'c
@@ -81,11 +90,12 @@ my higher f g x = f g x
 
 Value-level dependencies must not be exposed as refinements (`zero` keeps an
 unconstrained argument). Effect support is not usage multiplicity (`twice`).
-The annotation-free `compose` example retains `g`'s effect contribution in the
-outer `c` allowance because the full hygiene default applies when the source
-writes no capture contract. Passing that contribution through `f`'s argument
-interface, or reusing an inferred row component, does not by itself establish
-consumption or subtraction. Branch and staged
+The annotation-free `compose` example retains `g`'s effect contribution in its
+`['e?, 'f]` output. The full hygiene default protects that contribution at
+the unannotated input boundary; the selected release removes the `'e` scope's
+protection from its occurrences within the output effect `'f`. Passing the
+contribution through `f`'s argument interface, or reusing an inferred row
+component, does not by itself establish consumption or subtraction. Branch and staged
 call outputs use the displayed shared effect components, but that presentation
 does not by itself assert equality of the original source effect expressions.
 The successor must derive these presentations from its general rules and
@@ -95,8 +105,8 @@ This is not a compose-specific subtraction semantics. An unannotated source
 boundary grants no implicit capture: hygiene preserves the distinct effect
 contribution. Existing witnessed partial subtraction remains available inside
 `f`'s contravariant descriptor under its governing evidence rules; matching an
-inferred row component there does not alone erase it from the outward `c`
-allowance.
+inferred row component there does not alone erase it from the outward
+`['e?, 'f]` result. Release changes protection, not effect membership.
 
 Clarification (2026-10-04): the earlier `'a -> int` presentation for `zero`
 is superseded. The user accepts the negative `Top` domain, with `any` as the
@@ -160,7 +170,11 @@ concrete endpoint resolution, and generalization. In particular, branch or
 staged-call effects may share a principal public allowance without treating
 successful concrete comparisons as transitive or equating evidence owners.
 
-## Current design cross-check
+## Historical design cross-check (2026-10-04)
+
+This audit and the factorization attempts that follow use the earlier compose
+presentation. Their references to outward `c` retain that historical notation;
+they are not derivations of the October 15 `['e?, 'f]` presentation.
 
 The active proposal was audited against each acceptance example. The audit found
 no counterexample to the requested schemes, but did not establish their

@@ -200,6 +200,22 @@ to document links, fences and `git diff --check`; no compiler changes, builds,
 tests, source executions or performance measurements accompany this update.
 It establishes expected behavior, not successful native execution.
 
+## Compose: scoped release and identity forwarding
+
+The user then selected the [compose scope-release rule](../design/2026-10-15-compose-scoped-effect-release.md)
+and expected output `['e?, 'f] 'b`. Release must reach occurrences of `'e`
+inside output effect `'f`, including `f = id`, and remove only the `'e`
+scope's protection. Internal push/pop-like processing remains a possible
+implementation; the earlier paired proposal is not thereby adopted.
+
+The active compose acceptance criterion is updated under the explicit user
+decision and pre-write `spec_auditor` review. Its old factorization discussion
+is marked historical; other examples are unchanged. Mode M2, one scoped
+spec reviewer; final transcription/supersession review found no findings.
+Document-only checks are
+links, fences and `git diff --check`; builds, tests, executions and measurements
+are not part of this update. No compiler code or proof gate changed.
+
 ## Review, resources and status
 
 Mode: M2 for the bounded source/semantic investigation, with `compiler_referee`

@@ -952,7 +952,14 @@ This index is a navigation aid. The listed source document remains authoritative
   cutover remain separate. The linked receipt records unchanged approval
   provenance and this governing-source application.
 
-- **Exploratory handler-protection notation:**
+- **Handler-protection notation and selected compose release:**
+  The [October 15 compose clarification](2026-10-15-compose-scoped-effect-release.md)
+  selects `('a ['e] -> ['f] 'b) -> ('c -> ['e] 'a) -> 'c -> ['e?, 'f] 'b`.
+  Release removes the `'e` scope's protection also from occurrences of `'e`
+  within output effect `'f`, including `f = id`; other scopes and effect
+  membership remain. This supersedes only the earlier compose expectation.
+  Internal push/pop-like processing remains possible; no representation or
+  theorem is adopted. The older general
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
   is Draft only. The user's corrected meaning for `'e?` is: for a contribution
   independently established as originating from `'e` and emitted from that

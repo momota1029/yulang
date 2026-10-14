@@ -6,6 +6,17 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Compose and scope release, latest user decision:** the selected type is
+  `('a ['e] -> ['f] 'b) -> ('c -> ['e] 'a) -> 'c -> ['e?, 'f] 'b`.
+  When `'e` occurs within output effect `'f`, remove the `'e` scope's
+  protection there as well, including `f = id`; preserve effect membership
+  and other scopes. See the [decision](../notes/design/2026-10-15-compose-scoped-effect-release.md).
+  This replaces the earlier compose presentation, not the other acceptance
+  examples. The next discriminator is identity forwarding with scoped release
+  and an independent surviving protection. The `'e?` strategy may use richer
+  internal operations, including push/pop; no representation or proof is
+  adopted. Native routing/permission/subtraction work remains open.
+
 - **Concrete hygiene example, current conversation:** the user selected
   collaborative work from source examples. Four reproducible playground
   inputs now parse and solve; the direct, omitted-callback and outside-arm
