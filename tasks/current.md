@@ -129,12 +129,21 @@ and activity plus current-state resumption. H1/H2/U remain OPEN; H3/P remain
 disabled. H1-G is active on baseline `b336999a148eaee7779f80e0a18e9e79e2cd8394`:
 a constructive correspondence derivation, independent source-qualified
 falsification and read-only owner trace now identify the absent complete
-Gen-Call-0/FrameCall producer; a separate read-only architect lane is checking
-whether current HIR and pre-solve Simple-sub data can lawfully construct it.
-The proof and design-owner lanes remain active. All work is static-only and
-stops at a missing owner/interface. No production representation or code lease
-opens until the constructors, consumers and any durable approval boundary are
-concrete.
+Gen-Call-0/FrameCall producer. The constructive derivation and falsifier were
+independently reviewed by `compiler_referee` and `spec_auditor` with no
+findings; a read-only architect map places the first gap at complete interface
+elaboration on formal registration/source operators. H1-G is complete only as
+a bounded, static gap characterization. It does not produce a complete Call
+or close H1/H2/U. A non-authoritative, bounded graph-construction proposal is
+now recorded in
+[`source-call-interface-native-construction-packet.md`](../notes/theory/2026-10-15-source-call-interface-native-construction-packet.md)
+and passed fresh M2 `compiler_referee` and `spec_auditor` review with no
+findings. It reuses the reviewed finite dependent-graph proposal as reference,
+keeps construction before solving, and leaves original Call semantics,
+execution evidence, complete C0 and production routing open. No compiler
+code or tests changed. The next gate is the user's choice whether this exact
+source-registration/operator-to-Apply playground slice is the representation
+to prototype.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
