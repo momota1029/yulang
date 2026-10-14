@@ -93,7 +93,7 @@ local `ResultEffect` law is in scope for its source correspondence.
 | `H1_E_receiver_owner_map` | Read-only owner map for original receiver construction, activation/lifetime, and the native event protection classifier | done on `99be441a4`; found conditional `yu-core::shadow_typed_evidence::query_conditionally` but no production caller/source producer; exact input assumptions and source owner boundary recorded | The first missing relation is actual receiving-call entry → immutable `original_receiver` plus typed profile/Receive/Observe evidence. This is source correspondence, not a counterexample or user semantic vote. |
 | `H1_E_receiver_entry_bridge` | Constructive proof/source bridge from admitted source receiving-call entry to activation-qualified typed incidence | reviewed bounded characterization in `notes/theory/2026-10-15-receiver-entry-source-bridge.md`; fresh `compiler_referee` found no blocking/major findings; two minor wording/locator repairs closed | Static-only, 20-minute proof pass; 32 direct dependency SHA-256 pins and 17 Git blob pins matched. Identifies no source-produced execution receiver/boundary/Receive/Observe/expiry; conditional statements remain conditional. H1/H2/U OPEN, H3/P disabled. |
 | `H1_E_receiver_entry_falsifier` | Independent static attack on source Apply/Lambda identity vs repeated receiver activation, evidence and expiry/re-entry | reviewed bounded characterization in `notes/progress/2026-10-15-receiver-entry-source-falsifier.md`; paired fresh `compiler_referee` found no blocking/major findings | Static-only, 15-minute pass; no Cargo/probes/builds/measurements. The alpha/beta identity-collapse calculation is conditional; composed source example remains unexecuted. No runtime error or impossibility claim. |
-| `H1_F_receiver_entry_derived_map` | Constructive source-directed symbolic receiving-entry derivation (`prover`) plus independent source-qualified falsifier (`researcher`) | active on baseline `28fd565e7144373ce5cd19d5e8fa6cff673087cf`; exclusive outputs `notes/theory/2026-10-15-receiver-entry-source-derived-map.md` and `notes/progress/2026-10-15-receiver-entry-derived-map-falsifier.md` | 25/20-minute static-only leases; derive or locate the first unsupported source transition for same-Call alpha/beta re-entry, typed paths/Receive/Observe/expiry and raw shallow resumption. No Draft premise, source restriction, new positions or activation token. Zero Cargo/tests/builds/probes/measurements; fresh `compiler_referee` and `spec_auditor` review after both freeze. H1/H2/U OPEN, H3/P disabled. |
+| `H1_F_receiver_entry_derived_map` | Constructive source-directed symbolic receiving-entry derivation (`prover`) plus independent source-qualified falsifier (`researcher`) | done; frozen outputs `notes/theory/2026-10-15-receiver-entry-source-derived-map.md` and `notes/progress/2026-10-15-receiver-entry-derived-map-falsifier.md`; baseline `28fd565e7144373ce5cd19d5e8fa6cff673087cf` | Static-only pair derived the original-formal/Apply/ResultEffect/Catch-binder/Function4-Argument prefix and stopped at Call-to-native typed-evidence mapping. Initial semantic and authority review, then focused authority delta review, closed the borrowed-owner Draft overstatement. 33 proof pins, 26 falsifier pins, plus five added Call/source-frame sources checked; zero Cargo/tests/builds/probes/measurements. H1/H2/U OPEN, H3/P disabled. |
 
 The H1-D paired characterization was frozen and independently reviewed. It
 locates the missing live-context operation: the authenticated original Apply
@@ -102,10 +102,14 @@ prefix and then reviewed a paired source receiving-entry characterization.
 Static source constructors do not produce the execution receiver, immutable
 boundary, matching typed receipt and observation, or expiry needed by the
 conditional classifier. Its identity-collision calculation remains
-conditional, and the composed source witness is unexecuted. H1-F now runs a
-constructive source-directed entry derivation and a complementary falsifier.
-The local directional law is already selected; production, H1/H2/U and
-residual activation stay open.
+conditional, and the composed source witness is unexecuted. H1-F's reviewed
+constructive map and complementary falsifier derive the static
+original-formal/Apply/ResultEffect/Catch-binder/Function4-Argument prefix and
+stop before a current native typed-evidence bridge. The source Call semantics
+is already selected by `OC-CallEff`/`FrameCall`/`C-Inv`/`CallMem`; authentic
+HIR/Gen-Call-0 instantiation and native receiver/profile/event/current-root/
+expiry mapping remain open. The local directional law is already selected;
+production, H1/H2/U and residual activation stay open.
 
 This slice closes only its symbolic-construction artifact. The parent source
 callback protection and residual-effect goal stays active. The receiver-entry

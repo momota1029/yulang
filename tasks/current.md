@@ -117,15 +117,19 @@ typed-path/Receive/Observe evidence, or normal-return expiry. The alpha/beta
 identity-collapse calculation is conditional; its composed source example
 remains unexecuted. This is a representation/source-correspondence gap, not a
 theorem, source impossibility result, or runtime misprotection counterexample.
-The next gate is H1-F, now active: a bounded constructive source-directed
-entry derivation and an independent falsifier for repeated execution of one
-receiving Call plus raw shallow resumption. It must map source Call entry to
-receiver/boundary, typed paths, Receive/Observe and expiry, or stop at the first
-unsupported source rule. The architect found no new observable-behavior choice
-in this scoped gate; reviewed Draft machinery remains a candidate target, not
-authority. H1/H2/U remain OPEN; H3/P remain disabled. The H1-E code lease stays
-blocked until the source owner or exact missing realization input is
-established.
+H1-F's constructive map and independent falsifier are complete and reviewed.
+The pair preserves the static original-formal/Apply/ResultEffect/Catch-binder/
+Function4-Argument prefix and identifies the remaining source-to-native gap:
+the selected `OC-CallEff`/`FrameCall`/`C-Inv`/`CallMem` semantics are not yet
+instantiated through authentic HIR/Gen-Call-0 records into the native typed
+profile, event, current-root and expiry consumer. Review corrected one
+authority overstatement: borrowed enter/leave is a Draft owner realization,
+while the selected behavior is preservation of a still-live owner's identity
+and activity plus current-state resumption. H1/H2/U remain OPEN; H3/P remain
+disabled. The next gate is a bounded source-to-native Call correspondence
+derivation and independent falsification; no production representation or
+code lease opens until its constructors/consumers and any durable approval
+boundary are concrete.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
