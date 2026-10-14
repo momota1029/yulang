@@ -14996,7 +14996,7 @@ already supplied `e_out`. A fresh `compiler_referee` confirmed the exact
 source/native gap and found no claim that a violating source arm exists.
 
 Thus the parent remains **OPEN**, and this output-readout subgate is
-**BLOCKED at a specific missing constructor map**: for each actual original
+**OPEN at the actual arm-output constructor**: for each actual original
 Struct/Arm witness, the source/native owner must construct same-assignment
 complete output checking into `CompleteComp(E_c,A_c)`, retaining its exact
 scope, predecessor evidence, guards/licenses, whole provider and future
@@ -15051,3 +15051,22 @@ laws require both the independently interpreted complete descriptor clauses
 and the actual operator's typed output evidence; this task selects neither a
 replacement `CIncl` algorithm nor new descriptor semantics. Source:
 `notes/design/2026-10-02-typed-computation-core-elaboration.md` §7.
+
+Direct use of `notes/theory/2026-10-14-invoke-compositional-call-introduction.md`
+§§6.3–8.1 and a bounded constructive/falsification pass sharpens this gate:
+ordinary T-App, the shared result endpoint, Function4 result identity, and the
+two native effect edges already cover the structural receiver's scalar output
+projection. Section 8 constructs every Call witness into `D_call`; §8.1 then
+still needs the independent `e_out`. Constructor elimination shows that this
+readout requires `b_s : S_c -> Mem(R_c)` plus one `b_j` from each authentic
+arm's original scoped output relation into `R_c = CompleteComp(E_c,A_c)`.
+The original `local_type_j` ends at `Mem(D_j)`, and selected Call/source
+interface rules supply no `D_j`-to-`R_c` map or concrete arm declaration at
+this use. The native Apply path stores no such arm/output evidence. No
+source-qualified counterexample was found. The constructive and independent
+audit routes reach the same owner; do not run another T-App, BOUND, scalar
+covariance, or `e_f/e_a` replay proof. The next evidence must come from the
+actual `delta_K[mu_c]` declaration/IF-Use and its arm-local final envelope,
+or from the exact definition owner that supplies that declaration. The
+original theorem remains OPEN; this result does not close inference,
+soundness, principality, effect hygiene, or F5 replacement.
