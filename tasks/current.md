@@ -27,6 +27,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   construction/proof gates and direct-argument/outside-arm controls.
   Do not repeat the resolved question, rerun the same raw-template
   probe, or activate H3/P from these observations.
+  The user also fixed the annotated counterparts: both
+  `cb: () -> [signal] int` with `catch cb()` and `thunk: [signal] int`
+  with `catch thunk` handle the supplied `signal` and return `1`.
+  `[signal]` grants subtraction rather than closing the input effect row;
+  an additional `write` is accepted and remains outward. Complete source and
+  authority are in annotation-effect-hygiene-integration §1.1. These are
+  required outcomes, not newly executed or implemented behavior.
 
 - **Implemented native initialization replay:** `candidate_extrude` retains
   exact incoming Allowance keys and replays them after all selected bounds,

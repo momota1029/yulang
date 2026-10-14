@@ -169,7 +169,10 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Current annotation effect hygiene policy (2026-10-10):**
   [selected polarity policy and existing-proof integration](2026-10-10-annotation-effect-hygiene-integration.md)
   records contravariant function-local concrete subtraction and covariant
-  concrete allowance. Variables are not concrete annotation atoms; their flow
+  concrete allowance. Section 1.1 records the October 15 annotated callback
+  and computation-argument examples, both returning `1`: `[signal]` grants
+  local subtraction, accepts an additional `write`, and leaves `write` outward.
+  Variables are not concrete annotation atoms; their flow
   and later concrete checks remain. Reviewed conditional hygiene transport,
   owner/lifetime and exact-interface results are reused with their original
   premises, without reopening them. The callback result formerly shown in §6

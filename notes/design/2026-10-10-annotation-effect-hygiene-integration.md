@@ -38,6 +38,70 @@ not an invented stronger user quote: ignoring a variable while collecting
 concrete annotation atoms does not delete its connection, declare it empty, or
 exempt concrete lower bounds later reaching it from the retained checks.
 
+### 1.1 Annotated callback and computation arguments, 2026-10-15
+
+Authority: the user's direct clarification in the continuing hygiene-example
+conversation. The user supplied both programs below and specified that each
+returns `1`.
+
+An explicitly annotated callback permits handling its `signal` inside `relay`:
+
+```yu
+act signal:
+    our ping: () -> int
+
+my relay(cb: () -> [signal] int) = catch cb() {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my answer = relay signal::ping
+```
+
+The computation-effect annotation on a formal permits the same handling,
+without requiring the argument to be wrapped in a zero-argument function:
+
+```yu
+act signal:
+    our ping: () -> int
+
+my relay(thunk: [signal] int) = catch thunk {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my answer = relay signal::ping()
+```
+
+Here `catch thunk` handles the `signal` associated with the supplied computation;
+the selected result is also `1`. Preserve this source behavior when constructing
+and transporting the argument-effect constraints.
+
+The user further specified:
+
+> 注釈があればそれを引いて良い(必ずしもthunkの型を[signal]に制限するわけではなく，[signal, write] intを渡してもsignalだけをcatchするという意味)．
+
+At these contravariant annotation positions, `[signal]` grants function-local
+permission to subtract `signal` from the effect flowing through that position.
+It does not impose a closed input-effect upper bound containing only `signal`.
+In particular, `thunk: [signal] int` accepts an otherwise compatible
+`[signal, write] int` argument. The displayed Catch handles `signal`; `write`
+is not removed by this annotation or arm and remains in the outward effect.
+The annotation supplies permission; the actual Catch performs the handling.
+
+Together with the [unannotated relay example](2026-10-06-directional-inferred-effect-protection-addendum.md#21-concrete-relay-and-variable-binding-clarification-2026-10-15),
+these examples fix the intended distinction:
+
+| Formal and body | Selected observation for the supplied `signal` argument |
+| --- | --- |
+| Unannotated `cb`, `catch cb()` | `signal` escapes relay and the `answer` variable binding into the enclosing block. |
+| `cb: () -> [signal] int`, `catch cb()` | The Catch handles `signal` and returns `1`. |
+| `thunk: [signal] int`, `catch thunk` | The Catch handles `signal` and returns `1`; additional `write` effects remain outward. |
+
+These are user-selected semantic expectations, not new execution results.
+This clarification instantiates §1's contravariant subtraction policy; it does
+not change the covariant annotation policy, choose a solver representation or
+close the open source-subtraction and hygiene implementation gates. The
+retracted result in §6 remains retracted.
+
 ## 2. Oracle correspondence
 
 Reference: frozen Yulang2 `a58eefc31e22141574b6f20c6a5748151c6d79f1`.

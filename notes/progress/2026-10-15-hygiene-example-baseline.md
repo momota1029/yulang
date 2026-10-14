@@ -184,6 +184,22 @@ readiness were outside its scope. The saved fixture was also checked byte for
 byte against the executed source, and changed Markdown fences and whitespace
 were checked. Compiler code and existing test expectations are unchanged.
 
+## Annotated counterparts: selected expectations
+
+The user subsequently supplied two annotated variants, both returning `1`:
+`cb: () -> [signal] int` with `catch cb()`, applied to `signal::ping`, and
+`thunk: [signal] int` with `catch thunk`, applied to `signal::ping()`.
+The complete programs and the user's clarification are preserved in
+[annotation policy §1.1](../design/2026-10-10-annotation-effect-hygiene-integration.md#11-annotated-callback-and-computation-arguments-2026-10-15).
+The contravariant `[signal]` permits local subtraction and accepts an otherwise
+compatible `[signal, write] int` argument; `write` remains outward.
+
+This append-only semantic record uses M0 with one scoped `spec_auditor` for
+faithful transcription and scope. Review found no findings. Verification is limited
+to document links, fences and `git diff --check`; no compiler changes, builds,
+tests, source executions or performance measurements accompany this update.
+It establishes expected behavior, not successful native execution.
+
 ## Review, resources and status
 
 Mode: M2 for the bounded source/semantic investigation, with `compiler_referee`

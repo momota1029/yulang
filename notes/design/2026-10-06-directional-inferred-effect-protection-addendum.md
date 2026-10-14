@@ -107,6 +107,17 @@ live protection/subtraction. The [executable block observation](../progress/2026
 separates the final Name lookup from the block computation. No repeated
 semantic vote is needed for this example.
 
+### 2.2 Annotated relay counterparts, 2026-10-15
+
+The user subsequently specified that both `relay(cb: () -> [signal] int)`
+with `catch cb()` and `relay(thunk: [signal] int)` with `catch thunk` handle
+the supplied `signal` and return `1`. Their complete source and exact
+clarification are retained in the [annotation policy, section 1.1](2026-10-10-annotation-effect-hygiene-integration.md#11-annotated-callback-and-computation-arguments-2026-10-15).
+The contravariant `[signal]` is local subtraction permission, not a closed
+input-effect cap: an otherwise compatible `[signal, write] int` argument is
+accepted and `write` remains outward. These expectations complement section
+2.1's omitted-formal example; they do not claim executable hygiene is complete.
+
 ## 3. Proposed minimal inference-rule notation
 
 Let `k` identify the already justified source protection seed at the original

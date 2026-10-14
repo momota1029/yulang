@@ -38,6 +38,13 @@ implementation gap. Existing H1/H2/U, H3/P and production boundaries remain
 unchanged. This is a frozen checkpoint,
 not a request to launch another proof wave from the historical queue below.
 
+The later explicit annotated counterparts are recorded in
+annotation-effect-hygiene-integration §1.1: both the callback annotation and
+the computation-argument annotation let the inner Catch handle `signal` and
+return `1`. The contravariant `[signal]` permits local subtraction while
+accepting an additional `write` that remains outward. This records the selected
+behavior only; no new execution or implementation result follows.
+
 ## Native extrusion checkpoint (2026-10-15)
 
 The user's renewed implementation request produced the
