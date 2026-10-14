@@ -1,7 +1,7 @@
 # `invoke`: compositional complete-Call introduction
 
 Date: 2026-10-14
-Status: Draft mathematical constructor completion; conditional derivation independently reviewed after repair; no production or parent certification
+Status: Draft mathematical constructor completion; earlier conditional derivation and section 6.3 owner amendment independently reviewed; no production or parent certification
 Baseline: `add2fdf4c12e7379e1c5ad2c24b5023320262ae3`
 Branch: `research/simple-sub-intrusion`
 Definition authorization: the user's current instruction, "定義が必要なら定義すればいい"
@@ -236,7 +236,8 @@ or independently licensed Call witness.
 ### 6.1 Parameter and application descriptions
 
 Reuse the existing Parameter declaration `A_f` and actual registration at
-`d_f`. At c's original source description scope, introduce the result/effect
+`d_f`. In the new owner's pre-challenge source description region specified
+in section 6.3, introduce the result/effect
 holes required by the Application rule program, with complete descriptive
 sorts and their original free-dependency telescopes. A native row number
 alone does not determine this telescope. No actual returned provider/world,
@@ -262,8 +263,10 @@ D_Fc = independent complete checked challenges for (J_a,IF_c).
 P_Fc = the complete observation contract R_i at that same challenge.
 ```
 
-`IF_c` is built from the actual source ports and full declaration/reference
-interfaces by IF-Insert/IF-Use. The full checked challenge formation uses its
+`IF_c` is the demand-owned interface defined in section 6.3. The separate full
+Call incidence graph retains the actual source ports and every complete
+declaration/reference interface by IF-Insert/IF-Use. The full checked
+challenge formation uses its
 original context, other bindings and checked whole carrier. Neither actual-U
 acceptance nor invocation-output safety is a challenge-formation premise.
 
@@ -327,6 +330,220 @@ representation uses the same native term. Source-owned seed/exposure records
 use the existing policy at their actual lexical/checking occurrences; they
 create no dynamic receipt or authority. No proof of final ownership/coverage
 is asserted by the static record alone.
+
+### 6.3 Definition amendment: demand prefix and dependent Call-site suffix
+
+This is a Draft owner-rule amendment for the new Name/Integer constructor,
+under the current definition authorization. It retains every old source rule.
+It defines the scope of this new Application inference introduction; it does
+not hoist an existing event-local declaration or identify an independently
+fixed foreign Function interface. Native correspondence remains separate.
+
+The decisive distinction is supplied by the selected contextual Function
+constructor, not by erasing a callee certificate. In
+[semantic input realization](2026-10-08-call-semantic-input-realization.md)
+section 2, the independently typed punctured context has a callable hole
+typed at the checked F, without requiring membership of the tested callable.
+Its challenge inputs are that context, its other valid values, the registered
+hole values/incidences and whole-carrier admission. The callee Name/Result
+certificate at A_f is an input of the enclosing Call's Bind/check, not an
+additional input of this Function challenge constructor.
+
+**Actual descriptive inputs and owner equation.** Let Delta_0 retain the
+complete dependency-closed static signature inputs used below: the actual
+Integer declaration and fixed source operands a,k, the independently declared
+Result/Delay port schemas and original license families, and the independently
+interpreted complete Function/computation signature. This retains their
+original K/D, authority, scope, hard-envelope
+and action declarations. It neither supplies their semantic inhabitants nor
+replaces them with four scalar sorts. The actual argument description is the
+whole-carrier schema J_a from section 6.1, whose ordinary projection is
+Comp(empty,Int); that projection does not define or truncate its complete
+interface. Its independent open fillings, latent fields and inherited
+origins remain bound at their original challenge
+positions. The source-produced Delay(Return(k)) is still only its section.
+
+The new Application owner emits two independent Desc introductions with
+actual source owner c and type-scope node sigma_c := sigma_f, the enclosing
+Parameter's type scope. This is a choice in this new owner rule, not a
+claimed scope equality supplied by Application_N's Demand-N. Source Generalize
+section 3.3 explicitly permits an independently specified inference
+introduction to declare an ordinary endpoint and records its owner, sort,
+type scope and free dependency telescope. Its table's ViewLogic and
+EventProof rows separately place logical/interface proofs in their source
+description or event regions. These are the rules used here:
+
+```
+Delta_0 |- B_i : ValueDescription
+Delta_0 |- E_i : EffectDescription
+Desc(C,(c,result-description),ValueEndpoint,sigma_c,Delta_0):B_i
+Desc(C,(c,invocation-effect-description),EffectEndpoint,sigma_c,Delta_0):E_i
+Delta_D = Delta_0; B_i; E_i
+Delta_D |- R_i = CompleteComp(E_i,B_i) : CompleteComputationDescription
+Delta_D |- IF_c = DemandInterface(J_a,R_i) : CompleteFunctionInterface
+Delta_D |- F_c = FunctionDemand(J_a,R_i,IF_c) : ValueDescription
+```
+
+ValueDescription and EffectDescription here are the existing complete sorts
+with the retained signature dependencies. These are ordinary flexible Desc
+introductions, with actual owner c and source type scope in that description
+region. A body's EventProof can subsequently use them under its original
+invocation telescope. Source Generalize section 3.3 permits an independently
+specified inference introduction to supply precisely these records. The
+owner selects this pre-challenge introduction for the new constructor; its
+permission for other body-owned introductions inside events remains intact.
+The actual Result/Delay applications and their event-local license witnesses
+remain in Site_c, at their original source events. Delta_0 retains the
+independent declaration families with those variables still under their
+original binders; it does not copy an actual body-event application into the
+description prefix.
+The source-owned Lambda section 4.1 already forms its body rule program
+before challenges while retaining its post-Force/rebind event telescopes.
+This amendment adds the two displayed pre-challenge description records to
+that program; it leaves all those original event telescopes inside it.
+
+DemandPrefix_c is the dependent record of these two Desc introductions and
+their constructor-defined R_i, IF_c and F_c, over the one retained Delta_0
+input. It is formed by the displayed Application owner constructor; its
+eliminator returns those same descriptions, provenance records and terms.
+It has no inclusion, acceptance, observation or whole-Call typing proof field.
+
+DemandInterface is the following ordered schema, using the existing complete
+Function/challenge and complete computation constructors:
+
+```
+description: J_a, R_i and their complete original descriptive dependencies;
+challenge: the original independent punctured-context/other-value/hole/
+           carrier-admission telescope for J_a;
+invocation: the same callable hole, actual Act(v,U,r), original receipt,
+            entry/consumer/ExecuteCallable and their dependent action ports;
+observation: the whole R_i telescope at that challenge, with Return and
+             pending alternatives, their actual worlds/providers/responses/
+             raw suffixes, and all original compatible future extensions.
+```
+
+Every runtime operand in the last three rows is bound by its original
+challenge, actual-decomposition, observation or future constructor. Original
+primitive/relation references retain their complete signatures and actual
+dependent parameter maps there. In particular ExecuteCallable is parameterized
+by the bound actual U, not by the source expression Name(u_f). Its operation
+and every receiver-local alternative remain the actual U's complete operation.
+The signature of a tested callable is not obtained by reading its source
+callee's A_f certificate. The callee Name/Result reference is absent from
+this schema because it is absent from the selected Function challenge and
+observation constructors, not because its evidence was declared irrelevant.
+
+**Dependent full graph, with no discarded slot.** The Application also emits
+the complete Call-site suffix Site_c(A_f,F_c). It retains the original formal
+registration and Name-use interface; Result at Comp(empty,A_f); argument
+Result/Reify; the actual VIncl(A_f,F_c) checking occurrence; the callee Bind
+result/current-world tuple; receiver, complete Call result/future ports; and
+every original declaration/Arm/IF-Insert/IF-Use substitution. All its fields
+retain their original dependencies. The checking occurrence is an OPEN
+obligation, not a proof of inclusion produced during formation.
+
+In particular callee_result still has its A_f-dependent original result
+interface. The receiver uses its same returned raw value/provider and current
+world through the existing checking/Bind map. No A_f certificate is erased,
+and no callee result is cast to F_c during graph formation. The typing schema
+uses the eventual witness of the generated inclusion at this exact map,
+as in section 7. This use does not participate in forming F_c.
+
+Define the new owner's full graph by ordered dependent pairing:
+
+```
+Full_c = (D : DemandPrefix_c; S : Site_c(A_f,D.F_c)).
+pack(D,S) = FullCallGraph_c(D,S)
+demand(FullCallGraph_c(D,S)) = D
+site(FullCallGraph_c(D,S)) = S
+unpack(G) = (demand(G),site(G))
+unpack(pack(D,S)) = (D,S)
+pack(unpack(FullCallGraph_c(D,S))) = FullCallGraph_c(D,S).
+```
+
+These are constructor beta equations. FullCallGraph_c retains the same
+registered nodes, contextual slots, original field types and cross-references
+as its two inputs, with no independent copying of a shared middle tuple.
+Grouping nodes into two records changes no original clause, binder, parameter
+map, witness or graph edge. In particular this is a dependent pair, not an
+assertion that the Call-site suffix is independent of its callee or demand.
+Every whole-Call arm remains in S; a receiver-local arm remains in the bound
+actual operation of U as well as its original contextual placement in S.
+Their output-dependent interfaces remain separate. The new equations claim
+no erasure equivalence for an independently fixed historical graph.
+
+**Unchanged Function fields.** Apply the original checked-challenge
+constructor to fixed original input fields. It returns the same context,
+other-value evidence, callable/carrier holes, incidences and carrier-admission
+fields in either grouping. None of its constructor arguments is S's callee
+Name certificate or generated inclusion witness. Apply its existing
+observation/future constructors at that same challenge and actual U: their
+arguments and dependent fields are likewise the same bound operands and R_i.
+Thus factoring the caller slots out of the descriptor changes neither an
+admitted challenge nor any complete/pending observation or future field.
+The original full Call still needs its callee prefix and inclusion to USE
+that descriptor. The statement concerns these actual selected Function
+constructors; it does not assume proof irrelevance, license weakening or a
+projection of arbitrary active old constrained-root predicates.
+
+**Scope and independence derivation for this amended owner.** Delta_0 is a
+declaration/signature telescope, with runtime variables retained inside the
+original schemas.
+The literal has no callee reference. The complete Function/computation schema
+uses its own description parameters and bound callable/context/observation
+fields. The new Application parameter maps substitute J_a,B_i,E_i and their
+complete signature dependencies, never the source operand A_f. This is an
+equation of the new owner applications, not an inference from the chronology
+of an opaque declaration. Consequently neither A_f nor an enclosing Lambda
+EventField occurs free in Delta_D's demand
+applications. Traversing the complete explicit and implicit arguments gives
+the same conclusion: no actual callee Name/Result reference occurs there.
+Those references occur, unchanged, in Site_c.
+
+Take Gamma_desc to be the joint original description region containing
+Delta_0, the original Parameter Desc(A_f), and these new Application Desc
+records. Retain the Parameter's actual Delta_f through its original inclusion
+at sigma_f; the new records use their declared Delta_0 inclusions at that
+same node. Thus Gamma_desc has the original Parameter dependencies and both
+new declaration dependency closures. A reference to an original static
+dependency denotes the same original binder in all these inclusions; it is
+not an independent copied witness. The two new sorts do not
+gain an A_f dependency merely because A_f is visible in that region. No
+original dependency is reordered or removed. This constructs the requested
+joint pre-challenge telescope. The four descriptive coordinates are the
+existing argument value Int, argument effect empty, invocation effect E_i
+and result value B_i, with their complete J_a/R_i interfaces. Their free
+operands are descriptive/static fields in this region; actual EventFields
+remain bound inside the interface schemas.
+
+For each original body event e, let i_e be the ancestor-context weakening
+from Gamma_desc at sigma_f into the original Event(e,parent,Delta_e)
+telescope and its post-Force/rebind extension. This is the existing lexical
+binder inclusion: it fixes every ancestor descriptor/static field and adds
+that event's original challenge, receipt, Force/rebind and runtime fields.
+It creates no body binding on a Request/divergence branch. Let rho_e denote
+substitution along i_e on the retained description syntax. The owner emits
+exactly
+
+```
+J_a[e] = J_a[rho_e]    R_i[e] = R_i[rho_e]
+IF_c[e] = IF_c[rho_e]  F_c[e] = F_c[rho_e].
+```
+
+No per-event Desc introduction is performed on this new path. Substitution
+of the displayed constructor terms proves these equations; every embedded
+IF reference substitutes its complete original parameter map, and every
+event/future binder uses the original lifted substitution. Identity and
+composition are inherited from those same original actions. Thus all body
+events use restrictions of one F_c. F_c's definition has no free A_f
+reference, so substituting for A_f cannot recursively insert F_c into itself.
+This establishes the scope/independence law for the amended source owner.
+It does not yet choose a satisfying assignment at A_f's original dependency
+telescope, prove an inhabited complete demand, or establish native Function4
+correspondence. Its bridge to an independently fixed original Application
+rule and to the current native owner remains OPEN. In particular no identity
+assignment is inferred merely from the presence of all declarations in
+Gamma_desc.
 
 ## 7. Actual derivation of the structural `f 1` branch
 
@@ -441,11 +658,12 @@ generated local bound `A_f <: F_c`, not just a diagram for a hypothetical Call.
 No proof for an outer Request/divergence branch creates a body binding; the
 existing entry rule instead keeps its original pending body suffix.
 
-**Unestablished satisfiability witness: the exact scope obstruction.** The
+**Unestablished satisfiability witness after the owner amendment.** The
 assignment `A_f := F_c` and the claimed nonempty identity-closure instance are
 withdrawn. Reflexive inclusion is lawful only after both sides are proved to
 be the same descriptor at the same scope; it cannot solve a dependency/scope
-obligation by itself. The selected constructors establish the following:
+obligation by itself. Before the section 6.3 owner amendment, the selected
+constructors established only the following:
 
 - Source Generalize section 3.3 places
   `Desc(C,d_f,ValueEndpoint,sigma_f,Delta_f):A_f` before the Lambda challenge.
@@ -465,7 +683,7 @@ obligation by itself. The selected constructors establish the following:
   does not establish that all descriptive dependencies of `IF_c` exclude
   `A_f`, or that its event-indexed fields occur only bound inside the demand.
 
-The missing law is at Parameter/Application description formation and its
+The missing law was at Parameter/Application description formation and its
 IF-Use substitution: exhibit one lawful pre-challenge descriptor telescope
 `Gamma_desc` containing the original `A_f` and all free dependencies of
 `J_a,B_i,E_i,IF_c`, show that no EventField or actual runtime field is free in
@@ -475,16 +693,34 @@ that SAME `F_c` through its original scope map. For this identity assignment
 one must also show that the complete definition of `F_c`, including `IF_c`'s
 reference dependencies, does not depend on `A_f`; otherwise substitution is
 recursive rather than reflexivity. None of these conclusions follows merely
-from the declaration order printed in section 6.1.
+from the declaration order printed in section 6.1. Section 6.3 now supplies
+the new Application owner's missing formation output directly: its demand
+prefix excludes the caller operand, its dependent Call suffix retains that
+operand and its complete checking/incidence, and its original Function
+constructors retain exactly the same challenge/observation/future fields.
+The constructor equations derive one pre-challenge description region,
+absence of free event operands in the demand coordinates, restriction of one
+F_c across body events, and absence of an A_f reference in F_c's definition.
+This is a new Draft source-owner definition and derivation, pending fresh
+independent review, not a proof that the previously inspected native owner
+already implemented that output.
 
-The native source owner allocates Parameter/expression endpoints once in
-`candidate_source.rs` and traverses Lambda/body at the same numerical level;
-`shadow_apply.rs` forms the four native demand coordinates. These facts do
-not prove the required complete source dependency or event-restriction law.
-No impossibility or source counterexample is claimed. The conditional theorem
-and conditional Lambda closure above retain their original generated inclusion
-premise at c's scope. Source satisfiability and the parent source/native gate
-remain OPEN; no caller is restricted to identity or purity.
+The identity assignment is still not asserted. Having all Desc records in a
+joint description region does not permit the earlier A_f assignment to refer
+to later B_i/E_i declarations outside A_f's original dependency telescope.
+An actual joint satisfying assignment must respect those original scopes and
+the complete demand's independent formation/inhabitance obligations. The
+owner amendment supplies its scope law, not that assignment or inhabitance.
+
+The current native source owner allocates Parameter/expression endpoints once
+in `candidate_source.rs` and traverses Lambda/body at the same numerical
+level; `shadow_apply.rs` forms the four native demand coordinates. These facts
+do not establish that the compiler emits the complete scope and interface
+constructed by the amended source owner. The amended conditional theorem and
+Lambda closure use the open generated inclusion at c's original source map.
+They do not prove a satisfying assignment or demand inhabitance. Source
+satisfiability and the parent source/native gate remain OPEN; no caller is
+restricted to identity or purity.
 
 **Evidence retention.** Erasing the newly added type/placement witnesses
 recovers the same structural witness or original j,delta,p,z/w and every
@@ -585,8 +821,8 @@ or public principal output is made by forming this open program.
 
 ## 11. Review and integration status
 
-This file is the constructive mathematical work, not a completed independent
-review. The producer's checks include: no whole-Call proof input; no invented
+This file is the constructive mathematical work, not a completed parent
+theorem. The producer's checks include: no whole-Call proof input; no invented
 argument Name; no actual-provider selection during description formation;
 no source-diagonal restriction; no borrowed future certificate for another
 arm; no post-hoc structural-output guard; no closed proof from open constraints.
@@ -599,5 +835,12 @@ Name/Integer, and withdrew the witness while exposing its exact scope law. A
 fresh compiler_referee and spec_auditor delta review passed those repairs.
 This independently reviewed conditional constructor theorem does not establish
 source satisfiability or the parent source/native theorem, which remains OPEN.
-No production code, test expectation, public type language or cutover status
-changed. Shared task/laboratory synchronization is owned by primary integration.
+The section 6.3 owner amendment and corresponding section 8 derivation were
+independently reviewed by `compiler_referee` and `spec_auditor` at frozen SHA-256
+`1f72ddb332ace004f9d7ac2a5ee935e7267238591bcdc82b801bf535b51c9ebe`; both
+passed with no findings. This proves the pre-challenge demand scope and
+restriction law for the amended source owner. It does not prove correspondence
+to the existing `Application_N`/native constructors, a satisfying assignment,
+or the parent source/native theorem. No production code, test expectation,
+public type language or cutover status changed. Shared task/laboratory
+synchronization is owned by primary integration.

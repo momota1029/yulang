@@ -1435,15 +1435,25 @@ proves a conditional complete-Call typing constructor for exactly the
 resolved unannotated Value-formal Name/Integer seam, composing the actual
 Strict/Name/Result/Literal/Delay/Bind rules and every independently typed
 generic Call arm. The initial proof's generic Arm omission and overly broad
-DataUse case were repaired. A proposed `A_f = F_c` witness was removed because
-the selected source rules do not yet prove that F_c's complete dependent
-scope lifts from `Delta_c` to Parameter's `sigma_f` or stays uniform across
-body events.
+DataUse case were repaired. A proposed `A_f = F_c` witness was withdrawn.
+The amended Application owner now introduces result/effect Desc records at the
+Parameter's pre-challenge type scope and factors the independent Function
+demand prefix from the dependent Call-site suffix. The suffix retains
+`Name/Result(A_f)`, the open inclusion edge, every original arm and all
+IF-Insert/IF-Use references. Constructor packing/projection preserves the
+complete graph, and body events use restrictions of the same `F_c`. Fresh
+independent compiler-referee and spec-auditor delta reviews passed at frozen
+SHA-256
+`1f72ddb332ace004f9d7ac2a5ee935e7267238591bcdc82b801bf535b51c9ebe`.
 
-This is a reviewed local source-constructor result, not source satisfiability,
-historical-family equivalence, native Function4 correspondence, implementation
-authority or parent closure. The original source/native/F5 parent remains
-OPEN; the source-constructor component is REDUCED. Next owner: prove the
-pre-challenge descriptor scope/restriction law, then the joint source-demand to
-actual native Function4 emission/dispatch map. No tests, builds, probes or
-compiler changes ran.
+This **REDUCES** the scope/restriction obligation for that amended source
+owner. It does not prove a satisfying assignment, demand inhabitance,
+equivalence to the prior `Application_N`/native constructor, native Function4
+correspondence, complete native graph, Generalize/replay, principality or F5.
+The original source/native parent remains OPEN. The linked check-closure
+compatibility proof remains a separate L4 gate. Static proof/review and
+integrity checks only; no tests, builds, probes or compiler changes ran.
+
+Next owner: derive the joint complete demand to emitted/consumed native
+Function4 map under one scoped assignment, keeping all original Call-site
+clauses and dependent future interfaces.

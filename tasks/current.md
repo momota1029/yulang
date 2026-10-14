@@ -14787,14 +14787,26 @@ Simple-sub derivation or assume an already-typed Call/C0/kernel.
 This **REDUCES** the source-constructor portion of the original gate: under
 one lawful scoped assignment and the generated semantic inclusion
 `A_f <: F_c`, every constructed Call witness has the synthesized complete
-result contract. The same-scope assignment/reflexivity witness was withdrawn;
-the exact prechallenge lift from `Application_N`'s `Delta_c` to Parameter's
-`sigma_f`, including IF-use dependencies and one F_c across all body events,
-remains unproved. Thus source satisfiability, the native Function4 projection,
-complete native graph, Generalize/replay, principal output and F5 cutover stay
-OPEN. The original source/native parent is not closed. Static proof/review and
-`git diff --check` only; no tests, builds, probes or compiler changes.
+result contract. The same-scope assignment/reflexivity witness was withdrawn.
+A new §6.3 definition for the amended Application owner introduces its result
+and effect descriptions at the Parameter's pre-challenge type scope. It factors
+the Function-demand prefix from the dependent Call-site suffix; that suffix
+retains `Name/Result(A_f)`, the open inclusion edge, all original arms and
+IF-Insert/IF-Use references. Constructor packing/projection preserves the
+complete graph, and ancestor weakening gives one demand at every body event.
+Fresh independent `compiler_referee` and `spec_auditor` reviews passed with no
+findings at frozen SHA-256
+`1f72ddb332ace004f9d7ac2a5ee935e7267238591bcdc82b801bf535b51c9ebe`.
 
-Next: construct the exact scope/restriction law for this fixed Application
-owner, then connect its complete demand/result/effect contracts to the emitted
-and consumed native Function4 edge under the same satisfying assignment.
+This **REDUCES** the scope/restriction obligation for the amended source owner.
+It does not prove a satisfying assignment, demand inhabitance, correspondence
+to the current `Application_N`/native constructors, native Function4
+projection, complete native graph, Generalize/replay, principality or F5
+cutover. The original source/native parent remains OPEN. The linked
+check-closure compatibility note remains a separate L4 gate. Static
+proof/review and integrity checks only; no tests, builds, probes or compiler
+changes.
+
+Next: derive the joint complete source-demand to emitted/consumed native
+Function4 map under the same scoped assignment, retaining every Call-site
+clause and its complete future interface.
