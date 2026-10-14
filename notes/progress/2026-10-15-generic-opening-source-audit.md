@@ -1,7 +1,7 @@
 # Generic operation-arm opening: pinned source audit
 
 Date: 2026-10-15
-Status: frozen, unreviewed research checkpoint; bounded static source characterization
+Status: frozen, independently reviewed research checkpoint; bounded static source characterization
 Role/method: researcher; declaration/HIR/native-constructor coverage and falsifier audit
 Baseline: `research/simple-sub-intrusion`, `871d2ecb559f064dc034501b8bfe8c9bd6659876`
 Exclusive lease: this file only
@@ -199,6 +199,16 @@ f4a8cb624204ae8afd4f2ab599048e71efc5022724130161d390058a09997d9d crates/yu-solve
 7e438b91ed03dbb52b644f78bc082232efd5164fd8d095d10373d826d2d7d0cb crates/yu-solver/tests/candidate_operation_source.rs
 ```
 
+## Independent review
+
+A fresh `compiler_referee` reviewed this audit together with the linked
+construction note after both were frozen. No blocking, major or minor findings
+remain. The review confirmed the bounded normal-entry owner trace, fixture
+contract, authority fidelity, and the separation between a candidate coverage
+gap and source semantics. It did not establish global absence on legacy or
+production routes, or inspect lifecycle, full Call/hygiene, extrusion/replay
+completeness, soundness, principality or cutover.
+
 ## Commit packet
 
 - Exact path: `notes/progress/2026-10-15-generic-opening-source-audit.md`.
@@ -206,8 +216,8 @@ f4a8cb624204ae8afd4f2ab599048e71efc5022724130161d390058a09997d9d crates/yu-solve
 - Dependency hash changes by this leaf: none. Concurrent working edits to two
   native dependencies are outside the audited frozen baseline; primary must
   revalidate any later applicability.
-- Claim/review: bounded static source characterization; frozen; unreviewed;
-  no theorem closure or implementation authority.
+- Claim/review: bounded static source characterization; frozen and
+  independently reviewed; no theorem closure or implementation authority.
 - Checks already run: committed-source locator inspection, bounded fixture
   search, eleven SHA-256 dependency hashes and baseline/working comparison,
   note fence/whitespace/final-newline integrity;

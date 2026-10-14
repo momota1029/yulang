@@ -1,7 +1,7 @@
 # Generic operation opening: selected source rule and current construction gap
 
 Date: 2026-10-15
-Status: Frozen research checkpoint; unreviewed bounded source characterization
+Status: Frozen, independently reviewed bounded source characterization; no theorem closure
 Claim class: source-rule calculation and minimized implementation obstruction;
 no new established theorem, executable probe, or implementation authority
 Baseline: `research/simple-sub-intrusion`,
@@ -205,6 +205,16 @@ enforce the selected rigid checking boundary for one joint A/B/J/local-effect
 tuple, including the existing direct-extrusion gap. Keep implementation and
 lifecycle gates open until source constructor/consumer evidence exists. This
 is a proposed handoff, not an implementation design or running job.
+
+## Independent review
+
+A fresh `compiler_referee` reviewed this note together with the linked source
+audit after both artifacts were frozen. The review found no blocking, major or
+minor findings. It confirmed the exact owner paths, source-fixture contract,
+authority boundaries and the distinction between the bounded obstruction,
+theorem status and implementation authority. It did not inspect lifecycle or
+genericity preservation, full Call/hygiene, extrusion/replay coverage,
+soundness, principality or production cutover; those gates remain OPEN.
 
 ## 6. Frozen dependencies, checks and commit packet
 
