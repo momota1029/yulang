@@ -15041,3 +15041,13 @@ representation gate is also open; it does not establish that the source
 semantic declaration is globally absent or justify constructing a
 Struct-only kernel. Sources inspected: `crates/yu-core/src/shadow_call_formation.rs`
 and `crates/yu-solver/src/candidate_call.rs`.
+
+The independent typed-core boundary also matters here: §7 defines `CIncl` as
+semantic inclusion of complete computation interfaces, explicitly not row
+inclusion or a new solver atom, and leaves its effective sound/principal
+presentation open. Therefore the native scalar Function4 inequalities cannot
+serve as an implementation of the complete output check. The `out_s/out_j`
+laws require both the independently interpreted complete descriptor clauses
+and the actual operator's typed output evidence; this task selects neither a
+replacement `CIncl` algorithm nor new descriptor semantics. Source:
+`notes/design/2026-10-02-typed-computation-core-elaboration.md` §7.
