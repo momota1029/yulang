@@ -14852,6 +14852,19 @@ check-closure compatibility note remains a separate L4 gate. Static
 proof/review and integrity checks only; no tests, builds, probes or compiler
 changes.
 
+A fresh review of §6.4 found that its reverse argument-effect inequality was
+not generated: the literal supplies `EffectBottom <= e_a <= EmptyEffect`,
+which does not alone supply `EmptyEffect <= e_a`. The note now retains only the
+proved source-demand-to-native-term direction and explicitly leaves that
+reverse direction open. Delta review confirmed the repaired calculation.
+This **REDUCES** the native port gate by proving the shared `A_c`/Apply-result
+field and the one-way scalar fit from the source demand to the exact native
+Function4 term, while keeping invocation and whole-Application effects
+distinct. It does not establish complete `F_c`/`J_a` correspondence,
+assignment reflection, `e_out`, or the original source/native theorem. These
+are proof-level changes only; no tests, builds, compiler edits, or Git
+operations ran.
+
 The note's §6.5 now applies the already reviewed complete-bound theorem BOUND
 directly to the emitted `e_f[e]` edge. A scoped independent review confirmed
 that its conclusion is exactly `F_c[rho_e] ∈ Upper_sigma_e(A_f[rho_e])` and
@@ -14919,6 +14932,31 @@ derives it from the scalar inequalities. The source/native parent and native
 Function4 correspondence remain OPEN. Static definition/source review only;
 no tests, builds, probes, code or Git mutations.
 
+The constructor-level follow-up found one usable source law, not a blanket
+CompleteComp covariance theorem. For an actual eligible `Bound_j(E,u;xi)`
+leaf, source-contracts §§4–5.1 fixes the same provider's non-coverage
+interface `N_j` and proves `Bound_j(E_actual,u) -> Bound_j(E_target,u)` from
+effect-coverage inclusion. Hereditary value inclusion transports the same
+returned value/provider and its own dependent future interface. This gives
+the direct Request/Return transport cases at those genuine leaves, while
+preserving the raw response, handle, resumed world and ordered Bind suffix.
+
+The Invoke owner has not yet exposed every relevant ordinary descriptor as
+those leaves. Its `D_s` is a Bind construction, but each independent `D_j`
+currently has only `local_type_j : P_j and A_j -> Mem(D_j)`; §6.3's scope and
+substitution equations do not prove the §5.1 fixed-envelope/eligible-bound
+decomposition. The scoped union transports only after each constituent has
+its own genuine map. The output check `e_out : CIncl(Image_c,R_c)` remains a
+separate obligation and does not identify every semantic `D_j` member with an
+actual Call image. A proposed fixed-signature `CompleteComp` definition has a
+valid conditional covariance proof, but its identification with the existing
+independently interpreted `DescMem` and its exact native-child meaning are
+unproved; independent compiler/spec review confirmed that boundary. Therefore
+the original source/native parent is still **UNCHANGED/OPEN**. The next proof
+input is the actual `Delta_0` computation-signature supplier's clause
+decomposition, including each arm's bound leaves, hard envelope and local
+future domains; another scalar covariance derivation cannot close this seam.
+
 ### 2026-10-14 use the compositional Call owner at the output edge
 
 The compositional Call note's §8.1 supplies the exact source-side operand for
@@ -14943,3 +14981,30 @@ Apply graph. Keep the source Call result theorem REDUCED and the parent
 source/native, native Function4, principality and F5 gates OPEN. No tests,
 builds, probes or compiler changes ran; the pending question bundle remains
 excluded.
+
+A direct producer/consumer trace now checks that precise gap against the
+current native code. `candidate_source.rs` keeps the resolved formal as a
+ValueRow, emits the literal bounds, and `shadow_apply.rs` builds the negative
+Function demand with the shared Application result plus distinct invocation
+and Application effects. The Function/Function consumer emits the four
+correlated Simple-sub children, including `t <= A_c` and `r <= E_i`; this is
+the ordinary imported Function rule, not a new derivation. The active
+Function-pair branch does not carry the complete Call arm signature or its
+provider/future domains. Application_N forms `e_out` as an independent
+obligation; Invoke's `local_type_j` ends at `Mem(D_j)`, and §8.1 applies an
+already supplied `e_out`. A fresh `compiler_referee` confirmed the exact
+source/native gap and found no claim that a violating source arm exists.
+
+Thus the parent remains **OPEN**, and this output-readout subgate is
+**BLOCKED at a specific missing constructor map**: for each actual original
+Struct/Arm witness, the source/native owner must construct same-assignment
+complete output checking into `CompleteComp(E_c,A_c)`, retaining its exact
+scope, predecessor evidence, guards/licenses, whole provider and future
+interfaces. The selected Complete Call rules preserve those arms but leave
+their concrete W/Z laws and independent complete output typing to the actual
+operator declaration; neither that declaration's selected `local_type_j` nor
+the native scalar result/effect children supplies the map. This is not an
+impossibility result or a source-qualified counterexample. The next proof
+input is the actual complete `Comp` descriptor owner and authentic arm
+hard-envelope/local typing law at this Use; do not retry scalar covariance,
+derive the output from `e_f/e_a`, or re-prove T-App/BOUND.

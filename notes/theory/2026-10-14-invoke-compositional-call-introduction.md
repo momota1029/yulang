@@ -1,7 +1,7 @@
 # `invoke`: compositional complete-Call introduction
 
 Date: 2026-10-14
-Status: Draft mathematical constructor completion; the earlier conditional derivation and prior §6.3 / complete-image amendments were independently reviewed; §6.5's direct BOUND application was independently reviewed; the shared-result-port amendment in §§6.1, 6.3 and 6.4 remains unreviewed; no production or parent certification
+Status: Draft mathematical constructor completion; the earlier conditional derivation and prior §6.3 / complete-image amendments were independently reviewed; §6.5's direct BOUND application was independently reviewed; §6.4's result-port and one-way scalar-fit calculation was corrected after review and delta-reviewed; other shared-result owner amendments and production/parent certification remain open
 Baseline: `add2fdf4c12e7379e1c5ad2c24b5023320262ae3`
 Branch: `research/simple-sub-intrusion`
 Definition authorization: the user's current instruction, "定義が必要なら定義すればいい"
@@ -604,22 +604,22 @@ Here `v_a,e_a` are the actual argument endpoints retained in the negative
 Function4. `candidate_source.rs:336-349` emits the displayed value/effect
 bounds for the actual integer child. The four Function subtyping children use
 contravariance for argument value/effect and covariance for invocation
-effect/result. Therefore
-the literal bounds give both ordinary inclusions between the source-projected
-demand `Function4(Int,EmptyEffect,E_i,A_c)` and the actual native demand
-`Function4(v_a,e_a,E_i,A_c)`:
+effect/result. The literal bounds establish the source-demand-to-native-term
+direction:
 
 ```text
 Function4(Int,EmptyEffect,E_i,A_c) <: Function4(v_a,e_a,E_i,A_c)
   uses v_a <= Int and e_a <= EmptyEffect
-Function4(v_a,e_a,E_i,A_c) <: Function4(Int,EmptyEffect,E_i,A_c)
-  uses Int <= v_a and EmptyEffect <= e_a
 ```
 
-These are existing literal constraints, not a selected solution assigning
-`v_a := Int` or `e_a := EmptyEffect`. The complete `J_a` carrier and its open
-challenge interface remain intact; the calculation concerns only the
-ordinary coordinate projection.
+The reverse inclusion would require `Int <= v_a` and `EmptyEffect <= e_a`.
+The literal emits `Int <= v_a` and `EffectBottom <= e_a`; it does not emit
+`EmptyEffect <= e_a`. `EffectBottom` and `EmptyEffect` are distinct polarized
+leaves, and their admitted directed comparison does not identify them. The
+reverse inclusion therefore does not follow from these literal bounds alone.
+No assignment setting `v_a` or `e_a` to an endpoint is used. The complete
+`J_a` carrier and its open challenge interface remain intact; this calculation
+concerns only the ordinary coordinate projection.
 
 The Function/Function consumer at `lib.rs:12493-12520` then emits the four
 correlated children from the same positive/negative pair. In particular its
@@ -629,12 +629,13 @@ Simple-sub Application result sharing plus its existing literal bounds; it
 does not rederive T-App, pick a satisfying assignment, or infer a complete
 inclusion from endpoint equality.
 
-This calculation closes the source result-port alias for the selected new
-owner and the current native Apply term. It does not prove that every
-independently declared Call arm's complete result/effect/future contract is
-represented by the two native effect edges, that `e_out` is satisfied, or
-that Function4 erasure preserves the complete residual. Those are separate
-remaining parts of the source/native gate.
+This calculation closes the source result-port alias and establishes the
+one-way scalar fit of the projected demand into the selected native Apply
+term. It does not establish bidirectional argument-effect equivalence, that
+every independently declared Call arm's complete result/effect/future
+contract is represented by the two native effect edges, that `e_out` is
+satisfied, or that Function4 erasure preserves the complete residual. Those
+are separate remaining parts of the source/native gate.
 
 ### 6.5 Apply the existing complete-bound theorem at the generated edge
 
