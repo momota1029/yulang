@@ -1,7 +1,7 @@
 # `invoke`: compositional complete-Call introduction
 
 Date: 2026-10-14
-Status: Draft mathematical constructor completion; earlier conditional derivation, section 6.3 owner amendment and complete-image owner amendment independently reviewed; no production or parent certification
+Status: Draft mathematical constructor completion; the earlier conditional derivation and prior §6.3 / complete-image amendments were independently reviewed; §6.5's direct BOUND application was independently reviewed; the shared-result-port amendment in §§6.1, 6.3 and 6.4 remains unreviewed; no production or parent certification
 Baseline: `add2fdf4c12e7379e1c5ad2c24b5023320262ae3`
 Branch: `research/simple-sub-intrusion`
 Definition authorization: the user's current instruction, "定義が必要なら定義すればいい"
@@ -237,16 +237,21 @@ or independently licensed Call witness.
 
 Reuse the existing Parameter declaration `A_f` and actual registration at
 `d_f`. In the new owner's pre-challenge source description region specified
-in section 6.3, introduce the result/effect
-holes required by the Application rule program, with complete descriptive
-sorts and their original free-dependency telescopes. A native row number
-alone does not determine this telescope. No actual returned provider/world,
-response or body witness is moved into a description binder.
+in section 6.3, introduce the result/effect holes required by the Application
+rule program, with complete descriptive sorts and their original
+free-dependency telescopes. The function's result and the Application's value
+result use the same source endpoint `A_c`, as in the ordinary Application
+rule's single result type. Invocation effect `E_i` and whole-Application
+effect `E_c` remain distinct. A native row number alone does not determine
+these complete telescopes. No actual returned provider/world, response or
+body witness is moved into a description binder.
 
 Let `J_a` be the argument's complete declared carrier interface. Form `R_i`
-using the existing complete computation descriptor constructor, with ordinary
-result-description hole `B_i`, invocation effect-description hole `E_i`, and
-its typed observation interface. A Return port binds its actual value/provider
+using the existing complete computation descriptor constructor, with the
+shared Application result endpoint `A_c`, invocation effect-description hole
+`E_i`, and its typed observation interface. Thus
+`R_i = CompleteComp(E_i,A_c)`. The whole Application output remains
+`CompleteComp(E_c,A_c)`. A Return port binds its actual value/provider
 and current world; a Request/pending port binds its actual packet, response
 and raw suffix instead, without an invented returned value. The future port
 is a dependent family over that actual output and the original compatible
@@ -363,23 +368,31 @@ interface. Its independent open fillings, latent fields and inherited
 origins remain bound at their original challenge
 positions. The source-produced Delay(Return(k)) is still only its section.
 
-The new Application owner emits two independent Desc introductions with
-actual source owner c and type-scope node sigma_c := sigma_f, the enclosing
-Parameter's type scope. This is a choice in this new owner rule, not a
-claimed scope equality supplied by Application_N's Demand-N. Source Generalize
-section 3.3 explicitly permits an independently specified inference
-introduction to declare an ordinary endpoint and records its owner, sort,
-type scope and free dependency telescope. Its table's ViewLogic and
-EventProof rows separately place logical/interface proofs in their source
-description or event regions. These are the rules used here:
+The new Application owner emits its result/effect descriptions before
+challenges, with actual source owner c and type-scope node sigma_c := sigma_f,
+the enclosing Parameter's type scope. It introduces the result endpoint once
+as `A_c` and reuses it in both the Function demand and whole Application
+output. This is the ordinary Application rule's one result type, not an
+equality inferred from solved endpoints. Invocation effect `E_i` and whole
+Application effect `E_c` keep their distinct roles. This common scope is a
+choice in this new owner rule, not a claimed scope equality supplied by
+Application_N's Demand-N. Source Generalize section 3.3 explicitly permits an
+independently specified inference introduction to declare ordinary endpoints
+and records their owners, sorts, type scopes and free dependency telescopes.
+Its table's ViewLogic and EventProof rows separately place
+logical/interface proofs in their source description or event regions. These
+are the rules used here:
 
 ```
-Delta_0 |- B_i : ValueDescription
+Delta_0 |- A_c : ValueDescription
+Delta_0 |- E_c : EffectDescription
 Delta_0 |- E_i : EffectDescription
-Desc(C,(c,result-description),ValueEndpoint,sigma_c,Delta_0):B_i
-Desc(C,(c,invocation-effect-description),EffectEndpoint,sigma_c,Delta_0):E_i
-Delta_D = Delta_0; B_i; E_i
-Delta_D |- R_i = CompleteComp(E_i,B_i) : CompleteComputationDescription
+Desc(C,(c,application-result),ValueEndpoint,sigma_c,Delta_0):A_c
+Desc(C,(c,application-effect),EffectEndpoint,sigma_c,Delta_0):E_c
+Desc(C,(c,invocation-effect),EffectEndpoint,sigma_c,Delta_0):E_i
+Delta_D = Delta_0; A_c; E_c; E_i
+Delta_D |- R_i = CompleteComp(E_i,A_c) : CompleteComputationDescription
+Delta_D |- R_c = CompleteComp(E_c,A_c) : CompleteComputationDescription
 Delta_D |- IF_c = DemandInterface(J_a,R_i) : CompleteFunctionInterface
 Delta_D |- F_c = FunctionDemand(J_a,R_i,IF_c) : ValueDescription
 ```
@@ -399,13 +412,13 @@ original binders; it does not copy an actual body-event application into the
 description prefix.
 The source-owned Lambda section 4.1 already forms its body rule program
 before challenges while retaining its post-Force/rebind event telescopes.
-This amendment adds the two displayed pre-challenge description records to
-that program; it leaves all those original event telescopes inside it.
+This amendment adds the displayed pre-challenge description records to that
+program; it leaves all those original event telescopes inside it.
 
-DemandPrefix_c is the dependent record of these two Desc introductions and
-their constructor-defined R_i, IF_c and F_c, over the one retained Delta_0
-input. It is formed by the displayed Application owner constructor; its
-eliminator returns those same descriptions, provenance records and terms.
+DemandPrefix_c is the dependent record of these three Desc introductions and
+their constructor-defined R_i, R_c, IF_c and F_c, over the one retained
+Delta_0 input. It is formed by the displayed Application owner constructor;
+its eliminator returns those same descriptions, provenance records and terms.
 It has no inclusion, acceptance, observation or whole-Call typing proof field.
 
 DemandInterface is the following ordered schema, using the existing complete
@@ -491,7 +504,7 @@ declaration/signature telescope, with runtime variables retained inside the
 original schemas.
 The literal has no callee reference. The complete Function/computation schema
 uses its own description parameters and bound callable/context/observation
-fields. The new Application parameter maps substitute J_a,B_i,E_i and their
+fields. The new Application parameter maps substitute J_a,A_c,E_c,E_i and their
 complete signature dependencies, never the source operand A_f. This is an
 equation of the new owner applications, not an inference from the chronology
 of an opaque declaration. Consequently neither A_f nor an enclosing Lambda
@@ -507,14 +520,15 @@ at sigma_f; the new records use their declared Delta_0 inclusions at that
 same node. Thus Gamma_desc has the original Parameter dependencies and both
 new declaration dependency closures. A reference to an original static
 dependency denotes the same original binder in all these inclusions; it is
-not an independent copied witness. The two new sorts do not
-gain an A_f dependency merely because A_f is visible in that region. No
+not an independent copied witness. These descriptions do not gain an A_f
+dependency merely because A_f is visible in that region. No
 original dependency is reordered or removed. This constructs the requested
-joint pre-challenge telescope. The four descriptive coordinates are the
-existing argument value Int, argument effect empty, invocation effect E_i
-and result value B_i, with their complete J_a/R_i interfaces. Their free
-operands are descriptive/static fields in this region; actual EventFields
-remain bound inside the interface schemas.
+joint pre-challenge telescope. The four Function demand coordinates are the
+existing argument value Int, argument effect empty, invocation effect E_i and
+result value A_c, with their complete J_a/R_i interfaces. The separate whole
+Application output uses E_c and the same A_c. Their free operands are
+descriptive/static fields in this region; actual EventFields remain bound
+inside the interface schemas.
 
 For each original body event e, let i_e be the ancestor-context weakening
 from Gamma_desc at sigma_f into the original Event(e,parent,Delta_e)
@@ -538,12 +552,130 @@ composition are inherited from those same original actions. Thus all body
 events use restrictions of one F_c. F_c's definition has no free A_f
 reference, so substituting for A_f cannot recursively insert F_c into itself.
 This establishes the scope/independence law for the amended source owner.
-It does not yet choose a satisfying assignment at A_f's original dependency
-telescope, prove an inhabited complete demand, or establish native Function4
-correspondence. Its bridge to an independently fixed original Application
-rule and to the current native owner remains OPEN. In particular no identity
-assignment is inferred merely from the presence of all declarations in
-Gamma_desc.
+It does not choose a satisfying assignment at A_f's original dependency
+telescope or prove an inhabited complete demand. The result-value coordinate
+and native Function4 result port are addressed by the constructor calculation
+below; complete arm-output discharge and the parent theorem remain open.
+
+### 6.4 Shared result coordinate and the native Function4 constructor
+
+Ordinary Application has one result type: if the callee has type `Int -> B`,
+the Application expression has type `B`. The imported Simple-sub rule already
+uses this same `B` in T-App. The source owner above therefore introduces one
+value description `A_c` and uses it in both positions:
+
+```text
+callee demand result       = A_c
+whole Application result  = A_c
+```
+
+This is a shared constructor field, not an equality obligation added after
+generation and not a choice of solved endpoint. Complete effect roles remain
+distinct:
+
+```text
+callee invocation effect  = E_i
+whole Application effect = E_c
+```
+
+The current native constructor has exactly the corresponding shape. At
+`shadow_apply.rs:1345-1366`, the Apply recipe obtains `result` from the
+Application's value component, allocates a fresh invocation-effect row, and
+constructs `NegativeFunction(argument,argument_effect,invocation_effect,
+result)`. `candidate_call.rs:332-340` checks that the negative Function's
+result child is the same term retained as the Apply result. The same owner
+retains the distinct application-effect endpoint, and emits
+`callee_effect <= application_effect` and
+`invocation_effect <= application_effect` at `shadow_apply.rs:1426-1443`.
+
+The result and effect coordinates line up directly. The literal's value and
+evaluation-effect endpoints are flexible native rows, so the two argument
+coordinates line up by the literal's already generated Simple-sub bounds:
+
+```text
+Int <= v_a <= Int
+BottomEffect <= e_a <= EmptyEffect
+E_i -> native fresh invocation-effect row
+A_c -> native Application result component
+E_c -> native Application effect component
+```
+
+Here `v_a,e_a` are the actual argument endpoints retained in the negative
+Function4. `candidate_source.rs:336-349` emits the displayed value/effect
+bounds for the actual integer child. The four Function subtyping children use
+contravariance for argument value/effect and covariance for invocation
+effect/result. Therefore
+the literal bounds give both ordinary inclusions between the source-projected
+demand `Function4(Int,EmptyEffect,E_i,A_c)` and the actual native demand
+`Function4(v_a,e_a,E_i,A_c)`:
+
+```text
+Function4(Int,EmptyEffect,E_i,A_c) <: Function4(v_a,e_a,E_i,A_c)
+  uses v_a <= Int and e_a <= EmptyEffect
+Function4(v_a,e_a,E_i,A_c) <: Function4(Int,EmptyEffect,E_i,A_c)
+  uses Int <= v_a and EmptyEffect <= e_a
+```
+
+These are existing literal constraints, not a selected solution assigning
+`v_a := Int` or `e_a := EmptyEffect`. The complete `J_a` carrier and its open
+challenge interface remain intact; the calculation concerns only the
+ordinary coordinate projection.
+
+The Function/Function consumer at `lib.rs:12493-12520` then emits the four
+correlated children from the same positive/negative pair. In particular its
+result child ends at the native Apply result component, which is the shared
+source `A_c` by this owner equation. This is the direct use of the ordinary
+Simple-sub Application result sharing plus its existing literal bounds; it
+does not rederive T-App, pick a satisfying assignment, or infer a complete
+inclusion from endpoint equality.
+
+This calculation closes the source result-port alias for the selected new
+owner and the current native Apply term. It does not prove that every
+independently declared Call arm's complete result/effect/future contract is
+represented by the two native effect edges, that `e_out` is satisfied, or
+that Function4 erasure preserves the complete residual. Those are separate
+remaining parts of the source/native gate.
+
+### 6.5 Apply the existing complete-bound theorem at the generated edge
+
+For each original body event `e`, the owner rule emits the same-value
+constraint at its actual source map:
+
+```text
+e_f[e] : VIncl(A_f[rho_e],F_c[rho_e];xi_e).
+```
+
+Instantiate the reviewed complete-bound theorem BOUND, section 5 of
+[`2026-10-10-simple-sub-complete-bound-accumulation.md`](2026-10-10-simple-sub-complete-bound-accumulation.md),
+at these exact endpoint references and comparison context. BOUND's input is
+the emitted edge itself; it does not require a typed Call certificate, a
+selected provider, satisfiability, or `e_out`. Its conclusion is
+
+```text
+F_c[rho_e] in Upper_{sigma_e}(A_f[rho_e]).
+```
+
+For every original scope-respecting assignment `eta` and full residual
+witness `w`, BOUND attaches its computed view and its erase map returns that
+same `w`; both composites are identity by record projection/construction.
+Thus this source Application constructor directly supplies the complete
+Simple-sub upper-bound occurrence, with the original dependent residual
+retained. This is an application of the existing theorem, not a second proof
+of ordinary `lambda f.f 1` typing.
+
+The result closes the source-edge-to-complete-upper-bound step. BOUND does not
+identify a complete Function descriptor with a native Function4 term, prove
+the open residual inhabited, discharge `e_out`, or account for every
+independent arm in native output constraints.
+
+An independent proof review checked this instantiation against BOUND §§3–5,
+Source Generalize §3.3, and the original `VIncl` scope/action definition at
+SHA-256 `51747e5b5d3679b9a473a47162bf4946b9ff9f6e9475e4334089f0b3b676c99b`.
+It confirmed that `e_f[e]` is the original scoped proof slot, that BOUND stores
+the same `F_c[rho_e]` in the original comparison context, and that the full
+residual is preserved fiberwise. This review covers §6.5 only; it does not
+review the shared-result-port amendment or establish native Function4
+correspondence.
 
 ## 7. Actual derivation of the structural `f 1` branch
 
@@ -717,7 +849,7 @@ generated local bound `A_f <: F_c`, not just a diagram for a hypothetical Call.
 No proof for an outer Request/divergence branch creates a body binding; the
 existing entry rule instead keeps its original pending body suffix.
 
-**Unestablished satisfiability witness after the owner amendment.** The
+**Unestablished satisfying assignment after the owner amendments.** The
 assignment `A_f := F_c` and the claimed nonempty identity-closure instance are
 withdrawn. Reflexive inclusion is lawful only after both sides are proved to
 be the same descriptor at the same scope; it cannot solve a dependency/scope
@@ -729,7 +861,7 @@ constructors established only the following:
   It permits a body inference declaration at its owning invocation telescope.
   The source-owned Lambda section 4.1 likewise places `A_f,I_f` before
   challenges and `R_L` at the post-Force/rebind telescope.
-- Section 6.1 forms `J_a,B_i,E_i,R_i,IF_c` at c's original description scope,
+- The earlier section 6.1 formed `J_a,B_i,E_i,R_i,IF_c` at c's original description scope,
   without selecting actual output fields. Application_N section 4, Demand-N,
   places its demand/result/effect descriptions in `Delta_c`; it supplies no
   equality with `sigma_f` or lifting map to that earlier scope. Its section 5
@@ -742,44 +874,34 @@ constructors established only the following:
   does not establish that all descriptive dependencies of `IF_c` exclude
   `A_f`, or that its event-indexed fields occur only bound inside the demand.
 
-The missing law was at Parameter/Application description formation and its
-IF-Use substitution: exhibit one lawful pre-challenge descriptor telescope
-`Gamma_desc` containing the original `A_f` and all free dependencies of
-`J_a,B_i,E_i,IF_c`, show that no EventField or actual runtime field is free in
-the four source/native argument-value, argument-effect, invocation-effect and
-result-value coordinates, and show every body event uses the restriction of
-that SAME `F_c` through its original scope map. For this identity assignment
-one must also show that the complete definition of `F_c`, including `IF_c`'s
-reference dependencies, does not depend on `A_f`; otherwise substitution is
-recursive rather than reflexivity. None of these conclusions follows merely
-from the declaration order printed in section 6.1. Section 6.3 now supplies
-the new Application owner's missing formation output directly: its demand
-prefix excludes the caller operand, its dependent Call suffix retains that
-operand and its complete checking/incidence, and its original Function
-constructors retain exactly the same challenge/observation/future fields.
-The constructor equations derive one pre-challenge description region,
-absence of free event operands in the demand coordinates, restriction of one
-F_c across body events, and absence of an A_f reference in F_c's definition.
-This is a new Draft source-owner definition and derivation, pending fresh
-independent review, not a proof that the previously inspected native owner
-already implemented that output.
+The prior section 6.3 owner amendment supplied the missing source formation
+and IF-Use substitution: one pre-challenge `Gamma_desc`, a demand prefix
+independent of `A_f`, a dependent Call suffix retaining the caller operands,
+and one `F_c` restricted across all body events. The current amendment changes
+the result port as well: it reuses `A_c` in the Function demand and complete
+Application output, then matches that port to the actual native Apply result
+term by §6.4's owner equations. The effects remain separate as `E_i` and
+`E_c`. This source/code result-port calculation is new Draft work pending
+independent review; it does not construct a satisfying assignment or prove
+that native Function4 preserves the complete residual.
 
-The identity assignment is still not asserted. Having all Desc records in a
-joint description region does not permit the earlier A_f assignment to refer
-to later B_i/E_i declarations outside A_f's original dependency telescope.
-An actual joint satisfying assignment must respect those original scopes and
-the complete demand's independent formation/inhabitance obligations. The
-owner amendment supplies its scope law, not that assignment or inhabitance.
+The assignment `A_f := F_c` is still not asserted. Having all Desc records in
+a joint description region does not permit the earlier `A_f` assignment to
+refer to later endpoint declarations outside its original dependency
+telescope. Reusing `A_c` resolves the Application result coordinate but does
+not establish a joint satisfying assignment or inhabitance of the complete
+demand. Those still have to respect the original scopes and independent
+formation obligations.
 
 The current native source owner allocates Parameter/expression endpoints once
 in `candidate_source.rs` and traverses Lambda/body at the same numerical
-level; `shadow_apply.rs` forms the four native demand coordinates. These facts
-do not establish that the compiler emits the complete scope and interface
-constructed by the amended source owner. The amended conditional theorem and
-Lambda closure use the open generated inclusion at c's original source map.
-They do not prove a satisfying assignment or demand inhabitance. Source
-satisfiability and the parent source/native gate remain OPEN; no caller is
-restricted to identity or purity.
+level. `shadow_apply.rs` and `candidate_call.rs` establish the same Apply
+result term in the native Function4 and expression output; §6.4 now maps the
+shared source `A_c` port there. This does not establish complete interface
+formation, every independent arm's output projection, a satisfying
+assignment, or demand inhabitance. Source satisfiability and the parent
+source/native gate remain OPEN; no caller is restricted to identity or
+purity.
 
 **Evidence retention.** Erasing the newly added type/placement witnesses
 recovers the same structural witness or original j,delta,p,z/w and every
@@ -858,9 +980,11 @@ implements the new complete source rule. In particular:
 1. Construct and retain the complete primitive/source interface references at
    their real owners, rather than deriving them from endpoint equality.
    The existing source handles suffice for locations, not for semantic truth.
-2. Interpret the ordinary native demand/result/effect endpoints as projections
-   of the SAME complete constrained Call root and its original scopes. Prove
-   both source/generated directions for one joint assignment.
+2. Extend the §6.4 result-port equation to a complete interpretation of the
+   native demand/effect endpoints and original Call root at their original
+   scopes. The ordinary result coordinate is now shared by construction; the
+   full interface and both source/generated directions for one joint
+   assignment remain open.
 3. Check every independently declared arm in that projection. Current Apply
    emission adds callee and invocation effects to the application effect; it
    does not by itself show that every separate arm's result/effect/future
@@ -870,8 +994,10 @@ implements the new complete source rule. In particular:
    is an implementation/representation question, not a Call-typing axiom.
 4. Preserve this complete rule program at source Generalize, replay/extrusion
    and eventual native discharge. The existing BOUND theorem can be applied
-   to the generated complete callee edge; Function4 erasure alone is not its
-   converse and does not prove public principality.
+   to the generated complete callee edge; §6.5 now performs that application
+   at the original occurrence and preserves its full residual fiber.
+   Function4 erasure alone is not its converse and does not prove public
+   principality.
 
 The relevant source typing theorem is under the ordinary generated local
 constraints, not under a new premise called "the whole Call is safe". No
@@ -894,12 +1020,16 @@ Name/Integer, and withdrew the witness while exposing its exact scope law. A
 fresh compiler_referee and spec_auditor delta review passed those repairs.
 This independently reviewed conditional constructor theorem does not establish
 source satisfiability or the parent source/native theorem, which remains OPEN.
-The section 6.3 owner amendment and corresponding section 8 derivation were
-independently reviewed by `compiler_referee` and `spec_auditor` at frozen SHA-256
-`1f72ddb332ace004f9d7ac2a5ee935e7267238591bcdc82b801bf535b51c9ebe`; both
-passed with no findings. This proves the pre-challenge demand scope and
-restriction law for the amended source owner. It does not prove correspondence
-to the existing `Application_N`/native constructors, a satisfying assignment,
-or the parent source/native theorem. No production code, test expectation,
-public type language or cutover status changed. Shared task/laboratory
-synchronization is owned by primary integration.
+The prior section 6.3 owner amendment and corresponding section 8 derivation
+were independently reviewed by `compiler_referee` and `spec_auditor` at frozen
+SHA-256 `1f72ddb332ace004f9d7ac2a5ee935e7267238591bcdc82b801bf535b51c9ebe`;
+both passed with no findings. That review predates the shared-result-port
+amendment in §§6.1, 6.3, 6.4, 8 and 10. The new amendment uses the ordinary
+Application result-sharing rule and the current native same-term constructor
+equation; it is unreviewed. A separate scoped review passed §6.5 as recorded
+above, but that direct theorem application does not prove the missing
+complete-demand-to-native-Function4 map. It closes no parent or production
+gate. No
+production code, test expectation, public type language or cutover status
+changed. Shared task/laboratory synchronization is owned by primary
+integration.
