@@ -416,6 +416,75 @@ fn state(session: &InferenceSession) -> &State {
         .effect_algebra
         .context
 }
+
+#[test]
+fn omitted_formal_structural_incidence_survives_source_capture_without_effect_authority() {
+    let mut early = session_with_source("my relay cb = cb");
+    let owner = empty_bundle_owner(&early);
+    early.execute_candidate_source_root(&owner).unwrap();
+    let origin = state(&early).origins.iter().find(|origin| origin.formal.is_some()).unwrap();
+    let construction = origin.formal.as_ref().unwrap();
+    assert_eq!(state(&early).origins.iter().filter(|other| other.occurrence == origin.occurrence).count(), 1,
+        "owning Lambda admission seeds exactly one origin");
+    assert_eq!(construction.source.lambda, *origin.occurrence.occurrence());
+    assert_eq!(construction.source.owner, owner);
+    assert!(early.batch.candidate_source.omitted_formals.contains_key(&construction.source.lambda));
+    let ValueEndpointKey::ValueRow(domain) = construction.domain else { panic!("omitted formal stays an unknown row"); };
+    let (original_child, _, _, _) = InferenceSession::positive_function_children(&early.store, construction.function).unwrap();
+    assert_eq!(original_child, construction.domain_child);
+    let TermView::LiveVariable(view) = early.store.term_view(original_child).unwrap() else { panic!("raw constructed child is the original formal"); };
+    assert_eq!(view.ordinal(), domain);
+    assert_eq!(view.kind(), ComponentKind::Value);
+    assert_eq!(view.polarity(), Polarity::Negative);
+    let entry_occurrence = ConstraintOccurrenceId::new(construction.source.lambda.clone(), 3);
+    let entry_origins: Vec<_> = state(&early).origins.iter().filter(|other| other.occurrence == entry_occurrence).collect();
+    assert_eq!(entry_origins.len(), 1);
+    assert!(entry_origins[0].inferred_entry.is_some(), "single seeding preserves the independent inferred-entry fact");
+    assert!(early.bounds[domain as usize].exact_non_variable_lowers.is_empty());
+    assert!(early.bounds[domain as usize].exact_non_variable_uppers.is_empty());
+    assert!(matches!(&construction.source.scope, candidate_effect::AnnotationScope::Definition(scope) if *scope == owner));
+    let local_source = early.batch.hir.local_source(&owner).unwrap().unwrap();
+    let parameter = local_source.expressions().iter().find_map(|expression| {
+        if expression.occurrence == construction.source.lambda {
+            if let yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. } = &expression.form { return Some(parameter); }
+        }
+        None
+    }).unwrap();
+    assert!(parameter.annotation.is_none());
+    assert_eq!(parameter.id, construction.source.formal);
+    assert_eq!(parameter.source, construction.source.position);
+    assert_eq!(state(&early).relations[origin.relation.0 as usize].key.context, IDENTITY);
+
+    let mut session = session_with_source("my outer = { my relay cb = cb; my identity x = x; my first = relay identity; relay identity }");
+    let owner = empty_bundle_owner(&session);
+    session.execute_candidate_source_root(&owner).unwrap();
+    let arguments: Vec<_> = state(&session).dependencies.iter().filter_map(|dependency| {
+        if let Dependency::FunctionPort { child, field: FunctionField::Argument, .. } = *dependency { Some(child) } else { None }
+    }).collect();
+    let incidence = arguments.iter().find_map(|&argument| session.candidate_formal_argument_incidence(argument))
+        .expect("source local capture/fresh use authenticates its Argument child");
+    assert_eq!(incidence.construction.source.owner, owner);
+    assert_ne!(incidence.source_relation, incidence.transport_relation);
+    let handoff = incidence.name_handoff.expect("local use retains the source Name handoff");
+    let link = incidence.name_link.expect("handoff retains the Name publication input");
+    assert!(state(&session).dependencies.iter().any(|dependency| matches!(*dependency,
+        Dependency::Replay { child, lower, upper, .. }
+            if child == handoff && lower == incidence.transport_relation && upper == link)));
+    assert!(state(&session).dependencies.iter().any(|dependency| matches!(*dependency,
+        Dependency::Replay { child, lower, .. } if child == incidence.comparison
+            && state(&session).dependencies.contains(&Dependency::Derived { child: lower, parent: handoff }))));
+    let TypedPairKey::Value(comparison) = state(&session).relations[incidence.comparison.0 as usize].key.pair else { unreachable!() };
+    let (fresh_child, _, _, _) = InferenceSession::positive_function_children(&session.store, comparison.lower).unwrap();
+    assert_eq!(session.value_endpoint(fresh_child, Polarity::Negative), session.canonical_value(incidence.domain),
+        "authentic Argument incidence uses the reconstructed child under current equality");
+    assert_eq!(state(&session).relations[incidence.argument.0 as usize].key.context, IDENTITY);
+    let pair = state(&session).relations[incidence.argument.0 as usize].key.pair;
+    let lambda = incidence.construction.source.lambda.clone();
+    // Equal endpoints admitted as a separate source relation do not acquire
+    // the actual comparison's FunctionPort/Replay/FreshUse derivation.
+    let unrelated = session.candidate_context_seed(task_pair_to_task(pair), &ConstraintOccurrenceId::new(lambda, 99), None).unwrap().unwrap();
+    assert!(session.candidate_formal_argument_incidence(unrelated).is_none());
+}
 fn value(row: u32) -> ExtrusionEndpoint {
     ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row))
 }

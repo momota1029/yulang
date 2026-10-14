@@ -11338,6 +11338,7 @@ impl InferenceSession {
                     &occurrence.id,
                     &occurrence.cause,
                     inferred_entry,
+                    None,
                 )?;
                 #[cfg(not(feature = "shadow-apply-candidate"))]
                 let transitions = self.constrain_live_effect(
@@ -11380,7 +11381,31 @@ impl InferenceSession {
             lower: self.value_endpoint(function, Polarity::Positive),
             upper: self.value_endpoint(root, Polarity::Negative),
         };
-        let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+        #[cfg(feature = "shadow-apply-candidate")]
+        let formal_construction = if self.candidate_graph.is_some() {
+            if let Some(source) = self.batch.candidate_source.omitted_formals.get(&recipe.occurrence).cloned() {
+                // Authenticate the original raw Function child at its constructor;
+                // a canonical representative alone cannot supply this link.
+                match self.store.term_view(argument).expect("constructed Lambda domain remains branch-owned") {
+                    TermView::LiveVariable(view) if view.kind() == ComponentKind::Value
+                        && view.polarity() == Polarity::Negative && view.ordinal() == parameter =>
+                        Some(candidate_context::FormalConstruction { source, domain: ValueEndpointKey::ValueRow(parameter), domain_child: argument, function: key.lower }),
+                    _ => None,
+                }
+            } else { None }
+        } else { None };
+        let transitions = self.constrain_live_item_with_inferred_entry(TypedWorkItem {
+            task: LiveConstraintTask::Value(key),
+            #[cfg(feature = "shadow-apply-candidate")]
+            relation: None,
+            #[cfg(feature = "shadow-apply-candidate")]
+            replay_ack: None,
+        }, &occurrence.id, &occurrence.cause,
+            #[cfg(feature = "shadow-apply-candidate")]
+            None,
+            #[cfg(feature = "shadow-apply-candidate")]
+            formal_construction,
+        )?;
         #[cfg(test)]
         {
             self.summary_false_to_true_transitions += transitions;
@@ -11964,6 +11989,8 @@ impl InferenceSession {
             cause,
             #[cfg(feature = "shadow-apply-candidate")]
             None,
+            #[cfg(feature = "shadow-apply-candidate")]
+            None,
         )
     }
 
@@ -11974,10 +12001,12 @@ impl InferenceSession {
         cause: &CauseId,
         #[cfg(feature = "shadow-apply-candidate")]
         inferred_entry: Option<candidate_context::InferredEntryOriginId>,
+        #[cfg(feature = "shadow-apply-candidate")]
+        formal: Option<candidate_context::FormalConstruction>,
     ) -> Result<usize, SolveAvailabilityError> {
         #[cfg(feature = "shadow-apply-candidate")]
         if self.candidate_graph.is_some() {
-            return self.run_candidate_typed_drain(initial_item, occurrence, cause, inferred_entry);
+            return self.run_candidate_typed_drain(initial_item, occurrence, cause, inferred_entry, formal);
         }
         let initial = initial_item.task;
         #[cfg(feature = "shadow-apply-candidate")]
@@ -12002,7 +12031,7 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         {
             if drain.is_some() { self.sample_f4_resources(ResourceBoundary::IncomingRoute)?; }
-            self.candidate_context_seed(initial, occurrence, inferred_entry)?;
+            self.candidate_context_seed_with_formal(initial, occurrence, inferred_entry, formal)?;
         }
         self.enqueue_item(initial_item, false)?;
         loop {
@@ -12161,7 +12190,8 @@ impl InferenceSession {
 
     #[cfg(feature = "shadow-apply-candidate")]
     fn start_typed_drain(&mut self, mut item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
-        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>) -> Result<usize, SolveAvailabilityError> {
+        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>,
+        formal: Option<candidate_context::FormalConstruction>) -> Result<usize, SolveAvailabilityError> {
         assert!(self.typed_worklist.is_empty(), "constrain begins with an empty worklist");
         let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let index = graph.intrusion.effect_algebra.context.begin_typed_drain(item.task, occurrence, cause,
@@ -12170,7 +12200,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
         self.clear_diagnostic_scratch()?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        let seed = self.candidate_context_seed(item.task, occurrence, inferred_entry)?;
+        let seed = self.candidate_context_seed_with_formal(item.task, occurrence, inferred_entry, formal)?;
         item.relation = item.relation.or(seed);
         self.enqueue_item(item, false)?;
         Ok(index)
@@ -12178,13 +12208,14 @@ impl InferenceSession {
 
     #[cfg(feature = "shadow-apply-candidate")]
     fn run_candidate_typed_drain(&mut self, item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
-        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>) -> Result<usize, SolveAvailabilityError> {
+        cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>,
+        formal: Option<candidate_context::FormalConstruction>) -> Result<usize, SolveAvailabilityError> {
         let graph = self.candidate_graph.as_ref().unwrap();
         let index = graph.intrusion.effect_algebra.context.typed_drains.len();
         let previous_processing = graph.intrusion.effect_algebra.processing;
         let previous_relation = graph.intrusion.effect_algebra.context.processing;
         let result = (|| {
-            let index = self.start_typed_drain(item, occurrence, cause, inferred_entry)?;
+            let index = self.start_typed_drain(item, occurrence, cause, inferred_entry, formal)?;
             loop {
                 if let DrainStep::Complete(receipt) = self.step_typed_drain(index)? { return Ok(receipt.transitions); }
             }
@@ -33476,7 +33507,7 @@ mod retained_drain_workspace_tests {
         let cause = CauseId::for_occurrence(occurrence.clone());
         let key = CanonicalValuePairKey { lower: ValueEndpointKey::BottomPositive, upper: ValueEndpointKey::TopNegative };
         let index = session.with_route_transaction(|session| {
-            let index = session.start_typed_drain(item(key), &occurrence, &cause, None)?;
+            let index = session.start_typed_drain(item(key), &occurrence, &cause, None, None)?;
             assert_eq!(session.step_typed_drain(index)?, DrainStep::More);
             Ok(index)
         }).unwrap();

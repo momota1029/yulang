@@ -19,13 +19,25 @@ It establishes the conditional static Function Argument correspondence and
 surviving captured Function endpoint, while locating the missing source profile
 introduction/incidence at source/Lambda formation and Function-port admission.
 The remaining dynamic receiver/observation and general alias/return/lifecycle
-bridges are separate. One reversible implementer slice now supplies only the
-missing static source evidence. That slice stopped without changes when review
-confirmed the omitted-formal profile-position matrix is not selected by the
-current authority; the user has been asked to choose those positions. A
-separate D-only source-incidence certificate may proceed without treating it
-as protection. H1/H2/U remain OPEN and H3 remains disabled. See the current
-handoff for its exact lease and limits.
+bridges are separate. The omitted-formal profile-position matrix is not
+selected by current authority, so protection semantics remain pending. The
+bounded D-only source-incidence certificate is now implemented and
+independently reviewed: it retains omitted-formal identity on the owning
+Lambda, recognizes the actual Function Argument comparison through captured
+FreshUse and one authenticated source Name handoff, and grants no effect
+authority. Earlier extrusion and other derived routes remain outside its
+scope. Exact evidence is in the
+[structural-incidence checkpoint](../notes/progress/2026-10-15-omitted-formal-structural-incidence.md).
+H1/H2/U remain OPEN and H3 remains disabled. See the current handoff for its
+exact lease and limits.
+
+Generic operation opening progressed independently. The constructive
+characterization and source audit are committed and independently reviewed as
+bounded obstructions: `monomorphic_signature` excludes generic arms before
+collection, and the native rigid-opening/request-witness constructor remains
+missing. No generic theorem or implementation gate closed. The exact artifacts
+are [`generic opening construction`](../notes/theory/2026-10-15-generic-operation-rigid-opening-construction.md)
+and [`generic opening source audit`](../notes/progress/2026-10-15-generic-opening-source-audit.md).
 
 ## Current direction: direct user clarification, 2026-10-14
 
@@ -15356,3 +15368,27 @@ actual `delta_K[mu_c]` declaration/IF-Use and its arm-local final envelope,
 or from the exact definition owner that supplies that declaration. The
 original theorem remains OPEN; this result does not close inference,
 soundness, principality, effect hygiene, or F5 replacement.
+
+### 2026-10-15 omitted-formal incidence and generic-opening checkpoint
+
+The D-only omitted-formal source-incidence certificate is implemented in the
+private candidate path and independently reviewed. It preserves source
+Lambda/formal identity, authenticates the actual Function Argument comparison
+through a captured FreshUse and a bounded source Name handoff, and carries no
+effect authority. The exact scope, review and verification are in the
+[checkpoint](../notes/progress/2026-10-15-omitted-formal-structural-incidence.md).
+The focused exact test passed once. The package formatting check reports
+repository-wide pre-existing formatting differences, so no bulk formatting was
+applied. Earlier extrusion and other derived routes remain outside the
+certificate. The omitted-formal protection-position matrix remains pending;
+H1/H2/U stay OPEN and H3/P disabled.
+
+Generic rigid opening advanced independently. The constructive note and source
+audit are committed and independently reviewed as bounded obstruction records.
+`candidate_source::monomorphic_signature` excludes generic arms before
+collection; the native rigid-opening and request-witness constructor is absent
+at the inspected bridge. The theorem, generic implementation, lifecycle, full
+Call, hygiene, soundness, principality and F5 remain OPEN. Next evidence:
+establish the native generation/propagation/extrusion invariant at Catch
+opening, including direct-extrusion coverage, without using a guessed
+omitted-formal profile matrix.

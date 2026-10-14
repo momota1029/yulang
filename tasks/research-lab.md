@@ -26,14 +26,24 @@ correspondence and the exact missing omitted-profile introduction/incidence;
 it corrects the earlier blanket claim that reconstruction erases all
 provenance. The source/receipt note is
 [`callback profile reconstruction/receipt`](../notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md).
-One implementer now owns a disjoint, provisional source-evidence slice for that
-static incidence only. Its first profile-writing attempt stopped with no code
-changes: current authority does not select the omitted-formal position matrix.
-The user has been asked that exact semantic question; a separate D-only source
-incidence certificate can proceed without interpreting it as protection.
-H1/H2/U remain OPEN; H3/P stays disabled. Dynamic Receive/Observe, full Call,
-H4 hygiene, generic rigid opening, soundness, principality and production/F5
-retain their separate gates.
+The provisional D-only source-evidence slice is now implemented and
+independently reviewed, with its exact captured-FreshUse/source-Name scope in
+[`omitted-formal structural incidence`](../notes/progress/2026-10-15-omitted-formal-structural-incidence.md).
+It supplies no protection positions or effect authority. The separate profile
+writing attempt stopped with no code changes because current authority does not
+select the omitted-formal position matrix; that semantic question remains
+pending. H1/H2/U remain OPEN; H3/P stays disabled. Dynamic Receive/Observe, full
+Call, H4 hygiene, generic rigid opening, soundness, principality and
+production/F5 retain their separate gates.
+
+Generic rigid opening has a frozen constructive characterization and source
+audit, both independently reviewed as bounded obstructions and committed in
+`f83aa4837` and `90401ccad`. The source owner `monomorphic_signature` excludes
+generic arms before collection, while the native rigid-opening/request-witness
+constructor is missing. This does not close the theorem or authorize generic
+handler implementation. The next evidence target is the native generation,
+propagation and extrusion invariant at Catch opening, including direct
+extrusion coverage.
 
 ## Current executable checkpoint, 2026-10-14
 

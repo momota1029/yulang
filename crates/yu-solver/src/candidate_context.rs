@@ -269,6 +269,113 @@ pub(super) struct Origin {
     pub(super) relation: RelationId,
     pub(super) occurrence: ConstraintOccurrenceId,
     pub(super) inferred_entry: Option<InferredEntryOriginId>,
+    pub(super) formal: Option<FormalConstruction>,
+}
+// An owning Lambda construction, never a callback contract or runtime receipt.
+#[derive(Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "formal construction evidence has no semantic consumer"))]
+pub(super) struct FormalConstruction {
+    pub source: Arc<candidate_source::OmittedFormal>,
+    pub domain: ValueEndpointKey,
+    pub domain_child: Term,
+    pub function: ValueEndpointKey,
+}
+#[derive(Debug)]
+#[allow(dead_code, reason = "structural source evidence is not an effect consumer")]
+pub(super) struct FormalArgumentIncidence<'a> {
+    pub construction: &'a FormalConstruction,
+    pub source_relation: RelationId,
+    pub transport_relation: RelationId,
+    pub name_handoff: Option<RelationId>,
+    pub name_link: Option<RelationId>,
+    pub comparison: RelationId,
+    pub argument: RelationId,
+    pub use_origin: usize,
+    pub domain: ValueEndpointKey,
+    pub actual: ValueEndpointKey,
+}
+
+impl InferenceSession {
+    // Bounded, inert inspection of a captured Function bound, optionally through
+    // the one source Name handoff. Earlier extrusion/derived routes are excluded.
+    #[allow(dead_code, reason = "structural source evidence is not an effect consumer")]
+    pub(super) fn candidate_formal_argument_incidence(&self, argument: RelationId) -> Option<FormalArgumentIncidence<'_>> {
+        let state = &self.candidate_graph.as_ref()?.intrusion.effect_algebra.context;
+        let TypedPairKey::Value(argument_pair) = state.relations.get(argument.0 as usize)?.key.pair else { return None; };
+        for dependency in &state.dependencies {
+            let Dependency::FunctionPort { child, parent: comparison, field: FunctionField::Argument, operation: FunctionPortOperation::Swap } = *dependency else { continue; };
+            if child != argument { continue; }
+            let TypedPairKey::Value(parent_pair) = state.relations.get(comparison.0 as usize)?.key.pair else { continue; };
+            let Some((domain, _, _, _)) = Self::positive_function_children(&self.store, parent_pair.lower) else { continue; };
+            // The dependency authenticates the child. Equality only reconciles
+            // its retained endpoint with the current representative; it cannot
+            // select a source construction or create an incidence.
+            if self.value_endpoint(domain, Polarity::Negative) != self.canonical_value(argument_pair.upper) { continue; }
+            for replay in &state.dependencies {
+                let Dependency::Replay { child, lower, upper, lower_input, upper_input } = *replay else { continue; };
+                if child != comparison { continue; }
+                if state.relations.get(lower.0 as usize)?.key.pair != bound_pair(lower_input)
+                    || state.relations.get(upper.0 as usize)?.key.pair != bound_pair(upper_input)
+                    || lower_input.0 != upper_input.0 || lower_input.1 != Polarity::Positive
+                    || upper_input.1 != Polarity::Negative
+                    || lower_input.2 != ExtrusionEndpoint::Value(parent_pair.lower)
+                    || upper_input.2 != ExtrusionEndpoint::Value(parent_pair.upper) { continue; }
+                for transport in &state.dependencies {
+                    let Dependency::Transport { child: fresh, parent, use_origin, witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) } = *transport else { continue; };
+                    if to.1 != Polarity::Positive
+                        || to.2 != ExtrusionEndpoint::Value(parent_pair.lower) { continue; }
+                    let (name_handoff, name_link) = if fresh == lower && to == lower_input {
+                        (None, None)
+                    } else {
+                        let Some((handoff, link)) = self.candidate_formal_name_handoff(state, fresh, to, lower, lower_input) else { continue; };
+                        (Some(handoff), Some(link))
+                    };
+                    for origin in &state.origins {
+                        let Some(construction) = &origin.formal else { continue; };
+                        if origin.relation != parent || from.1 != Polarity::Positive
+                            || from.2 != ExtrusionEndpoint::Value(construction.function) { continue; }
+                        let Some((original_domain, _, _, _)) = Self::positive_function_children(&self.store, construction.function) else { continue; };
+                        if original_domain != construction.domain_child { continue; }
+                        let Ok(TermView::LiveVariable(view)) = self.store.term_view(original_domain) else { continue; };
+                        if view.kind() != ComponentKind::Value || view.polarity() != Polarity::Negative
+                            || construction.domain != ValueEndpointKey::ValueRow(view.ordinal()) { continue; }
+                        return Some(FormalArgumentIncidence {
+                            construction, source_relation: parent, transport_relation: fresh, name_handoff, name_link,
+                            comparison, argument, use_origin, domain: argument_pair.upper, actual: argument_pair.lower,
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    // Recognize only the source local-use publication seam. All participating
+    // relations and both replay bounds are retained construction inputs.
+    fn candidate_formal_name_handoff(&self, state: &State, fresh: RelationId, to: BoundKey,
+        name_bound: RelationId, name_input: BoundKey) -> Option<(RelationId, RelationId)> {
+        if state.relations.get(fresh.0 as usize)?.key.pair != bound_pair(to)
+            || name_input.1 != Polarity::Positive || name_input.2 != to.2 { return None; }
+        for dependency in &state.dependencies {
+            let Dependency::Derived { child, parent: handoff } = *dependency else { continue; };
+            if child != name_bound { continue; }
+            if state.relations.get(handoff.0 as usize)?.key.pair != bound_pair(name_input) { continue; }
+            for replay in &state.dependencies {
+                let Dependency::Replay { child, lower, upper: link, lower_input, upper_input } = *replay else { continue; };
+                if child != handoff || lower != fresh || lower_input != to
+                    || upper_input != BoundKey(to.0, Polarity::Negative, name_input.0)
+                    || state.relations.get(link.0 as usize)?.key.pair != bound_pair(upper_input) { continue; }
+                // This is the actual source Name's local-use admission, not an
+                // arbitrary equal-row upper bound or an ancestor search.
+                let named = state.origins.iter().filter(|origin| origin.relation == link && origin.occurrence.local_slot() == 0)
+                    .any(|origin| self.batch.candidate_source.schedules.values().flatten().chain(self.batch.candidate_source.loose.iter())
+                        .any(|action| matches!(action, candidate_source::Action::Local { occurrence, .. }
+                            if occurrence == origin.occurrence.occurrence())));
+                if named { return Some((handoff, link)); }
+            }
+        }
+        None
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct BundleIncidence {
@@ -719,7 +826,7 @@ pub(super) struct State {
     pair_heads: HashMap<TypedPairKey, RelationId>,
     dependencies: Vec<Dependency>,
     dependency_keys: HashSet<Dependency>,
-    origins: Vec<Origin>,
+    pub(super) origins: Vec<Origin>,
     bounds: HashMap<BoundKey, usize>,
     bound_keys: Vec<(BoundKey, RelationId, Option<usize>)>,
     replay_heads: HashMap<(BoundKey, BoundKey), (Option<usize>, Option<usize>)>,
@@ -2623,9 +2730,26 @@ impl InferenceSession {
             relation,
             occurrence: occurrence.clone(),
             inferred_entry,
+            formal: None,
         });
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(relation))
+    }
+    // One owning seed carries both independent construction facts. Existing
+    // inferred-entry attachment is retained even when a formal is also supplied.
+    pub(super) fn candidate_context_seed_with_formal(
+        &mut self, task: LiveConstraintTask, occurrence: &ConstraintOccurrenceId,
+        inferred_entry: Option<InferredEntryOriginId>, formal: Option<FormalConstruction>,
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let relation = self.candidate_context_seed(task, occurrence, inferred_entry)?;
+        if let Some(formal) = formal {
+            let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context;
+            let origin = state.origins.last_mut().ok_or_else(exhausted)?;
+            debug_assert_eq!(Some(origin.relation), relation);
+            debug_assert_eq!(&origin.occurrence, occurrence);
+            origin.formal = Some(formal);
+        }
+        Ok(relation)
     }
     pub(super) fn candidate_context_admit(
         &mut self,
@@ -3124,7 +3248,7 @@ impl InferenceSession {
                     return Ok(ReplayChildStep::NoChild);
                 };
                 let ack = item.replay_ack.unwrap();
-                let index = self.start_typed_drain(item, occurrence, cause, None)?;
+                let index = self.start_typed_drain(item, occurrence, cause, None, None)?;
                 let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
                 context.typed_drains[index].replay_destination = Some(ack);
                 context.replay_operations.get_mut(&id).unwrap().waiting_child = ReplayChildWait::Running { ack, drain_index: index };

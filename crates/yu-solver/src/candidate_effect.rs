@@ -849,7 +849,7 @@ impl InferenceSession {
                     self.constrain_live_item_with_inferred_entry(TypedWorkItem {
                         task: LiveConstraintTask::Effect(self.effect_endpoint(lower, Polarity::Positive), self.effect_endpoint(return_negative, Polarity::Negative)),
                         relation: None, replay_ack: None,
-                    }, &id, &cause, inferred_entry)?;
+                    }, &id, &cause, inferred_entry, None)?;
                 }
                 let entry_negative = self.live_effect_term(Polarity::Negative, entry)?;
                 let return_positive = self.live_effect_term(Polarity::Positive, returned)?;

@@ -13,6 +13,17 @@ pub(super) struct Plan {
     pub component_levels: HashMap<usize, u32>,
     pub parameter_levels: HashMap<usize, u32>,
     pub locals: Vec<HirLocalId>,
+    pub omitted_formals: HashMap<HirOccurrenceId, Arc<OmittedFormal>>,
+}
+// Source construction only: no effect-position or receiver-role judgment.
+#[derive(Clone, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "omission evidence has no semantic consumer"))]
+pub(super) struct OmittedFormal {
+    pub owner: DefinitionRootId,
+    pub lambda: HirOccurrenceId,
+    pub formal: yu_hir::HirParameterId,
+    pub position: yu_hir::shadow::SourceNodeKey,
+    pub scope: candidate_effect::AnnotationScope,
 }
 #[derive(Clone, Debug)]
 pub(super) enum Action {
@@ -69,6 +80,8 @@ impl Plan {
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
             checked_capacity_bytes::<HirLocalId>(self.locals.capacity(), "source local identities"),
+            checked_capacity_bytes::<(HirOccurrenceId, Arc<OmittedFormal>)>(self.omitted_formals.capacity(), "omitted formal source identities"),
+            checked_capacity_bytes::<OmittedFormal>(self.omitted_formals.len(), "omitted formal source records"),
         ], "candidate source plan")
     }
 }
@@ -371,6 +384,14 @@ impl ConstraintBatch {
                             self.candidate_source.parameter_levels.insert(position, level);
                             lambdas.try_reserve(1).map_err(|_| unavailable())?;
                             lambdas.insert(index, position);
+                            if parameter.annotation.is_none() {
+                                self.candidate_source.omitted_formals.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
+                                    owner: source.definition_root().clone(), lambda: expr.occurrence.clone(),
+                                    formal: parameter.id.clone(), position: parameter.source.clone(),
+                                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                                }));
+                            }
                             if let Some(annotation) = &parameter.annotation {
                                 for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
                                 self.prepare_source_annotation_primitives(&annotation.ty)?;
