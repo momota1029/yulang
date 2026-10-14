@@ -45,6 +45,26 @@ handler implementation. The next evidence target is the native generation,
 propagation and extrusion invariant at Catch opening, including direct
 extrusion coverage.
 
+## Active evidence wave, 2026-10-15
+
+These are launched bounded assignments, not proposals. Source-code inputs are
+pinned to `427d1ff5d`; intervening commits changed records only. No active
+assignment has code-write authority, and the user's undecided omitted-formal
+position matrix remains outside every packet.
+
+| Job | Method / gate | State and exclusive output | Budget / next evidence |
+|---|---|---|---|
+| `generic_rigid_opening_prover` | Constructive native generation/propagation/extrusion invariant at Catch opening | running; `notes/theory/2026-10-15-catch-operation-rigid-opening-invariant.md` | 20-minute static pass; derive the bridge or identify its first missing constructor, including direct extrusion |
+| `generic_opening_counterexample` | Adversarial caller-specialization and direct-extrusion falsification | running; `notes/progress/2026-10-15-generic-opening-rigid-falsifier.md` | 15-minute static pass; minimized authentic witness or exact point where the candidate path is excluded |
+| `generic_opening_legacy_audit` | Direct-caller and source/legacy entrypoint correspondence | running; `notes/progress/2026-10-15-generic-opening-legacy-entry-audit.md` | 15-minute static pass; bounded caller inventory or a reachable alternate constructor |
+| `omitted_formal_extrusion_route` | Read-only source map for the H1 parent-copy/extrusion route | running; no write lease | Static only; locate the first retained or missing edge before captured FreshUse |
+| `shallow_catch_hygiene_bridge` | Constructive mapping from existing hygiene theorem premises to actual shallow-Catch owners | running; `notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md` | 20-minute static pass; apply supplied premises or report the first exact missing source constructor |
+
+All Cargo, build, executable probe and measurement budgets for this wave are
+zero. The profile-position question blocks protection semantics and H3, not
+these independent structural/proof tasks. The primary integrates each frozen
+result against the pinned source before assigning a fresh review.
+
 ## Current executable checkpoint, 2026-10-14
 
 The user's direct instruction selects playground implementation with necessary
