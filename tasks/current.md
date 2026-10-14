@@ -15744,6 +15744,16 @@ that source/representation bridge before assigning another live implementation
 slice. This does not reopen the selected Eout-only law or establish source
 impossibility.
 
+A focused architect follow-up tested the fresh invocation `ResultEffect` row
+as that receiver. The row and original Apply are an exact static anchor for
+this exposure, but its level/Fresh metadata does not establish receiver
+ownership, activity or expiry. A row-global protection bit would also merge
+the selected upper occurrence with distinct lower/provider occurrences after
+intrusion; an occurrence-indexed contextual witness avoids that conflation but
+still needs a source-derived active-owner/lifetime interpretation. This is not
+an impossibility result and does not show that a separate receiver data
+structure is necessary. No representation is authorized by this audit.
+
 Late seeds, capture and freshening, aliases/returns, complete source-path
 transport, dynamic Receive/Observe, H1/H2/U, Catch residual H3, complete Call,
 soundness, principality, and production/F5 cutover remain OPEN; H3 stays
@@ -15786,14 +15796,21 @@ audit was reviewed by a fresh M2 `compiler_referee` with no findings:
 The bounded application discharges the completed-scan/reused-row/plain
 subcase. The source audit rules out two shortcuts and confirms the intra-drain
 schedule seam. The bounded [AnnotationMember/copied-tail derivation](../notes/theory/2026-10-15-annotation-member-copied-tail-lineage.md)
-now has a fresh M2 `compiler_referee` review with no findings. It establishes
-the exact Support-to-member identity, closed/open view-map split, same-key
+has a fresh M2 `compiler_referee` review with no findings. It establishes the
+exact Support-to-member identity, closed/open view-map split, same-key
 sharing, and an original-route counterpart for a reused upstream source's
-IncomingAllowance positive tail. It leaves a genuinely remapped upstream
-source disposition and exact ordered-context discharge before dependent
-completion unresolved. A source lane is tracing one such route through the
-first dependent rewritten-Value completion. Keep source admission and all
-original quantifiers explicit.
+IncomingAllowance positive tail. The reviewed [source route audit](../notes/progress/2026-10-15-remapped-annotation-member-route.md)
+has a fresh M2 `compiler_referee` review with no findings. It traced a
+concrete open operation seed: its first structural extrusion
+remaps Support before any Allowance exists; a later level-1 root annotation
+can forward the exact unmatched member to its tail, but the exposed root also
+has level 1 and does not create a later copied incoming cut. The same bounded
+inspection distinguishes the relation-generation admission mark from
+diagnostic and terminal-drain completion, without alleging unsafe reuse.
+Annotation parsing/execution and dependent reuse remain conditional. A new
+read-only owner map is locating a later source Value exposure whose receiver
+is below both the already registered cut source and tail. Keep source
+admission and all original quantifiers explicit.
 
 The test is finite native evidence only; it establishes neither source Catch
 reachability nor a lost source effect. Parent H2 remains OPEN until the original

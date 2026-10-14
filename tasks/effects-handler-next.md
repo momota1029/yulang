@@ -119,9 +119,14 @@
    `IDENTITY` を与え、`candidate_function_port_admit` は introduction を消費せず、`LocalWeight` /
    `SourceUnitPush` にもライブ保護 consumer がないと判明した。必要なのは receiver/boundary と
    activation/lifetime がソース上正当化された保護 instance を、元の upper `ResultEffect` consumer
-   へ結ぶこと。symbolic playground を重複実装せず、receiver の根拠が決まる前に inert metadata や
+  へ結ぶこと。symbolic playground を重複実装せず、receiver の根拠が決まる前に inert metadata や
    live implementation を足さない。既存 hygiene proof は実コードの guard/family/bracketing/
    entry-snapshot premises が対応した後で使う。residual activation はその premises が揃うまで止める。
+   architect の具体的な再検討では、新しく確保された Apply `ResultEffect` row は正確な静的 anchor
+   にはなるが、level/Fresh metadata だけでは receiver ownership/activity/expiry を含意しない。
+   endpoint-global mark は intrusion 後に別の lower occurrence と混同する。occurrence-indexed witness は
+   その混同を避けられる候補だが、active owner/lifetime は source から別途導く必要がある。
+   これは不可能性の証明でも、別の receiver data structure が必須という結論でもなく、表現選択の承認でもない。
    late seed、capture/freshening、all-path transport は別 gate。`RelationId(13)` の enqueue activation
    も独立した source-provenance 課題のまま。H1/H2/U OPEN、H3/P disabled。
 
@@ -300,7 +305,8 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - The constructive application and independent falsifier at `notes/theory/2026-10-15-pending-symbolic-cut-continuation-application.md` and `notes/progress/2026-10-15-pending-symbolic-cut-continuation-falsifier.md` were reviewed together by a fresh M2 `compiler_referee` with no findings. The completed-scan/reused-row/plain-later-lower case is derived. The remapped trace is conditional on a pending original cut during copy and later direct use of x'; its source schedule and consumer remain unauthenticated. No source counterexample or H2/U closure follows.
 - The bounded source-owner audit at `notes/progress/2026-10-15-pending-remapped-source-reachability.md` is reviewed by a fresh M2 `compiler_referee` with no findings. It confirms intra-drain sibling overtaking but finds no accepted-source witness. Source effects use `AnnotationMember`, not the discriminator's unseeded `Contribution`; the positive Result carrier exposes x' as a lower. `IncomingAllowance`'s positive copied tail is an exception to a simple polarity exclusion and remains the exact lineage seam.
 - The constructive `AnnotationMember` / copied-tail derivation is recorded in `notes/theory/2026-10-15-annotation-member-copied-tail-lineage.md`. A fresh M2 `compiler_referee` found no blocking, major, or minor findings on reviewed content SHA-256 `dc618bc321d252974ffdec8116423fb191393f8d1cce71de3e6d047263e9e164`; the note now also records that review. It derives exact Support-to-member identity, the closed/open view-map split, same-key sharing, and an original-route counterpart for the reused-upstream IncomingAllowance positive tail. It does not establish the remapped-upstream source disposition or exact ordered-context discharge before dependent completion.
-- Active next action: trace one source-owned IncomingAllowance route with a genuinely remapped upstream source/view from Support(w), through exact `AnnotationMember(w,k)` and its map/fiber ancestry, to the first dependent rewritten-Value completion. Preserve original/copy/gamma alternatives and distinguish storage, transport, enqueue, completion, and reuse. No Cargo budget remains; preserve every source category and one scoped assignment. H1/H2/U stay OPEN, H3/P disabled, production/F5 separate.
+- The bounded [remapped AnnotationMember source audit](../notes/progress/2026-10-15-remapped-annotation-member-route.md) has a fresh M2 `compiler_referee` review with no findings. It authenticates one concrete root source seed only conditionally: initial operation extrusion remaps Support before a cut exists; a later level-1 root annotation can forward the exact unmatched member to its tail, but root and receiver levels are both 1, so this does not produce a later copied incoming cut. Admission-generation marking also precedes diagnostic/drain completion, but no unsafe reuse is established. Annotation acceptance and dependent reuse remain conditional.
+- Active next action: find a later admitted source structural Value exposure whose receiver level is below both an already registered open cut's tail and upstream source. Do not repeat the root annotation fixture. No Cargo budget remains; preserve every source category and one scoped assignment. H1/H2/U stay OPEN, H3/P disabled, production/F5 separate.
 
 ## 5. 判定に使う最小の確認
 
