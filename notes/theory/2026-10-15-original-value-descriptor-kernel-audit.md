@@ -111,8 +111,9 @@ its relation to the actual native argument/value-effect pair. It must account
 for initial and pending observations, their guards, and lawful joint scoped
 substitution. Stop at the first independently missing phase/guard action; do
 not repeat generic-variable specialization, add a graph shell, or infer a
-semantic decision from absent code. A fresh `compiler_referee` review of this
-frozen report is required before the next construction packet is promoted.
+semantic decision from absent code. A fresh `compiler_referee` reviewed this
+report and the cited constructor/consumer clauses with no findings; the next
+construction packet remains subject to its own proof and review gates.
 
 ## 5. Sources, evidence and limits
 
