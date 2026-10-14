@@ -1,0 +1,9 @@
+act signal:
+    our ping: () -> int
+
+my id x = x
+my relay cb = catch cb(signal::ping()) {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my answer = relay id

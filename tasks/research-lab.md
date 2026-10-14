@@ -12,7 +12,28 @@ claim that the gates below are still open. At each restart, resolve the current
 HEAD, user corrections, question-board handoffs and theory map before dispatch.
 Do not reopen a closed gate merely because it appears in this seed.
 
-## Current executable checkpoint (2026-10-15)
+## Current concrete-example discussion (2026-10-15)
+
+The user asked for collaborative implementation from concrete hygiene examples.
+The [baseline record](../notes/progress/2026-10-15-hygiene-example-baseline.md)
+retains four runnable source inputs, seven initial CLI observations and four
+executions of the saved fixtures. No live guard or Catch subtraction was added.
+The original-template reachability diagnostic failed twice and was discarded
+under the playground authority after preserving its evidence and obtaining
+pre-write specification review. Do not repeat it with family equality.
+
+The initial guard proposal is only a conditional matched-instance calculation;
+its first clean review was superseded by a source-correspondence major finding,
+then a fresh semantic delta review accepted the repaired conditional scope.
+The paired Function-port alternative remains unreviewed research with an open
+pop-ordering interpretation. Neither result authorizes native promotion.
+The current user question concerns the concrete final effect of
+`relay signal::ping` under its internal Catch. Resolve that expected result
+before adopting an event-level protection outcome. Existing H1/H2/U, H3/P
+and production boundaries remain unchanged. This is a frozen checkpoint,
+not a request to launch another proof wave from the historical queue below.
+
+## Native extrusion checkpoint (2026-10-15)
 
 The user's renewed implementation request produced the
 [native extrusion replay slice](../notes/progress/2026-10-15-extrusion-initialization-replay.md),

@@ -6,6 +6,20 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Concrete hygiene example, current conversation:** the user selected
+  collaborative work from source examples. Four reproducible playground
+  inputs now parse and solve; the direct, omitted-callback and outside-arm
+  cases still fail an empty-effect check because Catch does not subtract.
+  No live protection or subtraction implementation has been adopted. The
+  [baseline record](../notes/progress/2026-10-15-hygiene-example-baseline.md)
+  preserves the executions and a discarded diagnostic whose raw-template
+  reachability assumption failed. Guard calculations remain conditional;
+  original/fresh-use correspondence and paired-pop ordering are unresolved.
+  The immediate conversational question is whether the inner Catch in
+  `relay signal::ping` removes that concrete effect or leaves it outside.
+  Do not infer this event result from the selected upper-occurrence rule,
+  rerun the same raw-template probe, or activate H3/P from these observations.
+
 - **Implemented native initialization replay:** `candidate_extrude` retains
   exact incoming Allowance keys and replays them after all selected bounds,
   fibers and parent/output records are complete. The reviewed
