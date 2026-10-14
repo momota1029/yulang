@@ -122,7 +122,12 @@ This index is a navigation aid. The listed source document remains authoritative
   is Authoritative after the user's 2026-10-14 approval; its
   [parser implementation](../progress/2026-10-14-operation-pattern-implementation.md)
   passed M2 semantic/conformance review and focused/package verification.
-  Operation-arm HIR/solver and hygiene remain separate gates. The
+  The [operation-Catch carrier](../progress/2026-10-14-operation-catch-constraints.md)
+  now forms monomorphic payload/raw-continuation constraints and passes focused
+  verification plus M2 review. Its conservative suffix envelope has a
+  [bounded reviewed derivation](../theory/2026-10-14-handler-boundary-construction.md);
+  source callback-profile/context construction, residual subtraction and full
+  hygiene remain OPEN. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction

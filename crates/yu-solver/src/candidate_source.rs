@@ -28,6 +28,7 @@ pub(super) enum Action {
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
+    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
 // The plan remains immutable while this frame is live. Root positions select
@@ -63,7 +64,7 @@ impl Plan {
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
-                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } | Action::CatchOperation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -83,6 +84,13 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
     Ok(())
 }
 pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
+    let mut referenced_catch_binders = std::collections::HashSet::new();
+    for expr in source.expressions() {
+        if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
+            referenced_catch_binders.try_reserve(1).map_err(|_| shadow_apply::CandidateError::Collection(unavailable()))?;
+            referenced_catch_binders.insert(id);
+        }
+    }
     if source.annotation().is_some_and(|annotation| !preflight_annotation(&annotation.ty, true)) {
         return Err(shadow_apply::CandidateError::Unsupported);
     }
@@ -108,6 +116,20 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
                 _ => return Err(shadow_apply::CandidateError::Unsupported),
             }
         }
+        if let LocalSourceForm::Catch { arms, .. } = &expr.form {
+            for arm in arms {
+                if let yu_hir::shadow::LocalSourceCatchPattern::Operation { resolution, payloads, continuation, .. } = &arm.pattern {
+                    match resolution {
+                        yu_hir::shadow::SourceOperationResolution::Resolved(declaration)
+                            if payloads.len() == 1 && declaration.signature.effects.is_none()
+                            && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. })
+                            && monomorphic_signature(&declaration.signature)
+                            && preflight_catch_signature(&declaration.signature, payloads, continuation, &referenced_catch_binders) => {},
+                        _ => return Err(shadow_apply::CandidateError::Unsupported),
+                    }
+                }
+            }
+        }
         if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous, .. }) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -127,13 +149,39 @@ fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: boo
     if let Some(row) = &ty.effects {
         if row.variables.len() > 1 || (!positive && !row.concrete.is_empty()) { return false; }
     }
-    match &ty.value {
+    preflight_value(&ty.value, positive)
+}
+// Value construction ignores its own computation row. Function children each
+// contribute their complete annotation according to their port variance.
+fn preflight_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
+    match value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
             preflight_annotation(argument, !positive) && preflight_annotation(result, positive),
         _ => true,
     }
 }
 
+fn preflight_catch_signature(
+    ty: &yu_hir::shadow::SourceAnnotationType,
+    payloads: &[yu_hir::shadow::LocalSourceCatchPayloadPattern],
+    continuation: &yu_hir::shadow::LocalSourceCatchValuePattern,
+    referenced: &std::collections::HashSet<&yu_hir::shadow::LocalSourceCatchBinderId>,
+) -> bool {
+    use yu_hir::shadow::{LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
+    let yu_hir::shadow::SourceAnnotationValue::Function { argument, result } = &ty.value else { return false; };
+    let used = |pattern: &Value| matches!(pattern, Value::Binder(binder) if referenced.contains(&binder.id));
+    let payload_used = payloads.iter().any(|payload| matches!(payload, Payload::Value(pattern) if used(pattern)));
+    (!payload_used || (preflight_value(&argument.value, true) && preflight_value(&argument.value, false)))
+        && (!used(continuation) || (preflight_value(&result.value, true) && preflight_value(&result.value, false)))
+}
+// Generic arms require rigid existential opening (charter §§19–20).
+fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    ty.effects.as_ref().is_none_or(|row| row.variables.is_empty()) && match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Variable(_) => false,
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => monomorphic_signature(argument) && monomorphic_signature(result),
+        _ => true,
+    }
+}
 fn annotation_contains_unit(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     match &ty.value {
         yu_hir::shadow::SourceAnnotationValue::Unit => true,
@@ -271,6 +319,13 @@ impl ConstraintBatch {
                 formal_names[index] = Some(name);
             }
         }
+        let mut catch_positions = HashMap::new();
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
+                catch_positions.try_reserve(1).map_err(|_| unavailable())?;
+                catch_positions.entry(id.clone()).or_insert(positions[index].value);
+            }
+        }
         let mut catch_binders = HashMap::new();
         let mut actions = Vec::new();
         let mut work = Vec::new();
@@ -288,7 +343,9 @@ impl ConstraintBatch {
                     }
                     let pos = positions[index];
                     self.candidate_source.component_levels.try_reserve(2).map_err(|_| unavailable())?;
-                    self.candidate_source.component_levels.insert(pos.value, level);
+                    // A Catch binder's representative is introduced at the arm level;
+                    // its first Name can occur inside a deeper initializer.
+                    self.candidate_source.component_levels.entry(pos.value).or_insert(level);
                     self.candidate_source.component_levels.insert(pos.effect, level);
                     push(&mut work, Work::Finish(index, level))?;
                     match &expr.form {
@@ -341,10 +398,43 @@ impl ConstraintBatch {
                 }
                 Work::CatchArms(index, level) => {
                     let LocalSourceForm::Catch { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
-                    catch_binders.try_reserve(arms.len()).map_err(|_| unavailable())?;
                     for arm in arms {
-                        if let yu_hir::shadow::LocalSourceCatchValuePattern::Binder(binder) = &arm.value_pattern {
-                            catch_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                        use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
+                        match &arm.pattern {
+                            Pattern::Value(Value::Binder(binder)) => {
+                                catch_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                catch_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                            }
+                            Pattern::Value(Value::Wildcard) => {},
+                            Pattern::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration), payloads, continuation, .. } => {
+                                let mut retain = |pattern: &Value| -> Result<Option<usize>, CollectionAvailabilityError> {
+                                    let Value::Binder(binder) = pattern else { return Ok(None); };
+                                    let position = catch_positions.get(&binder.id).copied();
+                                    if let Some(position) = position {
+                                        catch_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                        catch_binders.insert(binder.id.clone(), CandidateEndpoint::Component(position));
+                                        self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                        self.candidate_source.component_levels.insert(position, level);
+                                    }
+                                    Ok(position)
+                                };
+                                let payload = match &payloads[0] { Payload::Value(pattern) => retain(pattern)?, Payload::Unit { .. } => None };
+                                let continuation = retain(continuation)?;
+                                self.term_for_leaf(Leaf::IntPositive)?;
+                                self.term_for_leaf(Leaf::IntNegative)?;
+                                self.prepare_source_annotation_primitives(&declaration.signature)?;
+                                if annotation_contains_unit(&declaration.signature) {
+                                    self.term_for_leaf(Leaf::UnitPositive)?;
+                                    self.term_for_leaf(Leaf::UnitNegative)?;
+                                }
+                                self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                                self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                                let count = 2 * usize::from(payload.is_some()) + 4 * usize::from(continuation.is_some());
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: source.definition_root().clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level })?;
+                            }
+                            _ => return Err(invalid()),
                         }
                     }
                     for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level))?; }
@@ -407,6 +497,11 @@ impl ConstraintBatch {
                             let result_effect = self.component_term_at(pos.effect);
                             let scrutinee_index = scrutinee.ordinal() as usize;
                             self.emit(source.expressions()[scrutinee_index].occurrence.clone(), 51, self.component_term_at(positions[scrutinee_index].effect), result_effect)?;
+                            if !arms.iter().any(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCatchPattern::Value(_))) {
+                                push(&mut actions, Action::ValueConstraint { occurrence: occurrence.clone(), slot: 52, endpoint: endpoints[scrutinee_index], upper: result })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            }
                             for arm in arms {
                                 let body = arm.body.ordinal() as usize;
                                 let occurrence = &source.expressions()[body].occurrence;
@@ -782,6 +877,7 @@ impl InferenceSession {
                 Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
+                Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
             }

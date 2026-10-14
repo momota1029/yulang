@@ -57,9 +57,15 @@ impl LocalSource {
                     LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
                     LocalSourceForm::Catch { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCatchArm>()
-                            + arms.iter().map(|arm| match &arm.value_pattern {
-                                LocalSourceCatchValuePattern::Binder(binder) => binder.spelling.len(),
-                                LocalSourceCatchValuePattern::Wildcard => 0,
+                            + arms.iter().map(|arm| match &arm.pattern {
+                                LocalSourceCatchPattern::Value(pattern) => catch_pattern_bytes(pattern),
+                                LocalSourceCatchPattern::Operation { payloads, continuation, .. } => {
+                                    payloads.capacity() * std::mem::size_of::<LocalSourceCatchPayloadPattern>()
+                                        + payloads.iter().map(|payload| match payload {
+                                            LocalSourceCatchPayloadPattern::Value(pattern) => catch_pattern_bytes(pattern),
+                                            LocalSourceCatchPayloadPattern::Unit { .. } => 0,
+                                        }).sum::<usize>() + catch_pattern_bytes(continuation)
+                                }
                             }).sum::<usize>()
                     }
                     LocalSourceForm::If { arms, .. } => {
@@ -196,10 +202,26 @@ pub enum LocalSourceCatchValuePattern {
     Wildcard,
 }
 #[derive(Clone, Debug)]
+pub enum LocalSourceCatchPayloadPattern {
+    Value(LocalSourceCatchValuePattern),
+    /// Empty call syntax only; this does not impose Unit payload matching.
+    Unit { source: SourceNodeKey, range: Range<usize> },
+}
+#[derive(Clone, Debug)]
+pub enum LocalSourceCatchPattern {
+    Value(LocalSourceCatchValuePattern),
+    Operation {
+        resolution: source_annotation::SourceOperationResolution,
+        operation_source: SourceNodeKey,
+        payloads: Vec<LocalSourceCatchPayloadPattern>,
+        continuation: LocalSourceCatchValuePattern,
+    },
+}
+#[derive(Clone, Debug)]
 pub struct LocalSourceCatchArm {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
-    pub value_pattern: LocalSourceCatchValuePattern,
+    pub pattern: LocalSourceCatchPattern,
     pub body: LocalSourceIndex,
 }
 
@@ -224,6 +246,13 @@ pub struct LocalSourceBinding {
     pub scope: LocalSourceScope,
 }
 
+fn catch_pattern_bytes(pattern: &LocalSourceCatchValuePattern) -> usize {
+    match pattern {
+        LocalSourceCatchValuePattern::Binder(binder) => binder.spelling.len(),
+        LocalSourceCatchValuePattern::Wildcard => 0,
+    }
+}
+
 pub(super) enum SimpleBodyProjection {
     Atom(crate::OwnedAtom),
     Unsupported,
@@ -234,7 +263,7 @@ enum Work {
     Initializer(u32, SyntaxNode),
     Publish(u32, usize),
     Restore(usize),
-    CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Option<LocalSourceCatchBinder>),
+    CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>),
 }
 struct LexicalEntry {
     spelling: Box<str>,
@@ -394,9 +423,9 @@ pub(super) fn form(
                 builder.expression(node, index, scope)?
             }
             Work::Restore(depth) => builder.restore(depth),
-            Work::CatchArm(node, index, scope, binder) => {
+            Work::CatchArm(node, index, scope, binders) => {
                 push(&mut builder.work, Work::Restore(builder.lexical.len()))?;
-                if let Some(binder) = binder {
+                for binder in binders {
                     builder.push_binding(binder.spelling, LocalSourceResolution::CatchBinder(binder.id))?;
                 }
                 push(&mut builder.work, Work::Expression(node, index, scope))?;
@@ -671,29 +700,7 @@ impl Builder<'_> {
                     }
                     let family = identifier_spelling(head)?;
                     let member: Box<str> = member.to_string().into_boxed_str();
-                    use source_annotation::SourceOperationResolution;
-                    let resolution = match self.counters.effect_namespace.get(family.as_ref()) {
-                        None => SourceOperationResolution::Unresolved,
-                        Some(families) if families.len() != 1 => {
-                            SourceOperationResolution::Ambiguous
-                        }
-                        Some(families) => match self
-                            .counters
-                            .operation_namespace
-                            .get(&(families[0].clone(), member))
-                        {
-                            None => SourceOperationResolution::Unresolved,
-                            Some(members) if members.len() != 1 => {
-                                SourceOperationResolution::Ambiguous
-                            }
-                            Some(members) if members[0].visibility == HirVisibility::Private => {
-                                SourceOperationResolution::Private
-                            }
-                            Some(members) => {
-                                SourceOperationResolution::Resolved(members[0].clone())
-                            }
-                        },
-                    };
+                    let resolution = self.resolve_operation(family.as_ref(), member);
                     self.set(
                         current,
                         tail,
@@ -788,6 +795,35 @@ impl Builder<'_> {
         }
         Ok(())
     }
+    fn resolve_operation(&self, family: &str, member: Box<str>) -> source_annotation::SourceOperationResolution {
+        use source_annotation::SourceOperationResolution;
+        match self.counters.effect_namespace.get(family) {
+            None => SourceOperationResolution::Unresolved,
+            Some(families) if families.len() != 1 => SourceOperationResolution::Ambiguous,
+            Some(families) => match self.counters.operation_namespace.get(&(families[0].clone(), member)) {
+                None => SourceOperationResolution::Unresolved,
+                Some(members) if members.len() != 1 => SourceOperationResolution::Ambiguous,
+                Some(members) if members[0].visibility == HirVisibility::Private => SourceOperationResolution::Private,
+                Some(members) => SourceOperationResolution::Resolved(members[0].clone()),
+            },
+        }
+    }
+    fn catch_value_pattern(
+        &self, pattern: &SyntaxNode, arm_source: &SourceNodeKey, ordinal: u32,
+        binders: &mut Vec<LocalSourceCatchBinder>,
+    ) -> Result<LocalSourceCatchValuePattern, HirAvailabilityError> {
+        if pattern.kind() != SyntaxKind::Pattern { return Err(invalid()); }
+        let pattern = only_child(pattern)?;
+        if pattern.kind() != SyntaxKind::IdentifierPattern { return Err(invalid()); }
+        let spelling = identifier_spelling(&pattern)?;
+        if spelling.as_ref() == "_" { return Ok(LocalSourceCatchValuePattern::Wildcard); }
+        let binder = LocalSourceCatchBinder {
+            id: LocalSourceCatchBinderId { owner: self.owner.clone(), arm_source: arm_source.clone(), ordinal },
+            source: self.key(&pattern)?, range: range_of(&pattern), spelling,
+        };
+        push(binders, binder.clone())?;
+        Ok(LocalSourceCatchValuePattern::Binder(binder))
+    }
     fn catch(
         &mut self,
         node: SyntaxNode,
@@ -806,32 +842,42 @@ impl Builder<'_> {
         for arm in block.children() {
             if arm.kind() == SyntaxKind::CatchArmSeparator { continue; }
             if arm.kind() != SyntaxKind::CatchArm { return Err(invalid()); }
-            let parts: Vec<_> = arm.children().collect();
-            let [pattern, body] = parts.as_slice() else { return Err(invalid()); };
-            if pattern.kind() != SyntaxKind::Pattern || !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) {
-                return Err(invalid());
-            }
-            let pattern = only_child(pattern)?;
-            if pattern.kind() != SyntaxKind::IdentifierPattern || pattern.children().next().is_some() {
-                return Err(invalid());
-            }
-            let tokens: Vec<_> = pattern.children_with_tokens().filter_map(|element| element.into_token()).filter(|token| !matches!(token.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment)).collect();
-            let [token] = tokens.as_slice() else { return Err(invalid()); };
-            if token.kind() != SyntaxKind::Identifier { return Err(invalid()); }
+            let mut parts = Vec::new();
+            for child in arm.children() { push(&mut parts, child)?; }
+            let (body, patterns) = parts.split_last().ok_or_else(invalid)?;
+            if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) { return Err(invalid()); }
             let arm_source = self.key(&arm)?;
-            let spelling: Box<str> = token.text().into();
-            let binder = if spelling.as_ref() == "_" { None } else {
-                Some(LocalSourceCatchBinder {
-                    id: LocalSourceCatchBinderId {
-                        owner: self.owner.clone(), arm_source: arm_source.clone(), ordinal: 0,
-                    },
-                    source: self.key(&pattern)?, range: range_of(&pattern), spelling,
-                })
+            let mut binders = Vec::new();
+            let pattern = match patterns {
+                [value] => LocalSourceCatchPattern::Value(self.catch_value_pattern(value, &arm_source, 0, &mut binders)?),
+                [operation, continuation] => {
+                    if operation.kind() != SyntaxKind::Pattern { return Err(invalid()); }
+                    let mut operation_parts = Vec::new();
+                    for child in operation.children() { push(&mut operation_parts, child)?; }
+                    let [head, path, call] = operation_parts.as_slice() else { return Err(invalid()); };
+                    if head.kind() != SyntaxKind::IdentifierPattern || path.kind() != SyntaxKind::PatternPathTail || call.kind() != SyntaxKind::PatternCallTail { return Err(invalid()); }
+                    let family = identifier_spelling(head)?;
+                    let mut path_tokens = path.children_with_tokens().filter(|element| !matches!(element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment));
+                    if path_tokens.next().map(|token| token.kind()) != Some(SyntaxKind::ColonColon) { return Err(invalid()); }
+                    let member = path_tokens.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
+                    if member.kind() != SyntaxKind::Identifier || path_tokens.next().is_some() { return Err(invalid()); }
+                    let resolution = self.resolve_operation(family.as_ref(), member.text().into());
+                    let mut payloads = Vec::new();
+                    let mut payload_nodes = call.children();
+                    match (payload_nodes.next(), payload_nodes.next()) {
+                        (None, None) => push(&mut payloads, LocalSourceCatchPayloadPattern::Unit { source: self.key(call)?, range: range_of(call) })?,
+                        (Some(payload), None) => push(&mut payloads, LocalSourceCatchPayloadPattern::Value(self.catch_value_pattern(&payload, &arm_source, 0, &mut binders)?))?,
+                        _ => return Err(invalid()),
+                    }
+                    let continuation = self.catch_value_pattern(continuation, &arm_source, 1, &mut binders)?;
+                    LocalSourceCatchPattern::Operation { resolution, operation_source: self.key(operation)?, payloads, continuation }
+                }
+                _ => return Err(invalid()),
             };
             let body_index = self.slot()?;
-            let value_pattern = binder.clone().map_or(LocalSourceCatchValuePattern::Wildcard, LocalSourceCatchValuePattern::Binder);
-            push(&mut arms, LocalSourceCatchArm { source: arm_source.clone(), range: range_of(&arm), value_pattern, body: body_index.clone() })?;
-            push(&mut children, (body.clone(), body_index, LocalSourceScope::CatchArm { catch: index.clone(), arm: arm_source }, binder))?;
+            push(&mut arms, LocalSourceCatchArm { source: arm_source.clone(), range: range_of(&arm), pattern, body: body_index.clone() })?;
+            push(&mut children, (body.clone(), body_index, LocalSourceScope::CatchArm { catch: index.clone(), arm: arm_source }, binders))?;
+
         }
         if arms.is_empty() { return Err(invalid()); }
         self.set(index, &node, scope.clone(), LocalSourceForm::Catch { scrutinee: scrutinee_index.clone(), arms })?;

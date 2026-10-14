@@ -85,6 +85,20 @@ The answered q1/r1 negative-formal correction bundle is integrated at
 It supplies no complete field map and is no longer a pending local question.
 Measurements remain zero; exact checks and boundaries are in the checkpoint.
 
+The next [operation-Catch slice](../notes/progress/2026-10-14-operation-catch-constraints.md)
+now constructs payload/raw-continuation binders and paired monomorphic ports.
+Raw k uses original V and native entry/return rows E/R with E <= R and S <= R;
+effectful responses and aliases are verified. No residual cut is installed.
+M2 semantic/conformance findings are closed, with 72 focused tests and a clean
+workspace check. All producer/reviewer leases are frozen/completed.
+The independently reviewed [boundary note](../notes/theory/2026-10-14-handler-boundary-construction.md)
+retains a conditional suffix envelope and the exact U obstruction: omitted
+callback profiles still require protection. The next executable owner is the
+source callback-profile/live contextual consumer, not another conditional
+proof or another nominal filter. Generic rigid opening, complete hygiene,
+soundness, required principality and production gates remain OPEN. Zero
+performance samples/processes were consumed; shared records are synchronized.
+
 ## Historical first scheduling wave
 
 Keep the useful queue in the primary's runtime plan or a compact checkpoint.

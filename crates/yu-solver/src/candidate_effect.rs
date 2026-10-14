@@ -803,6 +803,71 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
     }
+    pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &DefinitionRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+        let SourceAnnotationValue::Function { argument, result } = &declaration.signature.value else { return Err(exhausted()); };
+        let mut values = HashMap::new();
+        let mut effects = HashMap::new();
+        let mut views = HashMap::new();
+        let count = declaration.signature.node_count();
+        values.try_reserve(count).map_err(|_| exhausted())?;
+        effects.try_reserve(count).map_err(|_| exhausted())?;
+        views.try_reserve(count).map_err(|_| exhausted())?;
+        let scratch = bytes::<(&str, u32)>(values.capacity())?.checked_add(bytes::<(&str, u32)>(effects.capacity())?).and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?)).ok_or_else(exhausted)?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        let admitted = (|| {
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            let retained_bytes = std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>().checked_add(declaration.retained_arena_bytes()).ok_or_else(exhausted)?;
+            let context = SignatureContext::Operation { declaration, owner, occurrence, retained_bytes };
+            // One environment pairs declaration A/B. No outer operation family
+            // is injected into either packet field's own latent interface.
+            if let Some(payload) = payload {
+                let positive = self.candidate_signature_value(&context, argument, Polarity::Positive, Polarity::Positive, level, &mut values, &mut effects, &mut views)?;
+                let negative = self.candidate_signature_value(&context, argument, Polarity::Negative, Polarity::Negative, level, &mut values, &mut effects, &mut views)?;
+                let target = self.batch.component_term_at(payload);
+                self.admit_candidate_value_link(occurrence, 60, positive, target)?;
+                self.admit_candidate_value_link(occurrence, 61, target, negative)?;
+            }
+            if let Some(continuation) = continuation {
+                let negative_response = self.candidate_signature_value(&context, result, Polarity::Negative, Polarity::Negative, level, &mut values, &mut effects, &mut views)?;
+                let positive_response = self.candidate_signature_value(&context, result, Polarity::Positive, Polarity::Positive, level, &mut values, &mut effects, &mut views)?;
+                let original_positive = self.candidate_endpoint(original, Polarity::Positive)?;
+                let original_negative = self.candidate_endpoint(original, Polarity::Negative)?;
+                let entry = self.fresh_effect_at_level(level)?;
+                let returned = self.fresh_effect_at_level(level)?;
+                let entry_positive = self.live_effect_term(Polarity::Positive, entry)?;
+                let return_negative = self.live_effect_term(Polarity::Negative, returned)?;
+                let original_effect = self.live_effect_term(Polarity::Positive, self.live_components[effect].ordinal)?;
+                // Raw resumption receives a Value response, so its argument
+                // computation is forced at entry by the existing entry rule.
+                for (slot, lower) in [(64, entry_positive), (65, original_effect)] {
+                    let id = ConstraintOccurrenceId::new(occurrence.clone(), slot);
+                    let cause = CauseId::for_occurrence(id.clone());
+                    self.store.admit_and_record_provenance(&ConstraintOccurrence { id: id.clone(), cause: cause.clone(), lower, upper: return_negative }).map_err(SolveAvailabilityError::from)?;
+                    let inferred_entry = if slot == 64 {
+                        Some(self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.retain_inferred_entry(occurrence, entry, returned, &id, &cause)?)
+                    } else { None };
+                    self.constrain_live_item_with_inferred_entry(TypedWorkItem {
+                        task: LiveConstraintTask::Effect(self.effect_endpoint(lower, Polarity::Positive), self.effect_endpoint(return_negative, Polarity::Negative)),
+                        relation: None, replay_ack: None,
+                    }, &id, &cause, inferred_entry)?;
+                }
+                let entry_negative = self.live_effect_term(Polarity::Negative, entry)?;
+                let return_positive = self.live_effect_term(Polarity::Positive, returned)?;
+                // PROVISIONAL conservative full-S bound, matching Oracle's
+                // constructor. Exact raw suffix effects can be empty; precision
+                // and full handler hygiene remain OPEN. No handler is reinstalled.
+                let positive = self.positive_function_term(negative_response, entry_negative, return_positive, original_positive)?;
+                let negative = self.negative_function_term(positive_response, entry_positive, return_negative, original_negative)?;
+                let target = self.batch.component_term_at(continuation);
+                self.admit_candidate_value_link(occurrence, 62, positive, target)?;
+                self.admit_candidate_value_link(occurrence, 63, target, negative)?;
+            }
+            Ok(())
+        })();
+        drop((values, effects, views));
+        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
+        admitted
+    }
     pub(super) fn candidate_copy_effect_view(
         &mut self,
         id: u32,

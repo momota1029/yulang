@@ -116,6 +116,32 @@ fn catch_value_conflicts_withhold_cli_observations() {
 }
 
 #[test]
+fn operation_catch_binds_payload_and_raw_continuation() {
+    let result = cli(include_str!("../examples/catch-operation.yu"));
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    let output = String::from_utf8(result.stdout).unwrap();
+    assert!(output.contains("definition handled:"));
+    assert!(output.contains("StrPositive"));
+    assert!(output.contains("no principal-type"));
+}
+
+#[test]
+fn operation_catch_checks_payload_and_response_types() {
+    let source = include_str!("../examples/catch-operation.yu");
+    for source in [
+        source.replace("checked: int", "checked: str"),
+        source.replace("resume \"resumed\"", "resume true"),
+    ] {
+        let result = cli(&source);
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(error.contains("candidate type conflicts"), "{error}");
+        assert!(!error.contains("unsupported source"));
+    }
+}
+
+#[test]
 fn conditional_conflicts_withhold_all_cli_observations() {
     let source = include_str!("../examples/conditional-conflict.yu");
     for source in [source.to_owned(), source.replace("if true:", "if false:")] {

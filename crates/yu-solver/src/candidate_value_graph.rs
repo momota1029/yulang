@@ -81,7 +81,21 @@ impl Graph {
                 LocalSourceForm::Catch { scrutinee, arms } => {
                     work.try_reserve(arms.len().checked_add(1).ok_or_else(unavailable)?).map_err(|_| unavailable())?;
                     work.push((scrutinee.ordinal() as usize, owner));
-                    for arm in arms { work.push((arm.body.ordinal() as usize, owner)); }
+                    for arm in arms {
+                        use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as PatternValue};
+                        let mut retain = |pattern: &PatternValue| -> Result<(), CollectionAvailabilityError> {
+                            if let PatternValue::Binder(binder) = pattern { self.intern(Value::CatchBinder(binder.id.clone()))?; }
+                            Ok(())
+                        };
+                        match &arm.pattern {
+                            Pattern::Value(pattern) => retain(pattern)?,
+                            Pattern::Operation { payloads, continuation, .. } => {
+                                for payload in payloads { if let Payload::Value(pattern) = payload { retain(pattern)?; } }
+                                retain(continuation)?;
+                            }
+                        }
+                        work.push((arm.body.ordinal() as usize, owner));
+                    }
                 },
                 LocalSourceForm::If { arms, else_branch } => {
                     let count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;

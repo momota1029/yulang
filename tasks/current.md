@@ -154,8 +154,8 @@ contextual producer and Catch residual consumer with current/future feedback.
 Existing Apply provenance, Function demand and invocation-to-application edge
 already transport operation support; no extra per-call token is justified.
 `ResidualRecipe` is approved design, not implemented storage, and `ReplayRecipe`
-does not supply it. Source context words are still empty; LocalSource also lacks
-Catch operation patterns and arm-owned payload/resumption binders. Reuse the
+does not supply it. Source context words are still empty; at that checkpoint
+LocalSource also lacked Catch operation patterns and payload/resumption binders. Reuse the
 established hygiene theorem at these actual owners, preserving shallow
 continuations and outside arm effects. Keep the residual/hygiene and dependent
 lifecycle gates OPEN; another lemma assuming the missing constructor is not
@@ -214,6 +214,29 @@ concrete `io.read_int()` example does not distinguish annotation permission
 maps. The question is archived as answered within r1's scope; no A/B/C field
 map or new implementation authority follows. The prior uncommitted receipt
 is retained as history, with its archival decision superseded by this request.
+
+## 2026-10-14 operation Catch payload and raw continuation
+
+The [operation-Catch checkpoint](../notes/progress/2026-10-14-operation-catch-constraints.md)
+adds authentic operation resolution, distinct payload/continuation binders and
+paired monomorphic packet constraints to the private carrier and playground.
+Raw k accepts the operation response, returns the original scrutinee value,
+and uses ordinary Value entry: response effects and a conservative original-S
+suffix bound reach its invocation effect. All arm effects remain outside.
+Normal values forward when no value arm exists. Used-field preflight retains
+ordinary operation effects and reports unsupported nested negative interfaces
+accurately; unused fields impose no unavailable construction. Generic rigid
+opening remains incomplete. M2 semantic/conformance delta review closed the
+findings; 72 focused tests and a warning-free workspace check passed.
+
+The [reviewed boundary derivation](../notes/theory/2026-10-14-handler-boundary-construction.md)
+supports only the conditional finite suffix envelope, not exact whole-S equality
+or complete Call. U remains OPEN: omitted callback contracts still protect
+typed positions, even with negative concrete formals disabled. No residual
+subtraction is installed. Next is the actual source callback-profile and live
+Function-port/context construction named in §6, reusing established hygiene
+results. Do not repeat a conditional proof that assumes this missing owner.
+Full hygiene, soundness, required principality and production gates remain OPEN.
 
 ## 2026-10-12 fixed-term H executable construction
 

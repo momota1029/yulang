@@ -82,8 +82,8 @@ branch through the selected Name/Apply/If fragments. Group, Ascription, Lambda
 and Block remain fragment boundaries. This scoped construction does not certify
 complete source Value-reference adjacency for the whole language.
 
-The Catch example passes both conditional value bounds through a normal-return
-binder:
+The normal-return Catch example passes both conditional value bounds through
+a binder:
 
 ```sh
 cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-value.yu
@@ -93,15 +93,35 @@ The carrier observes unguarded total identifier or wildcard normal-return arms.
 A binder refers to the original scrutinee value; the scrutinee effect and every
 arm body's effect contribute to the Catch output. Both conditional branches
 remain present for either constant condition. Catch adds no result reference
-fragment to the existing Name/Apply/If construction. Operation and resumption
-arms, guarded arms, labels, and non-total patterns remain unavailable through
-this private carrier. This slice does not establish full handler behavior or
-global effect hygiene.
+fragment to the existing Name/Apply/If construction.
 
-This carrier still does not observe arithmetic, omitted-`else` conditionals,
-or string interpolation. These are limits of the carrier, not Yulang language
-rejections. The playground also does not prove general solver properties.
-Treat a bounded observation as evidence about the displayed case only.
+The operation Catch example uses a resolved monomorphic operation declaration:
+
+```sh
+cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-operation.yu
+```
+
+The declaration supplies the operation's payload and response types. The arm
+binds the payload and continuation, checks that the payload has type `int`, and
+resumes with a `str`. In this carrier, the raw continuation returns the
+original scrutinee value, and the arm runs outside the selected handler. The
+effects of computing a response argument also remain outside that handler. The
+current conservative effect upper bound reuses the original scrutinee effect
+and retains the scrutinee and all arm effects without subtraction. This is a
+provisional approximation; it does not claim that raw resumption must re-emit
+the original request. The no-suffix raw continuation is semantically pure.
+
+Operation arms currently support identifier or wildcard payload and
+continuation patterns, or an empty call pattern. Normal-return arms support
+unguarded total identifier or wildcard patterns. Generic operation-arm rigid
+opening, complete residual/effect hygiene, guards, labels, non-total and tuple
+patterns, and chained operation heads remain incomplete in this carrier. These
+are carrier limits, not language rejections.
+
+This carrier also does not observe arithmetic, omitted-`else` conditionals, or
+string interpolation. The playground does not prove general solver
+properties. Treat a bounded observation as evidence about the displayed case
+only.
 
 Use the research loop from the
 [playground design](../../notes/design/2026-10-04-inference-research-playgrounds.md):
