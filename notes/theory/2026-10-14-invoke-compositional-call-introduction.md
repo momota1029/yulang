@@ -1,7 +1,7 @@
 # `invoke`: compositional complete-Call introduction
 
 Date: 2026-10-14
-Status: Draft mathematical constructor completion; earlier conditional derivation and section 6.3 owner amendment independently reviewed; no production or parent certification
+Status: Draft mathematical constructor completion; earlier conditional derivation, section 6.3 owner amendment and complete-image owner amendment independently reviewed; no production or parent certification
 Baseline: `add2fdf4c12e7379e1c5ad2c24b5023320262ae3`
 Branch: `research/simple-sub-intrusion`
 Definition authorization: the user's current instruction, "定義が必要なら定義すればいい"
@@ -646,6 +646,65 @@ independent primitive's own local law. This proves the theorem for all
 constructors, including every declared Arm, unanchored Z and arbitrarily
 long finite W chains.
 It never chooses an arm to establish a universal result.
+
+### 8.1 Exact Kernel image at the new Application owner
+
+Application_N §5 already forms `Q_N(c)` as a reference to its actual complete
+Call Kernel, with the original source operands and an open whole-carrier
+inlet. Make that same reference the single owner of the complete Call family,
+rather than keeping a second, merely similarly shaped relation:
+
+```text
+delta_K                  actual independently supplied complete Kernel
+mu_c                     its original complete scoped use substitution
+K_c                      delta_K[mu_c]
+Q_N(c)                   Ref(delta_K,mu_c)
+Call_c(h,o;q)            Witness(K_c,h,o;q)
+Image_c                  OutputImage(Q_N(c))
+Mem(Image_c,h,o;q)       Eval(Q_N(c),h,o;q)
+```
+
+`OutputImage` is the existing evidence-retaining constructor image at the full
+original output interface. It keeps the full operation witness `q` together
+with its observation and dependent fields; it is not an existential quotient
+that erases arm evidence or a projection to value/effect support. The exact
+left operand checked by `e_out` is this `Image_c` at the same `mu_c`. The
+`e_f/e_a` entries are the original checking evidence at their existing
+positions, not additional output guards on independently declared arms.
+
+This is a constructor definition for the new source use, not selection of a
+replacement Kernel. The structural `Struct` witness is the original C-Call
+Bind followed by ExecuteCallable at the actual returned provider and current
+world. Each generic `Arm(j,delta,q_1,...,q_n,p,z)` uses the exact declaration,
+ordered telescope, predecessor-reference list, licenses, guards and
+substitution from `delta_K`; `Z` and `W` are its zero- and one-predecessor
+cases. Non-iterating arms stay single-use and W closure is retained exactly
+where the original declaration provides it. Pending prefixes/suffixes and
+future fields remain the original dependent Bind and arm witnesses.
+
+For every original joint assignment and complete open frame `h`, the
+reference beta law gives the full-fiber map
+
+```text
+theta_c(q) = fold_Ref(q)
+theta_c(q) : Mem(Image_c,h,o)
+unfold_Ref(theta_c(q)) = q
+```
+
+and the reverse composite is identity. With transparent reference notation,
+`theta_c(q)=q`. This preserves the particular admitted carrier filling (so
+`Delay_a` remains only its source diagonal), actual provider/world, request
+and response, raw continuation, every original arm witness and its future
+interface under the original binders. No satisfying assignment, C0, output
+typing law or successful Call is assumed to form this map.
+
+Therefore `e_out` can now be applied directly to `theta_c(q)` for every
+`q : Call_c(h,o)`, yielding `Mem(Comp(E_c,A_c),h,o)` for the same complete
+observation and assignment. This proves the outer result-readout part of the
+source Call construction. It does not prove `e_out` itself, native
+Function4 correspondence, satisfiability, or the original parent theorem.
+An independently fixed foreign Call/Image root still requires its own
+complete constructor identification; this definition does not cast to one.
 
 **Closing the actual Lambda, conditional on that assignment.** The proof is
 uniform for every body binding

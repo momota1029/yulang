@@ -741,6 +741,32 @@ major or minor issue in this localization. This remains a source-application
 obligation, not a refutation or impossibility result; the original theorem
 remains OPEN.
 
+### 2026-10-14 exact Application owner image identity
+
+The compositional Call construction in
+[`invoke compositional Call introduction`](../notes/theory/2026-10-14-invoke-compositional-call-introduction.md)
+now supplies the exact owner equation missing at the Call/Image seam. For the
+new `Application_N` owner, one scoped reference `Q_N(c)` owns both the complete
+Call witness family and the output image checked by its original `e_out`.
+Reference fold/unfold is therefore a full-fiber identity for every original
+assignment and open carrier frame, preserving the selected carrier filling,
+all independent arms, their original guards/evidence, and dependent
+provider/world/future fields. This does not rederive the ordinary
+`f 1` Simple-sub case. Fresh `compiler_referee` and `spec_auditor` reviews
+passed this owner-level identity and conformance against `Application_N` §5
+and the complete Call construction.
+
+Classification: **REDUCED**, only at this newly defined source-owner seam.
+The result is an explicit definition in a non-authoritative research note; it
+does not establish that the current compiler or a separately fixed original
+root realizes `Q_N`, nor prove `e_out`, native Function4 correspondence,
+satisfiability, the original source/native theorem, principality, or F5
+replacement. The parent theorem remains OPEN. The next proof step is to derive
+the actual ordinary formal/Application/Call constructor instance that supplies
+this exact owner and its source operands, then connect its complete demand and
+discharge to native Simple-sub construction without changing the accepted
+source domain.
+
 The separate direct-rule attack in
 [`invoke original Call source falsification`](../notes/progress/2026-10-11-invoke-original-call-source-falsification.md)
 and the constructive
