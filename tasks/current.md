@@ -14881,21 +14881,22 @@ no tests, builds, probes, code or Git mutations.
 
 The compositional Call note's §8.1 supplies the source-side step needed here:
 `Q_N(c)` owns the complete Kernel image, `theta_c` is full-fiber identity, and
-the original Application result obligation `e_out` applies to that same
-image. Thus every original `Struct` and independent `Arm` witness maps into
-`Comp(E_c,A_c)` by the generated result inclusion. Do not try to derive a
-separate arm-to-result map from `e_f` or `e_a`; those checks establish callee
-and argument compatibility, while `e_out` is the independent whole-Call
-output check. The recent `e_f/e_a -> out_j` attempt correctly showed that
-this implication is unavailable, but it is not needed by this source typing
-composition.
+the amended compositional source owner's `e_out` is formed over that same
+image. Thus every `Struct` and independent `Arm` witness in this new owner
+maps into `Comp(E_c,A_c)` by its generated result inclusion. Do not try to
+derive a separate arm-to-result map from `e_f` or `e_a`; those checks establish
+callee and argument compatibility, while this owner's `e_out` is the
+independent whole-Call output check. The recent `e_f/e_a -> out_j` attempt
+correctly showed that this implication is unavailable, but it is not needed
+by this source typing composition.
 
 The ordinary `f 1` Simple-sub derivation remains imported. The unresolved
 gate is the joint source/native interpretation: show that the emitted and
-consumed Function4/result coordinates represent this same complete
-`Q_N(c)`/`e_out` fiber under the original assignment, including every
-independent arm and dependent future field. The current native Apply graph
-does not itself establish that arm-complete result projection. Keep the
-source Call result theorem REDUCED and the parent source/native, native
-Function4, principality and F5 gates OPEN. No tests, builds, probes or
-compiler changes ran; the pending question bundle remains excluded.
+consumed Function4/result coordinates represent this complete `Q_N(c)` image
+and result inclusion under the original assignment, including every
+independent arm and dependent future field. This proposed owner amendment is
+not yet shown to correspond to the current `Application_N` rule or native
+Apply graph. Keep the source Call result theorem REDUCED and the parent
+source/native, native Function4, principality and F5 gates OPEN. No tests,
+builds, probes or compiler changes ran; the pending question bundle remains
+excluded.
