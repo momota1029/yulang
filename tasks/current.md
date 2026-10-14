@@ -15008,3 +15008,36 @@ impossibility result or a source-qualified counterexample. The next proof
 input is the actual complete `Comp` descriptor owner and authentic arm
 hard-envelope/local typing law at this Use; do not retry scalar covariance,
 derive the output from `e_f/e_a`, or re-prove T-App/BOUND.
+
+The owner audit narrows the needed constructor premises: universal
+`Mem(D_j) -> Mem(R_c)` is stronger than required. The exact recursion needs
+`out_s : S_c -> Mem(R_c)` and, for each authentic original arm,
+`out_j : (original scoped inputs, P_j, A_j) -> Mem(R_c)`, with recursively
+typed predecessor proofs only where its declaration requires them. These laws
+must retain original guards, licenses, providers, worlds, and dependent future
+interfaces. They would construct `e_out` by cases on the unchanged Struct/Arm
+family. The inspected Authoritative Complete Call rule deliberately leaves
+concrete W/Z laws open; `CompleteComp` is only formed as a complete descriptive
+sort/interface in Invoke §§6.1/6.3 and has no exhaustive selected `DescMem`
+clauses there. Therefore neither the authentic arm law nor its output map is
+currently supplied by those selected rules. This is an exact definition/owner
+boundary, not proof of semantic impossibility or an actual violating arm.
+
+Next evidence: identify the actual original `delta_K[mu_c]` and derive its
+`out_s/out_j` maps from the complete descriptor and operator owners, or show
+that the existing selected interpretation already supplies them. If doing so
+requires changing independently interpreted `CompleteComp` membership, stop
+at that specific semantic choice for review. Do not replace the original
+arm-specific laws with universal `D_j` inclusion.
+
+Current implementation-owner check: `shadow_call_formation`'s
+`PendingResolvedSourceCallStub` retains only a resolved HIR call and its root;
+`candidate_call::ApplySourceInput` retains scalar endpoints, effect rows,
+checking origin and optional native terms. Its `PendingCallSupplier` explicitly
+lists `OriginalGenCall0` and receiver/complete-result/future interfaces as
+missing. No `delta_K`, authentic arm catalog, `D_j`, hard-envelope or
+`out_s/out_j` witness is carried at this layer. This confirms the compiler
+representation gate is also open; it does not establish that the source
+semantic declaration is globally absent or justify constructing a
+Struct-only kernel. Sources inspected: `crates/yu-core/src/shadow_call_formation.rs`
+and `crates/yu-solver/src/candidate_call.rs`.
