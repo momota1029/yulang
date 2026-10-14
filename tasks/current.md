@@ -127,12 +127,14 @@ authority overstatement: borrowed enter/leave is a Draft owner realization,
 while the selected behavior is preservation of a still-live owner's identity
 and activity plus current-state resumption. H1/H2/U remain OPEN; H3/P remain
 disabled. H1-G is active on baseline `b336999a148eaee7779f80e0a18e9e79e2cd8394`:
-a constructive correspondence derivation, an independent source-qualified
-falsifier, and a read-only owner trace each follow authoritative Call records
-through HIR/Gen-Call-0 to Function4 and typed-evidence consumers. Their outputs
-are disjoint; all are static-only and stop at a missing owner/interface. No
-production representation or code lease opens until the constructors,
-consumers and any durable approval boundary are concrete.
+a constructive correspondence derivation, independent source-qualified
+falsification and read-only owner trace now identify the absent complete
+Gen-Call-0/FrameCall producer; a separate read-only architect lane is checking
+whether current HIR and pre-solve Simple-sub data can lawfully construct it.
+The proof and design-owner lanes remain active. All work is static-only and
+stops at a missing owner/interface. No production representation or code lease
+opens until the constructors, consumers and any durable approval boundary are
+concrete.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
