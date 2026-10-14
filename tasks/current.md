@@ -15441,12 +15441,22 @@ source RelationId was checked, so the relation→copy→consumer chain remains
 OPEN. The test review found one minor wrong-parent attribution risk; checking
 `incidence.comparison == parent` closed it, and the focused rerun passed.
 H1/H2/U remain OPEN, H3/P disabled and the profile-position matrix undecided.
-The next evidence action is a test-only uniqueness join over retained RelationKeys:
-check whether the exact Parent pair and source IDs identify one contextual
-RelationId, then connect that relation through retained derivation/transport to
-the `cb x` FunctionPort consumer. If that join is ambiguous or misaligned, stop
-and request narrowly scoped copy-time RelationId instrumentation; do not add it
-automatically.
+The [exact pair/source census](../notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md)
+passed its focused test and fresh M1 review without findings. In this same
+State, each of the four retained Parent records matched a singleton full
+RelationKey, equal to the authenticated `cb x` checking relation. The later
+FunctionPort Argument parent’s immediate Replay upper input has explicit
+Transport/Derived ancestry to that relation. The [conditional owner bridge](../notes/theory/2026-10-15-extrusion-parent-source-correspondence.md)
+was also independently reviewed after two minor record repairs; on the
+inspected typed-drain Value route it proves that a surviving singleton pair /
+source match identifies the active relation for that append. These are two
+paths from the shared source relation: no retained direct field path proves
+which copied row supplies the Argument port, and the later child still has no
+bounded formal-incidence result. The selected next evidence action inspects
+retained Function field substitutions in this same State and connects them to
+the exact consumer witness, stopping on missing or ambiguous field attribution.
+No profile positions or protection law follow. H1/H2/U remain OPEN, H3/P
+disabled, and the profile-position matrix undecided.
 
 The [shallow Catch hygiene constructor bridge](../notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md)
 is independently reviewed with no findings as a bounded conditional

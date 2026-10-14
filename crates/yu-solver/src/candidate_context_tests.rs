@@ -643,6 +643,44 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
         }
     }
     let receiving_checking = &selected_calls.iter().find(|call| call.0).unwrap().1;
+    let cb_checking = &selected_calls.iter().find(|call| !call.0).unwrap().1;
+    let cb_origins: Vec<_> = context.origins.iter().filter(|origin| origin.occurrence == *cb_checking).collect();
+    for origin in &cb_origins {
+        eprintln!("authenticated_cb_apply_origin relation={:?} checking={:?} key={:?}",
+            origin.relation, origin.occurrence, context.relations[origin.relation.0 as usize].key);
+    }
+    // Enumerate the complete retained relation table, including every context.
+    // Exact pair/source identity is a discriminator, never a canonical-row join.
+    let mut unique_cb_copies = Vec::new();
+    for (index, parent) in session.candidate_graph.as_ref().unwrap().intrusion.parents.iter().enumerate() {
+        let candidates: Vec<_> = context.relations.iter().enumerate().filter(|(_, relation)|
+            Some(relation.key.pair) == parent.comparison && relation.key.sources == parent.sources)
+            .map(|(ordinal, relation)| (RelationId(u32::try_from(ordinal).unwrap()), relation.key)).collect();
+        eprintln!("copy_relation_candidates parent_index={index} occurrence={} pair={:?} sources={:?} candidates={candidates:?}",
+            parent.occurrence, parent.comparison, parent.sources);
+        if candidates.len() != 1 {
+            eprintln!("copy_relation_obstruction parent_index={index}: exact pair/source matched {} relations; no relation-to-copy inference", candidates.len());
+            continue;
+        }
+        let (relation, key) = candidates[0];
+        if cb_origins.len() != 1 || relation != cb_origins[0].relation {
+            eprintln!("copy_relation_obstruction parent_index={index}: singleton {relation:?} is not the unique authenticated cb x source relation; source_origin_count={}", cb_origins.len());
+            continue;
+        }
+        // Static processing alignment is documented in the leased note. The
+        // retained source origin and full key supply this session's exact join.
+        assert_eq!(Some(key.pair), parent.comparison);
+        assert_eq!(key.sources, parent.sources);
+        unique_cb_copies.push((index, relation));
+        eprintln!("unique_cb_copy_relation parent_index={index} relation={relation:?} key={key:?} raw_parent={:?} raw_copy={:?}; no direct Function field path is retained", parent.parent, parent.copy);
+    }
+    let mut source_relations_with_consumers = Vec::new();
+    let mut unique_cb_source_relations = Vec::new();
+    for &(_, relation) in &unique_cb_copies {
+        if !unique_cb_source_relations.contains(&relation) {
+            unique_cb_source_relations.push(relation);
+        }
+    }
     let mut authenticated_receiving = 0;
     for dependency in &context.dependencies {
         let Dependency::FunctionPort { child, parent, field: FunctionField::Argument, operation } = *dependency else { continue; };
@@ -692,6 +730,15 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
                 }
             }
             let receiving_upper = context.origins.iter().any(|origin| seen.contains(&origin.relation) && origin.occurrence == *receiving_checking);
+            for &source in &unique_cb_source_relations {
+                if seen.contains(&source) {
+                    source_relations_with_consumers.push(source);
+                    let matching_copy_parents: Vec<_> = unique_cb_copies.iter()
+                        .filter_map(|&(index, copy_source)| (copy_source == source).then_some(index))
+                        .collect();
+                    eprintln!("cb_source_relation_consumer source_relation={source:?} matching_copy_initiator_parents={matching_copy_parents:?} replay={replay:?} argument_dependency={dependency:?} upper_ancestry={seen:?}; source-to-copy initiation and source-to-consumer ancestry share a source relation, with no retained per-copy field path");
+                }
+            }
             let outer_constructor = incidence.as_ref().is_some_and(|incidence| incidence.comparison == parent && incidence.construction.source.lambda == selected[0].3);
             if receiving_upper && outer_constructor {
                 authenticated_receiving += 1;
@@ -699,6 +746,14 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
             } else {
                 eprintln!("unattributed_argument child={child:?} receiving_upper={receiving_upper} outer_constructor={outer_constructor} upper_ancestry={seen:?}; earlier extrusion is outside the bounded incidence reader");
             }
+        }
+    }
+    for &relation in &unique_cb_source_relations {
+        if !source_relations_with_consumers.contains(&relation) {
+            let matching_copy_parents: Vec<_> = unique_cb_copies.iter()
+                .filter_map(|&(index, copy_source)| (copy_source == relation).then_some(index))
+                .collect();
+            eprintln!("copy_consumer_obstruction relation={relation:?} matching_copy_initiator_parents={matching_copy_parents:?}: no immediate Argument-parent Replay upper input has explicit Derived/Transport ancestry to this source relation");
         }
     }
     for parent in &session.candidate_graph.as_ref().unwrap().intrusion.parents {

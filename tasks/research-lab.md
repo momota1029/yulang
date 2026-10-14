@@ -49,10 +49,11 @@ extrusion coverage.
 
 These are launched bounded assignments, not proposals. Production source inputs
 are pinned to `427d1ff5d`; intervening commits changed records only. The
-receiving-call probe is frozen and reviewed, with no production compiler write
-authority. The next test-only uniqueness-join probe has an exclusive test-file
-lease. The user's undecided omitted-formal position matrix remains
-outside every packet.
+receiving-call, exact census and conditional Parent-source bridge are frozen
+and reviewed, with no production compiler write authority. The next selected
+test-only field-substitution packet will be dispatched after this checkpoint.
+The user's undecided omitted-formal position matrix remains outside every
+packet.
 
 | Job | Method / gate | State and exclusive output | Budget / next evidence |
 |---|---|---|---|
@@ -64,14 +65,18 @@ outside every packet.
 | `implement_h1_copy_correlation_probe` | Test-only same-session mapping from omitted formal domains to retained extrusion pairs | done; frozen in `crates/yu-solver/src/candidate_context_tests.rs::omitted_formal_source_domains_correlate_with_retained_extrusion_pairs`; M1 minor pair-key wording repair checked by primary | Focused test passed after repair; exact source-to-consumer correspondence remains OPEN |
 | `omitted_consumer_frontier` | Static source-slot and Value-row map through Apply demand, extrusion and Function dispatch | done; frozen in `notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md`, independently reviewed; one minor raw/canonical Visit precision repair integrated | Negative Function demand alone accumulates/extrudes bounds; Argument dispatch also needs a positive Function lower. Zero consumers do not establish lost incidence. Exact RelationId/copy representative remain open. |
 | `select_after_function_frontier` | Select discriminator after the paired-dispatch premise was located | done; selected an additive receiving-call source observation | Supply a positive Function lower to `cb`, then distinguish the receiving call's own Argument edge from a later `cb x` comparison. No semantic matrix or profile decision. |
-| `receiving_call_argument_probe` | Test-only same-session source observation with a positive Function lower and later `cb x` demand | done; frozen in `candidate_context_tests.rs::omitted_formal_receiving_call_records_authenticated_argument_dispatch` and `notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md`; one minor wrong-parent attribution repair reviewed and integrated | Two exact focused runs passed; one receiving-call Argument chain is authenticated. A later `cb x` bound ancestry reaches its source Apply relation, but pair-key-to-copy RelationId uniqueness remains unchecked. |
+| `receiving_call_argument_probe` | Test-only same-session source observation with a positive Function lower and later `cb x` demand | done; frozen in `candidate_context_tests.rs::omitted_formal_receiving_call_records_authenticated_argument_dispatch` and `notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md`; one minor wrong-parent attribution repair reviewed and integrated | Two exact focused runs passed; receiving-call Argument chain is authenticated. The later `cb x` consumer ancestry was recorded separately, with pair-to-RelationId uniqueness left to the next gate. |
 | `select_copy_identity_action` | Select the next discriminator after the positive Function lower and bound ancestry were observed | done; selected the test-only exact pair/source uniqueness join before any copy-time instrumentation | Check all retained RelationKeys for the Parent's exact TypedPairKey and sources, authenticate the source Apply relation, and follow retained single-parent ancestry to the FunctionPort Argument parent; stop on ambiguity or misalignment. |
-| `omitted_formal_copy_relation_uniqueness` | Test-only same-session join from extrusion Parent pair/source to contextual RelationId and later consumer | active; exclusive leases `candidate_context_tests.rs` and `notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md` | M1, ≤20-minute implementer, zero worker Cargo; primary owns one exact focused run and one fresh compiler-referee review. No production instrumentation, no profile decision, stop on first ambiguity or broken chain. |
+| `omitted_formal_copy_relation_uniqueness` | Test-only same-session join from extrusion Parent pair/source to contextual RelationId and later consumer | done; frozen in `candidate_context_tests.rs::omitted_formal_receiving_call_records_authenticated_argument_dispatch` and `notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md`; fresh M1 compiler_referee found no issues | Two exact focused runs passed (the second followed a log-only label clarification). All four Parent entries matched a singleton exact RelationKey equal to the authenticated `cb x` checking relation; its later Argument parent has immediate Replay upper ancestry through Transport/Derived edges. The shared source relation initiates all four copies, but no direct per-copy Function field path is retained. |
+| `prove_parent_relation_source_correspondence` | Conditional source-to-construction bridge for Parent pair/source projection on the structured typed-drain Value route | done; frozen in `notes/theory/2026-10-15-extrusion-parent-source-correspondence.md`; fresh M1 compiler_referee review found no blocking/major findings, two minor record repairs integrated and final delta review passed | Static finite-work derivation shows Parent pair and sources project from one active relation; conditional full-table singleton lemma and coupled/context-rename rollback coverage. This is one route only; no H1/H2/U theorem promotion. |
+| `select_next_copy_field_evidence` | Select next evidence owner after the exact same-State relation census and conditional source bridge | done; selected test-only inspection of retained Function field substitutions and witnessed consumer correspondence | Follow retained TransportWitness endpoints and four-port Function terms; distinguish direct field copies from selected-bound descendants, stop on missing/ambiguous mapping. |
+| `omitted_formal_copy_field_correspondence` | Test-only same-State tracing of raw Parent copies through retained Function field substitution to the exact `cb x` Argument consumer | READY; selected packet, primary to dispatch after the exact-census checkpoint | Proposed exclusive leases: `candidate_context_tests.rs` and `notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md`. M1; ≤20-minute implementer; worker Cargo zero; primary owns one exact focused run and one fresh compiler_referee review. No production change or profile choice; stop at first missing/ambiguous field path. |
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
-are zero. The primary has used five bounded Cargo processes: one playground
-observation, two runs of the first focused test, and two runs of the receiving-
-call focused test (before and after its review repair). The playground observation on
+are zero. The primary has used seven bounded Cargo processes: one playground
+observation, two runs of the first focused test, two runs of the receiving-call
+focused test, and two runs of the uniqueness census (before and after its
+log-label clarification). The playground observation on
 `my outer cb = { my inner x = cb x; inner }` reports one call-tail event and
 four retained parent-copy pairs, including `raw5 -> raw11`, Negative, target
 level 1; its `RowKey` and Value labels do not authenticate `raw5`'s source
@@ -104,6 +109,20 @@ and its Parent pair does not carry a unique RelationId. Both exact focused runs
 pass after one minor same-parent predicate repair. This remains source evidence;
 protection semantics, H1/H2/U and H3/P remain open. The user's omitted-formal
 position matrix was not guessed or revisited.
+
+The completed [exact census](../notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md)
+found that all four Parent entries in the receiving-call State have one exact
+pair/source RelationKey match, equal to the authenticated `cb x` checking
+origin. One later FunctionPort Argument parent's immediate Replay upper input
+reaches that relation through explicit Transport/Derived edges. The separate
+[owner bridge](../notes/theory/2026-10-15-extrusion-parent-source-correspondence.md)
+derives that, on the inspected structured Value-drain route, Parent's pair and
+source projection come from the same active contextual relation; the complete
+RelationKey fiber recovers it when singleton. Its proof reviewer found two
+minor record omissions, both repaired and accepted on final delta review. This
+does not supply an individual copy-to-Function-field path or source profile.
+The test artifact review had no findings. No production instrumentation was
+added. H1/H2/U remain OPEN; H3/P disabled.
 
 ## Current executable checkpoint, 2026-10-14
 

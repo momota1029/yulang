@@ -51,6 +51,21 @@
    狭く提案する。
    source evidence のみで、profile matrix と H1/H2/U の状態は変えず、H3/P も有効にしない。
 
+   続く [exact pair/source census](../notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md)
+   は focused test と fresh M1 review を通過した。同一 State の全 RelationKey を走査し、
+   4つの Parent がそれぞれ singleton として `cb x` の checking-origin relation に一致した。
+   その source relation から後続の FunctionPort Argument consumer へは immediate Replay
+   upper input と明示的な Transport/Derived ancestry が残る。別の [conditional owner bridge](../notes/theory/2026-10-15-extrusion-parent-source-correspondence.md)
+   は、対象の structured Value-drain route で Parent の pair と sources が同じ active
+   contextual relation から読むことを条件付きで示し、rollback caller を含む review を通過した。
+   これは source relation から copy initiation と consumer ancestry への二つの経路で、
+   個々の copied row の Function field path は残らない。profile positions や protection の
+   意味は選ばず、H1/H2/U は OPEN、H3/P は無効のまま。
+   次の bounded discriminator は、保持された TransportWitness と Function term の
+   実際の4-field substitution をたどり、個々の Parent copy が `cb x` の exact Argument
+   consumer に入るかを test-only に調べること。直接 Function field と選択 bound の子孫を
+   分け、曖昧または欠落したら最初の所有箇所で止める。production field や profile rule は足さない。
+
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
 `researcher`、査読は `compiler_referee` / `spec_auditor` に渡す。
