@@ -1098,6 +1098,10 @@ impl InferenceSession {
 
     fn candidate_formal_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
         if ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1 || (variance == Polarity::Negative && (!row.concrete.is_empty() || row.variables.len() != 1))) { return Err(exhausted()); }
+        self.candidate_formal_value_pair(annotation, ty, scope, variance, level, views)
+    }
+
+    fn candidate_formal_value_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
         match &ty.value {
             SourceAnnotationValue::Bool => Ok((self.batch.collected_leaf_term(Leaf::BoolPositive), self.batch.collected_leaf_term(Leaf::BoolNegative))),
             SourceAnnotationValue::Str => Ok((self.batch.collected_leaf_term(Leaf::StrPositive), self.batch.collected_leaf_term(Leaf::StrNegative))),
@@ -1137,10 +1141,36 @@ impl InferenceSession {
         Ok((self.live_effect_term(Polarity::Positive, port)?, self.live_effect_term(Polarity::Negative, port)?))
     }
 
+    pub(super) fn candidate_formal_effect_equal(&mut self, occurrence: &HirOccurrenceId, slot: u8, first: u32, second: u32) -> Result<(), SolveAvailabilityError> {
+        for (offset, lower, upper) in [(0, first, second), (1, second, first)] {
+            let lower = self.live_effect_term(Polarity::Positive, lower)?;
+            let upper = self.live_effect_term(Polarity::Negative, upper)?;
+            let id = ConstraintOccurrenceId::new(occurrence.clone(), slot + offset);
+            let cause = CauseId::for_occurrence(id.clone());
+            self.store.admit_and_record_provenance(&ConstraintOccurrence { id: id.clone(), cause: cause.clone(), lower, upper }).map_err(SolveAvailabilityError::from)?;
+            self.constrain_live_effect(self.effect_endpoint(lower, Polarity::Positive), self.effect_endpoint(upper, Polarity::Negative), &id, &cause)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn candidate_formal_entry_annotation(&mut self, registration: usize, annotation: &SourceAnnotation, occurrence: &HirOccurrenceId, scope: &AnnotationScope) -> Result<(), SolveAvailabilityError> {
+        let row = annotation.ty.effects.as_ref().ok_or_else(exhausted)?;
+        if row.variables.len() > 1 { return Err(exhausted()); }
+        let entry = self.batch.candidate_calls.formals[registration].entry_effect.ok_or_else(exhausted)?;
+        if let Some(name) = row.variables.first() {
+            let level = self.effect_levels[entry as usize];
+            let tail = self.candidate_formal_effect_variable(scope, name, level)?;
+            self.candidate_formal_effect_equal(occurrence, 45, entry, tail)?;
+        }
+        // Concrete atoms grant local handling permission; they are not a
+        // closed upper bound on the supplied computation. The source-owned
+        // annotation remains on this action for the handling integration.
+        Ok(())
+    }
+
     pub(super) fn candidate_formal_annotation(
         &mut self, annotation: &SourceAnnotation, parameter: usize, occurrence: &HirOccurrenceId, scope: &AnnotationScope,
     ) -> Result<(), SolveAvailabilityError> {
-        if annotation.ty.effects.is_some() { return Err(exhausted()); }
         let row = self.parameter_live_base.checked_add(u32::try_from(parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
         let level = self.value_levels[row as usize];
         if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
@@ -1154,7 +1184,7 @@ impl InferenceSession {
         graph.scratch_bytes = graph.scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
         let pair = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            self.candidate_formal_pair(annotation, &annotation.ty, scope, Polarity::Negative, level, &mut views)
+            self.candidate_formal_value_pair(annotation, &annotation.ty, scope, Polarity::Negative, level, &mut views)
         })();
         drop(views);
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;

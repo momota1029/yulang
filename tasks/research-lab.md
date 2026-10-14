@@ -14,6 +14,12 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [native Computation-formal route](../notes/progress/2026-10-15-computation-formal-native-routing.md)
+is implemented and independently reviewed. Computation Name uses carry entry
+effects; Value entry forcing stays unchanged. This closes that routing slice,
+not Catch permission/removal or the scoped compose source theorem. The
+compose algebra/kernel and live native correspondence are the active lanes.
+
 Latest direction: the [compose scope-release decision](../notes/design/2026-10-15-compose-scoped-effect-release.md)
 selects output `['e?, 'f] 'b`. If `'e` occurs in `'f`, the same `'e` scope's
 protection is removed there, including identity forwarding; other scopes and

@@ -30,6 +30,8 @@ pub(super) enum Action {
     Ascription { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, scope: candidate_effect::AnnotationScope },
     LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
+    FormalEntry { registration: usize, annotation: Arc<yu_hir::shadow::SourceAnnotation>, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
+    FormalNameEffect { registration: usize, occurrence: HirOccurrenceId, effect: usize },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
     ValueConstraint { occurrence: HirOccurrenceId, slot: u8, endpoint: CandidateEndpoint, upper: Term },
@@ -119,7 +121,7 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
             }
         }
         if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
-            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some() || !preflight_formal(&a.ty, false)) {
+            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1) || !preflight_formal_value(&a.ty.value, false)) {
                 return Err(shadow_apply::CandidateError::Unsupported);
             }
         }
@@ -153,7 +155,10 @@ pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationTy
     preflight_annotation(ty, true)
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
-    ty.effects.as_ref().is_none_or(|row| if positive { row.variables.len() <= 1 } else { row.concrete.is_empty() && row.variables.len() == 1 }) && match &ty.value {
+    ty.effects.as_ref().is_none_or(|row| if positive { row.variables.len() <= 1 } else { row.concrete.is_empty() && row.variables.len() == 1 }) && preflight_formal_value(&ty.value, positive)
+}
+fn preflight_formal_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
+    match value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument, !positive) && preflight_formal(result, positive),
         _ => true,
     }
@@ -279,6 +284,8 @@ impl ConstraintBatch {
                 push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
                     owner: source.definition_root().clone(), lambda: index,
                     parameter: parameter.id.clone(), recipe_position: position, native_root: None,
+                    role: if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some()) { candidate_call::FormalRole::Computation } else { candidate_call::FormalRole::Value },
+                    entry_effect: None,
                     scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
@@ -394,13 +401,22 @@ impl ConstraintBatch {
                                 }));
                             }
                             if let Some(annotation) = &parameter.annotation {
+                                let annotation = Arc::new(annotation.clone());
+                                if annotation.ty.effects.is_some() {
+                                    let registration = *formal_registrations.get(&parameter.id).ok_or_else(invalid)?;
+                                    push(&mut actions, Action::FormalEntry { registration, annotation: Arc::clone(&annotation), occurrence: expr.occurrence.clone(), scope: self.candidate_calls.formals[registration].scope.clone() })?;
+                                    if annotation.ty.effects.as_ref().is_some_and(|row| !row.variables.is_empty()) {
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                                    }
+                                }
                                 for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
                                 self.prepare_source_annotation_primitives(&annotation.ty)?;
                                 if annotation_contains_unit(&annotation.ty) {
                                     self.term_for_leaf(Leaf::UnitPositive)?;
                                     self.term_for_leaf(Leaf::UnitNegative)?;
                                 }
-                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::new(annotation.clone()), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())) })?;
+                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::clone(&annotation), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())) })?;
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
@@ -577,11 +593,24 @@ impl ConstraintBatch {
                         }
                         LocalSourceForm::Operation { .. } => return Err(invalid()),
                         LocalSourceForm::Name { resolution, .. } => {
-                            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
-                            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
-                            self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
-                            self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
-                            self.append_source_facts(start, &mut actions)?;
+                            let computation = match resolution {
+                                LocalSourceResolution::Parameter(parameter) => {
+                                    let registration = *formal_registrations.get(parameter).ok_or_else(invalid)?;
+                                    (self.candidate_calls.formals[registration].role == candidate_call::FormalRole::Computation).then_some(registration)
+                                }
+                                _ => None,
+                            };
+                            if let Some(registration) = computation {
+                                push(&mut actions, Action::FormalNameEffect { registration, occurrence: occurrence.clone(), effect: pos.effect })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                            } else {
+                                let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                                let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                                self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                                self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                                self.append_source_facts(start, &mut actions)?;
+                            }
                             match resolution {
                                 LocalSourceResolution::ModuleDef(target) => {
                                     push(uses, PendingDefinitionUse { parent_ordinal: parent.ordinal(), target, occurrence: occurrence.clone() })?;
@@ -657,7 +686,7 @@ impl ConstraintBatch {
                             self.retain_candidate_relation(occurrence, CandidateRelation::Group { child: endpoints[inner.ordinal() as usize], child_effect: child.effect, result: pos.value, result_effect: pos.effect })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
-                        LocalSourceForm::Lambda { body, .. } => {
+                        LocalSourceForm::Lambda { parameter, body } => {
                             self.candidate_local_lambda_effect(occurrence, pos.effect)?;
                             self.append_source_facts(start, &mut actions)?;
                             let body_index = body.ordinal() as usize;
@@ -666,11 +695,13 @@ impl ConstraintBatch {
                             self.lambda_recipes.try_reserve(1).map_err(|_| unavailable())?;
                             self.lambda_recipes.push(LambdaRecipe {
                                 occurrence: occurrence.clone(), parameter_position: lambdas[&index],
+                                formal_registration: Some(*formal_registrations.get(&parameter.id).ok_or_else(invalid)?),
                                 root_component: pos.value, body_value_endpoint: endpoints[body_index], body_effect_component: body.effect, lambda_effect_component: pos.effect,
                                 after_collected_fact: self.occurrences.len(),
                             });
-                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(3).ok_or_else(unavailable)?;
-                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(3).ok_or_else(unavailable)?;
+                            let count = if self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].role == candidate_call::FormalRole::Value { 3 } else { 2 };
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                             push(&mut actions, Action::Lambda(recipe))?;
                             continue;
                         }
@@ -767,11 +798,18 @@ impl InferenceSession {
             {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
+            let parameter = registration.recipe_position;
+            let role = registration.role;
             let root = self.candidate_endpoint(
-                CandidateEndpoint::Parameter(registration.recipe_position),
+                CandidateEndpoint::Parameter(parameter),
                 Polarity::Positive,
             )?;
+            let entry = if role == candidate_call::FormalRole::Computation {
+                let level = *self.batch.candidate_source.parameter_levels.get(&parameter).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                Some(self.fresh_effect_at_level(level)?)
+            } else { None };
             self.batch.candidate_calls.formals[index].native_root = Some(root);
+            self.batch.candidate_calls.formals[index].entry_effect = entry;
         }
         Ok(())
     }
@@ -877,6 +915,12 @@ impl InferenceSession {
             match action {
                 Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
+                Action::FormalEntry { registration, annotation, occurrence, scope } => self.candidate_formal_entry_annotation(*registration, annotation, occurrence, scope)?,
+                Action::FormalNameEffect { registration, occurrence, effect } => {
+                    let entry = self.batch.candidate_calls.formals[*registration].entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let name = self.live_components[*effect].ordinal;
+                    self.candidate_formal_effect_equal(occurrence, 1, entry, name)?;
+                }
                 Action::Fact(index) => self.admit_collected_fact(*index)?,
                 Action::Link { occurrence, endpoint, target } => {
                     let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;

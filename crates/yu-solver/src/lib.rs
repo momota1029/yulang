@@ -721,6 +721,8 @@ enum LambdaValueEndpoint {
 struct LambdaRecipe {
     occurrence: HirOccurrenceId,
     parameter_position: usize,
+    #[cfg(feature = "shadow-apply-candidate")]
+    formal_registration: Option<usize>,
     root_component: usize,
     body_value_endpoint: LambdaValueEndpoint,
     body_effect_component: usize,
@@ -1870,6 +1872,8 @@ impl ConstraintBatch {
         self.lambda_recipes.push(LambdaRecipe {
             occurrence,
             parameter_position,
+            #[cfg(feature = "shadow-apply-candidate")]
+            formal_registration: None,
             root_component,
             body_value_endpoint,
             body_effect_component,
@@ -11286,14 +11290,26 @@ impl InferenceSession {
             self.live_components[recipe.body_effect_component].ordinal,
         )?;
         let (argument_effect, return_effect) = if self.candidate_graph_enabled() {
-            // Bare source parameters force the argument at entry, including
-            // unused parameters. Lookup remains pure after that rebinding.
             let level = self.value_levels[parameter as usize];
+            #[cfg(feature = "shadow-apply-candidate")]
+            let registered = recipe.formal_registration.map(|index| &self.batch.candidate_calls.formals[index]);
+            #[cfg(feature = "shadow-apply-candidate")]
+            let force_entry = registered.is_none_or(|formal| formal.role == candidate_call::FormalRole::Value);
+            #[cfg(not(feature = "shadow-apply-candidate"))]
+            let force_entry = true;
+            #[cfg(feature = "shadow-apply-candidate")]
+            let entry = if let Some(formal) = registered.filter(|formal| formal.role == candidate_call::FormalRole::Computation) {
+                formal.entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?
+            } else { self.fresh_effect_at_level(level)? };
+            #[cfg(not(feature = "shadow-apply-candidate"))]
             let entry = self.fresh_effect_at_level(level)?;
             let returned = self.fresh_effect_at_level(level)?;
             let entry_positive = self.live_effect_term(Polarity::Positive, entry)?;
             let return_negative = self.live_effect_term(Polarity::Negative, returned)?;
             for (slot, lower) in [(3, entry_positive), (4, body_effect)] {
+                // Value entry forces even an unused argument. Computation
+                // entry is consumed through its body Name carrier instead.
+                if slot == 3 && !force_entry { continue; }
                 let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), slot);
                 let occurrence = ConstraintOccurrence {
                     cause: CauseId::for_occurrence(id.clone()),

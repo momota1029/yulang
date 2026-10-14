@@ -1125,6 +1125,7 @@ impl ConstraintBatch {
         self.lambda_recipes.push(LambdaRecipe {
             occurrence: occurrence.clone(),
             parameter_position,
+            formal_registration: None,
             root_component,
             body_value_endpoint: LambdaValueEndpoint::Component(body_value_component),
             body_effect_component,
@@ -1278,6 +1279,7 @@ impl ConstraintBatch {
         self.lambda_recipes.push(LambdaRecipe {
             occurrence: occurrence.clone(),
             parameter_position,
+            formal_registration: None,
             root_component: value_component,
             body_value_endpoint: value,
             body_effect_component: effect,

@@ -12,6 +12,8 @@ pub(super) struct State {
     pub names: Vec<FormalNameInput>,
     pub calls: Vec<ApplySourceInput>,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum FormalRole { Value, Computation }
 #[derive(Clone, Debug)]
 pub(super) struct FormalRegistrationInput {
     pub owner: DefinitionRootId,
@@ -20,6 +22,8 @@ pub(super) struct FormalRegistrationInput {
     pub scope: candidate_effect::AnnotationScope,
     pub recipe_position: usize,
     pub native_root: Option<Term>,
+    pub role: FormalRole,
+    pub entry_effect: Option<u32>,
 }
 #[derive(Clone, Debug)]
 pub(super) struct FormalNameInput {

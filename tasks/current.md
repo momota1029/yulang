@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Computation-formal routing implemented:** source-selected Computation
+  parameters now retain their entry effect through Name use in the body;
+  Value parameters keep entry forcing and pure lookup. The outer concrete
+  annotation imposes no closed cap. One independent semantic review and
+  allocation-contract delta review converged; two playground builds passed.
+  See the [routing checkpoint](../notes/progress/2026-10-15-computation-formal-native-routing.md)
+  for direct source observations and the adjacent-header/unit-formal HIR
+  limits. Catch removal remains OPEN. Scoped compose kernel/proof and its
+  actual native integration are active work, not completed source hygiene.
+
 - **Compose and scope release, latest user decision:** the selected type is
   `('a ['e] -> ['f] 'b) -> ('c -> ['e] 'a) -> 'c -> ['e?, 'f] 'b`.
   When `'e` occurs within output effect `'f`, remove the `'e` scope's
