@@ -78,6 +78,10 @@ consumer, live context filter, event receipt, or Catch residual activation is
 implemented. The next gate is the exact source-record-to-live-context consumer
 and its hygiene-theorem premises. Late-seed ordering, full transport and source
 coverage, H1/H2/U, and production cutover remain OPEN; H3/P remain disabled.
+The next consumer gate is active on baseline `2b95123d6`: one bounded
+`prover` owns the constructive note, while an independent `researcher` owns the
+source falsifier on a disjoint path. Both have zero executable-probe/Cargo
+budgets; one fresh `compiler_referee` will review the frozen pair.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.

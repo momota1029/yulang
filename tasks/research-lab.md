@@ -87,13 +87,13 @@ local `ResultEffect` law is in scope for its source correspondence.
 |---|---|---|---|
 | `implement_directional_intro_playground` | Reversible source constructor and symbolic playground observer for the selected original-upper `ResultEffect` law | done; `crates/yu-solver/src/{candidate_call.rs,candidate_source.rs,shadow_apply.rs}` and `tools/inference-playground/{README.md,src/main.rs,src/render.rs,tests/cli.rs}`; checkpoint `notes/progress/2026-10-15-directional-introduction-playground.md` | No `ProtectedVarAt`, live context consumer, Receive/Observe, or residual activation. M2 conformance passed; semantic major O(calls×bindings) fixed by retaining scope at registration; delta review closed. |
 | `primary_focused_verification` | Focused post-repair candidate, playground, wrapper/capture checks and owning compile check | done; serialized primary-owned Cargo checks | 4 Cargo processes: the directional filter ran 2 tests, followed by 1 playground CLI test, 1 wrapped/captured regression, and 1 solver check; no broad suite or measurements. |
-| `H1_D_context_consumer_bridge` | Next proof/source gate: actual consumer correspondence for the symbolic record and its hygiene premises | ready to dispatch on new disjoint note paths after checkpoint commit | Keep H1/H2/U OPEN and H3/P disabled. Stop on missing profile authority or consumer correspondence; do not treat a conditional lemma or metadata observer as live protection. |
+| `H1_D_context_consumer_bridge` | Constructive consumer derivation (`prover`) plus independent source-qualified falsification (`researcher`) for the symbolic record and its hygiene premises | active after checkpoint `2b95123d6`; disjoint leases `notes/theory/2026-10-15-directional-introduction-context-consumer.md` and `notes/progress/2026-10-15-directional-introduction-context-falsifier.md` | 20/15-minute static budgets; zero Cargo/probes/builds/measurements. One fresh `compiler_referee` after both outputs freeze. Keep H1/H2/U OPEN and H3/P disabled; stop on missing profile authority or consumer correspondence. |
 
 This slice closes only its symbolic-construction artifact. The parent source
-callback protection and residual-effect goal stays active. Next dispatch should
-pair a constructive source-to-consumer derivation with an independent
-source-qualified falsifier; it should not restart the completed H1-A/B/source
-join packets or activate P.
+callback protection and residual-effect goal stays active. The primary has
+launched the paired constructive source-to-consumer derivation and independent
+source-qualified falsifier on the frozen `2b95123d6` baseline. This dispatch
+does not restart completed H1-A/B/source-join packets or activate P.
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
 are zero. The primary has used ten bounded Cargo processes: one playground

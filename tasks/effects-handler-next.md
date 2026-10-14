@@ -214,13 +214,13 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - H3 の追加テスト候補: `crates/yu-solver/tests/candidate_handler_hygiene.rs`。
   既存 fixture の期待値を現出力に合わせて変更しない。
 
-### H1-D — live contextual consumer と hygiene bridge（次の gate）
+### H1-D — live contextual consumer と hygiene bridge（active）
 
-- 次の担当候補: `prover` と独立 `researcher`。構築証明と source-qualified falsification を別手法・別 output path で行う。primary は安定 baseline と厳密な lease を先に固定する。
+- 基準: `2b95123d644990352ca0a0e4c28c58680c9ffed3`。担当: `prover` と独立 `researcher`。構築証明と source-qualified falsification を別手法・別 output path で実行中。各 lease は `notes/theory/2026-10-15-directional-introduction-context-consumer.md` と `notes/progress/2026-10-15-directional-introduction-context-falsifier.md`。予算は 20 / 15 分の static-only、Cargo/probe/build/measurement は各 0。
 - 問い: `CandidateDirectionalIntroduction` の retained source record をどの actual context constructor が消費し、どの relation / Function field path で original `ResultEffect` に限定した live protection へ変換するか。source formal scope、upper occurrence、lifetime、receiver entry と既存 `ProtectedVarAt` / one-color hygiene theorem の active guard を一つの assignment でつなぐ。
 - 必須の反例候補: same-family だが arm coverage のない operation、provider output、別 Apply use、captured/returned callback、late Function demand。equality/canonical row から権限を推測しない。
 - 停止条件: 既存 authority が profile source / position を決めないと判明したら意味選択を推測せず、実際に不足する選択肢だけを primary に返す。live context の証拠が揃うまで H3/P を有効にしない。
-- 成果物候補: `notes/theory/2026-10-15-directional-introduction-context-consumer.md` と独立 falsifier。producer / consumer の actual code correspondence が示せない条件付き補題は親 H1 を閉じない。
+- 成果物を凍結後、fresh `compiler_referee` 一名が対になった evidence を独立レビューする。producer / consumer の actual code correspondence が示せない条件付き補題は親 H1 を閉じない。
 
 ## 5. 判定に使う最小の確認
 
