@@ -485,6 +485,93 @@ fn omitted_formal_structural_incidence_survives_source_capture_without_effect_au
     let unrelated = session.candidate_context_seed(task_pair_to_task(pair), &ConstraintOccurrenceId::new(lambda, 99), None).unwrap().unwrap();
     assert!(session.candidate_formal_argument_incidence(unrelated).is_none());
 }
+#[test]
+fn omitted_formal_source_domains_correlate_with_retained_extrusion_pairs() {
+    let mut session = session_with_source("my outer cb = { my inner x = cb x; inner }");
+    let owner = empty_bundle_owner(&session);
+    let initial_levels = session.value_levels.clone();
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    let formals: Vec<_> = context.origins.iter().filter_map(|origin| {
+        let construction = origin.formal.as_ref()?;
+        let ValueEndpointKey::ValueRow(domain) = construction.domain else { panic!("raw omitted domain"); };
+        let recipe = session.batch.lambda_recipes.iter()
+            .find(|recipe| recipe.occurrence == construction.source.lambda).unwrap();
+        assert_eq!(domain, session.parameter_live_base + recipe.parameter_position as u32);
+        assert_eq!(construction.source.lambda, *origin.occurrence.occurrence());
+        let local = session.batch.hir.local_source(&construction.source.owner).unwrap().unwrap();
+        let parameter = local.expressions().iter().find_map(|expression| {
+            if expression.occurrence != construction.source.lambda { return None; }
+            match &expression.form {
+                yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. } => Some(parameter),
+                _ => None,
+            }
+        }).unwrap();
+        assert!(parameter.annotation.is_none());
+        assert_eq!(parameter.id, construction.source.formal);
+        assert_eq!(parameter.source, construction.source.position);
+        let (child, _, _, _) = InferenceSession::positive_function_children(&session.store, construction.function).unwrap();
+        assert_eq!(child, construction.domain_child);
+        let TermView::LiveVariable(view) = session.store.term_view(child).unwrap() else { panic!("raw formal child"); };
+        assert_eq!(view.ordinal(), domain);
+        assert_eq!(view.kind(), ComponentKind::Value);
+        assert_eq!(view.polarity(), Polarity::Negative);
+        eprintln!("formal lambda={:?} parameter={:?} domain={domain} initial_level={} retained_level={} source_relation={:?}",
+            construction.source.lambda, parameter.id, initial_levels[domain as usize], session.value_levels[domain as usize], origin.relation);
+        Some((construction, domain))
+    }).collect();
+    assert!(!formals.is_empty());
+    let parents: Vec<_> = session.candidate_graph.as_ref().unwrap().intrusion.parents.iter()
+        .filter_map(|parent| match (parent.parent, parent.copy) {
+            (candidate_scheme::RowKey::Value(raw_parent), candidate_scheme::RowKey::Value(raw_copy)) =>
+                Some((parent, raw_parent, raw_copy)),
+            _ => None,
+        }).collect();
+    assert!(!parents.is_empty());
+    // Only raw same-session constructor identities establish these links.
+    // None leaves the missing correspondence unknown; it does not reject the
+    // source or establish callback protection, and equal representatives do
+    // not supply a formal identity. Levels here are snapshots, not copy-time
+    // parent levels (which the retained Parent does not record).
+    for (parent, raw_parent, raw_copy) in &parents {
+        assert_ne!(raw_parent, raw_copy);
+        assert!((*raw_parent as usize) < session.value_levels.len());
+        assert!((*raw_copy as usize) < session.value_levels.len());
+        let parent_formals: Vec<_> = formals.iter().filter(|(_, domain)| domain == raw_parent)
+            .map(|(construction, _)| &construction.source.formal).collect();
+        let copy_formals: Vec<_> = formals.iter().filter(|(_, domain)| domain == raw_copy)
+            .map(|(construction, _)| &construction.source.formal).collect();
+        eprintln!("copy parent={raw_parent} copy={raw_copy} polarity={:?} target={} occurrence={} comparison={:?} sources={:?} parent_formals={parent_formals:?} copy_formals={copy_formals:?}",
+            parent.polarity, parent.target, parent.occurrence, parent.comparison, parent.sources);
+    }
+    let argument_dependency_count = context.dependencies.iter().filter(|dependency| matches!(dependency,
+        Dependency::FunctionPort { field: FunctionField::Argument, .. })).count();
+    eprintln!("retained_function_argument_dependencies={argument_dependency_count}");
+    for dependency in &context.dependencies {
+        let Dependency::FunctionPort { child, parent: comparison, field: FunctionField::Argument, .. } = *dependency else { continue; };
+        let pair = context.relations[child.0 as usize].key.pair;
+        let incidence = session.candidate_formal_argument_incidence(child);
+        let formal = incidence.as_ref().map(|incidence| &incidence.construction.source.formal);
+        if let Some(incidence) = &incidence {
+            assert_eq!(incidence.argument, child);
+            assert!(context.dependencies.iter().any(|dependency| matches!(*dependency,
+                Dependency::FunctionPort { child: argument, parent, field: FunctionField::Argument, operation: FunctionPortOperation::Swap }
+                    if argument == incidence.argument && parent == incidence.comparison)));
+            assert!(formals.iter().any(|(construction, _)| std::ptr::eq(*construction, incidence.construction)));
+        }
+        // Parent.comparison retains a TypedPairKey, while the consumer has a
+        // RelationId. Equal pair keys can belong to distinct contextual/source
+        // relations: these candidate matches authenticate neither a unique
+        // comparison operation nor a FunctionPort consumer. That correspondence
+        // remains missing; zero retained Argument dependencies is not source rejection.
+        let comparison_pair = context.relations[comparison.0 as usize].key.pair;
+        let candidate_occurrences_by_pair_key: Vec<_> = parents.iter().filter(|(parent, _, _)| parent.comparison == Some(comparison_pair))
+            .map(|(parent, _, _)| parent.occurrence).collect();
+        let incidence_comparison = incidence.as_ref().map(|incidence| incidence.comparison);
+        eprintln!("argument={child:?} pair={pair:?} comparison={comparison:?} formal={formal:?} incidence_comparison={incidence_comparison:?} candidate_occurrences_by_pair_key={candidate_occurrences_by_pair_key:?}");
+    }
+}
+
 fn value(row: u32) -> ExtrusionEndpoint {
     ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row))
 }

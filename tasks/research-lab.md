@@ -54,16 +54,35 @@ position matrix remains outside every packet.
 
 | Job | Method / gate | State and exclusive output | Budget / next evidence |
 |---|---|---|---|
-| `generic_rigid_opening_prover` | Constructive native generation/propagation/extrusion invariant at Catch opening | running; `notes/theory/2026-10-15-catch-operation-rigid-opening-invariant.md` | 20-minute static pass; derive the bridge or identify its first missing constructor, including direct extrusion |
-| `generic_opening_counterexample` | Adversarial caller-specialization and direct-extrusion falsification | running; `notes/progress/2026-10-15-generic-opening-rigid-falsifier.md` | 15-minute static pass; minimized authentic witness or exact point where the candidate path is excluded |
-| `generic_opening_legacy_audit` | Direct-caller and source/legacy entrypoint correspondence | running; `notes/progress/2026-10-15-generic-opening-legacy-entry-audit.md` | 15-minute static pass; bounded caller inventory or a reachable alternate constructor |
-| `omitted_formal_extrusion_route` | Read-only source map for the H1 parent-copy/extrusion route | running; no write lease | Static only; locate the first retained or missing edge before captured FreshUse |
-| `shallow_catch_hygiene_bridge` | Constructive mapping from existing hygiene theorem premises to actual shallow-Catch owners | running; `notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md` | 20-minute static pass; apply supplied premises or report the first exact missing source constructor |
+| `generic_rigid_opening_prover` | Constructive native generation/propagation/extrusion invariant at Catch opening | done; frozen at `notes/theory/2026-10-15-catch-operation-rigid-opening-invariant.md`, checkpointed in `319d2766b`, independently reviewed as bounded evidence | 20-minute static pass; first missing constructor identified; generic theorem remains OPEN |
+| `generic_opening_counterexample` | Adversarial caller-specialization and direct-extrusion falsification | done; frozen at `notes/progress/2026-10-15-generic-opening-rigid-falsifier.md`, covered by the independent bounded-evidence review | 15-minute static pass; candidate-internal witness only |
+| `generic_opening_legacy_audit` | Direct-caller and source/legacy entrypoint correspondence | done; frozen at `notes/progress/2026-10-15-generic-opening-legacy-entry-audit.md`, covered by the independent bounded-evidence review | 15-minute static pass; private collection route found, no public source admission established |
+| `omitted_formal_extrusion_route` | Read-only source map for the H1 parent-copy/extrusion route | done; no write artifact | Static only; retained `raw5 -> raw11` at target level 1 cannot be outer `cb`'s level-1 raw domain. The CLI's RowKey ordinal and source Value label are separate ID spaces, so the exact copied formal remains unidentified. |
+| `shallow_catch_hygiene_bridge` | Constructive mapping from existing hygiene theorem premises to actual shallow-Catch owners | done; frozen at `notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md`, checkpointed in `1101c49a0`, independently reviewed as a bounded conditional bridge | 20-minute static pass; first missing premise remains source profile introduction |
+| `implement_h1_copy_correlation_probe` | Test-only same-session mapping from omitted formal domains to retained extrusion pairs | done; frozen in `crates/yu-solver/src/candidate_context_tests.rs::omitted_formal_source_domains_correlate_with_retained_extrusion_pairs`; M1 minor pair-key wording repair checked by primary | Focused test passed after repair; exact source-to-consumer correspondence remains OPEN |
 
-All Cargo, build, executable probe and measurement budgets for this wave are
-zero. The profile-position question blocks protection semantics and H3, not
-these independent structural/proof tasks. The primary integrates each frozen
-result against the pinned source before assigning a fresh review.
+Worker Cargo, build, executable-probe and measurement budgets for this wave
+are zero. The primary has used three bounded Cargo processes: one playground
+observation and two runs of the same focused test (before and after its
+comment/output-only review repair). The playground observation on
+`my outer cb = { my inner x = cb x; inner }` reports one call-tail event and
+four retained parent-copy pairs, including `raw5 -> raw11`, Negative, target
+level 1; its `RowKey` and Value labels do not authenticate `raw5`'s source
+identity. In one passing same-session test run, authentic omitted-formal
+constructors identified `raw9` as inner `x`'s domain at initial level 2 and
+`raw8` as outer `cb`'s domain at initial level 1. The run matched `raw9 ->
+raw10` as a positive copy at target 1 under a comparison whose lower endpoint
+is `raw8`; `raw5 -> raw11` matched neither recorded omitted-formal domain. The
+exact source identity of `raw5` remains unknown, and this source case retained
+zero FunctionPort Argument dependencies in the inspected context list. The
+reviewer found one minor wording issue: pair-key candidates do not authenticate
+a unique comparison relation. The test now states this limit and reports the
+zero consumer count; the primary reran the exact focused test successfully.
+Neither result establishes protection or source rejection. There were zero
+timing/resource samples and no broad suite. The independently reviewed hygiene
+bridge and generic-opening evidence set had no blocking/major findings, within
+their bounded scopes. The profile-position decision still blocks protection
+semantics and H3, not independent structural/proof tasks.
 
 ## Current executable checkpoint, 2026-10-14
 

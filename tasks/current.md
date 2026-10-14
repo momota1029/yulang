@@ -31,13 +31,29 @@ scope. Exact evidence is in the
 H1/H2/U remain OPEN and H3 remains disabled. See the current handoff for its
 exact lease and limits.
 
+A test-only same-session follow-up correlated omitted-formal constructors with
+retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
+One run matched the inner `x` domain to a positive copy at target level 1; the
+outer `cb` domain remained at level 1, while the negative copy's raw parent
+matched neither omitted-formal domain. The exact owner of that row remains
+unknown, and the session retained no FunctionPort Argument dependency. This
+does not identify a callback profile or establish protection. The focused test
+and independent delta review are recorded in the
+[copy-correlation checkpoint](../notes/progress/2026-10-15-omitted-formal-copy-correlation.md).
+A bounded bridge to the existing `lem:one-color-hygiene` was also independently
+reviewed with no findings; it preserves the lemma's premises and locates source
+profile introduction as the first unsupplied premise. H1/H2/U remain OPEN and
+H3/P stays disabled.
+
 Generic operation opening progressed independently. The constructive
-characterization and source audit are committed and independently reviewed as
-bounded obstructions: `monomorphic_signature` excludes generic arms before
-collection, and the native rigid-opening/request-witness constructor remains
-missing. No generic theorem or implementation gate closed. The exact artifacts
-are [`generic opening construction`](../notes/theory/2026-10-15-generic-operation-rigid-opening-construction.md)
-and [`generic opening source audit`](../notes/progress/2026-10-15-generic-opening-source-audit.md).
+characterization, source audit, candidate-internal falsifier, private-entry
+audit and native opening invariant are now independently reviewed as bounded
+evidence with no findings. Normal candidate admission still excludes generic
+arms before collection; a private collection route reaches flexible rows but
+does not supply the joint request witness or rigid opening. This establishes
+neither generic source acceptance nor public production bypass. No generic
+theorem or implementation gate closed. The exact evidence set is linked from
+the [current generic-opening checkpoint](../notes/theory/2026-10-15-catch-operation-rigid-opening-invariant.md).
 
 ## Current direction: direct user clarification, 2026-10-14
 
@@ -15383,12 +15399,33 @@ applied. Earlier extrusion and other derived routes remain outside the
 certificate. The omitted-formal protection-position matrix remains pending;
 H1/H2/U stay OPEN and H3/P disabled.
 
+The follow-up [copy-correlation probe](../notes/progress/2026-10-15-omitted-formal-copy-correlation.md)
+is test-only. One exact run tied the inner omitted formal to raw domain row 9
+and a positive parent/copy pair `9 -> 10`; outer `cb`'s raw domain was row 8
+and no retained pair began at it. A negative pair `5 -> 11` matched neither
+omitted-formal domain. These are observed identities for one run, not fixed
+numeric expectations. The session retained zero FunctionPort Argument
+dependencies, so the producer/copy-to-consumer correspondence remains OPEN.
+Independent `compiler_referee` review found one minor comparison-identity
+wording issue; the primary changed it to candidate-only pair-key matching and
+reran the focused test successfully. This result does not resolve the profile
+matrix or activate H3/P.
+
+The [shallow Catch hygiene constructor bridge](../notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md)
+is independently reviewed with no findings as a bounded conditional
+crosswalk. It preserves the existing hygiene lemma's guard, family, bracketing
+and entry-snapshot premises. The first missing input remains source
+introduction of an omitted-callback profile at its applicable typed positions,
+tied to authentic Argument incidence. Receive/Observe, activity, guard
+realization and full Call remain separate open premises.
+
 Generic rigid opening advanced independently. The constructive note and source
-audit are committed and independently reviewed as bounded obstruction records.
+audit, falsifier, private-entry audit and Catch-opening invariant are now
+independently reviewed as bounded obstruction records.
 `candidate_source::monomorphic_signature` excludes generic arms before
-collection; the native rigid-opening and request-witness constructor is absent
-at the inspected bridge. The theorem, generic implementation, lifecycle, full
-Call, hygiene, soundness, principality and F5 remain OPEN. Next evidence:
-establish the native generation/propagation/extrusion invariant at Catch
-opening, including direct-extrusion coverage, without using a guessed
-omitted-formal profile matrix.
+collection. The private route reaches flexible-row construction without a
+joint retained-request witness or rigid opening. The candidate-internal
+falsifier and direct-extrusion audit do not establish source acceptance or
+unsoundness. The theorem, generic implementation, lifecycle, full Call,
+hygiene, soundness, principality and F5 remain OPEN. No generic implementation
+or cutover follows from this bounded evidence.
