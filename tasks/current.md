@@ -33,10 +33,10 @@ complete language inference are not certified. Next implementation work is to
 extend the supported source construction and connect the existing hygiene
 results to their executable boundary constructors and consumers.
 
-The private LocalSource candidate currently has no If/Boolean/String forms;
-the user's branch-union example needs source construction before it can be
-an executable candidate check. No constant-folding prerequisite was found in
-the inspected path.
+The private LocalSource candidate now constructs If/Boolean/String forms.
+The user's branch-union example runs through the existing colon grammar as
+`my example = if true: 1 else: "str"`; both primitive bounds survive and a
+later Int-only consumer conflicts. No condition evaluation is introduced.
 
 The bounded `prover` reuse lookup identifies the original
 `lem:one-color-hygiene` in frozen Oracle `a58eefc31` at
@@ -105,6 +105,33 @@ on downstream `yu-core`, already present in baseline `e450c1836`'s
 `crates/yu-solver/Cargo.toml`. Resolving that separate test dependency needs its
 own solver/core test-layout review; this playground does not alter it. The full
 workspace test suite and general source reuse-observation witness remain unverified.
+
+## 2026-10-14 conditional source construction
+
+The next executable slice adds distinct Bool/Str primitives through HIR,
+candidate capture/freshening and shared canonical transport, plus explicit-else
+If/elsif generation. Every condition is constrained to Bool, every branch to
+one fresh result, and every child computation effect to the conditional effect.
+The [conditional checkpoint](../notes/progress/2026-10-14-conditional-source-playground.md)
+records focused checks, M2 semantic/conformance review and its repaired
+occurrence ownership. Each child now owns fixed constraint slots; the accidental
+51-arm representation cap is removed, with a 62-arm source regression.
+
+The [finite-branch join derivation](../notes/theory/2026-10-14-conditional-constraint-join.md)
+connects the shared-assignment least-upper-bound law to these actual
+constructors and native admissions. Fresh independent `compiler_referee`
+review passed with no findings; the primary accepts this local theorem and
+bounded source/action bridge. Global soundness/principality and effects/hygiene
+are separate obligations.
+Existing hygiene constructor/consumer correspondence remains the next independent
+implementation seam, using the previously established protection theorem.
+
+Definition-owned Value references traverse all new children. The separate
+[If-result incidence proposal](../notes/design/2026-10-14-conditional-value-references.md)
+has predecision conformance review but awaits the user's selection of condition
+plus branches versus branches only, including the proposed direct-If Apply
+extension. Current fragments retain their existing boundary. No implementation
+authority or conditional-result SCC completeness is inferred from this draft.
 
 ## 2026-10-12 fixed-term H executable construction
 

@@ -89,7 +89,11 @@ pub(super) enum Atom {
     IntPositive,
     IntNegative,
     UnitPositive,
+    BoolPositive,
+    StrPositive,
     UnitNegative,
+    BoolNegative,
+    StrNegative,
     EffectBottom,
     EmptyEffect,
 }
@@ -392,6 +396,16 @@ impl<'a> Capture<'a> {
             {
                 Endpoint::Value(ValueEndpointKey::UnitPositive, polarity)
             }
+            TermView::Leaf(Leaf::BoolPositive)
+                if kind == ComponentKind::Value && polarity == Polarity::Positive =>
+            {
+                Endpoint::Value(ValueEndpointKey::BoolPositive, polarity)
+            }
+            TermView::Leaf(Leaf::StrPositive)
+                if kind == ComponentKind::Value && polarity == Polarity::Positive =>
+            {
+                Endpoint::Value(ValueEndpointKey::StrPositive, polarity)
+            }
             TermView::Leaf(Leaf::IntNegative)
                 if kind == ComponentKind::Value && polarity == Polarity::Negative =>
             {
@@ -401,6 +415,16 @@ impl<'a> Capture<'a> {
                 if kind == ComponentKind::Value && polarity == Polarity::Negative =>
             {
                 Endpoint::Value(ValueEndpointKey::UnitNegative, polarity)
+            }
+            TermView::Leaf(Leaf::BoolNegative)
+                if kind == ComponentKind::Value && polarity == Polarity::Negative =>
+            {
+                Endpoint::Value(ValueEndpointKey::BoolNegative, polarity)
+            }
+            TermView::Leaf(Leaf::StrNegative)
+                if kind == ComponentKind::Value && polarity == Polarity::Negative =>
+            {
+                Endpoint::Value(ValueEndpointKey::StrNegative, polarity)
             }
             TermView::Leaf(Leaf::EffectBottomPositive)
                 if kind == ComponentKind::Effect && polarity == Polarity::Positive =>
@@ -436,8 +460,12 @@ impl<'a> Capture<'a> {
             }
             Endpoint::Value(V::IntPositive, Polarity::Positive) => Node::Leaf(Atom::IntPositive),
             Endpoint::Value(V::UnitPositive, Polarity::Positive) => Node::Leaf(Atom::UnitPositive),
+            Endpoint::Value(V::BoolPositive, Polarity::Positive) => Node::Leaf(Atom::BoolPositive),
+            Endpoint::Value(V::StrPositive, Polarity::Positive) => Node::Leaf(Atom::StrPositive),
             Endpoint::Value(V::IntNegative, Polarity::Negative) => Node::Leaf(Atom::IntNegative),
             Endpoint::Value(V::UnitNegative, Polarity::Negative) => Node::Leaf(Atom::UnitNegative),
+            Endpoint::Value(V::BoolNegative, Polarity::Negative) => Node::Leaf(Atom::BoolNegative),
+            Endpoint::Value(V::StrNegative, Polarity::Negative) => Node::Leaf(Atom::StrNegative),
             Endpoint::Effect(E::BottomPositive, Polarity::Positive) => {
                 Node::Leaf(Atom::EffectBottom)
             }
@@ -1125,8 +1153,12 @@ impl InferenceSession {
                         Atom::NegativeBottom => self.negative_bottom_term()?,
                         Atom::IntPositive => self.batch.collected_leaf_term(Leaf::IntPositive),
                         Atom::UnitPositive => self.batch.collected_leaf_term(Leaf::UnitPositive),
+                        Atom::BoolPositive => self.batch.collected_leaf_term(Leaf::BoolPositive),
+                        Atom::StrPositive => self.batch.collected_leaf_term(Leaf::StrPositive),
                         Atom::IntNegative => self.batch.collected_leaf_term(Leaf::IntNegative),
                         Atom::UnitNegative => self.batch.collected_leaf_term(Leaf::UnitNegative),
+                        Atom::BoolNegative => self.batch.collected_leaf_term(Leaf::BoolNegative),
+                        Atom::StrNegative => self.batch.collected_leaf_term(Leaf::StrNegative),
                         Atom::EffectBottom => {
                             self.batch.collected_leaf_term(Leaf::EffectBottomPositive)
                         }

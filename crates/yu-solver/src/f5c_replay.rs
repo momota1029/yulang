@@ -354,6 +354,8 @@ pub(super) fn replay_flat(
                             PositiveNode::Bottom => push_positive!(PositiveNode::Bottom),
                             PositiveNode::Int => push_positive!(PositiveNode::Int),
                             PositiveNode::Unit => push_positive!(PositiveNode::Unit),
+                            PositiveNode::Bool => push_positive!(PositiveNode::Bool),
+                            PositiveNode::Str => push_positive!(PositiveNode::Str),
                             PositiveNode::Variable(owner)
                                 if !protected.contains(&owner)
                                     && positive_only.contains(&owner) =>
@@ -420,6 +422,8 @@ pub(super) fn replay_flat(
                             NegativeNode::Bottom => push_negative!(NegativeNode::Bottom),
                             NegativeNode::Int => push_negative!(NegativeNode::Int),
                             NegativeNode::Unit => push_negative!(NegativeNode::Unit),
+                            NegativeNode::Bool => push_negative!(NegativeNode::Bool),
+                            NegativeNode::Str => push_negative!(NegativeNode::Str),
                             NegativeNode::Variable(owner)
                                 if !protected.contains(&owner)
                                     && negative_only.contains(&owner) =>
@@ -778,6 +782,8 @@ fn replay<'meter>(
                     }
                     F5cPositive::Int => push_value!(F5cWalkValue::Positive(F5cPositive::Int, true)),
                     F5cPositive::Unit => push_value!(F5cWalkValue::Positive(F5cPositive::Unit, true)),
+                    F5cPositive::Bool => push_value!(F5cWalkValue::Positive(F5cPositive::Bool, true)),
+                    F5cPositive::Str => push_value!(F5cWalkValue::Positive(F5cPositive::Str, true)),
                     F5cPositive::Variable(row) => {
                         push_value!(F5cWalkValue::Positive(F5cPositive::Variable(*row), true))
                     }
@@ -820,6 +826,8 @@ fn replay<'meter>(
                     }
                     F5cNegative::Int => push_value!(F5cWalkValue::Negative(F5cNegative::Int, true)),
                     F5cNegative::Unit => push_value!(F5cWalkValue::Negative(F5cNegative::Unit, true)),
+                    F5cNegative::Bool => push_value!(F5cWalkValue::Negative(F5cNegative::Bool, true)),
+                    F5cNegative::Str => push_value!(F5cWalkValue::Negative(F5cNegative::Str, true)),
                     F5cNegative::Variable(row) => {
                         push_value!(F5cWalkValue::Negative(F5cNegative::Variable(*row), true))
                     }

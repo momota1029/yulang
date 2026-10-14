@@ -117,9 +117,11 @@ not repeated for record-only updates.
 
 ## Remaining implementation and integration
 
-The current carrier lacks If/Boolean/String/arithmetic construction. The user's
-`if true { 1 } else { "str" }` example therefore remains the next source
-extension, with both branches generating constraints. The existing hygiene
+At this CLI checkpoint the carrier lacked If/Boolean/String/arithmetic
+construction. The subsequent [conditional checkpoint](2026-10-14-conditional-source-playground.md)
+implements the user's heterogeneous-branch example using the existing colon
+grammar, with both branches generating constraints. Arithmetic remains outside
+the carrier. The existing hygiene
 theorem still needs its executable permission/protection constructor and
 consumer correspondence. Neither gap is hidden by successful playground output.
 

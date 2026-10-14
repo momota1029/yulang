@@ -517,7 +517,11 @@ impl GraphRecord {
             TermRecord::Leaf(Leaf::IntPositive) => (ComponentKind::Value, Polarity::Positive),
             TermRecord::Leaf(Leaf::IntNegative) => (ComponentKind::Value, Polarity::Negative),
             TermRecord::Leaf(Leaf::UnitPositive) => (ComponentKind::Value, Polarity::Positive),
+            TermRecord::Leaf(Leaf::BoolPositive) => (ComponentKind::Value, Polarity::Positive),
+            TermRecord::Leaf(Leaf::StrPositive) => (ComponentKind::Value, Polarity::Positive),
             TermRecord::Leaf(Leaf::UnitNegative) => (ComponentKind::Value, Polarity::Negative),
+            TermRecord::Leaf(Leaf::BoolNegative) => (ComponentKind::Value, Polarity::Negative),
+            TermRecord::Leaf(Leaf::StrNegative) => (ComponentKind::Value, Polarity::Negative),
             TermRecord::Leaf(Leaf::EffectBottomPositive) => {
                 (ComponentKind::Effect, Polarity::Positive)
             }

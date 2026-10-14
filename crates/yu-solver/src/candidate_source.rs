@@ -21,6 +21,7 @@ pub(super) enum Action {
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     Fact(usize),
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
+    ValueConstraint { occurrence: HirOccurrenceId, slot: u8, endpoint: CandidateEndpoint, upper: Term },
     Candidate(usize),
     Lambda(usize),
     Module(HirOccurrenceId),
@@ -167,6 +168,19 @@ enum Work {
     Initializer(usize, u32),
 }
 impl ConstraintBatch {
+    fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
+        match &ty.value {
+            yu_hir::shadow::SourceAnnotationValue::Bool => { self.term_for_leaf(Leaf::BoolPositive)?; self.term_for_leaf(Leaf::BoolNegative)?; }
+            yu_hir::shadow::SourceAnnotationValue::Str => { self.term_for_leaf(Leaf::StrPositive)?; self.term_for_leaf(Leaf::StrNegative)?; }
+            yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => {
+                self.prepare_source_annotation_primitives(argument)?;
+                self.prepare_source_annotation_primitives(result)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     pub(super) fn emit_candidate_source<'a>(
         &mut self,
         source: &'a LocalSource,
@@ -265,6 +279,13 @@ impl ConstraintBatch {
                     self.candidate_source.component_levels.insert(pos.effect, level);
                     push(&mut work, Work::Finish(index, level))?;
                     match &expr.form {
+                        LocalSourceForm::If { arms, else_branch } => {
+                            push(&mut work, Work::Visit(else_branch.ordinal() as usize, level))?;
+                            for (condition, body) in arms.iter().rev() {
+                                push(&mut work, Work::Visit(body.ordinal() as usize, level))?;
+                                push(&mut work, Work::Visit(condition.ordinal() as usize, level))?;
+                            }
+                        }
                         LocalSourceForm::Apply { callee, argument, .. } => {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level))?;
@@ -278,6 +299,7 @@ impl ConstraintBatch {
                             lambdas.insert(index, position);
                             if let Some(annotation) = &parameter.annotation {
                                 for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                                self.prepare_source_annotation_primitives(&annotation.ty)?;
                                 if annotation_contains_unit(&annotation.ty) {
                                     self.term_for_leaf(Leaf::UnitPositive)?;
                                     self.term_for_leaf(Leaf::UnitNegative)?;
@@ -319,6 +341,7 @@ impl ConstraintBatch {
                     self.append_source_facts(start, &mut actions)?;
                     if let Some(annotation) = &binding.annotation {
                         for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                        self.prepare_source_annotation_primitives(&annotation.ty)?;
                         if annotation_contains_unit(&annotation.ty) {
                             self.term_for_leaf(Leaf::UnitPositive)?;
                             self.term_for_leaf(Leaf::UnitNegative)?;
@@ -336,11 +359,12 @@ impl ConstraintBatch {
                     let occurrence = &expr.occurrence;
                     let start = self.occurrences.len();
                     match &expr.form {
-                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit => {
-                            let (positive_leaf, negative_leaf) = if matches!(&expr.form, LocalSourceForm::Unit) {
-                                (Leaf::UnitPositive, Leaf::UnitNegative)
-                            } else {
-                                (Leaf::IntPositive, Leaf::IntNegative)
+                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {
+                            let (positive_leaf, negative_leaf) = match &expr.form {
+                                LocalSourceForm::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
+                                LocalSourceForm::Boolean(_) => (Leaf::BoolPositive, Leaf::BoolNegative),
+                                LocalSourceForm::String(_) => (Leaf::StrPositive, Leaf::StrNegative),
+                                _ => (Leaf::IntPositive, Leaf::IntNegative),
                             };
                             let positive = self.term_for_leaf(positive_leaf)?;
                             let negative = self.term_for_leaf(negative_leaf)?;
@@ -351,9 +375,34 @@ impl ConstraintBatch {
                             self.emit(occurrence.clone(), 2, bottom, self.component_term_at(pos.effect))?;
                             self.emit(occurrence.clone(), 3, self.component_term_at(pos.effect), empty)?;
                         }
+                        LocalSourceForm::If { arms, else_branch } => {
+                            // Direct children have unique source occurrences in the HIR tree.
+                            // Their parent constraints use slots separate from their own constructors.
+                            let boolean = self.term_for_leaf(Leaf::BoolNegative)?;
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            for (condition, body) in arms {
+                                let condition_index = condition.ordinal() as usize;
+                                let body_index = body.ordinal() as usize;
+                                let condition_occurrence = &source.expressions()[condition_index].occurrence;
+                                let body_occurrence = &source.expressions()[body_index].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: condition_occurrence.clone(), slot: 50, endpoint: endpoints[condition_index], upper: boolean })?;
+                                push(&mut actions, Action::ValueConstraint { occurrence: body_occurrence.clone(), slot: 50, endpoint: endpoints[body_index], upper: result })?;
+                                self.emit(condition_occurrence.clone(), 51, self.component_term_at(positions[condition_index].effect), result_effect)?;
+                                self.emit(body_occurrence.clone(), 51, self.component_term_at(positions[body_index].effect), result_effect)?;
+                            }
+                            let else_index = else_branch.ordinal() as usize;
+                            let else_occurrence = &source.expressions()[else_index].occurrence;
+                            push(&mut actions, Action::ValueConstraint { occurrence: else_occurrence.clone(), slot: 50, endpoint: endpoints[else_index], upper: result })?;
+                            self.emit(else_occurrence.clone(), 51, self.component_term_at(positions[else_index].effect), result_effect)?;
+                            let value_count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(value_count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(value_count).ok_or_else(unavailable)?;
+                        }
                         LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration) } => {
                             self.term_for_leaf(Leaf::IntPositive)?;
                             self.term_for_leaf(Leaf::IntNegative)?;
+                            self.prepare_source_annotation_primitives(&declaration.signature)?;
                             if annotation_contains_unit(&declaration.signature) {
                                 self.term_for_leaf(Leaf::UnitPositive)?;
                                 self.term_for_leaf(Leaf::UnitNegative)?;
@@ -426,6 +475,7 @@ impl ConstraintBatch {
                             for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
                                 self.term_for_leaf(leaf)?;
                             }
+                            self.prepare_source_annotation_primitives(&annotation.ty)?;
                             if annotation_contains_unit(&annotation.ty) {
                                 self.term_for_leaf(Leaf::UnitPositive)?;
                                 self.term_for_leaf(Leaf::UnitNegative)?;
@@ -485,6 +535,7 @@ impl ConstraintBatch {
             for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
                 self.term_for_leaf(leaf)?;
             }
+            self.prepare_source_annotation_primitives(&annotation.ty)?;
             if annotation_contains_unit(&annotation.ty) {
                 self.term_for_leaf(Leaf::UnitPositive)?;
                 self.term_for_leaf(Leaf::UnitNegative)?;
@@ -670,6 +721,10 @@ impl InferenceSession {
                     let upper = self.batch.component_term_at(*target);
                     self.admit_candidate_value_link(occurrence, 30, lower, upper)?;
                 }
+                Action::ValueConstraint { occurrence, slot, endpoint, upper } => {
+                    let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;
+                    self.admit_candidate_value_link(occurrence, *slot, lower, *upper)?;
+                }
                 Action::Candidate(index) => { let recipe = self.batch.candidate_recipes[*index].clone(); self.admit_candidate_fact(&recipe)?; }
                 Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
                 Action::Module(occurrence) => {
@@ -762,4 +817,42 @@ mod local_self_recursion_tests {
         let candidate = crate::shadow_apply::CandidateInference::solve(hir).unwrap();
         assert!(candidate.candidate_conflicts().is_empty());
     }
+
+    #[test]
+    fn conditional_constraints_use_distinct_direct_child_occurrences() {
+        let mut text = String::from("my example = if true: 1");
+        for _ in 0..60 { text.push_str(" elsif false: 2"); }
+        text.push_str(" elsif false: \"str\" else: ()");
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "conditional-child-constraints", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let expression = &source.expressions()[source.body().ordinal() as usize];
+        let LocalSourceForm::If { arms, else_branch } = &expression.form else { panic!("conditional"); };
+        let children: HashSet<_> = arms.iter().flat_map(|(condition, body)| [condition, body])
+            .chain(std::iter::once(else_branch))
+            .map(|index| source.expressions()[index.ordinal() as usize].occurrence.clone()).collect();
+        assert_eq!(children.len(), arms.len() * 2 + 1);
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let actions = &batch.candidate_source.schedules[binding.definition_root()];
+        let values: Vec<_> = actions.iter().filter_map(|action| match action {
+            Action::ValueConstraint { occurrence, slot: 50, .. } => Some(occurrence.clone()),
+            _ => None,
+        }).collect();
+        let effects: Vec<_> = batch.occurrences.iter()
+            .filter(|fact| fact.id.local_slot() == 51)
+            .map(|fact| fact.id.occurrence().clone()).collect();
+        assert_eq!(values.len(), children.len());
+        assert_eq!(effects.len(), children.len());
+        assert_eq!(values.into_iter().collect::<HashSet<_>>(), children);
+        assert_eq!(effects.into_iter().collect::<HashSet<_>>(), children);
+        assert!(!children.contains(&expression.occurrence));
+    }
+
 }

@@ -156,6 +156,8 @@ fn candidate_scheme_tokens(view: yu_types::ClosedValueSchemeView<'_>) -> Vec<u64
                 P::Bottom => tokens.push(1),
                 P::Int => tokens.push(2),
                 P::Unit => tokens.push(14),
+                P::Bool => tokens.push(16),
+                P::Str => tokens.push(18),
                 P::Quantified(id) => {
                     tokens.push(3);
                     let next = quantifiers.len() as u64;
@@ -194,6 +196,8 @@ fn candidate_scheme_tokens(view: yu_types::ClosedValueSchemeView<'_>) -> Vec<u64
                 N::Bottom => tokens.push(8),
                 N::Int => tokens.push(9),
                 N::Unit => tokens.push(15),
+                N::Bool => tokens.push(17),
+                N::Str => tokens.push(19),
                 N::Quantified(id) => {
                     tokens.push(10);
                     let next = quantifiers.len() as u64;

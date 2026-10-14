@@ -77,6 +77,15 @@ impl Graph {
                 LocalSourceForm::Name { resolution, .. } => if let Some(value) = Self::resolved(resolution) {
                     let target = self.intern(value)?; self.edge(owner, target)?;
                 },
+                LocalSourceForm::If { arms, else_branch } => {
+                    let count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;
+                    work.try_reserve(count).map_err(|_| unavailable())?;
+                    work.push((else_branch.ordinal() as usize, owner));
+                    for (condition, body) in arms {
+                        work.push((condition.ordinal() as usize, owner));
+                        work.push((body.ordinal() as usize, owner));
+                    }
+                },
                 LocalSourceForm::Apply { callee, argument, .. } => {
                     work.try_reserve(2).map_err(|_| unavailable())?;
                     work.push((callee.ordinal() as usize, owner)); work.push((argument.ordinal() as usize, owner));

@@ -79,6 +79,8 @@ pub struct SourceAnnotationType {
 pub enum SourceAnnotationValue {
     Unit,
     Int,
+    Bool,
+    Str,
     Variable(Box<str>),
     Function {
         argument: Box<SourceAnnotationType>,
@@ -419,6 +421,12 @@ fn parse_type(
         {
             SourceAnnotationValue::Int
         }
+        [identifier] if identifier.kind() == SyntaxKind::Identifier && identifier.to_string() == "bool" => {
+            SourceAnnotationValue::Bool
+        }
+        [identifier] if identifier.kind() == SyntaxKind::Identifier && identifier.to_string() == "str" => {
+            SourceAnnotationValue::Str
+        }
         [variable] if variable.kind() == SyntaxKind::SigilIdentifier => {
             SourceAnnotationValue::Variable(variable.to_string().trim().to_owned().into_boxed_str())
         }
@@ -438,6 +446,14 @@ fn parse_type(
                 SyntaxKind::Identifier if head.to_string() == "int" => SourceAnnotationType {
                     effects,
                     value: SourceAnnotationValue::Int,
+                },
+                SyntaxKind::Identifier if head.to_string() == "bool" => SourceAnnotationType {
+                    effects,
+                    value: SourceAnnotationValue::Bool,
+                },
+                SyntaxKind::Identifier if head.to_string() == "str" => SourceAnnotationType {
+                    effects,
+                    value: SourceAnnotationValue::Str,
                 },
                 SyntaxKind::SigilIdentifier => SourceAnnotationType {
                     effects,

@@ -54,7 +54,10 @@ impl LocalSource {
                 .expressions
                 .iter()
                 .map(|expr| match &expr.form {
-                    LocalSourceForm::Integer(text) => text.len(),
+                    LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
+                    LocalSourceForm::If { arms, .. } => {
+                        arms.capacity() * std::mem::size_of::<(LocalSourceIndex, LocalSourceIndex)>()
+                    }
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len()
@@ -110,6 +113,12 @@ pub enum LocalSourceForm {
         resolution: source_annotation::SourceOperationResolution,
     },
     Integer(Box<str>),
+    Boolean(bool),
+    String(Box<str>),
+    If {
+        arms: Vec<(LocalSourceIndex, LocalSourceIndex)>,
+        else_branch: LocalSourceIndex,
+    },
     Name {
         spelling: Box<str>,
         resolution: LocalSourceResolution,
@@ -395,8 +404,14 @@ pub(super) fn form(
     };
     // Successful formation establishes that this actual root chain has the
     // same simple result without constructing a discarded associated tree.
-    let projection = crate::direct_atom(&body_chain)
-        .map_or(SimpleBodyProjection::Unsupported, SimpleBodyProjection::Atom);
+    let projection = if source.expressions().iter().any(|expr| {
+        matches!(expr.form, LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::If { .. })
+    }) {
+        SimpleBodyProjection::Unsupported
+    } else {
+        crate::direct_atom(&body_chain)
+            .map_or(SimpleBodyProjection::Unsupported, SimpleBodyProjection::Atom)
+    };
     Ok((source, projection))
 }
 impl Builder<'_> {
@@ -634,6 +649,17 @@ impl Builder<'_> {
             }
             SyntaxKind::IdentifierExpression => {
                 let spelling: Box<str> = node.text().to_string().into_boxed_str();
+                if !self.latest.contains_key(spelling.as_ref()) {
+                    let boolean = match spelling.as_ref() {
+                        "true" => Some(true),
+                        "false" => Some(false),
+                        _ => None,
+                    };
+                    if let Some(value) = boolean {
+                        self.set(index, &node, scope, LocalSourceForm::Boolean(value))?;
+                        return Ok(());
+                    }
+                }
                 let resolution = self
                     .latest
                     .get(spelling.as_ref())
@@ -661,6 +687,13 @@ impl Builder<'_> {
                 scope,
                 LocalSourceForm::Integer(node.text().to_string().into_boxed_str()),
             )?,
+            SyntaxKind::StringLiteral => {
+                if node.descendants().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
+                    return Err(invalid());
+                }
+                self.set(index, &node, scope, LocalSourceForm::String(node.text().to_string().into_boxed_str()))?;
+            }
+            SyntaxKind::IfExpression => self.conditional(node, index, scope)?,
             SyntaxKind::ParenthesizedExpression => {
                 if node.children_with_tokens().any(|element| {
                     matches!(
@@ -689,8 +722,58 @@ impl Builder<'_> {
                     Work::Expression(child, inner, scope),
                 )?;
             }
-            SyntaxKind::BracedStatementBlockExpression => self.block(node, index, scope)?,
+            SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope)?,
             _ => return Err(invalid()),
+        }
+        Ok(())
+    }
+    fn conditional(
+        &mut self,
+        node: SyntaxNode,
+        index: LocalSourceIndex,
+        scope: LocalSourceScope,
+    ) -> Result<(), HirAvailabilityError> {
+        let conditional_scope = LocalSourceScope::Expression(index.clone());
+        let mut arms = Vec::new();
+        let mut children = Vec::new();
+        let mut else_branch = None;
+        for arm in node.children() {
+            match arm.kind() {
+                SyntaxKind::IfArm if else_branch.is_none() => {
+                    let parts: Vec<_> = arm.children().collect();
+                    let [condition, body] = parts.as_slice() else { return Err(invalid()); };
+                    if condition.kind() != SyntaxKind::Condition
+                        || !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
+                    {
+                        return Err(invalid());
+                    }
+                    let condition_node = only_child(condition)?;
+                    if condition_node.kind() != SyntaxKind::OperatorChain { return Err(invalid()); }
+                    let condition_index = self.slot()?;
+                    let body_index = self.slot()?;
+                    push(&mut arms, (condition_index.clone(), body_index.clone()))?;
+                    push(&mut children, (condition_node, condition_index))?;
+                    push(&mut children, (body.clone(), body_index))?;
+                }
+                SyntaxKind::ElseArm if !arms.is_empty() && else_branch.is_none() => {
+                    let body = only_child(&arm)?;
+                    if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) {
+                        return Err(invalid());
+                    }
+                    let body_index = self.slot()?;
+                    else_branch = Some(body_index.clone());
+                    push(&mut children, (body, body_index))?;
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        let else_branch = else_branch.ok_or_else(invalid)?;
+        self.set(index, &node, scope, LocalSourceForm::If { arms, else_branch })?;
+        let depth = self.lexical.len();
+        // Every condition and body starts in the enclosing lexical environment.
+        for (child, child_index) in children.into_iter().rev() {
+            push(&mut self.work, Work::Restore(depth))?;
+            push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone()))?;
         }
         Ok(())
     }

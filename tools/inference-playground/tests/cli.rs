@@ -70,6 +70,74 @@ fn conflicts_exit_unsuccessfully_and_withhold_exports() {
 }
 
 #[test]
+fn constant_conditions_observe_both_branch_leaves() {
+    let source = include_str!("../examples/conditional-union.yu");
+    for source in [source.to_owned(), source.replace("if true:", "if false:")] {
+        let result = cli(&source);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let output = String::from_utf8(result.stdout).unwrap();
+        assert!(output.contains("definition mixed:"));
+        assert!(output.contains("IntPositive"));
+        assert!(output.contains("StrPositive"));
+        assert!(output.contains(" <: "));
+        assert!(output.contains("no principal-type"));
+    }
+}
+
+#[test]
+fn conditional_conflicts_withhold_all_cli_observations() {
+    let source = include_str!("../examples/conditional-conflict.yu");
+    for source in [source.to_owned(), source.replace("if true:", "if false:")] {
+        let result = cli(&source);
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(error.contains("candidate type conflicts"));
+        assert!(!error.contains("unsupported source"));
+        assert!(!error.contains("definition mixed:"));
+    }
+    let result = Command::new(env!("CARGO_BIN_EXE_yu-playground"))
+        .arg("--intrusion")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/examples/conditional-conflict.yu"
+        ))
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(result.stdout.is_empty());
+    let error = String::from_utf8(result.stderr).unwrap();
+    assert!(error.contains("candidate type conflicts"));
+    assert!(!error.contains("Retained intrusion state"));
+}
+
+#[test]
+fn boolean_and_string_consumers_accept_matching_literals() {
+    let result = cli("my bool_id (x:bool) = x; my str_id (x:str) = x; \
+         my boolean = bool_id false; my string = str_id \"str\"");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let output = String::from_utf8(result.stdout).unwrap();
+    let boolean = output
+        .split("definition boolean:\n")
+        .nth(1)
+        .unwrap()
+        .split("\ndefinition ")
+        .next()
+        .unwrap();
+    assert!(boolean.contains("BoolPositive"));
+    let string = output.split("definition string:\n").nth(1).unwrap();
+    assert!(string.contains("StrPositive"));
+}
+
+#[test]
 fn unsupported_source_is_distinct_from_conflicts() {
     let error = infer("my outer = { my value = value; value }", "unsupported.yu").unwrap_err();
     assert!(error.contains("unsupported source"));

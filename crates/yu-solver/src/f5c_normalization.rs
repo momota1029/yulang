@@ -70,6 +70,8 @@ enum NodeKind {
     PositiveBottom,
     PositiveInt,
     PositiveUnit,
+    PositiveBool,
+    PositiveStr,
     PositiveQuantified(u32),
     PositiveRecursive(u32),
     PositiveUnion { start: usize, len: usize },
@@ -78,6 +80,8 @@ enum NodeKind {
     NegativeBottom,
     NegativeInt,
     NegativeUnit,
+    NegativeBool,
+    NegativeStr,
     NegativeQuantified(u32),
     NegativeRecursive(u32),
     NegativeIntersection { start: usize, len: usize },
@@ -1212,6 +1216,8 @@ impl<'meter> Normalizer<'meter> {
                     F5cPositive::Bottom => self.push_leaf(NodeKind::PositiveBottom)?,
                     F5cPositive::Int => self.push_leaf(NodeKind::PositiveInt)?,
                     F5cPositive::Unit => self.push_leaf(NodeKind::PositiveUnit)?,
+                    F5cPositive::Bool => self.push_leaf(NodeKind::PositiveBool)?,
+                    F5cPositive::Str => self.push_leaf(NodeKind::PositiveStr)?,
                     F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     }
@@ -1271,6 +1277,8 @@ impl<'meter> Normalizer<'meter> {
                     F5cNegative::Bottom => self.push_leaf(NodeKind::NegativeBottom)?,
                     F5cNegative::Int => self.push_leaf(NodeKind::NegativeInt)?,
                     F5cNegative::Unit => self.push_leaf(NodeKind::NegativeUnit)?,
+                    F5cNegative::Bool => self.push_leaf(NodeKind::NegativeBool)?,
+                    F5cNegative::Str => self.push_leaf(NodeKind::NegativeStr)?,
                     F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     }
@@ -1408,6 +1416,8 @@ impl<'meter> Normalizer<'meter> {
             | NodeKind::NegativeBottom
             | NodeKind::NegativeInt
             | NodeKind::NegativeUnit
+            | NodeKind::NegativeBool
+            | NodeKind::NegativeStr
             | NodeKind::NegativeQuantified(_)
             | NodeKind::NegativeRecursive(_) => BuiltRef::Negative(id),
             _ => BuiltRef::Positive(id),
@@ -1879,6 +1889,8 @@ impl<'meter> Normalizer<'meter> {
                 NodeKind::PositiveBottom => BuiltValue::Positive(F5cPositive::Bottom),
                 NodeKind::PositiveInt => BuiltValue::Positive(F5cPositive::Int),
                 NodeKind::PositiveUnit => BuiltValue::Positive(F5cPositive::Unit),
+                NodeKind::PositiveBool => BuiltValue::Positive(F5cPositive::Bool),
+                NodeKind::PositiveStr => BuiltValue::Positive(F5cPositive::Str),
                 NodeKind::PositiveQuantified(ordinal) => {
                     BuiltValue::Positive(F5cPositive::Quantified(ordinal))
                 }
@@ -1927,6 +1939,8 @@ impl<'meter> Normalizer<'meter> {
                 NodeKind::NegativeBottom => BuiltValue::Negative(F5cNegative::Bottom),
                 NodeKind::NegativeInt => BuiltValue::Negative(F5cNegative::Int),
                 NodeKind::NegativeUnit => BuiltValue::Negative(F5cNegative::Unit),
+                NodeKind::NegativeBool => BuiltValue::Negative(F5cNegative::Bool),
+                NodeKind::NegativeStr => BuiltValue::Negative(F5cNegative::Str),
                 NodeKind::NegativeQuantified(ordinal) => {
                     BuiltValue::Negative(F5cNegative::Quantified(ordinal))
                 }
@@ -2000,6 +2014,8 @@ fn discriminator(kind: NodeKind) -> u32 {
         NodeKind::PositiveBottom => 0,
         NodeKind::PositiveInt => 1,
         NodeKind::PositiveUnit => 13,
+        NodeKind::PositiveBool => 15,
+        NodeKind::PositiveStr => 17,
         NodeKind::PositiveQuantified(_) => 2,
         NodeKind::PositiveRecursive(_) => 3,
         NodeKind::PositiveUnion { .. } => 4,
@@ -2008,6 +2024,8 @@ fn discriminator(kind: NodeKind) -> u32 {
         NodeKind::NegativeBottom => 7,
         NodeKind::NegativeInt => 8,
         NodeKind::NegativeUnit => 14,
+        NodeKind::NegativeBool => 16,
+        NodeKind::NegativeStr => 18,
         NodeKind::NegativeQuantified(_) => 9,
         NodeKind::NegativeRecursive(_) => 10,
         NodeKind::NegativeIntersection { .. } => 11,
@@ -3123,6 +3141,8 @@ fn collect_flat_member(
                     PositiveNode::Bottom => NodeKind::PositiveBottom,
                     PositiveNode::Int => NodeKind::PositiveInt,
                     PositiveNode::Unit => NodeKind::PositiveUnit,
+                    PositiveNode::Bool => NodeKind::PositiveBool,
+                    PositiveNode::Str => NodeKind::PositiveStr,
                     PositiveNode::Variable(_) => return Err(bad),
                     PositiveNode::Quantified(n) => NodeKind::PositiveQuantified(n),
                     PositiveNode::Recursive(n) => NodeKind::PositiveRecursive(n),
@@ -3179,6 +3199,8 @@ fn collect_flat_member(
                     NegativeNode::Bottom => NodeKind::NegativeBottom,
                     NegativeNode::Int => NodeKind::NegativeInt,
                     NegativeNode::Unit => NodeKind::NegativeUnit,
+                    NegativeNode::Bool => NodeKind::NegativeBool,
+                    NegativeNode::Str => NodeKind::NegativeStr,
                     NegativeNode::Variable(_) => return Err(bad),
                     NegativeNode::Quantified(n) => NodeKind::NegativeQuantified(n),
                     NegativeNode::Recursive(n) => NodeKind::NegativeRecursive(n),
@@ -3399,6 +3421,12 @@ fn rebuild_flat_member_with_map(
                     NodeKind::PositiveUnit => BuiltRef::Positive(
                         usize::try_from(output.positive(PositiveNode::Unit)?.0).map_err(|_| bad)?,
                     ),
+                    NodeKind::PositiveBool => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Bool)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::PositiveStr => BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Str)?.0).map_err(|_| bad)?,
+                    ),
                     NodeKind::PositiveQuantified(n) => BuiltRef::Positive(
                         usize::try_from(output.positive(PositiveNode::Quantified(n))?.0)
                             .map_err(|_| bad)?,
@@ -3419,6 +3447,12 @@ fn rebuild_flat_member_with_map(
                     ),
                     NodeKind::NegativeUnit => BuiltRef::Negative(
                         usize::try_from(output.negative(NegativeNode::Unit)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeBool => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Bool)?.0).map_err(|_| bad)?,
+                    ),
+                    NodeKind::NegativeStr => BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Str)?.0).map_err(|_| bad)?,
                     ),
                     NodeKind::NegativeQuantified(n) => BuiltRef::Negative(
                         usize::try_from(output.negative(NegativeNode::Quantified(n))?.0)

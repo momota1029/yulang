@@ -35,8 +35,8 @@ source witness for the reuse observations.
 
 This output describes retained state; it is not a chronological runtime trace.
 The examples in `tools/inference-playground/examples/` cover identity,
-nested recursion, effects, and a type conflict. The examples put top-level
-declarations on separate lines.
+nested recursion, effects, conditional bounds, and a type conflict. The
+examples put top-level declarations on separate lines.
 
 ## Read from standard input
 
@@ -67,11 +67,23 @@ distinct tool-cap error; no partial or truncated report is published.
 These are tool output and input limits. They do not set a source-language limit
 or a solver CPU-time bound.
 
-The current local source carrier cannot observe `if`, Boolean or string
-literals, or arithmetic. For example, `if true {1}else{"str"}` is unavailable
-to this carrier; that does not establish a language rejection. The playground
-also does not prove general solver properties. Treat a bounded observation as
-evidence about the displayed case only.
+The conditional example shows the bounds observed for both branches of one
+explicit-`else` conditional:
+
+```sh
+cargo run -q -p yu-playground -- tools/inference-playground/examples/conditional-union.yu
+```
+
+Its graph includes `IntPositive` and `StrPositive` bounds. Replacing `true`
+with `false` leaves both bounds in the observation. The output does not print
+a principal type. Conditional inference observations also do not certify that
+the conditional result has complete source Value-reference SCC adjacency; the
+result-incidence choice remains open.
+
+This carrier still does not observe arithmetic, omitted-`else` conditionals,
+or string interpolation. These are limits of the carrier, not Yulang language
+rejections. The playground also does not prove general solver properties.
+Treat a bounded observation as evidence about the displayed case only.
 
 Use the research loop from the
 [playground design](../../notes/design/2026-10-04-inference-research-playgrounds.md):

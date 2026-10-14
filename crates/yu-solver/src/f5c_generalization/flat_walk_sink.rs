@@ -330,6 +330,8 @@ impl F5cFlatWalkSink {
                                     PositiveNode::Bottom => positive!(DraftPositiveNode::Bottom),
                                     PositiveNode::Int => positive!(DraftPositiveNode::Int),
                                     PositiveNode::Unit => positive!(DraftPositiveNode::Unit),
+                                    PositiveNode::Bool => positive!(DraftPositiveNode::Bool),
+                                    PositiveNode::Str => positive!(DraftPositiveNode::Str),
                                     PositiveNode::Variable(row) => {
                                         positive!(DraftPositiveNode::Variable(row))
                                     }
@@ -373,6 +375,8 @@ impl F5cFlatWalkSink {
                                     NegativeNode::Bottom => negative!(DraftNegativeNode::Bottom),
                                     NegativeNode::Int => negative!(DraftNegativeNode::Int),
                                     NegativeNode::Unit => negative!(DraftNegativeNode::Unit),
+                                    NegativeNode::Bool => negative!(DraftNegativeNode::Bool),
+                                    NegativeNode::Str => negative!(DraftNegativeNode::Str),
                                     NegativeNode::Variable(row) => {
                                         negative!(DraftNegativeNode::Variable(row))
                                     }
@@ -1105,7 +1109,9 @@ impl F5cFlatWalkSink {
                         match (a, b) {
                             (PositiveNode::Bottom, PositiveNode::Bottom)
                             | (PositiveNode::Int, PositiveNode::Int)
-                            | (PositiveNode::Unit, PositiveNode::Unit) => {}
+                            | (PositiveNode::Unit, PositiveNode::Unit)
+                            | (PositiveNode::Bool, PositiveNode::Bool)
+                            | (PositiveNode::Str, PositiveNode::Str) => {}
                             (PositiveNode::Variable(a), PositiveNode::Variable(b))
                             | (PositiveNode::Quantified(a), PositiveNode::Quantified(b))
                             | (PositiveNode::Recursive(a), PositiveNode::Recursive(b))
@@ -1165,7 +1171,9 @@ impl F5cFlatWalkSink {
                             (NegativeNode::Top, NegativeNode::Top)
                             | (NegativeNode::Bottom, NegativeNode::Bottom)
                             | (NegativeNode::Int, NegativeNode::Int)
-                            | (NegativeNode::Unit, NegativeNode::Unit) => {}
+                            | (NegativeNode::Unit, NegativeNode::Unit)
+                            | (NegativeNode::Bool, NegativeNode::Bool)
+                            | (NegativeNode::Str, NegativeNode::Str) => {}
                             (NegativeNode::Variable(a), NegativeNode::Variable(b))
                             | (NegativeNode::Quantified(a), NegativeNode::Quantified(b))
                             | (NegativeNode::Recursive(a), NegativeNode::Recursive(b))
@@ -1332,6 +1340,16 @@ impl F5cFlatWalkSink {
                                     .memo
                                     .push_node(F5cSummaryNodeKind::PositiveUnit, incidence)?
                             ),
+                            PositiveNode::Bool => push_id!(
+                                generalizer
+                                    .memo
+                                    .push_node(F5cSummaryNodeKind::PositiveBool, incidence)?
+                            ),
+                            PositiveNode::Str => push_id!(
+                                generalizer
+                                    .memo
+                                    .push_node(F5cSummaryNodeKind::PositiveStr, incidence)?
+                            ),
                             PositiveNode::Variable(row) => push_id!(
                                 generalizer
                                     .memo
@@ -1387,6 +1405,16 @@ impl F5cFlatWalkSink {
                                 generalizer
                                     .memo
                                     .push_node(F5cSummaryNodeKind::NegativeUnit, incidence)?
+                            ),
+                            NegativeNode::Bool => push_id!(
+                                generalizer
+                                    .memo
+                                    .push_node(F5cSummaryNodeKind::NegativeBool, incidence)?
+                            ),
+                            NegativeNode::Str => push_id!(
+                                generalizer
+                                    .memo
+                                    .push_node(F5cSummaryNodeKind::NegativeStr, incidence)?
                             ),
                             NegativeNode::Variable(row) => push_id!(
                                 generalizer
@@ -1592,6 +1620,26 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
         match polarity {
             Polarity::Positive => self.positive(generalizer, PositiveNode::Unit, true),
             Polarity::Negative => self.negative(generalizer, NegativeNode::Unit, true),
+        }
+    }
+    fn bool(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
+        match polarity {
+            Polarity::Positive => self.positive(generalizer, PositiveNode::Bool, true),
+            Polarity::Negative => self.negative(generalizer, NegativeNode::Bool, true),
+        }
+    }
+    fn str(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
+        match polarity {
+            Polarity::Positive => self.positive(generalizer, PositiveNode::Str, true),
+            Polarity::Negative => self.negative(generalizer, NegativeNode::Str, true),
         }
     }
 

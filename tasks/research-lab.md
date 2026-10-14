@@ -28,11 +28,23 @@ The dependency graph check reports a pre-existing solver-to-core development
 dependency; no new prohibited edge was added. Measurements: zero. All worker
 leases are frozen/completed at integration; no proof/build job is left running.
 
-Next implementation is the missing If/Boolean/String source construction and
-existing hygiene constructor/consumer correspondence. Source-global event
-applicability, typing preservation and principality remain open. Reuse the
-accepted activation theorem; do not reopen it or select another conditional
-Call proof merely because the historical queue below lists one.
+The next [conditional source slice](../notes/progress/2026-10-14-conditional-source-playground.md)
+now implements If/Boolean/String with all branch constraints, distinct
+primitive transport and executable examples. Disjoint HIR/types/solver/source/
+playground leases are frozen. M2 compiler-referee and spec-auditor reviews
+closed the avoidable arm-count cap by using child-owned occurrence slots.
+A bounded prover bridges the finite-branch join law to actual emission and
+admission; fresh independent proof review passed and the primary consumed its
+local conclusions. The focused checks cover 138 cases including 28 type doc
+tests, plus warning-free owning/workspace builds. Timing measurements remain zero.
+
+If-result Value incidence awaits the narrow user choice in the reviewed
+[draft](../notes/design/2026-10-14-conditional-value-references.md); definition
+references already traverse every child. Existing hygiene constructor/consumer
+correspondence remains independent work. Source-global event applicability,
+typing preservation and principality remain open. Reuse the accepted activation
+theorem; do not reopen it or select another conditional Call proof merely
+because the historical queue below lists one.
 
 ## Historical first scheduling wave
 

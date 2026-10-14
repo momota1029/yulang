@@ -1034,6 +1034,8 @@ impl InferenceSession {
     fn candidate_formal_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
         if ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1 || (variance == Polarity::Negative && (!row.concrete.is_empty() || row.variables.len() != 1))) { return Err(exhausted()); }
         match &ty.value {
+            SourceAnnotationValue::Bool => Ok((self.batch.collected_leaf_term(Leaf::BoolPositive), self.batch.collected_leaf_term(Leaf::BoolNegative))),
+            SourceAnnotationValue::Str => Ok((self.batch.collected_leaf_term(Leaf::StrPositive), self.batch.collected_leaf_term(Leaf::StrNegative))),
             SourceAnnotationValue::Int => Ok((self.batch.collected_leaf_term(Leaf::IntPositive), self.batch.collected_leaf_term(Leaf::IntNegative))),
             SourceAnnotationValue::Unit => Ok((self.batch.collected_leaf_term(Leaf::UnitPositive), self.batch.collected_leaf_term(Leaf::UnitNegative))),
             SourceAnnotationValue::Variable(name) => {
@@ -1364,6 +1366,8 @@ impl InferenceSession {
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<Term, SolveAvailabilityError> {
         match &ty.value {
+            SourceAnnotationValue::Bool => Ok(self.batch.collected_leaf_term(if polarity == Polarity::Positive { Leaf::BoolPositive } else { Leaf::BoolNegative })),
+            SourceAnnotationValue::Str => Ok(self.batch.collected_leaf_term(if polarity == Polarity::Positive { Leaf::StrPositive } else { Leaf::StrNegative })),
             SourceAnnotationValue::Unit => {
                 Ok(self
                     .batch

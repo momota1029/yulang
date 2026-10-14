@@ -740,7 +740,11 @@ enum ValueEndpointKey {
     IntPositive,
     IntNegative,
     UnitPositive,
+    BoolPositive,
+    StrPositive,
     UnitNegative,
+    BoolNegative,
+    StrNegative,
     /// This ordinal is allocated by `InferenceSession`, never by collection.
     ValueRow(u32),
     PositiveFunction(Term),
@@ -3892,6 +3896,8 @@ impl Hash for FactKey {
 pub enum SolvedValue {
     Int,
     Unit,
+    Bool,
+    Str,
     Unknown,
     Never,
 }
@@ -3932,6 +3938,8 @@ pub enum ValueShape {
     Bottom,
     Int,
     Unit,
+    Bool,
+    Str,
     Function,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -11400,8 +11408,12 @@ impl InferenceSession {
         {
             TermView::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
             TermView::Leaf(Leaf::UnitPositive) => ValueEndpointKey::UnitPositive,
+            TermView::Leaf(Leaf::BoolPositive) => ValueEndpointKey::BoolPositive,
+            TermView::Leaf(Leaf::StrPositive) => ValueEndpointKey::StrPositive,
             TermView::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
             TermView::Leaf(Leaf::UnitNegative) => ValueEndpointKey::UnitNegative,
+            TermView::Leaf(Leaf::BoolNegative) => ValueEndpointKey::BoolNegative,
+            TermView::Leaf(Leaf::StrNegative) => ValueEndpointKey::StrNegative,
             TermView::Component(component) => {
                 debug_assert_eq!(component.kind(), ComponentKind::Value);
                 self.canonical_value(ValueEndpointKey::ValueRow(self.component_endpoint(term).ordinal))
@@ -13720,6 +13732,8 @@ impl InferenceSession {
             ValueShape::Int => 1,
             ValueShape::Function => 2,
             ValueShape::Unit => 3,
+            ValueShape::Bool => 4,
+            ValueShape::Str => 5,
         }
     }
 
@@ -14061,6 +14075,8 @@ impl InferenceSession {
         let lower = match key.lower {
             ValueEndpointKey::IntPositive => ValueShape::Int,
             ValueEndpointKey::UnitPositive => ValueShape::Unit,
+            ValueEndpointKey::BoolPositive => ValueShape::Bool,
+            ValueEndpointKey::StrPositive => ValueShape::Str,
             ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
             ValueEndpointKey::BottomPositive => ValueShape::Bottom,
             _ => return None,
@@ -14069,23 +14085,13 @@ impl InferenceSession {
             ValueEndpointKey::TopNegative => return None,
             ValueEndpointKey::IntNegative => ValueShape::Int,
             ValueEndpointKey::UnitNegative => ValueShape::Unit,
+            ValueEndpointKey::BoolNegative => ValueShape::Bool,
+            ValueEndpointKey::StrNegative => ValueShape::Str,
             ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
             ValueEndpointKey::BottomNegative => ValueShape::Bottom,
             _ => return None,
         };
-        matches!(
-            (lower, upper),
-            (ValueShape::Int, ValueShape::Bottom)
-                | (ValueShape::Int, ValueShape::Function)
-                | (ValueShape::Function, ValueShape::Bottom)
-                | (ValueShape::Function, ValueShape::Int)
-                | (ValueShape::Unit, ValueShape::Bottom)
-                | (ValueShape::Unit, ValueShape::Int)
-                | (ValueShape::Unit, ValueShape::Function)
-                | (ValueShape::Int, ValueShape::Unit)
-                | (ValueShape::Function, ValueShape::Unit)
-        )
-        .then_some((lower, upper))
+        (lower != ValueShape::Bottom && lower != upper).then_some((lower, upper))
     }
 
     fn report_incompatible(
@@ -15810,6 +15816,8 @@ impl InferenceSession {
             PositiveValueView::Bottom => Ok(F5cPositive::Bottom),
             PositiveValueView::Int => Ok(F5cPositive::Int),
             PositiveValueView::Unit => Ok(F5cPositive::Unit),
+            PositiveValueView::Bool => Ok(F5cPositive::Bool),
+            PositiveValueView::Str => Ok(F5cPositive::Str),
             PositiveValueView::Quantified(q) => Ok(F5cPositive::Quantified(q.ordinal())),
             PositiveValueView::Recursive(r) => Ok(F5cPositive::Recursive(r.ordinal())),
             PositiveValueView::Function {
@@ -15859,6 +15867,8 @@ impl InferenceSession {
             NegativeValueView::Bottom => Ok(F5cNegative::Bottom),
             NegativeValueView::Int => Ok(F5cNegative::Int),
             NegativeValueView::Unit => Ok(F5cNegative::Unit),
+            NegativeValueView::Bool => Ok(F5cNegative::Bool),
+            NegativeValueView::Str => Ok(F5cNegative::Str),
             NegativeValueView::Quantified(q) => Ok(F5cNegative::Quantified(q.ordinal())),
             NegativeValueView::Recursive(r) => Ok(F5cNegative::Recursive(r.ordinal())),
             NegativeValueView::Function {
@@ -16049,6 +16059,16 @@ impl InferenceSession {
                                 .push_part(self.batch.collected_leaf_term(Leaf::UnitPositive))?;
                             self.sample_instantiation_growth(scratch, grew)?;
                         }
+                        PositiveValueView::Bool => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::BoolPositive))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        PositiveValueView::Str => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::StrPositive))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
                         PositiveValueView::Quantified(q) => {
                             let row = *scratch
                                 .substitution
@@ -16179,6 +16199,16 @@ impl InferenceSession {
                         NegativeValueView::Unit => {
                             let grew = scratch
                                 .push_part(self.batch.collected_leaf_term(Leaf::UnitNegative))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Bool => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::BoolNegative))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Str => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::StrNegative))?;
                             self.sample_instantiation_growth(scratch, grew)?;
                         }
                         NegativeValueView::Quantified(q) => {
@@ -17083,6 +17113,8 @@ impl InferenceSession {
                 F5cPositive::Bottom => finalizer.positive_bottom(),
                 F5cPositive::Int => finalizer.positive_int(),
                 F5cPositive::Unit => finalizer.positive_unit(),
+                F5cPositive::Bool => finalizer.positive_bool(),
+                F5cPositive::Str => finalizer.positive_str(),
                 F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
                     Err(ClosedTypeFinalizeError::InvalidDraft)
                 }
@@ -17135,6 +17167,8 @@ impl InferenceSession {
                 F5cNegative::Bottom => finalizer.negative_bottom(),
                 F5cNegative::Int => finalizer.negative_int(),
                 F5cNegative::Unit => finalizer.negative_unit(),
+                F5cNegative::Bool => finalizer.negative_bool(),
+                F5cNegative::Str => finalizer.negative_str(),
                 F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
                     Err(ClosedTypeFinalizeError::InvalidDraft)
                 }
@@ -17348,6 +17382,14 @@ impl InferenceSession {
                         && value_row.exact_non_variable_uppers.contains(&ValueEndpointKey::UnitNegative)
                     {
                         SolvedValue::Unit
+                    } else if value_row.exact_non_variable_lowers.contains(&ValueEndpointKey::BoolPositive)
+                        && value_row.exact_non_variable_uppers.contains(&ValueEndpointKey::BoolNegative)
+                    {
+                        SolvedValue::Bool
+                    } else if value_row.exact_non_variable_lowers.contains(&ValueEndpointKey::StrPositive)
+                        && value_row.exact_non_variable_uppers.contains(&ValueEndpointKey::StrNegative)
+                    {
+                        SolvedValue::Str
                     } else {
                         SolvedValue::Unknown
                     },
@@ -17723,6 +17765,8 @@ impl SolvedModule {
         {
             PositiveValueView::Int => Ok(SolvedValue::Int),
             PositiveValueView::Unit => Ok(SolvedValue::Unit),
+            PositiveValueView::Bool => Ok(SolvedValue::Bool),
+            PositiveValueView::Str => Ok(SolvedValue::Str),
             PositiveValueView::Bottom => Ok(SolvedValue::Never),
             PositiveValueView::Quantified(_)
             | PositiveValueView::Recursive(_)
@@ -33566,4 +33610,38 @@ mod retained_drain_workspace_tests {
         assert_eq!((session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity()), capacities);
     }
 
+}
+
+#[cfg(test)]
+mod bool_str_primitive_tests {
+    use super::*;
+
+    #[test]
+    fn bool_str_constraints_preserve_distinct_primitive_shapes() {
+        let primitives = [
+            (ValueEndpointKey::IntPositive, ValueEndpointKey::IntNegative, ValueShape::Int),
+            (ValueEndpointKey::UnitPositive, ValueEndpointKey::UnitNegative, ValueShape::Unit),
+            (ValueEndpointKey::BoolPositive, ValueEndpointKey::BoolNegative, ValueShape::Bool),
+            (ValueEndpointKey::StrPositive, ValueEndpointKey::StrNegative, ValueShape::Str),
+        ];
+        for (lower, _, lower_shape) in primitives {
+            for (_, upper, upper_shape) in primitives {
+                let expected = (lower_shape != upper_shape).then_some((lower_shape, upper_shape));
+                assert_eq!(InferenceSession::incompatible_value_shapes(
+                    CanonicalValuePairKey { lower, upper }
+                ), expected);
+            }
+            assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+                lower, upper: ValueEndpointKey::TopNegative,
+            }), None);
+            assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+                lower, upper: ValueEndpointKey::BottomNegative,
+            }), Some((lower_shape, ValueShape::Bottom)));
+        }
+        for (_, upper, _) in primitives {
+            assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+                lower: ValueEndpointKey::BottomPositive, upper,
+            }), None);
+        }
+    }
 }

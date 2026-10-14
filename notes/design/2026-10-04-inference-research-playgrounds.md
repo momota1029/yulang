@@ -72,8 +72,11 @@ focused verification and independent code/resource reviews. The independently
 reviewed [activation correspondence theorem](../theory/2026-10-14-value-intrusion-activation-correspondence.md)
 establishes the actual bounded mechanism's invariants. Global source-event
 applicability, typing preservation and principality remain separate work.
-If/Boolean/String source construction is still absent from this carrier;
-extending it is implementation work, with no condition-evaluation prerequisite.
+The subsequent [conditional slice](../progress/2026-10-14-conditional-source-playground.md)
+adds If/Boolean/String source construction. Both branches contribute even for
+constant conditions; no condition evaluation precedes inference. The existing
+colon grammar is preserved. Conditional-result Value incidence remains the
+separate user decision in its [draft](2026-10-14-conditional-value-references.md).
 
 ## Historical structural work order
 

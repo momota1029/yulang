@@ -99,6 +99,14 @@ This index is a navigation aid. The listed source document remains authoritative
   equality consumption, immutable reuse ownership and rollback for the actual
   private mechanism. Source-global event applicability and typing/equality
   preservation remain open. The
+  [conditional source checkpoint](../progress/2026-10-14-conditional-source-playground.md)
+  adds actual If/Boolean/String construction and all-branch value/effect
+  constraints, with reviewed child-occurrence ownership. Its
+  [finite-branch join/source bridge](../theory/2026-10-14-conditional-constraint-join.md)
+  passed fresh independent proof review for its local value theorem and bounded
+  constructor/admission correspondence. The separate
+  [conditional-result Value incidence](2026-10-14-conditional-value-references.md)
+  is a reviewed Draft awaiting user selection, not implementation authority. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction
