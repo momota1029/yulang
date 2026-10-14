@@ -1,6 +1,6 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-14
+Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
@@ -9,10 +9,15 @@ Status: full objective remains active; selected source/projection theorems and b
 The user requested a near-term plan that Luna can continue executing. Start with
 [`effects-handler-next.md`](effects-handler-next.md), based on `343754251`:
 H1 source callback profile/live context, H2 lifecycle preservation, H3 authentic
-residual integration, H4 source-level hygiene coverage. H1 is next; these are
-planned assignments, not running workers or new semantic/implementation approval.
-The handoff includes exact owners, bounded packets, proof/implementation gates,
-focused checks and a restart prompt. Use this before the historical queue below.
+residual integration, H4 source-level hygiene coverage. H1-A and H1-B are now
+frozen, committed research artifacts; their independent review found no
+blocking or major findings. They do not close H1. A bounded implementation
+attempt made no code changes and located source-profile provenance loss in
+`candidate_scheme` Function reconstruction. The next action is a bounded
+constructive source-to-reconstruction-to-receipt proof. No carrier prototype
+is currently running; add only the smallest reversible instrumentation that
+the proof requires for source evidence. H3 remains disabled. See the latest
+checkpoint below and the updated handoff for exact evidence and owners.
 
 ## Current direction: direct user clarification, 2026-10-14
 
@@ -247,6 +252,35 @@ subtraction is installed. Next is the actual source callback-profile and live
 Function-port/context construction named in §6, reusing established hygiene
 results. Do not repeat a conditional proof that assumes this missing owner.
 Full hygiene, soundness, required principality and production gates remain OPEN.
+
+## 2026-10-15 callback profile and receipt handoff
+
+H1-A's source-to-native obstruction and H1-B's independent source
+discriminators are checkpointed in
+[`callback-profile-native-construction.md`](../notes/theory/2026-10-14-callback-profile-native-construction.md)
+and
+[`callback-profile-source-falsifier.md`](../notes/progress/2026-10-14-callback-profile-source-falsifier.md).
+The fresh compiler-referee review found no blocking or major issue. H1-A
+locates the absent transition from an omitted, still-unknown formal to a live
+typed protection context. H1-B confirms that native P tests family membership
+without operation-member coverage and that direct-formal hints miss alias and
+returned-callback routes. Neither note is theorem closure or an observed bad
+program result.
+
+The bounded H1 implementer made no changes. Its exact owner finding is that
+`candidate_scheme` reconstructs Functions from polarity and four child ports,
+losing the source Lambda/formal incidence before a later argument receipt;
+`candidate_function_port_admit` consequently receives no authenticated
+callback-boundary evidence. The selected next packet is a constructive proof
+of the source-profile → Function reconstruction/freshening → typed receipt
+correspondence, owned at formal/lambda formation, `candidate_scheme` capture
+and per-use reconstruction, and Function-port admission. This exact source
+bridge is now running under a bounded prover packet with output lease
+`notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md`. No carrier
+prototype is running; start only the exact reversible instrumentation needed
+by that proof packet. H1/H2/U remain OPEN; Catch residual subtraction, P
+activation, full Call, soundness, required principality, generic rigid opening
+and production/F5 cutover remain separate and open.
 
 ## 2026-10-12 fixed-term H executable construction
 

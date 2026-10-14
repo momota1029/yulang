@@ -1,7 +1,7 @@
 # Omitted callback profile: native construction cut H1-A
 
-Status: unreviewed research checkpoint; bounded source/operational obstruction
-and proposed construction invariant. Neither H1-A nor original U is discharged.
+Status: independently reviewed research checkpoint; bounded source/operational
+obstruction and proposed construction invariant. Neither H1-A nor original U is discharged.
 Baseline: `242bf06f5f10c3fcbf2492491621c7f550b0308b`,
 `research/simple-sub-intrusion`.
 Exclusive lease: this file. Leaf only; no compiler, test, shared-record or Git
@@ -307,9 +307,10 @@ d5c46b74d678028046bdfa0f7fd2b71bb2abfb112987000fe43e0fa5875d5d98 notes/design/20
 Commit packet: only
 `notes/theory/2026-10-14-callback-profile-native-construction.md`; baseline
 `242bf06f5f10c3fcbf2492491621c7f550b0308b`; changed dependency hashes: none
-subject to final recheck. Review: unreviewed research-only obstruction and
-proposed invariant; no certification or original-gate closure. Checks already
-run are listed above; runtime/implementation verification omitted by packet.
+subject to final recheck. Review: one fresh independent compiler-referee found
+no blocking or major issue; research-only obstruction and proposed invariant,
+with no certification or original-gate closure. Checks already run are listed
+above; runtime/implementation verification omitted by packet.
 Proposed message: `research: locate omitted callback profile construction and live consumer cut`.
 Shared-record deltas for primary/curator only: H1-A and U remain OPEN at the
 source-known omission to applicable callback profile/live guard transition;

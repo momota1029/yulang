@@ -1,6 +1,6 @@
 # H1-B: callback profile and partial-operation source discriminators
 
-Status: frozen, unreviewed research characterization; no executed source counterexample.
+Status: frozen, independently reviewed research characterization; no executed source counterexample.
 Baseline: `242bf06f5f10c3fcbf2492491621c7f550b0308b`, branch `research/simple-sub-intrusion`.
 Lease: this note only; complementary static leaf, not the H1-A constructive proof.
 Budget: at most 15 minutes, no Cargo, builds, semantic probes, benchmarks, children or Git commands.
@@ -195,9 +195,10 @@ for O/A/R, with P as the compulsory partial-coverage control, before enabling H3
 Commit packet: exact leased path
 `notes/progress/2026-10-14-callback-profile-source-falsifier.md`; baseline
 `242bf06f5f10c3fcbf2492491621c7f550b0308b`; changed dependency hashes: none by
-this worker, rechecked snapshot required before integration; review status:
-unreviewed producer-only research checkpoint. Checks already run are listed
-above; no source execution. Proposed message:
+this worker, rechecked snapshot required before integration; one fresh
+independent compiler-referee found no blocking or major issue. This remains a
+research characterization, not an executed source counterexample or U/H1 proof.
+Checks already run are listed above; no source execution. Proposed message:
 `research: trace callback alias protection and partial-operation residual controls`.
 Shared-record deltas intentionally left to primary/curator: record family-wide
 P membership and direct-formal-hint insufficiency as bounded source findings,

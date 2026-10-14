@@ -17,14 +17,17 @@ Do not reopen a closed gate merely because it appears in this seed.
 The user's 2026-10-14 planning request is recorded in
 [`effects-handler-next.md`](effects-handler-next.md). It is the current
 operational entrypoint after `343754251`, ahead of this historical seed.
-Allocate H1's source constructor/consumer proof and independent source
-falsification packets first; permit only the bounded construction needed for
-their actual compiler evidence before proof closure. H2 lifecycle, H3 residual
-integration and H4 source hygiene retain their explicit prerequisites. Generic
-rigid-opening preparation is independent; implementation keeps its own gate.
-No future packet was launched by writing the plan, and no semantic gate is
-closed. Planning only changes records; no compiler/configuration edits or
-build/test/measurement run belongs to this turn.
+H1-A and H1-B have since been produced, independently reviewed with no
+blocking/major finding, and checkpointed in commits `00c04ac96` and `8a9875a2a`.
+The first bounded implementer pass made no changes and found that
+`candidate_scheme` drops source Lambda/formal incidence when reconstructing a
+captured Function, before the actual callback argument receipt reaches
+`candidate_function_port_admit`. A bounded prover packet now owns this exact
+source-profile → Function reconstruction/freshening → typed receipt bridge.
+Only the minimal reversible carrier work required for source evidence may run
+alongside it. H1/H2/U remain OPEN; H3/P stays disabled. H4 hygiene, generic
+rigid opening, full Call, soundness, principality and production/F5 retain their
+separate gates.
 
 ## Current executable checkpoint, 2026-10-14
 
@@ -112,6 +115,17 @@ source callback-profile/live contextual consumer, not another conditional
 proof or another nominal filter. Generic rigid opening, complete hygiene,
 soundness, required principality and production gates remain OPEN. Zero
 performance samples/processes were consumed; shared records are synchronized.
+
+The H1-A and H1-B artifacts listed above supply the source obstruction and
+partial-operation/alias-return discriminators but do not prove their predicted
+candidate outputs or close H1. Fresh review adds an H3 regression obligation:
+one Catch scrutinee under one assignment must combine an eligible direct
+`tick::next()` with protected `cb()`, so the direct contribution is removed and
+the equal-family callback contribution survives. The H1 implementer made no
+code change because source boundary incidence is lost during Function scheme
+reconstruction. The next proof packet and exact owner are in
+[`tasks/current.md`](current.md) and
+[`effects-handler-next.md`](effects-handler-next.md).
 
 ## Historical first scheduling wave
 
