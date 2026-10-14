@@ -7490,6 +7490,8 @@ pub struct SolvedModule {
 // Frozen observations shared by the legacy and private candidate result owners.
 struct FrozenInferenceData {
     #[cfg(feature = "shadow-apply-candidate")]
+    candidate_references: candidate_value_graph::Graph,
+    #[cfg(feature = "shadow-apply-candidate")]
     candidate_calls: candidate_call::State,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_graph: Option<candidate_scheme::GraphState>,
@@ -17556,6 +17558,8 @@ impl InferenceSession {
         }
         let schemes = self.schemes;
         let data = FrozenInferenceData {
+            #[cfg(feature = "shadow-apply-candidate")]
+            candidate_references: self.batch.candidate_source.references,
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_calls: self.batch.candidate_calls,
             #[cfg(feature = "shadow-apply-candidate")]

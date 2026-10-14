@@ -57,7 +57,25 @@ and must not turn an omitted rule into an implicit premise.
 - Keep playground verification focused and bounded; report search dimensions,
   generation counts, shrink results, and unsearched space.
 
-## Current work order
+## Source-driven playground, 2026-10-14
+
+The user reiterated the implementation/proof/repair loop on October 14.
+[`yu-playground`](../../tools/inference-playground/README.md) now supplies a
+local executable entrypoint to the real parser, retained source carrier and
+private candidate inference. It displays finite type graphs and constraints;
+`--intrusion` additionally observes original Value associations, SCCs, actual
+extrusion pairs, reuse groups and completed equality requests. It does not
+reconstruct a different inference algorithm or publish a production result.
+
+The [checkpoint](../progress/2026-10-14-inference-playground.md) records the
+focused verification and independent code/resource reviews. The independently
+reviewed [activation correspondence theorem](../theory/2026-10-14-value-intrusion-activation-correspondence.md)
+establishes the actual bounded mechanism's invariants. Global source-event
+applicability, typing preservation and principality remain separate work.
+If/Boolean/String source construction is still absent from this carrier;
+extending it is implementation work, with no condition-evaluation prerequisite.
+
+## Historical structural work order
 
 **Mathematical status update:** the subsequently reviewed
 [finite-fence theorem](2026-10-04-structural-fmp-fence-completion.md)

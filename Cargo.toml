@@ -10,5 +10,6 @@ members = [
     "crates/yu-backend-vm",
     "crates/yu-backend-native",
     "tools/bench-runner",
+    "tools/inference-playground",
     "tools/xtask",
 ]

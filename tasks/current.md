@@ -72,9 +72,14 @@ uses. That test/API mismatch is outside this implementation change.
 The user explicitly selected implementing a playground while proving the
 necessary properties and repairing the implementation. This continues the
 [executable research direction](../notes/design/2026-10-04-inference-research-playgrounds.md).
-The source CLI is being integrated against the actual candidate; its review
-requires a shared output budget before completion. Production cutover is not
-part of this observation tool.
+The runnable [`yu-playground`](../tools/inference-playground/README.md) now uses
+the actual parser, LocalSource and candidate inference. Its optional
+`--intrusion` view exposes authentic Value SCC associations, original copy
+pairs, reuse groups, canonical representatives and settlement counts. The
+shared byte/work budget repair passed independent delta review. Completion
+evidence and exact remaining limits are in the
+[playground checkpoint](../notes/progress/2026-10-14-inference-playground.md).
+Production cutover is not part of this observation tool.
 
 The [retained-event activation theorem](../notes/theory/2026-10-14-value-intrusion-activation-correspondence.md)
 has passed fresh independent `compiler_referee` review at `e450c1836`.
@@ -93,6 +98,13 @@ constructor/consumer correspondence remain separate open obligations. Continue
 the user's executable loop by extending actual source construction, reusing
 the accepted mechanism and existing hygiene results; no constant evaluation
 prerequisite or repeated conditional Call investigation is introduced.
+
+Owning checks pass, including `cargo check --workspace`. The additional
+`cargo xtask check-graph` reports the existing `yu-solver` development dependency
+on downstream `yu-core`, already present in baseline `e450c1836`'s
+`crates/yu-solver/Cargo.toml`. Resolving that separate test dependency needs its
+own solver/core test-layout review; this playground does not alter it. The full
+workspace test suite and general source reuse-observation witness remain unverified.
 
 ## 2026-10-12 fixed-term H executable construction
 

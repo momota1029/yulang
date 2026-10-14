@@ -1,0 +1,171 @@
+//! Local experimental observations, not production admission or principal types.
+mod output;
+pub mod render;
+use output::{Output, cap};
+use std::fmt::Write;
+use std::{io::Read, ops::Range, sync::Arc};
+use yu_hir::shadow::lower_module_with_local_source;
+use yu_hir::{FileId, FileKey, HirItem, ModuleIdentity, SemanticImports};
+use yu_solver::shadow_apply::{CandidateError, CandidateInference};
+use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+pub const INPUT_CAP: usize = 64 * 1024;
+
+pub fn read_source(reader: impl Read) -> Result<String, String> {
+    let mut bytes = Vec::new();
+    reader
+        .take((INPUT_CAP + 1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("source read failed: {error}"))?;
+    if bytes.len() > INPUT_CAP {
+        return Err(format!(
+            "tool input cap exceeded: more than {INPUT_CAP} bytes"
+        ));
+    }
+    String::from_utf8(bytes).map_err(|error| format!("source is not UTF-8: {error}"))
+}
+
+/// Columns count Unicode scalar values; byte ranges retain parser/HIR coordinates.
+pub fn location(source: &str, range: &Range<usize>) -> String {
+    let mut output = Output::new();
+    match location_into(source, range, &mut output) {
+        Ok(()) => output.finish().unwrap_or_else(|error| error),
+        Err(error) => error,
+    }
+}
+
+pub(crate) fn location_into(
+    source: &str,
+    range: &Range<usize>,
+    output: &mut Output,
+) -> Result<(), String> {
+    let mut start = range.start.min(source.len());
+    while !source.is_char_boundary(start) {
+        start -= 1;
+    }
+    let prefix = &source[..start];
+    let line = prefix.bytes().filter(|byte| *byte == b'\n').count() + 1;
+    let line_start = prefix.rfind('\n').map_or(0, |index| index + 1);
+    let column = source[line_start..start].chars().count() + 1;
+    let line_end = source[start..]
+        .find('\n')
+        .map_or(source.len(), |index| start + index);
+    write!(
+        output,
+        "{line}:{column} (bytes {}..{})\n  {}",
+        range.start,
+        range.end,
+        &source[line_start..line_end]
+    )
+    .map_err(cap)
+}
+
+pub fn infer(source: &str, name: &str) -> Result<String, String> {
+    infer_with_intrusion(source, name, false)
+}
+
+pub fn infer_with_intrusion(source: &str, name: &str, intrusion: bool) -> Result<String, String> {
+    if source.len() > INPUT_CAP {
+        return Err(format!(
+            "tool input cap exceeded: more than {INPUT_CAP} bytes"
+        ));
+    }
+    let mut output = Output::new();
+    let text: Arc<SourceText> = Arc::from(source);
+    let parsed = parse_file(
+        text.clone(),
+        Arc::new(scan_header(text)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let diagnostics = parsed.syntax_diagnostics().map_err(|error| {
+        bounded_message(format_args!("syntax diagnostics unavailable: {error:?}"))
+    })?;
+    if !diagnostics.is_empty() {
+        output.write_str("syntax diagnostics:\n").map_err(cap)?;
+        for diagnostic in diagnostics {
+            output.observe(1)?;
+            write!(output, "  {:?} at ", diagnostic.cause()).map_err(cap)?;
+            location_into(source, diagnostic.primary(), &mut output)?;
+            output.write_char('\n').map_err(cap)?;
+        }
+        return Err(output.finish()?);
+    }
+    let hir = Arc::new(
+        lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .map_err(|error| {
+            bounded_message(format_args!("candidate lowering unavailable: {error:?}"))
+        })?,
+    );
+    let candidate = CandidateInference::solve(hir.clone()).map_err(|error| match error {
+        CandidateError::Unsupported => {
+            "unsupported source: current candidate lowering/inference cannot observe this program"
+                .to_owned()
+        }
+        other => bounded_message(format_args!("candidate inference unavailable: {other:?}")),
+    })?;
+    if !candidate.candidate_conflicts().is_empty() {
+        output
+            .write_str("candidate type conflicts (experimental; graph export withheld):\n")
+            .map_err(cap)?;
+        for error in candidate.candidate_conflicts() {
+            output.observe(1)?;
+            let occurrence = error.occurrence().occurrence();
+            let range = hir.items().iter().find_map(|item| {
+                let HirItem::Binding(binding) = item else {
+                    return None;
+                };
+                let local = hir.local_source(binding.definition_root()).ok().flatten()?;
+                local
+                    .expressions()
+                    .iter()
+                    .find(|expression| &expression.occurrence == occurrence)
+                    .map(|expression| expression.range.clone())
+            });
+            write!(output, "  {:?} at ", error.kind()).map_err(cap)?;
+            if let Some(range) = range {
+                location_into(source, &range, &mut output)?;
+            } else {
+                output.write_str("source span unavailable").map_err(cap)?;
+            }
+            output.write_char('\n').map_err(cap)?;
+        }
+        return Err(output.finish()?);
+    }
+    output.write_str("Experimental candidate inference graph; no principal-type or production-admission claim.\nEffect operands with unavailable contents remain opaque.\n").map_err(cap)?;
+    let mut definitions = 0;
+    for item in hir.items() {
+        if let HirItem::Binding(binding) = item {
+            output.observe(1)?;
+            definitions += 1;
+            if definitions > render::OUTPUT_CAP {
+                return Err("tool output cap exceeded: too many definitions".to_owned());
+            }
+            let graph = candidate
+                .export(binding.definition_root())
+                .map_err(|_| "candidate graph export unavailable".to_owned())?;
+            write!(output, "\ndefinition {}:\n", binding.name().spelling()).map_err(cap)?;
+            render::graph_into(&graph, &mut output)?;
+        }
+    }
+    if definitions == 0 {
+        output
+            .write_str("No binding exports in this source.\n")
+            .map_err(cap)?;
+    }
+    if intrusion {
+        render::intrusion_into(&candidate, &hir, source, &mut output)?;
+    }
+    output.finish()
+}
+
+fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
+    let mut output = Output::new();
+    if output.write_fmt(arguments).is_err() {
+        return output::CAP_ERROR.to_owned();
+    }
+    output.finish().unwrap_or_else(|error| error)
+}

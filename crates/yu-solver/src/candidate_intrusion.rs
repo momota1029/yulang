@@ -92,6 +92,13 @@ fn representative(forest: &[u32], mut row: u32) -> u32 {
     row
 }
 impl State {
+    pub fn observed_groups(&self) -> impl Iterator<Item = (usize, usize, usize, usize, bool)> + '_ {
+        self.groups.iter().enumerate().map(|(id, group)| (id, group.occurrence, group.start, group.end, group.activated))
+    }
+    pub fn observed_reuses(&self) -> impl Iterator<Item = (usize, usize, usize, usize)> + '_ {
+        self.reuses.iter().enumerate().map(|(id, reuse)| (id, reuse.group, reuse.occurrence, reuse.sources))
+    }
+    pub fn observed_pending(&self) -> (usize, usize) { (self.pending.len(), self.pending_cursor) }
     pub fn value_rep(&self, row: u32) -> u32 {
         representative(&self.values, row)
     }

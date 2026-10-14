@@ -75,7 +75,117 @@ pub struct CandidateValueObservation {
 pub struct CandidateInference {
     solved: CandidateSolvedResult,
 }
+/// Borrowed final retained state, not an execution trace or soundness certificate.
+pub struct CandidateIntrusionObservation<'a> {
+    references: &'a crate::candidate_value_graph::Graph,
+    state: &'a crate::candidate_intrusion::State,
+}
+#[derive(Debug)]
+pub enum CandidateSourceValueIdentity<'a> {
+    Module(&'a DefId),
+    Local(&'a yu_hir::HirLocalId),
+    Parameter(&'a HirParameterId),
+    Expression(&'a HirOccurrenceId),
+}
+#[derive(Debug)]
+pub struct CandidateSourceValue<'a> {
+    pub ordinal: usize,
+    pub component: usize,
+    pub identity: CandidateSourceValueIdentity<'a>,
+}
+pub struct CandidateIntrusionEvent<'a> {
+    pub ordinal: usize,
+    pub checking: &'a ConstraintOccurrenceId,
+    pub origin: CandidateSourceValue<'a>,
+    pub receiver: CandidateSourceValue<'a>,
+    pub same_scc: bool,
+}
+#[derive(Clone, Copy, Debug)]
+pub struct CandidateIntrusionRow {
+    pub kind: ComponentKind,
+    pub ordinal: u32,
+    pub representative: u32,
+}
+pub struct CandidateIntrusionParent<'a> {
+    pub ordinal: usize,
+    pub copy: CandidateIntrusionRow,
+    pub parent: CandidateIntrusionRow,
+    pub polarity: Polarity,
+    pub target: u32,
+    pub occurrence: usize,
+    pub source_set: Option<usize>,
+    pub source_events: &'a [usize],
+}
+pub struct CandidateIntrusionGroup {
+    pub ordinal: usize,
+    pub occurrence: usize,
+    pub start: usize,
+    pub end: usize,
+    pub activated: bool,
+}
+pub struct CandidateIntrusionReuse<'a> {
+    pub ordinal: usize,
+    pub group: usize,
+    pub occurrence: usize,
+    pub source_set: usize,
+    pub source_events: &'a [usize],
+}
+impl<'a> CandidateIntrusionObservation<'a> {
+    fn value(&self, ordinal: usize) -> CandidateSourceValue<'a> {
+        use crate::candidate_value_graph::Value;
+        let (value, component) = self.references.observed_value(ordinal).expect("retained event has a sealed source Value");
+        let identity = match value {
+            Value::Module(id) => CandidateSourceValueIdentity::Module(id),
+            Value::Local(id) => CandidateSourceValueIdentity::Local(id),
+            Value::Parameter(id) => CandidateSourceValueIdentity::Parameter(id),
+            Value::Expression(id) => CandidateSourceValueIdentity::Expression(id),
+        };
+        CandidateSourceValue { ordinal, component, identity }
+    }
+    /// Ordered by retained event ordinal. Descriptor lookup scans existing maps;
+    /// a complete event iteration costs O(E * (V + E)), with no allocation.
+    /// Auxiliary fragment nodes are deliberately absent from these endpoints.
+    pub fn events(&self) -> impl Iterator<Item = CandidateIntrusionEvent<'a>> + '_ {
+        self.references.events.iter().enumerate().map(|(ordinal, event)| CandidateIntrusionEvent {
+            ordinal,
+            checking: self.references.observed_checking(ordinal).expect("retained event has its source checking occurrence"),
+            origin: self.value(event.origin), receiver: self.value(event.receiver),
+            same_scc: self.references.qualifies(ordinal),
+        })
+    }
+    fn row(&self, row: crate::candidate_scheme::RowKey) -> CandidateIntrusionRow {
+        use crate::candidate_scheme::RowKey;
+        let ordinal = match row { RowKey::Value(id) | RowKey::Effect(id) => id };
+        let representative = match self.state.rep(row) { RowKey::Value(id) | RowKey::Effect(id) => id };
+        CandidateIntrusionRow { kind: row.kind(), ordinal, representative }
+    }
+    pub fn parents(&self) -> impl Iterator<Item = CandidateIntrusionParent<'a>> + '_ {
+        self.state.parents.iter().enumerate().map(|(ordinal, parent)| CandidateIntrusionParent {
+            ordinal, copy: self.row(parent.copy), parent: self.row(parent.parent),
+            polarity: parent.polarity, target: parent.target, occurrence: parent.occurrence,
+            source_set: parent.sources,
+            source_events: parent.sources.map(|id| self.state.effect_algebra.context.source_events(id)).unwrap_or(&[]),
+        })
+    }
+    pub fn groups(&self) -> impl Iterator<Item = CandidateIntrusionGroup> + '_ {
+        self.state.observed_groups().map(|(ordinal, occurrence, start, end, activated)| CandidateIntrusionGroup { ordinal, occurrence, start, end, activated })
+    }
+    pub fn reuses(&self) -> impl Iterator<Item = CandidateIntrusionReuse<'a>> + '_ {
+        self.state.observed_reuses().map(|(ordinal, group, occurrence, source_set)| CandidateIntrusionReuse {
+            ordinal, group, occurrence, source_set,
+            source_events: self.state.effect_algebra.context.source_events(source_set),
+        })
+    }
+    pub fn pending_total(&self) -> usize { self.state.observed_pending().0 }
+    pub fn pending_consumed(&self) -> usize { self.state.observed_pending().1 }
+}
 impl CandidateInference {
+    pub fn intrusion_observation(&self) -> Result<CandidateIntrusionObservation<'_>, ArtifactMismatch> {
+        if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
+        let state = &self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion;
+        let references = &self.solved.data.candidate_references;
+        Ok(CandidateIntrusionObservation { references, state })
+    }
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         let mut permitted_errors = HashSet::new();
         let mut declaration_errors = HashSet::new();

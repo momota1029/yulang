@@ -3,7 +3,7 @@ use crate::*;
 use yu_hir::{HirLocalId, shadow::{LocalSource, LocalSourceForm, LocalSourceResolution}};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-enum Value { Module(DefId), Local(HirLocalId), Parameter(HirParameterId), Expression(HirOccurrenceId) }
+pub(super) enum Value { Module(DefId), Local(HirLocalId), Parameter(HirParameterId), Expression(HirOccurrenceId) }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Association { pub origin: usize, pub receiver: usize }
 #[derive(Clone, Debug, Default)]
@@ -22,6 +22,14 @@ pub(super) struct Graph {
 }
 fn unavailable() -> CollectionAvailabilityError { CollectionAvailabilityError::ComponentIdentityExhausted }
 impl Graph {
+    // Observation only: auxiliary fragment vertices have no Value descriptor.
+    pub fn observed_value(&self, ordinal: usize) -> Option<(&Value, usize)> {
+        let value = self.vertices.iter().find_map(|(value, &id)| (id == ordinal).then_some(value))?;
+        Some((value, *self.components.get(ordinal)?))
+    }
+    pub fn observed_checking(&self, event: usize) -> Option<&ConstraintOccurrenceId> {
+        self.checking.iter().find_map(|(checking, &id)| (id == event).then_some(checking))
+    }
     pub fn register_module(&mut self, root: DefinitionRootId, id: DefId) -> Result<(), CollectionAvailabilityError> {
         self.modules.try_reserve(1).map_err(|_| unavailable())?;
         self.identity_bytes = checked_usize_sum([self.identity_bytes, id.hash_eq_payload_bytes()], "Value module identity");

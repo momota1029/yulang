@@ -993,6 +993,11 @@ This index is a navigation aid. The listed source document remains authoritative
   is Authoritative user direction permitting isolated executable models before
   proof closure for structural FMP, callback bridge, and principality. Finite
   search is evidence only; production inference routing remains gated.
+  The October 14 [`yu-playground`](../../tools/inference-playground/README.md)
+  runs the actual private source inference path and displays retained
+  constraints, Value SCCs, extrusion pairs and settlement. Its
+  [implementation checkpoint](../progress/2026-10-14-inference-playground.md)
+  records the reviewed observation boundary, bounded reports and source limits.
   Current bounded callback/principality models are
   [`research_callback_lift.py`](../../tools/research_callback_lift.py) and
   [`research_principal_support.py`](../../tools/research_principal_support.py),

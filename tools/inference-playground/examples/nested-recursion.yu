@@ -1,0 +1,1 @@
+my loop x = { my helper y = loop y; helper x }

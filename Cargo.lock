@@ -803,6 +803,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "yu-playground"
+version = "0.1.0"
+dependencies = [
+ "yu-hir",
+ "yu-solver",
+ "yu-syntax",
+]
+
+[[package]]
 name = "yu-solver"
 version = "0.1.0"
 dependencies = [

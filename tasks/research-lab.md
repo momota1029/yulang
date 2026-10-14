@@ -12,7 +12,29 @@ claim that the gates below are still open. At each restart, resolve the current
 HEAD, user corrections, question-board handoffs and theory map before dispatch.
 Do not reopen a closed gate merely because it appears in this seed.
 
-## First scheduling wave
+## Current executable checkpoint, 2026-10-14
+
+The user's direct instruction selects playground implementation with necessary
+proofs and repairs. The [source inference CLI checkpoint](../notes/progress/2026-10-14-inference-playground.md)
+is complete for its documented experimental scope. Implementers supplied the
+CLI and borrowed intrusion observations on disjoint leases; a bounded prover
+derived the actual retained-event mechanism theorem. Independent regression
+and static performance review closed the implementation after one shared
+output-budget repair. A separate compiler referee accepted the mechanism
+theorem, and the primary consumed its four conclusions in `tasks/current.md`.
+
+The primary ran 20 focused tests and warning-free owning/workspace checks.
+The dependency graph check reports a pre-existing solver-to-core development
+dependency; no new prohibited edge was added. Measurements: zero. All worker
+leases are frozen/completed at integration; no proof/build job is left running.
+
+Next implementation is the missing If/Boolean/String source construction and
+existing hygiene constructor/consumer correspondence. Source-global event
+applicability, typing preservation and principality remain open. Reuse the
+accepted activation theorem; do not reopen it or select another conditional
+Call proof merely because the historical queue below lists one.
+
+## Historical first scheduling wave
 
 Keep the useful queue in the primary's runtime plan or a compact checkpoint.
 Choose four to six ready assignments in total, including any review/curation;

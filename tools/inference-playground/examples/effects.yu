@@ -1,0 +1,5 @@
+act tick:
+    our next: () -> int
+
+my lookup: () -> [tick] int = tick::next
+my answer: [tick] int = tick::next()
