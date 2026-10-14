@@ -62,6 +62,21 @@ negative-formal field map or handler semantics are inferred from the pending
 question bundle; no further conditional lemma assuming the absent producer is
 scheduled. All current child write leases are frozen/completed.
 
+The next [normal-return Catch checkpoint](../notes/progress/2026-10-14-catch-value-and-native-residual.md)
+adds executable value-arm formation, distinct binders, value joins and all
+scrutinee/body effects to the private carrier and playground. M2 semantic and
+regression review closed the corrected pure-annotation fixture and strengthened
+alias/effect/trivia checks. A separate prover/referee lane established the
+[existing native residual primitive](../notes/theory/2026-10-14-native-handler-residual-cut.md):
+plain Allowance plus native replay suffices under its processing premises.
+The primary accepts that bounded result; source eligibility U and complete
+handler/hygiene remain open. Do not schedule another watcher engine or a
+repeated conditional proof assuming U. The shared operation-pattern
+[CST/recovery proposal](../notes/design/2026-10-14-operation-pattern-tails.md)
+has passed M2 design review and awaits explicit user approval. All implementation
+leases are frozen; the next dependent parser/source slice starts after approval.
+Measurements remain zero; exact checks and boundaries are in the checkpoint.
+
 ## Historical first scheduling wave
 
 Keep the useful queue in the primary's runtime plan or a compact checkpoint.

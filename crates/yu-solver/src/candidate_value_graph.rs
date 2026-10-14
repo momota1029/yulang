@@ -3,7 +3,7 @@ use crate::*;
 use yu_hir::{HirLocalId, shadow::{LocalSource, LocalSourceForm, LocalSourceResolution}};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(super) enum Value { Module(DefId), Local(HirLocalId), Parameter(HirParameterId), Expression(HirOccurrenceId) }
+pub(super) enum Value { Module(DefId), Local(HirLocalId), Parameter(HirParameterId), CatchBinder(yu_hir::shadow::LocalSourceCatchBinderId), Expression(HirOccurrenceId) }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Association { pub origin: usize, pub receiver: usize }
 #[derive(Clone, Debug, Default)]
@@ -54,6 +54,7 @@ impl Graph {
     fn resolved(resolution: &LocalSourceResolution) -> Option<Value> {
         match resolution { LocalSourceResolution::ModuleDef(id) => Some(Value::Module(id.clone())),
             LocalSourceResolution::Local(id) => Some(Value::Local(id.clone())),
+            LocalSourceResolution::CatchBinder(id) => Some(Value::CatchBinder(id.clone())),
             LocalSourceResolution::Parameter(id) => Some(Value::Parameter(id.clone())), _ => None }
     }
     fn expression_value(source: &LocalSource, mut index: usize) -> Value {
@@ -76,6 +77,11 @@ impl Graph {
             match &expr.form {
                 LocalSourceForm::Name { resolution, .. } => if let Some(value) = Self::resolved(resolution) {
                     let target = self.intern(value)?; self.edge(owner, target)?;
+                },
+                LocalSourceForm::Catch { scrutinee, arms } => {
+                    work.try_reserve(arms.len().checked_add(1).ok_or_else(unavailable)?).map_err(|_| unavailable())?;
+                    work.push((scrutinee.ordinal() as usize, owner));
+                    for arm in arms { work.push((arm.body.ordinal() as usize, owner)); }
                 },
                 LocalSourceForm::If { arms, else_branch } => {
                     let count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;

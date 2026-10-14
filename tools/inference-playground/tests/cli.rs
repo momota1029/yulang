@@ -89,6 +89,33 @@ fn constant_conditions_observe_both_branch_leaves() {
 }
 
 #[test]
+fn catch_value_binder_observes_both_conditional_results() {
+    let source = include_str!("../examples/catch-value.yu");
+    for source in [source.to_owned(), source.replace("if true:", "if false:")] {
+        let result = cli(&source);
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        let output = String::from_utf8(result.stdout).unwrap();
+        assert!(output.contains("definition mixed:"));
+        assert!(output.contains("IntPositive"));
+        assert!(output.contains("StrPositive"));
+        assert!(output.contains("no principal-type"));
+    }
+}
+
+#[test]
+fn catch_value_conflicts_withhold_cli_observations() {
+    let source = "my mixed: int = catch (if true: 1 else: \"str\") { value -> value }";
+    for source in [source.to_owned(), source.replace("if true:", "if false:")] {
+        let result = cli(&source);
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(error.contains("candidate type conflicts"));
+        assert!(!error.contains("unsupported source"));
+    }
+}
+
+#[test]
 fn conditional_conflicts_withhold_all_cli_observations() {
     let source = include_str!("../examples/conditional-conflict.yu");
     for source in [source.to_owned(), source.replace("if true:", "if false:")] {

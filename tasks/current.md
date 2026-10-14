@@ -164,6 +164,40 @@ concrete formals remain rejected. The old negative-formal answer corrects its ex
 not an approved complete field map; do not treat it as either permission to
 invent that map or a reason to repeat the retracted comparison.
 
+## 2026-10-14 normal-return Catch and residual primitive
+
+The user's effects/handler continuation now has an executable first slice:
+LocalSource constructs unguarded total identifier/wildcard value arms, with
+distinct lexical binders and sibling scopes. Binder reads alias the original
+scrutinee value. Every arm value constrains the Catch result; scrutinee and
+all arm-body effects constrain its output effect. No subtraction or new Catch
+result-reference fragment is introduced. The playground's
+[`catch-value.yu`](../tools/inference-playground/examples/catch-value.yu)
+retains both Int/Str bounds through the binder for either constant condition.
+The [checkpoint](../notes/progress/2026-10-14-catch-value-and-native-residual.md)
+records M2 semantic/regression review, focused verification and exact limits.
+
+Fresh independent compiler-referee review accepted the
+[native residual primitive P](../notes/theory/2026-10-14-native-handler-residual-cut.md).
+Under its explicit successful native-processing premises, the existing
+`s <= Allowance(J, fresh gamma)` realizes the least plain residual `S \ J`;
+ordinary opposite-bound replay retains current/future feedback. Existing
+capture, extrusion, freshening and intrusion preserve this relation and
+distinct view lineage. The primary accepts these bounded conclusions; no new
+watcher is required. This does not prove equality in every model or source
+eligibility invariant U. Protected same-family survivors must bypass this plain
+cut unless a separate contextual consumer law is established. Authentic
+eligibility, ordered coverage, raw resumption and full hygiene remain OPEN at
+their source constructors/consumers.
+
+The missing shared operation-pattern path/call tails have a
+[reviewed CST/recovery proposal](../notes/design/2026-10-14-operation-pattern-tails.md).
+Independent semantic/recovery and exact-conformance reviews closed their
+findings. User approval is pending; parser implementation has not started.
+The next dependent slice is that parser construction, then operation/payload/
+raw-resumption formation with U's actual boundary evidence. The pending old
+negative-formal question bundle remains excluded from integration.
+
 ## 2026-10-12 fixed-term H executable construction
 
 The fixed recursive odd/even packet now has an independently reviewed finite

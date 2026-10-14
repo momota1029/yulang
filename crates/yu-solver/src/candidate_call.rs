@@ -271,6 +271,9 @@ fn scope_owned(source: &LocalSource, scope: &LocalSourceScope) -> bool {
     match scope {
         LocalSourceScope::Definition(owner) => owner == source.definition_root(),
         LocalSourceScope::Expression(index) => source.expression(index).is_some(),
+        LocalSourceScope::CatchArm { catch, arm } => source.expression(catch).is_some_and(|expr| {
+            matches!(&expr.form, LocalSourceForm::Catch { arms, .. } if arms.iter().any(|candidate| &candidate.source == arm))
+        }),
         LocalSourceScope::Parameter(parameter) => {
             parameter.definition_root() == source.definition_root()
         }

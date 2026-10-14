@@ -111,6 +111,16 @@ This index is a navigation aid. The listed source document remains authoritative
   [implementation/projection checkpoint](../progress/2026-10-14-conditional-reference-choice-a.md)
   passed focused checks and independent review. The extension adds no incoming
   Expression edge and does not change current semantic SCC membership. The
+  [normal-return Catch checkpoint](../progress/2026-10-14-catch-value-and-native-residual.md)
+  adds scoped value binders and value/effect joins to the actual source carrier
+  and playground. The independently reviewed
+  [native Allowance residual primitive](../theory/2026-10-14-native-handler-residual-cut.md)
+  establishes plain residual feasibility and replay/lifecycle correspondence
+  under its explicit processing premises; authentic handler eligibility and
+  full hygiene remain open. The
+  [operation-pattern CST/recovery proposal](2026-10-14-operation-pattern-tails.md)
+  is reviewed but pending user approval; no parser implementation is authorized
+  by that proposal yet. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction

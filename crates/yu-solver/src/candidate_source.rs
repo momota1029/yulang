@@ -166,6 +166,7 @@ enum Work {
     Finish(usize, u32),
     Install(usize, usize, u32),
     Initializer(usize, u32),
+    CatchArms(usize, u32),
 }
 impl ConstraintBatch {
     fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
@@ -195,6 +196,7 @@ impl ConstraintBatch {
         let mut lambdas = HashMap::new();
         let mut formal_registrations = HashMap::new();
         let mut parameter_scopes = HashMap::new();
+        let mut catch_arm_scopes = HashMap::new();
         for binding in source.bindings() {
             parameter_scopes.try_reserve(binding.parameters.len()).map_err(|_| unavailable())?;
             for parameter in &binding.parameters {
@@ -203,6 +205,10 @@ impl ConstraintBatch {
         }
         for (index, expr) in source.expressions().iter().enumerate() {
             positions.push(self.candidate_component(&expr.occurrence)?);
+            if let LocalSourceForm::Catch { arms, .. } = &expr.form {
+                catch_arm_scopes.try_reserve(arms.len()).map_err(|_| unavailable())?;
+                for arm in arms { catch_arm_scopes.insert(arm.source.clone(), candidate_effect::AnnotationScope::Expression(arm.body.clone())); }
+            }
             if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
                 let position = self.parameter_recipes.len();
                 push(&mut self.parameter_recipes, parameter.id.clone())?;
@@ -233,6 +239,7 @@ impl ConstraintBatch {
             };
             endpoints.push(endpoint);
         }
+        let mut ascription_children = HashMap::new();
         // Resolve aliases before recursive initializer links capture endpoints.
         // Group facades stay intact; only an ascription peels parentheses.
         for (index, expr) in source.expressions().iter().enumerate() {
@@ -244,6 +251,8 @@ impl ConstraintBatch {
                         _ => break,
                     }
                 }
+                ascription_children.try_reserve(1).map_err(|_| unavailable())?;
+                ascription_children.insert(index, child);
                 positions[index] = positions[child];
                 *self.occurrence_component_positions.get_mut(&expr.occurrence).ok_or_else(invalid)? = positions[child];
                 endpoints[index] = endpoints[child];
@@ -262,6 +271,7 @@ impl ConstraintBatch {
                 formal_names[index] = Some(name);
             }
         }
+        let mut catch_binders = HashMap::new();
         let mut actions = Vec::new();
         let mut work = Vec::new();
         // Only currently forming function initializers use an open monomorphic
@@ -273,12 +283,19 @@ impl ConstraintBatch {
             match next {
                 Work::Visit(index, level) => {
                     let expr = source.expressions().get(index).ok_or_else(invalid)?;
+                    if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(binder), .. } = &expr.form {
+                        endpoints[index] = *catch_binders.get(binder).ok_or_else(invalid)?;
+                    }
                     let pos = positions[index];
                     self.candidate_source.component_levels.try_reserve(2).map_err(|_| unavailable())?;
                     self.candidate_source.component_levels.insert(pos.value, level);
                     self.candidate_source.component_levels.insert(pos.effect, level);
                     push(&mut work, Work::Finish(index, level))?;
                     match &expr.form {
+                        LocalSourceForm::Catch { scrutinee, .. } => {
+                            push(&mut work, Work::CatchArms(index, level))?;
+                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level))?;
+                        }
                         LocalSourceForm::If { arms, else_branch } => {
                             push(&mut work, Work::Visit(else_branch.ordinal() as usize, level))?;
                             for (condition, body) in arms.iter().rev() {
@@ -321,6 +338,16 @@ impl ConstraintBatch {
                         }
                         _ => {}
                     }
+                }
+                Work::CatchArms(index, level) => {
+                    let LocalSourceForm::Catch { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
+                    catch_binders.try_reserve(arms.len()).map_err(|_| unavailable())?;
+                    for arm in arms {
+                        if let yu_hir::shadow::LocalSourceCatchValuePattern::Binder(binder) = &arm.value_pattern {
+                            catch_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                        }
+                    }
+                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level))?; }
                 }
                 Work::Initializer(binding, level) => {
                     let binding = &source.bindings()[binding];
@@ -374,6 +401,20 @@ impl ConstraintBatch {
                             let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
                             self.emit(occurrence.clone(), 2, bottom, self.component_term_at(pos.effect))?;
                             self.emit(occurrence.clone(), 3, self.component_term_at(pos.effect), empty)?;
+                        }
+                        LocalSourceForm::Catch { scrutinee, arms } => {
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            let scrutinee_index = scrutinee.ordinal() as usize;
+                            self.emit(source.expressions()[scrutinee_index].occurrence.clone(), 51, self.component_term_at(positions[scrutinee_index].effect), result_effect)?;
+                            for arm in arms {
+                                let body = arm.body.ordinal() as usize;
+                                let occurrence = &source.expressions()[body].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: occurrence.clone(), slot: 50, endpoint: endpoints[body], upper: result })?;
+                                self.emit(occurrence.clone(), 51, self.component_term_at(positions[body].effect), result_effect)?;
+                            }
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(arms.len()).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(arms.len()).ok_or_else(unavailable)?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
                             // Direct children have unique source occurrences in the HIR tree.
@@ -429,7 +470,7 @@ impl ConstraintBatch {
                                     push(uses, PendingDefinitionUse { parent_ordinal: parent.ordinal(), target, occurrence: occurrence.clone() })?;
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
-                                LocalSourceResolution::Parameter(_) => {}
+                                LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) => {}
                                 LocalSourceResolution::Local(local) => {
                                     if let Some(&endpoint) = active_initializers.get(local) {
                                         push(&mut actions, Action::Link { occurrence: occurrence.clone(), endpoint, target: pos.value })?;
@@ -464,10 +505,14 @@ impl ConstraintBatch {
                         }
                         LocalSourceForm::Ascription { inner, annotation } => {
                             formal_names[index] = formal_names[inner.ordinal() as usize];
+                            // The retained canonical peeled child avoids rescanning wrappers
+                            // when arm binder aliases become available during Visit.
+                            endpoints[index] = endpoints[*ascription_children.get(&index).ok_or_else(invalid)?];
                             let scope = match &expr.scope {
                                 yu_hir::shadow::LocalSourceScope::Definition(owner) => candidate_effect::AnnotationScope::Definition(owner.clone()),
                                 yu_hir::shadow::LocalSourceScope::LocalInitializer(local) => candidate_effect::AnnotationScope::Local(local.clone()),
                                 yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                                yu_hir::shadow::LocalSourceScope::CatchArm { arm, .. } => catch_arm_scopes.get(arm).cloned().ok_or_else(invalid)?,
                                 yu_hir::shadow::LocalSourceScope::Expression(expression) => candidate_effect::AnnotationScope::Expression(expression.clone()),
                             };
                             // An expression annotation constrains the child's

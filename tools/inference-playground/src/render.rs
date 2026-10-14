@@ -261,6 +261,9 @@ fn source_value_into(
                 output.write_str("local value").map_err(cap)
             }
         }
+        CandidateSourceValueIdentity::CatchBinder(_) => {
+            output.write_str("catch binder value").map_err(cap)
+        }
         CandidateSourceValueIdentity::Parameter(_) => {
             output.write_str("parameter value").map_err(cap)
         }

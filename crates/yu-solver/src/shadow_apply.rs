@@ -85,6 +85,7 @@ pub enum CandidateSourceValueIdentity<'a> {
     Module(&'a DefId),
     Local(&'a yu_hir::HirLocalId),
     Parameter(&'a HirParameterId),
+    CatchBinder(&'a yu_hir::shadow::LocalSourceCatchBinderId),
     Expression(&'a HirOccurrenceId),
 }
 #[derive(Debug)]
@@ -137,6 +138,7 @@ impl<'a> CandidateIntrusionObservation<'a> {
         let identity = match value {
             Value::Module(id) => CandidateSourceValueIdentity::Module(id),
             Value::Local(id) => CandidateSourceValueIdentity::Local(id),
+            Value::CatchBinder(id) => CandidateSourceValueIdentity::CatchBinder(id),
             Value::Parameter(id) => CandidateSourceValueIdentity::Parameter(id),
             Value::Expression(id) => CandidateSourceValueIdentity::Expression(id),
         };

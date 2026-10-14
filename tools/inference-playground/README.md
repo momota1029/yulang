@@ -35,7 +35,8 @@ source witness for the reuse observations.
 
 This output describes retained state; it is not a chronological runtime trace.
 The examples in `tools/inference-playground/examples/` cover identity,
-nested recursion, effects, conditional bounds, and a type conflict. The
+nested recursion, effects, conditional bounds, normal-return Catch arms, and
+a type conflict. The
 examples put top-level declarations on separate lines.
 
 ## Read from standard input
@@ -80,6 +81,22 @@ a principal type. Conditional result references include conditions and every
 branch through the selected Name/Apply/If fragments. Group, Ascription, Lambda
 and Block remain fragment boundaries. This scoped construction does not certify
 complete source Value-reference adjacency for the whole language.
+
+The Catch example passes both conditional value bounds through a normal-return
+binder:
+
+```sh
+cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-value.yu
+```
+
+The carrier observes unguarded total identifier or wildcard normal-return arms.
+A binder refers to the original scrutinee value; the scrutinee effect and every
+arm body's effect contribute to the Catch output. Both conditional branches
+remain present for either constant condition. Catch adds no result reference
+fragment to the existing Name/Apply/If construction. Operation and resumption
+arms, guarded arms, labels, and non-total patterns remain unavailable through
+this private carrier. This slice does not establish full handler behavior or
+global effect hygiene.
 
 This carrier still does not observe arithmetic, omitted-`else` conditionals,
 or string interpolation. These are limits of the carrier, not Yulang language
