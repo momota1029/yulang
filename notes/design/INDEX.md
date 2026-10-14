@@ -1009,8 +1009,10 @@ This index is a navigation aid. The listed source document remains authoritative
   output-effect occurrence of an original upper Function use, without
   back-protecting an existing lower/provider effect. Its scoped formalization
   is [directional protection from an inferred variable to a Function upper view](2026-10-06-directional-inferred-effect-protection-addendum.md);
-  full source generation, soundness/principality and production cutover remain
-  open.
+  its section 2.1 records the October 15 concrete clarification: `signal`
+  survives relay's Catch and the `answer` variable binding to reach the
+  enclosing block. Full source generation, soundness/principality and
+  production cutover remain open.
 
 - **Authoritative candidate source interpretation — nested block result and capture:**
   [nested-block Function source realization addendum](2026-10-06-nested-block-function-source-realization-addendum.md)

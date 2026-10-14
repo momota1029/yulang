@@ -75,6 +75,38 @@ its source contribution, typed incidence, receipt and live receiver evidence.
 The previous assistant explanation made that blanket event-level claim too
 readily; it is not adopted here.
 
+### 2.1 Concrete relay and variable-binding clarification, 2026-10-15
+
+For this particular source:
+
+```yu
+act signal:
+    our ping: () -> int
+
+my relay cb = catch cb() {
+    signal::ping(), _ -> 1,
+    v -> v
+}
+my answer = relay signal::ping
+```
+
+the user directly resolved the previously pending outcome:
+
+> signalはrelay内で処理されず，answerは変数なのでそれもすり抜けて自由になる（ブロックに出る）．
+
+Thus `signal` is not consumed by the Catch in `relay`. Binding the result to
+the variable `answer` does not consume it either: the effect escapes into the
+enclosing block. The observation belongs to the initializer/block computation,
+not just the exported value graph of `answer`. Reading the bound value later
+does not repeat the initializer's effect.
+
+This is an explicit expected outcome for the displayed source, supplementing
+section 2's original upper-occurrence rule. It does not select a push/pop
+representation, establish all provider-event correspondence, or certify
+live protection/subtraction. The [executable block observation](../progress/2026-10-15-hygiene-example-baseline.md#variable-binding-and-block-escape-clarification)
+separates the final Name lookup from the block computation. No repeated
+semantic vote is needed for this example.
+
 ## 3. Proposed minimal inference-rule notation
 
 Let `k` identify the already justified source protection seed at the original

@@ -102,7 +102,7 @@ gap; the review was revised to a major finding. The repaired claim is only a
 conditional route argument for a matched instantiated Function comparison.
 No native original-Eout counterexample or mandatory repair follows yet.
 
-## Proposed constructions and remaining question
+## Proposed constructions and resolved source question
 
 The [guard construction](../theory/2026-10-15-executable-hygiene-guard-construction.md)
 and [paired Function-port calculation](../theory/2026-10-15-paired-entry-output-hygiene-construction.md)
@@ -123,7 +123,66 @@ does `relay signal::ping`, where `relay cb` contains `catch cb()`, retain
 effect? Directional protection of the original upper occurrence is already
 selected. The addendum explicitly does not establish blanket protection of
 provider events, so the primary has not invented either final result.
-This is a pending conversational clarification, not a new approved rule.
+The subsequent explicit answer is recorded below; this question is no longer
+pending.
+
+## Variable binding and block escape clarification
+
+The user answered:
+
+> signalはrelay内で処理されず，answerは変数なのでそれもすり抜けて自由になる（ブロックに出る）．
+
+The [directional addendum, section 2.1](../design/2026-10-06-directional-inferred-effect-protection-addendum.md#21-concrete-relay-and-variable-binding-clarification-2026-10-15)
+records this exact source outcome. `signal` must survive relay's Catch and the
+variable binding and reach the enclosing block computation.
+
+The saved `hygiene-callback-block.yu` makes the observation explicit:
+
+```yu
+my program = {
+    my answer = relay signal::ping;
+    answer as [] int
+}
+```
+
+The final ascription checks reading the already bound value. It does not assert
+that the whole block is pure. At baseline `8dc4368bd`, the existing playground
+binary executed three inputs using `target/debug/yu-playground <source>`,
+each with a 30-second process timeout:
+
+| Input | Result |
+| --- | --- |
+| The block above, with the existing `signal` and `relay` declarations | Exit 0 |
+| Same source with `my program:[] int =` | Exit 1, `IncompatibleEffect` |
+| Empty-effect block control, replacing the initializer with `1` | Exit 0 |
+
+These are three additional CLI executions; no new Cargo invocation, test suite
+or benchmark was run. Scratch sources and output are under
+`/tmp/yulang-hygiene-block-45vg22lv/`. The first input is preserved in the new
+fixture. Its expected behavior follows the user clarification and the existing
+initializer/Name distinction, rather than adopting current output as a contract.
+
+The implementation already routes local initialization effects into the block:
+`candidate_source.rs::Work::Install` emits slot 20 from `init.effect` to the
+owning block effect before installing the generalized value. A later Name
+lookup has its own empty computation effect. Expression ascription checks the
+actual child's computation; a definition's root effect annotation checks its
+entire initializer. No compiler change is required for this particular escape
+route.
+
+The three results establish that the current example exposes this distinction.
+They do not establish hygiene: current Catch still forwards all scrutinee
+effects. The next behavioral gap remains the distinction between subtracting
+an eligible direct effect and retaining the omitted callback's effect, with
+the direct-argument and outside-arm controls intact. Paired-pop ordering,
+live protection and source-qualified subtraction remain unresolved.
+
+This clarification/fixture slice uses M1 with one independent `spec_auditor`
+for faithful decision transcription and observation scope. Review found no
+findings; global inference, the paired-pop construction and production
+readiness were outside its scope. The saved fixture was also checked byte for
+byte against the executed source, and changed Markdown fences and whitespace
+were checked. Compiler code and existing test expectations are unchanged.
 
 ## Review, resources and status
 
@@ -144,4 +203,6 @@ No live protection, Catch subtraction, compiler behavior or production route
 changed. H1/H2/U and full hygiene remain open; H3/P and F5 cutover remain
 disabled. The meaningful current checkpoint is these reproducible source
 examples and the corrected evidence boundary. `tasks/current.md` and
-`tasks/research-lab.md` link this record; design authority/status is unchanged.
+`tasks/research-lab.md` link this record. The later clarification updates the
+scoped expected source outcome in the directional addendum; implementation and
+proof status remain unchanged.

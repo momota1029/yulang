@@ -27,10 +27,15 @@ its first clean review was superseded by a source-correspondence major finding,
 then a fresh semantic delta review accepted the repaired conditional scope.
 The paired Function-port alternative remains unreviewed research with an open
 pop-ordering interpretation. Neither result authorizes native promotion.
-The current user question concerns the concrete final effect of
-`relay signal::ping` under its internal Catch. Resolve that expected result
-before adopting an event-level protection outcome. Existing H1/H2/U, H3/P
-and production boundaries remain unchanged. This is a frozen checkpoint,
+The user has resolved the concrete result: `signal` survives relay's internal
+Catch and the `answer` variable binding and escapes to the enclosing block.
+The directional addendum section 2.1 records the exact decision. A fifth
+fixture, `hygiene-callback-block.yu`, checks the pure final Name lookup;
+three additional CLI executions distinguish it from the effectful enclosing
+block and a pure initializer control. Existing block initialization already
+has this route. Native protection and selective Catch removal remain the next
+implementation gap. Existing H1/H2/U, H3/P and production boundaries remain
+unchanged. This is a frozen checkpoint,
 not a request to launch another proof wave from the historical queue below.
 
 ## Native extrusion checkpoint (2026-10-15)

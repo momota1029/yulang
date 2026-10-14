@@ -15,10 +15,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   preserves the executions and a discarded diagnostic whose raw-template
   reachability assumption failed. Guard calculations remain conditional;
   original/fresh-use correspondence and paired-pop ordering are unresolved.
-  The immediate conversational question is whether the inner Catch in
-  `relay signal::ping` removes that concrete effect or leaves it outside.
-  Do not infer this event result from the selected upper-occurrence rule,
-  rerun the same raw-template probe, or activate H3/P from these observations.
+  The user has now fixed this example's result: `signal` survives relay's
+  Catch and the variable binding of `answer`, escaping to the enclosing
+  block. The directional addendum section 2.1 records the exact clarification.
+  A fifth fixture observes this distinction: `answer as [] int` passes,
+  requiring the whole block to be `[] int` conflicts, and a pure initializer
+  control passes. The existing local initialization route already carries
+  effects to the block; these three executions do not establish hygiene while
+  Catch forwards everything. Next develop the selected protection/removal
+  distinction in the private research candidate at its actual owners, retaining
+  construction/proof gates and direct-argument/outside-arm controls.
+  Do not repeat the resolved question, rerun the same raw-template
+  probe, or activate H3/P from these observations.
 
 - **Implemented native initialization replay:** `candidate_extrude` retains
   exact incoming Allowance keys and replays them after all selected bounds,
