@@ -767,6 +767,25 @@ this exact owner and its source operands, then connect its complete demand and
 discharge to native Simple-sub construction without changing the accepted
 source domain.
 
+Follow-up constructive attempts identify the next distinct missing law. The
+original Call and IF rules consume authentic roots and retain all existing
+arms; they do not generate an arm's result membership in the Application's
+selected `Comp(E_c,A_c)`. The compositional constructor proof derives
+`Call_c -> Mem(D_call)` for the dependent union of structural and original arm
+contracts, but `Mem(D_call)` does not imply the independent complete descriptor
+check `CIncl(Image_c,Comp(E_c,A_c))`. For each reachable original arm witness,
+the missing owner evidence is a same-assignment, scope-preserving map from its
+original output evidence into that selected complete result, retaining the
+actual provider/world and future fields. Typed core §6–7 does not let ordinary
+value/effect projections supply this map, and complete Call §2 leaves the
+concrete arm output law unspecified. A structural `Bind/ExecuteCallable`
+branch can be formed directly; it does not discharge independent whole-Call
+arms. Native Apply still emits only Function4 plus callee/invocation effect
+bounds, not this complete output check. The original parent remains OPEN; no
+source counterexample or new arm law has been proved. Do not retry the generic
+Join/projection route unless the actual arm-output law or a lawful complete
+result descriptor changes this input.
+
 The separate direct-rule attack in
 [`invoke original Call source falsification`](../notes/progress/2026-10-11-invoke-original-call-source-falsification.md)
 and the constructive
