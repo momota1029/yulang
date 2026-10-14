@@ -119,8 +119,10 @@ This index is a navigation aid. The listed source document remains authoritative
   under its explicit processing premises; authentic handler eligibility and
   full hygiene remain open. The
   [operation-pattern CST/recovery proposal](2026-10-14-operation-pattern-tails.md)
-  is Authoritative after the user's 2026-10-14 approval; the parser slice is
-  in progress. The
+  is Authoritative after the user's 2026-10-14 approval; its
+  [parser implementation](../progress/2026-10-14-operation-pattern-implementation.md)
+  passed M2 semantic/conformance review and focused/package verification.
+  Operation-arm HIR/solver and hygiene remain separate gates. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction

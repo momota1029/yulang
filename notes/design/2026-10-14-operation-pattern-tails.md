@@ -8,7 +8,8 @@ recovery-frontier and diagnostic-ownership findings closed by delta review.
 Date: 2026-10-14
 Baseline: `21d5a9773e577bf9b49b5d978bc60bedf8d72a42`
 Scope: shared Pattern path and glued payload tails, needed for existing Oracle Catch spelling.
-Implementation: authorized and in progress; ordinary value-arm Catch formation is complete.
+Implementation: parser slice complete after focused verification and independent M2 review;
+operation-arm HIR/solver construction remains a separate dependent gate.
 
 ## User approval
 
@@ -31,7 +32,7 @@ catch signal::ping():
     v -> v
 ```
 
-The current Pattern owner lacks a qualified path tail and a glued call tail.
+At the pinned baseline the Pattern owner lacks a qualified path tail and a glued call tail.
 The shared `PatternMlApplicationTail` already exists under the function-scheme
 foundation §§20/41, but needs trivia and respects Catch's `PATTERN_STOP_ITEM`.
 Consequently adding a path tail alone does not parse this source. This record
@@ -166,4 +167,9 @@ projection. A final delimiter clarification preserves uncarried foreign-close
 Error consumption and retains only carried caller closes. The independent
 compiler/referee and conformance delta reviews have no remaining major finding.
 Those reviews established proposal readiness. The subsequent approval above
-authorizes implementation; completion still requires code and verification.
+authorized implementation. The
+[implementation checkpoint](../progress/2026-10-14-operation-pattern-implementation.md)
+records completed parser construction, independent semantic/conformance closure
+and focused plus package verification. Private Pattern state retains native
+recovery readiness separately from unresolved path members; this implements
+the approved distinction without changing existing completion contracts.

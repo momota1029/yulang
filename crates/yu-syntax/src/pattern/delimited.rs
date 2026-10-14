@@ -1,4 +1,4 @@
-//! Direct owners for Pattern's three comma-or-layout delimited primaries.
+//! Direct owners for Pattern's comma-or-layout delimited primaries and calls.
 
 use crate::ambient_claim::AmbientClaimContext;
 use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
@@ -25,7 +25,7 @@ use crate::{
     pattern::{
         PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
         PATTERN_STOP_RPAREN, PatternCallerCloses, PatternCompletion, PatternMandatorySlotPolicy,
-        PatternPrecedence, PatternScan, PatternStops, SyntaxIn, emit_pattern_missing,
+        PatternPrecedence, PatternScan, PatternState, PatternStops, SyntaxIn, emit_pattern_missing,
         is_pattern_nud, pattern_from_item_recording_with_policy_normalized,
         pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
         pattern_tail_normalized, scan_pattern_item_lexical, scan_pattern_tail_normalized,
@@ -36,6 +36,7 @@ use crate::{
 #[derive(Clone, Copy)]
 enum Owner {
     Parenthesized,
+    Call,
     List,
     Record,
 }
@@ -44,6 +45,7 @@ impl Owner {
     fn node(self) -> SyntaxKind {
         match self {
             Self::Parenthesized => SyntaxKind::ParenthesizedPattern,
+            Self::Call => SyntaxKind::PatternCallTail,
             Self::List => SyntaxKind::ListPattern,
             Self::Record => SyntaxKind::RecordPattern,
         }
@@ -51,7 +53,7 @@ impl Owner {
 
     fn close(self) -> TokenKind {
         match self {
-            Self::Parenthesized => TokenKind::RParen,
+            Self::Parenthesized | Self::Call => TokenKind::RParen,
             Self::List => TokenKind::RBracket,
             Self::Record => TokenKind::RBrace,
         }
@@ -60,7 +62,7 @@ impl Owner {
     fn local_stops(self, caller_closes: PatternCallerCloses) -> PatternStops {
         PATTERN_STOP_COMMA
             | match self {
-                Self::Parenthesized => PATTERN_STOP_RPAREN,
+                Self::Parenthesized | Self::Call => PATTERN_STOP_RPAREN,
                 Self::List => PATTERN_STOP_RBRACKET,
                 Self::Record => PATTERN_STOP_RBRACE,
             }
@@ -78,7 +80,7 @@ pub(super) fn parenthesized_pattern(
     line_handoff: StatementLineHandoff,
     recovered_primary_tail_stops: PatternStops,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -103,6 +105,39 @@ pub(super) fn parenthesized_pattern(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub(super) fn call_pattern(
+    i: SyntaxIn,
+    open: Item,
+    minimum: PatternPrecedence,
+    incoming_baseline: usize,
+    outer_stops: PatternStops,
+    line_handoff: StatementLineHandoff,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    pattern_delimited(
+        i,
+        open,
+        Owner::Call,
+        minimum,
+        incoming_baseline,
+        outer_stops,
+        line_handoff,
+        0,
+        caller_closes,
+        completion,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(super) fn list_pattern(
     i: SyntaxIn,
     open: Item,
@@ -111,7 +146,7 @@ pub(super) fn list_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -144,7 +179,7 @@ pub(super) fn record_pattern(
     outer_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -179,7 +214,7 @@ fn pattern_delimited(
     line_handoff: StatementLineHandoff,
     recovered_primary_tail_stops: PatternStops,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -199,12 +234,12 @@ fn pattern_delimited(
         item.emit_all_remaining_leading(&mut *i.state);
     }
     let mut expect_item = true;
-    let mut contents_completion = PatternCompletion::Complete;
+    let mut contents_completion = PatternState::new(PatternCompletion::Complete);
     let mut own_recovery_consumed_error = false;
 
     loop {
         if item.payload_view().is_boundary() {
-            *completion = PatternCompletion::Incomplete;
+            completion.native = PatternCompletion::Incomplete;
             return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
 
@@ -229,7 +264,7 @@ fn pattern_delimited(
             );
         }
         if is_carried_caller_close(caller_closes, &item) {
-            *completion = PatternCompletion::Incomplete;
+            completion.native = PatternCompletion::Incomplete;
             return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
         if token_kind(&item) == Some(TokenKind::Comma)
@@ -238,7 +273,7 @@ fn pattern_delimited(
             if expect_item {
                 item.emit_all_remaining_leading(&mut *i.state);
                 emit_pattern_missing(&mut i, &item, item_origin);
-                contents_completion = PatternCompletion::Incomplete;
+                contents_completion.native = PatternCompletion::Incomplete;
             }
             emit_token_item(&mut i, item);
             (item, item_origin, line_entry) =
@@ -247,7 +282,7 @@ fn pattern_delimited(
             continue;
         }
         if token_kind(&item).is_none() {
-            *completion = PatternCompletion::Incomplete;
+            completion.native = PatternCompletion::Incomplete;
             return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
         if is_other_close(owner, &item) {
@@ -275,7 +310,7 @@ fn pattern_delimited(
         };
         let item_baseline = delimited_baseline(baseline, item.leading_view());
         item.emit_all_remaining_leading(&mut *i.state);
-        let mut item_completion = PatternCompletion::Incomplete;
+        let mut item_completion = PatternState::new(PatternCompletion::Incomplete);
         let entry = suffix_marker(i.rb());
         let exit = if let Some(record_separator) = error_slot {
             own_recovery_consumed_error = true;
@@ -304,26 +339,28 @@ fn pattern_delimited(
                     line_entry,
                     fence,
                 );
-                item_completion = PatternCompletion::Complete;
+                item_completion.native = PatternCompletion::Complete;
                 complete(handoff(next), next_line)
             }
         } else {
             match owner {
-                Owner::Parenthesized => pattern_from_item_recording_with_policy_normalized(
-                    i.rb(),
-                    item,
-                    PatternPrecedence::Lowest,
-                    item_baseline,
-                    local_stops,
-                    line_handoff,
-                    PatternMandatorySlotPolicy::default(),
-                    descendant_caller_closes,
-                    &mut item_completion,
-                    item_origin,
-                    line_entry,
-                    fence,
-                    ambient,
-                ),
+                Owner::Parenthesized | Owner::Call => {
+                    pattern_from_item_recording_with_policy_normalized(
+                        i.rb(),
+                        item,
+                        PatternPrecedence::Lowest,
+                        item_baseline,
+                        local_stops,
+                        line_handoff,
+                        PatternMandatorySlotPolicy::default(),
+                        descendant_caller_closes,
+                        &mut item_completion,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        ambient,
+                    )
+                }
                 Owner::List => list_item(
                     i.rb(),
                     item,
@@ -354,6 +391,7 @@ fn pattern_delimited(
         };
         item_origin = advanced_origin(item_origin, entry, i.rb());
         merge_completion(&mut contents_completion, item_completion);
+        completion.unresolved_path_member |= contents_completion.unresolved_path_member;
         match exit {
             NormalizedExit::Complete(Ok(()), next_line_entry) => {
                 (item, item_origin, line_entry) = pattern_nud_item_normalized(
@@ -369,7 +407,7 @@ fn pattern_delimited(
                 line_entry = next_line_entry;
             }
             NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
-                *completion = PatternCompletion::Incomplete;
+                completion.native = PatternCompletion::Incomplete;
                 return missing_close(i, end.item, caller_closes, item_origin, next_line_entry);
             }
             deferred @ NormalizedExit::Deferred(_, _) => {
@@ -436,7 +474,7 @@ fn recover_record_pattern(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -503,18 +541,18 @@ fn finish_delimited_pattern(
     minimum: PatternPrecedence,
     incoming_baseline: usize,
     outer_stops: PatternStops,
-    contents_completion: PatternCompletion,
+    contents_completion: PatternState,
     own_recovery_consumed_error: bool,
     recovered_primary_tail_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let mut tail_completion = PatternCompletion::Complete;
+    let mut tail_completion = PatternState::new(PatternCompletion::Complete);
     let exit = if own_recovery_consumed_error && recovered_primary_tail_stops != 0 {
         let mut i = i;
         let (item, item_origin, line_entry) =
@@ -554,14 +592,16 @@ fn finish_delimited_pattern(
             ambient,
         )
     };
-    *completion = contents_completion;
+    completion.native = contents_completion.native;
+    completion.unresolved_path_member |= contents_completion.unresolved_path_member;
     merge_completion(completion, tail_completion);
     exit
 }
 
-fn merge_completion(completion: &mut PatternCompletion, nested: PatternCompletion) {
-    if nested == PatternCompletion::Incomplete {
-        *completion = PatternCompletion::Incomplete;
+fn merge_completion(completion: &mut PatternState, nested: PatternState) {
+    completion.unresolved_path_member |= nested.unresolved_path_member;
+    if nested.native == PatternCompletion::Incomplete {
+        completion.native = PatternCompletion::Incomplete;
     }
 }
 
@@ -573,7 +613,7 @@ fn list_item(
     local_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -631,7 +671,7 @@ fn record_item(
     local_stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -668,7 +708,7 @@ fn record_item(
     // The sequence admits only a name or DotDot; the spread branch returned.
     debug_assert!(is_pattern_name(&item));
 
-    *completion = PatternCompletion::Complete;
+    completion.native = PatternCompletion::Complete;
     i.state.start_node(SyntaxKind::RecordPatternField.into());
     emit_token_item(&mut i, item);
     let record_stops = local_stops | PATTERN_STOP_EQUALS;
@@ -859,7 +899,7 @@ fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> b
 
 fn is_item_start(owner: Owner, item: &Item) -> bool {
     match owner {
-        Owner::Parenthesized => is_pattern_nud(item, 0),
+        Owner::Parenthesized | Owner::Call => is_pattern_nud(item, 0),
         Owner::List => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_nud(item, 0),
         Owner::Record => token_kind(item) == Some(TokenKind::DotDot) || is_pattern_name(item),
     }

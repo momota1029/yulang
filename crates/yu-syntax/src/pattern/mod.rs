@@ -242,6 +242,32 @@ pub(super) enum PatternCompletion {
     Incomplete,
 }
 
+/// Native recovery readiness and unresolved path obligations are independent.
+/// A later native retry may complete its slot; it cannot discharge a path
+/// member that an earlier constructor left unresolved.
+#[derive(Clone, Copy)]
+struct PatternState {
+    native: PatternCompletion,
+    unresolved_path_member: bool,
+}
+
+impl PatternState {
+    fn new(native: PatternCompletion) -> Self {
+        Self {
+            native,
+            unresolved_path_member: false,
+        }
+    }
+
+    fn reported(self) -> PatternCompletion {
+        if self.unresolved_path_member {
+            PatternCompletion::Incomplete
+        } else {
+            self.native
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(test)]
 fn pattern_from_item_with_completion_normalized(
@@ -288,7 +314,8 @@ fn pattern_from_item_recording_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    pattern_from_item_recording_with_policy_normalized(
+    let mut state = PatternState::new(*completion);
+    let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
         minimum,
@@ -297,12 +324,14 @@ fn pattern_from_item_recording_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        completion,
+        &mut state,
         item_origin,
         line_entry,
         fence,
         ambient,
-    )
+    );
+    *completion = state.reported();
+    exit
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -315,7 +344,7 @@ fn pattern_from_item_recording_with_policy_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -352,7 +381,7 @@ fn pattern_from_item_core_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -361,12 +390,12 @@ fn pattern_from_item_core_normalized(
     if item.payload_view().is_boundary()
         || is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops)
     {
-        *completion = PatternCompletion::Incomplete;
+        completion.native = PatternCompletion::Incomplete;
         emit_initial_pattern_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_pattern_nud(&item, stops) {
-        *completion = PatternCompletion::Complete;
+        completion.native = PatternCompletion::Complete;
         pattern_from_primary_with_recovered_tail_stops_normalized(
             i,
             item,
@@ -413,7 +442,7 @@ pub(super) fn pattern_from_entry_item_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let mut completion = PatternCompletion::Incomplete;
+    let mut completion = PatternState::new(PatternCompletion::Incomplete);
     pattern_from_item_recording_with_policy_normalized(
         i,
         item,
@@ -449,7 +478,7 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
         | PATTERN_STOP_RBRACE
         | PATTERN_STOP_COMMA
         | PATTERN_STOP_SEMICOLON;
-    let mut completion = PatternCompletion::Incomplete;
+    let mut completion = PatternState::new(PatternCompletion::Incomplete);
     let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
@@ -465,7 +494,7 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
         fence,
         ambient,
     );
-    (exit, completion)
+    (exit, completion.reported())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -483,7 +512,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> (NormalizedExit, PatternCompletion) {
     let stops = stops | caller_closes.pattern_stops();
-    let mut completion = PatternCompletion::Incomplete;
+    let mut completion = PatternState::new(PatternCompletion::Incomplete);
     let exit = pattern_from_item_recording_with_policy_normalized(
         i,
         item,
@@ -499,7 +528,7 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
         fence,
         ambient,
     );
-    (exit, completion)
+    (exit, completion.reported())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -512,13 +541,13 @@ fn recover_pattern_primary_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    *completion = PatternCompletion::Incomplete;
+    completion.native = PatternCompletion::Incomplete;
     let boundary = |item: &Item| {
         item.payload_view().is_boundary()
             || is_mandatory_slot_fresh_primary_stop(item, policy.fresh_primary_recovery_stops)
@@ -588,7 +617,7 @@ fn recover_pattern_primary_normalized(
     }
     debug_assert!(is_pattern_nud(&item, stops));
     item.emit_all_remaining_leading(&mut *i.state);
-    *completion = PatternCompletion::Complete;
+    completion.native = PatternCompletion::Complete;
     pattern_from_primary_with_recovered_tail_stops_normalized(
         i,
         item,
@@ -616,7 +645,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     line_handoff: StatementLineHandoff,
     recovered_primary_tail_stops: PatternStops,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -654,7 +683,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                     ambient,
                 ),
                 crate::rule::RuleExpressionExit::Boundary(item, line) => {
-                    *completion = PatternCompletion::Incomplete;
+                    completion.native = PatternCompletion::Incomplete;
                     complete(handoff(item), line)
                 }
             };
@@ -696,7 +725,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 ambient,
             ),
             NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
-                *completion = PatternCompletion::Incomplete;
+                completion.native = PatternCompletion::Incomplete;
                 complete(handoff(item), line_entry)
             }
         };
@@ -727,7 +756,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 ambient,
             ),
             NormalizedStringLiteralExit::Boundary(item, line_entry) => {
-                *completion = PatternCompletion::Incomplete;
+                completion.native = PatternCompletion::Incomplete;
                 complete(handoff(item), line_entry)
             }
         };
@@ -783,7 +812,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 line_entry = LineEntry::InLine;
             } else {
                 emit_pattern_missing_at(&mut i, item_origin);
-                *completion = PatternCompletion::Incomplete;
+                completion.native = PatternCompletion::Incomplete;
                 tail_stops |= PATTERN_STOP_RECOVERED_PRIMARY;
             }
             i.state.finish_node();
@@ -937,7 +966,7 @@ fn scan_pattern_tail_normalized(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -970,7 +999,7 @@ fn pattern_tail_normalized(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -985,8 +1014,75 @@ fn pattern_tail_normalized(
     if implicit_delimited_newline(baseline, item.leading_view()) {
         return complete(handoff(item), line_entry);
     }
+    if token_kind(&item) == Some(TokenKind::PathSeparator) {
+        item.emit_all_remaining_leading(&mut *i.state);
+        i.state.start_node(SyntaxKind::PatternPathTail.into());
+        emit_token_item(&mut i, item);
+        (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        let mut member_completion = PatternState::new(PatternCompletion::Incomplete);
+        if !pattern_path_member_frontier(&item, baseline, stops, caller_closes)
+            && !is_pattern_tail_boundary(i.rb(), &item, stops)
+            && token_kind(&item) == Some(TokenKind::Identifier)
+        {
+            emit_token_item(&mut i, item);
+            member_completion.native = PatternCompletion::Complete;
+            (item, item_origin, line_entry) =
+                pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        } else {
+            (item, item_origin, line_entry) = recover_pattern_path_member_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                caller_closes,
+                &mut member_completion,
+                item_origin,
+                line_entry,
+                fence,
+            );
+        }
+        completion.unresolved_path_member |=
+            member_completion.native == PatternCompletion::Incomplete;
+        completion.native = member_completion.native;
+        i.state.finish_node();
+        return pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
+    if token_kind(&item) == Some(TokenKind::LParen) && !item.leading_view().has_ordinary_trivia() {
+        let mut call_completion = PatternState::new(PatternCompletion::Complete);
+        let exit = delimited::call_pattern(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            &mut call_completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        completion.native = call_completion.native;
+        completion.unresolved_path_member |= call_completion.unresolved_path_member;
+        return exit;
+    }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
-        *completion = PatternCompletion::Incomplete;
+        completion.native = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
         emit_pattern_alias_keyword(&mut i, item);
@@ -997,7 +1093,7 @@ fn pattern_tail_normalized(
             && !is_pattern_word_stop(&item, stops)
         {
             emit_token_item(&mut i, item);
-            *completion = PatternCompletion::Complete;
+            completion.native = PatternCompletion::Complete;
             (item, item_origin, line_entry) =
                 pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         } else {
@@ -1033,7 +1129,7 @@ fn pattern_tail_normalized(
         i.state
             .start_node(SyntaxKind::PatternAlternationTail.into());
         emit_token_item(&mut i, item);
-        *completion = PatternCompletion::Incomplete;
+        completion.native = PatternCompletion::Incomplete;
         let (mut rhs, rhs_origin, rhs_line_entry) =
             pattern_nud_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         let rhs_baseline = delimited_baseline(baseline, rhs.leading_view());
@@ -1081,7 +1177,7 @@ fn pattern_tail_normalized(
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
-        *completion = PatternCompletion::Incomplete;
+        completion.native = PatternCompletion::Incomplete;
         let exit = pattern_type_annotation_rhs_normalized(
             i.rb(),
             baseline,
@@ -1106,7 +1202,7 @@ fn pattern_tail_normalized(
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternMlApplicationTail.into());
-        *completion = PatternCompletion::Incomplete;
+        completion.native = PatternCompletion::Incomplete;
         let entry = suffix_marker(i.rb());
         let exit = pattern_from_item_recording_with_policy_normalized(
             i.rb(),
@@ -1142,13 +1238,79 @@ fn pattern_tail_normalized(
     complete(handoff(item), line_entry)
 }
 
+// A member retry preserves complete pending Items at every protected frontier.
+fn pattern_path_member_frontier(
+    item: &Item,
+    baseline: usize,
+    stops: PatternStops,
+    caller_closes: PatternCallerCloses,
+) -> bool {
+    item.payload_view().is_boundary()
+        || is_pattern_primary_boundary(item, baseline, stops)
+        || token_kind(item).is_some_and(|kind| caller_closes.contains(kind))
+        || (token_kind(item) != Some(TokenKind::Identifier) && is_current_pattern_tail(item, stops))
+        || token_kind(item) == Some(TokenKind::PathSeparator)
+        || (token_kind(item) == Some(TokenKind::LParen)
+            && !item.leading_view().has_ordinary_trivia())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recover_pattern_path_member_normalized(
+    mut i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: PatternStops,
+    caller_closes: PatternCallerCloses,
+    completion: &mut PatternState,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    let frontier = |item: &Item| pattern_path_member_frontier(item, baseline, stops, caller_closes);
+    if frontier(&item) || is_pattern_tail_boundary(i.rb(), &item, stops) {
+        emit_pattern_missing(&mut i, &item, item_origin);
+        return (item, item_origin, line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_pattern_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    stops,
+                    PatternScan::Tail,
+                )
+            });
+            // Contextual guards are identifiers: stop here, then consult the
+            // native contextual boundary before admitting the retry below.
+            if frontier(&item) || token_kind(&item) == Some(TokenKind::Identifier) {
+                return (item, item_origin, line_entry);
+            }
+        }
+    });
+    if frontier(&item)
+        || is_pattern_tail_boundary(i.rb(), &item, stops)
+        || token_kind(&item) != Some(TokenKind::Identifier)
+    {
+        return (item, item_origin, line_entry);
+    }
+    item.emit_all_remaining_leading(&mut *i.state);
+    emit_token_item(&mut i, item);
+    completion.native = PatternCompletion::Complete;
+    pattern_item_normalized(i, item_origin, line_entry, fence, stops)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn recover_pattern_alias_binding_normalized(
     mut i: SyntaxIn,
     mut item: Item,
     baseline: usize,
     stops: PatternStops,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -1188,7 +1350,7 @@ fn recover_pattern_alias_binding_normalized(
     }
     item.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, item);
-    *completion = PatternCompletion::Complete;
+    completion.native = PatternCompletion::Complete;
     pattern_item_normalized(i, item_origin, line_entry, fence, stops)
 }
 
@@ -1213,7 +1375,7 @@ pub(super) fn binding_target_from_entry_item_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        &mut PatternCompletion::Incomplete,
+        &mut PatternState::new(PatternCompletion::Incomplete),
         item_origin,
         line_entry,
         fence,
@@ -1250,7 +1412,7 @@ fn continue_pattern_tail_normalized(
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
@@ -1296,7 +1458,7 @@ fn pattern_type_annotation_rhs_normalized(
     baseline: usize,
     stops: PatternStops,
     caller_closes: PatternCallerCloses,
-    completion: &mut PatternCompletion,
+    completion: &mut PatternState,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -1332,7 +1494,7 @@ fn pattern_type_annotation_rhs_normalized(
             ambient,
         );
     if stops & PATTERN_STOP_IN == 0 || primary_found {
-        *completion = PatternCompletion::Complete;
+        completion.native = PatternCompletion::Complete;
     }
     exit
 }
@@ -1426,4 +1588,258 @@ fn is_pattern_alias(item: &Item) -> bool {
 fn emit_pattern_alias_keyword(i: &mut SyntaxIn, item: Item) {
     debug_assert_eq!(item.payload_view().spelling(), Some("as"));
     item.emit_payload(&mut *i.state, SyntaxKind::AsKw);
+}
+
+#[cfg(test)]
+mod operation_tail_tests {
+    use super::*;
+    use crate::{SyntaxNode, cursor::Recover, operator_table::OperatorTable};
+    use rowan::GreenNodeBuilder;
+
+    fn run(
+        source: &str,
+        stops: PatternStops,
+        caller_closes: PatternCallerCloses,
+    ) -> (SyntaxNode, NormalizedExit, PatternCompletion) {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut remainder = source;
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(SyntaxKind::Root.into());
+        let mut i = SyntaxIn::new(&mut remainder, &mut recover, &mut builder);
+        let (item, origin, line) =
+            pattern_nud_item_normalized(i.rb(), 0, LineEntry::InLine, None, stops);
+        let result = required_pattern_from_entry_item_with_policy_normalized(
+            i,
+            item,
+            0,
+            stops,
+            StatementLineHandoff::OrdinaryLayout,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            origin,
+            line,
+            None,
+            Some(AmbientClaimView::root_statement(0)).into(),
+        );
+        builder.finish_node();
+        (SyntaxNode::new_root(builder.finish()), result.0, result.1)
+    }
+
+    fn pending(exit: NormalizedExit) -> Item {
+        match exit {
+            NormalizedExit::Complete(Err(Either::Left(item)), _)
+            | NormalizedExit::Deferred(item, _) => item,
+            NormalizedExit::Complete(Err(Either::Right(end)), _) => end.item,
+            NormalizedExit::Complete(Ok(()), _) => panic!("expected a complete pending Item"),
+        }
+    }
+
+    fn missing_count(root: &SyntaxNode) -> usize {
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count()
+    }
+
+    #[test]
+    fn path_member_frontiers_preserve_whole_item_and_leading() {
+        for (source, spelling, stops) in [
+            ("A::  , tail", ",", PATTERN_STOP_COMMA),
+            ("A::  if condition", "if", PATTERN_STOP_ARM_GUARD_IF),
+            (
+                "A::  where condition",
+                "where",
+                PATTERN_STOP_ARM_GUARD_WHERE,
+            ),
+            ("A::\nB", "B", 0),
+            ("A::  ]", "]", PATTERN_STOP_RBRACKET),
+        ] {
+            let (root, exit, completion) = run(source, stops, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), "A::", "{source}");
+            assert_eq!(missing_count(&root), 1, "{source}");
+            assert_eq!(completion, PatternCompletion::Incomplete);
+            let item = pending(exit);
+            assert_eq!(item.payload_view().spelling(), Some(spelling));
+            assert!(item.leading_view().has_ordinary_trivia());
+        }
+        let (root, exit, completion) = run("A::", 0, PatternCallerCloses::NONE);
+        assert_eq!(missing_count(&root), 1);
+        assert!(pending(exit).payload_view().is_eof());
+        assert_eq!(completion, PatternCompletion::Incomplete);
+    }
+
+    #[test]
+    fn path_error_frontier_does_not_add_same_slot_missing() {
+        for (source, spelling, stops) in [
+            ("A::@  , tail", ",", PATTERN_STOP_COMMA),
+            ("A::@  if condition", "if", PATTERN_STOP_ARM_GUARD_IF),
+            (
+                "A::@  where condition",
+                "where",
+                PATTERN_STOP_ARM_GUARD_WHERE,
+            ),
+            ("A::@\nB", "B", 0),
+        ] {
+            let (root, exit, completion) = run(source, stops, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), "A::@", "{source}");
+            assert_eq!(missing_count(&root), 0);
+            assert_eq!(completion, PatternCompletion::Incomplete);
+            let item = pending(exit);
+            assert_eq!(item.payload_view().spelling(), Some(spelling));
+            assert!(item.leading_view().has_ordinary_trivia());
+        }
+    }
+
+    #[test]
+    fn path_deeper_member_and_retry_complete_only_their_slot() {
+        for source in ["A::\n  B", "A::@ B", "A::$bad B"] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(missing_count(&root), 0);
+            assert_eq!(completion, PatternCompletion::Complete);
+        }
+        for source in ["A::::@ B()", "A::::@ B() as c"] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(missing_count(&root), 1);
+            assert_eq!(completion, PatternCompletion::Incomplete);
+        }
+    }
+
+    #[test]
+    fn call_matching_close_wins_and_carried_foreign_close_keeps_leading() {
+        let (root, exit, completion) = run(
+            "A(x)  ]",
+            PATTERN_STOP_RBRACKET,
+            PatternCallerCloses::RBRACKET.union(PatternCallerCloses::RPAREN),
+        );
+        assert_eq!(root.text().to_string(), "A(x)");
+        assert_eq!(missing_count(&root), 0);
+        assert_eq!(completion, PatternCompletion::Complete);
+        let item = pending(exit);
+        assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+        assert!(item.leading_view().has_ordinary_trivia());
+
+        let (root, exit, completion) = run(
+            "A(x  ]",
+            PATTERN_STOP_RBRACKET,
+            PatternCallerCloses::RBRACKET,
+        );
+        assert_eq!(root.text().to_string(), "A(x");
+        assert_eq!(missing_count(&root), 1);
+        assert_eq!(completion, PatternCompletion::Incomplete);
+        let missing = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Missing)
+            .unwrap();
+        assert_eq!(
+            missing.parent().unwrap().kind(),
+            SyntaxKind::PatternCallTail
+        );
+        let item = pending(exit);
+        assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+        assert!(item.leading_view().has_ordinary_trivia());
+    }
+
+    #[test]
+    fn ml_and_alternation_accumulate_incomplete_prefix_argument_and_following_tails() {
+        for source in [
+            "f A::::B as z",
+            "f A::::B C",
+            "A::::B | C",
+            "f | A::::B as z",
+            "f A::::B | C",
+            "f A::::B C | D as z",
+        ] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source, "{source}");
+            assert_eq!(missing_count(&root), 1, "{source}");
+            let missing = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::Missing)
+                .unwrap();
+            assert_eq!(
+                missing.parent().unwrap().kind(),
+                SyntaxKind::PatternPathTail
+            );
+            assert_eq!(completion, PatternCompletion::Incomplete, "{source}");
+        }
+        for source in ["f A::@ B as z", "f A::@ B C", "f | A::@ B as z"] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(missing_count(&root), 0);
+            assert_eq!(completion, PatternCompletion::Complete, "{source}");
+        }
+    }
+
+    #[test]
+    fn absent_primary_alternation_derives_completion_from_admitted_rhs() {
+        for (source, missing) in [("A | | B", 1), ("A | @ | B", 0)] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(missing_count(&root), missing);
+            assert_eq!(completion, PatternCompletion::Complete, "{source}");
+        }
+        let source = "@ A::::B | C";
+        let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(missing_count(&root), 1);
+        assert_eq!(completion, PatternCompletion::Incomplete);
+    }
+
+    #[test]
+    fn unresolved_path_members_survive_annotation_and_nested_delimiters() {
+        for source in [
+            "A | B::::C: T",
+            "(A::::B) as z",
+            "[A::::B, C] as z",
+            "{field: A::::B, next} as z",
+            "A(A::::B, C) as z",
+            "f A([B::::C], D) as z",
+        ] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source, "{source}");
+            assert_eq!(missing_count(&root), 1, "{source}");
+            assert_eq!(completion, PatternCompletion::Incomplete, "{source}");
+        }
+        for source in ["(A::@ B) as z", "A([B::@ C], D) as z"] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), source);
+            assert_eq!(missing_count(&root), 0);
+            assert_eq!(completion, PatternCompletion::Complete, "{source}");
+        }
+    }
+
+    #[test]
+    fn native_recovery_readiness_table_remains_independent_of_path_obligations() {
+        for (source, emitted, expected) in [
+            ("", "", PatternCompletion::Incomplete),
+            (" ", "", PatternCompletion::Incomplete),
+            ("A as", "A as", PatternCompletion::Incomplete),
+            (":", ":", PatternCompletion::Incomplete),
+            (": x", ":", PatternCompletion::Incomplete),
+            ("A |", "A |", PatternCompletion::Incomplete),
+            ("A | | B", "A | | B", PatternCompletion::Complete),
+            ("A | :", "A | :", PatternCompletion::Incomplete),
+            ("A as | B", "A as | B", PatternCompletion::Complete),
+            ("A | @ :", "A | @ :", PatternCompletion::Complete),
+        ] {
+            let (root, _, completion) = run(source, 0, PatternCallerCloses::NONE);
+            assert_eq!(root.text().to_string(), emitted, "{source}");
+            assert_eq!(completion, expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn call_uncarried_foreign_close_retains_existing_error_consumption() {
+        let (root, exit, _) = run("A(x ] )", 0, PatternCallerCloses::NONE);
+        assert_eq!(root.text().to_string(), "A(x ] )");
+        assert_eq!(missing_count(&root), 0);
+        assert!(root.descendants_with_tokens().any(|child| {
+            child
+                .into_token()
+                .is_some_and(|token| token.kind() == SyntaxKind::Error && token.text() == "]")
+        }));
+        assert!(pending(exit).payload_view().is_eof());
+    }
 }

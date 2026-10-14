@@ -58,8 +58,8 @@ source-owned nonzero contextual producer and Catch residual constructor with
 live two-direction/current/future feedback. The selected `ResidualRecipe` is
 design, not existing code. Shallow resumption, outside arm effects and frozen
 Oracle operation-pattern/binder behavior constrain that work. No new
-negative-formal field map or handler semantics are inferred from the pending
-question bundle; no further conditional lemma assuming the absent producer is
+negative-formal field map or handler semantics are inferred from the approved
+example correction; no further conditional lemma assuming the absent producer is
 scheduled. All current child write leases are frozen/completed.
 
 The next [normal-return Catch checkpoint](../notes/progress/2026-10-14-catch-value-and-native-residual.md)
@@ -74,8 +74,12 @@ handler/hygiene remain open. Do not schedule another watcher engine or a
 repeated conditional proof assuming U. The shared operation-pattern
 [CST/recovery proposal](../notes/design/2026-10-14-operation-pattern-tails.md)
 passed M2 design review and received explicit user approval on 2026-10-14.
-Its parser implementation is active on a bounded syntax lease; the HIR/solver
-operation-arm slice remains dependent on that construction and authentic U.
+Its [parser implementation](../notes/progress/2026-10-14-operation-pattern-implementation.md)
+is complete after M2 semantic/conformance delta review and focused/package
+verification. Native completion and unresolved path-member transport are
+separate constructor facts; existing recovery expectations are unchanged.
+The HIR/solver operation-arm slice now depends on its own binder/resumption
+construction and authentic U. All parser writer/reviewer leases are complete.
 The answered q1/r1 negative-formal correction bundle is integrated at
 `ef579dfd3` at the user's request, with exact content and committed-file checks.
 It supplies no complete field map and is no longer a pending local question.

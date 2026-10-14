@@ -195,8 +195,15 @@ The missing shared operation-pattern path/call tails have a
 Independent semantic/recovery and exact-conformance reviews closed their
 findings. The user approved the proposal on 2026-10-14 with
 `まあだいたいこれでいいと思う．`; its CST/recovery contract is Authoritative
-and parser implementation is active. The next dependent slice is operation/
-payload/raw-resumption formation with U's actual boundary evidence.
+and its [parser implementation is complete](../notes/progress/2026-10-14-operation-pattern-implementation.md).
+Shared path/glued-call tails preserve existing kind numbers, native recovery
+and generic diagnostic publication. An internal unresolved-path fact survives
+ML/alternation/delimiter transport independently of native recovery readiness.
+M2 semantic/conformance review is closed; the syntax library has 1,399 passing
+tests and one existing ignored test, with nine new public parser tests and
+playground/HIR consumer checks passing. The next dependent slice is operation/
+payload/raw-resumption formation with U's actual boundary evidence; parsing
+does not itself admit complete handlers to the candidate solver.
 
 The same user turn requested archiving the answered negative-formal question.
 The exact q1/r1 question/draft/approved-answer bundle is integrated at
