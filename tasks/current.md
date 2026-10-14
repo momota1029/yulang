@@ -14810,3 +14810,24 @@ changes.
 Next: derive the joint complete source-demand to emitted/consumed native
 Function4 map under the same scoped assignment, retaining every Call-site
 clause and its complete future interface.
+
+The direct pending-field calculation now proves a smaller part of that map.
+For a fixed authentic `Prim(δ,μq)` occurrence, the selected IF/Bind constructors
+retain the same operation instance, response signature, raw handle, live resumed
+world and ordered suffix `k(r,C') >>= S`; future interfaces remain indexed by
+their original output/provider/world. A fresh independent `compiler_referee`
+confirmed this identity-retention lemma. This also withdraws the proposed
+`op[α]`/`op[β]` mismatch counterexample: changing the operation substitution
+changes the original incidence, so it is not a counterexample at one fixed
+source occurrence.
+
+This **REDUCES** the dependent-field preservation part of the pending case.
+It does not transport membership between `CompleteComp(E_actual,B_actual)` and
+`CompleteComp(E_target,B_target)`. The exact remaining law is to map every
+complete/pending observation and admitted development across the native
+Preserve premises `E_actual ≤ E_target` and `B_actual ≤ B_target`, while
+retaining those same request, handle, world and suffix fields. The selected
+Theorem F consumes that whole-observation inclusion; no inspected constructor
+derives it from the scalar inequalities. The source/native parent and native
+Function4 correspondence remain OPEN. Static definition/source review only;
+no tests, builds, probes, code or Git mutations.
