@@ -1,8 +1,63 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-12 UTC
+Date: 2026-10-14
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
+
+## Current direction: direct user clarification, 2026-10-14
+
+The user's current explanation governs the next work through
+[top-level principles §1.1](../notes/design/2026-10-11-yulang-inference-top-level-principles.md#11-source-constraints-and-intrusion-direct-clarification-2026-10-14):
+construct source types/constraints, perform level-based extrusion while
+retaining the actual parent/child Value association, and intrude the retained
+type pairs when those Values share a Value-reference SCC. In particular,
+`if true { 1 } else { "str" }` infers `int | str`; evaluating its condition
+or constant folding is not an inference prerequisite.
+
+Immediate work is to align the actual source/extrusion/SCC consumers with
+that operation and apply the existing hygiene proofs to their implementation
+owners. The current source check at `6bb1f7073` confirms the concrete mismatch:
+`candidate_intrusion::settle_candidate_intrusion` builds SCCs by traversing
+type bounds and Function ports, then compares the type parent/copy endpoints.
+`Parent` retains only type endpoints, polarity and target level;
+`candidate_extrude` receives no actual origin/receiving Value identities.
+The owning repair must carry resolved source Value references and extrusion
+occurrence associations from source construction to this consumer, grouping
+the actual polar type pairs under their occurrence. Nested local definitions
+keep their own source owner. Existing type-copy/equality mechanics alone do
+not establish the selected qualification. This is a code-conformance gap,
+not a need to decide the user's algorithm again.
+
+The private LocalSource candidate currently has no If/Boolean/String forms;
+the user's branch-union example needs source construction before it can be
+an executable candidate check. No constant-folding prerequisite was found in
+the inspected path.
+
+The bounded `prover` reuse lookup identifies the original
+`lem:one-color-hygiene` in frozen Oracle `a58eefc31` at
+`research/effect-mini-language/directed_stack_weight_letrec_complete_ja.tex`
+(lines 1665–1680), together with the already reviewed
+[typed transport/lifetime package](../notes/design/2026-10-02-typed-boundary-realization-draft.md#transport-and-lifetime-theorem-package).
+The original guard lemma supplies protection for nonpermitted effects under
+its active-color and entry-snapshot hypotheses. The transport package retains
+its finite monomorphic decorated domain and supplied typed correspondences.
+Reuse requires executable permission/protection to keep its original
+occurrence, owner and effect position through transport and canonicalization.
+Type endpoint equality alone supplies no new permission. The successor still
+rejects negative concrete formal rows and publishes empty live context words;
+its missing coupled boundary constructor/consumer is the implementation seam.
+The proposed application is a handoff, with no new bridge theorem certified.
+
+The detailed historical Call investigations below retain their stated scope;
+their recency alone does not make another conditional Call proof the next
+implementation prerequisite. Existing theorem statuses are unchanged.
+
+Record alignment is M0: one independent `spec_auditor` found no issue in the
+user clarification and the cited source mismatch. The proof-reuse lookup is
+reported separately without status promotion. Only source/document inspection,
+reference checks and `git diff --check` were used; no compiler edits, builds,
+tests, executable probes or measurements. The exact next implementation
+responsibilities above remain open.
 
 ## 2026-10-12 fixed-term H executable construction
 

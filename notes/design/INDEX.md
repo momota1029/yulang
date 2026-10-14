@@ -53,7 +53,11 @@ This index is a navigation aid. The listed source document remains authoritative
   requirements to safe diagnostics, no incorrect typing/publication, and
   safe termination. It supersedes blanket exact-state/capacity restoration
   and allocation-free rollback requirements in conflicting inference gates.
-  Read it before applying older contextual rollback clauses.
+  Its October 14 direct clarification fixes source-driven constraint
+  generation (including both branches of a constant-condition `if`),
+  extrusion-occurrence Value ownership, Value-reference SCC qualification,
+  and reuse of existing hygiene proofs. Read it before selecting inference
+  work or applying older contextual rollback clauses.
 
 - **Current legacy withdrawal policy (2026-10-10):**
   [active removal of Simple-sub bypasses](2026-10-10-simple-sub-legacy-withdrawal.md)

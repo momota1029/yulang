@@ -29,6 +29,47 @@ Do not turn inference into speculative search over possible typings. A proof
 obligation does not authorize changing ordinary inference into a less natural
 algorithm.
 
+### 1.1 Source constraints and intrusion: direct clarification, 2026-10-14
+
+Authority: the user's direct explanation in the continuing completion
+conversation. This records the selected inference operation; it does not
+assert a newly proved theorem. The earlier review attribution applies to the
+October 11 text; review of this clarification is recorded separately below.
+
+1. Construct types and constraints for source expressions. The user's example
+   `if true { 1 } else { "str" }` has inferred type `int | str`: both branches
+   contribute. A formal initially has a type variable such as `'a`; using it
+   as a function adds `'a <: ('b ['c] -> ['d] 'e)`. This construction needs
+   neither prior execution of the condition nor constant folding. Unknown
+   types remain variables constrained by their uses.
+2. Perform ordinary level-based Simple-sub extrusion as constraints are added
+   and propagated. At each copying occurrence, retain the parent and child
+   value-variable identities associated with the actual type-variable copies.
+   The existing [occurrence qualification](2026-10-12-intrusion-value-type-association.md)
+   specifies the origin/receiver Values and the produced polar parent/copy
+   pairs. Resolved identities implement the user's value-variable names.
+3. Compute SCCs of the selected value-reference graph. When the two Values
+   associated with that extrusion occurrence are in the same SCC, undo that
+   extrusion by equating its actual type parent/copy pairs. SCC membership of
+   type-bound endpoints is not this criterion. Retain the added constraints
+   and propagate the equality through their actual consumers.
+
+These steps describe constraint construction and solving, not a requirement
+to determine every variable's final type before generating constraints. They
+do not add a new scheduling, storage or transport convention to the approved
+occurrence rule. Existing preservation obligations concern this algorithm;
+evaluation or constant folding is not a prerequisite to infer the example.
+
+The user also explicitly requires reuse of the existing hygiene proofs. Apply
+the established results and their actual hypotheses through the
+[existing proof integration](2026-10-10-annotation-effect-hygiene-integration.md#3-existing-results-retained-and-reused).
+Work on missing constructor/consumer correspondence at its implementation
+owner. Do not restart a proved hygiene result or treat a stronger unfinished
+characterization as evidence that no reusable proof exists.
+
+Clarification review: independent `spec_auditor`, no findings, 2026-10-14;
+transcription and applicability only, not algorithm or proof certification.
+
 ## 2. Actively reduce computational cost
 
 Avoid naive exhaustive search, needless recomputation, excessive state
