@@ -27,9 +27,13 @@ it corrects the earlier blanket claim that reconstruction erases all
 provenance. The source/receipt note is
 [`callback profile reconstruction/receipt`](../notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md).
 One implementer now owns a disjoint, provisional source-evidence slice for that
-static incidence only. H1/H2/U remain OPEN; H3/P stays disabled. Dynamic
-Receive/Observe, full Call, H4 hygiene, generic rigid opening, soundness,
-principality and production/F5 retain their separate gates.
+static incidence only. Its first profile-writing attempt stopped with no code
+changes: current authority does not select the omitted-formal position matrix.
+The user has been asked that exact semantic question; a separate D-only source
+incidence certificate can proceed without interpreting it as protection.
+H1/H2/U remain OPEN; H3/P stays disabled. Dynamic Receive/Observe, full Call,
+H4 hygiene, generic rigid opening, soundness, principality and production/F5
+retain their separate gates.
 
 ## Current executable checkpoint, 2026-10-14
 

@@ -20,8 +20,12 @@ surviving captured Function endpoint, while locating the missing source profile
 introduction/incidence at source/Lambda formation and Function-port admission.
 The remaining dynamic receiver/observation and general alias/return/lifecycle
 bridges are separate. One reversible implementer slice now supplies only the
-missing static source evidence; H1/H2/U remain OPEN and H3 remains disabled.
-See the current handoff for its exact lease and limits.
+missing static source evidence. That slice stopped without changes when review
+confirmed the omitted-formal profile-position matrix is not selected by the
+current authority; the user has been asked to choose those positions. A
+separate D-only source-incidence certificate may proceed without treating it
+as protection. H1/H2/U remain OPEN and H3 remains disabled. See the current
+handoff for its exact lease and limits.
 
 ## Current direction: direct user clarification, 2026-10-14
 
