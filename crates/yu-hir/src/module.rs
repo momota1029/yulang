@@ -2240,6 +2240,35 @@ fn plain_binding_header(
     }
     let mut parameters = Vec::with_capacity(tails.len());
     for tail in tails {
+        #[cfg(any(feature = "shadow", test))]
+        if _counters.local_source && tail.kind() == SyntaxKind::PatternCallTail {
+            if tails.len() != 1 || has_recovery(tail) {
+                return None;
+            }
+            let arguments = tail.children().collect::<Vec<_>>();
+            let [argument] = arguments.as_slice() else {
+                return None;
+            };
+            if argument.kind() != SyntaxKind::Pattern || has_recovery(argument) {
+                return None;
+            }
+            let children = argument.children().collect::<Vec<_>>();
+            let (identifier, annotation) = match children.as_slice() {
+                [identifier] => (identifier, None),
+                [identifier, annotation]
+                    if annotation.kind() == SyntaxKind::PatternTypeAnnotation =>
+                {
+                    (identifier, Some(annotation.clone()))
+                }
+                _ => return None,
+            };
+            parameters.push(AdmittedParameter {
+                name: identifier_pattern_name(identifier)?,
+                source: _counters.source_nodes.get(identifier).cloned(),
+                annotation,
+            });
+            continue;
+        }
         if tail.kind() != SyntaxKind::PatternMlApplicationTail || has_recovery(tail) {
             return None;
         }

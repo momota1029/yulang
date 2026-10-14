@@ -6,6 +6,15 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Exact adjacent formal spelling admitted:** the source HIR now accepts
+  the user's `relay(thunk: ...)` named-parameter header while retaining its
+  identifier and annotation source nodes. One regression review and a
+  playground build passed; exact top-level/local sources solve. See the
+  [source checkpoint](../notes/progress/2026-10-15-adjacent-formal-source-routing.md).
+  Unit formals and the solver's composed-negative concrete callback
+  permission remain separate gaps. No Catch subtraction or return value
+  execution is claimed.
+
 - **Scoped release kernel and local proof:** the compiled private
   `candidate_scope.rs` has canonical ordered transforms, exact release and
   injective renaming. Independent algebra/code and source-supplier reviews

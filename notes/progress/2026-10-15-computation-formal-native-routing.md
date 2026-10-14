@@ -65,6 +65,11 @@ deferred to the coherent phase boundary.
 
 ## Remaining work
 
+Subsequent [adjacent-header work](2026-10-15-adjacent-formal-source-routing.md)
+closes the named adjacent HIR limit above. Its additional named-formal
+observation accepts the signal/write computation at `[signal]`; unit-formal
+support and exact handler residuals remain open.
+
 Connect local annotation permission and operation-aware Catch subtraction;
 finish scoped compose release and its source/FreshUse/late-replay proof.
 The original full source hygiene, soundness, principality and production
