@@ -4,7 +4,7 @@ use std::{
     process::ExitCode,
 };
 
-const HELP: &str = "Usage: yu-playground [--intrusion] [SOURCE.yu | -]\nWith no argument, reads piped stdin; terminal stdin shows this help.\nRuns the existing experimental solver and prints finite graph references and retained constraints.\n--intrusion also prints retained source SCC associations, extrusion pairs and settlement state.\nInput cap: 65536 bytes. Output caps: 1048576 bytes and 16384 observation work entries total; 4096 nodes/rows/bounds per graph.\nThese are tool caps, not source typing rejections or solver CPU limits.";
+const HELP: &str = "Usage: yu-playground [--intrusion] [SOURCE.yu | -]\nWith no argument, reads piped stdin; terminal stdin shows this help.\nRuns the existing experimental solver and prints finite graph references and retained constraints.\n--intrusion also prints retained source SCC associations, extrusion pairs, settlement state and symbolic directional introductions (not event consumption or runtime hygiene).\nInput cap: 65536 bytes. Output caps: 1048576 bytes and 16384 observation work entries total; 4096 nodes/rows/bounds per graph.\nThese are tool caps, not source typing rejections or solver CPU limits.";
 
 fn run() -> Result<(), String> {
     let mut path = None;

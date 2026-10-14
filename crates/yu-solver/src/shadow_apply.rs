@@ -2,7 +2,7 @@
 use crate::*;
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
-pub use crate::candidate_call::{CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
+pub use crate::candidate_call::{CandidateDirectionalIntroduction, CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
 
 /// Every entry remains unresolved, including after successful structural solving.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1494,11 +1494,31 @@ impl InferenceSession {
                     let callee_effect = self.live_effect_term(
                         Polarity::Positive, self.live_components[callee_effect].ordinal,
                     )?;
+                    // Join the original source registration, never a solved endpoint or scope.
+                    // This is retained before constraint admission and has no semantic consumer.
+                    let source_call = &self.batch.candidate_calls.calls[source_input];
+                    let introduction = if let Some(name_index) = source_call.formal_name {
+                        let name = &self.batch.candidate_calls.names[name_index];
+                        let registration = &self.batch.candidate_calls.formals[name.registration];
+                        let source = self.batch.hir.local_source(&registration.owner)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let lambda = source.expressions().get(registration.lambda)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.batch.candidate_source.omitted_formals.get(&lambda.occurrence)
+                            .map(|omitted| crate::candidate_call::DirectionalIntroduction {
+                                registration: name.registration, name: name_index,
+                                omitted: omitted.clone(), checking: source_call.checking.clone(),
+                                cause: source_call.cause.clone(), demand,
+                                field: FunctionField::ResultEffect, effect: return_effect, row,
+                            })
+                    } else { None };
                     let input = self.batch.candidate_calls.calls.get_mut(source_input)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     if input.checking.occurrence() != &recipe.occurrence || input.native.is_some() {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     }
+                    input.introduction = introduction;
                     input.native = Some(crate::candidate_call::NativeInterface {
                         callee, argument, callee_effect, argument_effect, result, demand,
                         invocation_effect: return_effect, invocation_row: row, application_effect,
@@ -1711,6 +1731,75 @@ mod tests {
         assert!(other.effect_conflict(kind).is_err());
         assert!(crate::candidate_call::observe(&foreign, &candidate.solved.data.store, &candidate.solved.data.candidate_calls, 0).is_err());
         assert!(candidate.source_call(0).is_ok());
+    }
+    #[test]
+    fn directional_introductions_are_exact_original_upper_result_effects() {
+        for (source, expected, providers) in [
+            ("my apply f = f 1; my id x = x; my good = apply id", 1, 1),
+            ("my apply f = f (f 1)", 2, 0),
+            ("my compose f g = { my relay x = f (g x); relay }", 2, 0),
+            ("my outer cb = { my inner x = cb x; inner }", 1, 0),
+            ("my apply f = { my first = f 1; my second = (f) 1; my step x = ({ f }) x; step }", 3, 0),
+        ] {
+            let candidate = CandidateInference::solve(crate::candidate_lifecycle_retirement::hir(source)).unwrap();
+            let mut introductions = Vec::new();
+            let mut absent = 0;
+            for index in 0..candidate.source_call_count() {
+                let call = candidate.source_call(index).unwrap();
+                let Some(introduction) = call.directional_introduction() else { absent += 1; continue; };
+                assert_eq!(introduction.original_demand(), call.native_demand());
+                assert_eq!(introduction.result_effect(), call.native_invocation_effect());
+                assert_ne!(introduction.result_effect(), call.native_application_effect());
+                assert_ne!(introduction.result_effect(), call.native_argument_evaluation_effect());
+                assert_ne!(introduction.result_effect(), call.native_result());
+                assert_eq!(introduction.original_formal(), &call.formal_registration().unwrap().id);
+                assert_eq!(introduction.checking_occurrence(), call.checking_occurrence());
+                assert!(introductions.iter().all(|(checking, demand)| checking != introduction.checking_occurrence() && *demand != introduction.original_demand()));
+                introductions.push((introduction.checking_occurrence().clone(), introduction.original_demand()));
+            }
+            assert_eq!(introductions.len(), expected, "{source}");
+            assert_eq!(absent, providers, "{source}");
+        }
+    }
+    #[test]
+    fn directional_observer_rejects_wrong_field_use_and_formal() {
+        let candidate = CandidateInference::solve(crate::candidate_lifecycle_retirement::hir(
+            "my compose f g = { my relay x = f (g x); relay }",
+        )).unwrap();
+        let original = &candidate.solved.data.candidate_calls;
+        assert_eq!(original.calls.len(), 2);
+        for corruption in 0..4 {
+            let mut state = original.clone();
+            let other = state.calls[1].introduction.as_ref().unwrap().clone();
+            let application_effect = state.calls[0].native.unwrap().application_effect;
+            let record = state.calls[0].introduction.as_mut().unwrap();
+            match corruption {
+                0 => record.field = FunctionField::ArgumentEffect,
+                1 => record.checking = other.checking,
+                2 => record.omitted = other.omitted,
+                _ => record.effect = application_effect,
+            }
+            assert!(crate::candidate_call::observe(
+                &candidate.solved.data.hir, &candidate.solved.data.store, &state, 0,
+            ).is_err());
+        }
+        for corrupt_registration in [false, true] {
+            let mut state = original.clone();
+            let record = state.calls[0].introduction.as_ref().unwrap();
+            let registration = record.registration;
+            let source = candidate.solved.data.hir.local_source(&record.omitted.owner)
+                .unwrap().unwrap();
+            let wrong_scope = crate::candidate_effect::AnnotationScope::Expression(source.body().clone());
+            if corrupt_registration {
+                state.formals[registration].scope = wrong_scope;
+            } else {
+                let record = state.calls[0].introduction.as_mut().unwrap();
+                Arc::make_mut(&mut record.omitted).scope = wrong_scope;
+            }
+            assert!(crate::candidate_call::observe(
+                &candidate.solved.data.hir, &candidate.solved.data.store, &state, 0,
+            ).is_err());
+        }
     }
     #[test]
     fn source_call_retains_registered_root_across_wrapped_and_captured_uses() {

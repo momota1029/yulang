@@ -17,6 +17,7 @@ pub(super) struct FormalRegistrationInput {
     pub owner: DefinitionRootId,
     pub lambda: usize,
     pub parameter: HirParameterId,
+    pub scope: candidate_effect::AnnotationScope,
     pub recipe_position: usize,
     pub native_root: Option<Term>,
 }
@@ -44,6 +45,53 @@ pub(super) struct ApplySourceInput {
     pub cause: CauseId,
     pub formal_name: Option<usize>,
     pub native: Option<NativeInterface>,
+    pub introduction: Option<DirectionalIntroduction>,
+}
+/// Symbolic candidate evidence only; no handler/filter or row-state consumer.
+#[derive(Clone, Debug)]
+pub(super) struct DirectionalIntroduction {
+    pub registration: usize,
+    pub name: usize,
+    pub omitted: Arc<candidate_source::OmittedFormal>,
+    pub checking: ConstraintOccurrenceId,
+    pub cause: CauseId,
+    pub demand: Term,
+    pub field: FunctionField,
+    pub effect: Term,
+    pub row: u32,
+}
+/// A validated occurrence-specific symbolic introduction, never an event grant.
+pub struct CandidateDirectionalIntroduction<'a> {
+    record: &'a DirectionalIntroduction,
+}
+impl CandidateDirectionalIntroduction<'_> {
+    pub fn original_owner(&self) -> &DefinitionRootId {
+        &self.record.omitted.owner
+    }
+    pub fn original_lambda(&self) -> &HirOccurrenceId {
+        &self.record.omitted.lambda
+    }
+    pub fn original_formal(&self) -> &HirParameterId {
+        &self.record.omitted.formal
+    }
+    pub fn original_scope(&self) -> &impl std::fmt::Debug {
+        &self.record.omitted.scope
+    }
+    pub fn checking_occurrence(&self) -> &ConstraintOccurrenceId {
+        &self.record.checking
+    }
+    pub fn checking_cause(&self) -> &CauseId {
+        &self.record.cause
+    }
+    pub fn original_demand(&self) -> Term {
+        self.record.demand
+    }
+    pub fn result_effect(&self) -> Term {
+        self.record.effect
+    }
+    pub fn raw_invocation_row(&self) -> u32 {
+        self.record.row
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct NativeInterface {
@@ -202,6 +250,14 @@ impl<'a> CandidateSourceCall<'a> {
     }
     pub fn lexical_formal_use(&self) -> Option<&'a LocalSourceExpr> {
         self.formal.map(|(_, _, name)| name)
+    }
+    /// None means no authenticated omitted-formal route in this candidate carrier;
+    /// it is not a language-wide claim of absent protection.
+    pub fn directional_introduction(&self) -> Option<CandidateDirectionalIntroduction<'a>> {
+        self.input
+            .introduction
+            .as_ref()
+            .map(|record| CandidateDirectionalIntroduction { record })
     }
     pub fn pending_construction(&self) -> PendingCallConstruction<'_, 'a> {
         PendingCallConstruction { call: self }
@@ -430,6 +486,36 @@ pub(super) fn observe<'a>(
     } else {
         None
     };
+    match (&input.introduction, formal.as_ref()) {
+        (Some(record), Some((registration, parameter, _))) => {
+            let lambda = source
+                .expressions()
+                .get(registration.lambda)
+                .ok_or(ArtifactMismatch)?;
+            let name_index = input.formal_name.ok_or(ArtifactMismatch)?;
+            let name = state.names.get(name_index).ok_or(ArtifactMismatch)?;
+            if parameter.annotation.is_some()
+                || record.registration != name.registration
+                || record.name != name_index
+                || record.omitted.owner != registration.owner
+                || record.omitted.lambda != lambda.occurrence
+                || record.omitted.formal != parameter.id
+                || record.omitted.position != parameter.source
+                || record.omitted.scope != registration.scope
+                || record.checking != input.checking
+                || record.cause != input.cause
+                || record.demand != native.demand
+                || record.field != FunctionField::ResultEffect
+                || record.effect != native.invocation_effect
+                || record.row != native.invocation_row
+            {
+                return Err(ArtifactMismatch);
+            }
+        }
+        (None, Some((_, parameter, _))) if parameter.annotation.is_some() => {}
+        (None, None) => {}
+        _ => return Err(ArtifactMismatch),
+    }
     Ok(CandidateSourceCall {
         input,
         expression,

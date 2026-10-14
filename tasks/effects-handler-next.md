@@ -5,6 +5,7 @@
 - 実装基準: `343754251a1e6af057eb0b45be660cb882ea8391`
 - 位置付け: 既存の承認事項を実行するための引き継ぎ。新しい言語仕様・実装権限の承認ではない。
 - 今回の到達点: 現在の carrier で、保護すべき寄与を残すハンドラ残余を playground から観測できること。
+- 現在の実装 checkpoint: `3683ed72d`。象徴的な source introduction の構築・観測だけを実装済み。live context と残余 consumer は未実装。
 
 ## 1. 再開時はここから
 
@@ -101,17 +102,23 @@
    は保持する。全 nested-position matrix の再投票は不要。この意味選択は production cutover authority
    を代替しない。
 
-   M2 source-to-construction/consumer correspondence は
+   M2 source-to-construction correspondence は
    [frozen note](../notes/theory/2026-10-15-directional-protection-source-correspondence.md)
    と [falsifier](../notes/progress/2026-10-15-directional-protection-source-falsifier.md)
    にまとまり、fresh `compiler_referee` と `spec_auditor` は blocking / major / minor なしと判定した。
    actual omission/scope と元の Apply upper demand の fresh `ResultEffect` は各 owner に残るが、
-   それらを結ぶ protected-at-exposure producer と exact ResultEffect consumer はまだない。
-   `OmittedFormal` は Apply より前の collection plan にあるので、source-owned early constructor は可能。
-   次は private candidate/playground で、source omission + original upper exposure から exact
-   `ResultEffect` だけへ occurrence/scope-qualified witness を作る最小の可逆な構築差分と、
-   provider no-backflow の実証に進む。late seed、capture/freshening、all-path transport は別 gate。
-   `RelationId(13)` の enqueue activation は独立課題のまま。H1/H2/U OPEN、H3/P disabled。
+   protected-at-exposure の記号的な source record は private candidate/playground に実装した。
+   詳細は [checkpoint](../notes/progress/2026-10-15-directional-introduction-playground.md)。
+   元の checking occurrence、全 demand、`ResultEffect` と raw invocation row を結び、provider
+   と別 use の負例を focused test で確認した。conformance review は問題なし。semantic review
+   が見つけた per-call full binding scan は source registration に scope を保持する修正で除去し、
+   focused delta review で binding 数に依存しない scope validation を確認した。
+   ただしこの record は executable protection / live context consumer ではなく、H1 を閉じない。
+   **次は source record から contextual protection consumer までの構築則と、既存 hygiene proof
+   の premises を実コードへ対応づける bounded proof/source gate。** consumer または保護 profile の
+   根拠が不足する場合、residual activation は止めて正確な不足点を保持する。late seed、
+   capture/freshening、all-path transport は別 gate。`RelationId(13)` の enqueue activation
+   も独立した source-provenance 課題のまま。H1/H2/U OPEN、H3/P disabled。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
@@ -142,7 +149,7 @@ production cutover の完了を意味しない。元の U の主張範囲を狭�
 
 | 段階 | 状態・着手条件 | 実施内容と成果物 | 完了判定 |
 | --- | --- | --- | --- |
-| **H1: source 境界から live context まで** | OPEN。H1-A/B と bounded source-to-reconstruction/Argument correspondence は frozen・independently reviewed。D-only source-incidence certificate は captured FreshUse と bounded source Name handoff の経路だけを認証し、earlier extrusion を除外する。選択済み local law は元の upper Function demand の `ResultEffect` のみを新規保護する。M2 correspondence packet は reviewed; it identifies retained source inputs but the protection producer/consumer edge is absent. | private playground に occurrence/scope-qualified producer and exact `ResultEffect` consumer を最小構築し、provider no-backflow を確認する。 | まず構築と exact local invariant を独立査読する。late demand, capture/freshening, alias/return, and all-path transport remain separate. dynamic Receive/Observe and full Call are separate gates. metadata alone does not complete H1. |
+| **H1: source 境界から live context まで** | OPEN。H1-A/B、bounded reconstruction/Argument correspondence、M2 source join は reviewed。D-only incidence certificate と directional symbolic introduction は限定経路のみ。後者は exact omission/scope/checking/demand/`ResultEffect` を保持するが、live protection context を生成しない。 | 次に occurrence-qualified record から既存 contextual carrier / consumer へ届く構築則を導き、既存 hygiene proof の仮定を source owners へ対応づける。 | record の存在と executable protection を区別する。単一 assignment、正確な位置・lifetime、provider no-backflow と inherited evidence を保つ。late demand、capture/freshening、alias/return、全経路、dynamic Receive/Observe、full Call は別 gate。 |
 | **H2: 後から来る制約とコピーへの保存** | H1 の構築と意味が固定されてから、その差分に着手。 | replay、extrusion、capture/freshening、Value-SCC intrusion へ H1 の context を接続する。既存の経路を拡張し、別の配送機構を足さない。 | 後着 lower/upper にも検査が届く。同じ use 内の共有と別 use の独立性を保ち、row の等化で権限や recipe の出自が混ざらない。H1/H2 の証明と source 対応が成立する。 |
 | **H3: Catch の残余に接続** | H1/H2 の必要な仮定が実装で成立し、選択・coverage の根拠を確認できた後。 | resolved operation ID と実際の arm coverage を用い、適格な入力に P を適用する。保護された経路は除去を通さず、arm・応答計算・raw k は外側へ流す。 | 直接処理した寄与は消え、未処理操作と保護された同 family の寄与は残る。現在・将来の gamma feedback が働く。playground で成功例と拒否例を観測し、U のうち実装した範囲と未対応の source を明示する。 |
 | **H4: 使い方を広げた回帰と衛生性の適用** | H3 の最小例が動いた後。 | nested Catch、local alias、返された callback、複数 use、同 family の再送出、raw suffix の後続操作を source から確認する。既存の衛生性定理の各仮定を code owner に対応させる。 | source から compiler consumer までの対応に穴がない。対応済み範囲の衛生性の結論を適用し、未解決の complete Call / lifecycle 前提を残したまま全体を閉じない。 |
@@ -160,9 +167,10 @@ H1 の証明に実装上の証拠が必要な場合、許されるのはその�
 [context contract §§2–4](../notes/design/2026-10-10-contextual-attachment-admission-design.md)、
 [charter §§13–20,24](../notes/design/2026-09-29-scc-intrusion-redesign-charter.md)。
 各 child は `fork_turns: "none"`、独占する出力パス、安定した読み取り基準、予算を明示して起動する。
-以下のパスは **未割当の候補** であり、開始時に primary が現在の差分を確認して lease を発行する。
+H1-A/B/C は完了済み artifact または bounded implementation slice の記録。
+H1-D の成果物 path は候補であり、primary が最新差分を確認してから lease を発行する。
 
-### H1-A — 構築則と実コードへの対応
+### H1-A — 構築則と実コードへの対応（既存 packet 完了）
 
 - 担当: `prover`。最初の区切りは 20 分。元の U は OPEN のまま。
 - 前提: charter §24 の receiver role を先に保つ。通常の無注釈 function literal は pure、
@@ -180,7 +188,7 @@ H1 の証明に実装上の証拠が必要な場合、許されるのはその�
 - 止まる条件: 具体的な構築則が成立しない箇所、または未決定の意味が一つ特定できた時。
   同じ仮定の言い換えを継続せず、その箇所を primary と実装担当へ返す。
 
-### H1-B — 独立した source の反例候補
+### H1-B — 独立した source の反例候補（既存 packet 完了）
 
 - 担当: `researcher`。H1-A と並行、最初の区切りは 15 分。
 - 対象: 省略 callback、alias / capture / return、同 family の二操作のうち一操作だけを持つ Catch。
@@ -191,7 +199,7 @@ H1 の証明に実装上の証拠が必要な場合、許されるのはその�
 - コンパイラの実観測が必要なら、最小の観測箇所を primary に返す。独自の仮想 solver を作らない。
   最初の有効な反例、または判別できる最小組が揃ったら止める。
 
-### H1-C — 必要な最小構築、以後 H2/H3 の実装
+### H1-C — source introduction certificate（限定 slice 完了）
 
 - 担当: `implementer`。H1-A/B から必要な source 証拠と構築則を受け、primary が対象を限定する。
 - source 側: `crates/yu-solver/src/candidate_source.rs` の formal/lambda 形成、
@@ -205,6 +213,14 @@ H1 の証明に実装上の証拠が必要な場合、許されるのはその�
   proof・反例担当は凍結した commit を読む。新しい差分を使う時点で明示的に再凍結する。
 - H3 の追加テスト候補: `crates/yu-solver/tests/candidate_handler_hygiene.rs`。
   既存 fixture の期待値を現出力に合わせて変更しない。
+
+### H1-D — live contextual consumer と hygiene bridge（次の gate）
+
+- 次の担当候補: `prover` と独立 `researcher`。構築証明と source-qualified falsification を別手法・別 output path で行う。primary は安定 baseline と厳密な lease を先に固定する。
+- 問い: `CandidateDirectionalIntroduction` の retained source record をどの actual context constructor が消費し、どの relation / Function field path で original `ResultEffect` に限定した live protection へ変換するか。source formal scope、upper occurrence、lifetime、receiver entry と既存 `ProtectedVarAt` / one-color hygiene theorem の active guard を一つの assignment でつなぐ。
+- 必須の反例候補: same-family だが arm coverage のない operation、provider output、別 Apply use、captured/returned callback、late Function demand。equality/canonical row から権限を推測しない。
+- 停止条件: 既存 authority が profile source / position を決めないと判明したら意味選択を推測せず、実際に不足する選択肢だけを primary に返す。live context の証拠が揃うまで H3/P を有効にしない。
+- 成果物候補: `notes/theory/2026-10-15-directional-introduction-context-consumer.md` と独立 falsifier。producer / consumer の actual code correspondence が示せない条件付き補題は親 H1 を閉じない。
 
 ## 5. 判定に使う最小の確認
 

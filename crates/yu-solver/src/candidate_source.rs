@@ -279,6 +279,7 @@ impl ConstraintBatch {
                 push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
                     owner: source.definition_root().clone(), lambda: index,
                     parameter: parameter.id.clone(), recipe_position: position, native_root: None,
+                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
                 formal_registrations.insert(parameter.id.clone(), registration);
@@ -389,7 +390,7 @@ impl ConstraintBatch {
                                 self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
                                     owner: source.definition_root().clone(), lambda: expr.occurrence.clone(),
                                     formal: parameter.id.clone(), position: parameter.source.clone(),
-                                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                                    scope: self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].scope.clone(),
                                 }));
                             }
                             if let Some(annotation) = &parameter.annotation {
@@ -614,7 +615,7 @@ impl ConstraintBatch {
                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
                                 result: pos.value, application_effect: pos.effect,
                                 cause: CauseId::for_occurrence(checking.clone()), checking,
-                                formal_name: formal_names[callee.ordinal() as usize], native: None,
+                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None,
                             })?;
                             self.candidate_recipes[recipe].source_input = Some(source_input);
                             push(&mut actions, Action::Candidate(recipe))?;

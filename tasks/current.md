@@ -60,18 +60,24 @@ formal `f` is exposed by an original upper Function demand
 `Eout` only. This does not protect `Ein`, positions inside `B`, or an existing
 provider/recursive lower Function's output by backflow; independent inherited
 protection remains intact. No new profile-matrix decision is needed for this
-scoped law. A bounded architect pass confirmed that distinction and identified
-the next gate as source-to-construction/consumer correspondence.
+scoped law. A bounded architect pass confirmed that distinction. The source
+record constructor is now present; the next gate is its live consumer.
 
-That M2 gate must connect actual annotation absence and source scope to the
-original upper-demand witness, its designated `ResultEffect` occurrence, and
-preservation through the relevant candidate constructors and consumers.
-`candidate_source.rs`, `candidate_effect.rs`, `lib.rs::admit_lambda_fact`,
-`candidate_context.rs`, and later `candidate_scheme.rs` are the named owners.
-Current retained `FormalConstruction` evidence does not itself produce or
-consume protection. The local rule is selected; full nested-result exposure,
-late-seed ordering, all-path source coverage, H1/H2/U, and production cutover
-remain OPEN. H3/P remain disabled.
+The bounded private candidate/playground slice now joins the actual omission and
+scope to each original upper-demand `ResultEffect` occurrence before
+`constrain_live_value`, retaining the full demand and raw invocation row. Its
+observer is occurrence-specific and validates source identity; registration
+scope is retained once, so validation does not traverse the binding table per
+call. The focused
+implementation record is
+[`directional introduction playground`](../notes/progress/2026-10-15-directional-introduction-playground.md).
+Independent conformance review found no issues; the semantic review's major
+quadratic-observation finding was repaired and closed by delta review. This
+record is symbolic evidence only: no `ProtectedVarAt`, executable protection
+consumer, live context filter, event receipt, or Catch residual activation is
+implemented. The next gate is the exact source-record-to-live-context consumer
+and its hygiene-theorem premises. Late-seed ordering, full transport and source
+coverage, H1/H2/U, and production cutover remain OPEN; H3/P remain disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
@@ -345,20 +351,20 @@ without operation-member coverage and that direct-formal hints miss alias and
 returned-callback routes. Neither note is theorem closure or an observed bad
 program result.
 
-The bounded H1 implementer made no changes. Its exact owner finding is that
-`candidate_scheme` reconstructs Functions from polarity and four child ports,
-losing the source Lambda/formal incidence before a later argument receipt;
-`candidate_function_port_admit` consequently receives no authenticated
-callback-boundary evidence. The selected next packet is a constructive proof
-of the source-profile → Function reconstruction/freshening → typed receipt
-correspondence, owned at formal/lambda formation, `candidate_scheme` capture
-and per-use reconstruction, and Function-port admission. This exact source
-bridge is now running under a bounded prover packet with output lease
-`notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md`. No carrier
-prototype is running; start only the exact reversible instrumentation needed
-by that proof packet. H1/H2/U remain OPEN; Catch residual subtraction, P
-activation, full Call, soundness, required principality, generic rigid opening
-and production/F5 cutover remain separate and open.
+The first bounded H1 implementer made no changes and located the Function
+reconstruction/receipt seam: `candidate_scheme` reconstructs Functions from
+polarity and four child ports, while `candidate_function_port_admit` receives
+no authenticated callback-boundary evidence. The reviewed reconstruction /
+receipt note remains a conditional structural bridge, not live protection.
+The subsequent reversible candidate slice now retains an exact symbolic
+omitted-formal Apply introduction; its implementation and review are recorded
+in [`directional introduction playground`](../notes/progress/2026-10-15-directional-introduction-playground.md).
+It does not yet create a live context or consume protection. The next bounded
+proof/source task is the source-record-to-contextual-consumer bridge, including
+the exact premises needed to reuse the existing hygiene proof. H1/H2/U remain
+OPEN; Catch residual subtraction, P activation, full Call, soundness, required
+principality, generic rigid opening and production/F5 cutover remain separate
+and open.
 
 ## 2026-10-12 fixed-term H executable construction
 

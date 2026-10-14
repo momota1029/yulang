@@ -328,3 +328,22 @@ fn aggregate_output_limit_withholds_all_cli_output() {
             .contains("tool output cap exceeded")
     );
 }
+
+#[test]
+fn directional_introductions_show_exact_uses_and_provider_exclusion() {
+    let source = "my apply f = f 1; my id x = x; my good = apply id";
+    let output = infer_with_intrusion(source, "directional.yu", true).unwrap();
+    assert!(
+        output.contains("symbolic candidate evidence; not event consumption or runtime hygiene")
+    );
+    assert_eq!(output.matches("  introduction ").count(), 1);
+    assert_eq!(output.matches("ResultEffect=").count(), 1);
+    assert!(output.contains("no authenticated omitted-formal introduction"));
+    assert!(
+        !infer(source, "directional.yu")
+            .unwrap()
+            .contains("Directional introductions")
+    );
+    let repeated = infer_with_intrusion("my apply f = f (f 1)", "repeated.yu", true).unwrap();
+    assert_eq!(repeated.matches("  introduction ").count(), 2);
+}

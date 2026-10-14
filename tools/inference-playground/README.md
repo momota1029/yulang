@@ -23,7 +23,8 @@ Intrusion output uses `raw` row ordinals qualified by `Value` or `Effect`;
 these are the solver's original rows, not the graph's display labels.
 
 The `--intrusion` option adds retained source associations, including SCC
-qualification, parent copies, reuse groups, and settlement state:
+qualification, parent copies, reuse groups, settlement state, and symbolic
+directional introductions:
 
 ```sh
 cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu
@@ -32,6 +33,16 @@ cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples
 Event locations identify the retained call-tail occurrence from LocalSource;
 they do not describe a whole-call range. The examples do not yet supply a
 source witness for the reuse observations.
+
+Each authenticated omitted-formal source call retains a distinct symbolic
+introduction at exactly its original negative demand's `ResultEffect`, with
+original formal/scope, checking use, complete demand, and raw invocation row.
+Group, Ascription, and Block callee routes use the existing source authentication;
+captured calls retain the formal's original scope. Known provider calls receive
+no introduction from this rule. Other unauthenticated routes are unsupported
+evidence, not a language-wide absence claim. These records are symbolic candidate
+evidence, not event consumption or runtime hygiene; they change neither allowance
+semantics nor provider rows and do not establish H1 or production cutover.
 
 This output describes retained state; it is not a chronological runtime trace.
 The examples in `tools/inference-playground/examples/` cover identity,
@@ -62,7 +73,7 @@ retained intrusion observations.
 The complete output or diagnostic report shares a 1 MiB byte budget and a
 16,384-entry observation work budget across all definitions and intrusion state.
 The work budget counts raw rows, node and child visits, bounds, definitions,
-diagnostics, intrusion events, pairs, groups, reuses, and every printed
+diagnostics, source calls inspected for introductions, intrusion events, pairs, groups, reuses, and every printed
 source-event incidence. Exceeding a cap rejects the complete report with a
 distinct tool-cap error; no partial or truncated report is published.
 These are tool output and input limits. They do not set a source-language limit

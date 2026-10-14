@@ -148,6 +148,22 @@ pub(crate) fn intrusion_into(
     source: &str,
     output: &mut Output,
 ) -> Result<(), String> {
+    output.write_str("\nDirectional introductions (symbolic candidate evidence; not event consumption or runtime hygiene):\n").map_err(cap)?;
+    for index in 0..candidate.source_call_count() {
+        output.observe(1)?;
+        let call = candidate.source_call(index)
+            .map_err(|_| "candidate directional observation unavailable".to_owned())?;
+        if let Some(introduction) = call.directional_introduction() {
+            write!(output, "  introduction {index}: owner={:?}, lambda={:?}, formal={:?}, scope={:?}, use={:?}, cause={:?}, demand={:?}, ResultEffect={:?}, raw Effect row={} at ",
+                introduction.original_owner(), introduction.original_lambda(), introduction.original_formal(),
+                introduction.original_scope(), introduction.checking_occurrence(), introduction.checking_cause(),
+                introduction.original_demand(), introduction.result_effect(), introduction.raw_invocation_row()).map_err(cap)?;
+            crate::location_into(source, &call.source().range, output)?;
+            output.write_char('\n').map_err(cap)?;
+        } else {
+            writeln!(output, "  call {index}: no authenticated omitted-formal introduction; other routes are unsupported evidence, not a language-wide absence claim").map_err(cap)?;
+        }
+    }
     let observation = candidate
         .intrusion_observation()
         .map_err(|_| "candidate intrusion observation unavailable".to_owned())?;

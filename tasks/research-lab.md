@@ -81,6 +81,20 @@ local `ResultEffect` law is in scope for its source correspondence.
 | `prove_directional_protection_source_bridge` | Constructive source-to-code bridge for the selected omitted-formal `ResultEffect` producer | done; frozen at `notes/theory/2026-10-15-directional-protection-source-correspondence.md`; M2 `compiler_referee` and `spec_auditor` review found no findings | Actual omission/scope and pre-solve Apply `ResultEffect` are retained, but no producer joins them into protection at the original upper occurrence. The source collection plan makes an early constructor possible. H1/H2/U OPEN. |
 | `falsify_directional_protection_source_bridge` | Complementary source-qualified counterexample and source-coverage attack | done; frozen at `notes/progress/2026-10-15-directional-protection-source-falsifier.md`; covered by the same M2 review | Authentic `apply f = f 1; id x = x; out = apply id` distinguishes the omitted formal from a known module provider. Static missing-transition witness only; no runtime misprotection counterexample or all-path no-backflow proof. H1/H2/U OPEN. |
 
+### Directional introduction playground slice, 2026-10-15
+
+| Job | Method / gate | State and exclusive output | Budget / next evidence |
+|---|---|---|---|
+| `implement_directional_intro_playground` | Reversible source constructor and symbolic playground observer for the selected original-upper `ResultEffect` law | done; `crates/yu-solver/src/{candidate_call.rs,candidate_source.rs,shadow_apply.rs}` and `tools/inference-playground/{README.md,src/main.rs,src/render.rs,tests/cli.rs}`; checkpoint `notes/progress/2026-10-15-directional-introduction-playground.md` | No `ProtectedVarAt`, live context consumer, Receive/Observe, or residual activation. M2 conformance passed; semantic major O(calls×bindings) fixed by retaining scope at registration; delta review closed. |
+| `primary_focused_verification` | Focused post-repair candidate, playground, wrapper/capture checks and owning compile check | done; serialized primary-owned Cargo checks | 4 Cargo processes: the directional filter ran 2 tests, followed by 1 playground CLI test, 1 wrapped/captured regression, and 1 solver check; no broad suite or measurements. |
+| `H1_D_context_consumer_bridge` | Next proof/source gate: actual consumer correspondence for the symbolic record and its hygiene premises | ready to dispatch on new disjoint note paths after checkpoint commit | Keep H1/H2/U OPEN and H3/P disabled. Stop on missing profile authority or consumer correspondence; do not treat a conditional lemma or metadata observer as live protection. |
+
+This slice closes only its symbolic-construction artifact. The parent source
+callback protection and residual-effect goal stays active. Next dispatch should
+pair a constructive source-to-consumer derivation with an independent
+source-qualified falsifier; it should not restart the completed H1-A/B/source
+join packets or activate P.
+
 Worker Cargo, build, executable-probe and measurement budgets for this wave
 are zero. The primary has used ten bounded Cargo processes: one playground
 observation, two runs of the first focused test, two runs of the receiving-call
