@@ -12,6 +12,20 @@ claim that the gates below are still open. At each restart, resolve the current
 HEAD, user corrections, question-board handoffs and theory map before dispatch.
 Do not reopen a closed gate merely because it appears in this seed.
 
+## Next dispatch: Luna handoff plan
+
+The user's 2026-10-14 planning request is recorded in
+[`effects-handler-next.md`](effects-handler-next.md). It is the current
+operational entrypoint after `343754251`, ahead of this historical seed.
+Allocate H1's source constructor/consumer proof and independent source
+falsification packets first; permit only the bounded construction needed for
+their actual compiler evidence before proof closure. H2 lifecycle, H3 residual
+integration and H4 source hygiene retain their explicit prerequisites. Generic
+rigid-opening preparation is independent; implementation keeps its own gate.
+No future packet was launched by writing the plan, and no semantic gate is
+closed. Planning only changes records; no compiler/configuration edits or
+build/test/measurement run belongs to this turn.
+
 ## Current executable checkpoint, 2026-10-14
 
 The user's direct instruction selects playground implementation with necessary

@@ -4,6 +4,16 @@ Date: 2026-10-14
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
 
+## Execution entrypoint: effects/handler handoff
+
+The user requested a near-term plan that Luna can continue executing. Start with
+[`effects-handler-next.md`](effects-handler-next.md), based on `343754251`:
+H1 source callback profile/live context, H2 lifecycle preservation, H3 authentic
+residual integration, H4 source-level hygiene coverage. H1 is next; these are
+planned assignments, not running workers or new semantic/implementation approval.
+The handoff includes exact owners, bounded packets, proof/implementation gates,
+focused checks and a restart prompt. Use this before the historical queue below.
+
 ## Current direction: direct user clarification, 2026-10-14
 
 The user's current explanation governs the next work through
