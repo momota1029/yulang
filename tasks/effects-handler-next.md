@@ -214,13 +214,18 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - H3 の追加テスト候補: `crates/yu-solver/tests/candidate_handler_hygiene.rs`。
   既存 fixture の期待値を現出力に合わせて変更しない。
 
-### H1-D — live contextual consumer と hygiene bridge（active）
+### H1-D — live contextual consumer と hygiene bridge（bounded characterization complete）
 
-- 基準: `2b95123d644990352ca0a0e4c28c58680c9ffed3`。担当: `prover` と独立 `researcher`。構築証明と source-qualified falsification を別手法・別 output path で実行中。各 lease は `notes/theory/2026-10-15-directional-introduction-context-consumer.md` と `notes/progress/2026-10-15-directional-introduction-context-falsifier.md`。予算は 20 / 15 分の static-only、Cargo/probe/build/measurement は各 0。
-- 問い: `CandidateDirectionalIntroduction` の retained source record をどの actual context constructor が消費し、どの relation / Function field path で original `ResultEffect` に限定した live protection へ変換するか。source formal scope、upper occurrence、lifetime、receiver entry と既存 `ProtectedVarAt` / one-color hygiene theorem の active guard を一つの assignment でつなぐ。
-- 必須の反例候補: same-family だが arm coverage のない operation、provider output、別 Apply use、captured/returned callback、late Function demand。equality/canonical row から権限を推測しない。
-- 停止条件: 既存 authority が profile source / position を決めないと判明したら意味選択を推測せず、実際に不足する選択肢だけを primary に返す。live context の証拠が揃うまで H3/P を有効にしない。
-- 成果物を凍結後、fresh `compiler_referee` 一名が対になった evidence を独立レビューする。producer / consumer の actual code correspondence が示せない条件付き補題は親 H1 を閉じない。
+- 基準: `2b95123d644990352ca0a0e4c28c58680c9ffed3`。`prover` と独立 `researcher` の static-only 成果は `notes/theory/2026-10-15-directional-introduction-context-consumer.md` と `notes/progress/2026-10-15-directional-introduction-context-falsifier.md`。fresh `compiler_referee` が blocking/major なしとし、二つの locator 修正を delta review で閉じた。
+- 結果: original Apply の Value pair は記録済み `DirectionalIntroduction` があっても `IDENTITY` context を受け、現行 live consumer はその記録を読まない。既存 one-color lemma の active guard 等も未供給。source の誤除去反例・不可能性定理は得ていない。
+- 親 H1/H2/U は OPEN、H3/P disabled。late demand、全 source の coverage、lifecycle transport、production gate は別の未解決事項。
+
+### H1-E — reversible private context-constructor prototype（ready、次の実装ゲート）
+
+- 根拠: H1-D の exact missing edge と、architect による local semantic authority adjudication。省略 formal の source identity/scope と authenticated original Apply をつなぎ、その upper Function の正確な `ResultEffect` にだけ protection を加える。既存 lower/provider の独立 protection を保存し、backflow を追加しない。この局所法則について追加の user decision は残っていない。
+- 目的: 最小の private candidate/playground prototype で、同じ scoped assignment 内の actual live context constructor/consumer を実行し、omitted formal / known provider / separate Apply use の区別を観測する。まず既存の `ContextExpr`、`candidate_context_seed`、`candidate_function_port_admit`、Function dispatch の所有関係を使い、対象 source occurrence と ResultEffect child の対応を保持する。SCC/equality/canonical row だけから権限を導かない。
+- 可逆性: H1 の証拠用 candidate slice に限定し、production cutover、Catch residual `P`、Receive/Observe、動的 receipt、Handler role の新規認定を含めない。既存 carrier で original receiver/boundary identity と provider no-backflow を表せない場合、または retroactive replay/additional profile positions が要る場合は実装を拡張せず停止し、最小の欠けた premise を報告する。
+- 検証: prototype 自身の focused constructor/consumer tests と owning `yu-solver` check。constructive proof lane は exact new constructor/consumer premises と同じ assignment/no-backflow/lifecycle boundary を扱う。fresh M2 review は semantic correctness と selected addendum への exact conformance の最大二名。性能測定は 0。H1/H2/U は OPEN のまま、H3/P disabled。
 
 ## 5. 判定に使う最小の確認
 

@@ -75,13 +75,26 @@ Independent conformance review found no issues; the semantic review's major
 quadratic-observation finding was repaired and closed by delta review. This
 record is symbolic evidence only: no `ProtectedVarAt`, executable protection
 consumer, live context filter, event receipt, or Catch residual activation is
-implemented. The next gate is the exact source-record-to-live-context consumer
-and its hygiene-theorem premises. Late-seed ordering, full transport and source
-coverage, H1/H2/U, and production cutover remain OPEN; H3/P remain disabled.
-The next consumer gate is active on baseline `2b95123d6`: one bounded
-`prover` owns the constructive note, while an independent `researcher` owns the
-source falsifier on a disjoint path. Both have zero executable-probe/Cargo
-budgets; one fresh `compiler_referee` will review the frozen pair.
+implemented. H1-D has now characterized the missing source-record-to-live-
+context edge and its unsupplied hygiene-theorem premises. Late-seed ordering,
+full transport and source coverage, H1/H2/U, and production cutover remain
+OPEN; H3/P remain disabled.
+The bounded source-to-consumer derivation and independent falsifier are now
+frozen in the [consumer characterization](../notes/theory/2026-10-15-directional-introduction-context-consumer.md)
+and [context falsifier](../notes/progress/2026-10-15-directional-introduction-context-falsifier.md).
+A fresh `compiler_referee` found no blocking or major issue; two minor locator
+drifts were repaired and closed by delta review. Both routes identify the same
+first missing edge: the authenticated Apply introduction still reaches
+`IDENTITY` context, with no executable protection operation at its original
+`ResultEffect`. This is a bounded obstruction, not a theorem, source
+impossibility result, or runtime misprotection counterexample. The architect
+confirmed that the local omitted-formal law is already selected: introduce
+protection at that original upper demand's `ResultEffect`, preserving inherited
+protection and adding no provider-output backflow. The next gate is a reversible
+private candidate/playground prototype of that constructor and consumer under
+the same assignment. H1/H2/U remain OPEN; H3/P remain disabled, and the
+prototype must stop before inventing receiver/receipt authority or changing
+production/cutover behavior.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
