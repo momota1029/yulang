@@ -30,9 +30,11 @@ The provisional D-only source-evidence slice is now implemented and
 independently reviewed, with its exact captured-FreshUse/source-Name scope in
 [`omitted-formal structural incidence`](../notes/progress/2026-10-15-omitted-formal-structural-incidence.md).
 It supplies no protection positions or effect authority. The separate profile
-writing attempt stopped with no code changes because current authority does not
-select the omitted-formal position matrix; that semantic question remains
-pending. H1/H2/U remain OPEN; H3/P stays disabled. Dynamic Receive/Observe, full
+writing attempt stopped with no code changes. A later bounded authority check
+confirmed the existing directional addendum already selects the local rule
+protecting an original upper Function occurrence's `ResultEffect` for an
+omitted protected formal. Source-to-construction/consumer correspondence and a
+complete nested-position account remain open. H1/H2/U remain OPEN; H3/P stays disabled. Dynamic Receive/Observe, full
 Call, H4 hygiene, generic rigid opening, soundness, principality and
 production/F5 retain their separate gates.
 
@@ -49,11 +51,12 @@ extrusion coverage.
 
 These are launched bounded assignments, not proposals. Production source inputs
 are pinned to `427d1ff5d`; intervening commits changed records only. The
-receiving-call, exact census and conditional Parent-source bridge are frozen
-and reviewed, with no production compiler write authority. The next selected
-test-only field-substitution packet will be dispatched after this checkpoint.
-The user's undecided omitted-formal position matrix remains outside every
-packet.
+receiving-call, exact census, conditional Parent-source bridge, root-output
+observation and local Function construction derivation are frozen and reviewed,
+with no production compiler write authority. Two source-correspondence workers
+are active on distinct proof and falsification methods and disjoint note leases.
+The full nested-position matrix remains outside these packets; the selected
+local `ResultEffect` law is in scope for its source correspondence.
 
 | Job | Method / gate | State and exclusive output | Budget / next evidence |
 |---|---|---|---|
@@ -72,15 +75,19 @@ packet.
 | `select_next_copy_field_evidence` | Select next evidence owner after the exact same-State relation census and conditional source bridge | done; selected test-only inspection of retained Function field substitutions and witnessed consumer correspondence | Follow retained TransportWitness endpoints and four-port Function terms; distinguish direct field copies from selected-bound descendants, stop on missing/ambiguous mapping. |
 | `omitted_formal_copy_field_correspondence` | Test-only same-State tracing of raw Parent copies through retained Function field substitution to the exact `cb x` Argument consumer | done; frozen in `candidate_context_tests.rs::omitted_formal_receiving_call_records_authenticated_argument_dispatch` and `notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md`; M1 compiler_referee found one minor reporting issue, corrected by primary with focused rerun | Two exact focused runs passed. Four Parent entries join to source RelationId(5), but consumer ancestry is `66 --FreshUse--> 13 --Derived--> 5` with zero Extrusion Function witnesses; field candidate sets and exact consumer-input flags were not evaluated. Static Work::Function/Work::Bound retention seam remains separate. H1/H2/U OPEN; no semantic or production change. |
 | `audit_root_function_extrusion_bound_lineage` | Static source-to-runtime audit of root Function rewrite, relation admission, captured bounds and the exact later `cb x` consumer | done; frozen at `notes/theory/2026-10-15-root-function-extrusion-bound-lineage-audit.md`; fresh M1 compiler_referee review found no findings | Conditional constructor route explains root Derived/FreshUse evidence shape, but exact run's `term 269` is not authenticated as relation 5's returned root and relation 13's activation remains unknown. Existing `intrusion.by_output` plus PairGroup span is the next discriminator. Zero Cargo. |
-| `observe_root_output_index_fields` | Test-only exact lookup of root extrusion output PairGroup, then raw Function fields through the authenticated FreshUse input to the exact consumer | active; selected after the bounded root-lineage audit | Exclusive leases: `candidate_context_tests.rs` and `notes/progress/2026-10-15-root-function-copy-to-consumer-field-observation.md`. M1; ≤20-minute implementer; worker Cargo zero; primary owns one exact focused test and one fresh compiler_referee review. Enumerate all groups and field matches; stop on zero/multiple group or shared field. No production change, profile choice, or relation-13 activation claim. |
-| `prove_function_extrusion_field_identity` | Constructive local source lemma for Function child-key/output-field identity, Parent records and final PairGroup span | active; complementary to the test-only output-index/consumer observation | Exclusive output: `notes/theory/2026-10-15-extrusion-function-field-identity.md`. M1; ≤20-minute prover; zero Cargo/Git/probes/delegation; one fresh compiler_referee review. Prove exact raw identity/polarity and lifecycle assumptions or stop at the first unsupported premise; no H1/H2/U closure. |
+| `observe_root_output_index_fields` | Test-only exact lookup of root extrusion output PairGroup, then raw Function fields through the authenticated FreshUse input to the exact consumer | done; frozen in `candidate_context_tests.rs` and `notes/progress/2026-10-15-root-function-copy-to-consumer-field-observation.md`; exact focused run passed once; fresh M1 compiler_referee found no findings | One exact source-pair/output-index group spans the four authenticated Parents. Their raw pairs uniquely map to the original/root/FreshUse consumer fields through the exact Replay upper input. This is one fixture only; RelationId(13)'s unique enqueue activation, profiles/protection and all-path transport remain open. |
+| `prove_function_extrusion_field_identity` | Constructive local source lemma for Function child-key/output-field identity, Parent records and final PairGroup span | done; frozen in `notes/theory/2026-10-15-extrusion-function-field-identity.md`; fresh M1 compiler_referee found no findings | Bounded successful-call formula for all four ordered fields, plus raw ordinal identity for copied direct rows under explicit operational assumptions. Unchanged aliases, selected descendants, abnormal lifecycle, all callers and parent-gate closure are excluded. |
+| `determine_omitted_profile_gate` | Determine whether existing authority selects the omitted-callback protection-position law after the new raw field correspondence | done; architect confirmed the scoped `f <: A [Ein] -> [Eout] B` rule is already selected by the directional addendum | No new matrix vote is required for the local law: introduce protection at that original upper occurrence's `Eout` only. Do not protect `Ein`, nested positions inside `B`, or provider/recursive lower output by backflow; preserve independent inherited protection. Production authority remains separate; all-path source correspondence is still missing. |
+| `prove_directional_protection_source_bridge` | Constructive source-to-code bridge for the selected omitted-formal `ResultEffect` producer | running; exclusive output `notes/theory/2026-10-15-directional-protection-source-correspondence.md` | Prover, ≤20-minute static pass, zero Cargo/probes/Git/delegation. Baseline `5781fe30e`; production sources pinned at `427d1ff5`. Trace source omission/scope, original upper demand, exact `ResultEffect`, real producer/consumer and typed capture transport; stop at first unsupported bridge. H1/H2/U OPEN. |
+| `falsify_directional_protection_source_bridge` | Complementary source-qualified counterexample and source-coverage attack | running; exclusive output `notes/progress/2026-10-15-directional-protection-source-falsifier.md` | Researcher, ≤15-minute static pass, zero Cargo/probes/Git/delegation. Use authentic existing source/test fixtures to distinguish omitted formal from known external callable, upper exposure from provider lower, and late/captured use; do not repeat the constructive proof or invent surface syntax. H1/H2/U OPEN. |
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
-are zero. The primary has used nine bounded Cargo processes: one playground
+are zero. The primary has used ten bounded Cargo processes: one playground
 observation, two runs of the first focused test, two runs of the receiving-call
 focused test, two runs of the uniqueness census (before and after its
-log-label clarification), and two runs of the raw Function field observation
-(before and after its reporting clarification). The playground observation on
+log-label clarification), two runs of the prior raw Function field observation
+(before and after its reporting clarification), and one run of the root-output
+field observation. The playground observation on
 `my outer cb = { my inner x = cb x; inner }` reports one call-tail event and
 four retained parent-copy pairs, including `raw5 -> raw11`, Negative, target
 level 1; its `RowKey` and Value labels do not authenticate `raw5`'s source
@@ -97,8 +104,10 @@ zero consumer count; the primary reran the exact focused test successfully.
 Neither result establishes protection or source rejection. There were zero
 timing/resource samples and no broad suite. The independently reviewed hygiene
 bridge and generic-opening evidence set had no blocking/major findings, within
-their bounded scopes. The profile-position decision still blocks protection
-semantics and H3, not independent structural/proof tasks.
+their bounded scopes. The selected local `ResultEffect` direction is not a
+pending matrix vote. Its source-to-construction/consumer correspondence, full
+nested-position coverage, H1/H2/U and production cutover remain open; H3/P stay
+disabled.
 
 The later [consumer-frontier derivation](../notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md)
 resolves raw5's source constructor for the first exact fixture as the `cb x`
@@ -127,6 +136,26 @@ minor record omissions, both repaired and accepted on final delta review. This
 does not supply an individual copy-to-Function-field path or source profile.
 The test artifact review had no findings. No production instrumentation was
 added. H1/H2/U remain OPEN; H3/P disabled.
+
+The subsequent [root output / consumer field observation](../notes/progress/2026-10-15-root-function-copy-to-consumer-field-observation.md)
+used one exact test run and a fresh M1 compiler-referee review with no findings.
+The authenticated `RelationId(5)` pair plus `FreshUse.from` indexed exactly one
+PairGroup at span `0..4`, matching the four source Parents. Their raw pairs
+matched the four ordered Function fields at the original demand, indexed root
+output, and exact Replay upper consumer input. This supplies a bounded
+fixture-level source-to-field observation; it does not identify the unique
+enqueue activation of `RelationId(13)` or any protection profile.
+
+The [local Function field construction derivation](../notes/theory/2026-10-15-extrusion-function-field-identity.md)
+was independently reviewed with no findings. It derives the simultaneous
+piecewise four-field construction formula and the raw row ordinal for copied
+direct fields under explicit success and representative-stability assumptions.
+Primary validation confirmed the added `term.rs` dependency against the pinned
+production revision. These conclusions do not close H1/H2/U or production
+gates. The architect lane confirmed that the existing directional addendum
+already selects the scoped omitted-formal `ResultEffect` introduction law.
+The next gate is source-to-construction/consumer correspondence, not another
+user decision.
 
 ## Current executable checkpoint, 2026-10-14
 

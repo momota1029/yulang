@@ -59,8 +59,8 @@
    は、対象の structured Value-drain route で Parent の pair と sources が同じ active
    contextual relation から読むことを条件付きで示し、rollback caller を含む review を通過した。
    これは source relation から copy initiation と consumer ancestry への二つの経路で、
-   個々の copied row の Function field path は残らない。profile positions や protection の
-   意味は選ばず、H1/H2/U は OPEN、H3/P は無効のまま。
+   個々の copied row の Function field path は残らない。局所の上位 `ResultEffect` を保護する law は
+   すでに選択済みで、source/consumer correspondence が未完了。H1/H2/U は OPEN、H3/P は無効のまま。
    続く [raw Function field observation](../notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md)
    は exact focused test を2回通過した。4つの Parent は initiating source `RelationId(5)` に
    対応した一方、後続 `cb x` consumer の upper ancestry は `66 --FreshUse--> 13 --Derived--> 5`
@@ -68,26 +68,41 @@
    candidate set と exact consumer-input flag は観測されていない。source 上の静的 frontier は
    `Work::Function` の child/output と個別 Parent の結び付き、または `Work::Bound` の selected
    descendant との区別に残るが、この実行はそれが consumer path の最初の切れ目とは示していない。
-   1件の minor な報告表現を直し、focused test を再実行した。protection、profile positions、H1/H2/U
-   は変わらず OPEN、H3/P は無効。
+   1件の minor な報告表現を直し、focused test を再実行した。source-side protection producer はまだ
+   実装されず、H1/H2/U は OPEN、H3/P は無効。
 
    root Function の rewrite/extrusion、relation admission、captured-bound restoration、後続 FreshUse
    を追う [bounded lineage audit](../notes/theory/2026-10-15-root-function-extrusion-bound-lineage-audit.md)
-   は fresh M1 review を通過した。source 上では root `Work::Function` が再構成 endpoint を返し、
-   rewrite admission が Derived、FreshUse restoration が Transport を作る条件付き経路を確認した。
-   ただし exact run の `term 269` が source `RelationId(5)` の root extrusion output か、また
-   `RelationId(13)` がその rewrite admission かは未認証。既存の `intrusion.by_output` は
-   `(processing pair, returned endpoint)` から PairGroup と Parent span を引ける。
+   は fresh M1 review を通過した。続く
+   [root output / consumer observation](../notes/progress/2026-10-15-root-function-copy-to-consumer-field-observation.md)
+   は exact focused test と fresh M1 review を通過した。source `RelationId(5)` と実際の
+   `FreshUse.from = NegativeFunction(term 269)` で既存 `by_output` を引くと、全4件の census
+   Parent を含む singleton PairGroup が得られた。4つの raw Parent field は、元の negative
+   Function、root output、FreshUse 後の Function の Argument / ArgumentEffect /
+   ResultEffect / Result に一意に対応し、後続 Replay upper input `RelationId(66)` まで追えた。
+   これは一つの fixture における具体的な field 対応で、`RelationId(13)` の一意な
+   enqueue activation、全経路の transport、保護 profile は証明しない。
 
-   次は test-only に、認証済み source pair と後続 FreshUse の `witness.from` endpoint で
-   `by_output` を引き、全 PairGroup occurrence/span と4件の Parent を照合する。singleton の
-   root output が得られた場合だけ Function の raw four fields と FreshUse `from/to` を比較し、
-   exact Replay upper input までの全 field match を列挙する。0件・複数 group・共有 field は
-   そのまま停止条件にする。RelationId 13 の enqueue activation、profile positions、protection
-   semantics、production retention は主張しない。
-   並行する bounded proof lane は `Work::Function` の child-key/output-field 対応と
-   `PairGroup` span の局所構築則を証明対象にする。これは fixture の runtime attribution を代替せず、
-   H1/H2/U の親 gate も閉じない。
+   独立した [Function field construction identity](../notes/theory/2026-10-15-extrusion-function-field-identity.md)
+   は fresh compiler-referee review で blocking / major / minor なし。これは成功した一回の
+   extrusion における4 field の同時構成式と、直接コピーされた row の raw ordinal 対応を
+   明示した仮定の下で示す。canonicalized key、未変更 raw alias、selected-bound descendant、
+   error rollback、全 caller は別責務に残る。
+
+   architect は、
+   [directional protection addendum](../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+   に scoped law がすでに選択済みだと確認した。protected omitted formal `f` の元の上位需要
+   `f <: A [Ein] -> [Eout] B` は、その upper occurrence の `Eout` だけを新規保護する。`Ein`、
+   `B` 内の位置、既存 provider/recursive lower Function への逆流は含まず、独立な inherited protection
+   は保持する。全 nested-position matrix の再投票は不要。この意味選択は production cutover authority
+   を代替しない。
+
+   次はこの law の M2 source-to-construction/consumer correspondence。annotation absence と scope、元の
+   source upper-demand witness、対象 Function の `ResultEffect`、candidate constructors/consumers を結ぶ。
+   owner は `candidate_source.rs`, `candidate_effect.rs`, `lib.rs::admit_lambda_fact`,
+   `candidate_context.rs` と後続の `candidate_scheme.rs`。現状の `FormalConstruction` は source identity
+   を保持するだけで protection を生成・消費しない。`RelationId(13)` の enqueue activation は独立した
+   帰属課題で、選択済み law の代替証拠にしない。H1/H2/U OPEN、H3/P disabled。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は

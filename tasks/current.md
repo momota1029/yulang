@@ -19,9 +19,10 @@ It establishes the conditional static Function Argument correspondence and
 surviving captured Function endpoint, while locating the missing source profile
 introduction/incidence at source/Lambda formation and Function-port admission.
 The remaining dynamic receiver/observation and general alias/return/lifecycle
-bridges are separate. The omitted-formal profile-position matrix is not
-selected by current authority, so protection semantics remain pending. The
-bounded D-only source-incidence certificate is now implemented and
+bridges are separate. The full matrix for every nested position remains open,
+but the local omitted-formal direction is already selected by the directional
+protection addendum; source-to-implementation correspondence remains missing.
+The bounded D-only source-incidence certificate is now implemented and
 independently reviewed: it retains omitted-formal identity on the owning
 Lambda, recognizes the actual Function Argument comparison through captured
 FreshUse and one authenticated source Name handoff, and grants no effect
@@ -31,25 +32,46 @@ scope. Exact evidence is in the
 H1/H2/U remain OPEN and H3 remains disabled. See the current handoff for its
 exact lease and limits.
 
-The receiving-call field observation is now frozen in
-[`raw Function field correspondence`](../notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md).
-Its focused test passed twice. Four Parent records share the authenticated
-source relation, but the later consumer ancestry is `FreshUse 66→13` then
-`Derived 13→5`, with no Extrusion Function witness; it therefore does not
-observe any Parent-to-field candidate or exact consumer-input flag. The
-independent static `Work::Function`/`Work::Bound` seam is not established as
-the first runtime break. A bounded source audit of root Function rewrite,
-relation admission and captured-bound/FreshUse restoration is frozen and
-reviewed in the [root Function lineage audit](../notes/theory/2026-10-15-root-function-extrusion-bound-lineage-audit.md).
-It explains the observed constructor shape conditionally, but cannot yet
-authenticate `term 269` as the root extrusion output for source relation 5.
-The next test-only observation will inspect the existing `by_output` PairGroup
-and its Parent span, then follow raw fields only if the group join is unique.
-In parallel, a bounded proof lane is deriving the local `Work::Function`
-child-key/output-field correspondence and its Parent-group span premises; it
-will remain a source lemma, separate from this fixture's runtime attribution.
-No profile positions or protection semantics were selected; H1/H2/U remain
-OPEN, H3/P disabled.
+The receiving-call follow-up now has a bounded root-output-to-consumer field
+observation in
+[`root Function output fields`](../notes/progress/2026-10-15-root-function-copy-to-consumer-field-observation.md).
+The exact focused test passed, and a fresh M1 `compiler_referee` found no
+findings. The exact `(source RelationKey pair, FreshUse.from)` lookup returned
+one PairGroup whose four-Parent span matches the authenticated `cb x` census.
+Its raw Function fields map uniquely through FreshUse to the exact Replay
+upper input at `RelationId(66)`: Argument, ArgumentEffect, ResultEffect and
+Result preserve their expected polarity and raw row identities. This is one
+fixture's constructor/consumer correspondence; it does not authenticate
+`RelationId(13)`'s unique rewrite-enqueue activation or all-path transport.
+
+The complementary bounded local derivation in
+[`Function field construction identity`](../notes/theory/2026-10-15-extrusion-function-field-identity.md)
+has a fresh independent review with no findings. It proves the simultaneous
+four-slot `Work::Function` construction formula and the raw ordinal identity
+for a genuinely copied direct row Parent under explicit operational
+hypotheses. Unchanged raw aliases, selected-bound descendants, failures and
+all-source callers remain outside its conclusion.
+
+The exact runtime fields make the source-implementation gap concrete. The
+existing [directional protection addendum](../notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+already records the user's selected local rule: when an omitted, protected
+formal `f` is exposed by an original upper Function demand
+`f <: A [Ein] -> [Eout] B`, introduce protection at that upper occurrence's
+`Eout` only. This does not protect `Ein`, positions inside `B`, or an existing
+provider/recursive lower Function's output by backflow; independent inherited
+protection remains intact. No new profile-matrix decision is needed for this
+scoped law. A bounded architect pass confirmed that distinction and identified
+the next gate as source-to-construction/consumer correspondence.
+
+That M2 gate must connect actual annotation absence and source scope to the
+original upper-demand witness, its designated `ResultEffect` occurrence, and
+preservation through the relevant candidate constructors and consumers.
+`candidate_source.rs`, `candidate_effect.rs`, `lib.rs::admit_lambda_fact`,
+`candidate_context.rs`, and later `candidate_scheme.rs` are the named owners.
+Current retained `FormalConstruction` evidence does not itself produce or
+consume protection. The local rule is selected; full nested-result exposure,
+late-seed ordering, all-path source coverage, H1/H2/U, and production cutover
+remain OPEN. H3/P remain disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
