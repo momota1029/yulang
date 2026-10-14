@@ -12,14 +12,20 @@
 2. [現在地](../notes/progress/2026-10-14-operation-catch-constraints.md)と
    [実装上の欠落箇所 §6](../notes/theory/2026-10-14-handler-boundary-construction.md#6-concrete-next-owner-handoff-no-third-unchanged-conditional-proof)を読む。
    判断に使う規則・Authoritative な節は各担当へ渡す。古い研究キューの全項目を開始条件にしない。
-3. **現在の H1 は構築則の証拠待ち。** H1-A/H1-B の research artifact は凍結・commit 済みで、
-   一名の独立 `compiler_referee` が blocking / major なしと判定した。ただし H1 は OPEN。
-   最初の H1 実装試行は差分なしで終了し、`candidate_scheme` の Function 再構築時に
-   source Lambda/formal incidence が失われ、`candidate_function_port_admit` に実際の
-   argument receipt と結び付いた保護証拠が届かない seam を特定した。
-   現在 `prover` が、source profile → Function capture/freshening/reconstruction → typed
-   receipt の元の scope での対応を構成または反証している。必要な source evidence に限り、
-   これと並行する最小で可逆な carrier prototype を許す。H3 の残余除去は有効にしない。
+3. **現在の H1 は source profile incidence の実証待ち。** H1-A/H1-B は凍結・commit 済みで、
+   独立 `compiler_referee` が blocking / major なしと判定した。H1 自体は OPEN。
+   追加の bounded derivation は
+   [`callback profile reconstruction/receipt`](../notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md)
+   に凍結され、fresh `compiler_referee` review でも bounded obstruction として採用可能、
+   blocking / major なしとなった。minor は、relation のない captured bound にも
+   `TransportWitness` が作られるように読めた箇所を条件付きの記述に直し、delta review で閉じた。
+   結果は、実際に dispatch された Function 比較が正確な Argument child と FunctionPort
+   parent/field incidence を作り、captured Function endpoint も一部の transport provenance
+   に残すこと。一方、未注釈 formal の source profile 導入と、同じ profile/view incidence
+   をその Argument 対応へ結び付ける判断はまだ native に存在しない。dynamic Receive/Observe、
+   earlier extrusion lineage、alias/return の完全な保存も別の OPEN premise。
+   現在はこの static incidence だけを供給する可逆な implementer slice を実行中。
+   Catch 残余の H3/P は有効にしない。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
@@ -50,7 +56,7 @@ production cutover の完了を意味しない。元の U の主張範囲を狭�
 
 | 段階 | 状態・着手条件 | 実施内容と成果物 | 完了判定 |
 | --- | --- | --- | --- |
-| **H1: source 境界から live context まで** | OPEN。H1-A/B committed; independent review has no blocking/major. Bounded implementation attempt made no change and located provenance loss at scheme reconstruction. A constructive source-to-reconstruction-to-receipt proof packet is running. | 省略された callback 契約の保護を、元の owner・型上の位置・寿命から生成し、actual typed argument receipt と Function/context consumer まで運ぶ。H1 proof result may authorize only the smallest reversible carrier evidence slice. | 型がまだ変数である formal、後から Function として使われる場合、別名・返された callback で同じ保護が運ばれる。実コードの producer→consumer 対応と必要な不変条件を独立査読で確立する。metadata だけ、detached PUSH だけ、新ノートだけでは完了しない。 |
+| **H1: source 境界から live context まで** | OPEN。H1-A/B は committed・independently reviewed。最初の実装試行は差分なし。bounded source-to-reconstruction/Argument correspondence は上記 note と fresh review で凍結済み。 source profile introduction/incidence のみを実証する reversible implementer slice が実行中。 | 省略された callback 契約の保護を、元の owner・型上の位置・寿命から生成し、authentic Function Argument correspondence と consumer まで運ぶ。現 slice は static source evidence のみ。 | unknown formal、遅延 Function demand、alias/return、fresh use で同じ source protection を保存する。実コードの producer→consumer 対応と必要な不変条件を独立査読で確立する。dynamic Receive/Observe と full Call は別 gate。metadata だけ、detached PUSH だけ、新ノートだけでは完了しない。 |
 | **H2: 後から来る制約とコピーへの保存** | H1 の構築と意味が固定されてから、その差分に着手。 | replay、extrusion、capture/freshening、Value-SCC intrusion へ H1 の context を接続する。既存の経路を拡張し、別の配送機構を足さない。 | 後着 lower/upper にも検査が届く。同じ use 内の共有と別 use の独立性を保ち、row の等化で権限や recipe の出自が混ざらない。H1/H2 の証明と source 対応が成立する。 |
 | **H3: Catch の残余に接続** | H1/H2 の必要な仮定が実装で成立し、選択・coverage の根拠を確認できた後。 | resolved operation ID と実際の arm coverage を用い、適格な入力に P を適用する。保護された経路は除去を通さず、arm・応答計算・raw k は外側へ流す。 | 直接処理した寄与は消え、未処理操作と保護された同 family の寄与は残る。現在・将来の gamma feedback が働く。playground で成功例と拒否例を観測し、U のうち実装した範囲と未対応の source を明示する。 |
 | **H4: 使い方を広げた回帰と衛生性の適用** | H3 の最小例が動いた後。 | nested Catch、local alias、返された callback、複数 use、同 family の再送出、raw suffix の後続操作を source から確認する。既存の衛生性定理の各仮定を code owner に対応させる。 | source から compiler consumer までの対応に穴がない。対応済み範囲の衛生性の結論を適用し、未解決の complete Call / lifecycle 前提を残したまま全体を閉じない。 |

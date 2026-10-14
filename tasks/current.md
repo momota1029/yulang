@@ -12,12 +12,16 @@ H1 source callback profile/live context, H2 lifecycle preservation, H3 authentic
 residual integration, H4 source-level hygiene coverage. H1-A and H1-B are now
 frozen, committed research artifacts; their independent review found no
 blocking or major findings. They do not close H1. A bounded implementation
-attempt made no code changes and located source-profile provenance loss in
-`candidate_scheme` Function reconstruction. The next action is a bounded
-constructive source-to-reconstruction-to-receipt proof. No carrier prototype
-is currently running; add only the smallest reversible instrumentation that
-the proof requires for source evidence. H3 remains disabled. See the latest
-checkpoint below and the updated handoff for exact evidence and owners.
+attempt made no code changes. The next source-to-reconstruction-to-receipt
+derivation is frozen and independently reviewed in
+[`callback profile reconstruction/receipt`](../notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md).
+It establishes the conditional static Function Argument correspondence and
+surviving captured Function endpoint, while locating the missing source profile
+introduction/incidence at source/Lambda formation and Function-port admission.
+The remaining dynamic receiver/observation and general alias/return/lifecycle
+bridges are separate. One reversible implementer slice now supplies only the
+missing static source evidence; H1/H2/U remain OPEN and H3 remains disabled.
+See the current handoff for its exact lease and limits.
 
 ## Current direction: direct user clarification, 2026-10-14
 

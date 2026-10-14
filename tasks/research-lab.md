@@ -19,15 +19,17 @@ The user's 2026-10-14 planning request is recorded in
 operational entrypoint after `343754251`, ahead of this historical seed.
 H1-A and H1-B have since been produced, independently reviewed with no
 blocking/major finding, and checkpointed in commits `00c04ac96` and `8a9875a2a`.
-The first bounded implementer pass made no changes and found that
-`candidate_scheme` drops source Lambda/formal incidence when reconstructing a
-captured Function, before the actual callback argument receipt reaches
-`candidate_function_port_admit`. A bounded prover packet now owns this exact
-source-profile → Function reconstruction/freshening → typed receipt bridge.
-Only the minimal reversible carrier work required for source evidence may run
-alongside it. H1/H2/U remain OPEN; H3/P stays disabled. H4 hygiene, generic
-rigid opening, full Call, soundness, principality and production/F5 retain their
-separate gates.
+The first bounded implementer pass made no changes and located the Function
+scheme reconstruction/receipt seam. A bounded prover packet has since frozen
+and independently reviewed the conditional static Function Argument
+correspondence and the exact missing omitted-profile introduction/incidence;
+it corrects the earlier blanket claim that reconstruction erases all
+provenance. The source/receipt note is
+[`callback profile reconstruction/receipt`](../notes/theory/2026-10-15-callback-profile-reconstruction-receipt.md).
+One implementer now owns a disjoint, provisional source-evidence slice for that
+static incidence only. H1/H2/U remain OPEN; H3/P stays disabled. Dynamic
+Receive/Observe, full Call, H4 hygiene, generic rigid opening, soundness,
+principality and production/F5 retain their separate gates.
 
 ## Current executable checkpoint, 2026-10-14
 
