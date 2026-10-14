@@ -14,19 +14,24 @@ type pairs when those Values share a Value-reference SCC. In particular,
 `if true { 1 } else { "str" }` infers `int | str`; evaluating its condition
 or constant folding is not an inference prerequisite.
 
-Immediate work is to align the actual source/extrusion/SCC consumers with
-that operation and apply the existing hygiene proofs to their implementation
-owners. The current source check at `6bb1f7073` confirms the concrete mismatch:
-`candidate_intrusion::settle_candidate_intrusion` builds SCCs by traversing
-type bounds and Function ports, then compares the type parent/copy endpoints.
-`Parent` retains only type endpoints, polarity and target level;
-`candidate_extrude` receives no actual origin/receiving Value identities.
-The owning repair must carry resolved source Value references and extrusion
-occurrence associations from source construction to this consumer, grouping
-the actual polar type pairs under their occurrence. Nested local definitions
-keep their own source owner. Existing type-copy/equality mechanics alone do
-not establish the selected qualification. This is a code-conformance gap,
-not a need to decide the user's algorithm again.
+The user's follow-up explicitly requests implementation of that operation.
+The private successor now constructs resolved source Value references, keeps
+nested definitions as separate owners, and carries call-demand associations
+through contextual relations, delayed replay and fresh-use transport. Actual
+extrusion pairs retain their original occurrence; reuse of a transformed memo
+output has a distinct occurrence referencing that output's original pair group.
+The SCC consumer uses the source Value graph. This replaces the type-bound /
+Function-port SCC criterion inspected at baseline `af1ebfd21`.
+
+The current implementation slice and evidence are in
+[the October 14 checkpoint](../notes/progress/2026-10-14-value-occurrence-intrusion-implementation.md).
+The settlement/accounting repairs have passed focused verification and
+independent semantic/resource delta review: 15 intrusion tests, 117 context
+tests and 14 related integration tests pass. The code scope is the existing
+private LocalSource call-demand path; source-global extrusion association and
+complete language inference are not certified. Next implementation work is to
+extend the supported source construction and connect the existing hygiene
+results to their executable boundary constructors and consumers.
 
 The private LocalSource candidate currently has no If/Boolean/String forms;
 the user's branch-union example needs source construction before it can be
@@ -52,12 +57,15 @@ The detailed historical Call investigations below retain their stated scope;
 their recency alone does not make another conditional Call proof the next
 implementation prerequisite. Existing theorem statuses are unchanged.
 
-Record alignment is M0: one independent `spec_auditor` found no issue in the
-user clarification and the cited source mismatch. The proof-reuse lookup is
-reported separately without status promotion. Only source/document inspection,
-reference checks and `git diff --check` were used; no compiler edits, builds,
-tests, executable probes or measurements. The exact next implementation
-responsibilities above remain open.
+The earlier clarification-only commit `af1ebfd21` was M0 and independently
+reviewed by `spec_auditor`. The implementation is M3 with pre-write fixture
+contract review, independent semantic review and static resource review; the
+reviewer budget is three and benchmark budget is zero. The proof-reuse lookup
+is reported separately without theorem-status promotion. A baseline failure
+in `candidate_local_self_recursion::two_recursive_calls_constrain_one_monomorphic_initializer`
+is independently reproduced: its `fresh_use` observation is suppressed for all
+uses when the candidate has any conflict, so absence cannot count recursive
+uses. That test/API mismatch is outside this implementation change.
 
 ## 2026-10-12 fixed-term H executable construction
 

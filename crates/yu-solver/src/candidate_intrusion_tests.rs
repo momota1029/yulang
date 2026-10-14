@@ -7,12 +7,13 @@ fn hir(text: &str) -> Arc<HirModule> {
     let source: Arc<yu_syntax::SourceText> = Arc::from(text);
     let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
         Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "healthy source fixture: {text}");
     Arc::new(lower_module_with_local_source(
         yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("intrusion", "source.yu"))),
         &parsed, yu_hir::SemanticImports::empty()).unwrap())
 }
 fn session() -> InferenceSession {
-    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir("my seed = 1"), true, true).unwrap()).unwrap();
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir("my seed x = seed x"), true, true).unwrap()).unwrap();
     session.start_candidate_graph().unwrap();
     session
 }
@@ -27,7 +28,15 @@ fn row(session: &mut InferenceSession, effect: bool, level: u32) -> RowKey {
     else { RowKey::Value(session.fresh_value_at_level(level).unwrap()) }
 }
 fn extrude(session: &mut InferenceSession, parent: RowKey, polarity: Polarity) -> RowKey {
+    let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+    let task = match parent {
+        RowKey::Value(row) => LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(row), upper: ValueEndpointKey::ValueRow(row) }),
+        RowKey::Effect(row) => LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(row), EffectEndpointKey::EffectRow(row)),
+    };
+    let relation = session.candidate_context_seed(task, &checking, None).unwrap().unwrap();
+    let previous = session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing.replace(relation);
     let copy = session.candidate_extrude(row_endpoint(parent), polarity, 0).unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous;
     let copy = match copy {
         ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(i)) => RowKey::Value(i),
         ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(i)) => RowKey::Effect(i),
@@ -41,17 +50,10 @@ fn extrude(session: &mut InferenceSession, parent: RowKey, polarity: Polarity) -
     assert_eq!(recorded.target, 0);
     copy
 }
-fn close_cycle(session: &mut InferenceSession, parent: RowKey, copy: RowKey, polarity: Polarity) {
-    let (occurrence, cause) = cause(session);
-    let opposite = if polarity == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
-    // Extrusion installed parent -> copy. This actual bound adds copy -> parent.
-    session.candidate_restore_bound(row_endpoint(copy), opposite, row_endpoint(parent), &occurrence, &cause).unwrap();
-    match copy {
-        RowKey::Value(i) => { session.constrain_live_value(CanonicalValuePairKey {
-            lower: ValueEndpointKey::ValueRow(i), upper: ValueEndpointKey::ValueRow(i),
-        }, &occurrence, &cause).unwrap(); }
-        RowKey::Effect(i) => { session.constrain_live_effect(EffectEndpointKey::EffectRow(i), EffectEndpointKey::EffectRow(i), &occurrence, &cause).unwrap(); }
-    }
+fn close_cycle(session: &mut InferenceSession, _parent: RowKey, _copy: RowKey, _polarity: Polarity) {
+    // The source fixture's actual self-reference qualifies the retained event.
+    // No reverse type bound is needed to establish a source Value SCC.
+    session.settle_candidate_intrusion(None).unwrap();
 }
 
 #[test]
@@ -78,10 +80,13 @@ fn real_extrusion_parent_copy_scc_equates_both_kinds_and_polarities() {
 }
 
 #[test]
-fn real_extrusion_without_reverse_dependency_keeps_parent_copy_distinct() {
+fn real_extrusion_between_distinct_source_components_keeps_parent_copy_distinct() {
     for effect in [false, true] {
         for polarity in [Polarity::Positive, Polarity::Negative] {
-            let mut session = session();
+            let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir("my id x = x\nmy client x = id x"), true, true).unwrap()).unwrap();
+            session.start_candidate_graph().unwrap();
+            assert_eq!(session.batch.hir.items().len(), 2);
+            assert_eq!(session.batch.candidate_source.references.events.len(), 1);
             let parent = row(&mut session, effect, 2);
             let copy = extrude(&mut session, parent, polarity);
             session.settle_candidate_intrusion(None).unwrap();
@@ -131,7 +136,7 @@ fn merged_identity_accepts_later_bounds_and_failed_transaction_restores_it() {
 
 #[test]
 fn natural_recursive_definitions_use_open_roots_and_keep_real_function_bounds() {
-    for text in ["my recur x = recur x", "my left x = right x; my right y = left y"] {
+    for text in ["my recur x = recur x", "my left x = right x\nmy right y = left y"] {
         let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(text), true, true).unwrap()).unwrap();
         assert!(!session.batch.scc_plan().components_in_dependency_first_order().all(|component|
             session.batch.scc_plan().internal_uses(component).unwrap().is_empty()));
@@ -151,7 +156,7 @@ fn natural_recursive_definitions_use_open_roots_and_keep_real_function_bounds() 
 
 #[test]
 fn natural_local_capture_keeps_live_late_integer_bounds_and_shared_older_images() {
-    let hir = hir("my succ x = 1; my apply g = { my relay x = g x; my before = relay 1; relay 1 }; my answer = apply succ");
+    let hir = hir("my succ x = 1\nmy apply g = { my relay x = g x; my before = relay 1; relay 1 }\nmy answer = apply succ");
     let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap()).unwrap();
     session.start_candidate_graph().unwrap();
     let solved = session.run_candidate().unwrap();
@@ -283,4 +288,232 @@ fn raw_alias_diagnostic_admission_cannot_complete_invalidated_canonical_relation
     assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.completed, before);
     assert!(!session.typed_pairs.contains_key(&TypedPairKey::Value(raw)));
     run(&mut session).unwrap();
+}
+
+#[test]
+fn source_less_type_cycle_does_not_qualify_intrusion() {
+    for effect in [false, true] {
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let mut session = session();
+            let parent = row(&mut session, effect, 2);
+            let copy = session.candidate_extrude(row_endpoint(parent), polarity, 0).unwrap();
+            let (occurrence, cause) = cause(&session);
+            session.candidate_restore_bound(copy, polarity, row_endpoint(parent), &occurrence, &cause).unwrap();
+            session.settle_candidate_intrusion(None).unwrap();
+            assert_ne!(session.canonical_extrusion(copy), session.canonical_extrusion(row_endpoint(parent)));
+            assert!(session.candidate_graph.as_ref().unwrap().intrusion.parents.iter().all(|parent| parent.sources.is_none()));
+        }
+    }
+}
+
+#[test]
+fn nested_definition_source_owns_real_call_demand_extrusion() {
+    let module = hir("my loop x = { my helper y = loop y; helper x }");
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(module, true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    let references = session.batch.candidate_source.references.clone();
+    assert_eq!(references.events.len(), 2);
+    let a = references.events[0]; let b = references.events[1];
+    assert_ne!(a.origin, b.origin, "nested initializer has its own source Value root");
+    assert_eq!(a.origin, b.receiver);
+    assert_eq!(b.origin, a.receiver);
+    assert!(references.qualifies(0) && references.qualifies(1));
+    let solved = session.run_candidate().unwrap();
+    assert!(solved.data.errors.is_empty());
+    let state = &solved.data.candidate_graph.as_ref().unwrap().intrusion;
+    assert!(!state.parents.is_empty(), "native call-demand propagation actually extrudes younger coordinates");
+    assert!(state.parents.iter().any(|parent| parent.sources.is_some_and(|sources|
+        state.effect_algebra.context.source_events(sources).iter().any(|&event| references.qualifies(event)))));
+    for parent in &state.parents {
+        if parent.sources.is_some_and(|sources| state.effect_algebra.context.source_events(sources).iter().any(|&event| references.qualifies(event))) {
+            assert_eq!(state.rep(parent.copy), state.rep(parent.parent));
+        }
+    }
+}
+
+#[test]
+fn transparent_callee_keeps_original_resolved_source_binder() {
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir("my loop x = (loop) x"), true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    let references = &session.batch.candidate_source.references;
+    assert_eq!(references.events.len(), 1);
+    assert_eq!(references.events[0].origin, references.events[0].receiver);
+    assert!(references.qualifies(0));
+    assert!(session.run_candidate().unwrap().data.errors.is_empty());
+}
+
+#[test]
+fn queued_occurrences_keep_distinct_associations_for_the_same_native_pair() {
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(
+        "my loop x = loop x\nmy id x = x\nmy client x = id x"), true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    assert_eq!(session.batch.hir.items().len(), 3);
+    assert_eq!(session.batch.candidate_source.references.events.len(), 2);
+    let mut occurrences: Vec<_> = session.batch.candidate_source.references.checking.iter()
+        .map(|(checking, &event)| (checking.clone(), event)).collect();
+    occurrences.sort_by_key(|(_, event)| *event);
+    let (qualified, unqualified) = occurrences.iter().partition::<Vec<_>, _>(|(_, event)| session.batch.candidate_source.references.qualifies(*event));
+    assert_eq!(qualified.len(), 1); assert_eq!(unqualified.len(), 1);
+    let parent = row(&mut session, false, 2);
+    let RowKey::Value(parent_row) = parent else { unreachable!() };
+    let task = LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(parent_row), upper: ValueEndpointKey::TopNegative });
+    let nonrecursive = session.candidate_context_seed(task, &unqualified[0].0, None).unwrap().unwrap();
+    let recursive = session.candidate_context_seed(task, &qualified[0].0, None).unwrap().unwrap();
+    assert_ne!(nonrecursive, recursive, "pair/context sharing must preserve separate source incidence");
+    for relation in [nonrecursive, recursive] { session.enqueue_item(TypedWorkItem { task, relation: Some(relation), replay_ack: None }, false).unwrap(); }
+    let mut copies = Vec::new();
+    while let Some(item) = session.pop_worklist().unwrap() {
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = item.relation;
+        copies.push(session.candidate_extrude(row_endpoint(parent), Polarity::Positive, 0).unwrap());
+    }
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
+    session.settle_candidate_intrusion(None).unwrap();
+    assert_ne!(session.canonical_extrusion(copies[0]), row_endpoint(parent));
+    assert_eq!(session.canonical_extrusion(copies[1]), row_endpoint(parent));
+}
+
+#[test]
+fn shared_transformed_comparison_retains_later_authentic_source_cause() {
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(
+        "my loop x = loop x\nmy id x = x\nmy client x = id x"), true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    assert_eq!(session.batch.hir.items().len(), 3);
+    assert_eq!(session.batch.candidate_source.references.events.len(), 2);
+    let events: Vec<_> = session.batch.candidate_source.references.checking.iter().map(|(checking, &event)|
+        (checking.clone(), session.batch.candidate_source.references.qualifies(event))).collect();
+    let nonrecursive = events.iter().find(|(_, yes)| !*yes).unwrap().0.clone();
+    let recursive = events.iter().find(|(_, yes)| *yes).unwrap().0.clone();
+    let parent = row(&mut session, false, 2);
+    let RowKey::Value(parent_row) = parent else { unreachable!() };
+    let task = LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(parent_row), upper: ValueEndpointKey::TopNegative });
+    let pair = candidate_context::task_pair(task);
+    let first = session.candidate_context_seed(task, &nonrecursive, None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(first);
+    session.candidate_processing(Some(pair));
+    let copy = session.candidate_extrude(row_endpoint(parent), Polarity::Positive, 0).unwrap();
+    session.settle_candidate_intrusion(None).unwrap();
+    assert_ne!(session.canonical_extrusion(copy), row_endpoint(parent));
+    let rows = session.bounds.len();
+    let original_occurrence = session.candidate_graph.as_ref().unwrap().intrusion.parents[0].occurrence;
+    let second = session.candidate_context_seed(task, &recursive, None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(second);
+    let ExtrusionEndpoint::Value(copy_row) = copy else { unreachable!() };
+    session.recapture_candidate_extrusion(pair, CanonicalValuePairKey { lower: copy_row, upper: ValueEndpointKey::TopNegative }).unwrap();
+    session.settle_candidate_intrusion(None).unwrap();
+    assert_eq!(session.bounds.len(), rows, "authentic memo reuse retains the existing transformed graph");
+    assert_eq!(session.canonical_extrusion(copy), row_endpoint(parent));
+    let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+    assert!(state.parents.iter().all(|parent| parent.occurrence == original_occurrence));
+    assert_eq!(state.reuses.len(), 1);
+    assert_ne!(state.reuses[0].occurrence, original_occurrence);
+    assert_ne!(state.parents[0].sources, Some(state.reuses[0].sources));
+    assert!(state.parents[0].sources.is_some_and(|sources| state.effect_algebra.context.source_events(sources).iter()
+        .all(|&event| !session.batch.candidate_source.references.qualifies(event))));
+}
+
+#[test]
+fn nested_apply_fragments_have_bounded_linear_storage() {
+    let mut previous = None;
+    for depth in [8, 16, 32, 64] {
+        let text = format!("my loop x = loop{}", "(0)".repeat(depth));
+        let batch = ConstraintBatch::collect_candidate_mode(hir(&text), true, true).unwrap();
+        let graph = &batch.candidate_source.references;
+        assert_eq!(graph.events.len(), depth);
+        assert_eq!(graph.checking.len(), depth);
+        // Exactly the first callee resolves to the recursive binder. Later
+        // receivers are distinct Apply Values; containment adds no reverse edge.
+        assert_eq!(graph.events.iter().filter(|event| event.origin == event.receiver).count(), 1);
+        assert_eq!((0..depth).filter(|&event| graph.qualifies(event)).count(), 1);
+        if let Some(bytes) = previous { assert!(graph.bytes() <= bytes * 3, "doubling source depth stays linear"); }
+        previous = Some(graph.bytes());
+    }
+}
+
+fn reuse_group_fixture(pairs: usize, events: usize, original_qualified: bool)
+    -> (InferenceSession, TypedPairKey, CanonicalValuePairKey, Vec<ConstraintOccurrenceId>)
+{
+    let mut text = String::from("my id x = x\nmy client x = id x");
+    for event in 0..events { text.push_str(&format!("\nmy loop{event} x = loop{event} x")); }
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(&text), true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    let references = &session.batch.candidate_source.references;
+    let nonrecursive = references.checking.iter().find(|(_, event)| !references.qualifies(**event)).unwrap().0.clone();
+    let mut qualified: Vec<_> = references.checking.iter().filter(|(_, event)| references.qualifies(**event))
+        .map(|(checking, &event)| (event, checking.clone())).collect();
+    qualified.sort_by_key(|(event, _)| *event);
+    let qualified: Vec<_> = qualified.into_iter().map(|(_, checking)| checking).collect();
+    let first = row(&mut session, false, 2);
+    let RowKey::Value(first_row) = first else { unreachable!() };
+    let task = LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(first_row), upper: ValueEndpointKey::TopNegative });
+    let pair = candidate_context::task_pair(task);
+    let checking = if original_qualified { &qualified[0] } else { &nonrecursive };
+    let relation = session.candidate_context_seed(task, checking, None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+    session.candidate_processing(Some(pair));
+    let occurrence = session.begin_candidate_extrusion().unwrap();
+    let mut output = None;
+    for index in 0..pairs {
+        let parent = if index == 0 { first } else { row(&mut session, index % 2 == 1, 2) };
+        let copy = row(&mut session, index % 2 == 1, 0);
+        session.retain_extrusion_parent(row_endpoint(copy), row_endpoint(parent),
+            if index % 2 == 0 { Polarity::Positive } else { Polarity::Negative }, 0, occurrence).unwrap();
+        if index == 0 { output = Some(row_endpoint(copy)); }
+    }
+    let output = output.unwrap();
+    session.finish_candidate_extrusion(occurrence, 0, output).unwrap();
+    let ExtrusionEndpoint::Value(output) = output else { unreachable!() };
+    (session, pair, CanonicalValuePairKey { lower: output, upper: ValueEndpointKey::TopNegative }, qualified)
+}
+
+#[test]
+fn qualified_reuses_enqueue_each_original_pair_only_once() {
+    const T: usize = 12;
+    const K: usize = 8;
+    for original_qualified in [false, true] {
+        let (mut session, pair, output, qualified) = reuse_group_fixture(T, K, original_qualified);
+        for checking in &qualified {
+            let relation = session.candidate_context_seed(LiveConstraintTask::Value(match pair { TypedPairKey::Value(pair) => pair, _ => unreachable!() }), checking, None).unwrap().unwrap();
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+            session.recapture_candidate_extrusion(pair, output).unwrap();
+            session.settle_candidate_intrusion(None).unwrap();
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+            assert_eq!(state.pending.len(), T);
+            assert_eq!(state.pending_cursor, T);
+            assert_eq!(state.generation, T as u64);
+            assert!(state.parents.iter().all(|parent| state.rep(parent.copy) == state.rep(parent.parent)));
+        }
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+        assert_eq!(state.reuses.len(), K - usize::from(original_qualified));
+        let mut occurrences: Vec<_> = state.reuses.iter().map(|reuse| reuse.occurrence).collect();
+        occurrences.sort_unstable(); occurrences.dedup();
+        assert_eq!(occurrences.len(), state.reuses.len());
+    }
+}
+
+#[test]
+fn rollback_restores_preexisting_group_activation_and_pending_cursor_for_retry() {
+    let (mut session, pair, output, qualified) = reuse_group_fixture(4, 2, false);
+    let task = LiveConstraintTask::Value(match pair { TypedPairKey::Value(pair) => pair, _ => unreachable!() });
+    let relation = session.candidate_context_seed(task, &qualified[0], None).unwrap().unwrap();
+    let activate = |session: &mut InferenceSession| {
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+        session.recapture_candidate_extrusion(pair, output)?;
+        session.settle_candidate_intrusion(None)?;
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+        assert!(state.groups[0].activated);
+        assert_eq!(state.pending_cursor, 4);
+        assert!(state.parents.iter().all(|parent| state.rep(parent.copy) == state.rep(parent.parent)));
+        Ok::<_, SolveAvailabilityError>(())
+    };
+    assert_eq!(session.with_route_transaction(|session| { activate(session)?; Err::<(), _>(SolveAvailabilityError::IdentityExhausted) }),
+        Err(SolveAvailabilityError::IdentityExhausted));
+    let state = &session.candidate_graph.as_ref().unwrap().intrusion;
+    assert!(!state.groups[0].activated);
+    assert!(state.pending.is_empty());
+    assert_eq!(state.pending_cursor, 0);
+    assert!(state.activations.is_empty());
+    assert!(state.reuses.is_empty());
+    assert_eq!(state.generation, 0);
+    assert!(state.parents.iter().all(|parent| state.rep(parent.copy) != state.rep(parent.parent)));
+    session.with_route_transaction(activate).unwrap();
 }

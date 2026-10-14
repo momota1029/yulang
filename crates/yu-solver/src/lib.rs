@@ -212,6 +212,8 @@ mod candidate_scheme;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_source;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_value_graph;
+#[cfg(feature = "shadow-apply-candidate")]
 mod candidate_call;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_extrusion;
@@ -991,6 +993,8 @@ impl ConstraintBatch {
                         DefinitionOrderId::new(batch.collection_artifact.clone(), ordinal);
                     let fact_start = batch.occurrences.len();
                     batch.add_definition_root(binding.definition_root().clone())?;
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    batch.candidate_source.references.register_module(binding.definition_root().clone(), binding.id().clone())?;
                     let endpoint_identity_payload_bytes = binding.id().hash_eq_payload_bytes();
                     let old_capacity = definition_by_hir_id.capacity();
                     let Entry::Vacant(entry) = definition_by_hir_id.entry(binding.id()) else {
@@ -1401,6 +1405,8 @@ impl ConstraintBatch {
             );
         let definition_endpoint_index_capacity = definition_by_hir_id.capacity();
         let pending_endpoint_capacity = pending_uses.capacity();
+        #[cfg(feature = "shadow-apply-candidate")]
+        batch.candidate_source.references.seal().map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
         batch.finish_collection_accounting(
             definition_endpoint_index_capacity,
             pending_endpoint_capacity,
@@ -2185,6 +2191,8 @@ impl ConstraintBatch {
                 self.counters.f0_collection_retained_bytes,
                 self.counters.definition_endpoint_index_peak_bytes,
                 self.counters.definition_use_endpoint_workspace_peak_bytes,
+                #[cfg(feature = "shadow-apply-candidate")]
+                self.candidate_source.references.seal_scratch_peak.max(self.candidate_source.references.construction_scratch_peak),
             ],
             "F0 collection peak bytes",
         );
@@ -10100,7 +10108,10 @@ impl InferenceSession {
             let _ = ordinal;
         }
         #[cfg(feature = "shadow-apply-candidate")]
-        session.initialize_candidate_source_levels()?;
+        {
+            session.batch.candidate_source.references.seal()?;
+            session.initialize_candidate_source_levels()?;
+        }
         session.extrusion_value_marks.resize(value_capacity, 0);
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
@@ -12135,7 +12146,7 @@ impl InferenceSession {
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
-    fn start_typed_drain(&mut self, item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
+    fn start_typed_drain(&mut self, mut item: TypedWorkItem, occurrence: &ConstraintOccurrenceId,
         cause: &CauseId, inferred_entry: Option<candidate_context::InferredEntryOriginId>) -> Result<usize, SolveAvailabilityError> {
         assert!(self.typed_worklist.is_empty(), "constrain begins with an empty worklist");
         let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -12145,7 +12156,8 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
         self.clear_diagnostic_scratch()?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        self.candidate_context_seed(item.task, occurrence, inferred_entry)?;
+        let seed = self.candidate_context_seed(item.task, occurrence, inferred_entry)?;
+        item.relation = item.relation.or(seed);
         self.enqueue_item(item, false)?;
         Ok(index)
     }
@@ -12369,6 +12381,7 @@ impl InferenceSession {
                                 self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
                                 for index in 0..child_count {
                                     let edge = match &self.typed_pairs[&memo_key] { TypedPairMemo::Value { children, .. } => children[index], _ => unreachable!() };
+                                    self.recapture_candidate_extrusion(memo_key, edge.child)?;
                                     self.enqueue_task(LiveConstraintTask::Value(edge.child))?;
                                 }
                                 return Ok(());

@@ -127,6 +127,21 @@ association or prove that any pair qualifies.
 
 ## Implementation and proof boundary
 
+The user's October 14 follow-up explicitly authorizes implementation of the
+selected operation. The
+[private call-demand checkpoint](../progress/2026-10-14-value-occurrence-intrusion-implementation.md)
+constructs resolved source Value SCCs, retains original extrusion occurrences
+and their actual polar pairs, and records transformed-output reuse with a
+distinct occurrence. It propagates these associations through the existing
+contextual queue, replay and transport owners. Qualified equality candidates
+are registered once using the sealed source graph; rollback restores their
+activation and pending cursor. Independent semantic/resource review and focused
+runtime checks cover this implementation scope. Source-global association,
+equality preservation, soundness, principality and public/F5 cutover remain open.
+
+The following baseline diagnosis is retained as historical context for that
+repair.
+
 At inspected baseline `a823deba1a0a6c944e4c67099cb6cd3c0f4fa728`,
 `candidate_intrusion.rs::settle_candidate_intrusion` constructs a graph of
 Value/Effect solver endpoints by walking bounds and Function ports, then checks
@@ -134,7 +149,7 @@ the component IDs of the type parent/copy endpoints directly. That consumer
 does not implement the qualification above. Existing runtime regressions and
 mechanism reviews do not establish this corrected source correspondence.
 
-The next owning work is to construct and retain extrusion occurrence identity,
+The owning work identified at that baseline was to construct and retain extrusion occurrence identity,
 its actual origin/receiver Values and produced polar parent/copy pairs through
 recursive sharing and generalization. Construct the approved Value-reference
 graph independently, then prove that the occurrence-qualified equalities

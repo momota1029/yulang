@@ -7,6 +7,7 @@ use yu_hir::HirLocalId;
 #[derive(Clone, Debug, Default)]
 pub(super) struct Plan {
     pub active: bool,
+    pub references: candidate_value_graph::Graph,
     pub schedules: HashMap<DefinitionRootId, Vec<Action>>,
     pub loose: Vec<Action>,
     pub component_levels: HashMap<usize, u32>,
@@ -56,6 +57,7 @@ impl Support { pub const READY: Self = Self { wait: None }; }
 impl Plan {
     pub fn bytes(&self) -> usize {
         checked_usize_sum([
+            self.references.bytes(),
             checked_capacity_bytes::<(DefinitionRootId, Vec<Action>)>(self.schedules.capacity(), "source schedules"),
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
@@ -171,6 +173,7 @@ impl ConstraintBatch {
         parent: &DefinitionOrderId,
         uses: &mut Vec<PendingDefinitionUse<'a>>,
     ) -> Result<(), CollectionAvailabilityError> {
+        self.candidate_source.references.retain_source(source)?;
         let mut positions = Vec::new();
         positions.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         let mut parameters = HashMap::new();

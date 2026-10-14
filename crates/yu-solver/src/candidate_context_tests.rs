@@ -1,6 +1,21 @@
 use super::*;
 use yu_hir::shadow::lower_module_with_local_source;
 
+// Qualify real row copies with an actual source call occurrence, independently
+// of the type bounds used by these transport fixtures.
+fn source_extrude(session: &mut InferenceSession, parent: ExtrusionEndpoint, polarity: Polarity) -> ExtrusionEndpoint {
+    let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+    let task = match parent {
+        ExtrusionEndpoint::Value(row) => LiveConstraintTask::Value(CanonicalValuePairKey { lower: row, upper: row }),
+        ExtrusionEndpoint::Effect(row) => LiveConstraintTask::Effect(row, row),
+    };
+    let relation = session.candidate_context_seed(task, &checking, None).unwrap().unwrap();
+    let previous = session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing.replace(relation);
+    let copy = session.candidate_extrude(parent, polarity, 0).unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous;
+    copy
+}
+
 fn detached_rename_state() -> State {
     let mut session = session_with_source("act E\nmy answer:[E] int = 1");
     let owner = empty_bundle_owner(&session);
@@ -532,7 +547,7 @@ fn captured_relation_inputs_survive_independent_fresh_uses() {
 #[test]
 fn real_extrusion_and_qualifying_intrusion_transport_identity_dependencies() {
     for effect in [false, true] {
-        let mut session = session();
+        let mut session = session_with_source("act E\nmy seed x = seed x");
         let (occurrence, cause) = cause(&session, 0);
         let parent = if effect {
             ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(
@@ -573,9 +588,7 @@ fn real_extrusion_and_qualifying_intrusion_transport_identity_dependencies() {
         let source = state(&session)
             .bound(BoundKey(parent, Polarity::Negative, upper))
             .unwrap();
-        let copy = session
-            .candidate_extrude(parent, Polarity::Negative, 0)
-            .unwrap();
+        let copy = source_extrude(&mut session, parent, Polarity::Negative);
         assert_ne!(copy, parent);
         if let (
             ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(original_view)),
@@ -1370,7 +1383,7 @@ fn opposite_replay_schedules_the_cartesian_product_of_exact_bound_contexts() {
 fn third_owner_incoming_bound_survives_parent_copy_intrusion_and_rollback_retry() {
     for effect in [false, true] {
       for restore_after_merge in [false, true] {
-        let mut session = session();
+        let mut session = session_with_source("act E\nmy seed x = seed x");
         let (occurrence, cause) = cause(&session, 0);
         let (parent, owner, terminal, contribution) = if effect {
             let parent = ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap()));
@@ -1387,7 +1400,7 @@ fn third_owner_incoming_bound_survives_parent_copy_intrusion_and_rollback_retry(
                 ExtrusionEndpoint::Value(ValueEndpointKey::UnitNegative), ExtrusionEndpoint::Value(ValueEndpointKey::IntPositive))
         };
         session.candidate_restore_bound(parent, Polarity::Negative, terminal, &occurrence, &cause).unwrap();
-        let copy = session.candidate_extrude(parent, Polarity::Positive, 0).unwrap();
+        let copy = source_extrude(&mut session, parent, Polarity::Positive);
         if !restore_after_merge {
             session.candidate_restore_bound(owner, Polarity::Negative, copy, &occurrence, &cause).unwrap();
         }
@@ -3410,7 +3423,7 @@ fn retained_input_transport_reasons_and_missing_evidence_survive_rollback_retry(
     let from = BoundKey(value(0), Polarity::Negative, value(1));
     let to = BoundKey(value(2), Polarity::Negative, value(1));
     let parents = [candidate_intrusion::Parent { copy: candidate_scheme::RowKey::Value(0),
-        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0 }];
+        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0, sources: None, comparison: None, occurrence: 0 }];
     context.attach(from, parent).unwrap();
     context.attach(to, child).unwrap();
     let checkpoint = context.checkpoint();
@@ -3513,7 +3526,7 @@ fn retained_input_rejects_missing_bound_keys_and_mismatched_transport_parent_inc
     context.dependency(Dependency::Transport { parent, child, use_origin: 0,
         witness: Some(TransportWitness { from, to, reason: TransportReason::ParentCopy { parent_index: 0 } }) }).unwrap();
     let parents = [candidate_intrusion::Parent { copy: candidate_scheme::RowKey::Value(99),
-        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0 }];
+        parent: candidate_scheme::RowKey::Value(2), polarity: Polarity::Positive, target: 0, sources: None, comparison: None, occurrence: 0 }];
     let roots = [child];
     let input = context.retained_input(&roots, &[], &parents).unwrap();
     let InputCompleteness::Incomplete(gaps) = input.completeness else { panic!("unknown original-row correspondence cannot be complete"); };
@@ -3526,7 +3539,7 @@ fn retained_input_rejects_missing_bound_keys_and_mismatched_transport_parent_inc
 fn queued_relation_equality_transport_retains_context_ancestry_and_retry() {
     for effect in [false, true] {
       for context_case in 0..4 {
-        let mut session = session();
+        let mut session = session_with_source("act E\nmy seed x = seed x");
         let (occurrence, cause) = cause(&session, 0);
         let parent = if effect {
             ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap()))
@@ -3534,7 +3547,7 @@ fn queued_relation_equality_transport_retains_context_ancestry_and_retry() {
         if !effect {
             session.candidate_restore_bound(parent, Polarity::Negative, ExtrusionEndpoint::Value(ValueEndpointKey::UnitNegative), &occurrence, &cause).unwrap();
         }
-        let copy = session.candidate_extrude(parent, Polarity::Positive, 0).unwrap();
+        let copy = source_extrude(&mut session, parent, Polarity::Positive);
         let raw = match copy {
             ExtrusionEndpoint::Value(upper) => LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::IntPositive, upper }),
             ExtrusionEndpoint::Effect(upper) => LiveConstraintTask::Effect(match parent { ExtrusionEndpoint::Effect(lower) => lower, _ => unreachable!() }, upper),
@@ -5136,4 +5149,47 @@ fn private_failed_candidate_census_overflow_publishes_no_partial_sample() {
         assert!(session.route_journal.is_none());
         // Accounting exhaustion is terminal: discard this private session.
     }
+}
+
+#[test]
+fn delayed_replay_uses_stored_demand_source_association() {
+    let text = "my loop x = loop x\nmy id x = x\nmy client x = id x";
+    let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+    let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    let mut session = session_with_source(text);
+    assert_eq!(session.batch.hir.items().len(), 3);
+    assert_eq!(session.batch.candidate_source.references.events.len(), 2);
+    let events: Vec<_> = session.batch.candidate_source.references.checking.iter().map(|(checking, &event)|
+        (checking.clone(), session.batch.candidate_source.references.qualifies(event))).collect();
+    let qualified = events.iter().find(|(_, yes)| *yes).unwrap().0.clone();
+    let unrelated = events.iter().find(|(_, yes)| !*yes).unwrap().0.clone();
+    let owner = value(session.fresh_value_at_level(0).unwrap());
+    let demand = value(session.fresh_value_at_level(2).unwrap());
+    let actual = value(session.fresh_value_at_level(0).unwrap());
+    let upper = BoundKey(owner, Polarity::Negative, demand);
+    let lower = BoundKey(owner, Polarity::Positive, actual);
+    let relation = session.candidate_context_seed(task_pair_to_task(bound_pair(upper)), &qualified, None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.attach(upper, relation).unwrap();
+    let unrelated_relation = session.candidate_context_seed(task_pair_to_task(bound_pair(lower)), &unrelated, None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.attach(lower, unrelated_relation).unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(unrelated_relation);
+    let replay_task = match (actual, demand) { (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) => LiveConstraintTask::Value(CanonicalValuePairKey { lower, upper }), _ => unreachable!() };
+    session.candidate_context_replay(lower, upper, replay_task, |session, children| {
+        assert_eq!(children.len(), 1);
+        let child = children[0];
+        let sources = state(session).relations[child.0 as usize].key.sources.unwrap();
+        let events = state(session).source_events(sources);
+        assert_eq!(events.len(), 2, "replay retains both complete authentic source events");
+        assert!(events.iter().any(|&event| session.batch.candidate_source.references.qualifies(event)));
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(child);
+        let copy = session.candidate_extrude(demand, Polarity::Negative, 0)?;
+        session.settle_candidate_intrusion(None)?;
+        assert_eq!(session.canonical_extrusion(copy), session.canonical_extrusion(demand));
+        Ok(())
+    }).unwrap();
+}
+
+fn task_pair_to_task(pair: TypedPairKey) -> LiveConstraintTask {
+    match pair { TypedPairKey::Value(pair) => LiveConstraintTask::Value(pair), TypedPairKey::Effect { lower, upper } => LiveConstraintTask::Effect(lower, upper) }
 }

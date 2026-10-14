@@ -203,6 +203,7 @@ pub(super) enum ContextExpr {
 pub(super) struct RelationKey {
     pub(super) pair: TypedPairKey,
     pub(super) context: ContextId,
+    pub(super) sources: Option<usize>,
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Relation {
@@ -710,6 +711,9 @@ pub(super) struct State {
     weight_bytes: usize,
     contexts: Vec<ContextExpr>,
     context_keys: HashMap<ContextExpr, ContextId>,
+    source_sets: Vec<Vec<usize>>,
+    source_set_bytes: usize,
+    source_set_keys: HashMap<Vec<usize>, usize>,
     relations: Vec<Relation>,
     keys: HashMap<RelationKey, RelationId>,
     pair_heads: HashMap<TypedPairKey, RelationId>,
@@ -761,6 +765,7 @@ pub(super) struct Checkpoint {
     bundle_transports: Option<usize>,
     weights: usize,
     contexts: usize,
+    source_sets: usize,
     relations: usize,
     dependencies: usize,
     origins: usize,
@@ -1609,6 +1614,7 @@ impl State {
             bundle_transports: self.bundle_transports.as_ref().map(|index| index.log.len()),
             weights: self.weights.len(),
             contexts: self.contexts.len(),
+            source_sets: self.source_sets.len(),
             relations: self.relations.len(),
             dependencies: self.dependencies.len(),
             origins: self.origins.len(),
@@ -1690,6 +1696,10 @@ impl State {
         }
         for context in self.contexts.drain(checkpoint.contexts..) {
             self.context_keys.remove(&context);
+        }
+        for sources in self.source_sets.drain(checkpoint.source_sets..) {
+            let key = self.source_set_keys.remove_entry(&sources).expect("interned sources").0;
+            self.source_set_bytes -= (sources.capacity() + key.capacity()) * std::mem::size_of::<usize>();
         }
         for relation in self.relations.drain(checkpoint.relations..).rev() {
             self.keys.remove(&relation.key);
@@ -1998,6 +2008,9 @@ impl State {
             self.context_keys
                 .capacity()
                 .checked_mul(std::mem::size_of::<(ContextExpr, ContextId)>()),
+            self.source_sets.capacity().checked_mul(std::mem::size_of::<Vec<usize>>()),
+            self.source_set_keys.capacity().checked_mul(std::mem::size_of::<(Vec<usize>, usize)>()),
+            Some(self.source_set_bytes),
             self.relations
                 .capacity()
                 .checked_mul(std::mem::size_of::<Relation>()),
@@ -2097,6 +2110,10 @@ impl State {
             + self.discharge_log.capacity() * std::mem::size_of::<RelationId>()
             + self.contexts.capacity() * std::mem::size_of::<ContextExpr>()
             + self.context_keys.capacity() * std::mem::size_of::<(ContextExpr, ContextId)>()
+            + self.source_sets.capacity() * std::mem::size_of::<Vec<usize>>()
+            + self.source_set_keys.capacity() * std::mem::size_of::<(Vec<usize>, usize)>()
+            + self.source_sets.iter().map(|set| set.capacity() * std::mem::size_of::<usize>()).sum::<usize>()
+            + self.source_set_keys.keys().map(|set| set.capacity() * std::mem::size_of::<usize>()).sum::<usize>()
             + self.relations.capacity() * std::mem::size_of::<Relation>()
             + self.keys.capacity() * std::mem::size_of::<(RelationKey, RelationId)>()
             + self.pair_heads.capacity() * std::mem::size_of::<(TypedPairKey, RelationId)>()
@@ -2281,8 +2298,12 @@ impl State {
         pair: TypedPairKey,
         context: ContextId,
     ) -> Result<RelationId, SolveAvailabilityError> {
+        let sources = self.processing.and_then(|id| self.relations[id.0 as usize].key.sources);
+        self.relation_with_sources(pair, context, sources)
+    }
+    fn relation_with_sources(&mut self, pair: TypedPairKey, context: ContextId, sources: Option<usize>) -> Result<RelationId, SolveAvailabilityError> {
         self.assert_context(context);
-        let key = RelationKey { pair, context };
+        let key = RelationKey { pair, context, sources };
         if let Some(&id) = self.keys.get(&key) {
             return Ok(id);
         }
@@ -2295,6 +2316,31 @@ impl State {
         self.keys.insert(key, id);
         Ok(id)
     }
+    fn intern_sources(&mut self, mut sources: Vec<usize>) -> Result<Option<usize>, SolveAvailabilityError> {
+        sources.sort_unstable(); sources.dedup();
+        if sources.is_empty() { return Ok(None); }
+        if let Some(&id) = self.source_set_keys.get(&sources) { return Ok(Some(id)); }
+        self.source_sets.try_reserve(1).map_err(|_| exhausted())?;
+        self.source_set_keys.try_reserve(1).map_err(|_| exhausted())?;
+        let mut retained = Vec::new(); retained.try_reserve_exact(sources.len()).map_err(|_| exhausted())?;
+        retained.extend_from_slice(&sources);
+        self.source_set_bytes = self.source_set_bytes.checked_add(
+            sources.capacity().checked_add(retained.capacity()).and_then(|capacity| capacity.checked_mul(std::mem::size_of::<usize>())).ok_or_else(exhausted)?
+        ).ok_or_else(exhausted)?;
+        let id = self.source_sets.len(); self.source_sets.push(retained); self.source_set_keys.insert(sources, id); Ok(Some(id))
+    }
+    fn union_sources(&mut self, lower: RelationId, upper: RelationId) -> Result<Option<usize>, SolveAvailabilityError> {
+        let a = self.relations[lower.0 as usize].key.sources;
+        let b = self.relations[upper.0 as usize].key.sources;
+        if a == b || b.is_none() { return Ok(a); } if a.is_none() { return Ok(b); }
+        let a = &self.source_sets[a.unwrap()]; let b = &self.source_sets[b.unwrap()];
+        let mut sources = Vec::new(); sources.try_reserve_exact(a.len() + b.len()).map_err(|_| exhausted())?;
+        sources.extend_from_slice(a); sources.extend_from_slice(b); self.intern_sources(sources)
+    }
+    pub(super) fn extrusion_sources(&self) -> Option<usize> {
+        self.processing.and_then(|id| self.relations[id.0 as usize].key.sources)
+    }
+    pub(super) fn source_events(&self, sources: usize) -> &[usize] { &self.source_sets[sources] }
     pub fn begin_use(&mut self) -> Result<usize, SolveAvailabilityError> {
         self.uses = self.uses.checked_add(1).ok_or_else(exhausted)?;
         Ok(self.uses)
@@ -2545,10 +2591,11 @@ impl InferenceSession {
         task: LiveConstraintTask,
         occurrence: &ConstraintOccurrenceId,
         inferred_entry: Option<InferredEntryOriginId>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
         if self.candidate_graph.is_none() {
-            return Ok(());
+            return Ok(None);
         }
+        let source = self.batch.candidate_source.references.checking.get(occurrence).copied();
         let pair = self.candidate_context_pair(task_pair(task));
         let context = self.candidate_context_source(pair)?;
         let state = &mut self
@@ -2558,7 +2605,8 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let relation = state.relation(pair, context)?;
+        let sources = match source { Some(source) => { let mut singleton = Vec::new(); singleton.try_reserve_exact(1).map_err(|_| exhausted())?; singleton.push(source); state.intern_sources(singleton)? }, None => None };
+        let relation = state.relation_with_sources(pair, context, sources)?;
         let bundle_slot = match occurrence.local_slot() {
             40 | 41 => Some(41),
             45 | 46 => Some(46),
@@ -2576,7 +2624,8 @@ impl InferenceSession {
             occurrence: occurrence.clone(),
             inferred_entry,
         });
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(relation))
     }
     pub(super) fn candidate_context_admit(
         &mut self,
@@ -2769,7 +2818,7 @@ impl InferenceSession {
         // Equality changes execution identity, while the original relation and
         // raw task remain available for occurrence diagnostics and rollback.
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation(pair, state.post_check_context(parent))?;
+        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
         state.dependency(Dependency::Derived { parent, child })?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
@@ -2896,7 +2945,7 @@ impl InferenceSession {
         // The exact allowance bound retains this boundary's executable check;
         // its derivation still points to the complete, undischarged parent DAG.
         let context = if checked_boundary { IDENTITY } else { state.post_check_context(parent) };
-        let child = state.relation(pair, context)?;
+        let child = state.relation_with_sources(pair, context, state.relations[parent.0 as usize].key.sources)?;
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)?;
         Ok(child)
@@ -3006,7 +3055,8 @@ impl InferenceSession {
                         // derivation remains in the dependency certificate.
                         let context = if lower_context == IDENTITY && upper_context == IDENTITY { IDENTITY }
                             else { state.context(ContextExpr::Replay { lower: lower_context, upper: upper_context })? };
-                        let child = state.relation(pair, context)?;
+                        let sources = state.union_sources(lower, upper)?;
+                        let child = state.relation_with_sources(pair, context, sources)?;
                         let dependency = Dependency::Replay { child, lower, upper, lower_input, upper_input };
                         state.evidence.recipe(dependency)?;
                         #[cfg(test)]
@@ -3181,7 +3231,7 @@ impl InferenceSession {
                 self.candidate_context_transport_witness(parent, to, 0, Some(TransportWitness { from, to, reason: TransportReason::EqualityCanonicalization }))?;
                 let pair = self.candidate_context_pair(bound_pair(to));
                 let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-                let child = state.relation(pair, state.post_check_context(parent))?;
+                let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
                 // Equality transport remains within this owner, unlike fresh
                 // scheme uses: conflicts must retain the original derivation.
                 state.dependency(Dependency::Derived { child, parent })?;
@@ -3195,7 +3245,7 @@ impl InferenceSession {
     ) -> Result<RelationId, SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation(pair, context)?;
+        let child = state.relation_with_sources(pair, context, state.relations[parent.0 as usize].key.sources)?;
         state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) })?;
         state.attach(to, child)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -3213,7 +3263,7 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation(pair, state.post_check_context(parent))?;
+        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
         state.bundle_link(child, bundle)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
@@ -3234,7 +3284,7 @@ impl InferenceSession {
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
         let snapshot = state.evidence.snapshot(witness.from, Some(parent));
         let antecedent = state.evidence.intern_snapshot(snapshot)?;
-        let child = state.relation(pair, state.post_check_context(parent))?;
+        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
         state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(witness) })?;
         let transform = state.evidence.transform(antecedent, witness, parent, child)?;
         state.attach(to, child)?;
@@ -3256,7 +3306,7 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let child = state.relation(pair, state.post_check_context(parent))?;
+        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
         state.dependency(Dependency::Transport {
             child,
             parent,

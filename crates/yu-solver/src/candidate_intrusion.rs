@@ -1,4 +1,4 @@
-//! Candidate-only parent retention, canonical row identity and dependency SCCs.
+//! Candidate-only extrusion occurrences, source qualification and canonical row equality.
 use crate::candidate_scheme::RowKey;
 use crate::*;
 
@@ -12,9 +12,18 @@ pub(super) struct State {
     values: Vec<u32>,
     effects: Vec<u32>,
     pub(super) parents: Vec<Parent>,
+    groups: Vec<PairGroup>,
+    pending: Vec<usize>,
+    pending_cursor: usize,
+    activations: Vec<usize>,
+    by_output: HashMap<(TypedPairKey, ExtrusionEndpoint), Vec<usize>>,
+    output_index_bytes: usize,
+    reuses: Vec<Reuse>,
+    reuse_keys: HashSet<(usize, usize)>,
     pub diagnostic_edges: HashSet<(CanonicalValuePairKey, DiagnosticEdge)>,
     pub completed: HashMap<candidate_context::RelationId, u64>,
     pub generation: u64,
+    next_occurrence: usize,
     pub dirty: bool,
     pub active_roots: HashMap<DefinitionOrderId, u32>,
     pub active_uses: HashSet<DefinitionUseId>,
@@ -25,13 +34,26 @@ pub(super) struct Parent {
     pub parent: RowKey,
     pub polarity: Polarity,
     pub target: u32,
+    pub sources: Option<usize>,
+    pub comparison: Option<TypedPairKey>,
+    pub occurrence: usize,
 }
+#[derive(Clone, Copy, Debug)]
+struct PairGroup { occurrence: usize, start: usize, end: usize, activated: bool }
+#[derive(Clone, Copy, Debug)]
+struct Reuse { group: usize, sources: usize, occurrence: usize }
 pub(super) struct Undo {
     pub(super) effect_algebra: candidate_effect::Checkpoint,
     values_len: usize,
     effects_len: usize,
     parents_len: usize,
+    groups_len: usize,
+    pending_len: usize,
+    pending_cursor: usize,
+    activations_len: usize,
+    reuses_len: usize,
     generation: u64,
+    next_occurrence: usize,
     dirty: bool,
     forests: Vec<(RowKey, u32)>,
     completions: Vec<(candidate_context::RelationId, Option<u64>)>,
@@ -88,7 +110,13 @@ impl State {
             values_len: self.values.len(),
             effects_len: self.effects.len(),
             parents_len: self.parents.len(),
+            groups_len: self.groups.len(),
+            pending_len: self.pending.len(),
+            pending_cursor: self.pending_cursor,
+            activations_len: self.activations.len(),
+            reuses_len: self.reuses.len(),
             generation: self.generation,
+            next_occurrence: self.next_occurrence,
             dirty: self.dirty,
             forests: Vec::new(),
             completions: Vec::new(),
@@ -111,7 +139,17 @@ impl State {
         self.values.truncate(undo.values_len);
         self.effects.truncate(undo.effects_len);
         self.parents.truncate(undo.parents_len);
+        for group in self.activations.drain(undo.activations_len..).rev() {
+            self.groups[group].activated = false;
+        }
+        self.pending.truncate(undo.pending_len);
+        self.pending_cursor = undo.pending_cursor;
+        self.groups.truncate(undo.groups_len);
+        for reuse in self.reuses.drain(undo.reuses_len..) { self.reuse_keys.remove(&(reuse.group, reuse.sources)); }
+        self.by_output.retain(|_, groups| { groups.retain(|&group| group < undo.groups_len); !groups.is_empty() });
+        self.output_index_bytes = self.by_output.values().map(|groups| groups.capacity() * std::mem::size_of::<usize>()).sum();
         self.generation = undo.generation;
+        self.next_occurrence = undo.next_occurrence;
         self.dirty = undo.dirty;
         for (key, previous) in undo.completions.into_iter().rev() {
             if let Some(previous) = previous {
@@ -133,6 +171,13 @@ impl State {
             bytes::<u32>(self.values.capacity())?,
             bytes::<u32>(self.effects.capacity())?,
             bytes::<Parent>(self.parents.capacity())?,
+            bytes::<PairGroup>(self.groups.capacity())?,
+            bytes::<usize>(self.pending.capacity())?,
+            bytes::<usize>(self.activations.capacity())?,
+            bytes::<((TypedPairKey, ExtrusionEndpoint), Vec<usize>)>(self.by_output.capacity())?,
+            self.output_index_bytes,
+            bytes::<Reuse>(self.reuses.capacity())?,
+            bytes::<(usize, usize)>(self.reuse_keys.capacity())?,
             bytes::<(CanonicalValuePairKey, DiagnosticEdge)>(self.diagnostic_edges.capacity())?,
             bytes::<(candidate_context::RelationId, u64)>(self.completed.capacity())?,
             bytes::<(DefinitionOrderId, u32)>(self.active_roots.capacity())?,
@@ -168,12 +213,19 @@ impl InferenceSession {
             ExtrusionEndpoint::Effect(e) => ExtrusionEndpoint::Effect(self.canonical_effect(e)),
         }
     }
+    pub(super) fn begin_candidate_extrusion(&mut self) -> Result<usize, SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion;
+        let id = state.next_occurrence;
+        state.next_occurrence = id.checked_add(1).ok_or_else(exhausted)?;
+        Ok(id)
+    }
     pub(super) fn retain_extrusion_parent(
         &mut self,
         copy: ExtrusionEndpoint,
         parent: ExtrusionEndpoint,
         polarity: Polarity,
         target: u32,
+        occurrence: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let (copy, parent) = match (copy, parent) {
             (
@@ -186,11 +238,15 @@ impl InferenceSession {
             ) => (RowKey::Effect(c), RowKey::Effect(p)),
             _ => return Err(exhausted()),
         };
+        let sources = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.context.extrusion_sources();
+        let qualified = sources.is_some_and(|sources| self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.source_events(sources).iter()
+            .any(|&event| self.batch.candidate_source.references.qualifies(event)));
         let state = &mut self
             .candidate_graph
             .as_mut()
             .ok_or_else(exhausted)?
             .intrusion;
+        if qualified { state.pending.try_reserve(1).map_err(|_| exhausted())?; }
         state
             .values
             .try_reserve(self.bounds.len().saturating_sub(state.values.len()))
@@ -211,13 +267,72 @@ impl InferenceSession {
                 .push(u32::try_from(row).map_err(|_| exhausted())?);
         }
         // This provenance is deliberately absent from the dependency adjacency.
+        if qualified { state.pending.push(state.parents.len()); }
         state.parents.push(Parent {
             copy,
             parent,
             polarity,
             target,
+            sources,
+            comparison: state.effect_algebra.processing,
+            occurrence,
         });
         state.dirty = true;
+        Ok(())
+    }
+    pub(super) fn finish_candidate_extrusion(
+        &mut self, occurrence: usize, start: usize, output: ExtrusionEndpoint,
+    ) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion;
+        if start == state.parents.len() { return Ok(()); }
+        let Some(comparison) = state.effect_algebra.processing else { return Ok(()); };
+        state.groups.try_reserve(1).map_err(|_| exhausted())?;
+        state.by_output.try_reserve(1).map_err(|_| exhausted())?;
+        let indices = state.by_output.entry((comparison, output)).or_default();
+        let previous = indices.capacity();
+        indices.try_reserve(1).map_err(|_| exhausted())?;
+        state.output_index_bytes = state.output_index_bytes.checked_add(bytes::<usize>(indices.capacity() - previous)?).ok_or_else(exhausted)?;
+        indices.push(state.groups.len());
+        debug_assert!(state.parents[start..].iter().all(|parent|
+            parent.occurrence == occurrence && parent.comparison == Some(comparison)));
+        let activated = state.parents[start].sources.is_some_and(|sources| state.effect_algebra.context.source_events(sources).iter()
+            .any(|&event| self.batch.candidate_source.references.qualifies(event)));
+        state.groups.push(PairGroup { occurrence, start, end: state.parents.len(), activated });
+        Ok(())
+    }
+    pub(super) fn recapture_candidate_extrusion(
+        &mut self, key: TypedPairKey, output: CanonicalValuePairKey,
+    ) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion;
+        let Some(sources) = state.effect_algebra.context.extrusion_sources() else { return Ok(()); };
+        let qualified = state.effect_algebra.context.source_events(sources).iter()
+            .any(|&event| self.batch.candidate_source.references.qualifies(event));
+        // Only groups producing the child actually reused by dispatch participate.
+        // The original pair records and their source association remain immutable.
+        for endpoint in [output.lower, output.upper] {
+            let Some(groups) = state.by_output.get(&(key, ExtrusionEndpoint::Value(endpoint))) else { continue; };
+            for &group in groups {
+                let original = state.parents[state.groups[group].start];
+                debug_assert_eq!(original.occurrence, state.groups[group].occurrence);
+                if original.sources == Some(sources) || state.reuse_keys.contains(&(group, sources)) { continue; }
+                state.reuses.try_reserve(1).map_err(|_| exhausted())?;
+                state.reuse_keys.try_reserve(1).map_err(|_| exhausted())?;
+                let occurrence = state.next_occurrence;
+                state.next_occurrence = occurrence.checked_add(1).ok_or_else(exhausted)?;
+                state.reuse_keys.insert((group, sources));
+                state.reuses.push(Reuse { group, sources, occurrence });
+                debug_assert_ne!(state.reuses.last().unwrap().occurrence, state.groups[group].occurrence);
+                if qualified && !state.groups[group].activated {
+                    let pairs = state.groups[group];
+                    state.pending.try_reserve(pairs.end - pairs.start).map_err(|_| exhausted())?;
+                    state.activations.try_reserve(1).map_err(|_| exhausted())?;
+                    state.activations.push(group);
+                    state.groups[group].activated = true;
+                    state.pending.extend(pairs.start..pairs.end);
+                }
+                state.dirty = true;
+            }
+        }
         Ok(())
     }
     pub(super) fn mark_candidate_pair(
@@ -364,152 +479,28 @@ impl InferenceSession {
             .as_ref()
             .ok_or_else(exhausted)?
             .intrusion;
-        if !state.dirty {
-            return Ok(());
-        }
-        if state.parents.is_empty() {
+        if state.pending_cursor == state.pending.len() {
             self.candidate_graph.as_mut().unwrap().intrusion.dirty = false;
             return Ok(());
         }
         self.compress_candidate_forests()?;
-        let mut graph = Dependencies::default();
-        for row in 0..self.bounds.len() {
-            graph.intern(self.canonical_extrusion(ExtrusionEndpoint::Value(
-                ValueEndpointKey::ValueRow(row as u32),
-            )))?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        loop {
+            let state = &self.candidate_graph.as_ref().unwrap().intrusion;
+            let Some(&parent_index) = state.pending.get(state.pending_cursor) else { break; };
+            let parent = state.parents[parent_index];
+            debug_assert!(matches!(parent.polarity, Polarity::Positive | Polarity::Negative));
+            debug_assert!(match parent.copy {
+                RowKey::Value(row) => self.value_levels[row as usize] <= parent.target,
+                RowKey::Effect(row) => self.effect_levels[row as usize] <= parent.target,
+            });
+            self.merge_candidate_rows(parent.copy, parent.parent, root, parent_index)?;
+            self.candidate_graph.as_mut().unwrap().intrusion.pending_cursor += 1;
         }
-        for row in 0..self.effect_bounds.len() {
-            graph.intern(self.canonical_extrusion(ExtrusionEndpoint::Effect(
-                EffectEndpointKey::EffectRow(row as u32),
-            )))?;
-        }
-        let mut cursor = 0;
-        while cursor < graph.nodes.len() {
-            let endpoint = graph.nodes[cursor];
-            match endpoint {
-                ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row)) => {
-                    let bounds = &self.bounds[row as usize];
-                    for &child in bounds
-                        .direct_lower_rows
-                        .iter()
-                        .chain(&bounds.direct_upper_rows)
-                    {
-                        graph.edge(
-                            cursor,
-                            self.canonical_extrusion(ExtrusionEndpoint::Value(
-                                ValueEndpointKey::ValueRow(child),
-                            )),
-                        )?;
-                    }
-                    for &child in bounds
-                        .exact_non_variable_lowers
-                        .iter()
-                        .chain(&bounds.exact_non_variable_uppers)
-                    {
-                        graph.edge(
-                            cursor,
-                            self.canonical_extrusion(ExtrusionEndpoint::Value(child)),
-                        )?;
-                    }
-                }
-                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)) => {
-                    let bounds = &self.effect_bounds[row as usize];
-                    for &child in bounds
-                        .direct_lower_rows
-                        .iter()
-                        .chain(&bounds.direct_upper_rows)
-                    {
-                        graph.edge(
-                            cursor,
-                            self.canonical_extrusion(ExtrusionEndpoint::Effect(
-                                EffectEndpointKey::EffectRow(child),
-                            )),
-                        )?;
-                    }
-                    for &child in bounds
-                        .exact_non_variable_lowers
-                        .iter()
-                        .chain(&bounds.exact_non_variable_uppers)
-                    {
-                        graph.edge(
-                            cursor,
-                            self.canonical_extrusion(ExtrusionEndpoint::Effect(child)),
-                        )?;
-                    }
-                }
-                ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(id) | EffectEndpointKey::Support(id)) => {
-                    if let Some(tail) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail {
-                        graph.edge(cursor, self.canonical_extrusion(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(tail))))?;
-                    }
-                }
-                ExtrusionEndpoint::Value(value) => {
-                    let (polarity, ports) = if let Some(ports) =
-                        Self::positive_function_children(&self.store, value)
-                    {
-                        (Polarity::Positive, ports)
-                    } else if let Some(ports) = Self::negative_function_children(&self.store, value)
-                    {
-                        (Polarity::Negative, ports)
-                    } else {
-                        return Err(exhausted());
-                    };
-                    let opposite = if polarity == Polarity::Positive {
-                        Polarity::Negative
-                    } else {
-                        Polarity::Positive
-                    };
-                    for child in [
-                        ExtrusionEndpoint::Value(self.value_endpoint(ports.0, opposite)),
-                        ExtrusionEndpoint::Effect(self.effect_endpoint(ports.1, opposite)),
-                        ExtrusionEndpoint::Effect(self.effect_endpoint(ports.2, polarity)),
-                        ExtrusionEndpoint::Value(self.value_endpoint(ports.3, polarity)),
-                    ] {
-                        graph.edge(cursor, child)?;
-                    }
-                }
-                _ => return Err(exhausted()),
-            }
-            cursor += 1;
-        }
-        let (components, scratch) = graph.components()?;
-        let mut merges = Vec::new();
-        let state = &self.candidate_graph.as_ref().unwrap().intrusion;
-        for (parent_index, parent) in state.parents.iter().enumerate() {
-            let copy = state.rep(parent.copy);
-            let original = state.rep(parent.parent);
-            // Polarity/target remain creation provenance, not SCC graph edges.
-            let _creation = (parent.polarity, parent.target);
-            if copy != original
-                && components[graph.positions[&row_endpoint(copy)]]
-                    == components[graph.positions[&row_endpoint(original)]]
-            {
-                push(&mut merges, (copy, original, parent_index))?;
-            }
-        }
-        let scratch = sum(&[
-            scratch,
-            graph.bytes()?,
-            bytes::<(RowKey, RowKey, usize)>(merges.capacity())?,
-        ])?;
-        self.candidate_graph.as_mut().unwrap().scratch_bytes = self
-            .candidate_graph
-            .as_ref()
-            .unwrap()
-            .scratch_bytes
-            .checked_add(scratch)
-            .ok_or_else(exhausted)?;
-        let result = (|| {
-            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            self.candidate_graph.as_mut().unwrap().intrusion.dirty = false;
-            for (copy, parent, parent_index) in merges.iter().copied() {
-                self.merge_candidate_rows(copy, parent, root, parent_index)?;
-            }
-            Ok(())
-        })();
-        drop((graph, components, merges));
-        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
-        result
+        self.candidate_graph.as_mut().unwrap().intrusion.dirty = false;
+        Ok(())
     }
+
     fn merge_candidate_rows(
         &mut self,
         copy: RowKey,
@@ -609,125 +600,5 @@ fn row_endpoint(row: RowKey) -> ExtrusionEndpoint {
     match row {
         RowKey::Value(row) => ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row)),
         RowKey::Effect(row) => ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
-    }
-}
-#[derive(Default)]
-struct Dependencies {
-    nodes: Vec<ExtrusionEndpoint>,
-    positions: HashMap<ExtrusionEndpoint, usize>,
-    edges: Vec<Vec<usize>>,
-    reverse: Vec<Vec<usize>>,
-}
-impl Dependencies {
-    fn intern(
-        &mut self,
-        endpoint: ExtrusionEndpoint,
-    ) -> Result<Option<usize>, SolveAvailabilityError> {
-        if !matches!(
-            endpoint,
-            ExtrusionEndpoint::Value(
-                ValueEndpointKey::ValueRow(_)
-                    | ValueEndpointKey::PositiveFunction(_)
-                    | ValueEndpointKey::NegativeFunction(_)
-            ) | ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_) | EffectEndpointKey::Allowance(_) | EffectEndpointKey::Support(_))
-        ) {
-            return Ok(None);
-        }
-        if let Some(&index) = self.positions.get(&endpoint) {
-            return Ok(Some(index));
-        }
-        self.positions.try_reserve(1).map_err(|_| exhausted())?;
-        self.nodes.try_reserve(1).map_err(|_| exhausted())?;
-        self.edges.try_reserve(1).map_err(|_| exhausted())?;
-        self.reverse.try_reserve(1).map_err(|_| exhausted())?;
-        let index = self.nodes.len();
-        self.nodes.push(endpoint);
-        self.edges.push(Vec::new());
-        self.reverse.push(Vec::new());
-        self.positions.insert(endpoint, index);
-        Ok(Some(index))
-    }
-    fn edge(
-        &mut self,
-        from: usize,
-        endpoint: ExtrusionEndpoint,
-    ) -> Result<(), SolveAvailabilityError> {
-        if let Some(to) = self.intern(endpoint)? {
-            push(&mut self.edges[from], to)?;
-            push(&mut self.reverse[to], from)?;
-        }
-        Ok(())
-    }
-    fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        let mut total = sum(&[
-            bytes::<ExtrusionEndpoint>(self.nodes.capacity())?,
-            bytes::<(ExtrusionEndpoint, usize)>(self.positions.capacity())?,
-            bytes::<Vec<usize>>(self.edges.capacity())?,
-            bytes::<Vec<usize>>(self.reverse.capacity())?,
-        ])?;
-        for edges in self.edges.iter().chain(&self.reverse) {
-            total = total
-                .checked_add(bytes::<usize>(edges.capacity())?)
-                .ok_or_else(exhausted)?;
-        }
-        Ok(total)
-    }
-    fn components(&self) -> Result<(Vec<usize>, usize), SolveAvailabilityError> {
-        let mut seen = Vec::new();
-        seen.try_reserve_exact(self.nodes.len())
-            .map_err(|_| exhausted())?;
-        seen.resize(self.nodes.len(), false);
-        let mut finish = Vec::new();
-        let mut stack = Vec::new();
-        for start in 0..self.nodes.len() {
-            if seen[start] {
-                continue;
-            }
-            seen[start] = true;
-            push(&mut stack, (start, 0usize))?;
-            while let Some((node, edge)) = stack.last_mut() {
-                if *edge == self.edges[*node].len() {
-                    let node = *node;
-                    stack.pop();
-                    push(&mut finish, node)?;
-                } else {
-                    let child = self.edges[*node][*edge];
-                    *edge += 1;
-                    if !seen[child] {
-                        seen[child] = true;
-                        push(&mut stack, (child, 0))?;
-                    }
-                }
-            }
-        }
-        let mut components = Vec::new();
-        components
-            .try_reserve_exact(self.nodes.len())
-            .map_err(|_| exhausted())?;
-        components.resize(self.nodes.len(), usize::MAX);
-        let mut component = 0;
-        for &start in finish.iter().rev() {
-            if components[start] != usize::MAX {
-                continue;
-            }
-            components[start] = component;
-            push(&mut stack, (start, 0))?;
-            while let Some((node, _)) = stack.pop() {
-                for &child in &self.reverse[node] {
-                    if components[child] == usize::MAX {
-                        components[child] = component;
-                        push(&mut stack, (child, 0))?;
-                    }
-                }
-            }
-            component += 1;
-        }
-        let scratch = sum(&[
-            bytes::<bool>(seen.capacity())?,
-            bytes::<usize>(finish.capacity())?,
-            bytes::<usize>(components.capacity())?,
-            bytes::<(usize, usize)>(stack.capacity())?,
-        ])?;
-        Ok((components, scratch))
     }
 }

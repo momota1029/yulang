@@ -24,6 +24,8 @@ impl InferenceSession {
         polarity: Polarity,
         level: u32,
     ) -> Result<ExtrusionEndpoint, SolveAvailabilityError> {
+        let occurrence = self.begin_candidate_extrusion()?;
+        let parent_start = self.candidate_graph.as_ref().unwrap().intrusion.parents.len();
         // Row identities are memoized before traversing bounds. Structural
         // memoization is separate; neither memo survives source mutation.
         let mut rows = HashMap::new();
@@ -118,7 +120,7 @@ impl InferenceSession {
                                     self.fresh_value_at_level(target)?,
                                 ))
                             };
-                            self.retain_extrusion_parent(copy, endpoint, p, target)?;
+                            self.retain_extrusion_parent(copy, endpoint, p, target, occurrence)?;
                             map_insert!(rows, key, copy)?;
                             self.candidate_insert_bound(endpoint, opposite(p), copy)?;
                             for n in (0..direct + exact).rev() {
@@ -358,6 +360,7 @@ impl InferenceSession {
                 .or_else(|| structure.get(&root))
                 .copied()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.finish_candidate_extrusion(occurrence, parent_start, result)?;
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             Ok(result)
         })();

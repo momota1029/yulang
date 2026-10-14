@@ -88,8 +88,12 @@ This index is a navigation aid. The listed source document remains authoritative
   rejection does not satisfy this operation. The
   [Value-reference ownership decisions](2026-10-10-parent-copy-scc-intrusion.md)
   now include recursive nested-Apply Name membership and definition-root
-  ownership across lexical levels; source construction, transport, qualifying
-  parent/copy membership, and equality preservation remain open. The
+  ownership across lexical levels. The
+  [October 14 private implementation](../progress/2026-10-14-value-occurrence-intrusion-implementation.md)
+  constructs the Value graph, retains call-demand occurrence associations and
+  actual polar pairs through replay and transformed-output reuse, and applies
+  qualified equalities once. Focused tests and semantic/resource review cover
+  that slice; source-global correspondence and equality preservation remain open. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction
