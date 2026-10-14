@@ -1,12 +1,23 @@
 # Operation patterns: qualified heads and payload calls
 
-Status: Reviewed; pending user approval for the new CST/recovery contract.
+Status: Authoritative; user-approved CST/recovery contract.
+Approved-by: user
+Approved-at: 2026-10-14
 Reviewed-by: independent compiler_referee and spec_auditor; accepted admission,
 recovery-frontier and diagnostic-ownership findings closed by delta review.
 Date: 2026-10-14
 Baseline: `21d5a9773e577bf9b49b5d978bc60bedf8d72a42`
 Scope: shared Pattern path and glued payload tails, needed for existing Oracle Catch spelling.
-Implementation: not started; ordinary value-arm Catch formation proceeds independently.
+Implementation: authorized and in progress; ordinary value-arm Catch formation is complete.
+
+## User approval
+
+The user replied to the reviewed proposal and explicit approval request:
+`まあだいたいこれでいいと思う．あとgitがcleanじゃないのでquestion（回答済み）はもうしまっちゃっていいんじゃないかな`.
+This approves the presented shared path/glued-call CST and recovery contract.
+The additional request concerns integrating the answered question bundle;
+it does not select an unresolved negative-formal field map. No new operation
+handler, residual or hygiene semantics are selected by this parser approval.
 
 ## Existing behavior and exact missing contract
 
@@ -25,8 +36,8 @@ The shared `PatternMlApplicationTail` already exists under the function-scheme
 foundation §§20/41, but needs trivia and respects Catch's `PATTERN_STOP_ITEM`.
 Consequently adding a path tail alone does not parse this source. This record
 does not change shallow continuation semantics or select another handler syntax.
-It proposes the missing CST/recovery contract; Oracle spelling alone does not
-approve that new contract.
+This record supplies the reviewed, now user-approved CST/recovery contract;
+Oracle spelling alone was not its approval.
 
 ## Selected proposal
 
@@ -143,8 +154,8 @@ value arms, internal versus handler commas, nested Patterns, caller Item
 preservation, absent members/closes, and foreign-close handoff. Check existing
 Pattern/Case/Catch siblings. Preserve one-forward source consumption and
 linear structural work. Timing budget: zero; focused verification belongs to
-the primary after an approved implementation. No tests or compiler edits are
-authorized by this Reviewed proposal alone.
+the primary after implementation. The user approval above authorizes this
+parser slice and its focused verification.
 
 ## Review resolution
 
@@ -154,4 +165,5 @@ retry/frontier contract. New owner diagnostics explicitly use the total generic
 projection. A final delimiter clarification preserves uncarried foreign-close
 Error consumption and retains only carried caller closes. The independent
 compiler/referee and conformance delta reviews have no remaining major finding.
-This establishes proposal readiness, not approval or implementation.
+Those reviews established proposal readiness. The subsequent approval above
+authorizes implementation; completion still requires code and verification.

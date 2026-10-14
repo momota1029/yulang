@@ -73,8 +73,12 @@ The primary accepts that bounded result; source eligibility U and complete
 handler/hygiene remain open. Do not schedule another watcher engine or a
 repeated conditional proof assuming U. The shared operation-pattern
 [CST/recovery proposal](../notes/design/2026-10-14-operation-pattern-tails.md)
-has passed M2 design review and awaits explicit user approval. All implementation
-leases are frozen; the next dependent parser/source slice starts after approval.
+passed M2 design review and received explicit user approval on 2026-10-14.
+Its parser implementation is active on a bounded syntax lease; the HIR/solver
+operation-arm slice remains dependent on that construction and authentic U.
+The answered q1/r1 negative-formal correction bundle is integrated at
+`ef579dfd3` at the user's request, with exact content and committed-file checks.
+It supplies no complete field map and is no longer a pending local question.
 Measurements remain zero; exact checks and boundaries are in the checkpoint.
 
 ## Historical first scheduling wave

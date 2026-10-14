@@ -193,10 +193,20 @@ their source constructors/consumers.
 The missing shared operation-pattern path/call tails have a
 [reviewed CST/recovery proposal](../notes/design/2026-10-14-operation-pattern-tails.md).
 Independent semantic/recovery and exact-conformance reviews closed their
-findings. User approval is pending; parser implementation has not started.
-The next dependent slice is that parser construction, then operation/payload/
-raw-resumption formation with U's actual boundary evidence. The pending old
-negative-formal question bundle remains excluded from integration.
+findings. The user approved the proposal on 2026-10-14 with
+`まあだいたいこれでいいと思う．`; its CST/recovery contract is Authoritative
+and parser implementation is active. The next dependent slice is operation/
+payload/raw-resumption formation with U's actual boundary evidence.
+
+The same user turn requested archiving the answered negative-formal question.
+The exact q1/r1 question/draft/approved-answer bundle is integrated at
+`ef579dfd3`, with committed-file equality checked and its
+[receipt](../questions/2026-10-13-negative-formal-permission-field-law/receipt.md)
+updated. The approved correction is consumed within its stated scope: the
+concrete `io.read_int()` example does not distinguish annotation permission
+maps. The question is archived as answered within r1's scope; no A/B/C field
+map or new implementation authority follows. The prior uncommitted receipt
+is retained as history, with its archival decision superseded by this request.
 
 ## 2026-10-12 fixed-term H executable construction
 

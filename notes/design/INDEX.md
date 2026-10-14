@@ -119,8 +119,8 @@ This index is a navigation aid. The listed source document remains authoritative
   under its explicit processing premises; authentic handler eligibility and
   full hygiene remain open. The
   [operation-pattern CST/recovery proposal](2026-10-14-operation-pattern-tails.md)
-  is reviewed but pending user approval; no parser implementation is authorized
-  by that proposal yet. The
+  is Authoritative after the user's 2026-10-14 approval; the parser slice is
+  in progress. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction
