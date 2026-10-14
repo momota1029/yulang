@@ -14,10 +14,21 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [native scoped compose experiment](../notes/progress/2026-10-15-native-scoped-compose-experiment.md)
+is implemented and independently reviewed. The selected identity, two-use and
+independent-protection sources now pass all recorded final contribution
+observations. An actual extra-fiber failure was traced to copied-bound
+admission and repaired across FreshUse, extrusion and intrusion. The local
+algebra and conditional ownership proof are distinct from this finite source
+evidence. Unsupported provenance and resource limits defer the private
+experiment; historical forest copying still needs a general representation
+solution. Handler subtraction, full source coverage and principality remain
+OPEN. Do not rerun the resolved raw-template or extra-identity diagnosis.
+
 The [scoped kernel checkpoint](../notes/progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
 has a compiled implementation and independently reviewed algebra/source
-characterization. Actual native integration now targets source-owned scope
-inventories and consistent FreshUse maps; the selected compose source theorem
+characterization. Actual native integration now retains source-owned scope
+inventories and consistent FreshUse maps in the bounded experiment; the selected compose source theorem
 and handler subtraction remain OPEN.
 
 The [native Computation-formal route](../notes/progress/2026-10-15-computation-formal-native-routing.md)

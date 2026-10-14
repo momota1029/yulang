@@ -6,7 +6,7 @@ Selected-by: user, directly in the continuing hygiene conversation
 Review: pre-write spec_auditor review accepted the expected-scheme replacement; final scoped transcription/supersession review found no findings
 Scope: `my compose f g x = f (g x)`, its expected type and release of the `'e` protection scope within the output effect `'f`
 Supersedes: only the earlier compose presentation in `../progress/2026-10-04-principal-scheme-acceptance-criteria.md`; clarifies the compose instance of `2026-10-05-handler-hygiene-public-provenance-notation.md`
-Implementation: private scoped algebra implemented and locally proved; source/native integration and grammar adoption remain open (see checkpoint below)
+Implementation: private scoped algebra locally proved; opt-in native integration passes three finite source discriminators; complete source theorem, handler integration and grammar adoption remain open
 
 ## Direct decision
 
@@ -60,6 +60,12 @@ need to preserve the selected scope and any independent protections.
 The [scoped algebra checkpoint](../progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
 records the compiled private kernel and independently reviewed local proof.
 It does not establish the selected source scheme or activate handler removal.
+The subsequent [native experiment](../progress/2026-10-15-native-scoped-compose-experiment.md)
+implements scoped transport through actual source constraints and FreshUse.
+Identity composition, two independent uses and preservation of an independent
+scope pass their finite output observations after repairing an extra identity
+fiber at bound-copy admission. This is a bounded experimental implementation,
+not adoption of its region-inventory representation as production architecture.
 
 The user selected the `'e?` strategy while allowing a richer internal
 mechanism, including push/pop-like processing. This does not adopt the earlier

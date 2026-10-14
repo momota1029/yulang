@@ -200,10 +200,31 @@ pub(super) enum ContextExpr {
     },
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct ScopedDemand {
+    pub original_call: usize,
+    pub use_instance: usize,
+    pub root: Term,
+    pub output_scope: candidate_scope::EffectScopeId,
+    pub input: candidate_scope::InputRouteId,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub(super) struct ScopedFlow {
+    pub transformer: usize,
+    pub demand: Option<ScopedDemand>,
+}
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct ScopedObservation {
+    pub relation: RelationId,
+    pub operand: EffectEndpointKey,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub(super) struct ScopedFlowId(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct RelationKey {
     pub(super) pair: TypedPairKey,
     pub(super) context: ContextId,
     pub(super) sources: Option<usize>,
+    pub(super) scoped: ScopedFlowId,
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Relation {
@@ -450,7 +471,7 @@ pub(super) enum BoundAdmissionCause {
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(not(test), allow(dead_code, reason = "inert producer evidence has no authorization consumer"))]
 pub(super) struct BoundAdmission {
-    pub bound: BoundKey, pub origin: TypedPairKey, pub relation: RelationId,
+    pub bound: BoundKey, pub origin: TypedPairKey, pub relation: Option<RelationId>,
     group: BoundEvidenceGroupId, pub cause: BoundAdmissionCause, pub coverage: EvidenceCoverage,
     previous_on_group: Option<BoundAdmissionId>,
 }
@@ -494,7 +515,7 @@ impl<'a> Iterator for DirectTransportAdmissions<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let id = self.next.take()?;
         let Some(record) = self.admissions.get(id.0) else { return Some(Err(InputGap::MissingReference)); };
-        if record.bound != self.transform.from || record.relation != self.transform.source_relation
+        if record.bound != self.transform.from || record.relation != Some(self.transform.source_relation)
             || Some(record.group) != self.group
             || record.previous_on_group.is_some_and(|previous| previous.0 >= id.0) {
             return Some(Err(InputGap::InconsistentReference));
@@ -521,7 +542,7 @@ struct EvidenceCounters {
 #[derive(Debug, Default)]
 struct BoundEvidence {
     admissions: Vec<BoundAdmission>, emissions: Vec<BoundEmission>,
-    groups: Vec<BoundEvidenceGroup>, group_keys: HashMap<(BoundKey, RelationId), BoundEvidenceGroupId>,
+    groups: Vec<BoundEvidenceGroup>, group_keys: HashMap<(BoundKey, Option<RelationId>), BoundEvidenceGroupId>,
     group_log: Vec<(BoundEvidenceGroupId, BoundEvidenceGroup)>,
     snapshots: Vec<EvidenceSnapshot>, snapshot_keys: HashMap<EvidenceSnapshot, EvidenceSnapshotId>,
     recipes: Vec<ReplayRecipe>, recipe_keys: HashMap<Dependency, ReplayRecipeId>,
@@ -575,7 +596,7 @@ impl BoundEvidence {
             self.admissions.capacity().checked_mul(std::mem::size_of::<BoundAdmission>()),
             self.emissions.capacity().checked_mul(std::mem::size_of::<BoundEmission>()),
             self.groups.capacity().checked_mul(std::mem::size_of::<BoundEvidenceGroup>()),
-            self.group_keys.capacity().checked_mul(std::mem::size_of::<((BoundKey, RelationId), BoundEvidenceGroupId)>()),
+            self.group_keys.capacity().checked_mul(std::mem::size_of::<((BoundKey, Option<RelationId>), BoundEvidenceGroupId)>()),
             self.group_log.capacity().checked_mul(std::mem::size_of::<(BoundEvidenceGroupId, BoundEvidenceGroup)>()),
             self.snapshots.capacity().checked_mul(std::mem::size_of::<EvidenceSnapshot>()),
             self.snapshot_keys.capacity().checked_mul(std::mem::size_of::<(EvidenceSnapshot, EvidenceSnapshotId)>()),
@@ -621,7 +642,7 @@ impl BoundEvidence {
             + self.admissions.capacity() * std::mem::size_of::<BoundAdmission>()
             + self.emissions.capacity() * std::mem::size_of::<BoundEmission>()
             + self.groups.capacity() * std::mem::size_of::<BoundEvidenceGroup>()
-            + self.group_keys.capacity() * std::mem::size_of::<((BoundKey, RelationId), BoundEvidenceGroupId)>()
+            + self.group_keys.capacity() * std::mem::size_of::<((BoundKey, Option<RelationId>), BoundEvidenceGroupId)>()
             + self.group_log.capacity() * std::mem::size_of::<(BoundEvidenceGroupId, BoundEvidenceGroup)>()
             + self.snapshots.capacity() * std::mem::size_of::<EvidenceSnapshot>()
             + self.snapshot_keys.capacity() * std::mem::size_of::<(EvidenceSnapshot, EvidenceSnapshotId)>()
@@ -637,7 +658,7 @@ impl BoundEvidence {
     fn snapshot(&self, source_bound: BoundKey, relation: Option<RelationId>) -> EvidenceSnapshot {
         let mut coverage = EvidenceCoverage::default();
         if relation.is_none() { coverage.add(CoverageGap::MissingBoundRelation); }
-        let group = relation.and_then(|relation| self.group_keys.get(&(source_bound, relation)))
+        let group = self.group_keys.get(&(source_bound, relation))
             .map(|id| self.groups[id.0]);
         let (admission_head, emission_head) = if let Some(group) = group {
             coverage.gaps |= group.coverage.gaps;
@@ -656,7 +677,7 @@ impl BoundEvidence {
         self.snapshot_keys.insert(snapshot, id);
         Ok(id)
     }
-    fn admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: RelationId,
+    fn admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: Option<RelationId>,
         cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
         let mut coverage = EvidenceCoverage::default();
         let antecedent = match cause {
@@ -671,6 +692,10 @@ impl BoundEvidence {
                 Some(antecedent)
             }
         };
+        if relation.is_none() {
+            coverage.add(CoverageGap::MissingBoundRelation);
+            coverage.add(CoverageGap::MissingOriginAssociation);
+        }
         if matches!(cause, BoundAdmissionCause::FreshUse { .. }) { coverage.add(CoverageGap::ReplayUseAntecedentsNotRetained); }
         self.admissions.try_reserve(1).map_err(|_| exhausted())?;
         self.groups.try_reserve(1).map_err(|_| exhausted())?;
@@ -722,7 +747,7 @@ impl BoundEvidence {
         }
         let Some(head) = snapshot.admission_head else { return Ok(None); };
         let record = self.admissions.get(head.0).ok_or(InputGap::MissingReference)?;
-        if record.bound != from || record.relation != source_relation
+        if record.bound != from || record.relation != Some(source_relation)
             || record.previous_on_group.is_some_and(|previous| previous.0 >= head.0) {
             return Err(InputGap::InconsistentReference);
         }
@@ -790,6 +815,15 @@ struct SourceSupportRegistration {
 enum SourceSupportFailure { Registration, DependencyPublication, AfterInvalidation }
 #[derive(Debug, Default)]
 pub(super) struct State {
+    pub(super) scoped_enabled: bool,
+    pub(super) scope_inventory: candidate_source::ScopeInventory,
+    scope_transformers: Vec<(candidate_scope::ScopeTransformer, Option<usize>, usize)>,
+    scope_transformer_heap: usize,
+    scope_flows: Vec<ScopedFlow>,
+    scope_flow_keys: HashMap<ScopedFlow, ScopedFlowId>,
+    scope_observation_keys: HashSet<ScopedObservation>,
+    scope_heads: HashMap<u64, usize>,
+    pub(super) scope_observations: Vec<ScopedObservation>,
     // This first producer hook covers exact FunctionPort admission only.
     // It is independent of equality generation and cannot authorize a
     // certificate until the remaining producers and observation owners exist.
@@ -861,6 +895,7 @@ pub(super) struct State {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Checkpoint {
+    scope_observations: usize,
     lifecycle_generation: u64,
     source_support: usize,
     source_support_undo: usize,
@@ -1697,7 +1732,7 @@ impl State {
     pub(super) fn import_evidence(&mut self, snapshot: EvidenceSnapshot) -> Result<EvidenceSnapshotId, SolveAvailabilityError> {
         self.evidence.intern_snapshot(snapshot)
     }
-    pub(super) fn evidence_admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: RelationId,
+    pub(super) fn evidence_admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: Option<RelationId>,
         cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
         self.evidence.admit(bound, origin, relation, cause, duplicate)
     }
@@ -1710,6 +1745,7 @@ impl State {
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
+            scope_observations: self.scope_observations.len(),
             lifecycle_generation: self.lifecycle_generation,
             source_support: self.source_support_log.len(),
             source_support_undo: self.source_support_undo.len(),
@@ -1739,6 +1775,7 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        for observation in self.scope_observations.drain(checkpoint.scope_observations..) { self.scope_observation_keys.remove(&observation); }
         for id in self.source_support_undo.drain(checkpoint.source_support_undo..).rev() {
             self.source_support.get_mut(&id).expect("registered support retained until rollback").valid = true;
         }
@@ -2087,6 +2124,14 @@ impl State {
             Some(std::mem::size_of::<u64>() + std::mem::size_of::<usize>()),
             self.source_support.capacity().checked_mul(std::mem::size_of::<(SourceSupportId, SourceSupportRegistration)>()),
             self.source_support_log.capacity().checked_mul(std::mem::size_of::<SourceSupportId>()),
+            Some(self.scope_inventory.bytes()?),
+            self.scope_transformers.capacity().checked_mul(std::mem::size_of::<(candidate_scope::ScopeTransformer, Option<usize>, usize)>()),
+            self.scope_heads.capacity().checked_mul(std::mem::size_of::<(u64, usize)>()),
+            Some(self.scope_transformer_heap),
+            self.scope_flows.capacity().checked_mul(std::mem::size_of::<ScopedFlow>()),
+            self.scope_flow_keys.capacity().checked_mul(std::mem::size_of::<(ScopedFlow, ScopedFlowId)>()),
+            self.scope_observations.capacity().checked_mul(std::mem::size_of::<ScopedObservation>()),
+            self.scope_observation_keys.capacity().checked_mul(std::mem::size_of::<ScopedObservation>()),
             self.source_support_undo.capacity().checked_mul(std::mem::size_of::<SourceSupportId>()),
             Some(self.source_support.values().try_fold(0usize, |bytes, registration| {
                 bytes.checked_add(registration.watched.capacity().checked_mul(std::mem::size_of::<RelationId>()).ok_or_else(exhausted)?).ok_or_else(exhausted)
@@ -2173,6 +2218,14 @@ impl State {
     }
     #[cfg(test)]
     pub fn enumerated_bytes(&self) -> usize {
+        let scoped_bytes = self.scope_inventory.enumerated_bytes().expect("accounted source inventory")
+            + self.scope_transformers.capacity() * std::mem::size_of::<(candidate_scope::ScopeTransformer, Option<usize>, usize)>()
+            + self.scope_heads.capacity() * std::mem::size_of::<(u64, usize)>()
+            + self.scope_transformers.iter().map(|(t, _, _)| t.checked_retained_bytes().expect("accounted transformer")).sum::<usize>()
+            + self.scope_flows.capacity() * std::mem::size_of::<ScopedFlow>()
+            + self.scope_flow_keys.capacity() * std::mem::size_of::<(ScopedFlow, ScopedFlowId)>()
+            + self.scope_observations.capacity() * std::mem::size_of::<ScopedObservation>()
+            + self.scope_observation_keys.capacity() * std::mem::size_of::<ScopedObservation>();
         let replay_children = self.replay_operations.values().map(|operation|
             operation.children.capacity() * std::mem::size_of::<RelationId>()).sum::<usize>();
         assert_eq!(self.replay_child_bytes, replay_children);
@@ -2182,7 +2235,7 @@ impl State {
             .map(|entries| entries.capacity() * std::mem::size_of::<RelationId>())
             .sum::<usize>();
         assert_eq!(self.edge_bytes, adjacency_bytes);
-        std::mem::size_of::<u64>() + std::mem::size_of::<usize>()
+        scoped_bytes + std::mem::size_of::<u64>() + std::mem::size_of::<usize>()
             + self.source_support.capacity() * std::mem::size_of::<(SourceSupportId, SourceSupportRegistration)>()
             + self.source_support_log.capacity() * std::mem::size_of::<SourceSupportId>()
             + self.source_support_undo.capacity() * std::mem::size_of::<SourceSupportId>()
@@ -2400,6 +2453,79 @@ impl State {
             "context must be identity or an already interned node"
         );
     }
+    pub(super) fn scope_transformer(&self, id: usize) -> Result<&candidate_scope::ScopeTransformer, SolveAvailabilityError> {
+        self.scope_transformers.get(id.checked_sub(1).ok_or_else(exhausted)?).map(|entry| &entry.0).ok_or_else(exhausted)
+    }
+    pub(super) fn intern_scope(&mut self, transformer: candidate_scope::ScopeTransformer) -> Result<usize, SolveAvailabilityError> {
+        use std::hash::{Hash, Hasher};
+        if transformer == candidate_scope::ScopeTransformer::identity() { return Ok(0); }
+        let mut hasher = std::collections::hash_map::DefaultHasher::new(); transformer.hash(&mut hasher);
+        let hash = hasher.finish();
+        let mut cursor = self.scope_heads.get(&hash).copied();
+        while let Some(id) = cursor {
+            let entry = &self.scope_transformers[id - 1];
+            if entry.0 == transformer { return Ok(id); }
+            cursor = entry.1;
+        }
+        if self.scope_transformers.len() >= candidate_source::SCOPED_RECORD_LIMIT { return Err(exhausted()); }
+        let heap = transformer.checked_retained_bytes()?;
+        self.scope_inventory.charge(heap.checked_div(std::mem::size_of::<usize>()).unwrap_or(0).checked_add(1).ok_or_else(exhausted)?)?;
+        self.scope_transformers.try_reserve(1).map_err(|_| exhausted())?;
+        self.scope_heads.try_reserve(1).map_err(|_| exhausted())?;
+        let id = self.scope_transformers.len().checked_add(1).ok_or_else(exhausted)?;
+        self.scope_transformer_heap = self.scope_transformer_heap.checked_add(heap).ok_or_else(exhausted)?;
+        self.scope_transformers.push((transformer, self.scope_heads.insert(hash, id), heap));
+        Ok(id)
+    }
+    fn compose_scopes(&mut self, first: usize, second: usize) -> Result<usize, SolveAvailabilityError> {
+        if first == 0 { return Ok(second); } if second == 0 { return Ok(first); }
+        let support_bytes = self.scope_transformers[first - 1].2.checked_add(self.scope_transformers[second - 1].2).ok_or_else(exhausted)?;
+        self.scope_inventory.charge(support_bytes.checked_div(std::mem::size_of::<usize>()).unwrap_or(0).checked_add(1).ok_or_else(exhausted)?)?;
+        // Kernel then performs a fixed number of linear merge/copy stages.
+        // Include small-vector reserve floors in this conservative envelope.
+        self.scope_inventory.note_scratch(support_bytes.checked_add(256).and_then(|n| n.checked_mul(16)).ok_or_else(exhausted)?);
+        let result = self.scope_transformer(first)?.then(self.scope_transformer(second)?)?;
+        self.intern_scope(result)
+    }
+    pub(super) fn prepare_scope_remap(&mut self, transformer: usize) -> Result<(), SolveAvailabilityError> {
+        let bytes = self.scope_transformers.get(transformer.checked_sub(1).ok_or_else(exhausted)?).ok_or_else(exhausted)?.2;
+        self.scope_inventory.charge(bytes.checked_div(std::mem::size_of::<usize>()).unwrap_or(0).checked_add(1).ok_or_else(exhausted)?)?;
+        self.scope_inventory.note_scratch(bytes.checked_add(256).and_then(|n| n.checked_mul(16)).ok_or_else(exhausted)?);
+        Ok(())
+    }
+    pub(super) fn observed_relations(&self) -> impl Iterator<Item = (usize, &TypedPairKey, ScopedFlow)> {
+        self.relations.iter().enumerate().map(|(index, relation)| {
+            let flow = if relation.key.scoped.0 == 0 { ScopedFlow::default() } else { self.scope_flows[relation.key.scoped.0 - 1] };
+            (index, &relation.key.pair, flow)
+        })
+    }
+    pub(super) fn observed_dependencies(&self) -> impl Iterator<Item = &Dependency> { self.dependencies.iter() }
+    pub(super) fn observed_pair(&self, relation: RelationId) -> Result<TypedPairKey, SolveAvailabilityError> {
+        Ok(self.relations.get(relation.0 as usize).ok_or_else(exhausted)?.key.pair)
+    }
+    pub(super) fn evaluate_observation(&self, relation: RelationId) -> Result<(usize, candidate_scope::ScopeState), SolveAvailabilityError> {
+        let id = self.scoped_flow(relation)?.transformer;
+        let state = if id == 0 { candidate_scope::ScopeTransformer::identity().evaluate(&[], &[])? }
+            else { self.scope_transformer(id)?.evaluate(&[], &[])? };
+        Ok((id, state))
+    }
+    fn transported_scoped(&self, parent: RelationId, witness: TransportWitness) -> Result<ScopedFlow, SolveAvailabilityError> {
+        let mut flow = self.scoped_flow(parent)?;
+        if let Some(demand) = &mut flow.demand {
+            for (from, to) in [(witness.from.0, witness.to.0), (witness.from.2, witness.to.2)] {
+                if from == ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(demand.root)) {
+                    let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(root)) = to else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                    demand.root = root;
+                    break;
+                }
+            }
+        }
+        Ok(flow)
+    }
+    pub(super) fn scoped_flow(&self, id: RelationId) -> Result<ScopedFlow, SolveAvailabilityError> {
+        let flow = self.relations.get(id.0 as usize).ok_or_else(exhausted)?.key.scoped;
+        if flow.0 == 0 { Ok(ScopedFlow::default()) } else { self.scope_flows.get(flow.0 - 1).copied().ok_or_else(exhausted) }
+    }
     fn relation(
         &mut self,
         pair: TypedPairKey,
@@ -2409,8 +2535,30 @@ impl State {
         self.relation_with_sources(pair, context, sources)
     }
     fn relation_with_sources(&mut self, pair: TypedPairKey, context: ContextId, sources: Option<usize>) -> Result<RelationId, SolveAvailabilityError> {
+        let scoped = self.processing.map(|id| self.scoped_flow(id)).transpose()?.unwrap_or_default();
+        self.relation_with_scoped(pair, context, sources, scoped)
+    }
+    pub(super) fn relation_with_scoped(&mut self, pair: TypedPairKey, context: ContextId, sources: Option<usize>, scoped: ScopedFlow) -> Result<RelationId, SolveAvailabilityError> {
         self.assert_context(context);
-        let key = RelationKey { pair, context, sources };
+        // A nonidentity scoped self-relation needs transport semantics that
+        // this bounded experiment has not established. Defer it before it can
+        // become a dormant bound or disappear in endpoint memoization.
+        if scoped.transformer != 0 && matches!(pair, TypedPairKey::Effect { lower, upper } if lower == upper) {
+            return Err(exhausted());
+        }
+        if matches!(pair, TypedPairKey::Value(_)) && scoped.transformer != 0 { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        if matches!(pair, TypedPairKey::Effect { .. }) && scoped.demand.is_some() { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        let scoped = if scoped == ScopedFlow::default() { ScopedFlowId(0) }
+            else if let Some(&id) = self.scope_flow_keys.get(&scoped) { id }
+            else {
+                if !self.scoped_enabled || self.scope_flows.len() >= candidate_source::SCOPED_RECORD_LIMIT { return Err(exhausted()); }
+                self.scope_inventory.charge(1)?;
+                self.scope_flows.try_reserve(1).map_err(|_| exhausted())?;
+                self.scope_flow_keys.try_reserve(1).map_err(|_| exhausted())?;
+                let id = ScopedFlowId(self.scope_flows.len().checked_add(1).ok_or_else(exhausted)?);
+                self.scope_flows.push(scoped); self.scope_flow_keys.insert(scoped, id); id
+            };
+        let key = RelationKey { pair, context, sources, scoped };
         if let Some(&id) = self.keys.get(&key) {
             return Ok(id);
         }
@@ -2713,7 +2861,31 @@ impl InferenceSession {
             .effect_algebra
             .context;
         let sources = match source { Some(source) => { let mut singleton = Vec::new(); singleton.try_reserve_exact(1).map_err(|_| exhausted())?; singleton.push(source); state.intern_sources(singleton)? }, None => None };
-        let relation = state.relation_with_sources(pair, context, sources)?;
+        let mut scoped = ScopedFlow::default();
+        if state.scoped_enabled {
+            if let Some(&call_index) = self.batch.candidate_calls.by_occurrence.get(occurrence.occurrence()) {
+                let call = &self.batch.candidate_calls.calls[call_index];
+                match occurrence.local_slot() {
+                    0 => {
+                        if let Some(introduction) = &call.introduction {
+                            scoped.demand = Some(ScopedDemand {
+                                original_call: call_index, use_instance: 0, root: introduction.demand,
+                                output_scope: self.batch.candidate_source.computation_scopes[occurrence.occurrence()],
+                                input: candidate_scope::InputRouteId(u32::try_from(call_index).map_err(|_| exhausted())?),
+                            });
+                        }
+                    }
+                    2 => {
+                        let source = self.batch.hir.local_source(&call.owner).map_err(|_| exhausted())?.ok_or_else(exhausted)?;
+                        let argument = source.expression(&call.argument).ok_or_else(exhausted)?;
+                        let scope = self.batch.candidate_source.computation_scopes.get(&argument.occurrence).copied().ok_or_else(exhausted)?;
+                        scoped.transformer = state.intern_scope(candidate_scope::ScopeTransformer::release(scope)?)?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let relation = state.relation_with_scoped(pair, context, sources, scoped)?;
         let bundle_slot = match occurrence.local_slot() {
             40 | 41 => Some(41),
             45 | 46 => Some(46),
@@ -2814,7 +2986,20 @@ impl InferenceSession {
                 _ => return Err(exhausted()),
             }
         };
-        let child = state.relation(pair, context)?;
+        let mut scoped = state.scoped_flow(parent)?;
+        if scoped.transformer != 0 { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        if let Some(demand) = scoped.demand {
+            let authentic = matches!(state.relations[parent.0 as usize].key.pair,
+                TypedPairKey::Value(CanonicalValuePairKey { upper: ValueEndpointKey::NegativeFunction(root), .. }) if root == demand.root);
+            if !authentic { return Err(SolveAvailabilityError::ReceiptMismatch); }
+            scoped.demand = None;
+            scoped.transformer = match field {
+                FunctionField::ArgumentEffect => state.intern_scope(candidate_scope::ScopeTransformer::stamp_input(demand.input)?)?,
+                FunctionField::ResultEffect => state.intern_scope(candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input)?)?,
+                FunctionField::Argument | FunctionField::Result => 0,
+            };
+        }
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, scoped)?;
         if derived {
             state.dependency(Dependency::Derived { child, parent })?;
         }
@@ -2942,7 +3127,7 @@ impl InferenceSession {
         // Equality changes execution identity, while the original relation and
         // raw task remain available for occurrence diagnostics and rollback.
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
+        let child = state.relation_with_scoped(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
         state.dependency(Dependency::Derived { parent, child })?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
@@ -2969,6 +3154,24 @@ impl InferenceSession {
         let state = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let key = state.relations[relation.0 as usize].key;
         assert_eq!(key.pair, self.candidate_context_pair(task_pair(task)), "task retains its relation endpoints");
+        if state.scoped_flow(relation)?.transformer != 0
+            && matches!(key.pair, TypedPairKey::Effect { lower, upper } if lower == upper) {
+            return Err(exhausted());
+        }
+        if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.scoped_enabled {
+            if let LiveConstraintTask::Effect(operand @ (EffectEndpointKey::Support(_) | EffectEndpointKey::Contribution(_) | EffectEndpointKey::AnnotationMember(_, _)), _) = task {
+                let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                let observation = ScopedObservation { relation, operand };
+                if !state.scope_observation_keys.contains(&observation) {
+                    if state.scope_observations.len() >= candidate_source::SCOPED_RECORD_LIMIT { return Err(exhausted()); }
+                    state.scope_inventory.charge(1)?;
+                    state.scope_observations.try_reserve(1).map_err(|_| exhausted())?;
+                    state.scope_observation_keys.try_reserve(1).map_err(|_| exhausted())?;
+                    state.scope_observation_keys.insert(observation);
+                    state.scope_observations.push(observation);
+                }
+            }
+        }
         if key.context == IDENTITY { return Ok(false); }
         self.candidate_zero_word_filters(relation, key.context, |session, filters, residual| {
             // Unrestricted operations have no receiver check to discharge. Keep
@@ -3069,7 +3272,7 @@ impl InferenceSession {
         // The exact allowance bound retains this boundary's executable check;
         // its derivation still points to the complete, undischarged parent DAG.
         let context = if checked_boundary { IDENTITY } else { state.post_check_context(parent) };
-        let child = state.relation_with_sources(pair, context, state.relations[parent.0 as usize].key.sources)?;
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)?;
         Ok(child)
@@ -3180,7 +3383,11 @@ impl InferenceSession {
                         let context = if lower_context == IDENTITY && upper_context == IDENTITY { IDENTITY }
                             else { state.context(ContextExpr::Replay { lower: lower_context, upper: upper_context })? };
                         let sources = state.union_sources(lower, upper)?;
-                        let child = state.relation_with_sources(pair, context, sources)?;
+                        let lower_scoped = state.scoped_flow(lower)?;
+                        let upper_scoped = state.scoped_flow(upper)?;
+                        if lower_scoped.demand.is_some() { return Err(SolveAvailabilityError::ReceiptMismatch); }
+                        let scoped = ScopedFlow { transformer: state.compose_scopes(lower_scoped.transformer, upper_scoped.transformer)?, demand: upper_scoped.demand };
+                        let child = state.relation_with_scoped(pair, context, sources, scoped)?;
                         let dependency = Dependency::Replay { child, lower, upper, lower_input, upper_input };
                         state.evidence.recipe(dependency)?;
                         #[cfg(test)]
@@ -3355,7 +3562,7 @@ impl InferenceSession {
                 self.candidate_context_transport_witness(parent, to, 0, Some(TransportWitness { from, to, reason: TransportReason::EqualityCanonicalization }))?;
                 let pair = self.candidate_context_pair(bound_pair(to));
                 let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-                let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
+                let child = state.relation_with_scoped(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
                 // Equality transport remains within this owner, unlike fresh
                 // scheme uses: conflicts must retain the original derivation.
                 state.dependency(Dependency::Derived { child, parent })?;
@@ -3363,13 +3570,42 @@ impl InferenceSession {
         }
         Ok(())
     }
+    #[cfg(test)]
     pub(super) fn candidate_context_fresh_transport(
         &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
         context: ContextId, from: BoundKey,
     ) -> Result<RelationId, SolveAvailabilityError> {
+        self.candidate_context_fresh_transport_scoped(parent, to, use_origin, context, from, None)
+    }
+    pub(super) fn candidate_context_reuse_fresh_relation(
+        &self, bound: BoundKey, antecedent: EvidenceSnapshotId, source_bound: BoundKey,
+        use_origin: usize, relation: RelationId,
+    ) -> Result<RelationId, SolveAvailabilityError> {
+        let pair = self.candidate_context_pair(bound_pair(bound));
+        let state = &self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.context;
+        let snapshot = state.evidence.snapshots.get(antecedent.0).ok_or_else(exhausted)?;
+        let parent = snapshot.relation.ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let retained = state.relations.get(relation.0 as usize).ok_or_else(exhausted)?;
+        if snapshot.source_bound != source_bound || self.candidate_context_pair(retained.key.pair) != pair
+            || use_origin == 0
+            || !state.dependency_keys.contains(&Dependency::Transport {
+                child: relation, parent, use_origin,
+                witness: Some(TransportWitness { from: source_bound, to: bound, reason: TransportReason::FreshUse }),
+            }) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        Ok(relation)
+    }
+    pub(super) fn candidate_context_fresh_transport_scoped(
+        &mut self, parent: RelationId, to: BoundKey, use_origin: usize,
+        context: ContextId, from: BoundKey, scoped: Option<ScopedFlow>,
+    ) -> Result<RelationId, SolveAvailabilityError> {
+        let scoped_enabled = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.context.scoped_enabled;
+        let to = if scoped_enabled { BoundKey(self.canonical_extrusion(to.0), to.1, self.canonical_extrusion(to.2)) } else { to };
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation_with_sources(pair, context, state.relations[parent.0 as usize].key.sources)?;
+        let flow = if state.scoped_enabled { scoped.ok_or(SolveAvailabilityError::ReceiptMismatch)? } else { ScopedFlow::default() };
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, flow)?;
         state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) })?;
         state.attach(to, child)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -3387,7 +3623,7 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(to));
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
-        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
+        let child = state.relation_with_scoped(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
         state.bundle_link(child, bundle)?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)
     }
@@ -3408,7 +3644,8 @@ impl InferenceSession {
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
         let snapshot = state.evidence.snapshot(witness.from, Some(parent));
         let antecedent = state.evidence.intern_snapshot(snapshot)?;
-        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
+        let scoped = state.transported_scoped(parent, witness)?;
+        let child = state.relation_with_scoped(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources, scoped)?;
         state.dependency(Dependency::Transport { child, parent, use_origin, witness: Some(witness) })?;
         let transform = state.evidence.transform(antecedent, witness, parent, child)?;
         state.attach(to, child)?;
@@ -3430,7 +3667,7 @@ impl InferenceSession {
             .intrusion
             .effect_algebra
             .context;
-        let child = state.relation_with_sources(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources)?;
+        let child = state.relation_with_scoped(pair, state.post_check_context(parent), state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
         state.dependency(Dependency::Transport {
             child,
             parent,

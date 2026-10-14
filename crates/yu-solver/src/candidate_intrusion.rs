@@ -571,7 +571,9 @@ impl InferenceSession {
                     },
                     n,
                 );
-                self.candidate_insert_bound_without_capture(row_endpoint(parent), side, item)?;
+                self.candidate_insert_copied_bound(row_endpoint(parent), side, item, false,
+                    candidate_effect::BoundKey(row_endpoint(copy), side, item),
+                    candidate_context::TransportReason::ParentCopy { parent_index })?;
                 self.candidate_transfer_bound_origins(
                     candidate_effect::BoundKey(row_endpoint(copy), side, item),
                     candidate_effect::BoundKey(row_endpoint(parent), side, self.canonical_extrusion(item)),

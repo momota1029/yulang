@@ -6,6 +6,16 @@ use yu_hir::HirLocalId;
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct Plan {
+    pub scoped_experiment: bool,
+    pub scoped_work_used: usize,
+    pub scoped_scratch_envelope: usize,
+    pub regions: Vec<SourceRegion>,
+    pub definition_regions: HashMap<DefinitionRootId, SourceRegionId>,
+    pub occurrence_regions: HashMap<HirOccurrenceId, SourceRegionId>,
+    pub local_regions: HashMap<HirLocalId, SourceRegionId>,
+    pub computation_scopes: HashMap<HirOccurrenceId, candidate_scope::EffectScopeId>,
+    pub scope_regions: Vec<SourceRegionId>,
+    pub scope_occurrences: Vec<HirOccurrenceId>,
     pub active: bool,
     pub references: candidate_value_graph::Graph,
     pub schedules: HashMap<DefinitionRootId, Vec<Action>>,
@@ -14,6 +24,245 @@ pub(super) struct Plan {
     pub parameter_levels: HashMap<usize, u32>,
     pub locals: Vec<HirLocalId>,
     pub omitted_formals: HashMap<HirOccurrenceId, Arc<OmittedFormal>>,
+}
+/// Source ownership is constructed before solving; numeric solver levels never
+/// determine whether a scope belongs to a captured source region.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct SourceRegionId(pub usize);
+#[derive(Clone, Debug)]
+pub(super) struct SourceRegion {
+    pub parent: Option<SourceRegionId>,
+    pub children: Vec<SourceRegionId>,
+    pub scopes: Vec<candidate_scope::EffectScopeId>,
+    pub inputs: Vec<candidate_scope::InputRouteId>,
+}
+impl Plan {
+    fn charge_scoped_work(&mut self, work: usize) -> Result<(), CollectionAvailabilityError> {
+        let next = self.scoped_work_used.checked_add(work).ok_or_else(unavailable)?;
+        if next > SCOPED_WORK_LIMIT { return Err(unavailable()); }
+        self.scoped_work_used = next; Ok(())
+    }
+    fn note_guard_stack(&mut self, capacity: usize) -> Result<(), CollectionAvailabilityError> {
+        let bytes = capacity.checked_mul(std::mem::size_of::<usize>()).ok_or_else(unavailable)?;
+        self.scoped_scratch_envelope = self.scoped_scratch_envelope.max(bytes); Ok(())
+    }
+    fn region(&mut self, parent: Option<SourceRegionId>) -> Result<SourceRegionId, CollectionAvailabilityError> {
+        if !self.scoped_experiment { return Ok(SourceRegionId(usize::MAX)); }
+        if self.regions.len() >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        self.charge_scoped_work(1)?;
+        self.regions.try_reserve(1).map_err(|_| unavailable())?;
+        if let Some(parent) = parent {
+            self.regions[parent.0].children.try_reserve(1).map_err(|_| unavailable())?;
+        }
+        let id = SourceRegionId(self.regions.len());
+        self.regions.push(SourceRegion { parent, children: Vec::new(), scopes: Vec::new(), inputs: Vec::new() });
+        if let Some(parent) = parent { self.regions[parent.0].children.push(id); }
+        Ok(id)
+    }
+    fn computation_scope(&mut self, occurrence: &HirOccurrenceId, region: SourceRegionId) -> Result<(), CollectionAvailabilityError> {
+        if !self.scoped_experiment { return Ok(()); }
+        self.charge_scoped_work(1)?;
+        self.occurrence_regions.try_reserve(1).map_err(|_| unavailable())?;
+        self.computation_scopes.try_reserve(1).map_err(|_| unavailable())?;
+        if self.scope_regions.len() >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        self.scope_regions.try_reserve(1).map_err(|_| unavailable())?;
+        self.scope_occurrences.try_reserve(1).map_err(|_| unavailable())?;
+        self.regions[region.0].scopes.try_reserve(1).map_err(|_| unavailable())?;
+        let scope = candidate_scope::EffectScopeId(u32::try_from(self.scope_regions.len()).map_err(|_| unavailable())?);
+        self.scope_regions.push(region);
+        self.scope_occurrences.push(occurrence.clone());
+        self.regions[region.0].scopes.push(scope);
+        self.occurrence_regions.insert(occurrence.clone(), region);
+        self.computation_scopes.insert(occurrence.clone(), scope);
+        Ok(())
+    }
+}
+/// Runtime copy of the sealed source inventory. Fresh source instances extend
+/// this forest without mutating the collected source plan.
+#[derive(Debug, Default)]
+pub(super) struct ScopeInventory {
+    nested_bytes: usize,
+    pub scope_occurrences: Vec<HirOccurrenceId>,
+    pub work_used: usize,
+    pub scratch_peak_bytes: usize,
+    pub scope_origins: Vec<candidate_scope::EffectScopeId>,
+    pub input_origins: Vec<candidate_scope::InputRouteId>,
+    pub copies: Vec<ScopeCopyStatistics>,
+    pub regions: Vec<SourceRegion>,
+    pub scope_regions: Vec<SourceRegionId>,
+    pub input_regions: Vec<SourceRegionId>,
+}
+#[derive(Debug, Default)]
+pub(super) struct ScopeRemap {
+    pub regions: HashMap<SourceRegionId, SourceRegionId>,
+    pub scopes: HashMap<candidate_scope::EffectScopeId, candidate_scope::EffectScopeId>,
+    pub inputs: HashMap<candidate_scope::InputRouteId, candidate_scope::InputRouteId>,
+}
+/// Private experiment availability limits, never a language input boundary.
+pub(super) const SCOPED_RECORD_LIMIT: usize = 4096;
+pub(super) const SCOPED_WORK_LIMIT: usize = 65536;
+#[derive(Clone, Copy, Debug)]
+pub struct ScopeCopyStatistics {
+    pub regions: usize, pub scopes: usize, pub inputs: usize,
+    pub graph_nodes: usize, pub graph_bounds: usize,
+}
+fn scope_unavailable() -> SolveAvailabilityError { SolveAvailabilityError::IdentityExhausted }
+fn scope_copy<T: Copy>(values: &[T]) -> Result<Vec<T>, SolveAvailabilityError> {
+    let mut out = Vec::new(); out.try_reserve_exact(values.len()).map_err(|_| scope_unavailable())?;
+    out.extend_from_slice(values); Ok(out)
+}
+impl ScopeRemap {
+    pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (self.regions.capacity(), std::mem::size_of::<(SourceRegionId, SourceRegionId)>()),
+            (self.scopes.capacity(), std::mem::size_of::<(candidate_scope::EffectScopeId, candidate_scope::EffectScopeId)>()),
+            (self.inputs.capacity(), std::mem::size_of::<(candidate_scope::InputRouteId, candidate_scope::InputRouteId)>()),
+        ])
+    }
+}
+impl ScopeInventory {
+    pub fn charge(&mut self, work: usize) -> Result<(), SolveAvailabilityError> {
+        let next = self.work_used.checked_add(work).ok_or_else(scope_unavailable)?;
+        if next > SCOPED_WORK_LIMIT { return Err(scope_unavailable()); }
+        self.work_used = next; Ok(())
+    }
+    pub fn note_scratch(&mut self, bytes: usize) { self.scratch_peak_bytes = self.scratch_peak_bytes.max(bytes); }
+    pub fn from_plan(plan: &Plan) -> Result<Self, SolveAvailabilityError> {
+        if plan.regions.len() > SCOPED_RECORD_LIMIT || plan.scope_regions.len() > SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        let mut regions = Vec::new(); regions.try_reserve_exact(plan.regions.len()).map_err(|_| scope_unavailable())?;
+        let mut input_regions = Vec::new();
+        let count: usize = plan.regions.iter().map(|r| r.inputs.len()).sum();
+        if count > SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        input_regions.try_reserve_exact(count).map_err(|_| scope_unavailable())?;
+        input_regions.resize(count, SourceRegionId(usize::MAX));
+        for (index, region) in plan.regions.iter().enumerate() {
+            for input in &region.inputs { input_regions[input.0 as usize] = SourceRegionId(index); }
+            regions.push(SourceRegion { parent: region.parent, children: scope_copy(&region.children)?, scopes: scope_copy(&region.scopes)?, inputs: scope_copy(&region.inputs)? });
+        }
+        let mut scope_occurrences = Vec::new(); scope_occurrences.try_reserve_exact(plan.scope_occurrences.len()).map_err(|_| scope_unavailable())?;
+        scope_occurrences.extend(plan.scope_occurrences.iter().cloned());
+        let mut scope_origins = Vec::new(); scope_origins.try_reserve_exact(plan.scope_regions.len()).map_err(|_| scope_unavailable())?;
+        for index in 0..plan.scope_regions.len() { scope_origins.push(candidate_scope::EffectScopeId(u32::try_from(index).map_err(|_| scope_unavailable())?)); }
+        let mut input_origins = Vec::new(); input_origins.try_reserve_exact(count).map_err(|_| scope_unavailable())?;
+        for index in 0..count { input_origins.push(candidate_scope::InputRouteId(u32::try_from(index).map_err(|_| scope_unavailable())?)); }
+        let nested_bytes = regions.iter().try_fold(0usize, |n, r| n.checked_add(Self::region_bytes(r)?).ok_or_else(scope_unavailable))?;
+        let mut inventory = Self { regions, scope_regions: scope_copy(&plan.scope_regions)?, input_regions, scope_origins, input_origins, scope_occurrences, nested_bytes,
+            work_used: plan.scoped_work_used, scratch_peak_bytes: plan.scoped_scratch_envelope, ..Self::default() };
+        inventory.charge(plan.regions.len().checked_add(plan.scope_regions.len()).and_then(|n| n.checked_add(count)).ok_or_else(scope_unavailable)?)?;
+        Ok(inventory)
+    }
+    fn region_bytes(region: &SourceRegion) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (region.children.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (region.scopes.capacity(), std::mem::size_of::<candidate_scope::EffectScopeId>()),
+            (region.inputs.capacity(), std::mem::size_of::<candidate_scope::InputRouteId>()),
+        ])
+    }
+    fn fixed_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (self.regions.capacity(), std::mem::size_of::<SourceRegion>()),
+            (self.scope_regions.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (self.input_regions.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (self.scope_origins.capacity(), std::mem::size_of::<candidate_scope::EffectScopeId>()),
+            (self.input_origins.capacity(), std::mem::size_of::<candidate_scope::InputRouteId>()),
+            (self.copies.capacity(), std::mem::size_of::<ScopeCopyStatistics>()),
+            (self.scope_occurrences.capacity(), std::mem::size_of::<HirOccurrenceId>()),
+        ])
+    }
+    pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.fixed_bytes()?.checked_add(self.nested_bytes).ok_or_else(scope_unavailable)
+    }
+    #[cfg(test)]
+    pub fn enumerated_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.regions.iter().try_fold(self.fixed_bytes()?, |n, r| n.checked_add(Self::region_bytes(r)?).ok_or_else(scope_unavailable))
+    }
+    /// Parent-before-child closure of an explicitly supplied capture forest.
+    /// Work is proportional to that forest, including dormant source handles.
+    pub fn owned(&mut self, roots: &[SourceRegionId]) -> Result<Vec<SourceRegionId>, SolveAvailabilityError> {
+        self.charge(roots.len())?;
+        let mut out = Vec::new(); let mut seen = HashSet::new();
+        seen.try_reserve(roots.len()).map_err(|_| scope_unavailable())?;
+        for &root in roots { if seen.insert(root) { out.try_reserve(1).map_err(|_| scope_unavailable())?; out.push(root); } }
+        let mut cursor = 0;
+        while cursor < out.len() {
+            let child_count = self.regions.get(out[cursor].0).ok_or_else(scope_unavailable)?.children.len();
+            self.charge(child_count.checked_add(1).ok_or_else(scope_unavailable)?)?;
+            if out.len().checked_add(child_count).is_none_or(|n| n > SCOPED_RECORD_LIMIT) { return Err(scope_unavailable()); }
+            let region = &self.regions[out[cursor].0];
+            seen.try_reserve(region.children.len()).map_err(|_| scope_unavailable())?;
+            out.try_reserve(region.children.len()).map_err(|_| scope_unavailable())?;
+            for &child in &region.children { if seen.insert(child) { out.push(child); } }
+            cursor += 1;
+        }
+        self.note_scratch(checked_fixed_capacity_bytes([
+            (out.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (seen.capacity(), std::mem::size_of::<SourceRegionId>()),
+        ])?);
+        Ok(out)
+    }
+    pub fn fresh(&mut self, owned: &[SourceRegionId], caller: SourceRegionId, graph_nodes: usize, graph_bounds: usize) -> Result<ScopeRemap, SolveAvailabilityError> {
+        self.regions.get(caller.0).ok_or_else(scope_unavailable)?;
+        self.charge(owned.len())?;
+        let (mut scopes_to_copy, mut inputs_to_copy) = (0usize, 0usize);
+        for &id in owned {
+            let region = self.regions.get(id.0).ok_or_else(scope_unavailable)?;
+            scopes_to_copy = scopes_to_copy.checked_add(region.scopes.len()).ok_or_else(scope_unavailable)?;
+            inputs_to_copy = inputs_to_copy.checked_add(region.inputs.len()).ok_or_else(scope_unavailable)?;
+        }
+        if self.regions.len().checked_add(owned.len()).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.scope_regions.len().checked_add(scopes_to_copy).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.input_regions.len().checked_add(inputs_to_copy).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.copies.len() >= SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        self.charge(owned.len().checked_mul(3).and_then(|n| n.checked_add(scopes_to_copy)).and_then(|n| n.checked_add(inputs_to_copy)).ok_or_else(scope_unavailable)?)?;
+        self.scope_origins.try_reserve(scopes_to_copy).map_err(|_| scope_unavailable())?;
+        self.input_origins.try_reserve(inputs_to_copy).map_err(|_| scope_unavailable())?;
+        self.copies.try_reserve(1).map_err(|_| scope_unavailable())?;
+        let mut map = ScopeRemap::default();
+        map.regions.try_reserve(owned.len()).map_err(|_| scope_unavailable())?;
+        self.regions.try_reserve(owned.len()).map_err(|_| scope_unavailable())?;
+        // Reserve identities first, so an owned parent is recognized regardless
+        // of which root in a multi-definition forest was supplied first.
+        let base = self.regions.len();
+        for (offset, &old) in owned.iter().enumerate() { map.regions.insert(old, SourceRegionId(base.checked_add(offset).ok_or_else(scope_unavailable)?)); }
+        for &old in owned {
+            let original = self.regions.get(old.0).ok_or_else(scope_unavailable)?;
+            let parent = original.parent.and_then(|p| map.regions.get(&p).copied()).unwrap_or(caller);
+            let scope_count = original.scopes.len();
+            let input_count = original.inputs.len();
+            let id = map.regions[&old];
+            let mut scopes = Vec::new(); scopes.try_reserve_exact(scope_count).map_err(|_| scope_unavailable())?;
+            let mut inputs = Vec::new(); inputs.try_reserve_exact(input_count).map_err(|_| scope_unavailable())?;
+            map.scopes.try_reserve(scope_count).map_err(|_| scope_unavailable())?;
+            map.inputs.try_reserve(input_count).map_err(|_| scope_unavailable())?;
+            self.scope_regions.try_reserve(scope_count).map_err(|_| scope_unavailable())?;
+            self.input_regions.try_reserve(input_count).map_err(|_| scope_unavailable())?;
+            for index in 0..scope_count {
+                let old_scope = self.regions[old.0].scopes[index];
+                let fresh = candidate_scope::EffectScopeId(u32::try_from(self.scope_regions.len()).map_err(|_| scope_unavailable())?);
+                self.scope_origins.push(self.scope_origins[old_scope.0 as usize]);
+                self.scope_regions.push(id); scopes.push(fresh); map.scopes.insert(old_scope, fresh);
+            }
+            for index in 0..input_count {
+                let old_input = self.regions[old.0].inputs[index];
+                let fresh = candidate_scope::InputRouteId(u32::try_from(self.input_regions.len()).map_err(|_| scope_unavailable())?);
+                self.input_origins.push(self.input_origins[old_input.0 as usize]);
+                self.input_regions.push(id); inputs.push(fresh); map.inputs.insert(old_input, fresh);
+            }
+            let region = SourceRegion { parent: Some(parent), children: Vec::new(), scopes, inputs };
+            self.nested_bytes = self.nested_bytes.checked_add(Self::region_bytes(&region)?).ok_or_else(scope_unavailable)?;
+            self.regions.push(region);
+        }
+        for &old in owned {
+            let id = map.regions[&old]; let parent = self.regions[id.0].parent.ok_or_else(scope_unavailable)?;
+            let before = self.regions[parent.0].children.capacity();
+            self.regions[parent.0].children.try_reserve(1).map_err(|_| scope_unavailable())?;
+            let growth = self.regions[parent.0].children.capacity() - before;
+            self.nested_bytes = self.nested_bytes.checked_add(growth.checked_mul(std::mem::size_of::<SourceRegionId>()).ok_or_else(scope_unavailable)?).ok_or_else(scope_unavailable)?;
+            self.regions[parent.0].children.push(id);
+        }
+        self.copies.push(ScopeCopyStatistics { regions: owned.len(), scopes: scopes_to_copy, inputs: inputs_to_copy, graph_nodes, graph_bounds });
+        Ok(map)
+    }
 }
 // Source construction only: no effect-position or receiver-role judgment.
 #[derive(Clone, Debug)]
@@ -73,6 +322,18 @@ impl Plan {
     pub fn bytes(&self) -> usize {
         checked_usize_sum([
             self.references.bytes(),
+            checked_capacity_bytes::<SourceRegion>(self.regions.capacity(), "source regions"),
+            checked_usize_sum(self.regions.iter().map(|region| checked_usize_sum([
+                checked_capacity_bytes::<SourceRegionId>(region.children.capacity(), "source region children"),
+                checked_capacity_bytes::<candidate_scope::EffectScopeId>(region.scopes.capacity(), "source region scopes"),
+                checked_capacity_bytes::<candidate_scope::InputRouteId>(region.inputs.capacity(), "source region inputs"),
+            ], "source region inventory")), "source region forest"),
+            checked_capacity_bytes::<(DefinitionRootId, SourceRegionId)>(self.definition_regions.capacity(), "source definition regions"),
+            checked_capacity_bytes::<(HirOccurrenceId, SourceRegionId)>(self.occurrence_regions.capacity(), "source occurrence regions"),
+            checked_capacity_bytes::<(HirLocalId, SourceRegionId)>(self.local_regions.capacity(), "source local regions"),
+            checked_capacity_bytes::<(HirOccurrenceId, candidate_scope::EffectScopeId)>(self.computation_scopes.capacity(), "source computation scopes"),
+            checked_capacity_bytes::<SourceRegionId>(self.scope_regions.capacity(), "source scope owners"),
+            checked_capacity_bytes::<HirOccurrenceId>(self.scope_occurrences.capacity(), "source scope occurrences"),
             checked_capacity_bytes::<(DefinitionRootId, Vec<Action>)>(self.schedules.capacity(), "source schedules"),
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
@@ -86,6 +347,33 @@ impl Plan {
             checked_capacity_bytes::<OmittedFormal>(self.omitted_formals.len(), "omitted formal source records"),
         ], "candidate source plan")
     }
+}
+// Result callees have no direct formal-name supplier. Until that supplier is
+// retained, admit only a source-grounded result whose entire Apply spine has
+// no parameter/local/binder alias or unresolved join. This is opt-in deferral.
+fn scoped_result_callee(source: &LocalSource, root: usize, plan: &mut Plan) -> Result<(), CollectionAvailabilityError> {
+    let mut work = Vec::new(); work.try_reserve(1).map_err(|_| unavailable())?;
+    plan.note_guard_stack(work.capacity())?; work.push(root);
+    let mut steps = 0usize;
+    while let Some(index) = work.pop() {
+        plan.charge_scoped_work(1)?;
+        steps = steps.checked_add(1).ok_or_else(unavailable)?;
+        if steps > SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        match &source.expressions().get(index).ok_or_else(invalid)?.form {
+            LocalSourceForm::Apply { callee, argument, .. } => {
+                work.try_reserve(2).map_err(|_| unavailable())?;
+                plan.note_guard_stack(work.capacity())?;
+                work.push(callee.ordinal() as usize); work.push(argument.ordinal() as usize);
+            }
+            LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; plan.note_guard_stack(work.capacity())?; work.push(inner.ordinal() as usize); }
+            LocalSourceForm::Block { bindings, final_expression } if bindings.is_empty() => { work.try_reserve(1).map_err(|_| unavailable())?; plan.note_guard_stack(work.capacity())?; work.push(final_expression.ordinal() as usize); }
+            LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }
+            | LocalSourceForm::Operation { .. } | LocalSourceForm::Integer(_) | LocalSourceForm::Unit
+            | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {}
+            _ => return Err(unavailable()),
+        }
+    }
+    Ok(())
 }
 fn unavailable() -> CollectionAvailabilityError {
     CollectionAvailabilityError::ComponentIdentityExhausted
@@ -228,11 +516,11 @@ pub(super) fn retain_placeholder_errors(expr: &ResolvedExpr, permitted: &mut Has
 }
 #[derive(Clone, Copy)]
 enum Work {
-    Visit(usize, u32),
+    Visit(usize, u32, SourceRegionId),
     Finish(usize, u32),
     Install(usize, usize, u32),
-    Initializer(usize, u32),
-    CatchArms(usize, u32),
+    Initializer(usize, u32, SourceRegionId),
+    CatchArms(usize, u32, SourceRegionId),
 }
 impl ConstraintBatch {
     fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
@@ -354,10 +642,16 @@ impl ConstraintBatch {
         // root. Published locals continue through the ordinary scheme route.
         let mut active_initializers = HashMap::new();
         active_initializers.try_reserve(source.bindings().len()).map_err(|_| unavailable())?;
-        push(&mut work, Work::Visit(source.body().ordinal() as usize, 1))?;
+        let definition_region = self.candidate_source.region(None)?;
+        if self.candidate_source.scoped_experiment {
+            self.candidate_source.definition_regions.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.definition_regions.insert(source.definition_root().clone(), definition_region);
+        }
+        push(&mut work, Work::Visit(source.body().ordinal() as usize, 1, definition_region))?;
         while let Some(next) = work.pop() {
             match next {
-                Work::Visit(index, level) => {
+                Work::Visit(index, level, region) => {
+                    self.candidate_source.computation_scope(&source.expressions()[index].occurrence, region)?;
                     let expr = source.expressions().get(index).ok_or_else(invalid)?;
                     if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(binder), .. } = &expr.form {
                         endpoints[index] = *catch_binders.get(binder).ok_or_else(invalid)?;
@@ -371,21 +665,21 @@ impl ConstraintBatch {
                     push(&mut work, Work::Finish(index, level))?;
                     match &expr.form {
                         LocalSourceForm::Catch { scrutinee, .. } => {
-                            push(&mut work, Work::CatchArms(index, level))?;
-                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level))?;
+                            push(&mut work, Work::CatchArms(index, level, region))?;
+                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
-                            push(&mut work, Work::Visit(else_branch.ordinal() as usize, level))?;
+                            push(&mut work, Work::Visit(else_branch.ordinal() as usize, level, region))?;
                             for (condition, body) in arms.iter().rev() {
-                                push(&mut work, Work::Visit(body.ordinal() as usize, level))?;
-                                push(&mut work, Work::Visit(condition.ordinal() as usize, level))?;
+                                push(&mut work, Work::Visit(body.ordinal() as usize, level, region))?;
+                                push(&mut work, Work::Visit(condition.ordinal() as usize, level, region))?;
                             }
                         }
                         LocalSourceForm::Apply { callee, argument, .. } => {
-                            push(&mut work, Work::Visit(argument.ordinal() as usize, level))?;
-                            push(&mut work, Work::Visit(callee.ordinal() as usize, level))?;
+                            push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
+                            push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
                         }
-                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level))?,
+                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
                         LocalSourceForm::Lambda { parameter, body } => {
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
                             self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
@@ -420,21 +714,22 @@ impl ConstraintBatch {
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
-                            push(&mut work, Work::Visit(body.ordinal() as usize, level))?;
+                            let body_region = self.candidate_source.region(Some(region))?;
+                            push(&mut work, Work::Visit(body.ordinal() as usize, level, body_region))?;
                         }
                         LocalSourceForm::Block { bindings, final_expression } => {
-                            push(&mut work, Work::Visit(final_expression.ordinal() as usize, level))?;
+                            push(&mut work, Work::Visit(final_expression.ordinal() as usize, level, region))?;
                             let child = level.checked_add(1).ok_or_else(unavailable)?;
                             for &binding in bindings.iter().rev() {
                                 source.bindings().get(binding as usize).ok_or_else(invalid)?;
                                 push(&mut work, Work::Install(binding as usize, index, level))?;
-                                push(&mut work, Work::Initializer(binding as usize, child))?;
+                                push(&mut work, Work::Initializer(binding as usize, child, region))?;
                             }
                         }
                         _ => {}
                     }
                 }
-                Work::CatchArms(index, level) => {
+                Work::CatchArms(index, level, region) => {
                     let LocalSourceForm::Catch { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
                     for arm in arms {
                         use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
@@ -475,14 +770,19 @@ impl ConstraintBatch {
                             _ => return Err(invalid()),
                         }
                     }
-                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level))?; }
+                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?; }
                 }
-                Work::Initializer(binding, level) => {
+                Work::Initializer(binding, level, parent_region) => {
+                    let region = self.candidate_source.region(Some(parent_region))?;
+                    if self.candidate_source.scoped_experiment {
+                        self.candidate_source.local_regions.try_reserve(1).map_err(|_| unavailable())?;
+                        self.candidate_source.local_regions.insert(source.bindings()[binding].id.clone(), region);
+                    }
                     let binding = &source.bindings()[binding];
                     if !binding.parameters.is_empty() {
                         active_initializers.insert(binding.id.clone(), endpoints[binding.initializer.ordinal() as usize]);
                     }
-                    push(&mut work, Work::Visit(binding.initializer.ordinal() as usize, level))?;
+                    push(&mut work, Work::Visit(binding.initializer.ordinal() as usize, level, region))?;
                 }
                 Work::Install(binding, block, boundary) => {
                     let binding = &source.bindings()[binding];
@@ -631,11 +931,48 @@ impl ConstraintBatch {
                             continue;
                         }
                         LocalSourceForm::Apply { callee, argument, .. } => {
+                            if self.candidate_source.scoped_experiment {
+                                let mut argument_index = argument.ordinal() as usize;
+                                loop {
+                                    self.candidate_source.charge_scoped_work(1)?;
+                                    match &source.expressions()[argument_index].form {
+                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => argument_index = inner.ordinal() as usize,
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. } => return Err(unavailable()),
+                                        LocalSourceForm::Block { bindings, final_expression } => {
+                                            if !bindings.is_empty() { return Err(unavailable()); }
+                                            argument_index = final_expression.ordinal() as usize;
+                                        }
+                                        _ => break,
+                                    }
+                                }
+                                let mut callee_index = callee.ordinal() as usize;
+                                loop {
+                                    self.candidate_source.charge_scoped_work(1)?;
+                                    match &source.expressions()[callee_index].form {
+                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => callee_index = inner.ordinal() as usize,
+                                        LocalSourceForm::Block { final_expression, .. } => callee_index = final_expression.ordinal() as usize,
+                                        LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
+                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_) | LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
+                                        _ => break,
+                                    }
+                                }
+                            }
                             let c = positions[callee.ordinal() as usize];
                             let a = positions[argument.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::Apply { callee: endpoints[callee.ordinal() as usize], callee_effect: c.effect, argument: endpoints[argument.ordinal() as usize], argument_effect: a.effect, result: pos.value, result_effect: pos.effect })?;
                             let source_input = self.candidate_calls.calls.len();
+                            if self.candidate_source.scoped_experiment {
+                                if source_input >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+                                self.candidate_source.charge_scoped_work(1)?;
+                                self.candidate_calls.by_occurrence.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_calls.by_occurrence.insert(occurrence.clone(), source_input);
+                                let region = self.candidate_source.occurrence_regions[occurrence];
+                                let input_route = candidate_scope::InputRouteId(u32::try_from(source_input).map_err(|_| unavailable())?);
+                                self.candidate_source.regions[region.0].inputs.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_source.regions[region.0].inputs.push(input_route);
+                            }
                             let checking = ConstraintOccurrenceId::new(occurrence.clone(), 0);
                             push(&mut self.candidate_calls.calls, candidate_call::ApplySourceInput {
                                 owner: source.definition_root().clone(), expression: index,
@@ -650,6 +987,11 @@ impl ConstraintBatch {
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
                         LocalSourceForm::Ascription { inner, annotation } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
                             formal_names[index] = formal_names[inner.ordinal() as usize];
                             // The retained canonical peeled child avoids rescanning wrappers
                             // when arm binder aliases become available during Visit.
@@ -680,6 +1022,11 @@ impl ConstraintBatch {
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
                         LocalSourceForm::Group { inner } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
                             formal_names[index] = formal_names[inner.ordinal() as usize];
                             let child = positions[inner.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();
@@ -706,6 +1053,11 @@ impl ConstraintBatch {
                             continue;
                         }
                         LocalSourceForm::Block { final_expression, .. } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[final_expression.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
                             formal_names[index] = formal_names[final_expression.ordinal() as usize];
                             let child = positions[final_expression.ordinal() as usize];
                             let recipe = self.candidate_recipes.len();

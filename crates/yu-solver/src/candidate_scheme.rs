@@ -34,6 +34,9 @@ pub(super) struct GraphState {
 
 #[derive(Debug)]
 pub(super) struct Graph {
+    pub source_frontier: Vec<candidate_source::SourceRegionId>,
+    pub owned_regions: Vec<candidate_source::SourceRegionId>,
+    pub negative_functions: HashMap<Term, usize>,
     pub nodes: Vec<Node>,
     pub rows: Vec<Row>,
     pub bounds: Vec<Bound>,
@@ -118,6 +121,7 @@ pub(super) struct FreshRoute {
 }
 #[derive(Debug)]
 pub(super) struct LocalScheme {
+    pub capture_region: Option<candidate_source::SourceRegionId>,
     pub id: yu_hir::HirLocalId,
     pub root: u32,
     pub boundary: u32,
@@ -134,6 +138,8 @@ pub(super) struct LocalFreshRoute {
 // after this fresh use is retained; resume never rebuilds these remaps.
 #[derive(Debug)]
 pub(super) struct FreshUse {
+    scope_remap: candidate_source::ScopeRemap,
+    scoped_relations: HashMap<candidate_context::RelationId, candidate_context::ScopedFlow>,
     context_use: usize,
     rows: Vec<RowKey>,
     terms: Vec<Option<Term>>,
@@ -144,7 +150,7 @@ pub(super) struct FreshUse {
 }
 impl FreshUse {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        sum(&[bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
+        sum(&[self.scope_remap.bytes()?, bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(self.scoped_relations.capacity())?, bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
             bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
@@ -219,6 +225,9 @@ impl Graph {
     pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[
             bytes::<(candidate_context::LocalWeightId, u32, Option<usize>)>(self.context_views.capacity())?,
+            bytes::<candidate_source::SourceRegionId>(self.source_frontier.capacity())?,
+            bytes::<candidate_source::SourceRegionId>(self.owned_regions.capacity())?,
+            bytes::<(Term, usize)>(self.negative_functions.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<Bound>(self.bounds.capacity())?,
@@ -703,6 +712,10 @@ impl InferenceSession {
     pub(super) fn start_candidate_graph(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut state = GraphState::default();
         state.intrusion.effect_algebra.initialize()?;
+        state.intrusion.effect_algebra.context.scoped_enabled = self.batch.candidate_source.scoped_experiment;
+        if self.batch.candidate_source.scoped_experiment {
+            state.intrusion.effect_algebra.context.scope_inventory = candidate_source::ScopeInventory::from_plan(&self.batch.candidate_source)?;
+        }
         state
             .graphs
             .try_reserve_exact(self.batch.definitions.len())
@@ -717,9 +730,13 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
+        self.capture_candidate_graph_owned(row, boundary, &[])
+    }
+    fn capture_candidate_graph_owned(&mut self, row: u32, boundary: u32, frontier: &[candidate_source::SourceRegionId]) -> Result<Graph, SolveAvailabilityError> {
+        if self.batch.candidate_source.scoped_experiment && frontier.is_empty() { return Err(SolveAvailabilityError::ReceiptMismatch); }
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
         let evidence_charge = CaptureEvidenceMeter::default();
-        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge);
+        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge, frontier);
         #[cfg(test)]
         {
             let state = self.candidate_graph.as_mut().unwrap();
@@ -746,12 +763,16 @@ impl InferenceSession {
         }
         result
     }
-    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId]) -> Result<Graph, SolveAvailabilityError> {
+        let mut source_frontier = Vec::new(); source_frontier.try_reserve_exact(frontier.len()).map_err(|_| exhausted())?;
+        source_frontier.extend_from_slice(frontier);
+        let owned_regions = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.scope_inventory.owned(frontier)?;
         let mut capture = Capture {
             evidence_keys: HashMap::new(),
             evidence_charge,
             session: self,
             graph: Graph {
+                source_frontier, owned_regions, negative_functions: HashMap::new(),
                 nodes: Vec::new(),
                 rows: Vec::new(),
                 bounds: Vec::new(),
@@ -839,6 +860,14 @@ impl InferenceSession {
             bytes::<Endpoint>(capture.pending.capacity())?,
             bytes::<(ComponentKind, Polarity, usize, usize, Option<candidate_context::RelationId>)>(capture.bound_keys.capacity())?,
         ])?;
+        if capture.session.batch.candidate_source.scoped_experiment {
+            capture.graph.negative_functions.try_reserve(capture.endpoints.len()).map_err(|_| exhausted())?;
+            for (&endpoint, &index) in &capture.endpoints {
+                if let Endpoint::Value(ValueEndpointKey::NegativeFunction(term), Polarity::Negative) = endpoint {
+                    capture.graph.negative_functions.insert(term, index);
+                }
+            }
+        }
         let graph_bytes = capture.graph.bytes()?;
         let Capture {
             graph,
@@ -916,13 +945,21 @@ impl InferenceSession {
                 uses.extend(internal.iter().cloned());
                 for id in &uses { self.route_candidate_open_use(id)?; }
             }
+            let mut source_frontier = Vec::new();
+            if self.batch.candidate_source.scoped_experiment {
+                source_frontier.try_reserve_exact(members.len()).map_err(|_| exhausted())?;
+                for member in &members {
+                    let root = &self.batch.definitions[member.ordinal() as usize].root;
+                    source_frontier.push(*self.batch.candidate_source.definition_regions.get(root).ok_or_else(exhausted)?);
+                }
+            }
             for member in &members {
                 let position = member.ordinal() as usize;
                 let root = self.batch.definitions[position].root.clone();
                 let component = self.batch.root_component_positions[&root].component;
                 staged.push((
                     position,
-                    self.capture_candidate_graph(self.live_components[component].ordinal, 0)?,
+                    self.capture_candidate_graph_owned(self.live_components[component].ordinal, 0, &source_frontier)?,
                 ));
             }
             // Every member graph is valid before any becomes visible to uses.
@@ -982,9 +1019,14 @@ impl InferenceSession {
             .and_then(|state| state.graphs[target].as_ref())
             .ok_or_else(exhausted)?;
         let (root, boundary) = (stored.live_root, stored.boundary);
+        let mut source_frontier = Vec::new(); source_frontier.try_reserve_exact(stored.source_frontier.len()).map_err(|_| exhausted())?;
+        source_frontier.extend_from_slice(&stored.source_frontier);
+        let frontier_scratch = bytes::<candidate_source::SourceRegionId>(source_frontier.capacity())?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.scope_inventory.note_scratch(frontier_scratch);
         let entry_scratch = self.candidate_graph.as_ref().unwrap().scratch_bytes;
         let result = (|| {
-            let graph = self.capture_candidate_graph(root, boundary)?;
+            let graph = if source_frontier.is_empty() { self.capture_candidate_graph(root, boundary)? }
+                else { self.capture_candidate_graph_owned(root, boundary, &source_frontier)? };
             self.instantiate_candidate_graph(id, &record, graph, entry_scratch)
         })();
         self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry_scratch;
@@ -996,7 +1038,8 @@ impl InferenceSession {
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
         let result = (|| {
-            let fresh = self.prepare_candidate_fresh_use(graph, use_level)?;
+            let caller = self.batch.candidate_source.occurrence_regions.get(occurrence.occurrence()).copied();
+            let fresh = self.prepare_candidate_fresh_use(graph, use_level, caller)?;
             for index in 0..graph.bounds.len() {
                 let restoration = self.begin_candidate_fresh_bound(graph, &fresh, index, occurrence, cause)?;
                 self.candidate_drive_bound_restoration(restoration)?;
@@ -1007,9 +1050,13 @@ impl InferenceSession {
         result
     }
     fn prepare_candidate_fresh_use(
-        &mut self, graph: &Graph, use_level: u32,
+        &mut self, graph: &Graph, use_level: u32, caller: Option<candidate_source::SourceRegionId>,
     ) -> Result<FreshUse, SolveAvailabilityError> {
         let context_use = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.begin_use()?;
+        let scope_remap = if self.batch.candidate_source.scoped_experiment {
+            self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.scope_inventory.fresh(&graph.owned_regions, caller.ok_or_else(exhausted)?, graph.nodes.len(), graph.bounds.len())?
+        } else { candidate_source::ScopeRemap::default() };
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scope_remap.bytes()?).ok_or_else(exhausted)?;
         let mut canonical_rows = HashMap::new();
         canonical_rows.try_reserve(graph.rows.len()).map_err(|_| exhausted())?;
         let mut rows = Vec::new();
@@ -1192,6 +1239,34 @@ impl InferenceSession {
                 terms[index] = Some(term);
             }
         }
+        let mut scoped_relations = HashMap::new();
+        if self.batch.candidate_source.scoped_experiment {
+            scoped_relations.try_reserve(graph.bounds.len()).map_err(|_| exhausted())?;
+            for bound in &graph.bounds {
+                let Some(parent) = bound.relation else { continue; };
+                if scoped_relations.contains_key(&parent) { continue; }
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                let mut flow = context.scoped_flow(parent)?;
+                if flow.transformer != 0 {
+                    context.prepare_scope_remap(flow.transformer)?;
+                    let renamed = context.scope_transformer(flow.transformer)?.remap(
+                        |id| scope_remap.scopes.get(&id).copied().unwrap_or(id),
+                        |id| scope_remap.inputs.get(&id).copied().unwrap_or(id))?;
+                    flow.transformer = context.intern_scope(renamed)?;
+                }
+                if let Some(demand) = &mut flow.demand {
+                    let local = scope_remap.inputs.contains_key(&demand.input);
+                    demand.output_scope = scope_remap.scopes.get(&demand.output_scope).copied().unwrap_or(demand.output_scope);
+                    demand.input = scope_remap.inputs.get(&demand.input).copied().unwrap_or(demand.input);
+                    let index = graph.negative_functions.get(&demand.root).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    demand.root = terms[index].ok_or_else(exhausted)?;
+                    if local { demand.use_instance = context_use; }
+                }
+                scoped_relations.insert(parent, flow);
+            }
+        }
+        let extra_scoped = bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(scoped_relations.capacity())?;
+        self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(extra_scoped).ok_or_else(exhausted)?;
         let mut evidence_remap = Vec::new();
         let reserve_count = graph.bound_evidence.len();
         #[cfg(test)]
@@ -1248,7 +1323,7 @@ impl InferenceSession {
             return Err(error);
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        Ok(FreshUse { context_use, rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap })
+        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap })
     }
     fn begin_candidate_fresh_bound(
         &mut self, graph: &Graph, fresh: &FreshUse, index: usize,
@@ -1283,8 +1358,9 @@ impl InferenceSession {
             // Independent uses retain independent transport origins even
             // when an older, nongeneric coordinate is shared.
             let root = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.relation_context(parent)?;
-            let child = self.candidate_context_fresh_transport(parent, candidate_effect::BoundKey(owner, bound.side, item),
-                fresh.context_use, *fresh.context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound)?;
+            let child = self.candidate_context_fresh_transport_scoped(parent, candidate_effect::BoundKey(owner, bound.side, item),
+                fresh.context_use, *fresh.context_remap.get(&root).ok_or_else(exhausted)?, bound.source_bound,
+                fresh.scoped_relations.get(&parent).copied())?;
             mapped_relation = Some(child);
             if let Some(&(start, length)) = graph.attachment_spans.get(&parent) {
                 for &(_, old) in &graph.attachment_bundles[start..start + length] {
@@ -1362,7 +1438,8 @@ impl InferenceSession {
         }
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
         let destination = state.locals.get_mut(slot).ok_or_else(exhausted)?;
-        *destination = Some(LocalScheme { id, root, boundary });
+        let capture_region = self.batch.candidate_source.local_regions.get(&id).copied();
+        *destination = Some(LocalScheme { capture_region, id, root, boundary });
         self.sample_f4_resources(ResourceBoundary::SourceDrafts)?;
         Ok(())
     }
@@ -1392,9 +1469,9 @@ impl InferenceSession {
         self.incoming_route_event_sample_failed = false;
         let result = self.begin_route_transaction().and_then(|()| self.finish_route_transaction_with_candidate_accounting(|session| {
             if session.candidate_graph.as_ref().ok_or_else(exhausted)?.local_use.is_empty() {
-                let (root, boundary, local) = {
+                let (root, boundary, local, capture_region) = {
                     let scheme = session.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
-                    (scheme.root, scheme.boundary, scheme.id.clone())
+                    (scheme.root, scheme.boundary, scheme.id.clone(), scheme.capture_region)
                 };
                 let state = session.candidate_graph.as_mut().unwrap();
                 let old_capacity = state.local_use.capacity();
@@ -1402,8 +1479,10 @@ impl InferenceSession {
                 state.retained_bytes = state.retained_bytes.checked_add(bytes::<LocalUse>(state.local_use.capacity() - old_capacity)?).ok_or_else(exhausted)?;
                 session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
                 // Capture and construction remain atomic; no child has started.
-                let graph = session.capture_candidate_graph(root, boundary)?;
-                let fresh = session.prepare_candidate_fresh_use(&graph, level)?;
+                let frontier = capture_region.as_slice();
+                let graph = session.capture_candidate_graph_owned(root, boundary, frontier)?;
+                let caller = session.batch.candidate_source.occurrence_regions.get(occurrence).copied();
+                let fresh = session.prepare_candidate_fresh_use(&graph, level, caller)?;
                 let retained = sum(&[session.candidate_graph.as_ref().unwrap().retained_bytes, graph.bytes()?, fresh.bytes()?])?;
                 let state = session.candidate_graph.as_mut().unwrap();
                 state.local_use.push(LocalUse { slot, local, occurrence: occurrence.clone(), value, level,

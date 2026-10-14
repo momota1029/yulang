@@ -6,6 +6,21 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Native scoped compose experiment implemented:** `--scoped-experiment`
+  now applies the proved transform kernel to actual source constraints,
+  Function ports, capture and FreshUse. `compose id g` releases its scope
+  through the actual result of `f`; two uses retain distinct identities;
+  an independent protection survives. All final recorded contribution
+  observations in the three retained examples have those states. A real
+  source failure exposed extra identity fibers at copied-bound admission;
+  FreshUse, extrusion and intrusion now preserve exact transported fibers
+  while metadata copying adds no executable path. M2 semantic/resource
+  review converged. See the [native checkpoint](../notes/progress/2026-10-15-native-scoped-compose-experiment.md)
+  and [conditional ownership proof](../notes/theory/2026-10-15-effect-scope-ownership-capture.md).
+  This opt-in construction has explicit availability caps and unresolved
+  exponential nominal-history copying. Full source coverage, handler
+  subtraction, principal scheme rendering and production remain OPEN.
+
 - **Exact adjacent formal spelling admitted:** the source HIR now accepts
   the user's `relay(thunk: ...)` named-parameter header while retaining its
   identifier and annotation source nodes. One regression review and a
@@ -19,9 +34,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   `candidate_scope.rs` has canonical ordered transforms, exact release and
   injective renaming. Independent algebra/code and source-supplier reviews
   converged. The [checkpoint](../notes/progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
-  distinguishes this result from live source inference. Existing direct
-  formal records miss alias exposures; source-owned scope capture/FreshUse
-  inventory is the active native construction. Full compose and Catch remain
+  distinguishes the local theorem from live source inference. Existing direct
+  formal records miss alias exposures; the native experiment now defers
+  unsupported callee provenance. Its scoped capture/FreshUse construction
+  is bounded experimental code. Full compose and Catch remain
   OPEN; no principality or soundness promotion follows.
 
 - **Computation-formal routing implemented:** source-selected Computation
@@ -49,7 +65,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   collaborative work from source examples. Four reproducible playground
   inputs now parse and solve; the direct, omitted-callback and outside-arm
   cases still fail an empty-effect check because Catch does not subtract.
-  No live protection or subtraction implementation has been adopted. The
+  That baseline added no live protection or subtraction. The current opt-in
+  native scope experiment is recorded above; Catch removal remains open. The
   [baseline record](../notes/progress/2026-10-15-hygiene-example-baseline.md)
   preserves the executions and a discarded diagnostic whose raw-template
   reachability assumption failed. Guard calculations remain conditional;

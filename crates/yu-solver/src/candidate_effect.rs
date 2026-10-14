@@ -426,7 +426,18 @@ impl InferenceSession {
         let graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
         let origin = explicit.or(graph.intrusion.effect_algebra.processing).unwrap_or_else(|| bound_pair(bound));
         self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.evidence_attempt();
-        let relation = self.candidate_context_bound(bound, origin)?;
+        let scoped = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.scoped_enabled;
+        let relation = if scoped {
+            match cause {
+                candidate_context::BoundAdmissionCause::FreshUse { antecedent, use_origin, source_bound, mapped_relation: Some(relation) } =>
+                    Some(self.candidate_context_reuse_fresh_relation(bound, antecedent, source_bound, use_origin, relation)?),
+                candidate_context::BoundAdmissionCause::FreshUse { mapped_relation: None, .. } => return Err(SolveAvailabilityError::ReceiptMismatch),
+                // Diagnostic origins have no retained origin-to-fiber association.
+                // The first transport loop owns every executable copied fiber.
+                candidate_context::BoundAdmissionCause::BoundTransport { .. } => None,
+                candidate_context::BoundAdmissionCause::OwnerEmission { .. } => Some(self.candidate_context_bound(bound, origin)?),
+            }
+        } else { Some(self.candidate_context_bound(bound, origin)?) };
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
         if state.origin_keys.contains(&(bound, origin)) {
             let id = state.context.evidence_admit(bound, origin, relation, cause, true)?;
@@ -590,7 +601,9 @@ impl InferenceSession {
                 .effect_algebra
                 .origins[&from][index];
             // The origin table does not retain an origin-to-fiber association.
-            // Do not infer one from endpoints; this transport has an explicit gap.
+            // In scoped mode BoundTransport admits metadata with relation None;
+            // only the first loop transports executable fibers. Preserve the
+            // association gap instead of seeding an identity alternative.
             let relation = None;
             let snapshot = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.evidence_snapshot(from, relation)
                 .with_gap(candidate_context::CoverageGap::MissingOriginAssociation);

@@ -303,7 +303,8 @@ impl InferenceSession {
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
                         let mapped = self.candidate_remapped_effect_view(view, Some(tail), &mut view_remap)?;
                         let allowance = ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(mapped));
-                        self.candidate_insert_bound(source, Polarity::Negative, allowance)?;
+                        self.candidate_insert_copied_bound(source, Polarity::Negative, allowance, true, original,
+                            candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level })?;
                         let installed = crate::candidate_effect::BoundKey(
                             self.canonical_extrusion(source), Polarity::Negative,
                             self.canonical_extrusion(allowance));
@@ -325,7 +326,8 @@ impl InferenceSession {
                             .or_else(|| structure.get(&key))
                             .copied()
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                        self.candidate_insert_bound(owner, p, copied)?;
+                        self.candidate_insert_copied_bound(owner, p, copied, true, source,
+                            candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level })?;
                         self.candidate_transfer_bound_origins(
                             source,
                             crate::candidate_effect::BoundKey(
@@ -407,6 +409,24 @@ impl InferenceSession {
 
     /// Install only the selected side, including initialization of copies.
     /// Positive selects a lower bound; negative selects an upper bound.
+    // Physical copy bootstrap owns storage and diagnostics only. Exact
+    // source fibers are installed by candidate_transfer_bound_origins next.
+    pub(super) fn candidate_insert_copied_bound(
+        &mut self, owner: ExtrusionEndpoint, polarity: Polarity, bound: ExtrusionEndpoint, capture: bool,
+        source: crate::candidate_effect::BoundKey, reason: candidate_context::TransportReason,
+    ) -> Result<(), SolveAvailabilityError> {
+        let state = &self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context;
+        if !state.scoped_enabled {
+            let processing = state.processing;
+            return self.candidate_insert_bound_with_evidence(owner, polarity, bound, capture,
+                candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ());
+        }
+        let snapshot = state.evidence_snapshot(source, None)
+            .with_gap(candidate_context::CoverageGap::MissingOriginAssociation);
+        let antecedent = self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.import_evidence(snapshot)?;
+        self.candidate_insert_bound_with_evidence(owner, polarity, bound, capture,
+            candidate_context::BoundAdmissionCause::BoundTransport { antecedent, through: reason }).map(|_| ())
+    }
     pub(super) fn candidate_insert_bound(
         &mut self,
         owner: ExtrusionEndpoint,
@@ -415,13 +435,6 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
         self.candidate_insert_bound_with_evidence(owner, p, bound, true,
-            candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
-    }
-    pub(super) fn candidate_insert_bound_without_capture(
-        &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint,
-    ) -> Result<(), SolveAvailabilityError> {
-        let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
-        self.candidate_insert_bound_with_evidence(owner, p, bound, false,
             candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
     }
     pub(super) fn candidate_insert_bound_with_evidence(

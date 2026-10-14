@@ -181,6 +181,36 @@ impl<'a> CandidateIntrusionObservation<'a> {
     pub fn pending_total(&self) -> usize { self.state.observed_pending().0 }
     pub fn pending_consumed(&self) -> usize { self.state.observed_pending().1 }
 }
+/// Atomic native route observation from the opt-in scope experiment. This is
+/// neither Catch subtraction evidence nor a principal scheme presentation.
+pub struct CandidateScopedObservation<'a> {
+    record: &'a crate::candidate_context::ScopedObservation,
+    context: &'a crate::candidate_context::State,
+    views: &'a [crate::candidate_effect::View],
+    state: crate::candidate_scope::ScopeState,
+    pair: crate::TypedPairKey,
+    transformer: usize,
+}
+impl CandidateScopedObservation<'_> {
+    pub fn relation_id(&self) -> u32 { self.record.relation.0 }
+    pub fn pair(&self) -> &impl std::fmt::Debug { &self.pair }
+    pub fn transformer_id(&self) -> usize { self.transformer }
+    pub fn transformer(&self) -> Option<&impl std::fmt::Debug> {
+        if self.transformer == 0 { None } else { self.context.scope_transformer(self.transformer).ok() }
+    }
+    pub fn member_count(&self) -> usize {
+        match self.record.operand { EffectEndpointKey::Support(view) => self.views[view as usize].allowed.len(), _ => 1 }
+    }
+    pub fn member_operand(&self, member: usize) -> Option<impl std::fmt::Debug> {
+        if member >= self.member_count() { return None; }
+        Some(match self.record.operand {
+            EffectEndpointKey::Support(view) => EffectEndpointKey::AnnotationMember(view, u32::try_from(member).ok()?),
+            operand => operand,
+        })
+    }
+    pub fn input_routes(&self) -> impl Iterator<Item = u32> + '_ { self.state.inputs.iter().map(|id| id.0) }
+    pub fn protection_scopes(&self) -> impl Iterator<Item = u32> + '_ { self.state.protections.iter().map(|id| id.0) }
+}
 impl CandidateInference {
     pub fn intrusion_observation(&self) -> Result<CandidateIntrusionObservation<'_>, ArtifactMismatch> {
         if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
@@ -189,6 +219,56 @@ impl CandidateInference {
         Ok(CandidateIntrusionObservation { references, state })
     }
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
+        Self::solve_mode(hir, false)
+    }
+    /// Reversible private-candidate experiment; unsupported source provenance
+    /// defers the attempt instead of publishing a partly scoped result.
+    pub fn solve_scoped_experiment(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
+        Self::solve_mode(hir, true)
+    }
+    pub fn scoped_observations(&self) -> impl Iterator<Item = Result<CandidateScopedObservation<'_>, SolveAvailabilityError>> {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| {
+            let algebra = &graph.intrusion.effect_algebra;
+            algebra.context.scope_observations.iter().map(move |record| {
+                let (transformer, state) = algebra.context.evaluate_observation(record.relation)?;
+                let pair = algebra.context.observed_pair(record.relation)?;
+                Ok(CandidateScopedObservation { record, context: &algebra.context, views: &algebra.views, state, pair, transformer })
+            })
+        })
+    }
+    pub fn scoped_scope_lineage(&self) -> impl Iterator<Item = (u32, u32, &HirOccurrenceId)> {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| {
+            let inventory = &graph.intrusion.effect_algebra.context.scope_inventory;
+            inventory.scope_origins.iter().enumerate().map(move |(actual, original)|
+                (actual as u32, original.0, &inventory.scope_occurrences[original.0 as usize]))
+        })
+    }
+    pub fn scoped_input_lineage(&self) -> impl Iterator<Item = (u32, u32, &HirOccurrenceId)> {
+        self.solved.data.candidate_graph.iter().flat_map(|graph|
+            graph.intrusion.effect_algebra.context.scope_inventory.input_origins.iter().enumerate())
+            .map(move |(actual, original)| (actual as u32, original.0, self.solved.data.candidate_calls.calls[original.0 as usize].checking.occurrence()))
+    }
+    pub fn scoped_relation_flows(&self) -> impl Iterator<Item = (usize, impl std::fmt::Debug + '_, impl std::fmt::Debug + '_, bool)> + '_ {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| graph.intrusion.effect_algebra.context.observed_relations())
+            .map(|(index, pair, flow)| (index, pair, flow, flow != crate::candidate_context::ScopedFlow::default()))
+    }
+    pub fn scoped_dependencies(&self) -> impl Iterator<Item = impl std::fmt::Debug + '_> + '_ {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| graph.intrusion.effect_algebra.context.observed_dependencies())
+    }
+    pub fn scoped_origins(&self) -> impl Iterator<Item = impl std::fmt::Debug + '_> + '_ {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| graph.intrusion.effect_algebra.context.origins.iter())
+    }
+    pub fn scoped_copy_statistics(&self) -> impl Iterator<Item = impl std::fmt::Debug + '_> + '_ {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| graph.intrusion.effect_algebra.context.scope_inventory.copies.iter())
+            .map(|copy| (copy.regions, copy.scopes, copy.inputs, copy.graph_nodes, copy.graph_bounds))
+    }
+    /// Counts and maximum recorded scoped scratch envelope. The envelope is
+    /// not a total peak: simultaneous and failure-path peaks are not covered.
+    pub fn scoped_resource_statistics(&self) -> Option<(usize, usize, usize, usize, usize)> {
+        let inventory = &self.solved.data.candidate_graph.as_ref()?.intrusion.effect_algebra.context.scope_inventory;
+        Some((inventory.regions.len(), inventory.scope_regions.len(), inventory.input_regions.len(), inventory.work_used, inventory.scratch_peak_bytes))
+    }
+    fn solve_mode(hir: Arc<HirModule>, scoped: bool) -> Result<Self, CandidateError> {
         let mut permitted_errors = HashSet::new();
         let mut declaration_errors = HashSet::new();
         for declaration in hir.source_effect_declarations() {
@@ -219,7 +299,11 @@ impl CandidateInference {
         }) {
             return Err(CandidateError::Unsupported);
         }
-        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).map_err(CandidateError::Collection)?;
+        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, scoped).map_err(CandidateError::Collection)?;
+        if scoped && batch.scc_plan().components_in_dependency_first_order().any(|component|
+            batch.scc_plan().internal_uses(component).is_ok_and(|uses| !uses.is_empty())) {
+            return Err(CandidateError::Unsupported);
+        }
         let session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
         Ok(Self {
             solved: session.run_candidate().map_err(CandidateError::Solve)?,

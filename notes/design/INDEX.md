@@ -959,7 +959,9 @@ This index is a navigation aid. The listed source document remains authoritative
   within output effect `'f`, including `f = id`; other scopes and effect
   membership remain. This supersedes only the earlier compose expectation.
   Internal push/pop-like processing remains possible; no representation or
-  theorem is adopted. The older general
+  theorem is adopted. The [native experiment checkpoint](../progress/2026-10-15-native-scoped-compose-experiment.md)
+  records implemented scoped transport and three finite source observations;
+  full source proof and handler subtraction remain open. The older general
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
   is Draft only. The user's corrected meaning for `'e?` is: for a contribution
   independently established as originating from `'e` and emitted from that

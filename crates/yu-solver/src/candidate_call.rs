@@ -11,6 +11,7 @@ pub(super) struct State {
     pub formals: Vec<FormalRegistrationInput>,
     pub names: Vec<FormalNameInput>,
     pub calls: Vec<ApplySourceInput>,
+    pub by_occurrence: HashMap<HirOccurrenceId, usize>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum FormalRole { Value, Computation }
@@ -113,6 +114,7 @@ impl State {
     pub fn bytes(&self) -> usize {
         checked_usize_sum(
             [
+                checked_capacity_bytes::<(HirOccurrenceId, usize)>(self.by_occurrence.capacity(), "Call occurrence index"),
                 checked_capacity_bytes::<FormalRegistrationInput>(
                     self.formals.capacity(),
                     "Call source formal inputs",

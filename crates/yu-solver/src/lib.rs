@@ -917,8 +917,14 @@ impl ConstraintBatch {
         candidate_values: bool,
         candidate_graph_effects: bool,
     ) -> Result<Self, CollectionAvailabilityError> {
+        Self::collect_candidate_mode_scoped(hir, candidate_values, candidate_graph_effects, false)
+    }
+
+    fn collect_candidate_mode_scoped(
+        hir: Arc<HirModule>, candidate_values: bool, candidate_graph_effects: bool, scoped_experiment: bool,
+    ) -> Result<Self, CollectionAvailabilityError> {
         #[cfg(not(feature = "shadow-apply-candidate"))]
-        let _ = candidate_graph_effects;
+        let _ = (candidate_graph_effects, scoped_experiment);
         let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
         let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
         let mut batch = Self {
@@ -952,7 +958,7 @@ impl ConstraintBatch {
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_graph_effects,
             #[cfg(feature = "shadow-apply-candidate")]
-            candidate_source: candidate_source::Plan::default(),
+            candidate_source: candidate_source::Plan { scoped_experiment, ..candidate_source::Plan::default() },
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_calls: candidate_call::State::default(),
             root_definition_positions: HashMap::new(),
@@ -10666,6 +10672,10 @@ impl InferenceSession {
                                 .and_then(|bytes| bytes.checked_add(source_undo_bytes))
                                 .and_then(|bytes| bytes.checked_add(intrusion_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.scratch_bytes))
+                                // Include the maximum recorded local scoped scratch
+                                // envelope after each synchronous call. This is not
+                                // a total simultaneous/failure-path peak.
+                                .and_then(|bytes| bytes.checked_add(state.intrusion.effect_algebra.context.scope_inventory.scratch_peak_bytes))
                                 .and_then(|bytes| bytes.checked_add(state.orchestration_bytes))
                                 .and_then(|bytes| bytes.checked_add(intrusion_undo_bytes))
                                 .and_then(|bytes| bytes.checked_add(lifecycle_undo_bytes))
