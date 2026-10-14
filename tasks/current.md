@@ -165,14 +165,27 @@ not a dependent family retaining both providers. Fresh M2
 only as a reviewed bounded derivation/obstruction; H1/H2/U remain OPEN and
 H3/P remain disabled.
 
-The next action is H1-K: a bounded read-only architect audit starting at the
-original descriptor-kernel introduction/elimination clauses, not another
-formal-row or generic-variable construction. It must either derive local
-formation/elimination and its native interpretation from independently owned
-premises, or isolate the first unsupported primitive constructor/action law
-and its owner. Stop there; raise a user decision only if concrete incompatible
-completions have observable consequences. No graph code or production route
-has been added.
+H1-K's read-only architect audit narrowed the seam: the direct callable
+constructor consumes an independently interpreted whole-carrier entry
+interface `I` at ParameterOrigin. Native formal and Function construction
+retains the shared row and typed handles, but no inspected producer forms `I`,
+its complete admission/observation meaning, or its lawful joint action over
+those endpoints. The first fields needing their original interpretation are
+initial/pre-receipt and pending observations with typed paths, request/
+response/raw-handle correspondence, and current-world/phase guards. This is a
+bounded source-to-construction obstruction, not source impossibility or a
+semantic choice. Fresh M2 `compiler_referee` review found no blocking, major
+or minor findings and confirmed the selected local two-closure constructor
+does not establish the broader ParameterOrigin/native bridge.
+
+The next action is H1-L: construct or precisely refute the source-to-native
+entry-interface relation from the original Entry-Value/ContextualFunction
+clauses to the actual native argument/value-effect pair. Include initial and
+pending observations, their guards, and lawful joint scoped substitution;
+stop at the first unsupported phase/guard action. Preserve all actual
+providers, dependent futures, raw resumptions, and distinct residual
+contributions under one original `sigma`. No graph code, semantic decision,
+production route or F5 cutover follows; H1/H2/U remain OPEN and H3/P disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
