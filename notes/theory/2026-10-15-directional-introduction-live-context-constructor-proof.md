@@ -1,10 +1,16 @@
 # Directional introduction: Function-field routing and live-constructor boundary
 
 Date: 2026-10-15
-Status: unreviewed bounded constructive source characterization; proposed implementation invariant; operational bridge OPEN
+Status: reviewed bounded constructive source characterization; proposed implementation invariant; operational bridge OPEN
 Baseline: `99be441a481617891e742f8b59bfdb95ca4ca389`, branch `research/simple-sub-intrusion`
 Lease: this file only; leaf, no delegation, compiler edits or Git mutations
 Parent: H1/H2/U OPEN; H3/P disabled; no residual, complete Call, hygiene, soundness, principality or cutover closure
+
+Independent review: fresh `compiler_referee` found no blocking, major, or minor
+findings within the bounded field-routing and relation-admission claim. The
+review independently checked all 24 frozen dependency hashes and confirmed the
+source/consumer limit: the note proves no executable protection operation,
+receiver activation, or parent-gate closure.
 
 ## 1. Frozen statement, assignment and exclusions
 
@@ -312,8 +318,9 @@ ed3e213e943a553943784e409194723f64acb810a0bcf06607ee95b0eb4e4ed1  crates/yu-solv
 - Baseline SHA: `99be441a481617891e742f8b59bfdb95ca4ca389`.
 - Changed dependency hashes: none by this worker; baseline hashes above.
   Concurrent edits were not inspected; primary owns their later comparison.
-- Status: bounded structural derivation and proposed invariant, unreviewed;
-  first operational premise explicitly unsupplied; no parent promotion.
+- Status: bounded structural derivation and proposed invariant, independently
+  reviewed with no findings; first operational premise explicitly unsupplied;
+  no parent promotion.
 - Checks: static source/authority tracing, exact baseline/branch, SHA-256
   manifest and narrow artifact integrity/whitespace check; no runtime checks.
 - Proposed checkpoint message: `research: derive directional Function-field routing and live-constructor boundary`.
