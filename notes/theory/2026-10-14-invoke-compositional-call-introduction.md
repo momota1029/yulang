@@ -1,14 +1,16 @@
 # `invoke`: compositional complete-Call introduction
 
 Date: 2026-10-14
-Status: Draft mathematical constructor completion; derivation supplied below;
-not independently reviewed; no production or parent-theorem certification
+Status: Draft mathematical constructor completion; conditional derivation independently reviewed after repair; no production or parent certification
 Baseline: `add2fdf4c12e7379e1c5ad2c24b5023320262ae3`
 Branch: `research/simple-sub-intrusion`
 Definition authorization: the user's current instruction, "定義が必要なら定義すればいい"
-Scope: construct the body Application of `my invoke f = f 1` from its source
-children and independently declared local primitives. No source restriction,
-new inference search, public type constructor, or production cutover.
+Scope: the new source case is strictly
+`Apply(Name(resolved unannotated Value formal), Integer literal)`, specialized
+below to the body of `my invoke f = f 1`, from its source children and
+independently declared local primitives. This is a definition/proof domain,
+not a compiler support restriction. No new inference search, public type
+constructor, or production cutover.
 
 ## 1. The change in method
 
@@ -283,9 +285,9 @@ already well typed.
 The formation rule is
 
 ```
-actual Apply c with children u_f,a; Resolve(u_f,d_f)
-Parameter/Name derivation at d_f,u_f
-Data derivation of the actual argument a; Result and Reify/Delay derivations
+actual Apply c = Apply(Name u_f, Integer a k); Resolve(u_f,d_f)
+actual unannotated Value Parameter d_f; Parameter/Name derivation at d_f,u_f
+Integer Literal derivation at a,k; Result and Reify/Delay derivations
 complete demand F_c and actual checking occurrence
 complete instantiated operator declaration and source-reference graph
 -----------------------------------------------------------------------
@@ -295,21 +297,25 @@ Gen-Call-Syntax(c):
   ElimOrigin, and the complete dependent Call rule program
 ```
 
-The argument premise is `Data(a,...)`, not `Name(a,...)`. For this source it
-is Literal. This is the minimal extension of the old Name/Name Gen-Call-0
-spine; it does not fabricate an argument lexical resolution. A Name argument
-still uses its authentic Name derivation.
+The new argument premise is the actual Integer Literal constructor, with its
+`Data(a,Value(Int),...)` conclusion. For this source k=1. This is the selected
+Name/Integer extension of the old Name/Name Gen-Call-0 spine; it does not
+fabricate an argument lexical resolution. The old source constructors remain
+available with their original domains and premises.
 
 More precisely, extend the original formation judgement by this new
 constructor, using the argument coordinate
 
 ```
 SourceArgumentUse = NameUse(actual lexical derivation)
-                  | DataUse(actual non-Name data derivation).
+                  | IntegerLiteralUse(actual Integer literal derivation).
 ```
 
-The old Name/Name constructor embeds with NameUse unchanged. The Literal
-case uses DataUse; it cannot be projected to a nonexistent lexical witness.
+The old Name/Name constructor embeds with NameUse unchanged; every other old
+constructor is retained unchanged as well. IntegerLiteralUse is admitted by
+this new formation rule only at the resolved unannotated Value-formal seam
+displayed above. It introduces no case for other non-Name data constructors
+or computed callees. It cannot be projected to a nonexistent lexical witness.
 The `OriginalGenCall0` request for c is discharged by this extended formation
 judgement, not by a cast to the old Name-only input record. Its Rust input
 interface must be updated at the owning definition when implementing this
@@ -336,10 +342,10 @@ environment and the generated complete inclusion witness.
    actual provider and current world. From its A_f membership and the actual
    generated same-value inclusion witness derive membership in F_c. There is
    no instantiation of the lambda-bound formal.
-3. Literal at a constructs the original Int primitive value 1. Result forms
-   `Return(1)` at its actual port. Its complete local typing law is the
+3. Literal at a constructs the original Int primitive value k (k=1 here).
+   Result forms `Return(k)` at its actual port. Its complete local typing law is the
    primitive/Return law. Reify at the Application's original argument port
-   forms `kappa_a = Delay(Return(1))`. Inert formation has empty lexical
+   forms `kappa_a = Delay(Return(k))`. Inert formation has empty lexical
    capture; designated execution is proved by the same closed Literal/Return
    derivation at EVERY independently compatible future demand. The proof is
    a family under those demands, not a selected successful execution.
@@ -371,9 +377,15 @@ source-known closure, total, pure, or Value-entry.
 
 ## 8. Complete-Call typing theorem and proof
 
-**Theorem.** For the constructor in sections 5-7, every full Call witness at
-the original source/frame has membership in the synthesized complete result
-contract, without `C0(c)` or `TypedCallCert(c)` as an input.
+**Conditional constructor theorem.** Fix a source occurrence in the selected
+Name/Integer domain, its original binder tree and declarations, and one lawful
+joint assignment at those scopes. Given its actual typed body environment,
+the local constructor laws of sections 2-3, and its generated same-value
+inclusion witness `A_f <: F_c`, for every independently valid original frame h,
+observation o and full witness q of `Call_c(h,o)`, construct
+`Mem(D_call,h,o)`. Neither `C0(c)` nor `TypedCallCert(c)` is an input. This
+statement quantifies over satisfying assignments; it does not assert that
+the open generated constraints have such an assignment.
 
 Define its proof by constructor elimination:
 
@@ -382,7 +394,25 @@ type_call(Struct(s)) = inj_s(type_s(s))
 type_call(Z(j,delta,p,z)) = inj_j(delta,p,local_type_j(p,z))
 type_call(W(j,q,delta,p,w)) =
     inj_j(delta,p,local_type_j(p,w))
+type_call(Arm(j,delta,q_1,...,q_n,p,z)) =
+    inj_j(delta,inputs_j(delta,raw(q_1),...,raw(q_n)),p,
+          local_type_j(p,z))
 ```
+
+Here the shorter Z/W injections suppress their original inputs coordinate.
+`inputs_j` is the declaration's actual predecessor/operand substitution, not
+a newly selected tuple. For each predecessor reference q_i, retain its exact
+raw observation, dependent scope map and existing typed input/guard evidence
+in p. Where the original input is a typed Call-result reference, recursively
+construct `type_call(q_i)` at q_i's own original telescope and use precisely
+the declaration's existing input checking map retained in p. A union
+membership proof alone does not supply a different primitive's operand type
+or its guard. Any other required typed input is the original evidence already
+retained at that reference; it is not manufactured by this recursion. Thus
+each required input is either retained or constructed by the actual declared
+consumer at its own scope, before applying the original `local_type_j(p,z)`.
+This handles any declared finite predecessor list, including zero references
+and non-iterating arms, with no strengthened guard or added closure case.
 
 In the W case, `p,w` retain the original predecessor `raw(q)` and its
 required original typed guard/input evidence. They do not substitute the
@@ -396,10 +426,12 @@ local laws under their original event binders.
 Every right-hand side is an introduction of the existing complete union;
 every input proof is either constructed in section 7 or supplied by that
 independent primitive's own local law. This proves the theorem for all
-constructors, including unanchored Z and arbitrarily long finite W chains.
+constructors, including every declared Arm, unanchored Z and arbitrarily
+long finite W chains.
 It never chooses an arm to establish a universal result.
 
-**Closing the actual Lambda.** The proof is uniform for every body binding
+**Closing the actual Lambda, conditional on that assignment.** The proof is
+uniform for every body binding
 obtained by the already selected Strict entry rule. Use it as that rule's
 body premise, with `R_L` equal to this complete body rule program at its
 original event telescope. The resulting source closure has
@@ -409,20 +441,55 @@ generated local bound `A_f <: F_c`, not just a diagram for a hypothetical Call.
 No proof for an outer Request/divergence branch creates a body binding; the
 existing entry rule instead keeps its original pending body suffix.
 
-The ordinary bound is genuinely dischargeable in the source semantics:
-interpreting A_f by F_c gives its reflexive same-value inclusion. For a simple
-nonempty callable instance, choose the actual source identity closure and
-its complete pure-Int receiver contract; its Value entry followed by Name
-handles every independently admitted pure-Int carrier, including nonreturning
-ones. This uses the existing Strict/Name construction, not an assumption that
-an arbitrary provider returns. This instance only demonstrates that the new
-source derivation is not justified by an impossible Call premise; the general
-construction retains the full generated solution family and does not replace
-inference by the assignment A_f=F_c or restrict supplied f to identity/purity.
+**Unestablished satisfiability witness: the exact scope obstruction.** The
+assignment `A_f := F_c` and the claimed nonempty identity-closure instance are
+withdrawn. Reflexive inclusion is lawful only after both sides are proved to
+be the same descriptor at the same scope; it cannot solve a dependency/scope
+obligation by itself. The selected constructors establish the following:
+
+- Source Generalize section 3.3 places
+  `Desc(C,d_f,ValueEndpoint,sigma_f,Delta_f):A_f` before the Lambda challenge.
+  It permits a body inference declaration at its owning invocation telescope.
+  The source-owned Lambda section 4.1 likewise places `A_f,I_f` before
+  challenges and `R_L` at the post-Force/rebind telescope.
+- Section 6.1 forms `J_a,B_i,E_i,R_i,IF_c` at c's original description scope,
+  without selecting actual output fields. Application_N section 4, Demand-N,
+  places its demand/result/effect descriptions in `Delta_c`; it supplies no
+  equality with `sigma_f` or lifting map to that earlier scope. Its section 5
+  expressly separates formation from inhabitance.
+- IF-Insert/IF-Use are formed before observations but retain every original
+  dependent substitution. The complete Call frame in
+  [source-interface construction](2026-10-08-call-source-interface-construction.md)
+  section 4 includes `IF(CalleeRef_e)` and its whole interface;
+  the selected Name interface references `A_f`. Static formation alone thus
+  does not establish that all descriptive dependencies of `IF_c` exclude
+  `A_f`, or that its event-indexed fields occur only bound inside the demand.
+
+The missing law is at Parameter/Application description formation and its
+IF-Use substitution: exhibit one lawful pre-challenge descriptor telescope
+`Gamma_desc` containing the original `A_f` and all free dependencies of
+`J_a,B_i,E_i,IF_c`, show that no EventField or actual runtime field is free in
+the four source/native argument-value, argument-effect, invocation-effect and
+result-value coordinates, and show every body event uses the restriction of
+that SAME `F_c` through its original scope map. For this identity assignment
+one must also show that the complete definition of `F_c`, including `IF_c`'s
+reference dependencies, does not depend on `A_f`; otherwise substitution is
+recursive rather than reflexivity. None of these conclusions follows merely
+from the declaration order printed in section 6.1.
+
+The native source owner allocates Parameter/expression endpoints once in
+`candidate_source.rs` and traverses Lambda/body at the same numerical level;
+`shadow_apply.rs` forms the four native demand coordinates. These facts do
+not prove the required complete source dependency or event-restriction law.
+No impossibility or source counterexample is claimed. The conditional theorem
+and conditional Lambda closure above retain their original generated inclusion
+premise at c's scope. Source satisfiability and the parent source/native gate
+remain OPEN; no caller is restricted to identity or purity.
 
 **Evidence retention.** Erasing the newly added type/placement witnesses
-recovers the same structural witness or original j,delta,p,z/w and
-predecessor. This is a literal projection, not equality after observing
+recovers the same structural witness or original j,delta,p,z/w and every
+actual predecessor reference q_i. This is a literal projection, not equality
+after observing
 only the returned value or effect support. Induction preserves every
 original member of the declared constructor family. No statement about a
 different unspecified historical predicate is inferred from this projection.
@@ -448,7 +515,8 @@ constraints and its actual typed environment, the schema constructs the
 complete typing proof above. Generating the schema is not solving its
 constraints and must not return a closed `TypedCall` certificate.
 
-Use the existing source traversal, not a second AST or inference algorithm:
+For the selected new Name/Integer seam, use the existing source traversal,
+with all old constructor cases retained:
 
 ```
 Parameter: retain existing registration and its full source interface
@@ -523,9 +591,13 @@ argument Name; no actual-provider selection during description formation;
 no source-diagonal restriction; no borrowed future certificate for another
 arm; no post-hoc structural-output guard; no closed proof from open constraints.
 
-A separate reviewer still needs to check the constructor law and its fit to
-the selected source interpretation. The parent source/native theorem remains
-OPEN. No existing authoritative definition, production path, test expectation,
-task status, or public type language is changed by this research checkpoint.
-Shared task/index synchronization is intentionally deferred to integration;
-this file does not certify or change those gates.
+The initial independent compiler_referee/spec_auditor review identified the
+generic Arm proof case, an overbroad DataUse domain, and an unestablished
+same-scope satisfiability witness. One batched repair added the actual Arm
+elimination, confined the new case to resolved unannotated Value-formal
+Name/Integer, and withdrew the witness while exposing its exact scope law. A
+fresh compiler_referee and spec_auditor delta review passed those repairs.
+This independently reviewed conditional constructor theorem does not establish
+source satisfiability or the parent source/native theorem, which remains OPEN.
+No production code, test expectation, public type language or cutover status
+changed. Shared task/laboratory synchronization is owned by primary integration.

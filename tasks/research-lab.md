@@ -1425,3 +1425,25 @@ disposition follows from the retained tuple. Do not rerun another shifted-index
 or diamond proof at that unchanged law. Original source/Car/Call, evidence and
 F5 gates OPEN. Thirteen dependency hashes and static integrity checks pass;
 zero builds/tests/probes/measurements. Primary synchronized shared records.
+
+### 2026-10-14 compositional source Call constructor
+
+The user-identified
+[`invoke` Call introduction](../notes/theory/2026-10-14-invoke-compositional-call-introduction.md)
+now has fresh independent compiler-referee and spec-auditor delta passes. It
+proves a conditional complete-Call typing constructor for exactly the
+resolved unannotated Value-formal Name/Integer seam, composing the actual
+Strict/Name/Result/Literal/Delay/Bind rules and every independently typed
+generic Call arm. The initial proof's generic Arm omission and overly broad
+DataUse case were repaired. A proposed `A_f = F_c` witness was removed because
+the selected source rules do not yet prove that F_c's complete dependent
+scope lifts from `Delta_c` to Parameter's `sigma_f` or stays uniform across
+body events.
+
+This is a reviewed local source-constructor result, not source satisfiability,
+historical-family equivalence, native Function4 correspondence, implementation
+authority or parent closure. The original source/native/F5 parent remains
+OPEN; the source-constructor component is REDUCED. Next owner: prove the
+pre-challenge descriptor scope/restriction law, then the joint source-demand to
+actual native Function4 emission/dispatch map. No tests, builds, probes or
+compiler changes ran.

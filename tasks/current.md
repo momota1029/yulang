@@ -14518,3 +14518,283 @@ that note. Native correspondence, complete Call/C0, literal whole-carrier
 checking, soundness, principality and F5 remain OPEN. No code, tests, builds,
 probes or Git mutations ran; the untracked question directory remains
 excluded.
+
+### 2026-10-14 forward construction of the literal Call declaration seam
+
+I directly constructed the literal child’s source-owned exact image from the
+selected Return/Prefix Image recipe, retaining its complete catalogues and
+dependent fields. On that exact image and the original `CarrierContract(F_c)`,
+the unchanged `WholeArgCompatible` schema forms the candidate tagged emitter’s
+`O_argument` occurrence before solving. The broader registered `Result` view,
+exact source image, and separate `J_lit` attachment remain distinct. A fresh
+`compiler_referee` passed this bounded candidate calculation. This repairs the
+earlier mistaken use of `view_orig(o_a)` as the original whole-argument
+operand; it does not assert compatibility truth, image equality across
+independently fixed registries, tagged-emission adoption or source acceptance.
+
+The changed method indexed the fixed authentic declaration catalog by whole
+typed substitution and original license/formation, then gave the reusable
+complete-kernel constructor its explicit full application domain. The
+constructor preserves its kernel’s actual root, every original arm and witness
+fiber, provider/output/future dependencies, scope and joint action. Independent
+review passed these calculations. Dependent indexing and IF retention still
+do not supply a catalog member or its use at this source occurrence.
+
+The exact source operation still needed by the original `rho` judgment is an
+application selector/reference at `c`: the authentic Call declaration, its
+whole typed substitution and static source-incidence/license, from which the
+complete arms/result/future fields can be projected. L1 catalog declarations,
+L2 execution equations, Build, IF, C-Call and the selected `Application_N`
+Kernel boundary do not provide that application in their displayed signatures.
+This is a bounded source-signature result, not proof that the declaration does
+not exist or that `f 1` is untypable. The reviewed scratch construction is
+`/tmp/yulang-generic-call-catalog.vzQcFp/generic-call-catalog-construction.md`
+(SHA-256 `a5ba7747f4eb9e62c55b99192c26b441b6074e3bf94440051c67bc5674f15e8d`);
+its candidate registry is not adopted.
+
+Classification: **UNCHANGED** for the original source/native parent. The
+candidate exact-image producer is repaired, but no original `CallApps_rho(j_c)`
+member, C0, native correspondence or parent proof was derived. Next, locate the
+actual original Call application at its source owner or resolve the minimal
+operator-registry definition through the existing authority path. Preserve the
+original source scope, complete W/Z, provider/future fields and all parent/L4/
+principality/F5 gates. No compiler code, tests, builds, probes or Git mutations
+ran. The excluded pending question directory remains untouched.
+
+### 2026-10-14 imported Simple-sub step for FreshUse Function children
+
+The frozen [FreshUse disposition proof](../notes/theory/2026-10-14-fresh-use-function-disposition.md)
+now applies the imported S-Fun rule directly to the exact mapped Value children:
+`t' <: Int` and `s <: a'` yield `Int -> s <: t' -> a'` under the same
+assignment, with the shared `s` retained. This does not redo the ordinary
+`f 1` typing derivation. A fresh `compiler_referee` confirmed the arrow
+instantiation and identified one minor quantifier wording error; the correction
+now says every target-admissible payload must satisfy Int, without asserting
+that such a payload exists.
+
+This is **REDUCED** for that native structural child implication. The complete
+same-provider Function action still needs the target challenge domain to map
+into the actual descriptor domain with identical carrier, provider, event and
+joint evidence; the full observation inclusion is also unproved. A separate
+falsification audit found no source-qualified counterexample because the
+particular mixed-level seed's source/binder interpretation is not established.
+The original source/native theorem, universal restoration disposition,
+complete Call, soundness, principality and F5 remain OPEN. Static note/record
+checks only; no tests, builds, probes, measurements or Git operations ran.
+
+### 2026-10-14 Simple-sub use at the original Call bound
+
+The ordinary `lambda f. f 1` derivation remains imported from Simple-sub; it
+is not reproved. For an actual instance of the selected representation-
+preserving original Call rule at `c`, its existing `VIncl(A_f,F_c)` conjunct
+instantiates the reviewed complete-bound accumulator directly. At the exact
+original endpoint-reference fiber, `F_c` enters `Upper_at_Call(A_f)` while the
+complete Call witness, `xi`, `Delta_c`, whole-argument relation, result
+inclusion, certificate and residual fields remain unchanged. This does not
+derive arrow subtyping from semantic `VIncl`, construct the Call instance from
+syntax, or identify the opaque edge with the current four-port native graph.
+
+This reduces the original correspondence gate by discharging the complete-edge
+accumulation step conditional on that source Call instance. The next owner is
+the source Application/Call constructor and its joint correspondence to the
+native Function4 graph under one assignment. The exact bounded derivation and
+fresh `compiler_referee` PASS are in
+[`invoke-original-call-proof.md`](../notes/theory/2026-10-11-invoke-original-call-proof.md#51-applying-complete-bound-simple-sub-to-an-original-call-derivation).
+The source Call constructor, complete residual discharge, full native
+correspondence, principality and F5 replacement remain OPEN. No tests, builds,
+probes or measurements ran. Pending question files remain excluded.
+
+### 2026-10-14 direct Simple-sub projection of native `f 1` edges
+
+The ordinary arrow/Application derivation is reused from the imported
+Simple-sub rules. For the actual Name/Int Apply spine, native construction
+emits `Int <= s`, `s <= Int`, and
+`alpha <= Function4(s, arg_effect, invocation_effect, beta)`, where `s` is the
+literal's distinct administrative Value row. Define the fragment projection
+`pi(Function4(a,ae,re,b)) = pi(a) -> pi(b)` and map both polarities of each
+Value row to the same ordinary type variable. This drops only the two effect
+ports from this ordinary typing calculation; all native effect edges and
+complete source residuals remain separately retained.
+
+Under the same projected constraint hypotheses, `pi` gives
+`alpha <= s -> beta`. The actual edge `Int <= s` and reflexivity of `beta`, by
+S-Fun, give `s -> beta <= Int -> beta`; transitivity yields
+`alpha <= Int -> beta`. For every single valuation satisfying those
+hypotheses, imported T-Var/T-Sub/T-Lit/T-App/T-Abs then derive the ordinary
+typing of `lambda f. f 1` at `alpha -> beta`. The opposite literal edge
+`s <= Int` is retained but is not needed for this implication. This proves no
+free-`alpha` typing without constraints and does not equate semantic
+`VIncl` with arrow subtyping.
+
+Fresh `compiler_referee` review passed the polarities, projection, same-valuation
+quantifiers and proof direction against the native constructors and paper
+rules. Status is **REDUCED** for the native Value-edge-to-ordinary-typing
+component of the original parent. This avoids repeating the S-App/S-Fun proof
+and leaves a distinct complete-contract bridge: relate `Application_N`'s
+`WF_Dec`, `VIncl`, `WholeArgCompatible`, `CIncl`, and full `Q_N` Kernel fiber
+to the scalar native Value/effect ports while retaining every provider,
+admission, W/Z alternative, scope, guard, future and residual. Extended solver
+equivalence, source/native soundness and completeness, principality and F5
+remain OPEN. Static source and independent review only; no tests, builds,
+probes or measurements ran. No files were committed; existing user changes and
+the excluded pending question remain untouched.
+
+### 2026-10-14 generic native Apply to ordinary typing
+
+The ordinary Application rule now applies at every actual `LocalSource` Apply,
+not only the literal example. For one valuation `theta`, take the recursively
+projected child derivations at the exact native callee and argument rows, and
+the emitted Value constraint after the ordinary projection:
+
+```text
+Gamma_theta |- erase(callee) : pi_theta(callee)
+Gamma_theta |- erase(argument) : pi_theta(argument)
+pi_theta(callee) <: pi_theta(argument) -> pi_theta(result)
+------------------------------------------------ T-Sub; T-App
+Gamma_theta |- erase(Apply(callee,argument)) : pi_theta(result)
+```
+
+This uses imported T-App/T-Sub directly. The actual Apply constructor retains
+those same child/result endpoints and emits the callee-to-negative-Function4
+edge; the native Value comparison reverses the Function argument and preserves
+its result. Projecting both Value polarities to the same ordinary type leaves
+exactly the displayed arrow constraint under the same `theta`. The two effect
+ports are erased only for this ordinary typing conclusion; complete Call
+meaning and effect obligations remain attached.
+
+For `f 1`, the existing literal edge `Int <: s` lifts the literal's `Int`
+derivation to the generated argument row `s`; Name uses the same formal row.
+Thus the generic constructor gives the body Application derivation, and T-Abs
+gives the lambda derivation under that same projected constraint valuation.
+This discharges the ordinary projected-typing part of `ApplicationTypingRule`
+for generated Apply nodes, including ordinary formal arguments. It does not
+derive projected constraint satisfaction from `VIncl` or complete `Q`, and it
+does not construct the authentic original Call/C0 or its complete residual.
+
+A fresh `compiler_referee` passed this generic constructor/endpoint review.
+Status is **REDUCED** for the source-Apply-to-ordinary-typing component of the
+parent. The original source/native Call theorem, complete Call/C0, solver
+soundness/completeness, principality and F5 replacement remain OPEN. Static
+source/review only; no tests, builds, probes or Git mutations ran. The existing
+pending question bundle remains untouched and excluded.
+
+### 2026-10-14 generic original Call-law application
+
+The ordinary `f 1` type derivation is imported from Simple-sub; no S-App,
+S-Fun or arrow-typing proof is repeated here. A direct parametric source-rule
+calculation now applies the existing L1/L2 original Call law to the actual
+Name, literal and inert carrier child constructors at `c`. It retains the
+original open whole-carrier operand for every admitted context, the separately
+indexed source diagonal, same-provider/current-world dispatch, all W/Z arms,
+dependent result/future fields and the entire unsolved residual. It introduces
+no separate `Q_c`, catalog-member or selected-Z premise. A fresh
+`compiler_referee` reviewed the construction and its diagonal boundary; both
+review findings were repaired and the delta passed.
+
+This proves only generic source-rule formation conditional on the original
+L1/L2 laws. It does not certify those laws for the actual compiler, establish
+the literal Name/Name Gen-Call-0 case, or discharge concrete C0/residual
+obligations. The actual native Apply constructor emits and submits
+`alpha <= Function4(s, argument_effect, invocation_effect, beta)`, but the
+reviewed construction does not derive its joint realization from the complete
+source Call record. The exact next owner is that realization: map
+`CarrierContract(F_c)` to `(s, argument_effect)` and the complete
+invocation/result interfaces to `(invocation_effect, beta)` under one
+valuation, preserving the open carrier, W/Z, providers, futures and evidence.
+This is **REDUCED** for generic source Call formation; the source/native parent,
+complete Call/C0, principality and F5 gates remain OPEN. Evidence is the frozen
+reviewed scratch derivation at `/tmp/2026-10-14-original-apply-direct-prover.md`;
+no tests, builds, probes or Git mutations ran.
+
+### 2026-10-14 declared Result operand to native Apply argument ports
+
+For the actual literal child of `my invoke f = f 1`, the existing source rule
+uses `Result(Value(Int)) = Comp(empty,Int)` as its complete `WholeArgCompatible`
+operand. This is the declared Result interface, not the literal's exact
+execution image. The actual `LocalSource` literal constructor emits
+`Int <= s <= Int` and `Bottom <= ae <= Empty`; the Apply constructor reuses
+those exact argument Value/Effect ports in its negative Function4 demand and
+submits them to the live solver. Under one satisfying valuation, this proves
+the native scalar argument row is equivalent to `Int` and has empty ordinary
+effect support. A fresh `compiler_referee` passed this bounded source/port
+calculation. No ordinary Simple-sub typing rule was reproved.
+
+This **REDUCES** the source/native gate at the declared argument-port
+correspondence and removes exact-image typing as a prerequisite for this
+operand. It does not derive the complete checked-inlet realization of
+`CarrierContract(F_c)` from the four scalar ports. The first remaining owner is
+the original Application argument-checking/CarrierContract Kernel and its
+native consumer, which must preserve the same carrier, all admitted
+alternatives, providers, worlds, evidence, futures and dependent binders. The
+selected immutable `id 0` checking case does not establish this symbolic
+`f`-callee law. Full source/native correspondence, complete Call/C0,
+soundness/completeness, principality and F5 remain OPEN. Evidence is the
+reviewed scratch derivation at
+`/tmp/2026-10-14-declared-result-to-native-argument-proof.md`; no tests,
+builds, probes or Git operations ran.
+
+### 2026-10-14 native formal/Name readout from source incidence
+
+The ordinary `f 1` Simple-sub derivation remains imported; this slice does not
+repeat it. Define a native Value-row interpretation by pulling back the
+unchanged source `ValueMem` predicate. At the actual unannotated `invoke`
+formal, assign the formal row the readout of `A_f`. The source collector
+registers the formal and resolved Name at the same parameter recipe; native
+initialization and both polarity lookups use that same row. Therefore both
+native polarities read the original `A_f` predicate on the same decorated
+value/provider/event tuple. An independent `compiler_referee` confirmed this
+definition-plus-incidence lemma and its scope.
+
+This **REDUCES** the definition/incidence portion of the source/native gate; it
+does not show that the native constraints hold, define a complete Function4,
+or prove source typing. The candidate's broader Function interpretation was
+not accepted: its displayed realization omitted the mandatory actual-callable
+guard, so an integer could pass vacuously. Keep that attempted clause out of
+the proof. The exact next semantic owner is the local Function4 constructor:
+the original Call supplies `VIncl`, whole-carrier checking and complete result
+inclusion, while native dispatch compares four scalar children. No reviewed
+law yet maps those complete clauses into the interned Function4 term while
+preserving shared terms, all providers/W/Z/futures and original scopes.
+
+The actual retained-input collector returns `Incomplete` on every successful
+collection and names filter obligations, producer readiness and dependent
+observations as unavailable. `ApplySourceInput` keeps source incidence and
+scalar ports but leaves the complete receiving `CarrierContract(F_c)` and
+checked-challenge assembly pending. This is concrete evidence about the
+current graph, not a mathematical impossibility or source counterexample.
+The source/native parent and complete Call/C0, solver correspondence,
+principality and F5 remain OPEN. Evidence is in `/tmp/2026-10-14-native-value-interpretation-construction.md`
+(§2 reviewed; §§4–5 unadopted) and
+`/tmp/2026-10-14-native-graph-lift4-owner-audit.md` (frozen, unreviewed).
+The separate finite-check closure note remains an L4 gate: endpoint closure
+does not provide `Phi(R)` readouts by itself, and it does not close this
+source/native Application seam. No tests, builds, probes or implementation
+changes ran.
+
+### 2026-10-14 compositional source Call introduction
+
+The user pointed to the direct constructive route in
+[`invoke-compositional-call-introduction.md`](../notes/theory/2026-10-14-invoke-compositional-call-introduction.md).
+Its repaired proof was independently reviewed by a compiler referee and a
+spec auditor. For the exact resolved unannotated Value-formal Name/Integer
+Application seam, it constructs the complete Call typing from the actual
+Strict-entry body, same-provider Function elimination, inert literal/Result/
+Delay, Bind, and every original generic Arm/alternative's own typed law. Its
+dependent result union retains each branch's provider, scope, evidence and
+future interface. This construction does not redo the ordinary `f 1`
+Simple-sub derivation or assume an already-typed Call/C0/kernel.
+
+This **REDUCES** the source-constructor portion of the original gate: under
+one lawful scoped assignment and the generated semantic inclusion
+`A_f <: F_c`, every constructed Call witness has the synthesized complete
+result contract. The same-scope assignment/reflexivity witness was withdrawn;
+the exact prechallenge lift from `Application_N`'s `Delta_c` to Parameter's
+`sigma_f`, including IF-use dependencies and one F_c across all body events,
+remains unproved. Thus source satisfiability, the native Function4 projection,
+complete native graph, Generalize/replay, principal output and F5 cutover stay
+OPEN. The original source/native parent is not closed. Static proof/review and
+`git diff --check` only; no tests, builds, probes or compiler changes.
+
+Next: construct the exact scope/restriction law for this fixed Application
+owner, then connect its complete demand/result/effect contracts to the emitted
+and consumed native Function4 edge under the same satisfying assignment.
