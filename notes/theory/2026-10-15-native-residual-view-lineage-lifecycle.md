@@ -1,6 +1,7 @@
 # Native residual views: lineage and lifecycle retention
 
-Status: unreviewed research derivation and precise activation obstruction.
+Status: reviewed bounded structural derivation and precise activation obstruction;
+fresh M2 `compiler_referee` found no findings.
 No theorem-status promotion or implementation authority.
 Baseline: `146ca9d2a8713398c893a9cae026ae0c2fae593d`.
 Branch: `research/simple-sub-intrusion`.
@@ -258,8 +259,9 @@ Lineage separation neither licenses subtraction nor disables required gamma
 parent/copy equality.
 
 By induction, I holds after any finite composition of these successful native
-transitions. This is a structural source derivation pending independent review.
-It does not prove that every logically necessary replay was activated.
+transitions. Fresh M2 `compiler_referee` review found no findings on this
+bounded structural source derivation. It does not prove that every logically
+necessary replay was activated.
 
 ## 6. First unsupported operational transition and falsifiers
 
@@ -367,9 +369,9 @@ handler residual integration from this result.
 Commit packet: exact leased path
 `notes/theory/2026-10-15-native-residual-view-lineage-lifecycle.md`; baseline
 `146ca9d2a8713398c893a9cae026ae0c2fae593d`; changed direct dependencies: none
-in the checked baseline comparison. Review: unreviewed research-only structural
-derivation plus activation obstruction; H1/H2/U OPEN, H3/P disabled,
-production/F5 separate. Checks already run: static owner/consumer trace,
+in the checked baseline comparison. Review: fresh M2 `compiler_referee` found no
+findings on the bounded structural claim; the activation obstruction remains
+open. H1/H2/U OPEN, H3/P disabled, production/F5 separate. Checks already run: static owner/consumer trace,
 baseline/branch reads and dependency hashes; no executable verification.
 Proposed one-line checkpoint message:
 `research: derive native view lineage retention and isolate extrusion activation`.

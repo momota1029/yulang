@@ -5684,3 +5684,132 @@ fn delayed_replay_uses_stored_demand_source_association() {
 fn task_pair_to_task(pair: TypedPairKey) -> LiveConstraintTask {
     match pair { TypedPairKey::Value(pair) => LiveConstraintTask::Value(pair), TypedPairKey::Effect { lower, upper } => LiveConstraintTask::Effect(lower, upper) }
 }
+
+// Provisional finite native-operation observer. This does not assert H2 closure,
+// source Catch reachability, H1/U, or production correctness.
+#[test]
+fn observe_structural_value_extrusion_current_and_late_allowance_pairs() {
+    fn drain(session: &mut InferenceSession, task: LiveConstraintTask, slot: u8) -> Vec<LiveConstraintTask> {
+        let (occurrence, cause) = cause(session, slot);
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let previous_processing = algebra.processing;
+        let previous_relation = algebra.context.processing;
+        let index = session.start_typed_drain(TypedWorkItem { task, relation: None, replay_ack: None },
+            &occurrence, &cause, None, None).unwrap();
+        let mut queued_effects = Vec::new();
+        for _ in 0..256 {
+            for item in &session.typed_worklist {
+                if matches!(item.task, LiveConstraintTask::Effect(..)) && !queued_effects.contains(&item.task) {
+                    queued_effects.push(item.task);
+                }
+            }
+            if let DrainStep::Complete(_) = session.step_typed_drain(index).unwrap() {
+                assert!(session.typed_worklist.is_empty());
+                assert!(state(session).typed_drains.is_empty());
+                session.candidate_processing(previous_processing);
+                session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous_relation;
+                return queued_effects;
+            }
+        }
+        panic!("bounded observer exceeded 256 drain steps");
+    }
+
+    let mut session = session_with_source("act E\nact F\nmy seed x = x");
+    let owner = empty_bundle_owner(&session);
+    let declarations = session.batch.hir.source_effect_declarations();
+    let allowed = declarations.iter().find(|d| d.spelling.as_ref() == "E").unwrap().id.clone();
+    let unmatched = declarations.iter().find(|d| d.spelling.as_ref() == "F").unwrap().id.clone();
+    let tail = session.fresh_effect_at_level(2).unwrap();
+    let source = session.fresh_effect_at_level(2).unwrap();
+    let symbolic = session.fresh_effect_at_level(1).unwrap();
+    let views: Vec<_> = (0..2).map(|_| session.candidate_effect_view(owner.clone(),
+        allowed.declaration.clone(), vec![allowed.clone()], Some(tail)).unwrap()).collect();
+    assert_ne!(views[0], views[1]);
+    let (occurrence, cause) = cause(&session, 0);
+    // Level 1 < level 2 selects a positive lower on source; it is symbolic and
+    // already present when both distinct cuts are admitted by their live owner.
+    session.constrain_live(LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(symbolic),
+        EffectEndpointKey::EffectRow(source)), &occurrence, &cause).unwrap();
+    for &view in &views {
+        session.constrain_live(LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(source),
+            EffectEndpointKey::Allowance(view)), &occurrence, &cause).unwrap();
+    }
+    assert!(session.effect_bounds[source as usize].direct_lower_rows.contains(&symbolic));
+    let original_lower = BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source)),
+        Polarity::Positive, ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(symbolic)));
+    let original_cuts: Vec<_> = views.iter().map(|&view| BoundKey(original_lower.0,
+        Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view)))).collect();
+    for &bound in original_cuts.iter().chain(std::iter::once(&original_lower)) {
+        assert!(state(&session).bound_relations(bound).next().is_some());
+    }
+
+    // Same structural result-effect port as the existing mixed-Allowance
+    // fixture, but lib.rs Value dispatch owns the call to candidate_extrude.
+    let effect = session.live_effect_term(Polarity::Positive, tail).unwrap();
+    let function = session.positive_function_term(
+        session.batch.collected_leaf_term(Leaf::IntNegative),
+        session.batch.collected_leaf_term(Leaf::EmptyEffectNegative), effect,
+        session.batch.collected_leaf_term(Leaf::IntPositive)).unwrap();
+    let receiver = session.fresh_value_at_level(1).unwrap();
+    let structural = LiveConstraintTask::Value(CanonicalValuePairKey {
+        lower: ValueEndpointKey::PositiveFunction(function), upper: ValueEndpointKey::ValueRow(receiver),
+    });
+    let transform_start = state(&session).evidence.transforms.len();
+    let queued_current = drain(&mut session, structural, 1);
+    let copied_function = session.bounds[receiver as usize].exact_non_variable_lowers.iter().find_map(|endpoint|
+        match endpoint { ValueEndpointKey::PositiveFunction(term) => Some(*term), _ => None }).unwrap();
+    assert_ne!(function, copied_function);
+    let (_, _, effect, _) = InferenceSession::positive_function_children(&session.store,
+        ValueEndpointKey::PositiveFunction(copied_function)).unwrap();
+    let EffectEndpointKey::EffectRow(copied_tail) = session.effect_endpoint(effect, Polarity::Positive)
+        else { panic!("structural copy retains effect-row result port") };
+    assert_ne!(tail, copied_tail);
+    let mut copied_cuts = Vec::new();
+    for &original in &original_cuts {
+        // Only positive tail incidence reconstructs these negative cuts here:
+        // Work::IncomingAllowance, not selected negative Work::Bound traversal.
+        let transforms: Vec<_> = state(&session).evidence.transforms[transform_start..].iter()
+            .filter(|t| t.from == original && matches!(t.reason, TransportReason::Extrusion { .. })).copied().collect();
+        assert_eq!(transforms.len(), 1);
+        let transform = transforms[0];
+        let BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copy_source)), Polarity::Negative,
+            ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(copy_view))) = transform.to else { panic!("copied cut") };
+        assert_ne!(copy_source, source);
+        assert!(!views.contains(&copy_view));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[copy_view as usize].tail, Some(copied_tail));
+        assert!(state(&session).dependency_keys.contains(&Dependency::Transport { child: transform.child_relation,
+            parent: transform.source_relation, use_origin: 0, witness: Some(TransportWitness {
+                from: original, to: transform.to, reason: transform.reason }) }));
+        assert!(session.effect_bounds[copy_source as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(copy_view)));
+        copied_cuts.push(transform.to);
+    }
+    assert_eq!(copied_cuts[0].0, copied_cuts[1].0);
+    assert_ne!(copied_cuts[0].2, copied_cuts[1].2);
+    let copied_lower = BoundKey(copied_cuts[0].0, Polarity::Positive, original_lower.2);
+    // This positive selected lower is Work::Bound's separate transport route.
+    assert!(state(&session).evidence.transforms[transform_start..].iter().any(|t|
+        t.from == original_lower && t.to == copied_lower));
+    for &bound in copied_cuts.iter().chain(std::iter::once(&copied_lower)) {
+        assert!(state(&session).bound_relations(bound).next().is_some());
+        eprintln!("current_cut transported_bound={bound:?} origin_count={}", session.candidate_bound_origin_count(bound));
+    }
+    let current_replays: Vec<_> = state(&session).dependencies.iter().filter(|dependency|
+        matches!(dependency, Dependency::Replay { lower_input, upper_input, .. }
+            if *lower_input == copied_lower && copied_cuts.contains(upper_input))).copied().collect();
+    eprintln!("current_cut original_lower={original_lower:?} original_cuts={original_cuts:?} copied_lower={copied_lower:?} copied_cuts={copied_cuts:?} replay_dependencies={current_replays:?} queued_effects={queued_current:?}");
+
+    let late = session.candidate_effect_contribution(unmatched.clone(), unmatched.declaration.clone()).unwrap();
+    let ExtrusionEndpoint::Effect(copy_source) = copied_cuts[0].0 else { unreachable!() };
+    let dependency_start = state(&session).dependencies.len();
+    let queued_late = drain(&mut session, LiveConstraintTask::Effect(late, copy_source), 2);
+    let late_lower = BoundKey(copied_cuts[0].0, Polarity::Positive, ExtrusionEndpoint::Effect(late));
+    for &cut in &copied_cuts {
+        assert!(state(&session).dependencies[dependency_start..].iter().any(|dependency|
+            matches!(dependency, Dependency::Replay { lower_input, upper_input, .. }
+                if *lower_input == late_lower && *upper_input == cut)));
+    }
+    assert!(session.effect_bounds[copied_tail as usize].exact_non_variable_lowers.contains(&late));
+    eprintln!("current_cut late_lower={late_lower:?} replay_dependencies={:?} queued_effects={queued_late:?} drained_tail_lowers={:?}",
+        &state(&session).dependencies[dependency_start..], session.effect_bounds[copied_tail as usize].exact_non_variable_lowers);
+    assert!(session.errors.is_empty());
+}

@@ -280,11 +280,18 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - Result: the direct callable constructor takes an independently interpreted whole-carrier entry interface `I` at `ParameterOrigin`. Native parameter/Function construction retains source identity, a shared row and polarized handles but not `I`, complete admission/observation meaning or its lawful scoped action. The first concrete fields needing independent interpretation are initial/pre-receipt and pending observations, including typed paths, request/response/raw-handle correspondence and current-world/phase guards. No impossibility or semantic decision follows. The exact two-closure simultaneous constructor is a selected local interpretation; this audit does not extend it to arbitrary formal registration.
 - Review/evidence: read-only architect report `notes/theory/2026-10-15-original-value-descriptor-kernel-audit.md`; fresh M2 `compiler_referee` found no blocking, major or minor findings. Primary verified named native source files unchanged from `8d629a54b` through review baseline `0bab425f8`. Zero tests/builds/probes/measurements or code edits. H1/H2/U OPEN; H3/P disabled.
 
-### H1-L — original Entry-Value interface to native parameter bridge（次の proof/source gate）
+### H1-L — original Entry-Value interface to native parameter bridge（reviewed bounded obstruction）
 
-- Construct the original whole-carrier entry interface at `ParameterOrigin` and map it to the actual native argument/value-effect pair, or isolate the first unsupported phase/guard action. Include initial and pending observations, typed paths, request/response/raw-handle links, current-world guards, and lawful joint scoped substitution. Keep one original `sigma`, actual providers/futures, raw resumptions, and each residual contribution distinct.
-- Inputs: reviewed H1-K report; original Entry-Value/ContextualFunction clauses; contextual membership and semantic-input realization; source Call/input construction; source formal/parameter registration, Apply demand formation, Function term and IF-Use consumer. Treat candidate clauses as candidate where their scope exceeds Authoritative definitions.
-- First action: one bounded constructive `prover` packet plus an independent `researcher` attack on the first missing formation/action premise, each on a disjoint research-only output. Primary freezes both, validates dependencies/source correspondence, then assigns one fresh semantic reviewer to the pair. No native graph shell, code patch, source narrowing, or new user-visible meaning before the relation is established. H1/H2/U OPEN; H3/P disabled.
+- Frozen pair: `notes/theory/2026-10-15-entry-interface-native-bridge-construction.md` and `notes/progress/2026-10-15-entry-interface-native-bridge-falsifier.md`, baseline `8e7f249cf94c06fb15c3e8da94d41f57c3f8ed65`; both are committed and pushed.
+- Result: actual formal registration/shared Value row, Lambda entry-effect accumulation, and Apply argument/value-effect endpoints form a positive native prefix. Both methods stop at the original Entry-Value designated entry's initial/pre-receipt interpretation and lawful dependent action at `ParameterOrigin`, including current-world/phase guards. The selected two-closure constructor assumes independently interpreted `I_x/I_y`; it does not bridge arbitrary formal registration to the native pair. This is a bounded source/native obstruction, not source impossibility, a runtime failure, or a parent theorem.
+- Review: fresh M2 `compiler_referee` reviewed the pair with no findings. Parent H1/H2/U remain OPEN; H3/P disabled. Keep later pending/raw-handle obligations distinct and do not repeat another shape-only or equivalent initial-interface reconstruction.
+
+### H2 current copied-Allowance activation — active evidence slice
+
+- Reviewed input: `notes/theory/2026-10-15-native-residual-view-lineage-lifecycle.md`. Fresh M2 `compiler_referee` found no findings on its bounded structural derivation. Distinct view IDs, per-use `(old view, mapped tail)` sharing, capture incidence and qualifying intrusion replay are established for the named successful native routes. The current-pair activation bridge at `Work::IncomingAllowance` / `Work::Bound` remains OPEN; bound storage and origin transfer alone prove neither activation nor loss.
+- At baseline `d8a6209c1`, the `prover` derivation at `notes/theory/2026-10-15-extrusion-current-cut-activation-construction.md` and independent `researcher` falsifier at `notes/progress/2026-10-15-extrusion-current-cut-activation-falsifier.md` froze as a bounded pair. A fresh M2 `compiler_referee` found no findings. Both preserve the original quantifiers, reject an already-forwarded atomic Contribution as a false witness, and leave current symbolic/context activation OPEN.
+- The test-only observer is at `crates/yu-solver/src/candidate_context_tests.rs::observe_structural_value_extrusion_current_and_late_allowance_pairs`; the primary's runtime evidence is recorded in `notes/progress/2026-10-15-extrusion-current-cut-activation-observation.md`. It reaches extrusion through structural Value dispatch, admits distinct views with the same source/tail rows, records a copied symbolic lower without a current Replay dependency, and confirms a later direct lower replays to both copied cuts and the tail. It does not manually enqueue the replay under investigation. The exact focused test passed after one test-only compile repair; a fresh M2 `spec_auditor` found no findings.
+- Next, one static `researcher` owns `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` at the same source baseline. It traces a later lower through the original symbolic row and its reused/remapped copies, separates already-forwarded from pending effects, and stops at the first unavailable consequence. No Cargo or code edits. H1/H2/U remain OPEN; H3/P disabled; production/F5 separate.
 
 ## 5. 判定に使う最小の確認
 
@@ -342,10 +349,14 @@ guards・labels・tuple patterns、完全な Call、型推論全体の性質、b
 
 ### 再開用の短い指示
 
-> `tasks/effects-handler-next.md` を実行入口として、現在の HEAD と段階表を照合し、
-> 最初の未完了段階から進める。Luna は primary を継続する。今の開始点は H1。
-> 既存の衛生性証明と P を再証明せず、source callback profile と live context の
-> 欠けている構築を埋める。H1-A/B を分担し、必要な最小構築を H1-C へ渡す。
+> `tasks/effects-handler-next.md` と `tasks/current.md` を実行入口として、現在の HEAD と
+> 最新 checkpoint を照合する。Luna は primary を継続する。H1-L の reviewed bounded
+> obstructionと H2 の reviewed structural/activation slice を繰り返さない。今は
+> `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` の bounded
+> static owner audit を完了し、結果から actual source correspondence の次の premise を選ぶ。
+> Cargo budget は observer の二回で消費済み。H1/H2/U を早期に閉じず、既存の衛生性 proof
+> と P は premises をソースへ対応づけてから使う。H3/P と production/F5 は必要条件が
+> 満たされるまで無効のままにする。
 > 完成済みの parser・payload/raw-k 制約・回答済み question は再開しない。
 > 新しい言語上の選択だけを user に返し、独立した承認済み作業は続ける。
 

@@ -2,7 +2,49 @@
 
 Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active; selected source/projection theorems and bounded HIR/core shadow mappings exist, while source completeness, inference/principality, production correspondence, successor approval and F5 cutover remain open
+Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic-lower bridge remains OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
+
+## Current checkpoint (2026-10-15)
+
+- **H1-L:** the reviewed prover/researcher pair preserves the original
+  quantifiers and establishes the native formal-row, Lambda entry-effect and
+  Apply argument/effect prefix. Both stop at the initial/pre-receipt
+  interpretation and lawful dependent action of the original Entry-Value
+  interface at `ParameterOrigin`. This is a bounded source/native obstruction,
+  not a source counterexample or impossibility result. See the
+  [construction](../notes/theory/2026-10-15-entry-interface-native-bridge-construction.md)
+  and [independent falsifier](../notes/progress/2026-10-15-entry-interface-native-bridge-falsifier.md);
+  fresh M2 `compiler_referee` review found no findings.
+- **H2 lineage:** the reviewed structural derivation preserves distinct native
+  view IDs, per-use sharing, capture incidence and qualified intrusion replay.
+  Current copied-cut activation remains unproved at
+  `Work::IncomingAllowance` / `Work::Bound`; absence of a direct replay call
+  alone is not a lost-effect counterexample. The reviewed structural-dispatch
+  observation finds no direct current Replay for one copied symbolic lower,
+  while a later lower on the copied source replays to both copied views and its
+  tail. It does not establish a lost source effect or equivalent-completeness
+  failure. See the [lineage derivation](../notes/theory/2026-10-15-native-residual-view-lineage-lifecycle.md)
+  and [activation observation](../notes/progress/2026-10-15-extrusion-current-cut-activation-observation.md).
+- **Catch coverage:** the reviewed source audit finds that current Catch
+  forwards scrutinee effects and joins arm effects separately; it emits no
+  subtraction or delivered-input operation-coverage fact. A same-family
+  unmatched request is not covered by an arm for another operation. Eligibility
+  remains separate. The one review finding on non-head unmatched survivors was
+  repaired and delta-reviewed; see the
+  [audit](../notes/progress/2026-10-15-catch-consumption-coverage-source-audit.md).
+- **H2 activation checkpoint:** the constructive derivation and independent
+  falsifier at baseline `d8a6209c1` were reviewed together by a fresh M2
+  `compiler_referee` with no findings. Both preserve the original source
+  quantifiers, reject the saturated atomic false witness, and stop at complete
+  checking of copied symbolic lowers/contextual consequences. A fresh M2
+  `spec_auditor` found no findings in the test-only observer. Its exact focused
+  test passed after one test-only compile repair. Parent H1/H2/U remain OPEN;
+  H3/P stays disabled; production/F5 remain separate.
+
+The user's selected local protection law remains fixed at the original upper
+Function demand's `Eout`; older broader-position notes do not reopen that
+scoped decision. No source narrowing, new semantic choice, production route,
+soundness/principality claim, or F5 cutover follows from these bounded results.
 
 ## Execution entrypoint: effects/handler handoff
 
@@ -15668,3 +15710,43 @@ freshening, aliases/returns, complete source-path transport, dynamic
 Receive/Observe, H1/H2/U, Catch residual H3, complete Call, soundness,
 principality, and production/F5 cutover remain OPEN; H3 stays disabled until
 its H1/H2 prerequisites are met.
+
+### 2026-10-15 current copied-Allowance activation wave
+
+The next decisive H2 premise is current-pair activation at
+`Work::IncomingAllowance` / `Work::Bound`. These constructors store copied
+bounds and transfer evidence; that fact alone neither proves nor disproves
+their later comparison consequences. Keep stored bounds, queued work, drained
+work and resulting obligations distinct.
+
+At baseline `d8a6209c1`, three disjoint methods were assigned. The proof,
+falsifier, and test-only observer are frozen. A follow-up static owner audit is
+active for the copied symbolic lower's continuation:
+
+- **Constructive proof:** `prover` owns
+  `notes/theory/2026-10-15-extrusion-current-cut-activation-construction.md`.
+  Fresh M2 `compiler_referee` reviewed the paired construction and falsifier
+  with no findings. Atomic factorization remains conditional; full symbolic
+  activation remains OPEN.
+- **Independent attack:** `researcher` owns
+  `notes/progress/2026-10-15-extrusion-current-cut-activation-falsifier.md`.
+  The reviewed static attack rejects an already-forwarded atomic false witness
+  and finds no source-qualified counterexample.
+- **Reversible observation:** frozen in
+  `crates/yu-solver/src/candidate_context_tests.rs::observe_structural_value_extrusion_current_and_late_allowance_pairs`.
+  It reaches extrusion through actual structural Value dispatch and never
+  synthesizes the replay under investigation. The focused test passed, and a
+  fresh M2 `spec_auditor` found no findings. See the [runtime report](../notes/progress/2026-10-15-extrusion-current-cut-activation-observation.md).
+
+- **Next static owner audit:** a `researcher` has the exclusive lease
+  `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md`.
+  It traces a later lower through the observer's reused symbolic row, original
+  cuts, copied source and tail; then compares the genuinely remapped row case at
+  `Visit`. No Cargo/tests/probes or compiler edits. Stop at the first missing
+  route or a complete bounded continuation argument.
+
+The test is finite native evidence only; it establishes neither source Catch
+reachability nor a lost source effect. Parent H2 remains OPEN until the original
+current/future activation obligation is proved or a source-qualified
+counterexample is established; H1/U stay OPEN, H3/P disabled, and production/F5
+separate.

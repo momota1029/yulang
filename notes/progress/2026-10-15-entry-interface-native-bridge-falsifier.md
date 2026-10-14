@@ -1,7 +1,8 @@
 # H1-L: entry-interface/native bridge challenge
 
 Date: 2026-10-15
-Status: frozen, unreviewed research-only bounded source characterization
+Status: frozen, reviewed research-only bounded source characterization;
+fresh M2 `compiler_referee` found no findings on the paired artifact
 Method: independent constructor inversion and first-rule challenge
 Baseline: `8e7f249cf94c06fb15c3e8da94d41f57c3f8ed65`
 Branch: `research/simple-sub-intrusion`
@@ -227,8 +228,9 @@ cc5778b936a5495182c08d4853ab9ef006d079df5e169dd94df629c2d82f3199  crates/yu-solv
 - Baseline: `8e7f249cf94c06fb15c3e8da94d41f57c3f8ed65`.
 - Changed dependency: H1-K review-provenance-only delta, old/new SHA-256 above;
   other listed direct dependencies match the pinned source snapshot.
-- Claim/review status: bounded first-rule obstruction; unreviewed, frozen;
-  no source counterexample or theorem/parent-gate promotion.
+- Claim/review status: bounded first-rule obstruction; fresh M2
+  `compiler_referee` reviewed the paired artifact with no findings; no source
+  counterexample or theorem/parent-gate promotion.
 - Checks already run: narrow source/authority reads, exact-path baseline
   diff, dependency SHA-256 capture, and `git diff --check --no-index /dev/null`
   on the leased note (pass); no executable verification.
