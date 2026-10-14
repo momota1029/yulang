@@ -31,6 +31,18 @@ scope. Exact evidence is in the
 H1/H2/U remain OPEN and H3 remains disabled. See the current handoff for its
 exact lease and limits.
 
+The receiving-call field observation is now frozen in
+[`raw Function field correspondence`](../notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md).
+Its focused test passed twice. Four Parent records share the authenticated
+source relation, but the later consumer ancestry is `FreshUse 66→13` then
+`Derived 13→5`, with no Extrusion Function witness; it therefore does not
+observe any Parent-to-field candidate or exact consumer-input flag. The
+independent static `Work::Function`/`Work::Bound` seam is not established as
+the first runtime break. A bounded source audit of root Function rewrite,
+relation admission and captured-bound/FreshUse restoration is active. No
+profile positions or protection semantics were selected; H1/H2/U remain OPEN,
+H3/P disabled.
+
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
 One run matched the inner `x` domain to a positive copy at target level 1; the

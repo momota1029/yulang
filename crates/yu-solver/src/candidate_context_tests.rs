@@ -737,6 +737,67 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
                         .filter_map(|&(index, copy_source)| (copy_source == source).then_some(index))
                         .collect();
                     eprintln!("cb_source_relation_consumer source_relation={source:?} matching_copy_initiator_parents={matching_copy_parents:?} replay={replay:?} argument_dependency={dependency:?} upper_ancestry={seen:?}; source-to-copy initiation and source-to-consumer ancestry share a source relation, with no retained per-copy field path");
+                    // Inspect only actual retained upper-ancestry transports.
+                    // Decode raw term identities: endpoint translators canonicalize
+                    // rows and would erase precisely the distinction under study.
+                    let raw_row = |term, polarity, kind| {
+                        match session.store.term_view(term).unwrap() {
+                            TermView::LiveVariable(view) if view.kind() == kind && view.polarity() == polarity => {
+                                Some(match kind {
+                                    ComponentKind::Value => candidate_scheme::RowKey::Value(view.ordinal()),
+                                    ComponentKind::Effect => candidate_scheme::RowKey::Effect(view.ordinal()),
+                                })
+                            }
+                            TermView::Component(component) if component.kind() == kind => {
+                                let ordinal = session.component_endpoint(term).ordinal;
+                                Some(match kind {
+                                    ComponentKind::Value => candidate_scheme::RowKey::Value(ordinal),
+                                    ComponentKind::Effect => candidate_scheme::RowKey::Effect(ordinal),
+                                })
+                            }
+                            _ => None,
+                        }
+                    };
+                    let mut function_witnesses = 0;
+                    for edge in &context.dependencies {
+                        let Dependency::Transport { child: transported, parent: antecedent,
+                            witness: Some(witness), .. } = *edge else { continue; };
+                        if !seen.contains(&transported) || !seen.contains(&antecedent) { continue; }
+                        let TransportReason::Extrusion { .. } = witness.reason else { continue; };
+                        let polarity = witness.from.1;
+                        if witness.to.1 != polarity { continue; }
+                        let (ExtrusionEndpoint::Value(from), ExtrusionEndpoint::Value(to)) =
+                            (witness.from.2, witness.to.2) else { continue; };
+                        let ports = |endpoint| match endpoint {
+                            ValueEndpointKey::PositiveFunction(_) => InferenceSession::positive_function_children(&session.store, endpoint),
+                            ValueEndpointKey::NegativeFunction(_) => InferenceSession::negative_function_children(&session.store, endpoint),
+                            _ => None,
+                        };
+                        let (Some(before), Some(after)) = (ports(from), ports(to)) else { continue; };
+                        function_witnesses += 1;
+                        let opposite = match polarity { Polarity::Positive => Polarity::Negative, Polarity::Negative => Polarity::Positive };
+                        let fields = [
+                            (FunctionField::Argument, before.0, after.0, opposite, ComponentKind::Value),
+                            (FunctionField::ArgumentEffect, before.1, after.1, opposite, ComponentKind::Effect),
+                            (FunctionField::ResultEffect, before.2, after.2, polarity, ComponentKind::Effect),
+                            (FunctionField::Result, before.3, after.3, polarity, ComponentKind::Value),
+                        ];
+                        // Exact BoundKey identity authenticates the final upper
+                        // input. Matching Function endpoints alone does not.
+                        let exact_consumer_input = transported == upper && witness.to == upper_input;
+                        eprintln!("cb_function_transport edge={edge:?} from_ports={before:?} to_ports={after:?} exact_consumer_input={exact_consumer_input}; inspect all fields, no endpoint-only output attribution");
+                        for &index in &matching_copy_parents {
+                            let copy = &session.candidate_graph.as_ref().unwrap().intrusion.parents[index];
+                            let matches: Vec<_> = fields.iter().filter_map(|&(field, original, output, field_polarity, kind)| {
+                                (copy.polarity == field_polarity && raw_row(original, field_polarity, kind) == Some(copy.parent)
+                                    && raw_row(output, field_polarity, kind) == Some(copy.copy))
+                                    .then_some(field)
+                            }).collect();
+                            eprintln!("cb_raw_copy_field_candidates parent_index={index} raw_parent={:?} raw_copy={:?} polarity={:?} fields={matches:?} exact_consumer_input={exact_consumer_input}; empty candidates do not identify selected-bound descendants; repeated/shared candidates remain ambiguous",
+                                copy.parent, copy.copy, copy.polarity);
+                        }
+                    }
+                    eprintln!("cb_copy_field_frontier source_relation={source:?} upper_ancestry={seen:?} eligible_extrusion_function_witnesses={function_witnesses}; runtime_obstruction=no qualifying Extrusion Function TransportWitness on authenticated consumer ancestry, so no per-copy field candidate or exact consumer-input flag was evaluated; static retention frontier: Work::Function child-key/output association versus Work::Bound selected descendant; this static seam is not established as the first consumer-path break");
                 }
             }
             let outer_constructor = incidence.as_ref().is_some_and(|incidence| incidence.comparison == parent && incidence.construction.source.lambda == selected[0].3);

@@ -1,6 +1,6 @@
 # エフェクト・ハンドラ実装：次の実行計画
 
-- 日付: 2026-10-14
+- 日付: 2026-10-15
 - 対象: `research/simple-sub-intrusion`
 - 実装基準: `343754251a1e6af057eb0b45be660cb882ea8391`
 - 位置付け: 既存の承認事項を実行するための引き継ぎ。新しい言語仕様・実装権限の承認ではない。
@@ -61,10 +61,21 @@
    これは source relation から copy initiation と consumer ancestry への二つの経路で、
    個々の copied row の Function field path は残らない。profile positions や protection の
    意味は選ばず、H1/H2/U は OPEN、H3/P は無効のまま。
-   次の bounded discriminator は、保持された TransportWitness と Function term の
-   実際の4-field substitution をたどり、個々の Parent copy が `cb x` の exact Argument
-   consumer に入るかを test-only に調べること。直接 Function field と選択 bound の子孫を
-   分け、曖昧または欠落したら最初の所有箇所で止める。production field や profile rule は足さない。
+   続く [raw Function field observation](../notes/progress/2026-10-15-omitted-formal-copy-field-correspondence.md)
+   は exact focused test を2回通過した。4つの Parent は initiating source `RelationId(5)` に
+   対応した一方、後続 `cb x` consumer の upper ancestry は `66 --FreshUse--> 13 --Derived--> 5`
+   で、そこに qualifying Extrusion Function `TransportWitness` は0件だった。そのため field
+   candidate set と exact consumer-input flag は観測されていない。source 上の静的 frontier は
+   `Work::Function` の child/output と個別 Parent の結び付き、または `Work::Bound` の selected
+   descendant との区別に残るが、この実行はそれが consumer path の最初の切れ目とは示していない。
+   1件の minor な報告表現を直し、focused test を再実行した。protection、profile positions、H1/H2/U
+   は変わらず OPEN、H3/P は無効。
+
+   現在の bounded lane は、同じ fixture の root Function rewrite/extrusion、relation admission、
+   captured-bound restoration、後続 FreshUse までを source から監査する。`lib.rs::dispatch_live_item`
+   の再投入経路と `candidate_context_admit` が `Derived 13→5` を説明するか、後続 consumer が
+   `FreshUse 66→13` を介してその root を受け取るかを照合し、最初の未認証遷移で止める。
+   test-only の field trace をもう一度数えること、production field や profile rule の追加は対象外。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
