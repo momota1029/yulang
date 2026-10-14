@@ -90,11 +90,24 @@ first missing edge: the authenticated Apply introduction still reaches
 impossibility result, or runtime misprotection counterexample. The architect
 confirmed that the local omitted-formal law is already selected: introduce
 protection at that original upper demand's `ResultEffect`, preserving inherited
-protection and adding no provider-output backflow. The next gate is a reversible
-private candidate/playground prototype of that constructor and consumer under
-the same assignment. H1/H2/U remain OPEN; H3/P remain disabled, and the
-prototype must stop before inventing receiver/receipt authority or changing
-production/cutover behavior.
+protection and adding no provider-output backflow. Two H1-E implementation
+passes stopped before editing code: the existing carrier has only inert
+inferred-entry metadata and zero-word Allowance filters, and a schema-only
+ContextExpr would be metadata without an executable protection classifier.
+The structural proof note was independently reviewed with no findings for its
+bounded Function4 routing/admission claim; its operational premise remains
+OPEN. A fresh architect adjudication confirms that the static
+Lambda/formal/scope/Apply/ResultEffect tuple identifies the directional
+introduction but not an activation-sensitive receiver view. This is a
+representation/source-correspondence gap, not a new user semantic vote. The
+owner map found a conditional typed-incidence classifier in
+`yu-core::shadow_typed_evidence::query_conditionally`, but it has no native
+source producer: current HIR/Lambda admission records syntax and lexical scope,
+not a receiving-call entry/expiry identity. Its boundary, active roots, Receive,
+Observe and typed path are caller-supplied assumptions. The next paired proof
+and falsifier target that exact source-entry-to-typed-evidence bridge. No
+implementation resumes until this source owner is established or its exact
+missing realization input is fixed.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
