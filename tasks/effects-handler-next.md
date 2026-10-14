@@ -247,13 +247,21 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - Result: selected Call semantics is already settled; actual Apply/native Function4 fields do not construct authentic complete `Gen-Call-0`/`FrameCall`/`Q_e`. The first missing owner is complete interface elaboration at source registration/operators, before receiver activation. This is a source/native correspondence gap, not a source impossibility or execution counterexample. H1-G closes only this static locator and review; H1/H2/U remain OPEN and H3/P disabled.
 - Verification: static dependency/locator/hash checks and `git diff --check`; zero Cargo/tests/builds/probes/measurements. No production representation or implementation authority follows.
 
-### H1-H — bounded source-interface graph construction proposal（reviewed; user choice required before prototype）
+### H1-H — bounded source-interface graph construction proposal（reviewed; first absent telescope now targeted）
 
 - Baseline: `cb216f7e8e60b3839ac6756308acd021bbd146c8`.
 - Packet: `notes/theory/2026-10-15-source-call-interface-native-construction-packet.md`. It narrows the previously reviewed finite dependent Call-graph proposal to source registration/operator elaboration through one Apply record and maps every original `Idx(e)` group to existing or missing source/native owners.
 - Proposed invariants: allocate source type variables and constraints before solving; retain a whole dependent contract graph with an open whole-carrier slot; map all native Function4 fields jointly; apply one scoped `sigma` to nodes and edges; keep C_in and C_cb separate. It claims no complete C0, admission, execution receiver, Receive/Observe, expiry, H1/H2/U, production route, or cutover.
 - Review: fresh M2 `compiler_referee` (dependent structure and source correspondence) and `spec_auditor` (exact authority and approval boundary) found no blocking, major or minor findings. Static text/source review only; no Cargo/tests/builds/probes/measurements. The packet is non-authoritative and grants no implementation authority.
-- Next decision after review: ask whether to prototype this exact source-registration/operator-to-Apply slice in the private playground, select a different behavior-preserving owner, or defer. Until the user adopts a concrete representation, no graph implementation starts. Parent H1/H2/U stay OPEN; H3/P disabled.
+- Authorization: the user's existing explicit playground instruction covers reversible private evidence work; durable graph adoption and production routing remain gated. The first proposed graph shell would duplicate `PendingCallConstruction` because it cannot yet construct the authentic formal telescope. No code was started.
+- Selector adjudication: at baseline `e53493916`, registered `next_action_selector` (configuration requests `gpt-6.1-sol` / medium; runtime-observed model and effort were not exposed) found the first missing producer is the authentic declared dependent interface `T_f` and inferred-contract reference `R_f` at formal registration. The next action must construct or precisely obstruct these at their source owner before IF-Use/Apply consumes them. This changes the method from gap inventory to the actual missing constructor; a conditional receiver proof or larger probe cannot supply it.
+
+### H1-I — formal-registration interface construction（prover active; bounded source-correspondence proof）
+
+- Lease: `prover` writes only `notes/theory/2026-10-15-formal-registration-interface-construction.md`; baseline `e53493916`. Read the source-interface definition §§2–4 and construction §§2–5, original Call formation §§2–4, H1-G artifacts, H1-H packet, and exact formal-registration/use/Apply owners. No Rust, shared records, questions or Git writes.
+- Claim: derive the declared dependent telescope `T_f` and original root reference `R_f` from the authentic registration inputs, or identify the first original judgment/input with no producer. Preserve one scoped substitution through each use edge. Do not solve first, assume the completed telescope, or manufacture licenses.
+- Discriminator: every required original field/interface reference has an independently justified constructor, or the derivation stops at a precise absent owner. An identifier or opaque “complete contract” placeholder is not sufficient.
+- Review/verification: one fresh `compiler_referee` after the note freezes; primary checks authority, source ownership and dependency freshness. Static only; zero tests/builds/probes/measurements. Stop at the first genuinely unavailable original input; no parent promotion. H1/H2/U OPEN; H3/P disabled.
 
 ## 5. 判定に使う最小の確認
 

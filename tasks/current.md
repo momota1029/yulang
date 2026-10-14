@@ -138,12 +138,13 @@ or close H1/H2/U. A non-authoritative, bounded graph-construction proposal is
 now recorded in
 [`source-call-interface-native-construction-packet.md`](../notes/theory/2026-10-15-source-call-interface-native-construction-packet.md)
 and passed fresh M2 `compiler_referee` and `spec_auditor` review with no
-findings. It reuses the reviewed finite dependent-graph proposal as reference,
-keeps construction before solving, and leaves original Call semantics,
-execution evidence, complete C0 and production routing open. No compiler
-code or tests changed. The next gate is the user's choice whether this exact
-source-registration/operator-to-Apply playground slice is the representation
-to prototype.
+findings. The user's standing authorization covers reversible playground
+evidence work, but the packet alone grants no durable graph or production
+authority. The next-action selector found that a graph shell would duplicate
+the existing pending-supplier observer while `T_f` and `R_f` remain absent.
+The next action is a bounded constructive/obstruction proof for the authentic
+formal-registration interface at its source owner, before choosing any
+playground record that adds new evidence. No graph code has been added.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.

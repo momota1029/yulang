@@ -173,27 +173,27 @@ counterexample is claimed in this packet.
 
 ## 6. Approval and next gate
 
-The immediate question after independent review is whether to use this bounded
-graph-construction owner as the basis for a reversible playground prototype.
-The proposed first implementation would retain and inspect the source-side
-Call node only; it would not switch production inference or claim complete
-Call construction. If approved, the first code lease must separately name the
-owned Rust files, one focused source-to-field invariant, failure behavior,
-smallest verification, and rollback boundary. New durable graph representation
-or production routing still requires its own approval and proof gates.
+The user's standing instruction explicitly authorizes playground
+implementation with incremental proof and repair. It covers reversible,
+private source-evidence work, but it does not adopt a durable graph
+architecture, switch production inference, or certify complete Call
+construction. A prototype must have a distinct evidence target; adding a graph
+shell that still stops at the absent complete telescope would duplicate the
+existing `PendingCallConstruction` observer.
 
-Alternatives for the primary decision:
+The next selected action is to construct or precisely obstruct the authentic
+declared dependent interface `T_f` and original inferred-contract reference
+`R_f` at formal registration, before IF-Use and Apply elaboration. The owner is
+source formal registration; the consumer is scoped Name/capture and Apply
+interface use. A successful derivation may enable the smallest useful
+playground record. If it stops at a genuinely unavailable original input,
+return that exact input and owner through the existing design path.
 
-1. Approve the bounded source-registration/operator-to-Apply graph slice for
-   a private playground prototype under the exclusions above.
-2. Keep the existing reviewed graph proposal as reference and choose a
-   different construction owner; name that owner and the behavior-preserving
-   source evidence it must retain.
-3. Defer this representation decision; H1/H2/U remain open and no dependent
-   implementation starts.
-
-Regardless of choice, H1/H2/U remain OPEN and H3/P remain disabled until their
-separate source, consumer, proof and review obligations close.
+Separate user approval remains required before treating any graph as the
+durable compiler representation or routing production inference through it.
+If subsequent work requires a new source rule, changes accepted behavior, or
+cannot remain isolated and reversible, stop that affected slice and present
+the concrete decision. H1/H2/U remain open.
 
 ## 7. Evidence and review status
 
