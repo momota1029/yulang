@@ -106,16 +106,44 @@ Locators below refer exclusively to committed baseline bytes.
    `fresh_effect_at_level` (:1588–1602). Allocation (`lib.rs:10177–10229`)
    gives default bounds, a numeric level, Fresh origin and `non_generic:false`.
    No operation-opening identity or checking-access restriction is emitted
-   on these inspected branches. Merely bypassing monomorphic preflight would
-   therefore not prove that a signature-local variable is checked rigidly.
+   on these inspected branches. The private route below also reaches this
+   allocation; bypassing preflight does not make that variable rigid.
+
+### 2.1 Normal solve admission versus private collection
+
+The normal `CandidateInference::solve` route in step 1 is distinct from direct
+internal collection. At the pinned baseline,
+`ConstraintBatch::collect_candidate_mode(hir,true,true)` (`lib.rs:910–915`)
+has no source-preflight call. With LocalSource available it calls
+`emit_candidate_source` (`lib.rs:1130–1144`), whose entry
+(`candidate_source.rs:246–252`) likewise does not call preflight. The resolved
+operation-pattern branch (:429–456) queues `CatchOperation` without invoking
+`monomorphic_signature`. Driving the private candidate session's source
+schedule (:817–825,901) therefore has a constructor path to
+`candidate_catch_operation` and its ordinary flexible signature rows even
+for a generic signature, subject to collection's other actual requirements.
+This source inspection does not establish success for every generic HIR.
+
+Direct collection is a real private function, not itself compiled only in
+tests. Concrete callers also occur inside test modules: the helper
+`lib.rs:18334–18336` in the cfg-gated module beginning at :18297, and the
+session helper :33226–33240, call collection/session construction directly.
+Those callers bypass the solve preflight by construction. No test was run
+in this delta; neither the private route nor its flexible-row allocation
+establishes generic source acceptance, uniform checking, or production
+admission. The complete pinned collector and emitter were searched for
+preflight references, and the cited constructor branches were read directly;
+these claims do not rely on another producer's conclusions.
 
 **First missing constructor premise:** before ordinary arm-body consumers,
 the authentic CatchOperation route must construct one declaration-local rigid
 checking opening for the complete dependent packet and its correspondence to
 each retained request map, granting only declared bounds and the fixed
-captured environment as checking assumptions. The actual route excludes
-generic signatures; its downstream map allocation is ordinary flexible
-construction. This is unavailable constructor evidence, not a source-qualified
+captured environment as checking assumptions. Normal solve excludes generic
+signatures; the private path can reach ordinary flexible construction, but
+provides no joint request witness or rigid-opening identity. The first missing
+rigid constructor premise is therefore unchanged across these two inspected
+routes. This is unavailable constructor evidence, not a source-qualified
 counterexample or proof of proper generic rejection.
 
 ## 3. Direct extrusion: the concrete additional coverage seam
@@ -235,6 +263,9 @@ remain required; these omitted cases are not excluded from the parent theorem.
 
 ## 6. Checks, dependencies and commit packet
 
+Scope delta: §2.1 independently traces private collection and test callers from
+the same pinned source; no test execution or production-admission claim.
+
 Read-only checks: pinned `git rev-parse`/branch/status, `git show
 427d1ff5d:<path>` with bounded line reads, owner `rg` searches, committed-byte
 SHA-256/live equality comparison. No builds, tests, probes, measurements,
@@ -275,7 +306,7 @@ c8ef7cc472f0dcb60d793c6f9b4f6ba1aefb76f919ff2a3ce9310f85eb647dcd  crates/yu-solv
 e902da1c9a7f0fb4dcd806c87563d1ae46d35bbb999e69b7fee51c3c0f6e4bf5  crates/yu-solver/src/lib.rs
 ```
 
-Final observed HEAD: `4ab761376ffcc662a70014eaed0072d929108b24`; pinned source baseline remains unchanged.
+Final observed HEAD: `7e076a6d22e4d34395a899f95b1ab9109a589fa0`; pinned source baseline remains unchanged.
 All listed semantic authority/native code working bytes equal the pinned baseline.
 Changed working dependency bytes, excluded from this bridge:
 
