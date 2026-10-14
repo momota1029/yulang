@@ -12,6 +12,24 @@ claim that the gates below are still open. At each restart, resolve the current
 HEAD, user corrections, question-board handoffs and theory map before dispatch.
 Do not reopen a closed gate merely because it appears in this seed.
 
+## Current executable checkpoint (2026-10-15)
+
+The user's renewed implementation request produced the
+[native extrusion replay slice](../notes/progress/2026-10-15-extrusion-initialization-replay.md),
+rather than another source-reachability characterization. All assignments below
+have stopped writing; this is checkpoint state, not a live worker claim.
+
+| Lane | Completed output and boundary |
+| --- | --- |
+| Constructive proof | [Sparse initialization invariant](../notes/theory/2026-10-15-extrusion-initialization-replay-invariant.md), freshly reviewed: exact native fiber-product queue admission, not full H2/source closure. |
+| Implementation | IncomingAllowance-only deferred replay in `candidate_extrusion.rs`; structural reused/remapped and ordered-context regression in `candidate_context_tests.rs`; one pre-reviewed direct-caller fixture adaptation in `candidate_effect.rs`. |
+| Review/verification | M2 semantic and resource reviews converged; pre-write spec review and semantic delta closed the fixture finding. Two structural tests and workspace compilation pass. Effect-module residual failures match isolated baseline exactly: 25 pass / 3 fail / 2 ignored. Six serialized Cargo invocations, no benchmark samples. |
+
+Source H1/H2/U, original complete Call and production/F5 remain OPEN; H3/P
+remain disabled. The current task identifies the three baseline regression
+owners separately. Do not repeat the old no-direct-replay audit at the modified
+native owner, or use this local result as source eligibility evidence.
+
 ## Next dispatch: Luna handoff plan
 
 The user's 2026-10-14 planning request is recorded in

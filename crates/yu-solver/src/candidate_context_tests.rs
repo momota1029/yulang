@@ -5813,3 +5813,203 @@ fn observe_structural_value_extrusion_current_and_late_allowance_pairs() {
         &state(&session).dependencies[dependency_start..], session.effect_bounds[copied_tail as usize].exact_non_variable_lowers);
     assert!(session.errors.is_empty());
 }
+
+
+#[test]
+fn structural_value_extrusion_replays_initialized_allowance_fibers() {
+    fn drain(session: &mut InferenceSession, task: LiveConstraintTask, slot: u8) -> Vec<LiveConstraintTask> {
+        let (occurrence, cause) = cause(session, slot);
+        let algebra = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let previous_processing = algebra.processing;
+        let previous_relation = algebra.context.processing;
+        let index = session.start_typed_drain(TypedWorkItem { task, relation: None, replay_ack: None },
+            &occurrence, &cause, None, None).unwrap();
+        let mut queued_effects = Vec::new();
+        for _ in 0..256 {
+            for item in &session.typed_worklist {
+                if matches!(item.task, LiveConstraintTask::Effect(..)) && !queued_effects.contains(&item.task) {
+                    queued_effects.push(item.task);
+                }
+            }
+            if let DrainStep::Complete(_) = session.step_typed_drain(index).unwrap() {
+                assert!(session.typed_worklist.is_empty());
+                assert!(state(session).typed_drains.is_empty());
+                session.candidate_processing(previous_processing);
+                session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous_relation;
+                return queued_effects;
+            }
+        }
+        panic!("bounded observer exceeded 256 drain steps");
+    }
+
+    for symbolic_level in [1, 2] {
+        let mut session = session_with_source("act E\nact F\nmy seed x = x\nmy client x = seed x");
+        let owner = empty_bundle_owner(&session);
+        let declarations = session.batch.hir.source_effect_declarations();
+        let allowed = declarations.iter().find(|d| d.spelling.as_ref() == "E").unwrap().id.clone();
+        let unmatched = declarations.iter().find(|d| d.spelling.as_ref() == "F").unwrap().id.clone();
+        let tail = session.fresh_effect_at_level(2).unwrap();
+        let source = session.fresh_effect_at_level(2).unwrap();
+        let symbolic = session.fresh_effect_at_level(symbolic_level).unwrap();
+        let views: Vec<_> = (0..2).map(|_| session.candidate_effect_view(owner.clone(),
+            allowed.declaration.clone(), vec![allowed.clone()], Some(tail)).unwrap()).collect();
+        assert_ne!(views[0], views[1]);
+        let (occurrence, cause) = cause(&session, 0);
+        // Pin the selected symbolic lower at its actual bound owner. Equal-level
+        // rows would otherwise select the opposite storage direction at admission.
+        let original_lower = BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(source)),
+            Polarity::Positive, ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(symbolic)));
+        let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+        let relation = session.candidate_context_seed(task_pair_to_task(bound_pair(original_lower)),
+            &checking, None).unwrap().unwrap();
+        let closed = session.candidate_effect_view(owner.clone(), allowed.declaration.clone(),
+            vec![allowed.clone()], None).unwrap();
+        let weight = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[closed as usize]
+            .closed_weight.unwrap();
+        let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let seeded = context.relations[relation.0 as usize].key;
+        assert!(seeded.sources.is_some());
+        let nonidentity = context.context(ContextExpr::PrefixLeft { weight, input: IDENTITY }).unwrap();
+        let relation = context.relation_with_sources(seeded.pair, nonidentity, seeded.sources).unwrap();
+        context.processing = Some(relation);
+        session.candidate_restore_bound(original_lower.0, original_lower.1, original_lower.2,
+            &occurrence, &cause).unwrap();
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
+        for &view in &views {
+            session.constrain_live(LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(source),
+                EffectEndpointKey::Allowance(view)), &occurrence, &cause).unwrap();
+        }
+        assert!(session.effect_bounds[source as usize].direct_lower_rows.contains(&symbolic));
+        let original_cuts: Vec<_> = views.iter().map(|&view| BoundKey(original_lower.0,
+            Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view)))).collect();
+        for &bound in original_cuts.iter().chain(std::iter::once(&original_lower)) {
+            assert!(state(&session).bound_relations(bound).next().is_some());
+        }
+
+        // Same structural result-effect port as the existing mixed-Allowance
+        // fixture, but lib.rs Value dispatch owns the call to candidate_extrude.
+        let effect = session.live_effect_term(Polarity::Positive, tail).unwrap();
+        let function = session.positive_function_term(
+            session.batch.collected_leaf_term(Leaf::IntNegative),
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative), effect,
+            session.batch.collected_leaf_term(Leaf::IntPositive)).unwrap();
+        let receiver = session.fresh_value_at_level(1).unwrap();
+        let structural = LiveConstraintTask::Value(CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveFunction(function), upper: ValueEndpointKey::ValueRow(receiver),
+        });
+        let transform_start = state(&session).evidence.transforms.len();
+        let queued_current = drain(&mut session, structural, 1);
+        let copied_function = session.bounds[receiver as usize].exact_non_variable_lowers.iter().find_map(|endpoint|
+            match endpoint { ValueEndpointKey::PositiveFunction(term) => Some(*term), _ => None }).unwrap();
+        assert_ne!(function, copied_function);
+        let (_, _, effect, _) = InferenceSession::positive_function_children(&session.store,
+            ValueEndpointKey::PositiveFunction(copied_function)).unwrap();
+        let EffectEndpointKey::EffectRow(copied_tail) = session.effect_endpoint(effect, Polarity::Positive)
+            else { panic!("structural copy retains effect-row result port") };
+        assert_ne!(tail, copied_tail);
+        let mut copied_cuts = Vec::new();
+        for &original in &original_cuts {
+            // Only positive tail incidence reconstructs these negative cuts here:
+            // Work::IncomingAllowance, not selected negative Work::Bound traversal.
+            let transforms: Vec<_> = state(&session).evidence.transforms[transform_start..].iter()
+                .filter(|t| t.from == original && matches!(t.reason, TransportReason::Extrusion { .. })).copied().collect();
+            assert_eq!(transforms.len(), 1);
+            let transform = transforms[0];
+            let BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copy_source)), Polarity::Negative,
+                ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(copy_view))) = transform.to else { panic!("copied cut") };
+            assert_ne!(copy_source, source);
+            assert!(!views.contains(&copy_view));
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[copy_view as usize].tail, Some(copied_tail));
+            assert!(state(&session).dependency_keys.contains(&Dependency::Transport { child: transform.child_relation,
+                parent: transform.source_relation, use_origin: 0, witness: Some(TransportWitness {
+                    from: original, to: transform.to, reason: transform.reason }) }));
+            assert!(session.effect_bounds[copy_source as usize].exact_non_variable_uppers.contains(&EffectEndpointKey::Allowance(copy_view)));
+            copied_cuts.push(transform.to);
+        }
+        assert_eq!(copied_cuts[0].0, copied_cuts[1].0);
+        assert_ne!(copied_cuts[0].2, copied_cuts[1].2);
+        // Work::Bound transports the reused row at level 1 and a fresh positive
+        // copy at level 2, independently of IncomingAllowance's negative cuts.
+        let lower_transforms: Vec<_> = state(&session).evidence.transforms[transform_start..].iter()
+            .filter(|t| t.from == original_lower && t.to.0 == copied_cuts[0].0).copied().collect();
+        assert_eq!(lower_transforms.len(), 1);
+        let copied_lower = lower_transforms[0].to;
+        for transform in state(&session).evidence.transforms[transform_start..].iter()
+            .filter(|t| t.from == original_lower || original_cuts.contains(&t.from)) {
+            let context = state(&session);
+            let source = context.relations[transform.source_relation.0 as usize].key;
+            let child = context.relations[transform.child_relation.0 as usize].key;
+            assert_eq!(source.pair, bound_pair(transform.from));
+            assert_eq!(child.pair, bound_pair(transform.to));
+            assert_eq!(source.context, child.context);
+            assert_eq!(source.sources, child.sources);
+        }
+        assert_eq!(copied_lower.1, Polarity::Positive);
+        assert_eq!(copied_lower.2 == original_lower.2, symbolic_level == 1);
+        for &bound in copied_cuts.iter().chain(std::iter::once(&copied_lower)) {
+            assert!(state(&session).bound_relations(bound).next().is_some());
+            assert!(session.candidate_bound_origin_count(bound) > 0);
+        }
+        let current_replays: Vec<_> = state(&session).dependencies.iter().filter(|dependency|
+            matches!(dependency, Dependency::Replay { lower_input, upper_input, .. }
+                if *lower_input == copied_lower && copied_cuts.contains(upper_input))).copied().collect();
+        for &cut in &copied_cuts {
+            let replays: Vec<_> = current_replays.iter().filter(|dependency|
+                matches!(dependency, Dependency::Replay { lower, upper_input, .. }
+                    if *upper_input == cut && *lower == lower_transforms[0].child_relation)).collect();
+            assert!(!replays.is_empty(), "each initialized lineage receives the existing symbolic lower");
+            for &&dependency in &replays {
+                let Dependency::Replay { child, lower, upper, lower_input, upper_input } = dependency else { unreachable!() };
+                let context = state(&session);
+                assert_eq!(lower_input, copied_lower);
+                assert_eq!(upper_input, cut);
+                assert!(context.bound_relations(copied_lower).any(|r| r == lower));
+                assert!(context.bound_relations(cut).any(|r| r == upper));
+                let lower_key = context.relations[lower.0 as usize].key;
+                let upper_key = context.relations[upper.0 as usize].key;
+                let child_key = context.relations[child.0 as usize].key;
+                assert_eq!(lower_key.context, nonidentity);
+                assert_eq!(lower_key.sources, seeded.sources);
+                assert_eq!(lower_key.pair, bound_pair(copied_lower));
+                assert_eq!(upper_key.pair, bound_pair(cut));
+                let (ExtrusionEndpoint::Effect(lower_endpoint), ExtrusionEndpoint::Effect(upper_endpoint)) =
+                    (copied_lower.2, cut.2) else { unreachable!() };
+                assert_eq!(child_key.pair, TypedPairKey::Effect { lower: lower_endpoint, upper: upper_endpoint });
+                if lower_key.context == IDENTITY && upper_key.context == IDENTITY {
+                    assert_eq!(child_key.context, IDENTITY);
+                } else {
+                    assert_eq!(context.contexts[child_key.context.0 as usize - 1],
+                        ContextExpr::Replay { lower: lower_key.context, upper: upper_key.context });
+                }
+                for parent in [lower_key, upper_key] {
+                    if let Some(sources) = parent.sources {
+                        let child_sources = child_key.sources.expect("replay retains source identities");
+                        for source in context.source_events(sources) {
+                            assert!(context.source_events(child_sources).contains(source));
+                        }
+                    }
+                }
+                assert!(queued_current.contains(&LiveConstraintTask::Effect(lower_endpoint, upper_endpoint)));
+            }
+        }
+        assert!(state(&session).replay_operations.is_empty());
+
+        let late = session.candidate_effect_contribution(unmatched.clone(), unmatched.declaration.clone()).unwrap();
+        let ExtrusionEndpoint::Effect(copy_source) = copied_cuts[0].0 else { unreachable!() };
+        let dependency_start = state(&session).dependencies.len();
+        let queued_late = drain(&mut session, LiveConstraintTask::Effect(late, copy_source), 2);
+        let late_lower = BoundKey(copied_cuts[0].0, Polarity::Positive, ExtrusionEndpoint::Effect(late));
+        for &cut in &copied_cuts {
+            assert!(state(&session).dependencies[dependency_start..].iter().any(|dependency|
+                matches!(dependency, Dependency::Replay { lower_input, upper_input, .. }
+                    if *lower_input == late_lower && *upper_input == cut)));
+        }
+        assert!(session.effect_bounds[copied_tail as usize].exact_non_variable_lowers.contains(&late));
+        for cut in &copied_cuts {
+            let ExtrusionEndpoint::Effect(upper) = cut.2 else { unreachable!() };
+            assert!(queued_late.contains(&LiveConstraintTask::Effect(late, upper)));
+        }
+        assert!(state(&session).replay_operations.is_empty());
+        assert!(session.errors.is_empty());
+    }
+}

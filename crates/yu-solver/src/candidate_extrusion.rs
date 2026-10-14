@@ -35,6 +35,7 @@ impl InferenceSession {
         // bound may name the Function currently being rebuilt through a row.
         let mut pending_bounds = Vec::new();
         let mut view_remap = HashMap::new();
+        let mut initialized_allowances = Vec::new();
         let mut charge = 0usize;
         let result = (|| {
             // Account each capacity delta before nested constructors can sample it.
@@ -303,9 +304,20 @@ impl InferenceSession {
                         let mapped = self.candidate_remapped_effect_view(view, Some(tail), &mut view_remap)?;
                         let allowance = ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(mapped));
                         self.candidate_insert_bound(source, Polarity::Negative, allowance)?;
+                        let installed = crate::candidate_effect::BoundKey(
+                            self.canonical_extrusion(source), Polarity::Negative,
+                            self.canonical_extrusion(allowance));
                         self.candidate_transfer_bound_origins(original,
-                            crate::candidate_effect::BoundKey(source, Polarity::Negative, allowance),
+                            installed,
                             candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level })?;
+                        let old = initialized_allowances.capacity();
+                        initialized_allowances.try_reserve(1)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        self.candidate_scratch_growth(&mut charge,
+                            (initialized_allowances.capacity() - old)
+                                .checked_mul(std::mem::size_of::<crate::candidate_effect::BoundKey>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                        initialized_allowances.push(installed);
                     }
                     Work::Bound(owner, p, key, source) => {
                         let copied = rows
@@ -361,10 +373,16 @@ impl InferenceSession {
                 .copied()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             self.finish_candidate_extrusion(occurrence, parent_start, result)?;
+            // Selected Work::Bound copies are one-sided; only incoming cuts
+            // add the opposite side. Wait for all selected lower fibers before
+            // replaying those cuts. The existing outer drain owns the children.
+            for &crate::candidate_effect::BoundKey(owner, p, bound) in &initialized_allowances {
+                self.candidate_replay_bound(owner, p, bound, None)?;
+            }
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             Ok(result)
         })();
-        drop((rows, structure, work, pending_bounds, view_remap));
+        drop((rows, structure, work, pending_bounds, view_remap, initialized_allowances));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
     }

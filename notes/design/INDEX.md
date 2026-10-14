@@ -118,6 +118,11 @@ This index is a navigation aid. The listed source document remains authoritative
   establishes plain residual feasibility and replay/lifecycle correspondence
   under its explicit processing premises; authentic handler eligibility and
   full hygiene remain open. The
+  [extrusion-initialization replay checkpoint](../progress/2026-10-15-extrusion-initialization-replay.md)
+  now queues exact current copied-cut comparisons after construction, using a
+  [reviewed sparse native invariant](../theory/2026-10-15-extrusion-initialization-replay-invariant.md).
+  Source H2/U, complete contextual completion and handler eligibility remain
+  open; the owning Effect module retains three baseline-confirmed failures. The
   [operation-pattern CST/recovery proposal](2026-10-14-operation-pattern-tails.md)
   is Authoritative after the user's 2026-10-14 approval; its
   [parser implementation](../progress/2026-10-14-operation-pattern-implementation.md)

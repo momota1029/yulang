@@ -3374,11 +3374,16 @@ mod tests {
                 session.batch.collected_leaf_term(Leaf::IntPositive),
             )
             .unwrap();
+        let receiver = session.fresh_value_at_level(0).unwrap();
+        let (occurrence, cause) = cause(&session, "left", 0);
         session
-            .candidate_extrude(
-                ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(function)),
-                Polarity::Positive,
-                0,
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(receiver),
+                },
+                &occurrence,
+                &cause,
             )
             .unwrap();
         let state = &session

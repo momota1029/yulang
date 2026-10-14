@@ -2,10 +2,33 @@
 
 Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The pending/remapped continuation pair and source-owner audit are reviewed; copied AnnotationMember lineage remains open. H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active. Native extrusion now schedules current copied Allowance replay after initialization, with an independently reviewed sparse queue-admission invariant and focused runtime evidence. Source H1/H2/U and production correspondence remain open, with H3/P disabled.
 
 ## Current checkpoint (2026-10-15)
 
+- **Implemented native initialization replay:** `candidate_extrude` retains
+  exact incoming Allowance keys and replays them after all selected bounds,
+  fibers and parent/output records are complete. The reviewed
+  [local invariant](../notes/theory/2026-10-15-extrusion-initialization-replay-invariant.md)
+  proves sparse coverage and exact ordered fiber-product queue admission;
+  the outer typed drain still owns completion. M2 semantic/resource review
+  converged, both structural-extrusion tests pass, and `cargo check --workspace`
+  passes without warnings. The [implementation checkpoint](../notes/progress/2026-10-15-extrusion-initialization-replay.md)
+  records the fixture lifecycle repair and complete checks. This replaces the
+  baseline's missing direct scheduling at this native owner; it does not
+  establish source eligibility, global completion or H2/U.
+- **Baseline-confirmed open regressions:** the owning Effect module has
+  25 passing tests, 3 failing tests and 2 ignored observations, identical to
+  isolated `c3c0fbdf5`. The three failures are
+  `raw_and_canonical_effect_roots_replay_late_conflict_after_parent_copy_intrusion`,
+  `multiply_originated_bound_keeps_future_conflict_paths_through_extrusion_and_intrusion`,
+  and `views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations`.
+  Owner: `candidate_effect.rs` fixture/source qualification for selected
+  Value-reference SCC intrusion. Their reciprocal type-bound setup does not
+  supply authentic qualifying Value provenance; the tests do not execute the
+  new incoming replay. Preserve every assertion and establish that source
+  correspondence before any repair. They remain a separate implementation/
+  regression task; no whole-module green result is claimed.
 - **H1-L:** the reviewed prover/researcher pair preserves the original
   quantifiers and establishes the native formal-row, Lambda entry-effect and
   Apply argument/effect prefix. Both stop at the initial/pre-receipt

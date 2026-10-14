@@ -5,7 +5,8 @@
 - 実装基準: `343754251a1e6af057eb0b45be660cb882ea8391`
 - 位置付け: 既存の承認事項を実行するための引き継ぎ。新しい言語仕様・実装権限の承認ではない。
 - 今回の到達点: 現在の carrier で、保護すべき寄与を残すハンドラ残余を playground から観測できること。
-- 現在の実装 checkpoint: `3683ed72d`。象徴的な source introduction の構築・観測だけを実装済み。live context と残余 consumer は未実装。
+- source introduction の実装 checkpoint: `3683ed72d`。象徴的な構築・観測を実装済み。live context と残余 consumer は未実装。
+- 独立した native H2 局所修正: [extrusion initialization replay](../notes/progress/2026-10-15-extrusion-initialization-replay.md)。コピーした Allowance の exact key を保持し、全 bound/fiber 構築後に既存 replay へ渡す。疎な走査の局所証明・実装・独立レビュー・focused verification を完了した。これは source H1/H2/U の閉鎖ではなく、H3/P は無効のまま。
 
 ## 1. 再開時はここから
 
