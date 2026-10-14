@@ -142,9 +142,16 @@ findings. The user's standing authorization covers reversible playground
 evidence work, but the packet alone grants no durable graph or production
 authority. The next-action selector found that a graph shell would duplicate
 the existing pending-supplier observer while `T_f` and `R_f` remain absent.
-The next action is a bounded constructive/obstruction proof for the authentic
-formal-registration interface at its source owner, before choosing any
-playground record that adds new evidence. No graph code has been added.
+The bounded H1-I construction and independent falsifier now establish the
+authentic positive prefix through the
+shared symbolic native Value row, lexical Name routes and Apply provenance,
+then stop at formation of the complete original dependent Value-interface
+family and its scoped interpretation at formal registration. A fresh
+`compiler_referee` found no findings. This is a bounded construction
+obstruction, not source impossibility or parent proof closure. A read-only
+architect lane is resolving whether an already-authorized source rule supplies
+that family or whether an independent original input / user decision remains.
+No graph code has been added; H1/H2/U remain OPEN and H3/P remain disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
