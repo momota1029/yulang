@@ -117,10 +117,15 @@ typed-path/Receive/Observe evidence, or normal-return expiry. The alpha/beta
 identity-collapse calculation is conditional; its composed source example
 remains unexecuted. This is a representation/source-correspondence gap, not a
 theorem, source impossibility result, or runtime misprotection counterexample.
-The next gate is a bounded read-only owner/representation feasibility pass
-for the actual source receiving-entry and lifecycle mapping. H1/H2/U remain
-OPEN; H3/P remain disabled. The H1-E code lease stays blocked until the source
-owner or exact missing realization input is established.
+The next gate is H1-F, now active: a bounded constructive source-directed
+entry derivation and an independent falsifier for repeated execution of one
+receiving Call plus raw shallow resumption. It must map source Call entry to
+receiver/boundary, typed paths, Receive/Observe and expiry, or stop at the first
+unsupported source rule. The architect found no new observable-behavior choice
+in this scoped gate; reviewed Draft machinery remains a candidate target, not
+authority. H1/H2/U remain OPEN; H3/P remain disabled. The H1-E code lease stays
+blocked until the source owner or exact missing realization input is
+established.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
