@@ -32,6 +32,17 @@
    earlier extrusion、profile / grant / Receive / Observe / residual evidence は含まない。
    H3/P は有効にしない。
 
+   2026-10-15 の [extrusion / Function consumer frontier](../notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md)
+   は、同じ nested-callback fixture の raw5 が Apply 結果、raw8/raw9 が元の
+   formal domain であることを source slot から特定した。`cb x` の要求は
+   `V8 <: F-` なので、この段階は Function child を作らず extrusion と bound
+   accumulation へ進む。Argument consumer は正負両方の Function endpoint が
+   揃った比較でのみできる。この fixture の consumer 数 0 は、incidence の消失を
+   示さない。独立 review の小さな raw/canonical endpoint 精度指摘は反映済み。
+   次の限定 probe は receiving call から正の Function lower を与え、受信側の
+   Argument edge と後続の `cb x` 比較を区別する。これは source evidence のみで、
+   profile matrix と H1/H2/U の状態は変えず、H3/P も有効にしない。
+
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
 `researcher`、査読は `compiler_referee` / `spec_auditor` に渡す。

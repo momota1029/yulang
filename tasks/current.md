@@ -15411,6 +15411,23 @@ wording issue; the primary changed it to candidate-only pair-key matching and
 reran the focused test successfully. This result does not resolve the profile
 matrix or activate H3/P.
 
+The independently reviewed [consumer-frontier derivation](../notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md)
+refines that row map for this exact fixture: raw5 is the `cb x` Apply result,
+raw8/raw9 are the original `cb`/`x` formal domains. Its native demand starts
+`raw8 <: F-`; the dispatch creates Function children only with both positive
+and negative Function endpoints. This source run has no positive Function lower
+on `cb`, so its negative demand can extrude and accumulate bounds without
+creating an Argument consumer. Zero Argument dependencies therefore do not
+show that incidence was lost. Pair-key provenance still does not authenticate
+a unique RelationId or copy-time representative. The reviewer found and the
+primary repaired one raw-versus-canonical Visit wording issue; no Cargo run was
+needed. H1/H2/U remain OPEN, H3/P disabled, and the position matrix undecided.
+
+The next provisional test-only observation is a same-session receiving call
+that supplies an actual positive Function lower to `cb` and distinguishes the
+receiving call's Argument consumer from a later comparison against `cb x`'s
+negative demand. It does not choose profile positions or implement protection.
+
 The [shallow Catch hygiene constructor bridge](../notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md)
 is independently reviewed with no findings as a bounded conditional
 crosswalk. It preserves the existing hygiene lemma's guard, family, bracketing

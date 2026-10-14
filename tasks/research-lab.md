@@ -47,19 +47,23 @@ extrusion coverage.
 
 ## Active evidence wave, 2026-10-15
 
-These are launched bounded assignments, not proposals. Source-code inputs are
-pinned to `427d1ff5d`; intervening commits changed records only. No active
-assignment has code-write authority, and the user's undecided omitted-formal
-position matrix remains outside every packet.
+These are launched bounded assignments, not proposals. Production source inputs
+are pinned to `427d1ff5d`; intervening commits changed records only. The active
+receiving-call probe has an exclusive test-file lease and no production compiler
+write authority. The user's undecided omitted-formal position matrix remains
+outside every packet.
 
 | Job | Method / gate | State and exclusive output | Budget / next evidence |
 |---|---|---|---|
 | `generic_rigid_opening_prover` | Constructive native generation/propagation/extrusion invariant at Catch opening | done; frozen at `notes/theory/2026-10-15-catch-operation-rigid-opening-invariant.md`, checkpointed in `319d2766b`, independently reviewed as bounded evidence | 20-minute static pass; first missing constructor identified; generic theorem remains OPEN |
 | `generic_opening_counterexample` | Adversarial caller-specialization and direct-extrusion falsification | done; frozen at `notes/progress/2026-10-15-generic-opening-rigid-falsifier.md`, covered by the independent bounded-evidence review | 15-minute static pass; candidate-internal witness only |
 | `generic_opening_legacy_audit` | Direct-caller and source/legacy entrypoint correspondence | done; frozen at `notes/progress/2026-10-15-generic-opening-legacy-entry-audit.md`, covered by the independent bounded-evidence review | 15-minute static pass; private collection route found, no public source admission established |
-| `omitted_formal_extrusion_route` | Read-only source map for the H1 parent-copy/extrusion route | done; no write artifact | Static only; retained `raw5 -> raw11` at target level 1 cannot be outer `cb`'s level-1 raw domain. The CLI's RowKey ordinal and source Value label are separate ID spaces, so the exact copied formal remains unidentified. |
+| `omitted_formal_extrusion_route` | Read-only source map for the H1 parent-copy/extrusion route | done; no write artifact | Initial-level exclusion only; the later exact-fixture slot derivation identifies raw5 as the Apply result, not either omitted formal domain. Runtime RelationId and copy-time representative remain unauthenticated. |
 | `shallow_catch_hygiene_bridge` | Constructive mapping from existing hygiene theorem premises to actual shallow-Catch owners | done; frozen at `notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md`, checkpointed in `1101c49a0`, independently reviewed as a bounded conditional bridge | 20-minute static pass; first missing premise remains source profile introduction |
 | `implement_h1_copy_correlation_probe` | Test-only same-session mapping from omitted formal domains to retained extrusion pairs | done; frozen in `crates/yu-solver/src/candidate_context_tests.rs::omitted_formal_source_domains_correlate_with_retained_extrusion_pairs`; M1 minor pair-key wording repair checked by primary | Focused test passed after repair; exact source-to-consumer correspondence remains OPEN |
+| `omitted_consumer_frontier` | Static source-slot and Value-row map through Apply demand, extrusion and Function dispatch | done; frozen in `notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md`, independently reviewed; one minor raw/canonical Visit precision repair integrated | Negative Function demand alone accumulates/extrudes bounds; Argument dispatch also needs a positive Function lower. Zero consumers do not establish lost incidence. Exact RelationId/copy representative remain open. |
+| `select_after_function_frontier` | Select discriminator after the paired-dispatch premise was located | done; selected an additive receiving-call source observation | Supply a positive Function lower to `cb`, then distinguish the receiving call's own Argument edge from a later `cb x` comparison. No semantic matrix or profile decision. |
+| `receiving_call_argument_probe` | Test-only same-session source observation with a positive Function lower and later `cb x` demand | active; exclusive leases `candidate_context_tests.rs` and `notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md` | 20-minute producer bound, zero worker Cargo; primary owns one exact focused test and one fresh compiler-referee review. Stop at exact chain or first missing authenticated relation. |
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
 are zero. The primary has used three bounded Cargo processes: one playground
@@ -83,6 +87,17 @@ timing/resource samples and no broad suite. The independently reviewed hygiene
 bridge and generic-opening evidence set had no blocking/major findings, within
 their bounded scopes. The profile-position decision still blocks protection
 semantics and H3, not independent structural/proof tasks.
+
+The later [consumer-frontier derivation](../notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md)
+resolves raw5's source constructor for this exact fixture as the `cb x` Apply
+result, while preserving the missing runtime RelationId and copy-time
+representative. The original demand is `V8 <: F-`; because no positive Function
+lower is supplied to `cb`, native dispatch does not create Function children,
+and its extrusion copies do not establish an Argument edge. A zero count is
+therefore explained by an absent consumer premise, not evidence of lost
+incidence. The next bounded source-evidence packet adds a receiving call with a
+positive Function lower and records the two possible Argument comparisons
+separately. It does not implement protection or close H1/H2/U.
 
 ## Current executable checkpoint, 2026-10-14
 
