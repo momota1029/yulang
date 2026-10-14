@@ -1,6 +1,13 @@
 # Conditional result Value references
 
-Status: Draft; the new result-incidence choice is not implementation authority.
+Status: Authoritative for Choice A and its explicitly named constructor scope.
+Approved-by: user, direct reply `Aですね．`, 2026-10-14, after the A/B explanation
+and the correction of the SCC consequence below.
+Reviewed-by: independent spec_auditor predecision review; independent architect
+source audit for the SCC consequence correction; fresh independent
+compiler_referee for the selected implementation and bounded projection proof.
+Implementation: complete for the declared constructor scope; see the
+[Choice A checkpoint](../progress/2026-10-14-conditional-reference-choice-a.md).
 Scope: source Value-reference edges for the newly supported private If carrier.
 Baseline: `13c100980a75e294fb78200de51cf702d7499483`.
 Existing authority: top-level inference principles §1.1; parent-copy SCC
@@ -21,7 +28,7 @@ The earlier Apply decision explicitly limits recursive fragment membership to
 Name and nested Apply. It cannot silently authorize traversal through a new
 If result. Type bounds and containment alone do not add Value-reference edges.
 
-## Choice A: condition and every branch (proposed)
+## Choice A: condition and every branch (selected)
 
 For `if p: f else: g`, the conditional result's source references include
 `p`, `f`, and `g`. Every elsif contributes its condition and branch as well.
@@ -36,12 +43,12 @@ path contracts to the corresponding resolved Name reference; no result-to-
 nested-result containment edge is introduced.
 
 Group, Ascription, Lambda and Block remain the existing fragment boundaries.
-This proposal does not silently make those constructors transparent. Their
+This construction does not make those constructors transparent. Their
 definition-owner traversal is unchanged, including local-initializer ownership.
 This is an additive construction for the explicitly named forms, not a claim
 of complete source-global incidence or preservation for all expressions.
 
-## Choice B: branches only
+## Choice B: branches only (unselected alternative)
 
 The conditional result includes references from every branch but excludes
 condition-only references. Both choices also authorize Apply fragments to
@@ -76,13 +83,14 @@ named-receiver qualification is unchanged. Numeric SCC labels are incidental.
 An actual distinguishing cycle would require an additional incoming Expression
 edge or identity relation, neither supplied nor approved by this proposal.
 
-The adjacency question remains open, but it is not a prerequisite for continuing
-independent effect/handler construction. No current type or intrusion difference
-is claimed, and no additional graph edge is authorized by this correction.
+At that audit the adjacency question remained open. The user subsequently
+selected A; the correction itself authorizes no extra incoming edge or identity
+alias. No current type or intrusion difference is claimed. The selected outgoing
+reference extension remains independent of effect/handler construction.
 
 ## Verification and scope
 
-After the choice is reviewed and selected by the user, check source-generated
+For the selected Choice A, check source-generated
 conditional callees and arguments, both constant conditions, nested If/elsif,
 condition-only outgoing references, lexical/module identity, and existing wrapper
 boundaries. Extend the helper-path projection proof to the selected constructor
@@ -92,6 +100,8 @@ this exact extension; do not fabricate a condition-only distinguishing cycle.
 Require linear retained fragments/edges in source incidences. Do not infer
 global typing preservation, principality or hygiene from those checks.
 
-Until the choice is selected, literal support and branch constraint generation
-may proceed. Their reports must leave conditional-result SCC completeness
-explicitly open; they must not label missing incidence as a proved absence.
+Literal support and branch constraint generation proceed independently.
+The selected constructor and its bounded correspondence have passed focused
+verification and independent review, recorded in the checkpoint above.
+This closes the declared implementation gate, without completing source-global
+SCC correspondence or extending wrapper boundaries.

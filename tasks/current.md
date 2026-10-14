@@ -127,11 +127,16 @@ Existing hygiene constructor/consumer correspondence remains the next independen
 implementation seam, using the previously established protection theorem.
 
 Definition-owned Value references traverse all new children. The separate
-[If-result incidence proposal](../notes/design/2026-10-14-conditional-value-references.md)
-has predecision conformance review but awaits the user's selection of condition
-plus branches versus branches only, including the proposed direct-If Apply
-extension. Current fragments retain their existing boundary. No implementation
-authority or conditional-result SCC completeness is inferred from this draft.
+[If-result incidence decision](../notes/design/2026-10-14-conditional-value-references.md)
+received the user's explicit `Aですね．` selection after the corrected A/B
+explanation. Choice A is Authoritative: include conditions and every branch,
+with the reviewed direct-If Apply extension and existing wrapper boundaries.
+The [Choice A checkpoint](../notes/progress/2026-10-14-conditional-reference-choice-a.md)
+implements the constructor and records 20 focused passing tests. Fresh
+independent compiler-referee review accepted its exact first-endpoint/helper
+projection, unchanged semantic SCC/qualification and linear incidence bounds.
+The primary accepts that bounded theorem and implementation correspondence;
+no source-global SCC completeness follows from this scoped closure.
 
 The subsequent source audit at `e9a7700b7` corrects the draft's claimed A/B
 consequence: no current edge targets an Expression Value, and named definition
@@ -139,14 +144,23 @@ owners reach only named Values. Either proposed helper extension leaves semantic
 Value SCC membership and intrusion qualification unchanged. The choice still
 specifies outgoing reference ownership; it is not a blocker for independent
 effects/handler work. An independent architect confirmed the construction fact;
-no semantic choice, new incoming edge or identity alias was approved.
+that correction approved no new incoming edge or identity alias. The subsequent
+Choice A approval retains those boundaries.
 
-The next concrete effects work is the source-owned permission/protection
-constructor and live consumer, followed by handler source formation and residual
-consumption. Operations and covariant concrete allowance checks already execute.
-Source context words are still empty, negative concrete formals remain rejected,
-and LocalSource has no Catch carrier. Reuse the established hygiene proof at
-these owners. The old negative-formal answer is a correction to its example,
+The [handler owner checkpoint](../notes/theory/2026-10-14-handler-residual-owner-correspondence.md)
+at `bd60f25d9` is unreviewed source characterization, not a new hygiene theorem
+or counterexample. Its precise next implementation slice is the source-owned
+contextual producer and Catch residual consumer with current/future feedback.
+Existing Apply provenance, Function demand and invocation-to-application edge
+already transport operation support; no extra per-call token is justified.
+`ResidualRecipe` is approved design, not implemented storage, and `ReplayRecipe`
+does not supply it. Source context words are still empty; LocalSource also lacks
+Catch operation patterns and arm-owned payload/resumption binders. Reuse the
+established hygiene theorem at these actual owners, preserving shallow
+continuations and outside arm effects. Keep the residual/hygiene and dependent
+lifecycle gates OPEN; another lemma assuming the missing constructor is not
+the next action. Operations and covariant checks already execute. Negative
+concrete formals remain rejected. The old negative-formal answer corrects its example,
 not an approved complete field map; do not treat it as either permission to
 invent that map or a reason to repeat the retracted comparison.
 

@@ -106,11 +106,11 @@ impl Graph {
         // Fragment helpers are distinct from semantic Values. Every helper-only
         // path projects to the exact Name incidence, and every selected incidence
         // expands to such a path. Original-Value reachability and SCCs are unchanged.
-        // Shared nested Apply fragments keep both work and storage linear.
+        // Shared nested Apply/If fragments keep both work and storage linear.
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -123,6 +123,17 @@ impl Graph {
                     let target = self.intern(value)?;
                     self.edge(fragments[index].unwrap(), target)?;
                 }
+            }
+            if let LocalSourceForm::If { arms, else_branch } = &expr.form {
+                let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
+                let fragment = fragments[index].unwrap();
+                self.edge(result, fragment)?;
+                for (condition, body) in arms {
+                    for child in [condition, body] {
+                        if let Some(child) = fragments[child.ordinal() as usize] { self.edge(fragment, child)?; }
+                    }
+                }
+                if let Some(child) = fragments[else_branch.ordinal() as usize] { self.edge(fragment, child)?; }
             }
             let LocalSourceForm::Apply { callee, argument, .. } = &expr.form else { continue; };
             let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
@@ -184,5 +195,163 @@ impl Graph {
             checked_capacity_bytes::<(ConstraintOccurrenceId, usize)>(self.checking.capacity(), "source associations"),
             checked_capacity_bytes::<usize>(self.components.capacity(), "Value SCCs"),
         ], "source Value graph")
+    }
+}
+
+#[cfg(test)]
+mod conditional_reference_tests {
+    use super::*;
+
+    fn fixture(text: &str) -> (Graph, LocalSource) {
+        let input = text;
+        let text: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "healthy source fixture: {input}");
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("conditional-references", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap();
+        let mut graph = Graph::default();
+        for item in hir.items() {
+            if let yu_hir::HirItem::Binding(binding) = item {
+                graph.register_module(binding.definition_root().clone(), binding.id().clone()).unwrap();
+            }
+        }
+        let yu_hir::HirItem::Binding(binding) = hir.items().last().unwrap() else { panic!("binding"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap().clone();
+        graph.retain_source(&source).unwrap();
+        (graph, source)
+    }
+
+    fn named(source: &LocalSource, spelling: &str) -> Value {
+        source.expressions().iter().find_map(|expr| match &expr.form {
+            LocalSourceForm::Name { spelling: name, resolution } if name.as_ref() == spelling => Graph::resolved(resolution),
+            _ => None,
+        }).unwrap()
+    }
+
+    // Contract helper paths only: stop at semantic Values rather than following
+    // their definition-owner references.
+    fn references(graph: &Graph, value: &Value) -> std::collections::HashSet<Value> {
+        let semantic: HashMap<_, _> = graph.vertices.iter().map(|(value, &id)| (id, value)).collect();
+        let mut work = graph.edges[graph.vertices[value]].clone();
+        let mut seen = std::collections::HashSet::new();
+        let mut result = std::collections::HashSet::new();
+        while let Some(id) = work.pop() {
+            if !seen.insert(id) { continue; }
+            if let Some(value) = semantic.get(&id) { result.insert((*value).clone()); }
+            else { work.extend(&graph.edges[id]); }
+        }
+        result
+    }
+
+    fn conditional(source: &LocalSource) -> Value {
+        let expr = source.expressions().iter().find(|expr| matches!(expr.form, LocalSourceForm::If { .. })).unwrap();
+        Value::Expression(expr.occurrence.clone())
+    }
+
+    fn expected(source: &LocalSource, names: &[&str]) -> std::collections::HashSet<Value> {
+        names.iter().map(|name| named(source, name)).collect()
+    }
+
+    #[test]
+    fn conditional_result_retains_condition_and_every_branch_identity() {
+        let (graph, source) = fixture("my choose p f g = if p: f else: g");
+        assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["p", "f", "g"]));
+        for condition in ["true", "false"] {
+            let (graph, source) = fixture(&format!("my choose f g = if {condition}: f else: g"));
+            assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["f", "g"]));
+        }
+        let (graph, source) = fixture("my p = true\nmy f = 1\nmy g = 2\nmy choose = if p: f else: g");
+        let names = expected(&source, &["p", "f", "g"]);
+        assert!(names.iter().all(|value| matches!(value, Value::Module(_))));
+        assert_eq!(references(&graph, &conditional(&source)), names);
+    }
+
+    #[test]
+    fn conditional_shared_fragments_follow_nested_if_elsif_and_apply() {
+        let (graph, source) = fixture("my choose p q r f g h x = if p: f x elsif q: if r: g else: h else: x");
+        assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["p", "q", "r", "f", "g", "h", "x"]));
+        assert_eq!(source.expressions().iter().filter(|expr| matches!(expr.form, LocalSourceForm::If { .. })).count(), 2);
+    }
+
+    #[test]
+    fn apply_uses_direct_conditional_argument_fragment() {
+        let (graph, source) = fixture("my choose p f g h = h(if p: f else: g)");
+        let expr = source.expressions().iter().find(|expr| matches!(&expr.form,
+            LocalSourceForm::Apply { argument, .. } if matches!(source.expression(argument).unwrap().form, LocalSourceForm::If { .. }))).unwrap();
+        assert_eq!(references(&graph, &Value::Expression(expr.occurrence.clone())), expected(&source, &["h", "p", "f", "g"]));
+    }
+
+    #[test]
+    fn grouped_conditional_callee_preserves_receiver_and_fragment_boundary() {
+        let (mut graph, source) = fixture("my choose p f g x = (if p: f else: g) x");
+        let conditional = conditional(&source);
+        assert_eq!(references(&graph, &conditional), expected(&source, &["p", "f", "g"]));
+        let apply = source.expressions().iter().find(|expr| matches!(&expr.form,
+            LocalSourceForm::Apply { callee, .. } if matches!(source.expression(callee).unwrap().form, LocalSourceForm::Group { .. }))).unwrap();
+        assert_eq!(references(&graph, &Value::Expression(apply.occurrence.clone())), expected(&source, &["x"]));
+        let checking = ConstraintOccurrenceId::new(apply.occurrence.clone(), 0);
+        let event = graph.checking[&checking];
+        assert_eq!(graph.events[event].receiver, graph.vertices[&conditional]);
+        let root = Value::Module(graph.modules[source.definition_root()].clone());
+        assert_eq!(graph.events[event].origin, graph.vertices[&root]);
+        graph.seal().unwrap();
+        assert!(!graph.qualifies(event));
+    }
+
+    #[test]
+    fn conditional_fragments_preserve_wrapper_boundaries() {
+        for text in [
+            "my choose p f g = if p: (f) else: g",
+            "my choose p f g = if p: f as int else: g",
+            "my choose p f g = if p:\n    f\nelse: g",
+        ] {
+            let (graph, source) = fixture(text);
+            assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["p", "g"]));
+            let root = Value::Module(graph.modules[source.definition_root()].clone());
+            assert!(references(&graph, &root).contains(&named(&source, "f")));
+        }
+    }
+
+    #[test]
+    fn conditional_nested_initializer_keeps_its_definition_owner() {
+        let (graph, source) = fixture("my choose p f g = { my inner = if p: f else: g; inner }");
+        let inner = Value::Local(source.bindings().iter().find(|binding| binding.spelling.as_ref() == "inner").unwrap().id.clone());
+        let names = expected(&source, &["p", "f", "g"]);
+        assert_eq!(references(&graph, &inner), names);
+        assert_eq!(references(&graph, &conditional(&source)), names);
+        let root = Value::Module(graph.modules[source.definition_root()].clone());
+        assert_eq!(references(&graph, &root), [inner].into_iter().collect());
+    }
+
+    #[test]
+    fn conditional_extension_preserves_semantic_sccs_and_qualification() {
+        let (mut graph, source) = fixture("my loop p x = if p: loop x else: x");
+        // Remove precisely the new If result/helper links to reconstruct the
+        // previous graph on these same branded source identities.
+        let mut previous = graph.clone();
+        for expr in source.expressions() {
+            if !matches!(expr.form, LocalSourceForm::If { .. }) { continue; }
+            let result = graph.vertices[&Value::Expression(expr.occurrence.clone())];
+            let helper = graph.edges[result][0];
+            previous.edges[result].clear();
+            previous.edges[helper].clear();
+        }
+        for incoming in &mut previous.reverse { incoming.clear(); }
+        for (from, children) in previous.edges.iter().enumerate() {
+            for &to in children { previous.reverse[to].push(from); }
+        }
+        graph.seal().unwrap(); previous.seal().unwrap();
+        for &left in graph.vertices.values() {
+            for &right in graph.vertices.values() {
+                assert_eq!(graph.components[left] == graph.components[right], previous.components[left] == previous.components[right]);
+            }
+        }
+        for event in 0..graph.events.len() { assert_eq!(graph.qualifies(event), previous.qualifies(event)); }
+        assert!(graph.events.iter().enumerate().any(|(event, _)| graph.qualifies(event)));
+        for (value, &id) in &graph.vertices {
+            if matches!(value, Value::Expression(_)) { assert!(graph.reverse[id].is_empty()); }
+        }
     }
 }

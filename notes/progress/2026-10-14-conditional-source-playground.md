@@ -74,6 +74,12 @@ No new cache, timing experiment or solver-time bound is introduced.
 
 ## Proof and unresolved graph decision
 
+Subsequent closure: the user selected A and the
+[Choice A checkpoint](2026-10-14-conditional-reference-choice-a.md) implements
+the selected edges with an independently reviewed bounded projection theorem.
+The unresolved-choice statements below describe this earlier checkpoint's
+state; its frozen join-proof dependencies are unchanged.
+
 The [join/source bridge](../theory/2026-10-14-conditional-constraint-join.md)
 derives, for one shared assignment and any finite branch list, that fresh
 result lower bounds have exactly the join as their least admissible result,

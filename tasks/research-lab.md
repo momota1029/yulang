@@ -38,13 +38,29 @@ admission; fresh independent proof review passed and the primary consumed its
 local conclusions. The focused checks cover 138 cases including 28 type doc
 tests, plus warning-free owning/workspace builds. Timing measurements remain zero.
 
-If-result Value incidence awaits the narrow user choice in the reviewed
-[draft](../notes/design/2026-10-14-conditional-value-references.md); definition
-references already traverse every child. Existing hygiene constructor/consumer
+The user selected A for [If-result Value incidence](../notes/design/2026-10-14-conditional-value-references.md):
+conditions and all branches, preserving the stated fragment boundaries.
+The [helper-constructor implementation and projection/SCC correspondence](../notes/progress/2026-10-14-conditional-reference-choice-a.md)
+are complete for the selected scope, with fresh independent compiler-referee
+review and 20 focused passing tests. The source audit and proof show
+this outgoing extension alone cannot change current SCC qualification; no
+incoming Expression edge is invented. Existing hygiene constructor/consumer
 correspondence remains independent work. Source-global event applicability,
 typing preservation and principality remain open. Reuse the accepted activation
 theorem; do not reopen it or select another conditional Call proof merely
 because the historical queue below lists one.
+
+The independent [effects/handler owner checkpoint](../notes/theory/2026-10-14-handler-residual-owner-correspondence.md)
+is frozen and preserved at `bd60f25d9`, explicitly unreviewed research with its
+parent gate OPEN. Existing Apply provenance already transports native operation
+support; no new per-call token is required. The next concrete work is the
+source-owned nonzero contextual producer and Catch residual constructor with
+live two-direction/current/future feedback. The selected `ResidualRecipe` is
+design, not existing code. Shallow resumption, outside arm effects and frozen
+Oracle operation-pattern/binder behavior constrain that work. No new
+negative-formal field map or handler semantics are inferred from the pending
+question bundle; no further conditional lemma assuming the absent producer is
+scheduled. All current child write leases are frozen/completed.
 
 ## Historical first scheduling wave
 

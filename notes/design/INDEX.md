@@ -106,7 +106,11 @@ This index is a navigation aid. The listed source document remains authoritative
   passed fresh independent proof review for its local value theorem and bounded
   constructor/admission correspondence. The separate
   [conditional-result Value incidence](2026-10-14-conditional-value-references.md)
-  is a reviewed Draft awaiting user selection, not implementation authority. The
+  now has explicit user approval for Choice A (conditions and all branches),
+  preserving the reviewed constructor boundaries. Its
+  [implementation/projection checkpoint](../progress/2026-10-14-conditional-reference-choice-a.md)
+  passed focused checks and independent review. The extension adds no incoming
+  Expression edge and does not change current semantic SCC membership. The
   [copied-row ownership decision](2026-10-12-value-reference-copied-row-ownership.md)
   fixes extrusion and per-use freshening as description/bound copies that do
   not inherit Value-reference incidences; independent source-owner construction

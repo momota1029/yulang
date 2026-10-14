@@ -76,9 +76,10 @@ cargo run -q -p yu-playground -- tools/inference-playground/examples/conditional
 
 Its graph includes `IntPositive` and `StrPositive` bounds. Replacing `true`
 with `false` leaves both bounds in the observation. The output does not print
-a principal type. Conditional inference observations also do not certify that
-the conditional result has complete source Value-reference SCC adjacency; the
-result-incidence choice remains open.
+a principal type. Conditional result references include conditions and every
+branch through the selected Name/Apply/If fragments. Group, Ascription, Lambda
+and Block remain fragment boundaries. This scoped construction does not certify
+complete source Value-reference adjacency for the whole language.
 
 This carrier still does not observe arithmetic, omitted-`else` conditionals,
 or string interpolation. These are limits of the carrier, not Yulang language
