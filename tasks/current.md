@@ -126,10 +126,13 @@ profile, event, current-root and expiry consumer. Review corrected one
 authority overstatement: borrowed enter/leave is a Draft owner realization,
 while the selected behavior is preservation of a still-live owner's identity
 and activity plus current-state resumption. H1/H2/U remain OPEN; H3/P remain
-disabled. The next gate is a bounded source-to-native Call correspondence
-derivation and independent falsification; no production representation or
-code lease opens until its constructors/consumers and any durable approval
-boundary are concrete.
+disabled. H1-G is active on baseline `b336999a148eaee7779f80e0a18e9e79e2cd8394`:
+a constructive correspondence derivation, an independent source-qualified
+falsifier, and a read-only owner trace each follow authoritative Call records
+through HIR/Gen-Call-0 to Function4 and typed-evidence consumers. Their outputs
+are disjoint; all are static-only and stop at a missing owner/interface. No
+production representation or code lease opens until the constructors,
+consumers and any durable approval boundary are concrete.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
