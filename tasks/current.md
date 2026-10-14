@@ -2,7 +2,7 @@
 
 Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic-lower bridge remains OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active. H1-L has a reviewed bounded obstruction; H2 view-lineage retention and copied-bound activation have reviewed bounded results; Catch coverage has a reviewed source audit. The copied-symbolic continuation audit is reviewed and leaves pending/remapped contextual activation OPEN; H1/H2/U and production correspondence remain open, with H3/P disabled.
 
 ## Current checkpoint (2026-10-15)
 
@@ -40,6 +40,13 @@ Status: full objective remains active. H1-L has a reviewed bounded obstruction; 
   `spec_auditor` found no findings in the test-only observer. Its exact focused
   test passed after one test-only compile repair. Parent H1/H2/U remain OPEN;
   H3/P stays disabled; production/F5 remain separate.
+- **Copied symbolic continuation:** a static owner audit, reviewed by a fresh
+  M2 `compiler_referee` with no findings, establishes that completed original
+  symbolic admission registers incoming incidence before the gamma snapshot;
+  positive traversal reconstructs copied cuts on a reused symbolic row, and a
+  later ordinary lower replays them. The genuinely remapped and pending cases
+  still lack a joint contextual completion argument. This is no counterexample
+  and does not close H2/U. See the [owner audit](../notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md).
 
 The user's selected local protection law remains fixed at the original upper
 Function demand's `Eout`; older broader-position notes do not reopen that
@@ -15720,8 +15727,8 @@ their later comparison consequences. Keep stored bounds, queued work, drained
 work and resulting obligations distinct.
 
 At baseline `d8a6209c1`, three disjoint methods were assigned. The proof,
-falsifier, and test-only observer are frozen. A follow-up static owner audit is
-active for the copied symbolic lower's continuation:
+falsifier, test-only observer and follow-up static owner audit are frozen. The
+audit was reviewed by a fresh M2 `compiler_referee` with no findings:
 
 - **Constructive proof:** `prover` owns
   `notes/theory/2026-10-15-extrusion-current-cut-activation-construction.md`.
@@ -15738,12 +15745,17 @@ active for the copied symbolic lower's continuation:
   synthesizes the replay under investigation. The focused test passed, and a
   fresh M2 `spec_auditor` found no findings. See the [runtime report](../notes/progress/2026-10-15-extrusion-current-cut-activation-observation.md).
 
-- **Next static owner audit:** a `researcher` has the exclusive lease
+- **Copied symbolic continuation:** the reviewed audit shows that a completed
+  original `x <= Allowance(v_i)` admission registers incoming incidence before
+  the gamma snapshot. Positive traversal rebuilds copied cuts on reused `x`,
+  and a later ordinary lower replays those cuts through the typed drain. It does
+  not establish arbitrary nonidentity-context commutation or the joint
+  pending/remapped case. No source counterexample or H2/U closure follows. See
   `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md`.
-  It traces a later lower through the observer's reused symbolic row, original
-  cuts, copied source and tail; then compares the genuinely remapped row case at
-  `Visit`. No Cargo/tests/probes or compiler edits. Stop at the first missing
-  route or a complete bounded continuation argument.
+
+The next action applies this direct incidence route to the parent and isolates
+the remaining pending/remapped contextual obligation at its typed-drain and
+forwarding owners. Keep the original quantifiers and source Catch bridge.
 
 The test is finite native evidence only; it establishes neither source Catch
 reachability nor a lost source effect. Parent H2 remains OPEN until the original

@@ -291,7 +291,8 @@ H1-D の成果物 path は候補であり、primary が最新差分を確認し�
 - Reviewed input: `notes/theory/2026-10-15-native-residual-view-lineage-lifecycle.md`. Fresh M2 `compiler_referee` found no findings on its bounded structural derivation. Distinct view IDs, per-use `(old view, mapped tail)` sharing, capture incidence and qualifying intrusion replay are established for the named successful native routes. The current-pair activation bridge at `Work::IncomingAllowance` / `Work::Bound` remains OPEN; bound storage and origin transfer alone prove neither activation nor loss.
 - At baseline `d8a6209c1`, the `prover` derivation at `notes/theory/2026-10-15-extrusion-current-cut-activation-construction.md` and independent `researcher` falsifier at `notes/progress/2026-10-15-extrusion-current-cut-activation-falsifier.md` froze as a bounded pair. A fresh M2 `compiler_referee` found no findings. Both preserve the original quantifiers, reject an already-forwarded atomic Contribution as a false witness, and leave current symbolic/context activation OPEN.
 - The test-only observer is at `crates/yu-solver/src/candidate_context_tests.rs::observe_structural_value_extrusion_current_and_late_allowance_pairs`; the primary's runtime evidence is recorded in `notes/progress/2026-10-15-extrusion-current-cut-activation-observation.md`. It reaches extrusion through structural Value dispatch, admits distinct views with the same source/tail rows, records a copied symbolic lower without a current Replay dependency, and confirms a later direct lower replays to both copied cuts and the tail. It does not manually enqueue the replay under investigation. The exact focused test passed after one test-only compile repair; a fresh M2 `spec_auditor` found no findings.
-- Next, one static `researcher` owns `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` at the same source baseline. It traces a later lower through the original symbolic row and its reused/remapped copies, separates already-forwarded from pending effects, and stops at the first unavailable consequence. No Cargo or code edits. H1/H2/U remain OPEN; H3/P disabled; production/F5 separate.
+- The static owner audit at `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` is reviewed by a fresh M2 `compiler_referee` with no findings. Completed original symbolic admission registers incoming incidence before the gamma snapshot; positive traversal reconstructs copied cuts on reused `x`, and later ordinary lower admission replays them through the typed drain. The genuinely remapped and pending case, including arbitrary ordered contexts, remains unsupported. No source counterexample or H2/U closure follows.
+- Next action: apply the direct incidence route to the original parent, then isolate the exact pending/remapped contextual obligation at its typed-drain and forwarding owners. Preserve all original source cases and one scoped assignment. No Cargo budget remains for this slice; H1/H2/U stay OPEN, H3/P disabled, production/F5 separate.
 
 ## 5. 判定に使う最小の確認
 
@@ -352,8 +353,9 @@ guards・labels・tuple patterns、完全な Call、型推論全体の性質、b
 > `tasks/effects-handler-next.md` と `tasks/current.md` を実行入口として、現在の HEAD と
 > 最新 checkpoint を照合する。Luna は primary を継続する。H1-L の reviewed bounded
 > obstructionと H2 の reviewed structural/activation slice を繰り返さない。今は
-> `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` の bounded
-> static owner audit を完了し、結果から actual source correspondence の次の premise を選ぶ。
+> `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md` を使って
+> direct incidence route を parent に適用し、pending/remapped contextual obligation を
+> typed-drain と forwarding owner で切り分ける。
 > Cargo budget は observer の二回で消費済み。H1/H2/U を早期に閉じず、既存の衛生性 proof
 > と P は premises をソースへ対応づけてから使う。H3/P と production/F5 は必要条件が
 > 満たされるまで無効のままにする。

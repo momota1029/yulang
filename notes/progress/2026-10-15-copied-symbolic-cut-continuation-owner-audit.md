@@ -1,8 +1,9 @@
 # Copied symbolic cuts: continuation owner audit
 
-Status: unreviewed bounded static source characterization. No source-qualified
-counterexample, universal activation theorem, H2/U closure, or implementation
-authority. Frozen at handoff; primary assigns fresh independent review.
+Status: reviewed bounded static source characterization. A fresh M2
+`compiler_referee` found no findings in the frozen artifact. No
+source-qualified counterexample, universal activation theorem, H2/U closure,
+or implementation authority follows.
 
 Baseline supplied by primary: `d8a6209c1dc181858948c4d811259aa20683d64e`,
 branch `research/simple-sub-intrusion`. Exclusive lease: this file only.
@@ -164,8 +165,10 @@ paths. No new restriction or required production mechanism is proposed.
 - Exact leased path: `notes/progress/2026-10-15-copied-symbolic-cut-continuation-owner-audit.md`.
 - Baseline SHA: `d8a6209c1dc181858948c4d811259aa20683d64e`.
 - Changed dependency hashes: none observed; pinned observer hash matches.
-- Claim/review status: unreviewed bounded static correspondence and explicit
-  remaining premise; producer claims no independent review or gate closure.
+- Claim/review status: fresh M2 `compiler_referee` found no findings in the
+  bounded static correspondence. The remaining pending/remapped contextual
+  premise stays explicit; this does not close H2/U or establish implementation
+  authority.
 - Checks already run: focused static owner/consumer/fiber reads, dependency
   SHA-256 checks, output-path absence, trailing-whitespace and terminal-byte
   checks; no executable verification.
