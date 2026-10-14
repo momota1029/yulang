@@ -91,22 +91,26 @@ local `ResultEffect` law is in scope for its source correspondence.
 | `H1_E_private_context_prototype` | Reversible source-owned protection-schema/context prototype at the exact Function-field consumer | implementation feasibility pass stopped twice with no code edits; existing context route has no omitted-formal protection classifier, and a schema-only ContextExpr would remain inert metadata | Keep the static directional schema separate from receiver activation. Do not invent an interpreter, synthetic receipt, Allowance membership meaning, or active guard. Resume only after the actual native protection-classifier owner is identified; H1/H2/U OPEN, H3/P disabled. |
 | `H1_E_live_context_proof` | Constructive source/consumer invariant for the exact occurrence-to-Function-ResultEffect context route | reviewed bounded structural prefix in `notes/theory/2026-10-15-directional-introduction-live-context-constructor-proof.md`; fresh independent `compiler_referee` found no findings | Proves only exact Function4 field routing and relation admission before enqueue; first operational protection constructor/receiver owner remains OPEN. No parent gate promotion. |
 | `H1_E_receiver_owner_map` | Read-only owner map for original receiver construction, activation/lifetime, and the native event protection classifier | done on `99be441a4`; found conditional `yu-core::shadow_typed_evidence::query_conditionally` but no production caller/source producer; exact input assumptions and source owner boundary recorded | The first missing relation is actual receiving-call entry → immutable `original_receiver` plus typed profile/Receive/Observe evidence. This is source correspondence, not a counterexample or user semantic vote. |
-| `H1_E_receiver_entry_bridge` | Constructive proof/source bridge from admitted source receiving-call entry to activation-qualified typed incidence | active on baseline `922edf574d9ad08b0b4d84a31d0d6651673636d2`; exclusive lease `notes/theory/2026-10-15-receiver-entry-source-bridge.md` | 20-minute static/proof pass, zero Cargo/probes/builds/measurements. Must source all active roots, boundary, profile, exact typed path, Receive/Observe and lifetime on one assignment or name the precise missing owner. Do not assume the Draft machine or narrow the parent source domain. |
-| `H1_E_receiver_entry_falsifier` | Independent static attack on source Apply/Lambda identity vs repeated receiver activation, evidence and expiry/re-entry | active on the same frozen baseline; exclusive lease `notes/progress/2026-10-15-receiver-entry-source-falsifier.md` | 15-minute static-only, zero Cargo/probes/builds/measurements. Use actual HIR/native owners and fixtures; distinguish source candidates from executed behavior. Seek a source-qualified identity collision or first missing source constructor without claiming compiler misbehavior. |
+| `H1_E_receiver_entry_bridge` | Constructive proof/source bridge from admitted source receiving-call entry to activation-qualified typed incidence | reviewed bounded characterization in `notes/theory/2026-10-15-receiver-entry-source-bridge.md`; fresh `compiler_referee` found no blocking/major findings; two minor wording/locator repairs closed | Static-only, 20-minute proof pass; 32 direct dependency SHA-256 pins and 17 Git blob pins matched. Identifies no source-produced execution receiver/boundary/Receive/Observe/expiry; conditional statements remain conditional. H1/H2/U OPEN, H3/P disabled. |
+| `H1_E_receiver_entry_falsifier` | Independent static attack on source Apply/Lambda identity vs repeated receiver activation, evidence and expiry/re-entry | reviewed bounded characterization in `notes/progress/2026-10-15-receiver-entry-source-falsifier.md`; paired fresh `compiler_referee` found no blocking/major findings | Static-only, 15-minute pass; no Cargo/probes/builds/measurements. The alpha/beta identity-collapse calculation is conditional; composed source example remains unexecuted. No runtime error or impossibility claim. |
+| `H1_F_receiver_entry_owner_representation` | Read-only source/candidate owner and representation feasibility for actual receiving-call entry → typed boundary/profile/receipt/expiry | queued after H1-E paired review | Reuse user-selected typed-value transport and lifetime principles; do not promote Draft realization to authority, extend profile positions, or invent activation tokens. Return the earliest actual producer/consumer and a minimal provisional route, or the exact durable decision gate. Zero Cargo/tests/builds/probes/measurements. |
 
 The H1-D paired characterization was frozen and independently reviewed. It
 locates the missing live-context operation: the authenticated original Apply
-still enters `IDENTITY` context. H1-E established a reviewed bounded prefix
-for exact field routing/admission and found that the conditional typed-incidence
-classifier has no native source producer. A paired proof/falsifier now targets
-the source receiving-entry → boundary/Receive/Observe bridge. The local law is
+still enters `IDENTITY` context. H1-E established the reviewed Function-field
+prefix and then reviewed a paired source receiving-entry characterization.
+Static source constructors do not produce the execution receiver, immutable
+boundary, matching typed receipt and observation, or expiry needed by the
+conditional classifier. Its identity-collision calculation remains
+conditional, and the composed source witness is unexecuted. H1-F is the next
+read-only owner/representation feasibility pass. The local directional law is
 already selected; production, H1/H2/U and residual activation stay open.
 
 This slice closes only its symbolic-construction artifact. The parent source
-callback protection and residual-effect goal stays active. The primary has
-launched the paired constructive source-to-consumer derivation and independent
-source-qualified falsifier on the frozen `2b95123d6` baseline. This dispatch
-does not restart completed H1-A/B/source-join packets or activate P.
+callback protection and residual-effect goal stays active. The receiver-entry
+bridge and independent falsifier were reviewed on the frozen source baseline
+`922edf574d9ad08b0b4d84a31d0d6651673636d2`; their two minor textual repairs
+are closed. No source or compiler code changed, and P remains disabled.
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
 are zero. The primary has used ten bounded Cargo processes: one playground

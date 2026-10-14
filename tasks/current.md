@@ -104,10 +104,23 @@ owner map found a conditional typed-incidence classifier in
 `yu-core::shadow_typed_evidence::query_conditionally`, but it has no native
 source producer: current HIR/Lambda admission records syntax and lexical scope,
 not a receiving-call entry/expiry identity. Its boundary, active roots, Receive,
-Observe and typed path are caller-supplied assumptions. The next paired proof
-and falsifier target that exact source-entry-to-typed-evidence bridge. No
-implementation resumes until this source owner is established or its exact
-missing realization input is fixed.
+Observe and typed path are caller-supplied assumptions. The receiver-entry
+proof/falsifier pair is now frozen in the [source bridge](../notes/theory/2026-10-15-receiver-entry-source-bridge.md)
+and [falsifier](../notes/progress/2026-10-15-receiver-entry-source-falsifier.md),
+based on `922edf574d9ad08b0b4d84a31d0d6651673636d2`. A fresh
+`compiler_referee` found no blocking or major findings; two minor
+source-locator/authority-wording repairs are closed. Both routes establish the
+same bounded gap: source constructors retain static
+Lambda/formal/Apply/Function-field facts but do not create a receiving
+execution occurrence, immutable boundary receiver, matching
+typed-path/Receive/Observe evidence, or normal-return expiry. The alpha/beta
+identity-collapse calculation is conditional; its composed source example
+remains unexecuted. This is a representation/source-correspondence gap, not a
+theorem, source impossibility result, or runtime misprotection counterexample.
+The next gate is a bounded read-only owner/representation feasibility pass
+for the actual source receiving-entry and lifecycle mapping. H1/H2/U remain
+OPEN; H3/P remain disabled. The H1-E code lease stays blocked until the source
+owner or exact missing realization input is established.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
