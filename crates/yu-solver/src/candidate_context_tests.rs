@@ -572,6 +572,142 @@ fn omitted_formal_source_domains_correlate_with_retained_extrusion_pairs() {
     }
 }
 
+#[test]
+fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
+    use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+    const SOURCE: &str = "my root = { my outer cb = { my inner x = cb x; inner }; my identity z = z; outer identity }";
+    let mut session = session_with_source(SOURCE);
+    let owner = empty_bundle_owner(&session);
+    let local = session.batch.hir.local_source(&owner).unwrap().unwrap();
+    let expressions = local.expressions();
+    // Binder, initializer, Lambda and parameter identities come from HIR;
+    // their spelling selects only the requested fixture position.
+    let mut selected = Vec::new();
+    for (binder, formal) in [("outer", "cb"), ("inner", "x"), ("identity", "z")] {
+        let binding = local.bindings().iter().find(|binding| binding.spelling.as_ref() == binder).unwrap();
+        let lambda = &expressions[binding.initializer.ordinal() as usize];
+        let LocalSourceForm::Lambda { parameter, .. } = &lambda.form else { panic!("fixture initializer Lambda"); };
+        assert_eq!(parameter.spelling.as_ref(), formal);
+        assert!(parameter.annotation.is_none());
+        selected.push((binder, formal, binding.id.clone(), lambda.occurrence.clone(), parameter.id.clone(), parameter.source.clone()));
+    }
+    let mut selected_calls = Vec::new();
+    for (index, expression) in expressions.iter().enumerate() {
+        let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { continue; };
+        let LocalSourceForm::Name { spelling: callee_name, resolution: callee_resolution } = &expressions[callee.ordinal() as usize].form else { panic!("fixture callee Name"); };
+        let LocalSourceForm::Name { spelling: argument_name, resolution: argument_resolution } = &expressions[argument.ordinal() as usize].form else { panic!("fixture argument Name"); };
+        let receiving = match (callee_resolution, argument_resolution) {
+            (LocalSourceResolution::Local(callee_id), LocalSourceResolution::Local(argument_id)) => {
+                assert_eq!(callee_id, &selected[0].2);
+                assert_eq!(argument_id, &selected[2].2);
+                assert_eq!((callee_name.as_ref(), argument_name.as_ref()), ("outer", "identity"));
+                true
+            }
+            (LocalSourceResolution::Parameter(callee_id), LocalSourceResolution::Parameter(argument_id)) => {
+                assert_eq!(callee_id, &selected[0].4);
+                assert_eq!(argument_id, &selected[1].4);
+                assert_eq!((callee_name.as_ref(), argument_name.as_ref()), ("cb", "x"));
+                false
+            }
+            _ => panic!("fixture lexical Apply resolution"),
+        };
+        let input = session.batch.candidate_calls.calls.iter().find(|input| input.owner == owner && input.expression == index).unwrap();
+        assert_eq!(input.checking.occurrence(), &expression.occurrence);
+        assert_eq!(input.callee, *callee);
+        assert_eq!(input.argument, *argument);
+        assert_eq!(session.batch.candidate_recipes[input.recipe].occurrence, expression.occurrence);
+        selected_calls.push((receiving, input.checking.clone(), input.recipe));
+    }
+    assert_eq!(selected_calls.len(), 2, "exact two source Apply constructors");
+    session.execute_candidate_source_root(&owner).unwrap();
+    let context = state(&session);
+    for (binder, formal, _, lambda, parameter, position) in &selected {
+        let origin = context.origins.iter().find(|origin| origin.formal.as_ref().is_some_and(|construction| construction.source.lambda == *lambda)).unwrap();
+        let construction = origin.formal.as_ref().unwrap();
+        assert_eq!(construction.source.owner, owner);
+        assert_eq!(&construction.source.formal, parameter);
+        assert_eq!(&construction.source.position, position);
+        assert_eq!(origin.occurrence.occurrence(), lambda);
+        let recipe = session.batch.lambda_recipes.iter().find(|recipe| recipe.occurrence == *lambda).unwrap();
+        assert_eq!(construction.domain, ValueEndpointKey::ValueRow(session.parameter_live_base + recipe.parameter_position as u32));
+        let (domain, _, _, _) = InferenceSession::positive_function_children(&session.store, construction.function).unwrap();
+        assert_eq!(domain, construction.domain_child);
+        eprintln!("constructor {binder}/{formal}: source_relation={:?} construction={construction:?} domain_term={:?}", origin.relation, session.store.term_view(domain).unwrap());
+    }
+    for (receiving, checking, recipe) in &selected_calls {
+        let input = session.batch.candidate_calls.calls.iter().find(|input| input.recipe == *recipe).unwrap();
+        let native = input.native.as_ref().expect("executed source Apply retains native interface");
+        eprintln!("source_apply receiving={receiving} checking={checking:?} native={native:?} demand_view={:?}", session.store.term_view(native.demand).unwrap());
+        for origin in context.origins.iter().filter(|origin| origin.occurrence == *checking) {
+            eprintln!("source_apply_relation receiving={receiving} relation={:?} key={:?}", origin.relation, context.relations[origin.relation.0 as usize].key);
+        }
+    }
+    let receiving_checking = &selected_calls.iter().find(|call| call.0).unwrap().1;
+    let mut authenticated_receiving = 0;
+    for dependency in &context.dependencies {
+        let Dependency::FunctionPort { child, parent, field: FunctionField::Argument, operation } = *dependency else { continue; };
+        assert_eq!(operation, FunctionPortOperation::Swap);
+        let TypedPairKey::Value(pair) = context.relations[parent.0 as usize].key.pair else { panic!("Function comparison Value pair"); };
+        let lower = InferenceSession::positive_function_children(&session.store, pair.lower).unwrap();
+        let upper = InferenceSession::negative_function_children(&session.store, pair.upper).unwrap();
+        let ValueEndpointKey::PositiveFunction(lower_term) = pair.lower else { unreachable!() };
+        let ValueEndpointKey::NegativeFunction(upper_term) = pair.upper else { unreachable!() };
+        eprintln!("paired_function_terms lower={lower_term:?} view={:?} upper={upper_term:?} view={:?}",
+            session.store.term_view(lower_term).unwrap(), session.store.term_view(upper_term).unwrap());
+        let incidence = session.candidate_formal_argument_incidence(child);
+        if let Some(incidence) = &incidence {
+            for edge in &context.dependencies {
+                if matches!(*edge, Dependency::Transport { child, .. } if child == incidence.transport_relation) {
+                    eprintln!("constructor_transport {edge:?}");
+                }
+            }
+        }
+        eprintln!("argument child={child:?} parent={parent:?} parent_key={:?} child_key={:?} lower={:?} upper={:?} lower_domain={:?} upper_argument={:?} incidence={incidence:?}",
+            context.relations[parent.0 as usize].key, context.relations[child.0 as usize].key, pair.lower, pair.upper,
+            session.store.term_view(lower.0).unwrap(), session.store.term_view(upper.0).unwrap());
+        for replay in &context.dependencies {
+            let Dependency::Replay { child: comparison, lower, upper, lower_input, upper_input } = *replay else { continue; };
+            if comparison != parent { continue; }
+            assert_eq!(context.relations[lower.0 as usize].key.pair, bound_pair(lower_input));
+            assert_eq!(context.relations[upper.0 as usize].key.pair, bound_pair(upper_input));
+            eprintln!("comparison_replay child={comparison:?} lower_relation={lower:?} upper_relation={upper:?} lower_input={lower_input:?} upper_input={upper_input:?}");
+            // Follow only explicitly retained one-parent derivations/transport
+            // of the upper bound. Pair equality and multi-input Replay ancestry
+            // cannot identify which source supplied this negative demand.
+            let mut pending = vec![upper];
+            let mut seen = Vec::new();
+            while let Some(relation) = pending.pop() {
+                if seen.contains(&relation) { continue; }
+                seen.push(relation);
+                for edge in &context.dependencies {
+                    let antecedent = match *edge {
+                        Dependency::Derived { child, parent } if child == relation => Some(parent),
+                        Dependency::Transport { child, parent, .. } if child == relation => Some(parent),
+                        _ => None,
+                    };
+                    if let Some(antecedent) = antecedent {
+                        eprintln!("upper_bound_ancestry {edge:?}");
+                        pending.push(antecedent);
+                    }
+                }
+            }
+            let receiving_upper = context.origins.iter().any(|origin| seen.contains(&origin.relation) && origin.occurrence == *receiving_checking);
+            let outer_constructor = incidence.as_ref().is_some_and(|incidence| incidence.comparison == parent && incidence.construction.source.lambda == selected[0].3);
+            if receiving_upper && outer_constructor {
+                authenticated_receiving += 1;
+                eprintln!("authenticated_receiving_argument child={child:?} comparison={parent:?} upper_ancestry={seen:?}");
+            } else {
+                eprintln!("unattributed_argument child={child:?} receiving_upper={receiving_upper} outer_constructor={outer_constructor} upper_ancestry={seen:?}; earlier extrusion is outside the bounded incidence reader");
+            }
+        }
+    }
+    for parent in &session.candidate_graph.as_ref().unwrap().intrusion.parents {
+        eprintln!("extrusion_parent raw_parent={:?} raw_copy={:?} polarity={:?} target={} occurrence={} pair_only={:?} sources={:?}; no retained contextual RelationId or direct Function field path",
+            parent.parent, parent.copy, parent.polarity, parent.target, parent.occurrence, parent.comparison, parent.sources);
+    }
+    eprintln!("authenticated_receiving_argument_chains={authenticated_receiving}; absence is an attribution obstruction, not lost protection; later cb-demand comparisons require their own authenticated ancestry");
+}
+
 fn value(row: u32) -> ExtrusionEndpoint {
     ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row))
 }

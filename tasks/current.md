@@ -15428,6 +15428,26 @@ that supplies an actual positive Function lower to `cb` and distinguishes the
 receiving call's Argument consumer from a later comparison against `cb x`'s
 negative demand. It does not choose profile positions or implement protection.
 
+That [receiving-call probe](../notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md)
+is now implemented and passed its exact focused test twice, including one
+rerun after a minor attribution repair. It authenticates one receiving-call
+Argument chain for the original `outer/cb` constructor and the exact same
+FunctionPort parent, using retained FreshUse/derived provenance. The run also
+shows a later `cb x` comparison whose upper bound has a retained
+Transport/Derived path to the source Apply relation, but the bounded incidence
+reader returns no formal incidence for that Argument child. Its extrusion
+Parent still stores only a pair key; no session-local uniqueness join to the
+source RelationId was checked, so the relation→copy→consumer chain remains
+OPEN. The test review found one minor wrong-parent attribution risk; checking
+`incidence.comparison == parent` closed it, and the focused rerun passed.
+H1/H2/U remain OPEN, H3/P disabled and the profile-position matrix undecided.
+The next evidence action is a test-only uniqueness join over retained RelationKeys:
+check whether the exact Parent pair and source IDs identify one contextual
+RelationId, then connect that relation through retained derivation/transport to
+the `cb x` FunctionPort consumer. If that join is ambiguous or misaligned, stop
+and request narrowly scoped copy-time RelationId instrumentation; do not add it
+automatically.
+
 The [shallow Catch hygiene constructor bridge](../notes/theory/2026-10-15-shallow-catch-hygiene-constructor-bridge.md)
 is independently reviewed with no findings as a bounded conditional
 crosswalk. It preserves the existing hygiene lemma's guard, family, bracketing

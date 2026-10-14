@@ -48,9 +48,10 @@ extrusion coverage.
 ## Active evidence wave, 2026-10-15
 
 These are launched bounded assignments, not proposals. Production source inputs
-are pinned to `427d1ff5d`; intervening commits changed records only. The active
-receiving-call probe has an exclusive test-file lease and no production compiler
-write authority. The user's undecided omitted-formal position matrix remains
+are pinned to `427d1ff5d`; intervening commits changed records only. The
+receiving-call probe is frozen and reviewed, with no production compiler write
+authority. The next test-only uniqueness-join probe has an exclusive test-file
+lease. The user's undecided omitted-formal position matrix remains
 outside every packet.
 
 | Job | Method / gate | State and exclusive output | Budget / next evidence |
@@ -63,12 +64,14 @@ outside every packet.
 | `implement_h1_copy_correlation_probe` | Test-only same-session mapping from omitted formal domains to retained extrusion pairs | done; frozen in `crates/yu-solver/src/candidate_context_tests.rs::omitted_formal_source_domains_correlate_with_retained_extrusion_pairs`; M1 minor pair-key wording repair checked by primary | Focused test passed after repair; exact source-to-consumer correspondence remains OPEN |
 | `omitted_consumer_frontier` | Static source-slot and Value-row map through Apply demand, extrusion and Function dispatch | done; frozen in `notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md`, independently reviewed; one minor raw/canonical Visit precision repair integrated | Negative Function demand alone accumulates/extrudes bounds; Argument dispatch also needs a positive Function lower. Zero consumers do not establish lost incidence. Exact RelationId/copy representative remain open. |
 | `select_after_function_frontier` | Select discriminator after the paired-dispatch premise was located | done; selected an additive receiving-call source observation | Supply a positive Function lower to `cb`, then distinguish the receiving call's own Argument edge from a later `cb x` comparison. No semantic matrix or profile decision. |
-| `receiving_call_argument_probe` | Test-only same-session source observation with a positive Function lower and later `cb x` demand | active; exclusive leases `candidate_context_tests.rs` and `notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md` | 20-minute producer bound, zero worker Cargo; primary owns one exact focused test and one fresh compiler-referee review. Stop at exact chain or first missing authenticated relation. |
+| `receiving_call_argument_probe` | Test-only same-session source observation with a positive Function lower and later `cb x` demand | done; frozen in `candidate_context_tests.rs::omitted_formal_receiving_call_records_authenticated_argument_dispatch` and `notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md`; one minor wrong-parent attribution repair reviewed and integrated | Two exact focused runs passed; one receiving-call Argument chain is authenticated. A later `cb x` bound ancestry reaches its source Apply relation, but pair-key-to-copy RelationId uniqueness remains unchecked. |
+| `select_copy_identity_action` | Select the next discriminator after the positive Function lower and bound ancestry were observed | done; selected the test-only exact pair/source uniqueness join before any copy-time instrumentation | Check all retained RelationKeys for the Parent's exact TypedPairKey and sources, authenticate the source Apply relation, and follow retained single-parent ancestry to the FunctionPort Argument parent; stop on ambiguity or misalignment. |
+| `omitted_formal_copy_relation_uniqueness` | Test-only same-session join from extrusion Parent pair/source to contextual RelationId and later consumer | active; exclusive leases `candidate_context_tests.rs` and `notes/progress/2026-10-15-omitted-formal-copy-relation-uniqueness.md` | M1, ≤20-minute implementer, zero worker Cargo; primary owns one exact focused run and one fresh compiler-referee review. No production instrumentation, no profile decision, stop on first ambiguity or broken chain. |
 
 Worker Cargo, build, executable-probe and measurement budgets for this wave
-are zero. The primary has used three bounded Cargo processes: one playground
-observation and two runs of the same focused test (before and after its
-comment/output-only review repair). The playground observation on
+are zero. The primary has used five bounded Cargo processes: one playground
+observation, two runs of the first focused test, and two runs of the receiving-
+call focused test (before and after its review repair). The playground observation on
 `my outer cb = { my inner x = cb x; inner }` reports one call-tail event and
 four retained parent-copy pairs, including `raw5 -> raw11`, Negative, target
 level 1; its `RowKey` and Value labels do not authenticate `raw5`'s source
@@ -89,15 +92,18 @@ their bounded scopes. The profile-position decision still blocks protection
 semantics and H3, not independent structural/proof tasks.
 
 The later [consumer-frontier derivation](../notes/theory/2026-10-15-omitted-formal-extrusion-consumer-frontier.md)
-resolves raw5's source constructor for this exact fixture as the `cb x` Apply
-result, while preserving the missing runtime RelationId and copy-time
-representative. The original demand is `V8 <: F-`; because no positive Function
-lower is supplied to `cb`, native dispatch does not create Function children,
-and its extrusion copies do not establish an Argument edge. A zero count is
-therefore explained by an absent consumer premise, not evidence of lost
-incidence. The next bounded source-evidence packet adds a receiving call with a
-positive Function lower and records the two possible Argument comparisons
-separately. It does not implement protection or close H1/H2/U.
+resolves raw5's source constructor for the first exact fixture as the `cb x`
+Apply result, while preserving the missing runtime RelationId and copy-time
+representative. The original demand is `V8 <: F-`; without a positive Function
+lower, it only extrudes/accumulates bounds. The second same-session observation
+adds `outer identity`: it authenticates that receiving call's Argument edge to
+`outer/cb`, then records a later `cb x` Argument comparison whose upper bound
+has a `Derived`/`Transport` path to the source Apply relation. The bounded
+incidence reader still returns no `cb` formal incidence for that later child,
+and its Parent pair does not carry a unique RelationId. Both exact focused runs
+pass after one minor same-parent predicate repair. This remains source evidence;
+protection semantics, H1/H2/U and H3/P remain open. The user's omitted-formal
+position matrix was not guessed or revisited.
 
 ## Current executable checkpoint, 2026-10-14
 

@@ -39,9 +39,17 @@
    accumulation へ進む。Argument consumer は正負両方の Function endpoint が
    揃った比較でのみできる。この fixture の consumer 数 0 は、incidence の消失を
    示さない。独立 review の小さな raw/canonical endpoint 精度指摘は反映済み。
-   次の限定 probe は receiving call から正の Function lower を与え、受信側の
-   Argument edge と後続の `cb x` 比較を区別する。これは source evidence のみで、
-   profile matrix と H1/H2/U の状態は変えず、H3/P も有効にしない。
+   同日実施した [receiving-call probe](../notes/progress/2026-10-15-omitted-formal-receiving-call-dispatch.md)
+   は exact focused test を2回通過した。受信側 `outer identity` の Argument edge は
+   元の `outer/cb` constructor と同じ FunctionPort parent に結び付いた。後続の `cb x`
+   比較にも source Apply まで遡る Derived/Transport ancestry が残る一方、現在の
+   incidence reader はその Argument child に formal incidence を返さず、extrusion
+   Parent は pair key しか保持しない。minor review finding の wrong-parent attribution
+   は `incidence.comparison == parent` の確認で閉じた。次は test-only に全
+   RelationKey を走査し、Parent の exact pair/source と RelationId が一意かを照合する。
+   一致が一意でなければ止まり、copy-time RelationId 観測を自動追加せず、必要な観測点を
+   狭く提案する。
+   source evidence のみで、profile matrix と H1/H2/U の状態は変えず、H3/P も有効にしない。
 
 Luna は primary として、担当の分割、結果の採否、次の実行、Git 統合を持つ。
 難しい証明は `prover`、承認済み構築は `implementer`、独立した反例・到達性確認は
