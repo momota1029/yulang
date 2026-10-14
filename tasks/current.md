@@ -148,10 +148,14 @@ shared symbolic native Value row, lexical Name routes and Apply provenance,
 then stop at formation of the complete original dependent Value-interface
 family and its scoped interpretation at formal registration. A fresh
 `compiler_referee` found no findings. This is a bounded construction
-obstruction, not source impossibility or parent proof closure. A read-only
-architect lane is resolving whether an already-authorized source rule supplies
-that family or whether an independent original input / user decision remains.
-No graph code has been added; H1/H2/U remain OPEN and H3/P remain disabled.
+obstruction, not source impossibility or parent proof closure. The architect
+confirmed that current authority does not construct this family from the
+unannotated formal and native row; the missing input is an independently
+formed descriptor-interface basis plus its source/native interpretation and
+lawful joint action. This alone does not require a semantic decision. The
+next-action selector chose a bounded non-authoritative construction of that
+basis, with independent falsification, before native integration. No graph
+code has been added; H1/H2/U remain OPEN and H3/P remain disabled.
 
 A test-only same-session follow-up correlated omitted-formal constructors with
 retained extrusion parents for `my outer cb = { my inner x = cb x; inner }`.
