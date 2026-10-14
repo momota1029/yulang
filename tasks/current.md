@@ -14852,9 +14852,51 @@ check-closure compatibility note remains a separate L4 gate. Static
 proof/review and integrity checks only; no tests, builds, probes or compiler
 changes.
 
+The note's §6.5 now applies the already reviewed complete-bound theorem BOUND
+directly to the emitted `e_f[e]` edge. A scoped independent review confirmed
+that its conclusion is exactly `F_c[rho_e] ∈ Upper_sigma_e(A_f[rho_e])` and
+preserves the same residual fiber, without a typed Call, `e_out`, selected
+provider or satisfying assignment. This avoids reopening ordinary T-App or
+re-proving BOUND; it supplies the source-side upper occurrence only. It does
+not establish a native interpretation of `F_c`. Nor does it discharge the
+separate 10/13 check-closure gate: that proof needs a `Phi(R)` readout for an
+activated endpoint atom, while BOUND gives complete-upper-bound accumulation.
+Neither conclusion implies the other.
+
 Next: derive the joint complete source-demand to emitted/consumed native
 Function4 map under the same scoped assignment, retaining every Call-site
-clause and its complete future interface.
+clause and its complete future interface. Keep `e_out` as an open generated
+check: §8.1 identifies its exact `Image_c` operand, but does not prove that
+the check is satisfiable or that each arm maps into `Comp(E_c,A_c)`.
+
+The changed owner/source audit confirms §6.3 fixes the former `B_i/A_c` result
+and prechallenge-scope mismatch. At the native owner, `ApplySourceInput` and
+`NativeInterface` still retain source addresses and scalar Terms only; neither
+contains the complete `J_a`, `IF_c`, challenge/admission, pending/future, or
+residual interpretation consumed by Function4 dispatch. This is constructor
+input absence, not evidence of inevitable semantic erasure: the original
+source addresses could support a definition. A proposed dependent pairing of
+the source demand and native Term is only packaging until the actual consumer
+preserves and uses that complete contract. An unconditional map from every
+`F_c` challenge to an `A_f` Function challenge is not a well-formed premise:
+the Parameter declares `A_f` only as a flexible `ValueEndpoint`, with no
+Function constructor, `J_f`, or `IF_f`. The owner instead emits
+`e_f : VIncl(A_f,F_c)`. Given that exact witness, ordinary same-value
+inclusion transports each existing `A_f` member into `F_c`, and contextual
+Function elimination yields acceptance, observations, and futures at the same
+provider and world. This is the conditional source step already used in
+10/14 §7; it needs no unconditional challenge-domain map. A fresh independent
+review passed this conditional derivation with the same event, assignment,
+decorated tuple, provider, complete challenge and future binders. The review
+also confirmed that proving/generating `e_f` is a separate obligation and
+that this lemma establishes neither successful Call typing nor native
+correspondence. The remaining source/native question is whether native
+discharge gives this generated inclusion its complete meaning while
+preserving the residual. The native four-child consumer activates only when
+a positive Function lower bound arrives and does not consume `e_f` or the
+complete DemandInterface. The source/native parent remains OPEN. The Astra
+occurrence interpretation is scratch-only and is not promoted as
+correspondence.
 
 The direct pending-field calculation now proves a smaller part of that map.
 For a fixed authentic `Prim(δ,μq)` occurrence, the selected IF/Bind constructors
@@ -14879,16 +14921,17 @@ no tests, builds, probes, code or Git mutations.
 
 ### 2026-10-14 use the compositional Call owner at the output edge
 
-The compositional Call note's §8.1 supplies the source-side step needed here:
-`Q_N(c)` owns the complete Kernel image, `theta_c` is full-fiber identity, and
-the amended compositional source owner's `e_out` is formed over that same
-image. Thus every `Struct` and independent `Arm` witness in this new owner
-maps into `Comp(E_c,A_c)` by its generated result inclusion. Do not try to
-derive a separate arm-to-result map from `e_f` or `e_a`; those checks establish
-callee and argument compatibility, while this owner's `e_out` is the
-independent whole-Call output check. The recent `e_f/e_a -> out_j` attempt
-correctly showed that this implication is unavailable, but it is not needed
-by this source typing composition.
+The compositional Call note's §8.1 supplies the exact source-side operand for
+the generated output check: `Q_N(c)` owns the complete Kernel image and
+`theta_c` is full-fiber identity. If the same-assignment `e_out` witness is
+available, it maps each `Struct` and independent `Arm` witness into
+`Comp(E_c,A_c)` while preserving that arm's witness and future interface.
+The note does not construct that witness; `e_out` remains an open output
+check. Do not derive an arm-to-result map from `e_f` or `e_a`: those checks
+establish callee and argument compatibility, while `e_out` is the independent
+whole-Call output check. The recent `e_f/e_a -> out_j` attempt correctly
+showed that this implication is unavailable, but that route is unnecessary
+once the generated `e_out` proof is supplied.
 
 The ordinary `f 1` Simple-sub derivation remains imported. The unresolved
 gate is the joint source/native interpretation: show that the emitted and
