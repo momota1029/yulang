@@ -224,6 +224,9 @@ mod candidate_effect;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_context;
 #[cfg(feature = "shadow-apply-candidate")]
+#[allow(dead_code, reason = "reviewed scoped algebra; source and native receipt integration remains open")]
+mod candidate_scope;
+#[cfg(feature = "shadow-apply-candidate")]
 pub use candidate_effect::{EffectOperandHandle, EffectAnnotationHandle};
 #[cfg(feature = "shadow-apply-candidate")]
 pub mod shadow_apply;

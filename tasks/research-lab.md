@@ -14,6 +14,12 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [scoped kernel checkpoint](../notes/progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
+has a compiled implementation and independently reviewed algebra/source
+characterization. Actual native integration now targets source-owned scope
+inventories and consistent FreshUse maps; the selected compose source theorem
+and handler subtraction remain OPEN.
+
 The [native Computation-formal route](../notes/progress/2026-10-15-computation-formal-native-routing.md)
 is implemented and independently reviewed. Computation Name uses carry entry
 effects; Value entry forcing stays unchanged. This closes that routing slice,

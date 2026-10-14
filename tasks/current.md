@@ -6,6 +6,15 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Scoped release kernel and local proof:** the compiled private
+  `candidate_scope.rs` has canonical ordered transforms, exact release and
+  injective renaming. Independent algebra/code and source-supplier reviews
+  converged. The [checkpoint](../notes/progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
+  distinguishes this result from live source inference. Existing direct
+  formal records miss alias exposures; source-owned scope capture/FreshUse
+  inventory is the active native construction. Full compose and Catch remain
+  OPEN; no principality or soundness promotion follows.
+
 - **Computation-formal routing implemented:** source-selected Computation
   parameters now retain their entry effect through Name use in the body;
   Value parameters keep entry forcing and pure lookup. The outer concrete

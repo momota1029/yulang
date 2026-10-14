@@ -6,7 +6,7 @@ Selected-by: user, directly in the continuing hygiene conversation
 Review: pre-write spec_auditor review accepted the expected-scheme replacement; final scoped transcription/supersession review found no findings
 Scope: `my compose f g x = f (g x)`, its expected type and release of the `'e` protection scope within the output effect `'f`
 Supersedes: only the earlier compose presentation in `../progress/2026-10-04-principal-scheme-acceptance-criteria.md`; clarifies the compose instance of `2026-10-05-handler-hygiene-public-provenance-notation.md`
-Implementation: no compiler change, grammar adoption or proof closure in this record
+Implementation: private scoped algebra implemented and locally proved; source/native integration and grammar adoption remain open (see checkpoint below)
 
 ## Direct decision
 
@@ -56,6 +56,10 @@ set-union interpretation of that row, a general absorption equation such as
 need to preserve the selected scope and any independent protections.
 
 ## Implementation direction and remaining work
+
+The [scoped algebra checkpoint](../progress/2026-10-15-scoped-effect-algebra-checkpoint.md)
+records the compiled private kernel and independently reviewed local proof.
+It does not establish the selected source scheme or activate handler removal.
 
 The user selected the `'e?` strategy while allowing a richer internal
 mechanism, including push/pop-like processing. This does not adopt the earlier
