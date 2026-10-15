@@ -24,6 +24,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   workspace check. The CLI mixed-root example prints `7`.
   [Integration and exact verification](../notes/progress/2026-10-16-module-expression-integration.md).
 
+- **Queue-covered extrusion completion proved:** the [operational bridge](../notes/theory/2026-10-16-extrusion-replay-capture-completion.md)
+  and independent [source attack](../notes/progress/2026-10-16-extrusion-replay-publication-falsifier.md)
+  have fresh CLEAN semantic reviews. Actual emitted replay descendants stay
+  owned through drain diagnostics/acknowledgement, completed source actions,
+  restoration receipts and dependent local/module capture/use. Early relation
+  memoization is not completion; provisional graphs and live-root recapture
+  remain distinct from publication. No new barrier/code/test was needed.
+  Missing generation, semantic duplicate redundancy, contextual interpretation,
+  exact source-cut reachability and full H2/U remain OPEN; H3/P stay disabled.
+
 - **Initializer handler boundary implemented and proved:** the [local gate](../notes/progress/2026-10-16-playground-initializer-boundary.md)
   stops escaping initializer requests before a pending GlobalRead can search
   caller handlers. Internal Catch/Resume, nested boundaries, original event/

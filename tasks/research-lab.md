@@ -21,6 +21,17 @@ no production rule or assertion changed. All three focused cases pass, and the
 owning module has 28 passes, zero failures and two unchanged ignored observations.
 Global source eligibility and the native proof parents remain separate.
 
+The [extrusion replay completion bridge](../notes/theory/2026-10-16-extrusion-replay-capture-completion.md)
+and [independent source-publication falsifier](../notes/progress/2026-10-16-extrusion-replay-publication-falsifier.md)
+now have CLEAN semantic reviews. This closes the queue-covered emitted-work →
+owned drain/restoration terminal → completed source capture/use operational edge,
+without a new scheduler/barrier or code change. Early memo stamps do not certify
+completion; actual local/module routing recaptures live roots. Missing generation,
+semantic duplicate validity, nonidentity context meaning, pending source-cut
+reachability and full H2/U remain OPEN, with H3/P disabled. Static-only M2 scope:
+one semantic reviewer, zero executable checks and zero measurements. This lane
+is independent of the still-open full Application target construction below.
+
 The validated [module-expression ownership decision](../notes/design/2026-10-16-module-expression-source-owner.md)
 is now Authoritative (bundle `f40e4235d`). The
 [integrated implementation](../notes/progress/2026-10-16-module-expression-integration.md)

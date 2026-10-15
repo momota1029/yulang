@@ -4,6 +4,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Extrusion replay completion](../theory/2026-10-16-extrusion-replay-capture-completion.md)
+  and [source-publication attack](../progress/2026-10-16-extrusion-replay-publication-falsifier.md)
+  — Independently CLEAN operational bridge from actual queue-covered descendants
+  through drain/restoration completion to source capture/use. No new barrier or
+  code is needed. It supplies neither missing generation nor semantic context/
+  duplicate correctness; full H2/U remain OPEN and H3/P disabled.
+
 - [Native Result predicate obligations](../theory/2026-10-16-native-source-predicate-adequacy.md)
   — Independently reviewed bounded derivation of actual declared-member/tail
   checks, same-witness source projection and retained residual factorization.
