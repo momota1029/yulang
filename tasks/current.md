@@ -37,6 +37,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   `id (h i)` preserves the callback's outer return and sole output `0`, without
   special meaning for `id`. Compose release remains binding. Source attribution
   and discharge construction remain OPEN; the behavioral question is resolved.
+  The user's subsequent clarification makes ordinary forwarding explicit:
+  a function forwards each effect it does not handle; annotation permission
+  and compose protection release do not themselves consume the effect.
+  Named-group/terminal-frame source correspondence is the active next slice.
   Its local receipt and historical question remain uncommitted, with no
   separate answering-primary bundle claimed.
   The [exact identity variant also succeeds on frozen Oracle](../notes/progress/2026-10-15-callback-identity-oracle.md):

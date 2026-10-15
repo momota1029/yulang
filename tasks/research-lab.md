@@ -38,8 +38,11 @@ released scope. The user has now selected
 [ordinary identity forwarding](../notes/design/2026-10-15-callback-identity-forwarding.md):
 the return still reaches the outer sub after `id (h i)`, with no name-specific
 semantics. The behavioral alternative is resolved; source attribution and
-matching discharge remain OPEN while preserving compose release. The historical
-question and direct-resolution receipt under
+matching discharge remain OPEN while preserving compose release. The user's
+clarification now also records ordinary forwarding of each effect the function
+does not handle; it grants no new evaluation-order or runtime representation
+choice. Named-group/terminal-frame construction is the active source bridge.
+The historical question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.
 The [identity Oracle discriminator](../notes/progress/2026-10-15-callback-identity-oracle.md)
