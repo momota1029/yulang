@@ -49,8 +49,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   compose CLI controls pass after independently reviewed fixture/provenance
   repairs. This is observational metadata, not changed hygiene semantics.
   The grouped local-helper source still fails scoped inference with
-  `Solve(ReceiptMismatch)` while ordinary inference succeeds; its exact receipt
-  owner and the original loop/capture source path remain OPEN.
+  `Solve(ReceiptMismatch)` while ordinary inference succeeds. The first failure
+  is now source-qualified: extrusion creates an Effect-row copy link during
+  Value-demand processing, and bound construction copies the Value qualifier
+  onto that Effect relation. A typed owner repair is active; later paths and
+  the original loop/capture source gate remain OPEN.
+  The [new receiver construction](../notes/theory/2026-10-15-callback-identity-receiver-construction.md)
+  now has a clean independent source/proof review: one key per selected
+  function frame/formal can preserve ordinary identity forwarding and release
+  the actual full compose output. This is a finite conditional argument;
+  no extra shield is licensed and the native experiment is not promoted.
+  The selected frame is not always the formal's introducing Lambda: named
+  multi-argument compose uses its terminal body frame. The primary owns the
+  next source bridge at HIR named-group/terminal-body formation, followed by
+  joint owner-key/discharge transport; latent values, activation and actual
+  Catch/runtime consumption remain OPEN. The local-helper qualifier failure
+  has a separate active owner repair and is not assumed resolved by this proof.
 
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded

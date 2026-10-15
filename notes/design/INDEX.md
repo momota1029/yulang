@@ -9,6 +9,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Callback Hygiene's outward return and sole output `0`, without special
   meaning for the identifier. The selected compose release remains binding;
   source attribution, discharge, Catch integration and soundness remain OPEN.
+  The [reviewed finite construction](../theory/2026-10-15-callback-identity-receiver-construction.md)
+  identifies the actual selected-frame/formal source key and whole-output
+  discharge; its native supplier, latent transport and runtime premises remain
+  open, with no production representation adopted.
 
 ## Active workflow navigation (2026-10-10)
 

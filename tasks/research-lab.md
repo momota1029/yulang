@@ -50,9 +50,18 @@ The [attachment-only native slice](../notes/progress/2026-10-15-callback-receive
 now retains that source owner and passes four focused tests plus workspace/build
 and three compose controls. It changes no release or nominal owner. Curried
 capture supplies two authenticated copied witnesses; the separately retained
-local-helper source still has `ReceiptMismatch` in scoped inference. Next source
-repair must isolate that actual receipt constructor instead of assuming all
-captured callbacks are supported or weakening the original sample target.
+local-helper source still has `ReceiptMismatch` in scoped inference. Its first
+failing owner is now identified: Effect-row copying during Value extrusion
+inherits the enclosing Value demand at bound construction. The typed bound
+repair is active; later paths and the original sample target remain OPEN.
+
+The [receiver/frame construction](../notes/theory/2026-10-15-callback-identity-receiver-construction.md)
+has now passed independent source/proof review. A selected frame/formal key
+and its frame-output discharge explain both finite identity and compose cases;
+native group selection, shared transport, latent values and runtime remain OPEN.
+Consume this result at HIR named-group/terminal-body formation, under primary
+ownership, rather than adding another guard or repeating the scoped algebra
+proof. The diagnosed local-helper qualifier transport is independent work.
 
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).
