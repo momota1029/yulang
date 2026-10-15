@@ -71,6 +71,11 @@ This index is a navigation aid. The listed source document remains authoritative
   embeds explicit uniform Value/nominal RE checks; permitted restricted-domain
   Function checking still lacks native normalization/consumer correspondence.
   No parent is retired, source domain narrowed or compiler defect established.
+  The reviewed [reflection attempt](../theory/2026-10-16-first-call-finite-function-check-normalization.md)
+  and [guard attack](../progress/2026-10-16-first-call-finite-function-check-falsifier.md)
+  leave normalization neither proved nor refuted. Test-provider saturation is
+  an optional method premise, not a new necessary A/B gate. No authentic
+  same-source counterexample or new annotation restriction is established.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

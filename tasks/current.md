@@ -287,6 +287,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   unchanged OPEN; none is silently retired or equated to universal semantic
   completeness. M2 static checkpoint: two semantic reviewers over disjoint proof
   risks; zero builds/tests/probes/measurements. Dependent cutover stays gated.
+  The [changed-method reflection](../notes/theory/2026-10-16-first-call-finite-function-check-normalization.md)
+  and [guard-based attack](../notes/progress/2026-10-16-first-call-finite-function-check-falsifier.md)
+  now have CLEAN bounded-result review. Neither proves nor refutes normalization.
+  Reflection lacks full original-target test-provider/request introduction;
+  these are optional method premises, not new A/B gates. The attack lacks an
+  authentic original guard proof/target clause and complete witness. Required
+  finite-checking correspondence stays at normalization-or-actual-consumer,
+  without promoting either failed sufficient route into required semantics.
+  The local publication proposal has an accepted MAJOR: complete d retains the
+  caller's hypothetical g:A1, so its fixed walk must recursively project actual
+  event fields versus logical challenge/IF proofs. One batched repair is active;
+  that proposal has not been selected and A1 eligibility is not established.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

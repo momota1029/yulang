@@ -272,6 +272,21 @@ the original broader semantic reverse parent both remain unchanged OPEN.
 M2 checkpoint has two semantic reviewers for distinct risks, zero executable
 checks/measurements. Primary owns all status adjudication/integration.
 
+The changed-method [contextual reflection](../notes/theory/2026-10-16-first-call-finite-function-check-normalization.md)
+and independent [guard-based falsifier](../notes/progress/2026-10-16-first-call-finite-function-check-falsifier.md)
+have CLEAN bounded-result review by `checked_result_semantics`: no normalization
+or qualified counterexample. Original-target test-provider/request introduction
+is an optional reflection premise, not a new production dependency. The attack
+still lacks its authentic original guard/target/return witness. Required finite
+checking correspondence and the larger semantic reverse parent stay OPEN.
+
+The local g proposal received matching mathematical/conformance MAJOR findings:
+its fixed complete d retains A1 through the typed caller continuation. One
+batched repair owns the existing local-result-view theory note and must derive
+the recursive actual-versus-logical challenge/IF/event/ResultBind projection,
+or withdraw eligibility. No source selection or native cutover is authorized
+by the unrepaired table. Original provider/context/future domains stay intact.
+
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
 201 shadow-feature cases pass; see the [formation gate](../notes/progress/2026-10-16-ordinary-hir-carrier.md).
