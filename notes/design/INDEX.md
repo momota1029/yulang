@@ -27,7 +27,9 @@ This index is a navigation aid. The listed source document remains authoritative
   — Approved binding-carrier scope implemented with atomic per-root outcomes,
   preserved ordinary output and authentic provenance. All five local claims
   have independent proof review; default HIR and 201 shadow-feature cases pass.
-  Default collection consumption, general expression roots and F5 remain open.
+  Four focused tests also verify existing explicit candidate consumption of the
+  exact ordinary carrier. Default solver selection, broader admission, general
+  expression roots and F5 remain open.
 
 - [Request and normal-Catch execution checkpoint](../progress/2026-10-15-playground-request-control.md)
   — Existing operation schedule and shallow normal-return semantics implemented,

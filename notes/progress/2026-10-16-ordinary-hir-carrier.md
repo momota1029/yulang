@@ -3,7 +3,7 @@
 Date: 2026-10-16
 Branch: `research/simple-sub-intrusion`
 Implementation baseline: `2dc90eaeb78dd9b13277bb3f41b6d10dbf60759a`
-Status: HIR formation and original local proof complete; solver integration OPEN
+Status: HIR formation and original local proof complete; explicit candidate consumption verified; default solver cutover OPEN
 
 ## Authority and implementation
 
@@ -88,6 +88,39 @@ not run; a fresh workspace check belongs to the following runtime/shared phase
 boundary, where runtime code is currently being edited on disjoint paths.
 
 ## Next owners and records
+
+### Explicit candidate consumption follow-up
+
+At `46bb232a4`, a read-only explorer located the actual existing route:
+`CandidateInference::solve` preflights `HirModule::local_source`, then candidate
+collection at `lib.rs:1150` calls `emit_candidate_source` with that same retained
+carrier. `HirModule::local_source` chooses ordinary Supported outcomes before
+the opt-in map. No source/HIR re-lowering or production wiring change was needed.
+Default `ConstraintBatch::collect` still selects its original non-candidate path.
+
+The feature-gated extension of `ordinary_source_carrier.rs` now exercises
+ordinary `lower_module` through actual candidate generation/solve/export:
+identity/application, inline Lambda, conditional union, local binding and value
+Catch. Assertions cover authentic source-call expression pointers and branded
+keys, exported literal bounds, exact observed HIR and foreign-root rejection.
+Separate controls verify a conditional type conflict and two unsupported or
+recovered roots alongside a later Supported carrier. These are bounded consumer
+tests, not a soundness/principality proof or universal refusal theorem.
+
+M1 independent `ordinary_carrier_contract` review found no findings.
+`CARGO_BUILD_JOBS=2 timeout 300s cargo test -p yu-solver --features
+shadow-apply-candidate --test ordinary_source_carrier -- --test-threads=1`
+passed all four tests without warnings. One Cargo process/two jobs; zero
+measurements. The new section was rustfmt-formatted after the pass; existing
+default-test bytes were preserved and no semantic test change followed the run.
+`git diff --check` passed. No broad suites were repeated.
+
+The playground still uses its single opt-in lowering route because ordinary
+admission does not yet include its annotated/multiple root formals or effect
+declarations. Replacing that entrypoint wholesale would remove current coverage.
+Header/effect expansion, default solver selection and F5 retirement remain
+separate gates; this follow-up establishes actual candidate borrowing of ordinary
+carriers without claiming those gates closed.
 
 The default solver probe uses only ordinary APIs and confirms exact Arc/carrier
 pointer identity, branded roots, source-key correspondence, distinct authentic

@@ -1,6 +1,6 @@
 # Ordinary HIR successor source carrier
 
-Status: Authoritative for the unchanged binding-carrier scope; HIR formation implemented and proved; solver collection integration OPEN
+Status: Authoritative for the unchanged binding-carrier scope; HIR formation implemented and proved; explicit candidate consumption verified; default solver cutover OPEN
 Scope: retain successor source facts during the ordinary `ParsedFile -> HirModule` path without changing existing HIR admission, items, errors, diagnostics, or occurrence identities
 Baseline: `5fc8acfc0`
 Authority: active user objective to use successor inference through ordinary entrypoints; existing HIR association, recovery, identity, and Simple-sub withdrawal contracts

@@ -86,9 +86,11 @@ Status: full objective remains active. Native extrusion now schedules current co
   have constructive actual-source proof and fresh independent review. Default
   checking/full HIR tests and all 201 shadow-feature cases pass without warnings.
   [Formation record](../notes/progress/2026-10-16-ordinary-hir-carrier.md).
-  A default solver probe confirms exact retained carrier/ordinary identities
-  across collection. Next connect actual constraint generation to these
-  outcomes. General expression roots, solver selection and
+  A default solver probe confirms exact retained carrier/ordinary identities.
+  Four focused tests now also verify existing explicit candidate consumption
+  of the same ordinary HIR through real constraints and export, with clean M1
+  contract review; no re-lowering or production wiring change was needed.
+  General expression roots, header/effect admission, default solver selection and
   F5 withdrawal remain independent open gates.
 
 - **Ordinary playground execution integrated:** `--run DEFINITION` now performs
