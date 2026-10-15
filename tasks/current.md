@@ -25,8 +25,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   attempt](../notes/theory/2026-10-16-native-result-origin-falsification.md) found
   no missing edge or source-qualified counterexample. Fresh independent review
   accepts these limited results. Actual Replay/post-check evaluation of that
-  joint source fiber, including copied/merged histories, remains OPEN; a bounded
-  Astra proof packet now targets that exact premise. No code, test, benchmark,
+  joint source fiber, including copied/merged histories, remains OPEN. The bounded
+  [Replay pass](../notes/theory/2026-10-16-native-result-replay-adequacy.md) now has
+  clean independent review: production Value relations cannot be discharged,
+  Function Result retains its original parent context, and ordered bound-pair
+  Replay reaches the live consumer. Queued is not Complete. A normal Sol lane
+  now constructs the common source/native satisfaction interpretation at formal
+  slots 43/44 and Apply slot 0. No code, test, benchmark,
   scoped-callee policy or production status changes follow from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed

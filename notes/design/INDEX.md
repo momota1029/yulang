@@ -16,6 +16,9 @@ This index is a navigation aid. The listed source document remains authoritative
   and joint source-witness annotation; bounded static search found no actual
   counterexample. Native Replay/post-check and copied/merged-history adequacy
   remain OPEN. No new metadata or source restriction is selected.
+  The [subsequent Replay proof](../theory/2026-10-16-native-result-replay-adequacy.md)
+  establishes Value nondischarge, original Result context and ordered live
+  activation. Common source/native satisfaction and original adequacy remain open.
 
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through

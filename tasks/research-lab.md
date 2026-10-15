@@ -31,8 +31,11 @@ The [constructive source-indexed decoder](../notes/theory/2026-10-15-native-call
 and [static falsification attempt](../notes/theory/2026-10-16-native-result-origin-falsification.md)
 now have independent clean review. They establish original-coordinate wiring
 and common source-witness annotation, not native Replay/post-check evaluation.
-A single bounded Astra proof assignment targets that remaining joint-fiber
-adequacy premise after the Sol constructor pass. Missing interpretation is not
+A single bounded Astra [Replay pass](../notes/theory/2026-10-16-native-result-replay-adequacy.md)
+has independent clean review for Value nondischarge, original Result context
+and ordered live activation. The remaining common satisfaction interpretation
+is assigned to normal Sol at formal slots 43/44 and Apply slot 0, preserving
+unresolved constraints and endpoint-dependent comparison. Missing interpretation is not
 demonstrated loss or permission to remove the scoped Local-callee guard.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
