@@ -1,8 +1,9 @@
 # Initialization effect order: internal requests and outward observations
 
 Date: 2026-10-16
-Status: bounded source-kernel derivation and actual constructor trace;
-initialization-order observation boundary unresolved. Independent review CLEAN.
+Status: bounded source-kernel derivation and actual constructor trace,
+independently reviewed CLEAN. Its then-open observation decision is now resolved
+by the subsequent approved outward-effect boundary; full scheduling remains OPEN.
 Baseline supplied by primary: `31c3c6553`; initial runtime `35e87f844`.
 The authorized late runtime boundary delta is revalidated separately in §8.
 Exclusive lease: this note only. No implementation or source-policy authority.
@@ -14,6 +15,13 @@ prepublication review. These results select no source observation or scheduler.
 Primary revalidated all dependency hashes at integration: the governing decision
 has only an appended local-implementation checkpoint; its approved text prefix
 is byte-identical to the recorded baseline. All other listed inputs match.
+
+Subsequent decision: exact [observation bundle](../../questions/2026-10-16-initialization-effect-order-observation/receipt.md)
+`6b6cafea1` selects effects escaping each initializer after internal handling.
+The historical question/derivation below is retained. Under that choice the
+internal example projects to `[]`, as applied in the independently reviewed
+[current-runtime theorem](2026-10-16-initialization-outward-order-current-runtime.md).
+This later decision supplies neither full source admission nor entry timing.
 
 ## 1. Frozen question and governing decision
 

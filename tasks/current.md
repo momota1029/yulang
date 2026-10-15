@@ -85,9 +85,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   including effects reaching automatic global consumers. Completely handled
   internal requests and declaration-only permissions do not count. The governing
   observation addendum records this exact scope. No detector, scheduler or extra
-  uninitialized-reference policy follows. The all-current-runtime outward-order
-  proof and independent consumer/source-label audit are active; full source/order
-  construction and materialization remain OPEN. Native proofs continue.
+  uninitialized-reference policy follows. The [all-current-runtime theorem](../notes/theory/2026-10-16-initialization-outward-order-current-runtime.md)
+  and independent consumer census now have fresh CLEAN mathematical/source review:
+  every public fresh-machine trace has at most one distinct outward event,
+  completed runs none, so no observed pair is inverted. This closes only that
+  local observed-prefix fact. Entry timing, earlier-effect accounting, source
+  trace refinement, successful scheduling/admission, automatic global consumers
+  and whole materialization remain OPEN. Native proofs continue.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
@@ -256,6 +260,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   Native MODEL establishment, input-scheme validity, universal copy applicability,
   original reverse/full C0, hygiene, soundness/principality and F5 remain OPEN.
   Static-only M2 application: one semantic reviewer, no builds/tests/measurements.
+
+  The next-action selector now targets actual FreshUse applicability, using the
+  newly complete guard telescope and reviewed restoration terminal. Constructive
+  and complementary falsification lanes examine real copied/shared coordinates
+  and source Generalize's scoped declaration allocation; an existential old-row
+  model alone cannot establish arbitrary lawful client instantiation. A separate
+  source-checking-to-native lane inverts the selected independent finite checking
+  judgment at this first Apply. Original reverse FIRST-RESULT remains unchanged
+  and OPEN; no stronger semantic converse is silently retired or made equivalent
+  to the required finite-derivation completeness contract. Static-only packets;
+  dependent implementation/cutover stays gated.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

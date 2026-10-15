@@ -103,3 +103,21 @@ blanket dependency-first policy, additional uninitialized-reference rule,
 observable speculation or arbitrary global-handler registry is approved by
 this addendum. Source construction, actual runtime correspondence and full
 initialization/materialization gates retain their independent owners.
+
+## Current error-only runtime order consequence
+
+The [actual-code outward-order theorem](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+has fresh CLEAN mathematical/source review from `runtime_semantic_review` at
+producer `96470065...e58c07`, accepted by the primary. All current public fresh
+machine traces have at most one distinct outward demand-boundary request;
+completed runs have none. Internal handlers/raw Resume and budget pauses do
+not bypass the terminal unhandled-request state. Demand labels use authentic
+definition cells/expression roots, preserving lexical request provenance.
+Therefore no pair of observed initializer effects is reversed on these traces.
+
+This is only a local observed-prefix result. It does not establish source-prefix
+refinement, accounting for earlier omitted effects, permission for an early
+initializer entry, successful source admission/scheduling, an automatic global
+consumer or whole materialization. A future resumable consumer changes the
+absorption premise and requires new order correspondence. No detector, runtime
+edit or additional failure policy follows from this proof.

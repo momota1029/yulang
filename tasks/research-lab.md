@@ -80,10 +80,14 @@ integrated `6b6cafea1`, selects effects actually escaping each initializer after
 internal handling, including before an automatic global consumer; internal-only
 requests and permission upper bounds do not count. The governing addendum
 records exactly that choice. No detector, uninitialized-reference policy or
-schedule is selected. A prover now checks actual all-current-runtime outward
-order in `notes/theory/2026-10-16-initialization-outward-order-current-runtime.md`,
-with an independent public-consumer/source-label audit. Whole source/order and
-materialization gates stay OPEN; native work continues independently.
+schedule is selected. The [actual current-runtime theorem](../notes/theory/2026-10-16-initialization-outward-order-current-runtime.md)
+and independent public-consumer/source-label census now have fresh CLEAN review
+from `runtime_semantic_review`, producer `96470065...e58c07`, accepted by primary.
+Every fresh public run has at most one distinct outward event, completed runs
+none; the no-observed-pair-inversion consequence follows. This is not source
+trace refinement or authority for early entry/omitted effects. Full source/order,
+automatic global consumption and materialization gates stay OPEN. Static M2:
+one semantic reviewer, zero new executable checks/measurements.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -240,6 +244,18 @@ Engine MODEL establishment, input-scheme validity, universal canonical/copy
 applicability, reverse FIRST-RESULT/full C0, hygiene, global principality and
 cutover remain OPEN. M2 static-only application: one semantic reviewer, zero
 executable checks or measurements; this result is not native-engine success.
+
+Changed critical path: the next-action selector selects actual FreshUse
+applicability of this now-complete source constructor. Two static 25-minute
+producer packets own disjoint `notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md`
+and `notes/progress/2026-10-16-first-call-fresh-use-guard-falsifier.md`.
+They must establish actual scoped source allocation, not promote one old-row
+denotation extension to arbitrary-client correspondence. A separate 20-minute
+prover owns `notes/theory/2026-10-16-first-call-source-checking-native-preservation.md`,
+inverting independent finite Call/checking rules before native generation.
+The original all-semantic reverse parent remains unchanged OPEN; finite lawful
+source-derivation completeness is not silently equated to that larger claim.
+Primary owns adjudication, fresh artifact-local review and all integration.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

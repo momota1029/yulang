@@ -88,8 +88,16 @@ without an authenticated consumer this tool reports the existing unhandled error
 The terminal opaque unhandled handle is not a newly resumable global protocol.
 No early-entry timing, effect-order detector, arbitrary global-handler registry,
 owner switch, signature cache, cancellation or repeated-publication law is added.
-Full typed-source admission, initialization order/EffectLine observation,
-whole materialization, general inference and production/F5 gates remain OPEN.
+The later [approved observation](../../questions/2026-10-16-initialization-effect-order-observation/receipt.md)
+selects actual outward initializer effects. The independently reviewed
+[current-runtime theorem](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+now establishes at most one distinct escape per fresh public run, none on
+completion, and therefore no observed pair inversion. This consumes the selected
+boundary without changing code or repeating its 108-test package check.
+Full typed-source admission, entry timing/source-prefix refinement, successful
+initialization scheduling, whole materialization, general inference and
+production/F5 gates remain OPEN. Future automatic global consumption requires
+new order correspondence before use.
 Current task, research queue, design index, governing decision and consumed-answer
 receipt are synchronized with this local gate. Pending questions/draft history
 remain outside this commit.

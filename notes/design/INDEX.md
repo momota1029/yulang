@@ -95,6 +95,12 @@ This index is a navigation aid. The listed source document remains authoritative
   and static permission upper bounds do not count. The governing addendum fills
   that observation boundary without selecting a detector/scheduler or certifying
   source admission, materialization or production.
+  The [current public-runtime proof](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+  is independently CLEAN: at most one distinct outward event per fresh machine,
+  none on successful completion, hence no observed pair inversion. This closes
+  that local prefix fact only; source-prefix refinement, entry timing/earlier
+  effects, successful scheduling/admission, global consumers and materialization
+  remain OPEN. No runtime change or new failure policy accompanies the result.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
