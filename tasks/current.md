@@ -325,7 +325,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   checking proof. Its inherited-support theorem adds/removes no real dependency.
   This closes the ordinary output-projection subgate, not universal absence of
   A1 from an opaque producer's instantiated L1 output-contract telescope.
-  A bounded source-law witness/exclusion attempt targets that precise leaf;
+  A bounded source-law witness/exclusion attempt found an authentic raw-Resume
+  control route returning h through the original g installation, but no actual
+  fixed-A1 contract field or exclusion proof. It stopped without an artifact;
+  source Catch/raw-continuation output telescope is the concrete case's owner.
   current-runtime same-value/view preservation is supporting evidence only.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
@@ -334,11 +337,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   broad forward and other parents remain OPEN. M2 static-only: two distinct-risk
   reviewers, zero tests/builds/probes/measurements.
 
-  An independent native proof/falsifier pair now checks exact-relation duplicate
-  suppression at pair_is_current/dispatch_live_item and context/intrusion writers.
-  Acceptance requires every skipped consequence retained/drain-owned, or later
-  mutation incrementally propagated/generation-invalidated, including dependency-
-  only changes and early stamps. No cache fix or broad implementation is assumed.
+  The independent native [mutation proof](../notes/theory/2026-10-16-native-relation-duplicate-preservation.md)
+  and [source attack](../notes/progress/2026-10-16-native-relation-duplicate-falsifier.md)
+  are frozen at an actual producer/consumer mismatch: ordinary diagnostic
+  children enter a consumer requiring a genuine whole-Value extrusion rewrite.
+  Independent semantic adjudication accepts this MAJOR under contextual
+  attachment §4 and authorizes the [bounded causal repair](../notes/progress/2026-10-16-native-value-rewrite-provenance.md).
+  The authentic source trace loses an original bound fiber, but no observable
+  type-result counterexample is claimed. The universal preservation theorem
+  remains OPEN; other mutation cases are bounded evidence. M2 repair reviewers
+  cover semantic/lifecycle and hot-path resource risks; no code change yet.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

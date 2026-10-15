@@ -331,6 +331,13 @@ at the authentic arbitrary opaque L1 output telescope/substitution. A new
 it must authenticate actual installation, fixed-pi_exec realization and full
 original membership, or prove the exact owner rule excludes the candidate.
 A schema alone is no counterexample; no artifact is required without new evidence.
+The bounded pass completed without an artifact. A real shallow-handler/raw-Resume
+route returns a closure capturing k through the original f()/g installation;
+the missing step is k's actual complete retained contract/captured-view output
+telescope, rather than mere pending source syntax. A separate source-owner
+audit agrees: native continuation ports expose response/result/effects but
+not all private typed fields. No fixed-A1 field or universal exclusion was
+proved. Keep the parent OPEN at that exact source/L1 owner.
 A separate 20-minute researcher completed the changed-method
 finite-proof backward slice without an artifact; the proposed lease
 `notes/theory/2026-10-16-first-call-finite-check-proof-dependencies.md` is unused.
@@ -357,6 +364,15 @@ acceptance criterion is all required skipped consequences retained or owned,
 and later changes propagated or suppression invalidated; a genuine contrary
 trace needs authentic source/actions. No fresh-copy rerun oracle, code change,
 tests/builds/probes or semantic-memo axiom is authorized by that packet.
+Both producers are now frozen at `1259423f...c39185` and `6e34becb...4607d`.
+The authoritative attachment contract and independent `checked_result_semantics`
+adjudication identify a MAJOR: shared diagnostic children are not certificates
+for the whole-Value rewrite consumer. The authentic two-call source witnesses
+the branch and missing original bound fiber, with scalar compensation and
+some Derived provenance explicitly retained. No observable semantic CE is
+claimed. The primary authorizes only the [causal provenance repair](../notes/progress/2026-10-16-native-value-rewrite-provenance.md),
+with semantic and resource closure review; universal duplicate/H2 parents
+stay OPEN. Cost audit consumes zero timing samples/processes.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

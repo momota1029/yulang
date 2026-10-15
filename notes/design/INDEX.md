@@ -98,6 +98,13 @@ This index is a navigation aid. The listed source document remains authoritative
   OPEN at the authentic opaque L1 output telescope/substitution; no Generalize
   eligibility, native-use closure or semantic erasure law is selected.
 
+- [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
+  — The native duplicate/source audit reaches ordinary diagnostic children
+  consumed as whole-Value extrusion certificates. Independent semantic review
+  authorizes a bounded causal repair under the existing attachment contract.
+  The source trace is not an observable counterexample; universal duplicate,
+  source and production parents remain OPEN.
+
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
   and show why stored-value body checks do not establish initializer-control
