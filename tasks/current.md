@@ -95,8 +95,9 @@ Status: full objective remains active. Native extrusion now schedules current co
   omitted h formation, actual receipts/exposure/expiry and full soundness stay OPEN.
   Named-group facts and Call-route joins are now retained; intended source
   introduction across those routes is the active next premise.
-  Its local receipt and historical question remain uncommitted, with no
-  separate answering-primary bundle claimed.
+  Its [historical question and direct-resolution receipt](../questions/2026-10-15-callback-identity-release/receipt.md)
+  are now closed and archived at the user's explicit request; no separate
+  answering-primary bundle or new semantic approval is claimed.
   The [exact identity variant also succeeds on frozen Oracle](../notes/progress/2026-10-15-callback-identity-oracle.md):
   one unchanged-wrapper run inferred the same g type and produced byte-identical
   output `Out 1: 0`; independent provenance review found no findings. This is reference execution,

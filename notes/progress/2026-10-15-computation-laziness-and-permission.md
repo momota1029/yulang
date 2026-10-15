@@ -120,6 +120,8 @@ was obtained and it was not rerun. Independent provenance review found no
 findings. The earlier original/identity Callback Hygiene successes were reused.
 
 Task, research-lab and design-index records are synchronized for this slice.
-The historical unintegrated question remains excluded from commits. Omitted
+The historical question was subsequently closed and archived at the user's
+explicit request; its [receipt](../../questions/2026-10-15-callback-identity-release/receipt.md)
+records that separate disposition without an answerer bundle. Omitted
 callbacks, native selective Catch, source/runtime correspondence, full soundness
 and exact native playground execution remain OPEN.

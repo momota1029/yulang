@@ -103,8 +103,11 @@ an unexplained extra shield establishes the required correspondence.
 The behavioral alternative is resolved directly in the current conversation;
 no separate answering-primary draft, approved-answer bundle or bundle
 integration is claimed. The questioning primary records this resolution in
-the local receipt. The unintegrated question directory stays outside ordinary
-checkpoints under `rules/question-board.md`.
+the [local receipt](../../questions/2026-10-15-callback-identity-release/receipt.md).
+The user subsequently requested archiving this exact directory on 2026-10-15.
+Its historical question and direct-resolution receipt are therefore preserved
+as a closed archive under that scoped instruction, without an answering-primary
+bundle or a change to the ordinary question-board policy.
 
 This decision approves no particular ownership representation, additional
 witness, discharge algorithm, general contextual-equivalence theorem, or

@@ -84,8 +84,9 @@ to the same received carrier and consumer. A proposed separate interpreter was
 held because it would assume this rule. No new nonempty id profile or production
 subtraction is authorized; original omitted and lifetime gates remain OPEN.
 The historical question and direct-resolution receipt under
-`questions/2026-10-15-callback-identity-release/` remain outside ordinary
-checkpoints; no separate answerer bundle exists.
+`questions/2026-10-15-callback-identity-release/` are closed and archived at the
+user's explicit request. No separate answerer bundle or new semantic approval
+is claimed; the ordinary pending-question policy is unchanged.
 The [identity Oracle discriminator](../notes/progress/2026-10-15-callback-identity-oracle.md)
 has also executed once successfully with the original wrapper: same g type and
 sole output `Out 1: 0`, with independent provenance review clean. Native construction
