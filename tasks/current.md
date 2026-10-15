@@ -16,6 +16,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   remain OPEN. The original `h` demand's protection and its receiver's output
   boundary need a source-owned correspondence; existing argument-scope release
   alone is insufficient. Do not equate this frontend slice with sample success.
+  The independently reviewed [finite source derivation](../notes/theory/2026-10-15-playground-callback-hygiene-construction.md)
+  derives outer consumption of `return 0` and the discarded print/tail under
+  explicit typed-boundary/lifetime premises. The normal callback control leaves
+  g's own `return 1` catchable. This is not a native source-supplier proof;
+  constructor work must establish original receiver ownership through nested
+  capture and FreshUse before any selective Catch removal.
 
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded

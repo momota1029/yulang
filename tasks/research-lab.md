@@ -21,6 +21,9 @@ passes 30 focused tests and the workspace check. Its completion does not close
 the sample's inference/runtime gate. The next controlling construction joins
 the original protected `h` demand to its receiving boundary and the reached
 handler; do not substitute the unrelated Apply argument scope for that owner.
+The independently reviewed [finite construction](../notes/theory/2026-10-15-playground-callback-hygiene-construction.md)
+reuses typed-boundary lifetime and shallow-control results. Its source receiver
+and activity premises remain open in native code; the original gate is OPEN.
 
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).
