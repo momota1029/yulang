@@ -1296,7 +1296,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().next += 1;
         Ok(CandidateRun::Complete(false))
     }
-    fn execute_candidate_action(&mut self, action: &Action) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn execute_candidate_action(&mut self, action: &Action) -> Result<(), SolveAvailabilityError> {
             match action {
                 Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,

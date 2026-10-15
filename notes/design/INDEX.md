@@ -9,7 +9,8 @@ This index is a navigation aid. The listed source document remains authoritative
   decisions, with independently reviewed ordinary completed-path simulation.
   This is not new semantic authority or production/hygiene certification.
   The [finite receiving residual theorem](../theory/2026-10-15-native-receiving-residual-prototype.md)
-  separately closes one exact assembled use; generic native consumer transport
+  separately closes one exact assembled use; its [bounded native consumer](../progress/2026-10-15-native-receiving-residual.md)
+  is implemented and verified. Generic native consumer transport
   remains open. The [returned exposure classification](../theory/2026-10-15-callback-result-exposure-classification.md)
   preserves inherited evidence without manufacturing a new outer-formal seed.
 

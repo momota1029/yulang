@@ -212,6 +212,10 @@ mod candidate_scheme;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_source;
 #[cfg(feature = "shadow-apply-candidate")]
+mod candidate_receiver;
+#[cfg(feature = "shadow-apply-candidate")]
+pub use candidate_receiver::{ReceivingResidualExperiment, ReceivingResidualOutcome, solve_receiving_residual_experiment};
+#[cfg(feature = "shadow-apply-candidate")]
 mod candidate_value_graph;
 #[cfg(feature = "shadow-apply-candidate")]
 mod candidate_call;

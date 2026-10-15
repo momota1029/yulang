@@ -21,14 +21,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   remain OPEN. The next runtime owner is request/continuation handling with
   actual receiver evidence, alongside source-root coverage.
 
-- **Native receiving residual experiment active:** the independently reviewed
+- **Native receiving residual experiment integrated:** the independently reviewed
   [finite source theorem](../notes/theory/2026-10-15-native-receiving-residual-prototype.md)
   permits suppression for one complete original receiving-call assembly. An
-  isolated native prototype now retains slot 51 before admission and consumes
+  bounded native prototype now retains slot 51 before admission and consumes
   actual original operation contributions; ordinary solve and generic capture
-  remain unchanged. Compilation and source/semantic review pass. Actual-family
-  observations and focused Suppress/Forward checks are being integrated before
-  adoption of the prototype checkpoint. General capture/FreshUse and callback B
+  remain unchanged. Compilation, two independent reviews and four actual-family
+  Suppress/Forward tests pass. [Native gate record](../notes/progress/2026-10-15-native-receiving-residual.md).
+  This is private exact-use evidence, not generic adoption. General capture/FreshUse and callback B
   remain OPEN. The reviewed [returned-value classification](../notes/theory/2026-10-15-callback-result-exposure-classification.md)
   creates no new outer-formal seed; original inherited seeds still require native
   Call-result/local-install/Name transport, so the local-callee guard stays.

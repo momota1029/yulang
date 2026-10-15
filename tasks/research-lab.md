@@ -24,7 +24,8 @@ remain open; the provisional machine is not production adoption.
 The [finite receiving residual theorem](../notes/theory/2026-10-15-native-receiving-residual-prototype.md)
 and [returned-value seed classification](../notes/theory/2026-10-15-callback-result-exposure-classification.md)
 have independent review. A separate exact-use native assembly prototype now
-changes the actual Catch edge and is undergoing focused native-bound verification.
+changes the actual Catch edge and passes focused native-bound verification and
+two independent reviews; see its [gate record](../notes/progress/2026-10-15-native-receiving-residual.md).
 Its private monomorphic assembly neither publishes a generic relay scheme nor
 establishes ordinary generalized-inference equivalence. Keep the universal
 receiver/transport/B parents open while integrating this executable evidence.
