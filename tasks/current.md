@@ -56,8 +56,11 @@ Status: full objective remains active. Native extrusion now schedules current co
   [received-root instance](../notes/theory/2026-10-16-native-returned-callable-incidence-instance.md):
   captured and direct returned providers differ at the original outer receipt.
   Both actual source variants pass CLI candidate inference, with different native
-  graphs. The active lane traces their actual consumer difference; original
-  FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
+  graphs. The independently reviewed [actual consumer trace](../notes/progress/2026-10-16-native-received-root-consumer-instance.md)
+  locates captured entry-effect/Name lineage versus the direct operation route.
+  A bounded test-only same-State census now authenticates selected-use transport;
+  a constructive lane applies the existing receiving proofs to its event/view
+  interpretation. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
   policy or production status change follows from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed

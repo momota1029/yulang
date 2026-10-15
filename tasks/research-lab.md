@@ -51,8 +51,11 @@ derives the formal/Apply equations without complete source Call semantics.
 The changed-method consumer audit's missing concrete observation is now supplied
 by the reviewed [received-root incidence instance](../notes/theory/2026-10-16-native-returned-callable-incidence-instance.md).
 Both actual source variants pass primary CLI inference; their native graphs
-already differ. The current complementary lane traces the actual consumers of
-this pair, preserving original same-return packets and outer receipts. No new
+already differ. The reviewed [consumer trace](../notes/progress/2026-10-16-native-received-root-consumer-instance.md)
+locates actual captured entry-effect/Name lineage and the direct operation
+route. A bounded test-only same-State selected-use census now keeps authentic
+FreshUse substitutions at publication; a constructive lane applies existing
+receiving proofs to the remaining event/view interpretation. No new
 conditional interface lemma, scalar-collision assumption or scoped-guard removal
 is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 
