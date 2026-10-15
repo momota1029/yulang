@@ -114,6 +114,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   actual contributions and symbolic tails under the same xi, together with
   same-provider Result/RE/entry and reached post-check discharge. No inverse
   census, scoped-callee policy or production status change follows from the notes.
+  The independently reviewed [direct predicate analysis](../notes/theory/2026-10-16-native-source-predicate-adequacy.md)
+  now derives the actual member/tail and zero-word residual obligations and
+  proves that selected observations alone do not justify declared Support.
+  It establishes no compiler counterexample. Next-action selection confirms
+  the precise whole-descriptor implication at the annotation/signature owner;
+  one bounded Astra/low prover lane targets that clause with original xi/z
+  and source-domain quantifiers unchanged. Native implementation/cutover stays
+  gated on the result and fresh independent review.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

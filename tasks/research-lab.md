@@ -98,6 +98,16 @@ same-provider Result/RE/entry argument. Complementary static coverage found no
 source-qualified contradiction. No repeated inverse census, conditional whole-interface
 lemma, scalar-collision assumption or scoped-guard removal is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 
+The [direct predicate analysis](../notes/theory/2026-10-16-native-source-predicate-adequacy.md)
+has fresh independent review: exact Support/member/tail and residual checks
+are established, while their joint implication from the complete original
+descriptor is unproved. The selector's changed-method packet is dispatched as
+one bounded `prover` with requested `gpt-6-astra`/low, 25 minutes, no children,
+code or probes; runtime settings are not independently observable. Its sole
+lease is `notes/theory/2026-10-16-native-declared-support-source-embedding.md`.
+It must derive the original implication or supply a full source-qualified
+counterexample; unused declared effects alone are not that counterexample.
+
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
 201 shadow-feature cases pass; see the [formation gate](../notes/progress/2026-10-16-ordinary-hir-carrier.md).

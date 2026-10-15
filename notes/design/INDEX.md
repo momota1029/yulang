@@ -4,6 +4,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Native Result predicate obligations](../theory/2026-10-16-native-source-predicate-adequacy.md)
+  — Independently reviewed bounded derivation of actual declared-member/tail
+  checks, same-witness source projection and retained residual factorization.
+  Selected observations alone do not establish the declared Support predicates.
+  Whole-descriptor-to-native adequacy for the original xi/z remains OPEN;
+  no source-qualified counterexample or semantic change is established.
+
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
   at `f40e4235d`. G1–G3 complete; authentic carriers and receiver/use routing
