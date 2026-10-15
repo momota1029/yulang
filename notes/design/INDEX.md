@@ -97,6 +97,12 @@ This index is a navigation aid. The listed source document remains authoritative
   separating their hereditary checking proof. Full fixed-leaf support remains
   OPEN at the authentic opaque L1 output telescope/substitution; no Generalize
   eligibility, native-use closure or semantic erasure law is selected.
+  The [raw-capture projection](../theory/2026-10-16-source-raw-continuation-capture-projection.md)
+  and [independent census](../progress/2026-10-16-source-raw-continuation-capture-audit.md)
+  have CLEAN mathematical/source review of supplied-operand projections and
+  the lawful-response control trace. They preserve the whole installed J_raw;
+  no initial g entry is installed. Original J_raw introduction/free support,
+  complete typed witness, generalization and native application remain OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

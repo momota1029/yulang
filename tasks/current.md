@@ -341,7 +341,24 @@ Status: full objective remains active. Native extrusion now schedules current co
   control route returning h through the original g installation, but no actual
   fixed-A1 contract field or exclusion proof. It stopped without an artifact;
   source Catch/raw-continuation output telescope is the concrete case's owner.
-  current-runtime same-value/view preservation is supporting evidence only.
+  Current-runtime same-value/view preservation is supporting evidence only.
+  The [capture projection](../notes/theory/2026-10-16-source-raw-continuation-capture-projection.md)
+  and [independent audit](../notes/progress/2026-10-16-source-raw-continuation-capture-audit.md)
+  now have CLEAN mathematical/source review of their exact conditional scope.
+  They retain every crossed typed View and the ENTIRE installed raw-k `J_raw`
+  contract. The real control route installs h as g before nested `k zero`;
+  lawful response and full typing remain premises. No-free is not proved.
+  The architect identifies IF-Bind, retaining original A1 outside capture,
+  as the decisive interface constructor, without inventing an A1 View.
+  A new 20-minute proof packet constructs the original inherited `J_raw=IF(K)`
+  and its actual support; no new description binder or contract projection is
+  assumed. Original eligibility/typed-witness/native parents remain OPEN.
+  M2: two reviewers, static checks only, zero executable checks/measurements.
+  An independent ready runtime slice proves computation-root receiving for
+  Unit/Int/Bool/Str before widening the current Int-only schema matcher; its
+  complete source certificate, ground-result projection and every consumer are
+  assigned to a separate proof owner. It depends on neither this eligibility
+  parent nor the raw-k interface completion.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
   scoped substitutions and any recursive equation table. No nonuniform p_P or

@@ -338,6 +338,45 @@ telescope, rather than mere pending source syntax. A separate source-owner
 audit agrees: native continuation ports expose response/result/effects but
 not all private typed fields. No fixed-A1 field or universal exclusion was
 proved. Keep the parent OPEN at that exact source/L1 owner.
+At native checkpoint `ddda9bc67`, a changed-method source-constructor wave owns
+two disjoint outputs: prover `ordinary_carrier_proof`, 25 minutes,
+`notes/theory/2026-10-16-source-raw-continuation-capture-projection.md`; researcher
+`native_correlation_consumer`, 20 minutes,
+`notes/progress/2026-10-16-source-raw-continuation-capture-audit.md`. They derive
+and attack the complete saved-frame/typed-View/raw-k installed-contract
+telescope for `k h`, followed by installed `g=h`, `h()`, and `k zero`.
+The pending g checking schema alone is neither an installed Mono contract nor
+an exclusion proof. Every actual captured packet, K/D and private contract
+retains its original dependencies. A 15-minute read-only architect inspects the
+source introduction of the enclosing View/complete `J_raw` input independently;
+the original eligibility parent stays OPEN. M2 closure budget: two independent
+mathematical/source reviewers, static checks only, zero builds/probes/measurements.
+An independent 12-minute selector seeks an already-authorized compiler handoff
+outside this dependency cone, rather than another variant of the same proof.
+The two capture outputs are now frozen and CLEAN mathematically and for
+source/authority at producer hashes `a27aad33...144a8a` and `5ab9bbcc...88d7a5`;
+the sole stale-baseline-label minor is corrected. Primary accepts the conditional
+field projection/control/support scope, preserving the entire installed J_raw.
+The read-only architect finds IF-Bind's original A1/ResultBind telescope is the
+decisive possible edge, not a fabricated executable A1 View. A changed-owner
+20-minute prover packet now owns
+`notes/theory/2026-10-16-source-raw-continuation-interface-introduction.md`:
+construct inherited full `J_raw=IF(K)` at its original scope, without capture
+generalization, and derive actual free support. A support path does not itself
+prove the full h/f/handler typing/compatibility witness or a qualified CE.
+Original generalization/native/cutover parents remain OPEN.
+It selected an independent runtime coverage handoff: explicit computation-root
+formals already select retained Comp entry, but `RootCompSchema::from_parameter`
+only authenticates Int. A 15-minute prover `callback_context_proof` owns
+`notes/theory/2026-10-16-primitive-computation-root-receiving.md`, extending the
+reviewed source certificate and ground-result projection to Unit/Int/Bool/Str.
+All current receiving/return/raw-View consumers must be checked for Int-specific
+assumptions before widening the production matcher. This is ordinary approved
+primitive coverage, independent of raw-k/J_raw and opaque result generalization.
+One independent semantic review precedes implementation; primary owns focused
+tests/CLI verification, with zero benchmark samples and no new broad suite
+without a concrete shared-change reason. No production change is authorized
+by the selector report alone.
 A separate 20-minute researcher completed the changed-method
 finite-proof backward slice without an artifact; the proposed lease
 `notes/theory/2026-10-16-first-call-finite-check-proof-dependencies.md` is unused.
