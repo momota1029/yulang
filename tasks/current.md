@@ -15,10 +15,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   The [verification record](../notes/progress/2026-10-15-playground-hygiene-verification.md)
   separates executable protection/release from missing Catch subtraction.
   The local proof/source audit passed independent review; original hygiene and
-  soundness remain OPEN. A clean frozen Oracle was rebuilt; its actual source
-  comparisons are being integrated. Do not interpret a pure bound Name or an
-  Oracle root annotation as proof of a pure initializer without checking its
-  owning constraint direction.
+  soundness remain OPEN. The [actual frozen Oracle comparison](../notes/progress/2026-10-15-playground-hygiene-oracle-comparison.md)
+  covers eight source families and a separate interpreter control. The omitted
+  callback returns `1` in both old runtime backends, despite retaining a symbolic
+  effect in its scheme; the current selected escape outcome remains authority.
+  Oracle root `[]` supplies a lower constraint, unlike Candidate's initializer
+  upper check, so those acceptance results are not equivalent purity tests.
+  Source permission/operation consumption/survivor separation, the three Effect
+  fixture qualifications, and the exact Oracle runtime discrepancy remain open.
+  No native runtime or full soundness/compatibility claim follows.
 
 - **Native scoped compose experiment implemented:** `--scoped-experiment`
   now applies the proved transform kernel to actual source constraints,

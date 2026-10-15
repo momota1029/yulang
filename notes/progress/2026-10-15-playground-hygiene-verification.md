@@ -1,8 +1,8 @@
 # Playground Catch and hygiene verification
 
 Date: 2026-10-15
-Status: focused native verification and reviewed test correction complete;
-frozen-Oracle comparison integration remains active. Full hygiene and soundness OPEN.
+Status: independently reviewed bounded verification and test correction;
+full hygiene, Oracle parity and soundness remain OPEN.
 Starting baseline: `e9790f96f154ef0ddf67cb45aa26a569148569d7`.
 Branch: `research/simple-sub-intrusion`.
 
@@ -127,10 +127,43 @@ with the frozen lockfile, two build jobs and a 300-second timeout. The build too
 clean before and after building; frozen source was not modified. The executable
 SHA-256 is `f44bc8e41bc70290314e166832fa2a66183390ad742de458a60d7aabd39492fe`.
 The existing Oracle capture worktree contains unrelated modifications and was
-not used as a frozen-source build input. Actual comparison integration is active.
+not used as a frozen-source build input. The
+[actual comparison](2026-10-15-playground-hygiene-oracle-comparison.md) retains
+eight source families, full source constructors, command/log hashes and a
+reproducible bounded [harness](../../tools/research_playground_hygiene_oracle.py).
+Direct and annotated handlers return `1`; outside-arm and sibling-operation
+requests remain unhandled. The mixed-effect example stops at unhandled `write`,
+so its subsequent signal handling and complete residual are not observed.
+
+Two distinctions prevent an overclaim of compatibility:
+
+- The omitted-callback scheme retains the symbolic effect, but the concrete
+  terminal program returns `1` through both the evidence VM and interpreter.
+  This differs from the current selected noncapture outcome. The exact shared
+  source-to-runtime cause remains unresolved; no new language decision follows.
+- Frozen Oracle `answer: [] int` adds a lower constraint at its root annotation
+  connector, whereas Candidate checks initializer effect against an upper.
+  Identical spelling is not an equivalent purity assertion. Acceptance
+  differences in these probes do not establish a compatibility defect.
+
+Fresh `spec_auditor` review checked source adaptation, actual logs, binary
+hashes, constraint direction and the extra interpreter control. No blocking or
+major findings remained; the primary corrected one exact source locator.
+The source map also found no alternate Yulang3 Catch runtime implementation:
+current VM/native backend entrypoints are boundary stubs. Current native results
+are inference observations, not successful program execution.
 
 Verification budget: no broad workspace/legacy inference test suite and no
-performance benchmarks. Timing samples and benchmark processes: zero. Native
-compiler source is unchanged; only the scoped test correction and research
-records are being integrated. Shared task/laboratory records are finalized with
-the Oracle comparison rather than promoting an incomplete hygiene result.
+performance benchmarks. Timing samples and benchmark processes: zero. There
+were 56 direct CLI processes: 16 adversarial native, 3 scoped native, 36 in the
+comparison packet (including its help and unforced-root attempts), and 1 primary
+interpreter control. This is 27 native and 29 Oracle CLI processes, separate
+from the eight Cargo test commands and one Oracle build. No additional test
+suite was run after record-only changes.
+
+Native compiler source is unchanged. The test repair, research harness and
+reviewed evidence were integrated; `tasks/current.md` and
+`tasks/research-lab.md` are synchronized. No design authority or parent proof
+status changed, and no required record synchronization is deferred. Remaining
+work is the source-owned permission/consumption/survivor bridge, the three
+Effect fixture qualifications, and the explicit Oracle interpretation gap.

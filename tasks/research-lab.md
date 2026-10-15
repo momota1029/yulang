@@ -14,6 +14,21 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The user's detailed Catch/hygiene verification is recorded in the
+[bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).
+The source/test map, constructive assurance application, native adversarial
+observations, three scoped compose reruns and actual frozen-Oracle comparison
+are complete as bounded investigation packets. Fresh semantic and conformance
+reviews converged. Selected native tests finish at 83 passed, 3 existing Effect
+fixture failures and 2 ignored observations; the independently reviewed
+computation-formal test correction passes all seven formal-polarity tests.
+Oracle evidence includes the omitted-callback result `1` in both old backends
+and the distinct root-annotation constraint direction. These do not supersede
+the selected successor semantics. Source permission/consumption/survivor
+correspondence and global hygiene/soundness remain OPEN. The next implementation
+or proof packet must address that joint owner evidence, not repeat the existing
+kernel proof or infer hygiene from conservative Catch forwarding.
+
 The [native scoped compose experiment](../notes/progress/2026-10-15-native-scoped-compose-experiment.md)
 is implemented and independently reviewed. The selected identity, two-use and
 independent-protection sources now pass all recorded final contribution
