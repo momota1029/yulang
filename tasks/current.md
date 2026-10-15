@@ -297,8 +297,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   without promoting either failed sufficient route into required semantics.
   The local publication proposal has an accepted MAJOR: complete d retains the
   caller's hypothetical g:A1, so its fixed walk must recursively project actual
-  event fields versus logical challenge/IF proofs. One batched repair is active;
-  that proposal has not been selected and A1 eligibility is not established.
+  event fields versus logical challenge/IF proofs. The [batched correction](../notes/theory/2026-10-16-first-call-local-result-view-generalization.md)
+  has independent mathematical/source acceptance after one minor Draft sentence
+  was corrected. The [Draft](../notes/design/2026-10-16-local-call-result-view-generalize.md)
+  remains unselected, with eligibility/uniform allocation withdrawn. The
+  [dependency audit](../notes/progress/2026-10-16-first-call-local-result-view-dependency-audit.md)
+  supplies bounded field evidence only. The next changed method reconstructs
+  actual source-generated C_i/d_i, proves equality of complete executable inputs
+  and re-eliminates the same full f certificate to regenerate P_F(d_i) proofs,
+  rather than transporting opaque old guard truth. A constructive packet and
+  independent executable-field audit are active; no erasure law or domain
+  equality is assumed. The broad forward theorem and source/native parents
+  keep their original scopes and OPEN dependencies.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

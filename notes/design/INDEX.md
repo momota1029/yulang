@@ -76,6 +76,13 @@ This index is a navigation aid. The listed source document remains authoritative
   leave normalization neither proved nor refuted. Test-provider saturation is
   an optional method premise, not a new necessary A/B gate. No authentic
   same-source counterexample or new annotation restriction is established.
+  The local publication [Draft](2026-10-16-local-call-result-view-generalize.md)
+  is unselected after matching MAJOR findings at complete d→caller→g:A1.
+  Its [repaired characterization](../theory/2026-10-16-first-call-local-result-view-generalization.md)
+  has accepted mathematical/source correction review and withdraws eligibility/
+  allocation. The [field audit](../progress/2026-10-16-first-call-local-result-view-dependency-audit.md)
+  leaves recursive projection OPEN. Actual-input equality and fresh f-certificate
+  elimination are the next method; no new semantic erasure law is selected.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

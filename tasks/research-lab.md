@@ -281,11 +281,23 @@ still lacks its authentic original guard/target/return witness. Required finite
 checking correspondence and the larger semantic reverse parent stay OPEN.
 
 The local g proposal received matching mathematical/conformance MAJOR findings:
-its fixed complete d retains A1 through the typed caller continuation. One
-batched repair owns the existing local-result-view theory note and must derive
-the recursive actual-versus-logical challenge/IF/event/ResultBind projection,
-or withdraw eligibility. No source selection or native cutover is authorized
-by the unrepaired table. Original provider/context/future domains stay intact.
+its fixed complete d retains A1 through the typed caller continuation. The
+[batched repair](../notes/theory/2026-10-16-first-call-local-result-view-generalization.md)
+withdraws eligibility/uniform allocation and has accepted correction review;
+one minor stale Draft sentence was closed by primary inspection. The
+[Draft](../notes/design/2026-10-16-local-call-result-view-generalize.md) stays
+unselected and the [field audit](../notes/progress/2026-10-16-first-call-local-result-view-dependency-audit.md)
+is accepted only as bounded evidence. No original provider/context/future scope
+is narrowed.
+
+Changed method after architectural owner inspection: reconstruct actual
+source C_i/d_i from independent checking clauses; prove complete executable
+input/current-state/boundary/consumer equality; then re-eliminate the same f
+certificate for fresh P_F(d_i) guards. This avoids assumed opaque guard
+transport without postulating erasure or future-domain equality. A 25-minute
+prover owns `notes/theory/2026-10-16-first-call-source-context-invocation-reuse.md`;
+an independent 25-minute researcher owns `notes/progress/2026-10-16-first-call-executable-input-dependency-audit.md`.
+Both are static leaves; source/native applicability and cutover remain OPEN.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
