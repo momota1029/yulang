@@ -62,9 +62,13 @@ selected use origin. The [module-origin census](../notes/progress/2026-10-16-nat
 now has a successful two-input focused execution and clean semantic review:
 actual module use origins, second-call selected ancestry and outer AE images
 are authenticated. The first-demand operand query is not semantic absence;
-the constructive lane derives its pre-capture demand frontier and isolates
-correlated outer-copy transport. Complete selected-use/event interpretation
-remains OPEN. No new
+the independently reviewed [generative frontier](../notes/theory/2026-10-16-native-returned-callable-demand-frontier.md)
+proves pre-capture demand construction, one-map restoration and actual selected
+lower replay for the two fixed programs. The remaining correlated outer-copy
+semantic transport must apply existing joint-renaming/typed-transport results
+with their actual premises, not require intermediate-demand readback or merely
+redispatch completed internal comparisons. Complete same-xi,z adequacy remains
+OPEN. A bounded next-action selection now identifies that decisive premise. No new
 conditional interface lemma, scalar-collision assumption or scoped-guard removal
 is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 

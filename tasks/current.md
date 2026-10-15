@@ -78,8 +78,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   now authenticates those actual origins, second-call selected-publication ancestry
   and outer ArgumentEffect images in both cases, with a passing focused test and
   clean semantic delta review. An empty first-demand operand query is only a
-  query limitation. A constructive lane instead derives the pre-capture demand
-  frontier and targets the remaining correlated outer-copy interpretation.
+  query limitation. The independently reviewed [generative frontier theorem](../notes/theory/2026-10-16-native-returned-callable-demand-frontier.md)
+  now derives that future demand before capture, one-map restoration and the
+  selected factory lower's actual ordered replay in these two source programs.
+  Original first-demand inverse reconstruction is unnecessary. Correlated
+  outer-copy interpretation and original same-xi,z semantic adequacy remain
+  OPEN; the next action must discharge their actual interpretation premises.
   Production inference behavior is unchanged. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
   policy or production status change follows from these notes.
 

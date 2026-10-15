@@ -47,7 +47,10 @@ This index is a navigation aid. The listed source document remains authoritative
   now have independent review and focused executable evidence. The subsequent
   [module-origin census](../progress/2026-10-16-native-module-use-origin-census.md)
   authenticates actual use origins, second-call dispatch ancestry and outer AE
-  images. Complete source/native event-view and outer-copy composition remain open.
+  images. The reviewed [generative frontier theorem](../theory/2026-10-16-native-returned-callable-demand-frontier.md)
+  establishes future-demand preservation and selected live-lower replay for the
+  fixed pair, without intermediate-demand inverse reconstruction. Complete
+  source/native event-view and outer-copy composition remain open.
 
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through
