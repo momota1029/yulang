@@ -1,7 +1,7 @@
 use crate::tests::support::*;
 
 #[test]
-fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
+fn unary_callback_lambda_header_has_direct_cst() {
     let (green, _) = run(r"host (\x -> x)");
     let root = SyntaxNode::new_root(green);
     let errors = root
@@ -17,9 +17,9 @@ fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
         .map(|token| token.text().to_owned())
         .collect::<Vec<_>>();
 
-    // Research characterization only: this records the current parser gap,
-    // not the accepted source behavior for callback literals.
-    assert_eq!(errors, [r"\", "-", ">"]);
+    // The approved unary-lambda gate replaces the historical parser gap.
+    assert!(errors.is_empty());
+    assert!(root.descendants().any(|node| node.kind() == SyntaxKind::LambdaExpression));
     assert_eq!(identifiers, ["host", "x", "x"]);
     assert!(
         root.descendants()
@@ -29,49 +29,6 @@ fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
         root.descendants()
             .any(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
     );
-}
-
-fn research_complete_unary_lambda_header(
-    source: &str,
-    start: usize,
-) -> Option<(std::ops::Range<usize>, std::ops::Range<usize>)> {
-    if !source.get(start..)?.starts_with('\\') {
-        return None;
-    }
-    let mut cursor = start + '\\'.len_utf8();
-    while source
-        .as_bytes()
-        .get(cursor)
-        .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
-    {
-        cursor += 1;
-    }
-    let binder_start = cursor;
-    let first = source.get(cursor..)?.chars().next()?;
-    if first != '_' && !unicode_ident::is_xid_start(first) {
-        return None;
-    }
-    cursor += first.len_utf8();
-    while let Some(next) = source.get(cursor..)?.chars().next()
-        && unicode_ident::is_xid_continue(next)
-    {
-        cursor += next.len_utf8();
-    }
-    if matches!(source.get(cursor..)?.chars().next(), Some('?' | '!')) {
-        cursor += 1;
-    }
-    let binder = binder_start..cursor;
-    while source
-        .as_bytes()
-        .get(cursor)
-        .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
-    {
-        cursor += 1;
-    }
-    if !source.get(cursor..)?.starts_with("->") {
-        return None;
-    }
-    Some((binder, cursor..cursor + 2))
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -86,15 +43,17 @@ struct ResearchCallbackApply {
     argument: ResearchCallbackLambda,
 }
 
-fn research_callback_apply_from_error_cst(source: &str) -> Option<ResearchCallbackApply> {
+fn callback_apply_from_lambda_cst(source: &str) -> Option<ResearchCallbackApply> {
     let (green, _) = run(source);
     let root = SyntaxNode::new_root(green);
     let to_range = |range: rowan::TextRange| {
         u32::from(range.start()) as usize..u32::from(range.end()) as usize
     };
     let open_paren = source.find('(')?;
-    let slash = source.find('\\')?;
-    let (binder_range, arrow_range) = research_complete_unary_lambda_header(source, slash)?;
+    let lambda = root.descendants().find(|node| node.kind() == SyntaxKind::LambdaExpression)?;
+    let header_token = |kind| lambda.children_with_tokens().filter_map(|element| element.into_token()).find(|token| token.kind() == kind);
+    let binder_range = to_range(header_token(SyntaxKind::Identifier)?.text_range());
+    let arrow_range = to_range(header_token(SyntaxKind::Arrow)?.text_range());
 
     let parenthesized = root
         .descendants()
@@ -146,50 +105,17 @@ fn research_callback_apply_from_error_cst(source: &str) -> Option<ResearchCallba
 }
 
 #[test]
-fn research_lambda_header_predicate_recognizes_complete_unary_opener() {
-    // Header-shape candidate only: this does not exercise production parser
-    // reservation, body parsing, or recovery ownership.
-    for binder in ["x", "λ", "_", "_x", "x?", "λ!"] {
-        for trivia in ["", " ", "\t"] {
-            let source = format!("\\{trivia}{binder}{trivia}-> body");
-            let (binder_range, arrow_range) =
-                research_complete_unary_lambda_header(&source, 0).unwrap();
-            assert_eq!(&source[binder_range], binder);
-            assert_eq!(&source[arrow_range], "->");
-        }
-    }
-
-    // The opener is complete even when the body is missing. Body recovery is
-    // deliberately outside this header-predicate probe.
-    let source = r"\x ->";
-    let (binder, arrow) = research_complete_unary_lambda_header(source, 0).unwrap();
-    assert_eq!(&source[binder], "x");
-    assert_eq!(&source[arrow], "->");
-
-    for source in [r"\ -> x", r"\x - > x", r"\\x -> x", r"\x"] {
-        assert_eq!(
-            research_complete_unary_lambda_header(source, 0),
-            None,
-            "{source}"
-        );
-    }
-    let source = r"host (\x -> x)";
-    let slash = source.find('\\').unwrap();
-    let (binder, arrow) = research_complete_unary_lambda_header(source, slash).unwrap();
-    assert_eq!(&source[binder], "x");
-    assert_eq!(&source[arrow], "->");
-}
-
-#[test]
-fn research_lambda_header_predicate_maps_to_retained_callback_cst_tokens() {
+fn unary_lambda_header_maps_to_retained_callback_cst_tokens() {
     let source = r"host (\x -> x)";
     let (green, _) = run(source);
     let root = SyntaxNode::new_root(green);
     let range = |range: rowan::TextRange| {
         u32::from(range.start()) as usize..u32::from(range.end()) as usize
     };
-    let slash = source.find('\\').unwrap();
-    let (binder, arrow) = research_complete_unary_lambda_header(source, slash).unwrap();
+    let lambda = root.descendants().find(|node| node.kind() == SyntaxKind::LambdaExpression).unwrap();
+    let header_token = |kind| lambda.children_with_tokens().filter_map(|element| element.into_token()).find(|token| token.kind() == kind).unwrap();
+    let binder = range(header_token(SyntaxKind::Identifier).text_range());
+    let arrow = range(header_token(SyntaxKind::Arrow).text_range());
     let identifiers = root
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
@@ -221,9 +147,8 @@ fn research_lambda_header_predicate_maps_to_retained_callback_cst_tokens() {
 
 #[test]
 fn research_callback_literal_source_maps_to_apply_candidate() {
-    // The candidate is reconstructed from source ranges and retained CST
-    // tokens; this does not change parser dispatch or create production HIR.
-    let candidate = research_callback_apply_from_error_cst(r"host (\x -> x)").unwrap();
+    // This candidate reads the direct production CST; it creates no HIR.
+    let candidate = callback_apply_from_lambda_cst(r"host (\x -> x)").unwrap();
     assert_eq!(
         candidate,
         ResearchCallbackApply {
@@ -234,8 +159,8 @@ fn research_callback_literal_source_maps_to_apply_candidate() {
             },
         }
     );
-    assert!(research_callback_apply_from_error_cst(r"host (\ -> x)").is_none());
-    assert!(research_callback_apply_from_error_cst(r"host (\x ->)").is_none());
+    assert!(callback_apply_from_lambda_cst(r"host (\ -> x)").is_none());
+    assert!(callback_apply_from_lambda_cst(r"host (\x ->)").is_none());
 }
 
 #[test]
@@ -255,11 +180,9 @@ fn research_registered_backslash_prefix_interacts_with_lambda_header() {
         .filter(|token| token.kind() == SyntaxKind::Error)
         .map(|token| token.text().to_owned())
         .collect::<Vec<_>>();
-    assert_eq!(errors, ["-", ">"]);
-    assert!(
-        root.descendants()
-            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
-    );
+    assert!(errors.is_empty());
+    assert!(root.descendants().any(|node| node.kind() == SyntaxKind::LambdaExpression));
+    assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::PrefixOperatorUse));
 }
 use crate::{
     ambient_claim::AmbientClaimView,

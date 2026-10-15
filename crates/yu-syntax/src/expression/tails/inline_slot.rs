@@ -8,7 +8,7 @@ use crate::lexical::observation::{
 };
 use crate::lexical::stops::Stops;
 
-pub(super) fn is_inline_slot_boundary(
+pub(in crate::expression) fn is_inline_slot_boundary(
     i: SyntaxIn,
     item: &Item,
     baseline: usize,
@@ -22,7 +22,7 @@ pub(super) fn is_inline_slot_boundary(
         .unwrap_or(false)
 }
 
-pub(super) fn inline_boundary(item: &Item, baseline: usize, stops: Stops) -> bool {
+pub(in crate::expression) fn inline_boundary(item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || is_separator(item)

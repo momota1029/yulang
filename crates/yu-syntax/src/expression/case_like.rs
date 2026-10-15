@@ -134,7 +134,13 @@ fn case_like_head_normalized(
     );
     item_origin = next_origin;
     line_entry = next_line_entry;
-    if item.payload_view().token_kind() == Some(TokenKind::SigilIdentifier) {
+    if item.payload_view().token_kind() == Some(TokenKind::SigilIdentifier)
+        && !crate::lexical::stops::lambda_recovery_boundary(
+            scrutinee_stops,
+            baseline,
+            item.leading_view(),
+        )
+    {
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(family.label_node().into());
         emit_token_item(&mut i, item);
@@ -174,7 +180,12 @@ fn case_like_head_normalized(
     match exit {
         NormalizedExit::Deferred(item, line_entry) => NormalizedExit::Deferred(item, line_entry),
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
-            if item.payload_view().is_boundary() =>
+            if item.payload_view().is_boundary()
+                || crate::lexical::stops::lambda_recovery_boundary(
+                    outer_stops,
+                    baseline,
+                    item.leading_view(),
+                ) =>
         {
             complete(
                 missing_block(i, family, handoff(item), item_origin),
@@ -547,7 +558,11 @@ fn arm_normalized(
 
     let item = if matches!(family, CaseLikeFamily::Catch)
         && token_kind(&item) == Some(TokenKind::Comma)
-    {
+        && !crate::lexical::stops::lambda_recovery_boundary(
+            outer_stops,
+            arm_baseline,
+            item.leading_view(),
+        ) {
         let mut comma = item;
         comma.emit_all_remaining_leading(&mut *i.state);
         emit_token_item(&mut i, comma);
@@ -556,6 +571,17 @@ fn arm_normalized(
             pattern_item_normalized(i.rb(), item_origin, line_entry, fence, handler_stops);
         item_origin = next_origin;
         line_entry = next_line_entry;
+        if crate::lexical::stops::lambda_recovery_boundary(
+            outer_stops,
+            arm_baseline,
+            handler.leading_view(),
+        ) {
+            return finish_absent_arm_normalized(
+                i,
+                complete(handoff(handler), line_entry),
+                item_origin,
+            );
+        }
         let entry = suffix_marker(i.rb());
         let exit = pattern_from_entry_item_normalized(
             i.rb(),
@@ -582,7 +608,13 @@ fn arm_normalized(
     };
 
     let entry = suffix_marker(i.rb());
-    let item = if let Some(kind) = guard_kind(i.rb(), &item) {
+    let item = if let Some(kind) = guard_kind(i.rb(), &item).filter(|_| {
+        !crate::lexical::stops::lambda_recovery_boundary(
+            outer_stops,
+            arm_baseline,
+            item.leading_view(),
+        )
+    }) {
         guard_normalized(
             i.rb(),
             family,
@@ -611,7 +643,12 @@ fn arm_normalized(
     };
 
     let entry = suffix_marker(i.rb());
-    let exit = if item.payload_view().is_boundary() {
+    let exit = if item.payload_view().is_boundary()
+        || crate::lexical::stops::lambda_recovery_boundary(
+            outer_stops,
+            arm_baseline,
+            item.leading_view(),
+        ) {
         missing_arrow_then_body_normalized(
             i.rb(),
             item,
@@ -733,7 +770,13 @@ fn guard_normalized(
         baseline,
         outer_stops | STOP_ARROW,
     );
-    if !item.payload_view().is_boundary() {
+    if !item.payload_view().is_boundary()
+        && !crate::lexical::stops::lambda_recovery_boundary(
+            outer_stops,
+            baseline,
+            item.leading_view(),
+        )
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.start_node(SyntaxKind::OperatorChain.into());

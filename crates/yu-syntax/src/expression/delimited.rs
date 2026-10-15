@@ -108,9 +108,11 @@ pub(crate) fn delimited_items_normalized(
         DelimitedOwner::ProjectionRecord => crate::sequence::SequenceOwner::ProjectionRecord,
     });
     // Nested delimiters shield contextual and separator stops, but retain every
-    // enclosing close capability. The local close is checked first below.
+    // enclosing close capability and rebase inherited recovery activation onto
+    // the local baseline. The local close is checked first below.
     let stops = stops_for(owner.close())
         | inherited_closes
+        | (inherited_stops & crate::lexical::stops::LAMBDA_RECOVERY_BOUNDARY)
         | if owner.is_record() {
             STOP_RECORD_SPREAD
         } else {

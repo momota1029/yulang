@@ -97,7 +97,9 @@ pub(crate) fn scan_expression_payload(
 ) -> Option<AcceptedPayload> {
     let record_spread = stops & STOP_RECORD_SPREAD != 0;
     let marker_after_operator = stops & STOP_RECORD_SPREAD_AFTER_OPERATOR != 0;
-    let payload = if record_spread
+    let payload = if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
+        CurrentPayload::Token(slash)
+    } else if record_spread
         && matches!(site, OperatorSite::Nud)
         && let Some(marker) = i.token(scan_record_spread_marker)
     {
@@ -165,7 +167,9 @@ pub(crate) fn scan_nud_payload(
     baseline: usize,
     stops: Stops,
 ) -> Option<AcceptedPayload> {
-    let payload = if stops & STOP_ARROW != 0
+    let payload = if let Some(slash) = i.token(|lex| scan_lambda_backslash(lex, payload_origin, fence)) {
+        CurrentPayload::Token(slash)
+    } else if stops & STOP_ARROW != 0
         && let Some(arrow) = i.token(scan_arm_arrow)
     {
         CurrentPayload::Token(arrow)
@@ -680,6 +684,27 @@ fn scan_block_close(i: LexIn) -> Option<()> {
 fn scan_pair(mut i: LexIn, first: char, second: char) -> Option<()> {
     (i.next()? == first).then_some(())?;
     (i.next()? == second).then_some(())
+}
+
+/// Complete headers reserve only their introducer, at both expression sites.
+/// The lookahead borrows source; each accepted header Item is scanned later.
+fn scan_lambda_backslash(mut i: LexIn, origin: usize, fence: Option<&FenceBoundary>) -> Option<Token> {
+    let source = i.remainder();
+    let after_slash = source.strip_prefix('\\')?;
+    let binder = lambda_inline_suffix(after_slash, origin + 1, fence)?;
+    let (_, after_binder) = source_identifier(binder)?;
+    let arrow = lambda_inline_suffix(after_binder, origin + source.len() - after_binder.len(), fence)?;
+    is_exact_arm_arrow(arrow).then_some(())?;
+    let (_, text) = i.rb().with_str(|mut lex| lex.next());
+    Some(Token { kind: TokenKind::Backslash, text: text.into() })
+}
+
+fn lambda_inline_suffix<'source>(source: &'source str, origin: usize, fence: Option<&FenceBoundary>) -> Option<&'source str> {
+    use crate::lexical::trivia::{TriviaObservation, observe_logical_fenced_trivia};
+    match observe_logical_fenced_trivia(source, origin, LineEntry::InLine, fence) {
+        TriviaObservation::Visible(visible) if visible.indentation.is_none() => Some(visible.source),
+        _ => None,
+    }
 }
 
 pub(crate) fn scan_identifier(mut i: LexIn) -> Option<Token> {

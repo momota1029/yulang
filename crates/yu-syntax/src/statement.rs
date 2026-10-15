@@ -534,10 +534,11 @@ pub(super) fn braced_nud_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
-    let exit = braced_statement_block_normalized(
+    let exit = braced_statement_block_with_recovery_normalized(
         i.rb(),
         open,
         incoming_baseline,
+        outer_stops,
         item_origin,
         line_entry,
         fence,
@@ -560,9 +561,25 @@ pub(super) fn braced_nud_normalized(
 }
 
 pub(super) fn braced_statement_block_normalized(
+    i: SyntaxIn,
+    open: Item,
+    incoming_baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    braced_statement_block_with_recovery_normalized(
+        i, open, incoming_baseline, 0, item_origin, line_entry, fence, ambient,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn braced_statement_block_with_recovery_normalized(
     mut i: SyntaxIn,
     open: Item,
     incoming_baseline: usize,
+    inherited_stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -573,7 +590,8 @@ pub(super) fn braced_statement_block_normalized(
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
     emit_token_item(&mut i, open);
-    let stops = stops_for(TokenKind::RBrace);
+    let stops = stops_for(TokenKind::RBrace)
+        | (inherited_stops & crate::lexical::stops::LAMBDA_RECOVERY_BOUNDARY);
     let (mut item, item_origin, line_entry) = statement_item_normalized(
         i.rb(),
         item_origin,

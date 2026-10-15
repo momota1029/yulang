@@ -32,7 +32,7 @@ use crate::{
         pattern_stops_from_owner,
     },
     statement::{
-        StatementLineHandoff, braced_statement_block_normalized,
+        StatementLineHandoff, braced_statement_block_with_recovery_normalized,
         indented_statement_block_normalized,
     },
 };
@@ -536,10 +536,11 @@ fn body_normalized(
         }
         Some(TokenKind::LBrace) => {
             item.emit_all_remaining_leading(&mut *i.state);
-            braced_statement_block_normalized(
+            braced_statement_block_with_recovery_normalized(
                 i,
                 item,
                 baseline,
+                outer_stops,
                 item_origin,
                 line_entry,
                 fence,
@@ -635,7 +636,9 @@ fn inline_body_normalized(
         baseline,
         stops,
     );
-    if !item.payload_view().is_boundary() {
+    if !item.payload_view().is_boundary()
+        && !crate::lexical::stops::lambda_recovery_boundary(stops, baseline, item.leading_view())
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.start_node(SyntaxKind::OperatorChain.into());

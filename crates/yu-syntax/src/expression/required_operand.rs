@@ -12,7 +12,9 @@ use crate::{
         item::{Item, LeadingTrivia, TokenKind},
         observation::{is_active_stop, is_active_stop_lex, is_close, is_line_stop, token_kind},
         operator_scan::OperatorSite,
-        stops::{STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, Stops},
+        stops::{
+            STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, Stops, lambda_recovery_boundary,
+        },
         yumark::FenceBoundary,
     },
     operator_table::BindingPower,
@@ -60,6 +62,70 @@ pub(super) fn required_expr_after_accept_normalized(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn required_expr_item_normalized(
+    i: SyntaxIn,
+    item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    required_expr_item_with_boundary(
+        i,
+        item,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn required_inline_expr_item_normalized(
+    i: SyntaxIn,
+    item: Item,
+    threshold: Option<&BindingPower>,
+    baseline: usize,
+    stops: Stops,
+    ml_mode: MlMode,
+    line_handoff: StatementLineHandoff,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    sequence: crate::sequence::SequenceContext,
+) -> NormalizedExit {
+    required_expr_item_with_boundary(
+        i,
+        item,
+        threshold,
+        baseline,
+        stops,
+        ml_mode,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn required_expr_item_with_boundary(
     mut i: SyntaxIn,
     mut item: Item,
     threshold: Option<&BindingPower>,
@@ -72,8 +138,13 @@ pub(crate) fn required_expr_item_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
+    inline: bool,
 ) -> NormalizedExit {
-    if is_required_operand_boundary(i.rb(), &item, stops) {
+    if lambda_recovery_boundary(stops, baseline, item.leading_view())
+        || (inline
+            && super::tails::inline_slot::is_inline_slot_boundary(i.rb(), &item, baseline, stops))
+        || is_required_operand_boundary(i.rb(), &item, stops)
+    {
         emit_required_expression_missing(&mut i, &mut item, item_origin, stops);
         return complete(handoff(item), line_entry);
     }
@@ -102,8 +173,13 @@ pub(crate) fn required_expr_item_normalized(
         line_entry,
         fence,
         baseline,
+        inline,
     );
-    if is_required_operand_boundary(i.rb(), &item, stops) {
+    if lambda_recovery_boundary(stops, baseline, item.leading_view())
+        || (inline
+            && super::tails::inline_slot::is_inline_slot_boundary(i.rb(), &item, baseline, stops))
+        || is_required_operand_boundary(i.rb(), &item, stops)
+    {
         return complete(handoff(item), line_entry);
     }
     debug_assert!(is_nud_item(&item));
@@ -184,6 +260,7 @@ fn emit_required_expression_error_run(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     baseline: usize,
+    inline: bool,
 ) -> (Item, usize, LineEntry) {
     emit_recovery_error_run(i, |run| {
         loop {
@@ -199,7 +276,11 @@ fn emit_required_expression_error_run(
                     stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
                 )
             });
-            if is_required_operand_boundary_in_error_run(run, &item, stops) || is_nud_item(&item) {
+            if lambda_recovery_boundary(stops, baseline, item.leading_view())
+                || (inline && super::tails::inline_slot::inline_boundary(&item, baseline, stops))
+                || is_required_operand_boundary_in_error_run(run, &item, stops)
+                || is_nud_item(&item)
+            {
                 return (item, item_origin, line_entry);
             }
         }

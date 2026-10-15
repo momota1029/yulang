@@ -6,19 +6,28 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
-- **Unary-lambda parser approved, implementation active:** the exact Callback Hygiene input still
-  cannot pass its inline `g \i -> ...` syntax. The narrow
+- **Unary-lambda parser and local construction proof complete:** the inline
+  `g \i -> ...` syntax now has its production parser route. The narrow
   [unary-lambda parser proposal](../notes/design/2026-10-15-unary-lambda-parser.md)
   is Authoritative after M3 compiler/specification review and the user's direct
   approval `基本的にはそれでいいと思う`. It selects complete-header precedence, lossless CST and ordinary
   full-body expression/recovery, without reviving old F5 callback construction.
   The local question/receipt remain uncommitted because archival integration
   was not requested; no answering-primary bundle is invented. Implementation
-  proceeds under the direct approval. The M3 closure budget is focused syntax
-  tests, one package check, independent semantic/specification review and a
-  static header-cost review; no timing measurement is selected. Convergence
-  requires no accepted blocking/major finding. Inline-lambda HIR and execution
-  remain separate gates.
+  followed the direct approval. M3 semantic/specification delta reviews and
+  fresh independent proof review have no remaining findings. The
+  [construction theorem](../notes/theory/2026-10-15-unary-lambda-parser-preservation.md)
+  discharges all four original local obligations using actual caller/child
+  boundary constructors and consumers; all 45 dependencies match. Final
+  verification: 20 focused lambda tests, 1417 syntax tests passed with one
+  existing manual measurement ignored, and the playground package check passed.
+  Static header-cost review used no timing measurements. The
+  [implementation record](../notes/progress/2026-10-15-unary-lambda-parser.md)
+  records the proof-discovered recovery defects, source-based repairs and
+  rejected intermediate assumptions. Next is the private HIR formation and
+  authentic anonymous-parameter provenance gate, then callback-context/solver
+  correspondence. HIR, original imports/loop/std and execution remain OPEN;
+  no full Callback Hygiene completion is claimed.
 
 - **Playground explicit-root source supplier:** `--intrusion` now displays
   borrowed original Computation-formal plans, including exact outer annotation

@@ -6,6 +6,7 @@ pub(super) mod for_decl;
 pub(super) mod if_expr;
 pub(super) mod tails;
 
+mod lambda;
 mod operator_chain;
 mod required_operand;
 

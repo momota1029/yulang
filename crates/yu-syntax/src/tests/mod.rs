@@ -33,6 +33,7 @@ mod structural_diagnostic;
 mod support;
 mod tails;
 mod type_expr;
+mod unary_lambda;
 mod virtual_statement_block;
 mod yumark;
 mod yumark_cell;

@@ -299,6 +299,9 @@ pub(super) fn append_nud(
         );
     }
     match token_kind(&nud) {
+        Some(TokenKind::Backslash) => super::lambda::lambda_nud_normalized(
+            i, nud, baseline, stops, line_handoff, item_origin, line_entry, fence, ambient, sequence,
+        ),
         Some(TokenKind::Identifier) => {
             emit_identifier_core(&mut i, nud);
             scan_tail_after_accept_normalized(
@@ -1024,7 +1027,7 @@ fn is_expression_rule_literal_opener(item: &Item) -> bool {
 fn is_normal_core_item(item: &Item) -> bool {
     matches!(
         token_kind(item),
-        Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen)
+        Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen | TokenKind::Backslash)
     )
 }
 

@@ -4,7 +4,7 @@ mod assignment;
 mod colon;
 mod delimited_tail;
 mod fixed_access;
-mod inline_slot;
+pub(in crate::expression) mod inline_slot;
 mod type_annotation;
 mod with_body;
 

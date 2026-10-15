@@ -19,6 +19,19 @@ pub(crate) const STOP_LINE_BREAK: Stops = 1 << 12;
 pub(crate) const STOP_WITH: Stops = 1 << 13;
 pub(crate) const STOP_IN: Stops = 1 << 14;
 
+// Activate mandatory-operand boundary protection inside a lambda body. Child
+// owners inherit activation and apply their own layout baseline and token stops.
+pub(crate) const LAMBDA_RECOVERY_BOUNDARY: Stops = 1 << 15;
+
+pub(crate) fn lambda_recovery_boundary(
+    stops: Stops,
+    baseline: usize,
+    leading: crate::lexical::item::LeadingView<'_>,
+) -> bool {
+    stops & LAMBDA_RECOVERY_BOUNDARY != 0
+        && crate::lexical::observation::implicit_delimited_newline(baseline, leading)
+}
+
 pub(crate) fn stops_for(close: crate::lexical::item::TokenKind) -> Stops {
     let close = match close {
         crate::lexical::item::TokenKind::RParen => STOP_RPAREN,

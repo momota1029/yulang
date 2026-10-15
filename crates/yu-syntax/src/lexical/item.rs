@@ -274,6 +274,7 @@ pub(crate) enum TokenKind {
     Dot,
     DotDot,
     Arrow,
+    Backslash,
     Colon,
     Equals,
     Forall,

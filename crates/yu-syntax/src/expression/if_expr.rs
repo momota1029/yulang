@@ -23,7 +23,7 @@ use crate::{
             is_contextual_word, token_kind,
         },
         position::{advanced_origin, suffix_marker},
-        stops::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE, Stops},
+        stops::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE, Stops, lambda_recovery_boundary},
         yumark::FenceBoundary,
     },
     statement::{StatementLineHandoff, indented_statement_block_normalized},
@@ -217,13 +217,16 @@ fn if_arm_normalized(
 
     let exit = match exit {
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
-            if item.payload_view().is_boundary() =>
+            if item.payload_view().is_boundary()
+                || lambda_recovery_boundary(outer_stops, baseline, item.leading_view()) =>
         {
             missing_if_arm_normalized(
                 i.rb(),
                 complete(handoff(item), line_entry),
                 condition_missing,
                 item_origin,
+                baseline,
+                outer_stops,
             )
         }
         NormalizedExit::Complete(Err(Either::Left(colon)), line_entry)
@@ -242,7 +245,14 @@ fn if_arm_normalized(
                 sequence,
             )
         }
-        exit => missing_if_arm_normalized(i.rb(), exit, condition_missing, item_origin),
+        exit => missing_if_arm_normalized(
+            i.rb(),
+            exit,
+            condition_missing,
+            item_origin,
+            baseline,
+            outer_stops,
+        ),
     };
     i.state.finish_node();
     exit
@@ -269,10 +279,13 @@ fn condition_normalized(
         baseline,
         stops,
     );
-    if !item.payload_view().is_boundary() {
+    if !item.payload_view().is_boundary()
+        && !lambda_recovery_boundary(stops, baseline, item.leading_view())
+    {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    let missing = is_required_operand_boundary(i.rb(), &item, stops);
+    let missing = lambda_recovery_boundary(stops, baseline, item.leading_view())
+        || is_required_operand_boundary(i.rb(), &item, stops);
     i.state.start_node(SyntaxKind::Condition.into());
     i.state.start_node(SyntaxKind::OperatorChain.into());
     let exit = required_expr_item_normalized(
@@ -299,20 +312,26 @@ fn missing_if_arm_normalized(
     exit: NormalizedExit,
     condition_missing: bool,
     item_origin: usize,
+    baseline: usize,
+    stops: Stops,
 ) -> NormalizedExit {
     if condition_missing {
         return exit;
     }
     match exit {
         NormalizedExit::Complete(Err(Either::Left(mut item)), line_entry) => {
-            if !item.payload_view().is_boundary() {
+            if !item.payload_view().is_boundary()
+                && !lambda_recovery_boundary(stops, baseline, item.leading_view())
+            {
                 item.emit_all_remaining_leading(&mut *i.state);
             }
             emit_if_missing(i.rb(), &item, item_origin);
             complete(handoff(item), line_entry)
         }
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
-            end.item.emit_all_remaining_leading(&mut *i.state);
+            if !lambda_recovery_boundary(stops, baseline, end.item.leading_view()) {
+                end.item.emit_all_remaining_leading(&mut *i.state);
+            }
             emit_if_missing(i.rb(), &end.item, item_origin);
             complete(Err(Either::Right(end)), line_entry)
         }

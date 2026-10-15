@@ -311,6 +311,7 @@ pub(crate) fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
         TokenKind::Dot => SyntaxKind::Dot,
         TokenKind::DotDot => SyntaxKind::DotDot,
         TokenKind::Arrow => SyntaxKind::Arrow,
+        TokenKind::Backslash => SyntaxKind::Backslash,
         TokenKind::Colon => SyntaxKind::Colon,
         TokenKind::Equals => SyntaxKind::Equals,
         TokenKind::Forall => SyntaxKind::ForKw,

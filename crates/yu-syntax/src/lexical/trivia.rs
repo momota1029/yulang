@@ -59,16 +59,36 @@ pub(crate) fn observe_fenced_trivia<'source>(
     observe_fenced_trivia_with_newline(source, source_origin, line_entry, fence).observation
 }
 
-/// Fence-aware trivia observation with the physical-newline fact retained
-/// even when the visible suffix ends at a close, transition, or physical EOF.
+/// Header gaps use the ordinary logical layout classification: block-comment
+/// contents are opaque, while the shared scanner still enforces physical fences.
+pub(crate) fn observe_logical_fenced_trivia<'source>(
+    source: &'source str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> TriviaObservation<'source> {
+    observe_fenced_trivia_mode(source, source_origin, line_entry, fence, true).observation
+}
+
+/// Fence-aware observation retaining physical newlines at boundaries.
 pub(crate) fn observe_fenced_trivia_with_newline<'source>(
+    source: &'source str,
+    source_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> TriviaObservationWithNewline<'source> {
+    observe_fenced_trivia_mode(source, source_origin, line_entry, fence, false)
+}
+
+fn observe_fenced_trivia_mode<'source>(
     mut source: &'source str,
     mut source_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    opaque_comments: bool,
 ) -> TriviaObservationWithNewline<'source> {
     if fence.is_none() {
-        let observation = observe_ordinary_trivia(source);
+        let observation = observe_ordinary_trivia(source, opaque_comments);
         let saw_physical_newline = matches!(
             &observation,
             TriviaObservation::Visible(visible) if visible.indentation.is_some()
@@ -185,6 +205,7 @@ pub(crate) fn observe_fenced_trivia_with_newline<'source>(
 
         if source.starts_with("/*") {
             present = true;
+            let before_comment = (saw_newline, at_line_start, indentation);
             if !observe_block_comment(
                 &mut source,
                 &mut source_origin,
@@ -198,6 +219,9 @@ pub(crate) fn observe_fenced_trivia_with_newline<'source>(
                     observation: TriviaObservation::Boundary,
                     saw_physical_newline: saw_newline,
                 };
+            }
+            if opaque_comments {
+                (saw_newline, at_line_start, indentation) = before_comment;
             }
             continue;
         }
@@ -223,7 +247,7 @@ pub(crate) fn observe_fenced_trivia_with_newline<'source>(
 /// The `None` mode is the retained ordinary raw scanner. It deliberately
 /// avoids fence coordinates and line classification, preserving the ordinary
 /// operator/follower path's work and result shape.
-fn observe_ordinary_trivia<'source>(mut source: &'source str) -> TriviaObservation<'source> {
+fn observe_ordinary_trivia<'source>(mut source: &'source str, opaque_comments: bool) -> TriviaObservation<'source> {
     let mut present = false;
     let mut saw_newline = false;
     let mut at_line_start = false;
@@ -268,13 +292,15 @@ fn observe_ordinary_trivia<'source>(mut source: &'source str) -> TriviaObservati
             let comment = source;
             source = ordinary_block_comment_suffix(source);
             let consumed = comment.len() - source.len();
-            for character in comment[..consumed].chars() {
-                raw_trivia_character(
-                    character,
-                    &mut saw_newline,
-                    &mut at_line_start,
-                    &mut indentation,
-                );
+            if !opaque_comments {
+                for character in comment[..consumed].chars() {
+                    raw_trivia_character(
+                        character,
+                        &mut saw_newline,
+                        &mut at_line_start,
+                        &mut indentation,
+                    );
+                }
             }
             continue;
         }

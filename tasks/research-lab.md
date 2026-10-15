@@ -14,14 +14,21 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
-The next exact-source syntax blocker has a
+The exact-source inline-lambda syntax blocker is closed under the
 [approved unary-lambda parser construction](../notes/design/2026-10-15-unary-lambda-parser.md),
 with M3 compiler/specification review and direct user approval. Complete-header
 precedence and full lambda-body ML parsing are explicit scoped architecture
 changes. Its local question/receipt remain uncommitted; archive was not requested.
-The implementation is active under that approval. This is a separate frontend
-gate; it does not block continued native signed-copy or operational supplier
-work and does not select a runtime representation.
+The [implementation and construction proof](../notes/progress/2026-10-15-unary-lambda-parser.md)
+are now independently reviewed and verified: 20 focused lambda passes, 1417
+syntax passes with one existing manual ignored, and a successful playground
+package check. All four original local parser obligations are discharged with
+45 matched dependencies. Nested recovery, child-baseline rebasing and immediate
+consuming handoffs were repaired from concrete proof counterexamples; no
+test-based soundness claim or assumed child-owner premise remains. The next
+frontend gate is authentic inline-lambda HIR formation/provenance and then
+callback typing correspondence. This remains independent of native signed-copy
+and operational suppliers; no runtime representation or execution was selected.
 
 The [playground source-plan slice](../notes/progress/2026-10-15-computation-source-plans.md)
 is integrated with clean M2 semantic/specification and fresh delta review.

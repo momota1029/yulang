@@ -93,9 +93,12 @@ This index is a navigation aid. The listed source document remains authoritative
   — Authoritative after the user's direct approval. Selects the complete unary identifier
   header before dynamic operators in NUD/ML admission, a lossless CST, and
   ordinary full-expression body/recovery. M3 compiler/specification review
-  found no remaining blocking/major findings. Parser implementation is active;
-  inline-lambda HIR, old F5 callback construction and runtime remain outside
-  this approval.
+  found no remaining blocking/major findings. The
+  [parser implementation and local construction proof](../progress/2026-10-15-unary-lambda-parser.md)
+  are complete after fresh semantic/specification and proof closure: 1417 syntax
+  tests pass with one existing manual ignored, and the playground package check
+  passes. Inline-lambda HIR, old F5 callback construction and runtime remain
+  outside this approval.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
   — Authoritative; the explicit principal-scheme source
@@ -1220,16 +1223,14 @@ This index is a navigation aid. The listed source document remains authoritative
   wrapper-return/future-call histories against those HIR identities. Production
   invocation and endpoint adequacy remain open. Review caught and the test
   repaired a circular expected-state check; details are in the progress record.
-  The raw unary-lambda CST probe records the current `\x` / `->` error-token
-  boundary; a paired source probe confirms one-to-four parenthesized and
-  ML-argument stages remain left-nested in pre-HIR association. See the
-  [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
-  A separate test-only predicate checks the complete unary opener against the
-  existing identifier family and maps its ranges to retained tokens in the
-  error-bearing callback CST; it does not test production dispatch or recovery.
-  A raw-source test candidate now maps `host (\x -> x)` to an Apply with an
-  identity-lambda argument using those tokens, but produces no production HIR
-  or typed evidence. See the same
+  The historical raw unary-lambda Error-token probe and its separate header
+  predicate are superseded by the approved
+  [production parser and construction proof](../progress/2026-10-15-unary-lambda-parser.md).
+  The research adapter now consumes real LambdaExpression children and Rowan
+  ranges; parenthesized/ML application nesting and negative admission controls
+  remain checked. Its candidate maps `host (\x -> x)` to an Apply with an
+  identity-lambda argument, but still supplies no production HIR or typed
+  evidence. Historical investigation details remain in the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
   Its test-only mixed-call candidate preserves nested application arguments,
   then mirrors typed-core §6 `(I,d,n)` shape for five ordinary-call forms
