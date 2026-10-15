@@ -373,6 +373,37 @@ registration and the actual-field/inferred-description/body-proof introduction,
 using ordinary Lambda discipline at original scopes. It must supply the missing
 constructor rather than another conditional catalogue. Original
 generalization/native/cutover parents remain OPEN.
+The selected source-constructor packet is now dispatched at `4dbf6fe1e`:
+prover `ordinary_carrier_proof` owns
+`notes/theory/2026-10-16-source-raw-callable-validation-construction.md`
+(25 minutes); independent researcher `native_correlation_consumer` owns
+`notes/progress/2026-10-16-source-raw-callable-validation-owner-audit.md`
+(20 minutes, empty commit packet if no new evidence). Their inputs are frozen
+source owners, excluding the disjoint primitive runtime change. Acceptance
+requires the actual validation registration/component references, complete
+fixed-field versus inferred-description/body-proof outputs, full raw Function
+introduction and exact inherited support at original scopes, or a genuine
+original-rule conflict. They may complete a legitimate missing constructor;
+neither all-IF-fixed nor all-suffix-logical is assumed. No convenient new
+component or re-owned A1 may produce eligibility. Mathematical/source review
+remains budgeted at two; no code, tests, probes or measurements accompany it.
+The owner audit completed with no duplicate artifact: original component
+references and complete external Mono imports remain mandatory. The proposal
+then received two mathematical MAJOR findings (whole-root/suffix membership
+and h-import fix modes), repaired in one batch. Mathematical/source delta
+reviews are CLEAN at `6c07b8cf...ec3489` only for registration/projection and
+Function introduction CONDITIONAL on original T_e. No whole-source-to-T_e,
+concrete A1 support, qualified witness or eligibility gate closes.
+The primary consumes the remaining local supplier with two new disjoint
+packets at `4dbf6fe1e`: prover 25 minutes,
+`notes/theory/2026-10-16-first-call-local-typed-continuation.md`; researcher
+20 minutes, `notes/progress/2026-10-16-first-call-local-continuation-certificate-audit.md`.
+They compose the original independently formed caller-context certificate and
+same full f's pending response interface via original source Bind/Call, preserving
+historical prefix versus current state, original A1/final root and every free
+contract dependency. Actual complete source/response/handler evidence is needed;
+no generic whole-source residual theorem or checked-arm/k-safety assumption is
+substituted. Empty artifact packets are required without material new evidence.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns

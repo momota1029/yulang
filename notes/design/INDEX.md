@@ -103,6 +103,12 @@ This index is a navigation aid. The listed source document remains authoritative
   the lawful-response control trace. They preserve the whole installed J_raw;
   no initial g entry is installed. Original J_raw introduction/free support,
   complete typed witness, generalization and native application remain OPEN.
+  The [raw-callable registration proposal](../theory/2026-10-16-source-raw-callable-validation-construction.md)
+  has CLEAN correction review of its original component references, complete
+  Mono fix traversal and Function introduction CONDITIONAL on the original
+  typed continuation T_e. Historical whole-root evidence is not suffix typing.
+  The actual T_e supplier and concrete fixed support remain OPEN; this is no
+  source-constructor/eligibility or production closure.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

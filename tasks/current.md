@@ -366,7 +366,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   without another artifact. The remaining owner is the source-constructed raw
   callable's validation registration and actual capture/import versus inferred
   description/body-proof projection, at the original scopes. A selector now
-  targets that constructor; no new binder, retagging or closure is assumed.
+  selected a 25-minute constructive source-registration packet and independent
+  20-minute owner falsifier at `4dbf6fe1e`; both target that constructor without
+  a new convenient component, binder, retagging or assumed closure. A missing
+  definition may be supplied under existing permission, preserving actual
+  imported contracts and original checking scopes.
+  The [registration/projection proposal](../notes/theory/2026-10-16-source-raw-callable-validation-construction.md)
+  now has CLEAN mathematical/source correction review after two accepted
+  MAJORs. It separates historical whole-root evidence from the actual pending
+  T_e/R_e and explicitly fixes every free index in h's complete Mono(k) contract.
+  Complete Function introduction remains CONDITIONAL on T_e; the original
+  source-to-continuation and concrete A1 support gates remain OPEN. The owner
+  audit wrote no duplicate artifact. New bounded local proof/audit packets now
+  supply T_e using the original independent caller-context and full-f pending
+  certificates at exact source Bind/Call operands. No generic residual theorem
+  or already-checked h arm is assumed.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,
