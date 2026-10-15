@@ -37,9 +37,15 @@ has independent review with no findings. It establishes actual mapped-bound
 capture/restoration for an isolated first-use direct-Name Computation provider,
 with publication after completion and conditional actual Apply output inclusion.
 This consumes the corresponding subcase of the prior forwarding proof's native
-premise. General signed-copy/merged provider correspondence remains OPEN: source-
-qualify the first nontrivially copied provider and retain its joint AE/body/RE
-route before applying FreshUse. It does not supply runtime entry/read/Observe,
+premise. The subsequent [signed-copy source bridge](../notes/theory/2026-10-15-computation-signed-copy-source-bridge.md)
+now supplies a source-generated named-local copy: structural RE source links
+precede the negative AE closure's snapshots, creating the joint AE/body/RE
+chain before enclosing capture and FreshUse. Independent review found one
+incorrect annotated argument-port claim; a fresh producer repair and independent
+delta review closed it without narrowing the source. All 14 dependency hashes
+match. General shared/merged histories and later recapture remain OPEN; their
+source copying/capture owners are the next bridge, not another assumed-map
+lemma. It does not supply runtime entry/read/Observe,
 selective Catch, full Call, soundness or principality. No proof-side execution
 or measurement was performed. Playground source-plan work is independent.
 

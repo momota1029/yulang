@@ -49,6 +49,11 @@ This index is a navigation aid. The listed source document remains authoritative
   publication for an isolated first-use direct-Name Computation provider.
   Independent review found no findings. General copied/merged provider
   correspondence and dynamic receiving evidence remain OPEN.
+  The subsequent [signed-copy source bridge](../theory/2026-10-15-computation-signed-copy-source-bridge.md)
+  derives one source-generated copied provider's joint AE/body/RE route from
+  structural-before-pending work order, then capture and one FreshUse map.
+  Independent repair review is clean; arbitrary shared/merged histories,
+  later recapture and contextual consumers remain OPEN.
   The [playground source-plan implementation](../progress/2026-10-15-computation-source-plans.md)
   now exposes original explicit Computation-root annotation provenance to a
   bounded display consumer. Source ownership comes from the candidate's own

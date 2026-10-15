@@ -37,9 +37,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   Computation provider. One authentic use map restores the three edges before
   root publication; actual Function/Apply constraints then entail argument-to-
   output effect inclusion. No mapped-bound premise is assumed for this subcase.
-  General copied/merged providers, later recapture, dynamic receiving evidence,
-  complete Call and full soundness remain OPEN. The next general bridge needs
-  a source-qualified signed-copy AE/body/RE route before FreshUse. M2 independent
+  The subsequent [signed-copy source bridge](../notes/theory/2026-10-15-computation-signed-copy-source-bridge.md)
+  now derives one actual named-local copied provider's joint AE/body/RE route:
+  structural RE links precede deferred negative-bound snapshots, yielding
+  `t− <= n− <= r− <= r+`; enclosing capture and one FreshUse map restore it.
+  A mistaken annotated value port was repaired at its actual Int− constructor
+  correspondence; fresh independent delta review is clean and all 14 dependency
+  hashes match. General shared/merged providers, later recapture, dynamic
+  receiving evidence, complete Call and full soundness remain OPEN. The next
+  general bridge needs those copying histories and their actual consumers.
+  M2 independent
   compiler-referee review found no findings; no new tests or measurements ran
   for this proof. The independent playground source-plan slice is recorded above.
 
