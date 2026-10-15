@@ -573,7 +573,7 @@ impl ConstraintBatch {
                     owner: source.definition_root().clone(), lambda: index,
                     parameter: parameter.id.clone(), recipe_position: position, native_root: None,
                     role: if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some()) { candidate_call::FormalRole::Computation } else { candidate_call::FormalRole::Value },
-                    entry_effect: None,
+                    entry_effect: None, receiver_body: None,
                     scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
@@ -717,6 +717,11 @@ impl ConstraintBatch {
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
                             let body_region = self.candidate_source.region(Some(region))?;
+                            if self.candidate_source.scoped_experiment {
+                                let registration = *formal_registrations.get(&parameter.id).ok_or_else(invalid)?;
+                                self.candidate_calls.formals[registration].receiver_body = Some((
+                                    source.expressions()[body.ordinal() as usize].occurrence.clone(), body_region));
+                            }
                             push(&mut work, Work::Visit(body.ordinal() as usize, level, body_region))?;
                         }
                         LocalSourceForm::Block { bindings, final_expression } => {
@@ -985,6 +990,22 @@ impl ConstraintBatch {
                                 self.candidate_source.regions[region.0].inputs.try_reserve(1).map_err(|_| unavailable())?;
                                 self.candidate_source.regions[region.0].inputs.push(input_route);
                             }
+                            let receiver_attachment = if self.candidate_source.scoped_experiment {
+                                if let Some(name) = formal_names[callee.ordinal() as usize] {
+                                    let registration_index = self.candidate_calls.names[name].registration;
+                                    let registration = &self.candidate_calls.formals[registration_index];
+                                    let lambda = &source.expressions()[registration.lambda];
+                                    if self.candidate_source.omitted_formals.contains_key(&lambda.occurrence) {
+                                        let (receiver_body, receiver_region) = registration.receiver_body.as_ref().ok_or_else(invalid)?;
+                                        Some(candidate_call::ReceiverBoundaryAttachment {
+                                            registration: registration_index, receiver_lambda: lambda.occurrence.clone(),
+                                            receiver_body: receiver_body.clone(), receiver_region: *receiver_region,
+                                            lexical_region: self.candidate_source.occurrence_regions[occurrence],
+                                            scope: self.candidate_source.computation_scopes[occurrence],
+                                        })
+                                    } else { None }
+                                } else { None }
+                            } else { None };
                             let checking = ConstraintOccurrenceId::new(occurrence.clone(), 0);
                             push(&mut self.candidate_calls.calls, candidate_call::ApplySourceInput {
                                 owner: source.definition_root().clone(), expression: index,
@@ -993,7 +1014,7 @@ impl ConstraintBatch {
                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
                                 result: pos.value, application_effect: pos.effect,
                                 cause: CauseId::for_occurrence(checking.clone()), checking,
-                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None,
+                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None, receiver_attachment,
                             })?;
                             self.candidate_recipes[recipe].source_input = Some(source_input);
                             push(&mut actions, Action::Candidate(recipe))?;
@@ -1430,6 +1451,103 @@ mod local_self_recursion_tests {
             assert_eq!(effects.into_iter().collect::<HashSet<_>>(), children);
             assert!(!children.contains(&expression.occurrence));
         }
+    }
+
+
+    #[test]
+    fn receiver_attachment_exposes_the_existing_argument_release_collision() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "act signal:\n    our ping: () -> int\n\nmy id x = x\nmy g h = catch id (h 0) { signal::ping(), _ -> 1, v -> v }\nmy callback i = signal::ping()\nmy answer = g callback",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "receiver-release-collision", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap();
+        let (call_index, call) = batch.candidate_calls.calls.iter().enumerate()
+            .find(|(_, call)| call.receiver_attachment.is_some()).unwrap();
+        let attachment = call.receiver_attachment.as_ref().unwrap().clone();
+        let source = batch.hir.local_source(&call.owner).unwrap().unwrap();
+        let id_call = batch.candidate_calls.calls.iter().find(|other| {
+            other.owner == call.owner && source.expression(&other.callee).is_some_and(|callee| matches!(&callee.form,
+                LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "id"))
+        }).unwrap();
+        let argument = source.expression(&id_call.argument).unwrap();
+        assert_eq!(batch.candidate_source.computation_scopes[&argument.occurrence], attachment.scope,
+            "the actual id argument reuses h's protection scope inside its receiver");
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let copied_demands: Vec<_> = context.observed_relations().filter_map(|(_, pair, flow)| {
+            let demand = flow.demand?;
+            if demand.original_call != call_index || demand.use_instance == 0 { return None; }
+            if !matches!(pair, TypedPairKey::Value(CanonicalValuePairKey {
+                upper: ValueEndpointKey::NegativeFunction(root), .. }) if *root == demand.root) { return None; }
+            let inventory = &context.scope_inventory;
+            assert_eq!(inventory.scope_origins[demand.output_scope.0 as usize], attachment.scope);
+            assert_eq!(inventory.input_origins[demand.input.0 as usize], candidate_scope::InputRouteId(call_index as u32));
+            assert_ne!(demand.output_scope, attachment.scope);
+            assert_ne!(demand.input, candidate_scope::InputRouteId(call_index as u32));
+            Some(demand)
+        }).collect();
+        assert!(!copied_demands.is_empty(), "an authenticated nonidentity FreshUse demand must activate");
+        assert!(copied_demands.iter().any(|demand| {
+            let release = candidate_scope::ScopeTransformer::release(demand.output_scope).unwrap();
+            let protection = candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input).unwrap();
+            context.observed_relations().any(|(_, _, flow)| context.scope_transformer(flow.transformer)
+                .is_ok_and(|transformer| transformer == &release))
+                && context.observed_relations().any(|(_, _, flow)| context.scope_transformer(flow.transformer)
+                    .is_ok_and(|transformer| transformer == &protection))
+        }), "the same authenticated copied scope/input must supply both native protection and argument release");
+    }
+
+
+    #[test]
+    fn captured_receiver_attachment_does_not_reown_fresh_scope_instances() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my g h x = h x\nmy callback i = i\nmy first = g callback 0\nmy second = g callback 1",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "receiver-capture-owner", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap();
+        let (call_index, attachment) = batch.candidate_calls.calls.iter().enumerate()
+            .filter_map(|(index, call)| call.receiver_attachment.as_ref().map(|attachment| (index, attachment)))
+            .find(|(_, attachment)| attachment.receiver_region != attachment.lexical_region).unwrap();
+        let attachment = attachment.clone();
+        let receiver_scope = batch.candidate_source.computation_scopes[&attachment.receiver_body];
+        assert_eq!(batch.candidate_source.scope_regions[attachment.scope.0 as usize], attachment.lexical_region);
+        assert_eq!(batch.candidate_source.scope_regions[receiver_scope.0 as usize], attachment.receiver_region);
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let inventory = &context.scope_inventory;
+        let receiver_regions: HashSet<_> = inventory.scope_origins.iter().enumerate()
+            .filter(|(_, original)| **original == receiver_scope)
+            .map(|(actual, _)| inventory.scope_regions[actual]).collect();
+        let copied_scopes: HashSet<_> = context.observed_relations().filter_map(|(_, pair, flow)| {
+            let demand = flow.demand?;
+            if demand.original_call != call_index || demand.use_instance == 0 { return None; }
+            if !matches!(pair, TypedPairKey::Value(CanonicalValuePairKey {
+                upper: ValueEndpointKey::NegativeFunction(root), .. }) if *root == demand.root) { return None; }
+            assert_eq!(inventory.scope_origins[demand.output_scope.0 as usize], attachment.scope);
+            assert_eq!(inventory.input_origins[demand.input.0 as usize], candidate_scope::InputRouteId(call_index as u32));
+            assert_ne!(demand.output_scope, attachment.scope);
+            assert_ne!(demand.input, candidate_scope::InputRouteId(call_index as u32));
+            Some(demand.output_scope)
+        }).collect();
+        assert!(copied_scopes.len() >= 2, "two distinct authenticated nonidentity FreshUse images of the captured h scope are required");
+        let demand_regions: Vec<_> = copied_scopes.iter()
+            .map(|scope| inventory.scope_regions[scope.0 as usize]).collect();
+        assert!(demand_regions.iter().all(|region| !receiver_regions.contains(region)),
+            "diagnostic attachment leaves every actual copied binder at its lexical owner");
     }
 
 }

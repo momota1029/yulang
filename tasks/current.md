@@ -35,6 +35,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   second shield is established. The exact attribution/visibility choice is
   pending in `questions/2026-10-15-callback-identity-release/question.md`, kept
   uncommitted. Do not adopt a guard or expiry repair that presumes either answer.
+  [Source-owned receiver attachments](../notes/progress/2026-10-15-callback-receiver-attachment.md)
+  now expose original formal/Lambda/body ownership separately from lexical
+  scope. Four focused tests, workspace check, playground build and three retained
+  compose CLI controls pass after independently reviewed fixture/provenance
+  repairs. This is observational metadata, not changed hygiene semantics.
+  The grouped local-helper source still fails scoped inference with
+  `Solve(ReceiptMismatch)` while ordinary inference succeeds; its exact receipt
+  owner and the original loop/capture source path remain OPEN.
 
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded

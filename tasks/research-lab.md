@@ -37,6 +37,13 @@ it as a soundness counterexample or proof that id must preserve the same
 released scope. The overlapping h/e witness attribution is a pending user
 question under `questions/2026-10-15-callback-identity-release/`; dependent
 semantic changes wait. The directory remains outside ordinary checkpoints.
+The [attachment-only native slice](../notes/progress/2026-10-15-callback-receiver-attachment.md)
+now retains that source owner and passes four focused tests plus workspace/build
+and three compose controls. It changes no release or nominal owner. Curried
+capture supplies two authenticated copied witnesses; the separately retained
+local-helper source still has `ReceiptMismatch` in scoped inference. Next source
+repair must isolate that actual receipt constructor instead of assuming all
+captured callbacks are supported or weakening the original sample target.
 
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).

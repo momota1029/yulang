@@ -25,6 +25,7 @@ pub(super) struct FormalRegistrationInput {
     pub native_root: Option<Term>,
     pub role: FormalRole,
     pub entry_effect: Option<u32>,
+    pub receiver_body: Option<(HirOccurrenceId, candidate_source::SourceRegionId)>,
 }
 #[derive(Clone, Debug)]
 pub(super) struct FormalNameInput {
@@ -51,6 +52,28 @@ pub(super) struct ApplySourceInput {
     pub formal_name: Option<usize>,
     pub native: Option<NativeInterface>,
     pub introduction: Option<DirectionalIntroduction>,
+    pub receiver_attachment: Option<ReceiverBoundaryAttachment>,
+}
+/// Provisional source attachment only. The nominal scope inventory still owns
+/// this scope at its lexical computation region; this is not an expiry rule.
+#[derive(Clone, Debug)]
+pub(super) struct ReceiverBoundaryAttachment {
+    pub registration: usize,
+    pub receiver_lambda: HirOccurrenceId,
+    pub receiver_body: HirOccurrenceId,
+    pub receiver_region: candidate_source::SourceRegionId,
+    pub lexical_region: candidate_source::SourceRegionId,
+    pub scope: candidate_scope::EffectScopeId,
+}
+pub struct CandidateReceiverBoundaryAttachment<'a> {
+    record: &'a ReceiverBoundaryAttachment,
+}
+impl CandidateReceiverBoundaryAttachment<'_> {
+    pub fn receiver_lambda(&self) -> &HirOccurrenceId { &self.record.receiver_lambda }
+    pub fn receiver_body(&self) -> &HirOccurrenceId { &self.record.receiver_body }
+    pub fn receiver_region(&self) -> usize { self.record.receiver_region.0 }
+    pub fn lexical_region(&self) -> usize { self.record.lexical_region.0 }
+    pub fn original_scope(&self) -> u32 { self.record.scope.0 }
 }
 /// Symbolic candidate evidence only; no handler/filter or row-state consumer.
 #[derive(Clone, Debug)]
@@ -264,6 +287,11 @@ impl<'a> CandidateSourceCall<'a> {
             .introduction
             .as_ref()
             .map(|record| CandidateDirectionalIntroduction { record })
+    }
+    /// Source-only experimental evidence. It does not change nominal ownership,
+    /// FreshUse, handler eligibility or release behavior.
+    pub fn experimental_receiver_attachment(&self) -> Option<CandidateReceiverBoundaryAttachment<'_>> {
+        self.input.receiver_attachment.as_ref().map(|record| CandidateReceiverBoundaryAttachment { record })
     }
     pub fn pending_construction(&self) -> PendingCallConstruction<'_, 'a> {
         PendingCallConstruction { call: self }
@@ -492,6 +520,19 @@ pub(super) fn observe<'a>(
     } else {
         None
     };
+    if let Some(attachment) = &input.receiver_attachment {
+        let Some((registration, _, _)) = formal.as_ref() else { return Err(ArtifactMismatch); };
+        let lambda = source.expressions().get(registration.lambda).ok_or(ArtifactMismatch)?;
+        let LocalSourceForm::Lambda { body, .. } = &lambda.form else { return Err(ArtifactMismatch); };
+        let body = source.expression(body).ok_or(ArtifactMismatch)?;
+        let name = state.names.get(input.formal_name.ok_or(ArtifactMismatch)?).ok_or(ArtifactMismatch)?;
+        if attachment.registration != name.registration
+            || attachment.receiver_lambda != lambda.occurrence
+            || attachment.receiver_body != body.occurrence
+            || registration.receiver_body.as_ref() != Some(&(body.occurrence.clone(), attachment.receiver_region))
+            || input.introduction.is_none()
+        { return Err(ArtifactMismatch); }
+    }
     match (&input.introduction, formal.as_ref()) {
         (Some(record), Some((registration, parameter, _))) => {
             let lambda = source
