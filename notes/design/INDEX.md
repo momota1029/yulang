@@ -106,8 +106,11 @@ This index is a navigation aid. The listed source document remains authoritative
   check. Callback-context delivery and runtime remain separate open gates.
   The [native context source gate](../progress/2026-10-15-callback-context-delivery.md)
   now records the actual generation/admission split and the remaining
-  phase-factorization and original Function-profile construction premises;
-  ordinary inference success does not close those obligations.
+  phase-factorization and original Function-profile construction premises.
+  The [reviewed coordinate/native bridge](../theory/2026-10-15-function-callback-profile-construction.md)
+  follows the acyclic original formal through capture and same-use reconstruction;
+  complete profile applicability and contextual consumption remain OPEN.
+  Ordinary inference success does not close those obligations.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
   — Authoritative; the explicit principal-scheme source

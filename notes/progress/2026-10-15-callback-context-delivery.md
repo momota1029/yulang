@@ -51,8 +51,9 @@ full replay theorem follows from these local results.
 
 The native expected contract first exists in `prepare_candidate_fresh_use`'s
 Function reconstruction for the actual callee Name use. `formal_domains`
-retains the original declared domain, but capture/freshening supplies no
-explicit original callback descriptor-to-captured-node-to-use-image join.
+retains the original declared domain. The forward bridge below establishes
+an exact capture/use-image join for the displayed acyclic source; it has no
+current callback-context consumer.
 The final Apply demand contains the actual argument, not the expected contract.
 Neither it nor a matching Function shape can authenticate the source profile.
 
@@ -87,6 +88,34 @@ supplies their actual premise. For `int -> int`, no concrete permission is
 written and omitted effect coordinates remain open; neither fact proves that
 the callback profile is empty.
 
+The independently reviewed
+[Function coordinate/native bridge](../theory/2026-10-15-function-callback-profile-construction.md)
+now derives the finite original annotation coordinates and their successful
+paired-constructor correspondence. It follows the original negative formal
+root through Lambda construction, actual bound replay and boundary-0 capture
+for the acyclic `apply` example, then through the same FreshUse child map.
+The exact `negative_functions[N]` lookup is scoped-mode-only. Original source
+paths and ordered children suffice for this forward correspondence; a new
+table for every coordinate is not justified. A fresh compiler referee accepted
+the frozen artifact and all 18 dependencies with no findings.
+
+The authenticated mapped formal root exists inside `freshen_candidate_graph`
+before its temporary term map is dropped. No current callback owner consumes
+that association. Complete original profile applicability, changing capture
+histories and the Handler-to-native constructor remain OPEN. The acyclic
+source bridge is a discharged local obligation, not a restriction of the
+original callback source domain or a complete `Slots(β)` supplier.
+
+Architecture adjudication rejects a capture/FreshUse observer at this point:
+it would repeat the established mapping without resolving the constructor
+equation. The next bounded constructive pass instead starts from the supplied
+authentic profile and identifies the latent `d−, d+, b+` paths at
+`candidate_context_seed`, their Function-port transport and completed Lambda
+channels. A separate source witness audit attacks that equation using actual
+requests and receiving-boundary protection. Neither pass may replace the
+missing constructor with a late marker, endpoint equality or new permission
+carrier. The profile-applicability parent keeps its original separate owner.
+
 The initial architecture audit identified no genuine new semantic user choice.
 If construction exposes competing observable rules not resolved by authority,
 only that affected decision returns to the user. Production changes remain
@@ -94,9 +123,10 @@ held until the decisive invariant and actual source supplier are established.
 
 ## Budget and verification
 
-Mode M2. The source result has one independent compiler referee; no code or
-public contract changed. The next proof artifacts each need fresh independent
-review before promotion; a concrete implementation slice additionally uses
+Mode M2. Each of the source, phase and coordinate/native artifacts has one
+independent compiler referee; all scoped findings are closed. No code or
+public contract changed. New proof artifacts need fresh independent review
+before promotion; a concrete implementation slice additionally uses
 specification review for B/role/entry conformance. Research concurrency is three
 distinct producers: phase construction, source-profile construction and an
 adversarial source witness search. They have disjoint research outputs or no

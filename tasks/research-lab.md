@@ -22,6 +22,11 @@ Function-profile construction and an independent falsification method attack
 the exact remaining premises. The phase pass now has independent review for
 actual preparation congruence and primitive body-only commutation; full B
 factoring remains OPEN at its role-indexed native relation constructor.
+The original-coordinate/native bridge also passed fresh independent review:
+the acyclic original formal root reaches capture and its same-use image, with
+exact lookup restricted to scoped mode. Ordered fields suffice for the source
+zip; no per-coordinate storage or complete profile applicability follows.
+The remaining native handoff is at FreshUse's temporary term-map lifetime.
 No production context implementation or
 parent proof closure is claimed. The parser question archive is integrated at
 `aefa527a7` and no longer pending.
