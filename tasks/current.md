@@ -6,6 +6,15 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
+- **Direct primitive handlers implemented and proved:** the [closed-program gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
+  supplies actual negative visibility from a once-computed authentic source
+  certificate. Internal module-cache and transparent-ascription edges have
+  explicit proofs; fresh context and the handler consumer have independent
+  correspondence review. M2 semantic/contract reviews are clean, all 90
+  playground tests pass, and the CLI example returns `7`. Positive local Grant
+  remains available outside this conservative certificate. General profile
+  coverage, cache-bearing Resume and full inference/runtime remain OPEN.
+
 - **Reusable raw continuation execution integrated:** the [raw-Resume gate](../notes/progress/2026-10-16-playground-raw-resume.md)
   now implements actual response Value entry, containing-owner capture, live
   borrowing/fresh execution, nested completion, forwarded handlers, original

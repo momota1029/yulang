@@ -134,6 +134,25 @@ printf 'act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thu
 11
 ```
 
+`Catch` can also handle a direct primitive operation call without a computation
+formal when the whole program uses the closed primitive form. This stdin
+example prints `7`:
+
+```sh
+printf 'act io:\n    our tick: int -> int\nmy main = catch io::tick 7 { io::tick(p), _ -> p }\n' | cargo run -q -p yu-playground -- --run main -
+```
+
+```text
+7
+```
+
+The closed form covers primitive operation payload and response types: `()`,
+`int`, `bool`, and `str`. It does not cover lambdas, aliases to operations,
+continuation binders, or `Computation` parameter ports. Every definition in the
+program must fit this form, so even an unused callable definition withholds
+the evidence needed for this direct handling path. The receiving `[io] int`
+formal described above remains a separate handling path.
+
 Operation arms support declared primitive payload types `()`, `int`, `bool`,
 and `str`. A total identifier or wildcard payload pattern can bind or discard
 the payload. An empty-call pattern is also a wildcard for the payload and does

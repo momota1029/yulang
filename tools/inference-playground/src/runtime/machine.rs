@@ -1214,15 +1214,18 @@ impl Machine {
                     SourceOperationResolution::Resolved(declaration) => declaration,
                     _ => return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone())),
                 };
-                // A positive local Grant suffices despite Unknown inherited
-                // coverage. Failure proves no negative fact and cannot forward.
-                if !self.receiving.local_grant(
-                    &request.observations,
-                    request.event,
-                    installation.owner,
-                    &self.invocations,
-                    &request.declaration.id.family,
-                ) {
+                // The closed primitive ModuleRun certificate proves unprotected
+                // events for this whole universe. Otherwise require a positive
+                // local Grant; missing Grant alone supplies no negative fact.
+                if !self.program.closed_primitive
+                    && !self.receiving.local_grant(
+                        &request.observations,
+                        request.event,
+                        installation.owner,
+                        &self.invocations,
+                        &request.declaration.id.family,
+                    )
+                {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
                 let SourceAnnotationValue::Function { argument, result } =

@@ -19,6 +19,8 @@ pub struct RuntimeProgram {
     pub(super) code: Vec<Arc<Code>>,
     pub(super) definitions: Vec<Definition>,
     pub(super) definition_indices: HashMap<DefId, usize>,
+    // Valid only for fresh ModuleRun entry into this complete constructed universe.
+    pub(super) closed_primitive: bool,
 }
 
 /// Supplied by the source interface owner, never inferred from runtime shape.
@@ -451,11 +453,14 @@ impl RuntimeProgram {
                 body: label(source.body())?,
             });
         }
-        Ok(Arc::new(Self {
+        let mut program = Self {
             _hir: hir,
             code,
             definitions,
             definition_indices,
-        }))
+            closed_primitive: false,
+        };
+        program.closed_primitive = super::primitive::closed_primitive(&program);
+        Ok(Arc::new(program))
     }
 }

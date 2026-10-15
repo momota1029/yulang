@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
+  — Whole-program source certificate, fresh-context and actual handler consumer
+  have independent proof review. M2 code/contract reviews are clean; 90 package
+  tests and the direct CLI example pass. General negative/profile evidence,
+  cache-bearing Resume, full inference and production remain OPEN.
+
 - [Reusable raw continuation execution](../progress/2026-10-16-playground-raw-resume.md)
   — Actual owner/control/view/recapture correspondence and flat template
   ownership have independent proof review; M3 code/contract/resource deltas are

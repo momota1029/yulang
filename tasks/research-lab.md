@@ -14,6 +14,12 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
+now has actual classifier/source/context/consumer proof and clean M2 semantic
+and contract review. All 90 playground tests pass; direct CLI handling returns
+`7`. This closes only the whole closed-program negative-visibility certificate;
+positive Grant remains independent, general profiles and full parents OPEN.
+
 The [raw-Resume control implementation](../notes/progress/2026-10-16-playground-raw-resume.md)
 and actual constructor/consumer proof now have clean M3 review. Eighty-two
 playground tests pass, including reuse/recapture and the repaired flat template
