@@ -7,7 +7,13 @@ Status: full objective remains active. Native extrusion now schedules current co
 ## Current checkpoint (2026-10-15)
 
 - **Exact Callback Hygiene source is the current target:** the user wants the
-  Yulang2 web example to infer and execute. The first necessary native slice,
+  Yulang2 web example to infer and execute. The [exact unchanged source now
+  infers and executes on frozen Oracle](../notes/progress/2026-10-15-exact-callback-hygiene-oracle.md)
+  through its actual compact web std/control/evidence-VM route: exported g is
+  `(int -> ['a] any) -> ['a] int`, program output is only `Out 1: 0`, roots are
+  Unit, exit 0. One full-std CPU-limited attempt and one invalid file-size guard
+  abort precede the successful corrected run; all three are recorded. This is
+  finite Oracle evidence, not native completion. The first necessary native slice,
   [omitted-else conditionals](../notes/progress/2026-10-15-conditional-without-else.md),
   now retains all constraints/effects and returns Unit after branch-value
   discard. M2 pre-write spec and semantic closure review converged; 30 focused
@@ -22,6 +28,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   g's own `return 1` catchable. This is not a native source-supplier proof;
   constructor work must establish original receiver ownership through nested
   capture and FreshUse before any selective Catch removal.
+  The [source-qualified identity control](../notes/progress/2026-10-15-callback-identity-scope-observations.md)
+  retains callback protection before Catch for `h 0` but releases it for
+  `id (h 0)`. Neither proves actual capture. Existing compose authority releases
+  its attributed e witness even while the receiver lives; no independent
+  second shield is established. The exact attribution/visibility choice is
+  pending in `questions/2026-10-15-callback-identity-release/question.md`, kept
+  uncommitted. Do not adopt a guard or expiry repair that presumes either answer.
 
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded

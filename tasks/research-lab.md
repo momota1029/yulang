@@ -16,6 +16,11 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 Latest target: the actual Yulang2 web **Callback Hygiene** example, including
 the nested `sub`, captured `h`, loop and final output. The independently reviewed
+[unchanged-source Oracle execution](../notes/progress/2026-10-15-exact-callback-hygiene-oracle.md)
+now infers g and prints only `Out 1: 0` through the actual compact web route.
+Its three execution attempts include the separately accounted CPU abort and
+invalid process-wide file guard; the corrected run exits 0.
+The independently reviewed
 [omitted-else source slice](../notes/progress/2026-10-15-conditional-without-else.md)
 passes 30 focused tests and the workspace check. Its completion does not close
 the sample's inference/runtime gate. The next controlling construction joins
@@ -24,6 +29,14 @@ handler; do not substitute the unrelated Apply argument scope for that owner.
 The independently reviewed [finite construction](../notes/theory/2026-10-15-playground-callback-hygiene-construction.md)
 reuses typed-boundary lifetime and shallow-control results. Its source receiver
 and activity premises remain open in native code; the original gate is OPEN.
+Its new source-owner delta joins original formal registration to authentic
+Lambda slot 4, while retaining source attribution and nominal maps as premises.
+The [identity witness](../notes/progress/2026-10-15-callback-identity-scope-observations.md)
+shows an actual protected/released difference before Catch. Do not reinterpret
+it as a soundness counterexample or proof that id must preserve the same
+released scope. The overlapping h/e witness attribution is a pending user
+question under `questions/2026-10-15-callback-identity-release/`; dependent
+semantic changes wait. The directory remains outside ordinary checkpoints.
 
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).

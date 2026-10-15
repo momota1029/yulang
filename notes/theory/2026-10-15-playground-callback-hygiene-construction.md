@@ -205,3 +205,93 @@ Shared-record delta for primary/curator: retain exact-sample inference/runtime
 OPEN; add source receiver-instance expiry at the Catch consumer as the decisive
 kernel-to-behavior bridge. One next action: assign that coupled construction
 with this exact program and normal-callback control; review before subtraction.
+
+## 6. Original formal ownership and a bounded discharge contract
+
+Delta status: independently reviewed constructive source-owner bridge and conditional finite discharge lemma; retaining source attachment alone is the permitted provisional implementation cut, not sufficient discharge evidence.
+Prior §§1–5 were frozen/checkpointed at `9393af08e`; they are not re-certified
+by this delta. Source reads below use pinned `b8a85e101`, not concurrent edits.
+
+**Actual owner chain.** `candidate_source.rs:566` registers each original Lambda parameter by its `HirParameterId`, Lambda expression index and recipe position.
+Its Name pass (`:622`) joins a resolved Parameter ID to that registration, including a Name captured inside a nested Lambda; current lexical nesting does
+not replace the original parameter ID. Wrapper propagation retains that Name
+index on the Apply. `shadow_apply.rs:1583–1604` uses precisely that registration
+to find the original omitted Lambda and creates DirectionalIntroduction with
+the same actual native demand, RE term, raw invocation row and checking cause.
+`candidate_call.rs:441–534` validates this chain against the original HIR; it does not recover ownership from solved rows. This establishes an authentic
+original-formal locator for the already emitted demand within this source
+fragment. It establishes no dynamic receiver-instance lifetime by itself.
+
+At original Lambda Visit (`candidate_source.rs:722`), the source allocates a distinct body region before visiting that body. Retaining that region in the
+same original registration supplies the source-known attachment owner. At
+Finish (`:1044`) the LambdaRecipe carries the same `formal_registration` and actual body effect component. The owning native Effect boundary is Lambda
+slot **4**, `lib.rs::admit_lambda_fact:11323`: body_effect -> fresh returned
+Effect row, later used as that Function's RE. Slot 2 admits the Value Function; slot 3 forces the parameter entry. Neither is the proposed body-output release.
+Attach a demand's scope to this original formal/body owner only after joining
+the same authentic introduction; an unverified source spelling is insufficient.
+
+**Attachment does not establish nominal instance correspondence.** At baseline
+a computation scope belongs to its occurrence region (`Plan::computation_scope:62`).
+`ScopeInventory::fresh:202` clones scopes of the captured forest, and preparation
+(`candidate_scheme.rs:1242`) remaps both transformers and demands. Thus a nested
+helper copy may contain s_h' while a proposed outer descriptor names s_h.
+Any release strategy must transport its target jointly with the actual affected
+witness, or establish the original receiver instance as that witness's binder.
+Which source scope should bind that witness is not proved by attaching its
+original formal. Re-owning it or adding another guard requires source evidence.
+
+**Attribution derivation attempt and exact unresolved premise.** For the source
+locator `id (h 0)`, the current constructors use one computation scope s_h for
+the original h Apply. Its authentic demand projects ProtectBody(s_h,u_h).
+The outer id Apply's argument is that same h Apply; slot 2 therefore projects
+Release(s_h). A known id callee introduces no omitted-formal demand at that
+call, and id's value parameter does not itself expose another Function demand.
+These constructors do not supply an independently introduced receiver shield. This establishes the current scope-reference collision, not its source meaning.
+
+The compose authority explicitly releases the attributed e scope through id;
+the protection-filter derivation permits that witness release while its receiver
+is still live. Therefore receiver activity alone cannot justify preserving that same witness, and typed transport alone does not establish id transparency.
+The source rule mapping this h-derived witness to the marked argument e witness
+is absent: neither equality of rows nor different source positions proves their
+identity or independence. Exact unresolved question: may `id (h 0)` make g's
+local Catch eligible although plain `h 0` does not? The current protected-state
+difference, if executed, would not resolve the required semantic attribution.
+
+There are two conditional branches, with neither adopted here. If the original h witness is precisely the source-attributed e witness, approved release removes
+it; after all applicable witnesses are released an otherwise eligible local
+handler may capture. If source formation independently licenses a distinct
+receiver witness t, Release_e preserves t; only in this branch can that witness
+continue to block g's Catch. An additional guard cannot be inserted merely to
+force the second branch or circumvent the approved first-branch release.
+
+**Finite conditional discharge lemma.** Given a source-established set S_g of
+witnesses whose protection ends at this g's slot-4 boundary, complete matching
+inventory/maps and successful all-path activation, existing kernel composition
+gives `U -> U minus S_g`. Every independent t outside S_g survives. Two injective
+fresh-use maps preserve each use's internal target equality and keep their local
+images disjoint. Direct q1 is unaffected when its actual source derivation has
+no witness in S_g. Blocking q0 before this boundary additionally requires an
+unreleased applicable witness there; a no-earlier-release premise is justified
+only for a separately source-licensed independent witness, not selected as a
+blanket rule for the attributed e witness. This is an algebraic application,
+not construction of the missing source attribution or candidate eligibility.
+
+Implementer handoff: retain authentic registration/body-region attachment now.
+Keep source attribution, nominal target transport and Catch/runtime consumption
+OPEN; stop before dependent discharge if they remain unavailable. Escaped or
+recursive/reentrant instances need separate lifetime correspondence. This finite
+packet does not cut the language domain. One next action: resolve the exact
+h-witness/e-witness source attribution at formation, preserving approved release;
+then apply the matching branch and original q0/q1/two-use/independent controls.
+
+Delta checks: pinned source reads/hashes and artifact structure only; no runs,
+builds, tests, Git mutations or delegation. Requested Sol/high; observed settings
+unknown. Independent delta review passed without findings. Changed dependency bytes were not
+consumed. Frozen source SHA-256 at b8a85e101: call `d980002039d58d5e7837845af8c1660ff73d59ce869e8d9e67b3a2e3a41674c9`,
+source `45b2b4e9f4e49f7149937e5f637e4700e405d0e3d01c85133c4d378edace527a`,
+shadow_apply `28112e3a8b04bff3abbed0bf7496a4e49300384e7e943ee8a71f4eff3a100294`,
+lib `909042e10ce22308db75d70f62139b3858347cc74e1a8ae3d1224fcc65a9350c`;
+Context matches its prior pin; scheme is `c2d043f455434625db2338f5b98161c9d83b9e3769ae98b37af7d997fddc5ade`. Same exact lease; proposed
+checkpoint: `research: pin callback guard ownership before receiver release`.
+Primary/curator delta: original source-owner locator established; attachment implementation and discharge,
+exact-source runtime and global gates stay OPEN. Writes stop for delta review.
