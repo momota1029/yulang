@@ -107,8 +107,13 @@ This index is a navigation aid. The listed source document remains authoritative
   has CLEAN correction review of its original component references, complete
   Mono fix traversal and Function introduction CONDITIONAL on the original
   typed continuation T_e. Historical whole-root evidence is not suffix typing.
-  The actual T_e supplier and concrete fixed support remain OPEN; this is no
-  source-constructor/eligibility or production closure.
+  The independently reviewed [local T_e supplier](../theory/2026-10-16-first-call-local-typed-continuation.md)
+  and [guard audit](../progress/2026-10-16-first-call-local-continuation-certificate-audit.md)
+  now compose the original full-f inner pending interface and open F_g, with
+  finite original-scope checks and both same-z packets. This closes only that
+  local supplier under independently valid Gamma/d0/full-f premises. Concrete
+  arm/response/context admission, generic source derivation, actual fixed support,
+  eligibility and production remain OPEN; no response-arrow default is chosen.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

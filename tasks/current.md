@@ -377,10 +377,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   T_e/R_e and explicitly fixes every free index in h's complete Mono(k) contract.
   Complete Function introduction remains CONDITIONAL on T_e; the original
   source-to-continuation and concrete A1 support gates remain OPEN. The owner
-  audit wrote no duplicate artifact. New bounded local proof/audit packets now
-  supply T_e using the original independent caller-context and full-f pending
-  certificates at exact source Bind/Call operands. No generic residual theorem
-  or already-checked h arm is assumed.
+  audit wrote no duplicate artifact. The [local continuation construction](../notes/theory/2026-10-16-first-call-local-typed-continuation.md)
+  and [guard/dependency audit](../notes/progress/2026-10-16-first-call-local-continuation-certificate-audit.md)
+  now have CLEAN mathematical/source review, closing only the local T_e supplier
+  under the original independently valid Gamma/d0/full-f premises. Original-scope
+  Desc-term choices yield finite Identity checks; the same f's inner pending
+  interface and independently typed F_g compose by source Bind/Call, with both
+  same-z packets and the actual remaining root. No generic residual theorem
+  is assumed. A context containing the concrete arm still needs its independent
+  OPEN response checks under hypothetical k; concrete context admission is OPEN.
+  The closed nested response arrow's omitted AE has no established source
+  formation/default law from f's shared inlet rule. The next bounded lane checks
+  full response callables at an explicitly annotated alternate alpha in the
+  unchanged all-alpha domain; a separate actual-substitution census checks free
+  Contract_k support. Neither lane may choose a new default or infer no-free
+  from a logical checking slot.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

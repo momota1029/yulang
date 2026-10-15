@@ -404,6 +404,24 @@ historical prefix versus current state, original A1/final root and every free
 contract dependency. Actual complete source/response/handler evidence is needed;
 no generic whole-source residual theorem or checked-arm/k-safety assumption is
 substituted. Empty artifact packets are required without material new evidence.
+These two frozen artifacts now have CLEAN mathematical/source review. The
+primary accepts the local T_e supplier only under the original independently
+valid Gamma/d0/full-f premises: original Desc-term substitution supplies actual
+finite Identity checks, and the inner same-f pending telescope composes ONCE
+with open F_g by Bind/Call. One minor handoff clarification preserves the
+independently admitted d0's responsibility for any concrete OPEN arm checks.
+The generic whole-source derivative, concrete Catch/response/OpCompat and
+fixed-support parents stay OPEN. M2: two reviewers, static links/pins/fences
+only, no executable checks or measurements. A separate bounded source audit
+found no rule assigning the CLOSED nested operation-response omitted AE from
+the f-formal's shared port. Native empty formation corroborates an owner but
+does not select source semantics. No duplicate artifact was produced.
+Next ready disjoint lanes: prover `ordinary_carrier_proof`, 15 minutes,
+`notes/theory/2026-10-16-explicit-alpha-response-callable-construction.md`,
+constructs complete response checks at explicit `([ctrl]()) -> [ctrl]int`
+within the original all-alpha domain; researcher `native_correlation_consumer`,
+12 minutes, read-only actual Contract_k substitution/free-index census. The
+original omitted-alpha case and original all-provider parent remain OPEN.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns
