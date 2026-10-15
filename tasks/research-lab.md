@@ -193,11 +193,17 @@ source typed correspondences and copy/intrusion adequacy are not supplied by
 that result. The [RE component](../notes/theory/2026-10-16-first-call-re-guarantee-preservation.md)
 now has fresh semantic CLEAN review: the genuine complete-invocation support
 projection and local G-only weakening at fixed challenges preserve imported
-interfaces, routing and latent alpha. A bounded joint forward-preservation
-packet consumes the inlet, Value and RE results at one original xi/z. It must
-construct the original complete output certificate, retaining the pending
-Bind and all joint K/D clauses; a factorization assumption cannot replace it.
-Neither full parent direction or cutover is closed by these components.
+interfaces, routing and latent alpha. The [joint pass](../notes/theory/2026-10-16-first-call-joint-forward-preservation.md)
+received an accepted MAJOR: actual target Comp(E1,A1) introduction and every
+joint guard were not established. Its fresh CLEAN repair corrects that claim,
+retaining same-w transfers and conditional Bind without closing the theorem.
+The selected changed-method action is the owning Application checked-result
+constructor: one normal bounded prover constructs the actual telescope or a
+conservative source-owned candidate under existing definition authority, while
+an independent researcher attacks actual guard attribution/exhaustion. No
+CIncl/output membership premise, foreign-kernel replacement or new Function
+product semantics is allowed. Both original parent directions and cutover stay
+OPEN; global MODEL work waits for this decisive target introduction.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

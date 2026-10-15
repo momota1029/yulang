@@ -44,8 +44,11 @@ This index is a navigation aid. The listed source document remains authoritative
   The separately reviewed [RE guarantee component](../theory/2026-10-16-first-call-re-guarantee-preservation.md)
   preserves the current invocation's outward bound to original E1 at fixed
   challenges, keeping the imported interface and full routing evidence.
-  Joint forward composition is active; global MODEL/copy applicability and
-  the reverse parent remain OPEN.
+  The [joint pass](../theory/2026-10-16-first-call-joint-forward-preservation.md)
+  has a reviewed MAJOR claim correction: full target Comp(E1,A1) introduction
+  remains OPEN despite accepted simultaneous transfers. The changed-method
+  source checked-result construction and independent guard attack now target
+  that owner. Global MODEL/copy applicability and both parent directions stay OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

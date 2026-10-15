@@ -203,12 +203,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   [local RE guarantee](../notes/theory/2026-10-16-first-call-re-guarantee-preservation.md)
   now derives the complete-invocation outward bound and preserves it to fixed
   E1 through authentic eR<=i<=j, keeping the imported interface and all
-  admission/routing/dependency fields identical. A joint forward-preservation
-  proof now composes these results under one original xi/z and explicit MODEL;
-  it must establish the original joint clauses rather than assume a product
-  of independent value/effect guarantees. Both original
-  full parent directions, global model/principality and copy applicability
-  remain OPEN.
+  admission/routing/dependency fields identical. The
+  [joint composition](../notes/theory/2026-10-16-first-call-joint-forward-preservation.md)
+  has an accepted MAJOR and independently CLEAN claim correction: Unit/provider,
+  simultaneous same-w Value/RE and both tagged packets are retained, but full
+  Comp(E1,A1) introduction is unproved. The selected source R_c=ReadInvoke is
+  genuine; IF incidence and same-witness preservation do not discharge its
+  complete target guard telescope. Changed-method next-action selection now
+  assigns the owning Application checked-result constructor, with independent
+  guard falsification; no third marginal composition or MODEL assumption can
+  close it. Both original full parent directions, global model/principality
+  and copy applicability remain OPEN.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)
