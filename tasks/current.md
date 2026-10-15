@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Native returned-packet owner located:** the independently reviewed
+  [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)
+  establishes actual root/context/evidence retention through local install,
+  capture and FreshUse; it finds no demonstrated evidence loss. The first
+  unresolved correspondence is the original first Apply/Function Result
+  interpretation: both indexed source inputs must share the same original
+  return witness and assignment. Constructive interpretation and independent
+  falsification lanes now target that owner. The scoped Local-callee guard is
+  a separate coverage boundary; B and full Call remain OPEN.
+
 - **Actual Catch owner retention complete:** a distinct ModuleRun/Invocation
   decoder and fresh per-install Catch owner now enforce the reviewed owner
   invariant. Candidate inspection keeps its handler live until forwarding

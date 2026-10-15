@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
+  — Independently reviewed owner inventory. Structural retention exists through
+  local install/capture/FreshUse; original first-Apply/result packet interpretation
+  remains the next correspondence premise. No evidence-loss theorem or guard
+  removal follows from this bounded audit.
+
 - [Ordinary HIR carrier formation](../progress/2026-10-16-ordinary-hir-carrier.md)
   — Approved binding-carrier scope implemented with atomic per-root outcomes,
   preserved ordinary output and authentic provenance. All five local claims

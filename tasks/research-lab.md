@@ -14,6 +14,15 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The next-action selection's native ownership audit is
+[independently reviewed](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md).
+Existing local capture/FreshUse retain structural roots, contexts, snapshots
+and attachment evidence. The next decisive premise is first-Apply/Result
+interpretation of both source packet inputs under one original return witness;
+constructive interpretation and independent source-qualified falsification
+are separate active methods. Missing interpretation is not demonstrated loss
+or permission to remove the scoped Local-callee guard.
+
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
 201 shadow-feature cases pass; see the [formation gate](../notes/progress/2026-10-16-ordinary-hir-carrier.md).
