@@ -28,6 +28,12 @@ This index is a navigation aid. The listed source document remains authoritative
   Its concrete annotated instance locates absent permission output at
   FormalEntry/annotation formation; the original source retains the fact that
   the inspected scalar Function channels cannot recover on their own.
+  The [reviewed root-permission construction](../theory/2026-10-15-computation-formal-permission-construction.md)
+  derives that finite source licence and an exact injected-operation classifier.
+  Its residual theorem remains conditional on dynamic owner/path/instance;
+  semantic suppression stays held. Six [delayed-computation source controls](../progress/2026-10-15-computation-laziness-and-permission.md)
+  pass, including permissive resumption admission. Native protection-profile
+  construction and full soundness remain OPEN.
 
 ## Active workflow navigation (2026-10-10)
 

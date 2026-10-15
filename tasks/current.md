@@ -12,9 +12,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   records the existing whole-argument inert introduction and retained Computation
   role, with ordinary Value entry unchanged. Carrier passage alone is not a
   designated elimination; no memoization policy is selected. Independent scoped
-  specification review found no findings. The direct unused-Computation route
-  already has prior native inference evidence; the active coupled constructor
-  and consumer work concerns local annotation permission at actual Catch.
+  specification review found no findings. Six independently reviewed
+  [native source controls](../notes/progress/2026-10-15-computation-laziness-and-permission.md)
+  now pass for unused/forwarded Computation, forced Value entry/consumption and
+  two permissively admitted raw-resumption sources. The reviewed root-permission
+  construction preserves original formal/AE/RE ownership and distinguishes
+  exact injected operations from nested annotation members. Its residual proof
+  is conditional; same-Lambda/direct-Name is not dynamic receiver evidence.
+  Semantic Catch suppression is held pending actual owner/path/instance and
+  source RootComp protection construction. No source-qualified resumption
+  counterexample is established; the original assumed pre-query load was
+  corrected. One additional frozen Oracle probe failed poly lowering, giving
+  no runtime result. Production compiler code is unchanged.
 
 - **Exact Callback Hygiene source is the current target:** the user wants the
   Yulang2 web example to infer and execute. The [exact unchanged source now

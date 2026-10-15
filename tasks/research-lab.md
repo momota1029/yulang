@@ -17,9 +17,16 @@ Do not reopen a closed gate merely because it appears in this seed.
 The user's latest continuation reaffirms delayed computation arguments under
 the existing [source scheduling](../notes/design/2026-10-02-source-call-scheduling-choice.md#11-direct-reaffirmation-delayed-computation-arguments-2026-10-15)
 rule. Computation receipt retains its carrier; Value entry still forces before
-the body. The next coupled work constructs original root-annotation permission
-and consumes it at an authenticated local Catch, preserving all independent
-outward routes. This does not choose memoization or close runtime correspondence.
+the body. Six independently reviewed [source controls](../notes/progress/2026-10-15-computation-laziness-and-permission.md)
+now pass, including two permissively admitted raw-resumption variants. The
+root-annotation permission construction and conditional residual argument have
+passed scoped review, but semantic Catch suppression is held for the actual
+owner/path/instance and source RootComp protection supplier. Static Lambda/Name
+identity is insufficient. The corrected resumption investigations establish no
+source-qualified counterexample; a body-pause source exposes an actual later
+Name lookup, while its original protection profile still needs construction.
+One additional Oracle source failed poly lowering before execution. No production
+compiler change, memoization choice or runtime-correspondence closure is claimed.
 
 Latest target: the actual Yulang2 web **Callback Hygiene** example, including
 the nested `sub`, captured `h`, loop and final output. The independently reviewed
