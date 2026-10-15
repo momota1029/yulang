@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Delayed computation arguments reaffirmed:** the user asked to continue and
+  confirmed delayed argument evaluation for effect-taking functions. The
+  [scheduling clarification](../notes/design/2026-10-02-source-call-scheduling-choice.md#11-direct-reaffirmation-delayed-computation-arguments-2026-10-15)
+  records the existing whole-argument inert introduction and retained Computation
+  role, with ordinary Value entry unchanged. Carrier passage alone is not a
+  designated elimination; no memoization policy is selected. Independent scoped
+  specification review found no findings. The direct unused-Computation route
+  already has prior native inference evidence; the active coupled constructor
+  and consumer work concerns local annotation permission at actual Catch.
+
 - **Exact Callback Hygiene source is the current target:** the user wants the
   Yulang2 web example to infer and execute. The [exact unchanged source now
   infers and executes on frozen Oracle](../notes/progress/2026-10-15-exact-callback-hygiene-oracle.md)

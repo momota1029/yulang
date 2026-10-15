@@ -36,6 +36,29 @@ evidence; it can implement A only under an observational-equivalence proof.
 Source soundness, principal inference and symbolic family/typed-path
 preservation remain proof obligations, not consequences of user approval.
 
+### 1.1 Direct reaffirmation: delayed computation arguments, 2026-10-15
+
+In the continuing playground hygiene conversation, the user stated:
+
+> ではそのままつづけてください．effectを取る関数は引数を遅延評価すると思ってよいと思います
+
+This reinforces the selected delayed argument construction and Computation
+parameter rule. Every application constructs its whole argument computation
+inertly. A Computation parameter retains it; receipt alone does not execute it.
+Execution begins at its source-designated elimination, such as forcing or
+handling. Carrier lookup, storage, passage or return is not itself elimination.
+
+An ordinary Value parameter still forces and rebinds the argument inside the
+receiver activation before its body. The parameter's source role determines
+this behavior; the supplied argument's inferred effect support and the callee's
+result effects do not select a different entry role. This clarification adds no
+memoization, call-by-need policy or new multiplicity guarantee.
+
+The direct conversation reaffirms existing source behavior, without selecting
+a compiler representation or closing the permission/receiver correspondence.
+Independent `spec_auditor` scope review accepted this transcription before the
+write; post-write review found no findings. Earlier reviews apply to the earlier text.
+
 ## 2. Selected schedule and rejected source alternative
 
 For this comparison, keep callee evaluation, the common `Invoke`, result

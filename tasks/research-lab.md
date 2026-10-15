@@ -14,6 +14,13 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The user's latest continuation reaffirms delayed computation arguments under
+the existing [source scheduling](../notes/design/2026-10-02-source-call-scheduling-choice.md#11-direct-reaffirmation-delayed-computation-arguments-2026-10-15)
+rule. Computation receipt retains its carrier; Value entry still forces before
+the body. The next coupled work constructs original root-annotation permission
+and consumes it at an authenticated local Catch, preserving all independent
+outward routes. This does not choose memoization or close runtime correspondence.
+
 Latest target: the actual Yulang2 web **Callback Hygiene** example, including
 the nested `sub`, captured `h`, loop and final output. The independently reviewed
 [unchanged-source Oracle execution](../notes/progress/2026-10-15-exact-callback-hygiene-oracle.md)
