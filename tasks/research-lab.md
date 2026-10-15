@@ -27,6 +27,12 @@ the acyclic original formal root reaches capture and its same-use image, with
 exact lookup restricted to scoped mode. Ordered fields suffice for the source
 zip; no per-coordinate storage or complete profile applicability follows.
 The remaining native handoff is at FreshUse's temporary term-map lifetime.
+The later local source equation/direct omitted-formal RE bridge also has clean
+independent review; native receiver/event consumption and early introduction
+remain OPEN. The authoritative directional correction replaces annotation-only
+applicability with actual source-component seeds/exposures and typed transport.
+For returned symbolic values, classify whether this introduction applies;
+do not demand a new positive seed or erase independently inherited evidence.
 No production context implementation or
 parent proof closure is claimed. The parser question archive is integrated at
 `aefa527a7` and no longer pending.

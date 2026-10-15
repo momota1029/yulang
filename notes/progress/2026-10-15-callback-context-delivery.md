@@ -79,9 +79,11 @@ adversarial source audit found no justified noncommuting counterexample; absence
 of one is not equivalence. No whole-collector rewrite or late marker-only
 implementation follows from these results.
 
-In parallel, the source profile supplier must derive applicable Function
-observation positions from original owner/formal/annotation and constructor
-paths. The reviewed RootCompSchema theorem explicitly covers only an exposed
+In parallel, the source profile supplier must classify applicable Function
+observations from the original declaration/definition/use component, including
+formal/annotation identity, justified directional seeds/exposures, independent
+annotation constructors and typed transport. The reviewed RootCompSchema theorem
+explicitly covers only an exposed
 Computation root; it cannot be renamed to a Value(Function) profile. Existing
 typed profile transport/lifetime theorems will be reused once this construction
 supplies their actual premise. For `int -> int`, no concrete permission is
@@ -108,13 +110,53 @@ original callback source domain or a complete `Slots(β)` supplier.
 
 Architecture adjudication rejects a capture/FreshUse observer at this point:
 it would repeat the established mapping without resolving the constructor
-equation. The next bounded constructive pass instead starts from the supplied
-authentic profile and identifies the latent `d−, d+, b+` paths at
-`candidate_context_seed`, their Function-port transport and completed Lambda
-channels. A separate source witness audit attacks that equation using actual
-requests and receiving-boundary protection. Neither pass may replace the
-missing constructor with a late marker, endpoint equality or new permission
-carrier. The profile-applicability parent keeps its original separate owner.
+equation. The independently reviewed
+[local source/native consumer result](../theory/2026-10-15-callback-handler-native-construction.md)
+now derives the latent Force `d−/d+` and escaped-body `b+` source equation from
+the supplied original profile, keeping the host receipt and literal activation
+distinct. It also traces the direct omitted-formal Name through its real Apply
+demand, DirectionalIntroduction, scoped seed and authenticated ResultEffect
+dispatch. Structural dispatch is an explicit premise; copying, aliases, replay
+and semantic live protection do not follow from that bounded static chain.
+
+The current native executor records scoped observations but has no inference
+consumer for the required original receiver/event incidence. Current Catch
+conservatively forwards scrutinee effects. This is a missing native consumer,
+not an observed acceptance/subtraction counterexample. `SeedSlotView` remains
+a proposed contract: final callback comparison does not supply the separate
+before-body Handler introduction. No implementation authority follows from
+that proposal or from its reviewed source equation.
+
+## Authority correction and exact remaining work
+
+The [directional addendum](../design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+§6 had already retired unconditional annotation-only applicability. An original
+protected-variable upper exposure and a provider lower with identical type
+shape have different selected introductions. The earlier new profile note
+therefore demanded too strong an annotation-only supplier. Architecture
+adjudication and fresh independent delta review corrected that premise to the
+original source component above, preserving B's full source domain, early
+delivery, independent synthesis and final inequality. The coordinate/native
+lemmas remain valid. Explicit `f:int -> int` intentionally has no omitted-formal
+seed; that absence proves neither missing protection nor an empty profile.
+
+The [symbolic-leaf applicability analysis](../theory/2026-10-15-callback-profile-applicability.md)
+reuses the existing finite directional rule. Its next source case is a returned
+symbolic value subsequently called: determine whether the original receipt,
+result binding and upper use justify a seed or independent typed transport.
+Justified non-applicability of this directional introduction is also possible;
+independently inherited evidence must survive. No positive seed is required
+merely because a later use exposes Function shape. The original source-context
+parent stays OPEN, owned by the primary at these construction/consumer sites.
+
+The next native work must interpret the justified profile and latent observation
+join at the source seed/FunctionPort consumer and prove its before-body placement.
+Another map-printing observer or supplied-profile transport lemma does not
+resolve that premise. Independently, an execution-path audit found that
+`yu-playground` currently ends at candidate graph rendering; core/backend files
+provide no executable lowering/evaluator route. The recorded interpreter hold
+remains: a new runtime must consume the selected receiving rule, and no existing
+execution switch can safely finish that part of the user's objective.
 
 The initial architecture audit identified no genuine new semantic user choice.
 If construction exposes competing observable rules not resolved by authority,
@@ -123,14 +165,20 @@ held until the decisive invariant and actual source supplier are established.
 
 ## Budget and verification
 
-Mode M2. Each of the source, phase and coordinate/native artifacts has one
-independent compiler referee; all scoped findings are closed. No code or
+Mode M2. Each coherent proof artifact has one independent compiler referee;
+the source, phase, coordinate/native and local source/consumer verdicts are
+clean. The applicability repair and fresh independent delta review close its
+one major finding:
+requiring a positive seed or an authority contradiction was not exhaustive.
+All assigned findings are closed within those stated scopes. No code or
 public contract changed. New proof artifacts need fresh independent review
 before promotion; a concrete implementation slice additionally uses
-specification review for B/role/entry conformance. Research concurrency is three
-distinct producers: phase construction, source-profile construction and an
-adversarial source witness search. They have disjoint research outputs or no
-writes, stable production inputs, no child delegation and bounded passes.
+specification review for B/role/entry conformance. Research used distinct
+constructive, source-correspondence and adversarial methods with disjoint
+outputs, stable production inputs and no child delegation. One localized
+profile-applicability escalation requested Astra/low after the two Sol
+coordinate/transport approaches; observed runtime settings were unavailable.
+Its repair returned to normal Sol. No further escalation or measurement ran.
 
 Primary owns shared records, Git and any future Cargo verification. So far this
 gate uses static source/hash/whitespace checks only: zero tests, builds, timing

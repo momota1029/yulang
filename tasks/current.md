@@ -13,12 +13,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   FreshUse child reconstruction, while body facts are generated earlier during
   collection. The independently reviewed phase pass proves actual preparation
   congruence and primitive body-only commutation; the Handler-to-native-relation
-  equation and original Function-profile applicability remain the decisive
+  equation and source-component profile applicability remain the decisive
   premises. The reviewed original-coordinate/native bridge now follows the
   acyclic formal root through actual capture and same-use reconstruction;
   the mapped root is available before FreshUse drops its temporary term map,
   with no current callback consumer. Per-coordinate retention is not required
-  by this result. Production adoption remains OPEN.
+  by this result. The local source equation and direct omitted-formal-to-RE
+  constructor are now independently reviewed; the native receiver/event consumer
+  and early delivery remain OPEN. Existing directional authority corrects the
+  overstrong annotation-only profile premise: source seeds, actual upper uses
+  and independently justified typed transport determine applicability, including
+  justified non-applicability of a new directional seed. Production adoption
+  and executable lowering/runtime remain OPEN.
   The resolved parser question/receipt were archived at the user's explicit
   request in `aefa527a7`, without a fabricated answer bundle.
 

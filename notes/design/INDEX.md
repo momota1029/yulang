@@ -109,7 +109,12 @@ This index is a navigation aid. The listed source document remains authoritative
   phase-factorization and original Function-profile construction premises.
   The [reviewed coordinate/native bridge](../theory/2026-10-15-function-callback-profile-construction.md)
   follows the acyclic original formal through capture and same-use reconstruction;
-  complete profile applicability and contextual consumption remain OPEN.
+  source-component applicability and contextual consumption remain OPEN.
+  Existing directional authority corrects annotation-only reconstruction:
+  original seed/upper-use provenance and independently justified typed evidence
+  control applicability. The [local source/native consumer result](../theory/2026-10-15-callback-handler-native-construction.md)
+  derives the supplied-profile source equation and direct omitted-formal RE
+  chain; actual native interpretation and before-body delivery remain OPEN.
   Ordinary inference success does not close those obligations.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)

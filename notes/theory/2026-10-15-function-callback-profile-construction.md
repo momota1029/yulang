@@ -1,24 +1,39 @@
 # Function callback profiles: original coordinate construction and unresolved applicability
 
 Date: 2026-10-15
-Status: independently reviewed research checkpoint; finite annotation-coordinate derivation
-and source-qualified forward capture/FreshUse zip. The original complete
-source-profile supplier obligation remains OPEN.
+Status: independently reviewed coordinate/constructor/capture results and
+source-component authority correction. The callback source-context parent
+remains OPEN.
 Source baseline: `266da3dd6cf73b4b6267919384cce9389d653f46`.
 Observed HEAD: `aefa527a798ba3b7105a9b2abe27348e6d27a343`.
+Authority-correction baseline: `5e7d44f3251514c17762a8c61c9be8e371cb4994`.
 Exclusive lease: this note only. No implementation or semantic authority.
 
-## 1. Frozen original obligation
+## 1. Source-component obligation and transparent authority correction
 
 For every originally supported, known ordinary `Value(Function)` formal,
-construct its original static callback template `beta` and complete
-`Slots(beta)` from the original declaration/formal/annotation occurrences,
-before normalization, copying, successful solving or body elaboration.
-Instantiate only through the original use's existing source substitution.
-The construction must identify every applicable complete-call and latent-result
-observation position, apply default protection and composed annotation polarity,
-and retain concrete members, binding-scoped symbolic variables and distinct
-omitted AE/RE coordinates. It must be finite without unfolding recursive uses.
+construct the known callback context from its original source component:
+formal/annotation/scope/shared-root identity, source-generated upper exposures
+with justified protected-variable seeds at those exposures and designated
+`outEff`, independently justified annotation-profile constructors, and existing
+typed transport. Preserve its original static `beta,Slots(beta)` and instantiate
+only through the original source use's coherent substitution. Deliver that
+known context before generating the **receiving literal's** body constraints;
+independently synthesize the literal under B and retain its final completed
+interface inequality. Source from the callee's definition and original uses
+may help construct this context before delivery. B does not require that the
+annotation alone construct it before the callee's own body is examined.
+
+The previous version of §§1/5 demanded a complete annotation-only observation
+inventory, including all eventual symbolic/latent shapes. That premise was
+overstrong under the already selected
+[directional addendum](../design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+§§2–6. Section 6 expressly retires the unconditional
+`Applicable_original -> p0` target in favor of source-justified directional
+exposures and their original seed witnesses. This is a correction of this
+note's governing obligation, not a new semantic choice, parent closure or
+narrowing of supported B sources. The finite coordinate, successful paired
+constructor and acyclic capture/FreshUse results below remain unchanged.
 
 Fix original owner `d`, formal `x`, annotation occurrence `a`, its original
 binding scope `S`, and one joint assignment `xi=(nu,K,D)`. An occurrence is
@@ -43,6 +58,11 @@ runtime execution and complete Call implementation. These remain separate.
   §§1–6: known instantiated formal plus original `beta,Slots(beta)` must precede
   literal-body generation; normative B synthesizes independently and concludes
   with the completed-interface inequality. It assumes the profile supplier.
+- [Directional addendum](../design/2026-10-06-directional-inferred-effect-protection-addendum.md)
+  §§2–6 and [existing directional source generation](../progress/2026-10-06-directional-protection-source-generation.md)
+  §§2–5: reuse the established local seed/upper-exposure producer, exact
+  rule-relative coverage, no-backflow and coherent witness retention. These
+  do not assert that every full-source exposure certificate is constructed.
 - [Top-level inference principles](../design/2026-10-11-yulang-inference-top-level-principles.md)
   §§1–3: ordinary constraint generation/accumulation and the established hygiene
   results remain the selected direction; no solve-at-generation premise.
@@ -128,10 +148,12 @@ For the anchor `f:int -> int`, the records are `AE(kappa_A,+)` and
 `RE(kappa_R,-)` with distinct open coordinates, original formal identity and
 no written concrete permissions. The known Function itself supplies an
 executable complete `J_call` position by typed core §§3,9; omitted capture
-does not authorize a local handler there. Under the default receiving-boundary
-rule, callback observations at that identified complete-call position remain
-protected while its original receiver is active. Therefore “no written effect
-row, hence empty callback profile” is invalid. This local consequence neither
+does not authorize a local handler there. This explicitly annotated formal
+intentionally has no `OmittedFormal` seed; absence of that record proves
+neither missing protection nor an empty callback profile. Its independent
+annotation-profile construction and source/typed evidence retain their own
+responsibility. Thus “no written effect row, hence empty callback profile”
+does not follow. This local consequence neither
 identifies AE with `J_call` nor proves that these two printed ports exhaust
 all profile positions for every Function annotation.
 
@@ -384,35 +406,50 @@ observation positions, establish the before-body context supplier, or identify
 an instantiated FreshUse with the original static boundary/profile. No mapped
 constraint replay or operational activation is inferred from storage.
 
-## 5. Precise remaining premise and economy audit
+## 5. Corrected remaining source-component obligation and economy audit
 
-The remaining premise is the original source constructor judgment
+The remaining constructor judgment has the following source inputs; it is
+not a function of the annotation tree alone:
 
 ```text
-OriginalAnnotation(d,x,a,S,A) with ordinary Value(Function) outer role
-  |- CompleteOriginalObservationProfile(beta, Slots(beta), source path maps)
+OriginalSourceComponent(d,x,a,S,sharedroot, original constraints)
+SourceUpperUse(u,v,U,S) with designated outEff(U)
+justified ProtectedVarAt(k,v,S,u) for every emitted directional conclusion
+independently justified annotation-profile constructors
+original typed correspondence and joint xi=(nu,K,D)
+  |- known-context(F_cb_u,beta,Slots(beta), original provenance)
+     available before receiving-literal body generation
 ```
 
-It must establish, independently of a solved row or successful callback query,
-which complete-call/latent-result positions are applicable and their exact
-source correspondences, including the open symbolic coordinates in the
-original domain. The coordinate lemma does not prove this judgment. The
-specific cases include a Function-valued argument, a Function-valued result,
-and a symbolic value leaf subsequently constrained to a callable/latent shape;
-all need their original path and observation correspondence, without copying
-an outer annotation onto every descendant. The
-core's finite direction construction explicitly counts supplied typed-profile/
-path entries; it does not remove that supplied-entry premise. Typed-boundary
-§6 and source-indexed §6 likewise state that input boundary explicitly.
+This notation records the owners that must supply the premises. It does not
+claim their full-source completeness. The established directional producer
+already constructs exactly the source-justified `Dir-Protect` conclusions from
+its certified inputs; it needs no completed profile, solved future shape or
+successful pending comparison. Reuse that result and compose its output with
+the independent annotation and typed-transport constructors. General source
+binding/SCC formation and seed-at-exposure evidence remain with their original
+source owners; arbitrary inference reordering or late-seed replay is not
+licensed by enumeration order.
 
-Two routes stop at this same premise: structural annotation/sign traversal
-constructs coordinates but not all profile applicability; the existing
-transport theorem preserves supplied entries but cannot establish their
-source introduction. No third equivalent transport/reconstruction attempt is
-proposed. This is an A/B source-construction requirement for the original
-callback gate. Retaining an original constructor certificate would address D
-reconstruction debt only after that constructor is independently justified.
-It cannot invent the profile's semantics.
+The distinction is decisive even for identical eventual Function shapes:
+a justified protected-variable **upper use** introduces protection at its
+designated `outEff`, while an existing **provider lower** does not receive
+backward protection from that seed. Existing independent provider protection
+survives. A symbolic leaf's eventual callable/latent shape alone therefore
+does not require recursive marking. A later exposure needs its own original
+protected-variable/exposure premises or independently justified typed profile
+transport. Explicitly annotated `f:int -> int` deliberately lacks the omitted-
+formal seed and must use its actual applicable constructors; neither a seed
+fabricated from its Name nor an empty-profile conclusion is justified.
+
+The prior structural and transport attempts did not settle this source-wide
+premise, but their failure does not establish a missing semantic decision or
+justify repeating the retired annotation-only target. The A/B obligation
+remains source-component construction and B delivery for the original source
+domain. The forward capture zip supplies an existing root association for its
+acyclic subcase; retaining or consuming that association can remove D debt
+without inventing profile meaning. No equivalent third reconstruction proof
+is proposed and no obligation is reclassified as optional research.
 
 No underdetermination theorem or source counterexample is claimed. In
 particular, arbitrarily omitting a latent slot and marking every descendant
@@ -421,19 +458,22 @@ and selected latent typed-value transport constrain both. Missing stored
 fields alone establish neither a missing policy nor two admissible behaviors.
 The parent remains OPEN; no authoritative source behavior is narrowed.
 
-**Handoff after independent review:** the consolidated forward bridge and
-its exact mapped-root access window have no remaining findings. The primary can
-assign the smallest same-use mapped-root consumer seam while retaining the
-displayed complete-profile constructor judgment at its source owner. The
-acyclic structural bridge supplies neither its profile semantics nor the
-before-body delivery invariant; broad dependent implementation remains gated.
+**Handoff:** the already reviewed forward bridge and mapped-root access window
+retain their scoped result. Independent delta review accepted this authority
+correction. The next construction consumes those roots together with the
+existing directional
+producer and independently justified annotation/typed constructors at the
+known-context owner. The acyclic bridge alone supplies neither the whole
+source-component profile nor before-body delivery; both original gates stay
+OPEN. This note does not consume the other active workers' unfinished outputs.
 
 ## 6. Freeze, checks and commit packet
 
 Read-only source/authority inspection and dependency hashing only. No builds,
 tests, executable probes, network, Git mutations, child agents or measurements.
-One leaf, with an assigned twenty-minute first pass and a separate fifteen-minute
-bounded forward-bridge follow-up; no additional compute processes or timing
+One leaf, with an assigned twenty-minute first pass, a separate fifteen-minute
+forward-bridge follow-up, and an eight-minute authority-correction delta;
+no additional compute processes or timing
 samples. Actual wall time was not instrumented. Requested routing: Sol/high; observed
 runtime model/effort metadata unavailable. Role config registers `prover` and
 omits model/effort pins; that is configuration evidence, not runtime evidence.
@@ -443,18 +483,24 @@ Independent review: a fresh compiler referee accepted the frozen producer
 artifact `1c293306e2942d44dc3d6433669f55b5010185b2628eb8fb403a7ac3a01496bf`
 with no blocking, major or minor findings. All 18 dependency hashes matched.
 The primary accepted that scoped result; producer has no certification authority.
+The authority correction received a separate clean compiler-referee delta
+review at frozen SHA-256
+`0aab6ee4d9206f93bc70498a41560c54590647000976ebfc6780cebee32619f6`.
+The existing mathematical derivations were not rerun or
+promoted by this correction.
 Proposed checkpoint message:
-`research: bridge original Function formal coordinates through capture and FreshUse`.
-Shared-record delta integrated by the primary: record the coordinate/polarity,
-paired constructor and acyclic forward-capture zip as independently reviewed;
-retain the original source-profile supplier and
-callback/complete Call/soundness/principality parents OPEN with the exact §5
-constructor premise and its source owner. No semantic decision is requested
-or established by this note.
+`research: correct callback context obligation to original source-component construction`.
+Prior shared-record integration records the coordinate/polarity, paired
+constructor and acyclic forward-capture zip as independently reviewed.
+Delta integrated by primary: replace the overstrong annotation-only
+supplier premise with §5's source-component/exposure/annotation/transport
+obligation, retaining the original B supported domain and before-receiving-body
+delivery, independent synthesis and final inequality. Preserve all original
+callback/complete Call/soundness/principality parent statuses OPEN. No semantic
+decision or new theorem closure is requested or established by this correction.
 
-Static checks: 18 direct dependency contents match the pinned source baseline;
-whitespace/fences pass and all 10 local links resolve. No executable semantic
-verification ran.
+Static checks: all 20 direct dependencies match both pinned baselines;
+whitespace/fences pass and all 13 local links resolve. No executable semantic verification ran.
 
 Dependency hashes follow; source-baseline-to-observed-HEAD changes do not touch
 these direct dependencies. Other workers' uncommitted artifacts are not inputs.
@@ -478,4 +524,6 @@ deee5a0892b02bc9ee23a1f2a35c76175094c558ed7dfb2cf55a7e115ac54225  crates/yu-solv
 b0f7778934a37ec9c642f7e6232cb61e37a1b0768f6af92556cf873f6b2a69f7  crates/yu-solver/src/lib.rs
 2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b  crates/yu-solver/src/candidate_extrusion.rs
 9f71c8c40d6850bffccb27d7393bf6219f0ceca5cf1fe1e738073ea943706083  crates/yu-solver/src/candidate_context.rs
+f11c6594e43c29fbfdbca1638b5c548cecc12a5beb192cac743e60f022c1cc73  notes/design/2026-10-06-directional-inferred-effect-protection-addendum.md
+3702eb2ea5108eba1adc8ab7a557542abb9993cee09f70b738e2999a05a2d185  notes/progress/2026-10-06-directional-protection-source-generation.md
 ```
