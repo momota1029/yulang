@@ -160,6 +160,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   proof now inverts the original constraint-generating source judgment at the
   first Apply. It must authenticate the original antecedent rather than reverse
   a sufficient semantic-containment law; no new metadata census is assigned.
+  That [judgment inversion](../notes/theory/2026-10-16-first-result-source-judgment-preservation.md)
+  now has independent CLEAN review. Formal/annotation/Name/Unit translation
+  retains original A1/E1 coordinates; the first coupled Apply obligation is
+  not yet shown to entail native joint fields/contexts. The original reverse
+  implication remains OPEN. Charter §9's conservative-abstraction permission
+  does not retire it; a separate necessity audit is required before changing
+  that dependency. A bounded forward-soundness proof now targets native joint
+  constraints to lawful source invocation and same-witness coverage, using
+  sufficient containment in its valid direction. Full abstract principality,
+  B and production remain separate required gates.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

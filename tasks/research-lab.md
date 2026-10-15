@@ -153,6 +153,15 @@ That selected constructive packet is active at the original first-Apply
 constraint-generating judgment; the independent direction audit retains
 original joint obligations and rejects reversing sufficient semantic containment.
 No extensional-completeness strengthening or assumed native graph is permitted.
+The [completed inversion](../notes/theory/2026-10-16-first-result-source-judgment-preservation.md)
+has independent CLEAN review and stops at original coupled Apply-to-native
+field/context translation. The fixed A1/E1 coordinates cannot be freely reset
+to convenient native values. Original FIRST-RESULT-ADEQUACY remains OPEN with
+a separate necessity question; charter §9 alone does not discharge that gate.
+The next bounded constructive packet proves the required forward native-joint-
+constraint-to-source invocation direction, keeping same-witness coverage and
+the selected abstraction's principality requirements distinct. No parent or
+production dependency is silently retired.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

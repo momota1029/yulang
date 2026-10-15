@@ -23,6 +23,11 @@ This index is a navigation aid. The listed source document remains authoritative
   resolve the local formation premise through already approved target exposure.
   Direct computation Allowance injects no declaration-only inflow. Full same-
   witness Result/context implication and general subtraction remain OPEN.
+  The reviewed [source-judgment inversion](../theory/2026-10-16-first-result-source-judgment-preservation.md)
+  fixes the original obligations/coordinates and locates the first coupled
+  Apply translation. Its reverse implication stays OPEN while required forward
+  soundness is pursued; abstraction-relative principality does not automatically
+  imply universal extensional completeness or authorize gate retirement.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
