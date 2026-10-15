@@ -81,9 +81,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   query limitation. The independently reviewed [generative frontier theorem](../notes/theory/2026-10-16-native-returned-callable-demand-frontier.md)
   now derives that future demand before capture, one-map restoration and the
   selected factory lower's actual ordered replay in these two source programs.
-  Original first-demand inverse reconstruction is unnecessary. Correlated
-  outer-copy interpretation and original same-xi,z semantic adequacy remain
-  OPEN; the next action must discharge their actual interpretation premises.
+  Original first-demand inverse reconstruction is unnecessary. The independently
+  reviewed [outer source-witness transport](../notes/theory/2026-10-16-native-outer-use-source-witness-transport.md)
+  now proves joint same-z packet reindexing while keeping historical evidence
+  in its original environment. Actual FunctionPort Result plus same-parent
+  RE/entry predicate interpretation remains OPEN: the source witness must imply
+  those incident native predicates under the same xi. Reached Effect post-check
+  discharge must retain its source law. This is an unproved existing source
+  contract, not a demonstrated loss or a new semantic decision. Primary owns
+  this native parent; no further inverse census or metadata repair is justified.
   Production inference behavior is unchanged. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
   policy or production status change follows from these notes.
 

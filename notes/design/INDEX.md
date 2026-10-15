@@ -56,7 +56,10 @@ This index is a navigation aid. The listed source document remains authoritative
   images. The reviewed [generative frontier theorem](../theory/2026-10-16-native-returned-callable-demand-frontier.md)
   establishes future-demand preservation and selected live-lower replay for the
   fixed pair, without intermediate-demand inverse reconstruction. Complete
-  source/native event-view and outer-copy composition remain open.
+  source/native event-view adequacy remains open. The reviewed
+  [outer-use source packet theorem](../theory/2026-10-16-native-outer-use-source-witness-transport.md)
+  proves joint reindexing with distinct historical/current environments;
+  native Result plus same-parent RE/entry predicate interpretation remains OPEN.
 
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through

@@ -73,9 +73,14 @@ lower replay for the two fixed programs. The remaining correlated outer-copy
 semantic transport must apply existing joint-renaming/typed-transport results
 with their actual premises, not require intermediate-demand readback or merely
 redispatch completed internal comparisons. Complete same-xi,z adequacy remains
-OPEN. A bounded next-action selection now identifies that decisive premise. No new
-conditional interface lemma, scalar-collision assumption or scoped-guard removal
-is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
+OPEN. The independently reviewed [outer-use source witness](../notes/theory/2026-10-16-native-outer-use-source-witness-transport.md)
+now establishes the joint packet naturality and separate original/current
+environments. The remaining source-to-native predicate clause is at FunctionPort
+Result jointly with its parent's RE/entry obligations, including the original
+Effect post-check law when reached. No loss or new semantic decision is proved;
+primary owns this OPEN native premise while approved module-root construction
+proceeds independently. No repeated inverse census, conditional whole-interface
+lemma, scalar-collision assumption or scoped-guard removal is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
