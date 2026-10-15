@@ -38,9 +38,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   [forward discriminator](../notes/progress/2026-10-16-forward-initializer-control-discriminator.md)
   reaches the successor's pending GlobalRead capture guard; Oracle readiness
   succeeds before an escaped request. Both executions fail, with neither source
-  validity nor semantic divergence established. One bounded artifact-only
-  Oracle root/instance correspondence is assigned to locate that escape;
-  no repeated A/B question or conditional purity lemma.
+  validity nor semantic divergence established. The reviewed
+  [exact artifact](../notes/progress/2026-10-16-forward-initializer-artifact-correspondence.md)
+  now locates the escape at a later Int root, distinct from the forward
+  Thunk-specialized instance; it is not repeated publication of one instance.
+  The reviewed [Name-role bridge](../notes/theory/2026-10-16-definition-name-computation-role.md)
+  proves original pure Name/value routing, whole-Name Delay and populated-cache
+  correspondence. Empty-cache initialization's source execution context is the
+  precise remaining premise. No delimiter or new cache law follows from Name
+  purity, and another pure-Name lemma would not supply that operational rule.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
@@ -143,6 +149,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   constructive proof lanes now map actual Support operands to these roles,
   retaining original xi/z, provider, symbolic constraints and Function
   correlation. No blanket Support deletion or proof/cutover closure follows.
+  The resulting independently reviewed [constructor audit](../notes/progress/2026-10-16-native-permission-inflow-residual-audit.md)
+  and [type-flow derivation](../notes/theory/2026-10-16-native-annotation-flow-correspondence.md)
+  recover the existing approved target-exposure owner: positive Function
+  Support is the exposed declared type, while direct computation annotation
+  checks add no declaration-only inflow. The earlier recommendation for a new
+  formation choice is withdrawn. Full source-obligation-to-native Result/RE/
+  context implication under all original xi,z remains OPEN, including both
+  dependent packet views and genuine subtraction. The selected changed-method
+  proof now inverts the original constraint-generating source judgment at the
+  first Apply. It must authenticate the original antecedent rather than reverse
+  a sufficient semantic-containment law; no new metadata census is assigned.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

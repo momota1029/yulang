@@ -18,6 +18,11 @@ This index is a navigation aid. The listed source document remains authoritative
   separates permission, constraint inflow and subtraction residual; declaration
   alone does not add an effect to the residual. Actual Support-role correspondence
   is active with original polarity/B and xi/z scope retained; no new choice waits.
+  The independently reviewed [type-flow derivation](../theory/2026-10-16-native-annotation-flow-correspondence.md)
+  and [source audit](../progress/2026-10-16-native-permission-inflow-residual-audit.md)
+  resolve the local formation premise through already approved target exposure.
+  Direct computation Allowance injects no declaration-only inflow. Full same-
+  witness Result/context implication and general subtraction remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
@@ -28,6 +33,11 @@ This index is a navigation aid. The listed source document remains authoritative
   reaches the successor guard while Oracle passes readiness then escapes a
   request. No source-validity or divergence claim; exact generated root/instance
   correspondence is the next bounded artifact.
+  That [artifact is now reviewed](../progress/2026-10-16-forward-initializer-artifact-correspondence.md):
+  forward thunk and later Int root have distinct instance keys; the later root
+  explains the escape. The [Name-role proof](../theory/2026-10-16-definition-name-computation-role.md)
+  independently closes pure Name/Apply and populated-cache correspondence;
+  empty-global execution context remains an open source operational premise.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated

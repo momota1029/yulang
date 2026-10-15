@@ -37,7 +37,13 @@ reaches pending's GlobalRead capture guard; Oracle passes readiness then escapes
 an operation request. Neither run supplies valid-source admission or semantic
 divergence. The next bounded artifact-only packet authenticates exact Oracle
 roots, executable demand and InstanceId/signature joins without repeating VM
-execution. Pure/internal-handler controls do not certify the full forward case.
+execution. The [reviewed artifact](../notes/progress/2026-10-16-forward-initializer-artifact-correspondence.md)
+now identifies different Int-root and Thunk-reference instance keys; the prior
+escape is at the later Int root under unchanged-construction provenance.
+The [reviewed role bridge](../notes/theory/2026-10-16-definition-name-computation-role.md)
+proves exact pure Name/Apply and populated-cache correspondence. Its unresolved
+empty-cell materialization needs an independently justified source execution
+context; pure Name does not select an initializer delimiter or cache law.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -126,6 +132,20 @@ choice is needed for the actual next audit. Distinct source-coverage and
 constructive proof lanes now identify those roles at Support producers and
 consumers. No behavioral analysis, blanket Support deletion or proof closure
 is authorized. Runtime source/control correspondence remains independently active.
+
+The completed [source-role audit](../notes/progress/2026-10-16-native-permission-inflow-residual-audit.md)
+and [constructive type-flow result](../notes/theory/2026-10-16-native-annotation-flow-correspondence.md)
+have independent CLEAN review. Existing target exposure supplies declared
+Function Support as a type operand; direct computation checking injects no
+permission-only member. Ordinary Catch still forwards, and the private selected
+residual experiment is not general subtraction. The original complete source
+obligation must still imply native Result/RE/context under the same xi,z and
+dependent packets. A bounded next-action selection targets that semantic bridge,
+using the now established type owner rather than another annotation decision.
+That selected constructive packet is active at the original first-Apply
+constraint-generating judgment; the independent direction audit retains
+original joint obligations and rejects reversing sufficient semantic containment.
+No extensional-completeness strengthening or assumed native graph is permitted.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
