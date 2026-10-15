@@ -102,6 +102,42 @@ not change the covariant annotation policy, choose a solver representation or
 close the open source-subtraction and hygiene implementation gates. The
 retracted result in §6 remains retracted.
 
+### 1.2 Permission, inflow and subtraction result, 2026-10-16
+
+Authority: the exact question revision 1 / answer draft
+`annotation-declared-envelope-a1` revision 1, approved with `OK` and integrated
+at `cfded839e`. See the
+[approved answer](../../questions/2026-10-16-annotation-declared-envelope/approved-answer.md)
+and [consumption receipt](../../questions/2026-10-16-annotation-declared-envelope/receipt.md).
+This clarification records the approved correction to the question's framing;
+it selects neither of the offered complete-behavior alternatives.
+
+Distinguish the annotation's permission, the effect type flowing through actual
+constraints, and the residual type after subtraction. A declared `io` permission
+alone does not add `io` to a residual whose constraint-derived inflow contains
+no `io`. At the contravariant position, the annotation permits local subtraction;
+the actual handler performs it. Empty inflow has empty residual, and subtracting
+`io` from `io | write` leaves `write`. A covariant annotation allows the concrete
+effect at its position; allowance is not evidence that the effect flows there.
+
+Unknown effect variables stay unknown, with their constraints, filters and
+symbolic dependencies retained. Obtain the result through ordinary constraint
+generation, accumulation and propagation. No special analysis of a provider's
+execution or complete future behavior is required by this clarification.
+
+At the actual construction and comparison owners, identify separately the
+declared annotation interface, inflow and residual, and justify where declared
+members are retained. Establish whether each use of `Support` denotes the
+annotation type or actual inflow/residual before drawing an implementation
+conclusion. This clarification neither deletes `Support` unconditionally nor
+certifies it. Same provider, assignment, typed position, shared variables and
+correlated Function obligations remain required. Soundness, principality,
+FIRST-RESULT-ADEQUACY and production cutover remain separate open gates.
+
+Clarification review: independent `spec_auditor` returned CLEAN for this
+transcription and the receipt, 2026-10-16. This is scope/conformance review,
+not certification of the pending compiler correspondence or theorem.
+
 ## 2. Oracle correspondence
 
 Reference: frozen Yulang2 `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
