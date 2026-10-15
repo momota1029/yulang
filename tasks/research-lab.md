@@ -14,6 +14,16 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The user directly authorized the next anonymous-lambda HIR stage with
+`お願いします．`. The bounded [formation packet](../notes/progress/2026-10-15-inline-lambda-hir.md)
+uses ordinary formal binding, the shared parameter identity stream and
+authentic typed provenance. Implementation and the original C1–C5 source
+formation theorem are complete under M2 with independent compiler/specification
+review and fresh proof delta review. Thirty-three focused tests and the
+playground package check pass. Callback-context delivery before literal-body
+constraints in `candidate_source.rs` is the next source/consumer obligation;
+full inference proof and execution remain OPEN.
+
 The exact-source inline-lambda syntax blocker is closed under the
 [approved unary-lambda parser construction](../notes/design/2026-10-15-unary-lambda-parser.md),
 with M3 compiler/specification review and direct user approval. Complete-header
@@ -25,9 +35,9 @@ syntax passes with one existing manual ignored, and a successful playground
 package check. All four original local parser obligations are discharged with
 45 matched dependencies. Nested recovery, child-baseline rebasing and immediate
 consuming handoffs were repaired from concrete proof counterexamples; no
-test-based soundness claim or assumed child-owner premise remains. The next
-frontend gate is authentic inline-lambda HIR formation/provenance and then
-callback typing correspondence. This remains independent of native signed-copy
+test-based soundness claim or assumed child-owner premise remains. The follow-on
+inline-lambda HIR formation/provenance gate is complete as recorded above;
+callback typing correspondence remains OPEN. This remains independent of native signed-copy
 and operational suppliers; no runtime representation or execution was selected.
 
 The [playground source-plan slice](../notes/progress/2026-10-15-computation-source-plans.md)

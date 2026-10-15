@@ -340,12 +340,25 @@ pub enum SourceIdentityError {
     AmbiguousSource,
 }
 
+/// Exact syntax origin of a retained parameter, without a type or callable role.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ParameterSourceOrigin {
+    IdentifierPattern(PositionId),
+    InlineLambda { lambda: PositionId, binder: PositionId },
+}
+
+#[derive(Clone, Debug)]
+enum ParameterOrigin {
+    IdentifierPattern(SourceNodeKey),
+    InlineLambda { lambda: SourceNodeKey, binder_range: Range<usize> },
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct HirSourceIdentity {
     parse_root: SourceNodeKey,
     definitions: HashMap<DefinitionRootId, SourceNodeKey>,
     occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
-    parameters: HashMap<HirParameterId, SourceNodeKey>,
+    parameters: HashMap<HirParameterId, ParameterOrigin>,
     locals: HashMap<crate::HirLocalId, SourceNodeKey>,
     pub(crate) local_binding: Option<ShadowLocalBind>,
     pub(crate) local_parameter_owners: HashMap<HirParameterId, crate::HirLocalId>,
@@ -394,7 +407,10 @@ impl HirSourceIdentity {
         self.definitions.insert(id, key);
     }
     pub(crate) fn record_parameter(&mut self, id: HirParameterId, key: SourceNodeKey) {
-        self.parameters.insert(id, key);
+        self.parameters.insert(id, ParameterOrigin::IdentifierPattern(key));
+    }
+    pub(crate) fn record_inline_parameter(&mut self, id: HirParameterId, lambda: SourceNodeKey, binder_range: Range<usize>) {
+        self.parameters.insert(id, ParameterOrigin::InlineLambda { lambda, binder_range });
     }
     pub(crate) fn record_occurrence(&mut self, id: HirOccurrenceId, key: SourceNodeKey) {
         self.occurrences.insert(id, key);
@@ -724,26 +740,44 @@ impl ShadowArtifact {
         hir: &HirModule,
         id: &HirParameterId,
     ) -> Result<PositionId, SourceIdentityError> {
+        match self.parameter_source_origin(hir, id)? {
+            ParameterSourceOrigin::IdentifierPattern(position) => Ok(position),
+            ParameterSourceOrigin::InlineLambda { .. } => Err(SourceIdentityError::MissingSource),
+        }
+    }
+    /// Resolves a registered parameter's exact pattern or inline binder origin.
+    pub fn parameter_source_origin(
+        &self,
+        hir: &HirModule,
+        id: &HirParameterId,
+    ) -> Result<ParameterSourceOrigin, SourceIdentityError> {
         if !hir.owns_parameter(id)
             && !(hir.owns_definition_root(id.definition_root())
-                && hir
-                    .source_identity
-                    .as_ref()
-                    .is_some_and(|source| source.local_parameter_owners.contains_key(id)))
+                && hir.source_identity.as_ref().is_some_and(|source| source.parameters.contains_key(id)))
         {
             return Err(SourceIdentityError::ForeignHirArtifact);
         }
-        let source = hir
-            .source_identity
-            .as_ref()
-            .ok_or(SourceIdentityError::MissingSource)?;
+        let source = hir.source_identity.as_ref().ok_or(SourceIdentityError::MissingSource)?;
         self.check_source_parse(source)?;
-        self.source_position(
-            source
-                .parameters
-                .get(id)
-                .ok_or(SourceIdentityError::MissingSource)?,
-        )
+        match source.parameters.get(id).ok_or(SourceIdentityError::MissingSource)? {
+            ParameterOrigin::IdentifierPattern(key) => {
+                Ok(ParameterSourceOrigin::IdentifierPattern(self.source_position(key)?))
+            }
+            ParameterOrigin::InlineLambda { lambda, binder_range } => {
+                let lambda = self.source_position(lambda)?;
+                let position = self.position(&lambda).map_err(|_| SourceIdentityError::MissingSource)?;
+                if position.kind() != SyntaxKind::LambdaExpression {
+                    return Err(SourceIdentityError::MissingSource);
+                }
+                let mut binders = position.children().iter().filter(|child| {
+                    self.position(child).is_ok_and(|position| !position.is_node()
+                        && position.kind() == SyntaxKind::Identifier && position.range() == binder_range)
+                });
+                let binder = binders.next().ok_or(SourceIdentityError::MissingSource)?.clone();
+                if binders.next().is_some() { return Err(SourceIdentityError::AmbiguousSource); }
+                Ok(ParameterSourceOrigin::InlineLambda { lambda, binder })
+            }
+        }
     }
     pub fn local_source_position(
         &self,

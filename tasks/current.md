@@ -6,6 +6,19 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Inline-lambda HIR formation and source proof complete:** following the parser checkpoint,
+  the user replied `お願いします．` to the next HIR stage. The bounded
+  [formation gate](../notes/progress/2026-10-15-inline-lambda-hir.md) reuses
+  ordinary named-formal lexical binding and retains authentic inline binder
+  provenance. M2 compiler-referee/specification review and fresh proof delta
+  review have no remaining findings. The original C1–C5 construction theorem
+  is discharged at the actual source owners; all dependency records matched.
+  Thirty-three focused HIR/solver/playground tests and the playground package
+  check pass. Inline definitions, direct calls and ordinary Function providers
+  now reach candidate inference. The next owner is callback-context delivery
+  before literal-body constraints in `candidate_source.rs`; full inference
+  proof and runtime remain OPEN.
+
 - **Unary-lambda parser and local construction proof complete:** the inline
   `g \i -> ...` syntax now has its production parser route. The narrow
   [unary-lambda parser proposal](../notes/design/2026-10-15-unary-lambda-parser.md)
@@ -24,9 +37,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   Static header-cost review used no timing measurements. The
   [implementation record](../notes/progress/2026-10-15-unary-lambda-parser.md)
   records the proof-discovered recovery defects, source-based repairs and
-  rejected intermediate assumptions. Next is the private HIR formation and
-  authentic anonymous-parameter provenance gate, then callback-context/solver
-  correspondence. HIR, original imports/loop/std and execution remain OPEN;
+  rejected intermediate assumptions. The private inline HIR formation and
+  authentic anonymous-parameter provenance gate is now complete as recorded
+  above. Callback-context/solver correspondence, ordinary HIR cutover,
+  original imports/loop/std and execution remain OPEN;
   no full Callback Hygiene completion is claimed.
 
 - **Playground explicit-root source supplier:** `--intrusion` now displays

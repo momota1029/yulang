@@ -562,6 +562,11 @@ pub(super) fn form(
     Ok((source, projection))
 }
 impl Builder<'_> {
+    fn parameter_id(&mut self) -> Result<HirParameterId, HirAvailabilityError> {
+        let ordinal = self.next_parameter;
+        self.next_parameter = ordinal.checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
+        Ok(HirParameterId::new(self.owner.clone(), ordinal))
+    }
     fn push_binding(
         &mut self,
         spelling: Box<str>,
@@ -787,6 +792,36 @@ impl Builder<'_> {
                         Work::Expression(head.clone(), current, scope, named_group.clone()),
                     )?;
                 }
+            }
+            SyntaxKind::LambdaExpression => {
+                let mut elements = node.children_with_tokens().filter(|element| !matches!(
+                    element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                        | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+                ));
+                let slash = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
+                let binder = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
+                let arrow = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
+                let body_node = elements.next().and_then(|element| element.into_node()).ok_or_else(invalid)?;
+                if slash.kind() != SyntaxKind::Backslash || binder.kind() != SyntaxKind::Identifier
+                    || arrow.kind() != SyntaxKind::Arrow || body_node.kind() != SyntaxKind::OperatorChain
+                    || elements.next().is_some()
+                {
+                    return Err(invalid());
+                }
+                let id = self.parameter_id()?;
+                let source = self.key(&node)?;
+                let range = crate::range_of_token(&binder);
+                self.counters.source_identity.as_mut().ok_or_else(invalid)?
+                    .record_inline_parameter(id.clone(), source.clone(), range.clone());
+                let parameter = LocalSourceParameter {
+                    id: id.clone(), source, range, spelling: binder.text().into(),
+                    scope: scope.clone(), annotation: None,
+                };
+                let body = self.slot()?;
+                push(&mut self.work, Work::Restore(self.lexical.len()))?;
+                self.push_binding(parameter.spelling.clone(), LocalSourceResolution::Parameter(id.clone()))?;
+                push(&mut self.work, Work::Expression(body_node, body.clone(), LocalSourceScope::Parameter(id), named_group.clone()))?;
+                self.set(index, &node, scope, named_group, LocalSourceForm::Lambda { parameter, body })?;
             }
             SyntaxKind::IdentifierExpression => {
                 let spelling = identifier_spelling(&node)?;
@@ -1078,11 +1113,7 @@ impl Builder<'_> {
             let mut retained_parameters = Vec::new();
             let mut parameter_scope = LocalSourceScope::LocalInitializer(id.clone());
             for parameter in parameters {
-                let ordinal = self.next_parameter;
-                self.next_parameter = ordinal
-                    .checked_add(1)
-                    .ok_or(HirAvailabilityError::IdentityExhausted)?;
-                let parameter_id = HirParameterId::new(self.owner.clone(), ordinal);
+                let parameter_id = self.parameter_id()?;
                 let source = parameter.source.ok_or_else(invalid)?;
                 let source_identity = self.counters.source_identity.as_mut().ok_or_else(invalid)?;
                 source_identity.record_parameter(parameter_id.clone(), source.clone());

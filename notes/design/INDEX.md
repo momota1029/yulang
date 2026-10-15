@@ -99,6 +99,11 @@ This index is a navigation aid. The listed source document remains authoritative
   tests pass with one existing manual ignored, and the playground package check
   passes. Inline-lambda HIR, old F5 callback construction and runtime remain
   outside this approval.
+  The user subsequently authorized the
+  [private inline HIR connection](../progress/2026-10-15-inline-lambda-hir.md):
+  its original formation theorem and actual-source bridge are now independently
+  reviewed, with 33 focused HIR/solver/playground tests and a successful package
+  check. Callback-context delivery and runtime remain separate open gates.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
   — Authoritative; the explicit principal-scheme source
