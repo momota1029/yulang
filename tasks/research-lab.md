@@ -167,13 +167,18 @@ constraint-to-source invocation direction, keeping same-witness coverage and
 the selected abstraction's principality requirements distinct. No parent or
 production dependency is silently retired.
 The [forward pass](../notes/theory/2026-10-16-first-call-native-forward-soundness.md)
-has independent CLEAN review. Actual Unit/Delay validity precedes the still
-unproved declared-target inlet check. A 25-minute `prover` assignment actually
-requests `gpt-6-astra`/low for this localized Unit-arrow inlet; effective runtime
-metadata is unavailable. One complementary static falsification lane retains
-actual source qualification and original contextual incidences. Neither lane
-may assume target checking, choose an arbitrary D_F, or close the parent from
-Unit scalar equality. Full Result/context soundness remains subsequent.
+has independent CLEAN review. The bounded requested Astra/low
+[Unit-arrow pass](../notes/theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
+is now independently reviewed after two minor source-precision corrections;
+effective runtime metadata is unavailable. It finds the same source annotation
+introduction premise, without counterexample or closure. The primary consumes
+that result by assigning the actual written-arrow inlet constructor under the
+existing definition authorization. A normal Sol producer constructs the
+independent ground Unit port and full two-hole context domain, with a separate
+source-domain/circularity audit. No Q-dependent admission, opaque complete I,
+source-only/terminating domain or Unit-purity shortcut is authorized. Original
+Apply and Result/context soundness remain OPEN pending that construction and
+fresh independent semantic/conformance review.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

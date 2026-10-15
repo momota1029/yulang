@@ -179,10 +179,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   The [forward pass](../notes/theory/2026-10-16-first-call-native-forward-soundness.md)
   now has independent CLEAN review: actual Unit/Delay is valid at its original
   view, but target-inlet checking is not supplied by scalar equality or a
-  nominally formed interpretation. A bounded actual `prover` spawn requests
-  Astra/low for this precise declared `() -> 'a` inlet and Argument/AE context
-  correspondence, alongside a distinct static falsification audit. This is a
-  new localized proof question; no new native semantic choice is presumed.
+  nominally formed interpretation. The bounded Astra/low
+  [Unit-inlet pass](../notes/theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
+  retains that exact original annotation-introduction premise and has independent
+  review with two minor source-precision corrections. No counterexample or inlet
+  theorem is established. The owning source constructor is now being completed
+  under the existing authorization for natural missing definitions, using the
+  independent Unit contract and two-hole assembly. It must retain all compatible
+  contexts/carriers and build the actual Unit premise before membership
+  elimination; another purity lemma or opaque checked-interface assumption is
+  excluded. Native Apply soundness and both original parent directions stay OPEN.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

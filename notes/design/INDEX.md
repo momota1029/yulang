@@ -30,8 +30,11 @@ This index is a navigation aid. The listed source document remains authoritative
   imply universal extensional completeness or authorize gate retirement.
   The reviewed [forward constructor pass](../theory/2026-10-16-first-call-native-forward-soundness.md)
   establishes Unit/Delay validity and locates the original declared-arrow inlet
-  correspondence. The narrow proof is active; scalar truth is not whole checked
-  admission, and neither direction of the parent is closed.
+  correspondence. The reviewed [bounded Unit-inlet pass](../theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
+  pins the missing original annotation introduction; scalar truth is not whole
+  checked admission. Its source constructor is being completed under existing
+  definition authority, retaining the full domain. Neither parent direction
+  is closed by these obstruction records.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
