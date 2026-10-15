@@ -18,6 +18,10 @@ The validated [module-expression ownership decision](../notes/design/2026-10-16-
 is now Authoritative (bundle `f40e4235d`): G2 carrier formation, G3 ordinary
 receiver/use correspondence and G4 ordered runtime roots may proceed. Separate
 cache-bearing Resume laws remain pending; no new native semantic authority follows.
+The independently reviewed [G3 level/use construction](../notes/theory/2026-10-16-module-expression-receiver-construction.md)
+and [G4 root transition construction](../notes/theory/2026-10-16-runtime-module-expression-roots.md)
+now provide concrete implementation handoffs. G2 HIR and disjoint mechanical
+caller adaptation are active; actual G3/G4 correspondence remains OPEN.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic

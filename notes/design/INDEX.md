@@ -9,6 +9,9 @@ This index is a navigation aid. The listed source document remains authoritative
   at `f40e4235d`. G1 complete; direct-root carrier formation, nondefinition
   receiver/use correspondence and mixed runtime roots (G2–G4) remain open.
   Cache-bearing Resume materialization is a separate pending decision.
+  Independently reviewed [G3 level/routing construction](../theory/2026-10-16-module-expression-receiver-construction.md)
+  and [G4 runtime transition construction](../theory/2026-10-16-runtime-module-expression-roots.md)
+  supply their implementation prerequisites; actual source correspondence remains open.
 
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer

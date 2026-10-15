@@ -11,8 +11,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   [governing design](../notes/design/2026-10-16-module-expression-source-owner.md)
   authorizes authentic expression owners, level-1 nondefinition receivers,
   ordinary definition-use FreshUse, and mixed source-ordered runtime roots.
-  G2–G4 implementation and correspondence now proceed; approval is not proof
-  closure. Cache-bearing raw Resume alone still awaits the two materialization
+  The [G3 construction](../notes/theory/2026-10-16-module-expression-receiver-construction.md)
+  has independent proof review for nested levels, authentic use/Value ownership
+  and routing expression schedules after definition publication. The
+  [G4 transition construction](../notes/theory/2026-10-16-runtime-module-expression-roots.md)
+  has independent review for mixed root order, cache-free completion and exclusion
+  of the root cursor from internal raw captures. G2–G4 implementation and actual
+  source correspondence remain OPEN; these prerequisites authorize their exact
+  handoff, not full inference/runtime closure. Cache-bearing raw Resume alone still awaits the two materialization
   laws in `questions/2026-10-16-resumed-definition-materialization/question.md`.
   That separate pending directory remains uncommitted.
 
