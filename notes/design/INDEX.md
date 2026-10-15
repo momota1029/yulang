@@ -32,9 +32,11 @@ This index is a navigation aid. The listed source document remains authoritative
   establishes Unit/Delay validity and locates the original declared-arrow inlet
   correspondence. The reviewed [bounded Unit-inlet pass](../theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
   pins the missing original annotation introduction; scalar truth is not whole
-  checked admission. Its source constructor is being completed under existing
-  definition authority, retaining the full domain. Neither parent direction
-  is closed by these obstruction records.
+  checked admission. The [source constructor](2026-10-16-written-unit-arrow-inlet.md)
+  is now selected after independent mathematical and conformance review under
+  existing definition authority. It constructs the actual Unit filling and
+  full-domain two-hole inlet, plus the selected native Identity kernel. Native
+  ambient/copy applicability and both full parent directions remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

@@ -171,14 +171,17 @@ has independent CLEAN review. The bounded requested Astra/low
 [Unit-arrow pass](../notes/theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
 is now independently reviewed after two minor source-precision corrections;
 effective runtime metadata is unavailable. It finds the same source annotation
-introduction premise, without counterexample or closure. The primary consumes
-that result by assigning the actual written-arrow inlet constructor under the
-existing definition authorization. A normal Sol producer constructs the
-independent ground Unit port and full two-hole context domain, with a separate
-source-domain/circularity audit. No Q-dependent admission, opaque complete I,
-source-only/terminating domain or Unit-purity shortcut is authorized. Original
-Apply and Result/context soundness remain OPEN pending that construction and
-fresh independent semantic/conformance review.
+introduction premise, without counterexample or closure. The resulting
+[written-arrow source constructor](../notes/design/2026-10-16-written-unit-arrow-inlet.md)
+is now selected under existing definition authorization after independent
+mathematical and conformance CLEAN reviews. It constructs Unit/Return/Delay
+and full two-hole admission, with a local native Identity-lineage proof.
+The separate domain audit found no circularity or qualified falsifier.
+No Q-dependent admission, opaque complete I, source-only/terminating domain
+or Unit-purity shortcut is selected. Native ambient/copy applicability and
+full Apply soundness remain OPEN. A bounded atomic Value-row interpretation
+and same-z Return-transfer proof now targets the exact fixed alpha/A1 Result
+edge; RE retains its separate nominal-to-complete observation obligation.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

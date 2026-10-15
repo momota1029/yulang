@@ -183,12 +183,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   [Unit-inlet pass](../notes/theory/2026-10-16-declared-unit-arrow-inlet-correspondence.md)
   retains that exact original annotation-introduction premise and has independent
   review with two minor source-precision corrections. No counterexample or inlet
-  theorem is established. The owning source constructor is now being completed
-  under the existing authorization for natural missing definitions, using the
-  independent Unit contract and two-hole assembly. It must retain all compatible
-  contexts/carriers and build the actual Unit premise before membership
-  elimination; another purity lemma or opaque checked-interface assumption is
-  excluded. Native Apply soundness and both original parent directions stay OPEN.
+  theorem is established by that obstruction pass. The owning source constructor
+  is now [selected and proved](../notes/design/2026-10-16-written-unit-arrow-inlet.md)
+  under existing definition authority, after independent mathematical and
+  conformance reviews. Independent Unit/Return/Delay and the two-hole assembly
+  construct the actual filling before provider-membership elimination; the
+  full compatible domain is retained. The selected 43/0 native lineage has
+  constructionally Identity/default context. Actual native ambient/path/world
+  and copied semantic applicability remain OPEN. A separate atomic Value-row
+  interpretation now targets same-z Result transfer at fixed alpha/A1; RE and
+  both original full parent directions stay OPEN.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)
