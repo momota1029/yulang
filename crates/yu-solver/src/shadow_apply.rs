@@ -2,7 +2,7 @@
 use crate::*;
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
-pub use crate::candidate_call::{CandidateDirectionalIntroduction, CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
+pub use crate::candidate_call::{CandidateComputationSourcePlan, CandidateDirectionalIntroduction, CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
 
 /// Every entry remains unresolved, including after successful structural solving.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -386,6 +386,13 @@ impl CandidateInference {
     pub fn source_call_count(&self) -> usize { self.solved.data.candidate_calls.calls.len() }
     pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
         crate::candidate_call::observe(&self.solved.data.hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
+    }
+    /// Indexed by original formal registration, including Value formals whose
+    /// computation source plan is absent. Observation borrows constructor outputs
+    /// and adds no solver state or independent Function/AE/FreshUse validation.
+    pub fn computation_source_plan_count(&self) -> usize { self.solved.data.candidate_calls.formals.len() }
+    pub fn computation_source_plan(&self, index: usize) -> Result<Option<CandidateComputationSourcePlan<'_>>, ArtifactMismatch> {
+        crate::candidate_call::observe_computation_source_plan(&self.solved.data.hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
@@ -2045,6 +2052,35 @@ mod tests {
                 assert_eq!(candidate.fresh_use(occurrence).is_none(), conflicted);
             }
         }
+    }
+    #[test]
+    fn computation_source_plan_rejects_contradictory_registration_associations() {
+        let hir = crate::candidate_lifecycle_retirement::hir("my first (thunk:[] int) = thunk; my second (thunk:[] int) = thunk");
+        let mut candidate = CandidateInference::solve(hir).unwrap();
+        let negative_value = candidate.solved.data.store.terms
+            .live_variable(ComponentKind::Value, Polarity::Negative, 0).unwrap();
+        let positive_effect = candidate.solved.data.store.terms
+            .live_variable(ComponentKind::Effect, Polarity::Positive, 0).unwrap();
+        let data = &candidate.solved.data;
+        let observe = |state: &crate::candidate_call::State| {
+            crate::candidate_call::observe_computation_source_plan(&data.hir, &data.store, state, 0).is_err()
+        };
+        assert!(candidate.computation_source_plan(0).unwrap().is_some());
+        let original = &data.candidate_calls;
+        for root in [negative_value, positive_effect] {
+            let mut state = original.clone();
+            state.formals[0].native_root = Some(root);
+            assert!(observe(&state));
+        }
+        let mut state = original.clone();
+        state.formals[0].parameter = state.formals[1].parameter.clone();
+        assert!(observe(&state));
+        let mut state = original.clone();
+        state.formals[0].entry_effect = None;
+        assert!(observe(&state));
+        let mut state = original.clone();
+        state.formals[0].role = crate::candidate_call::FormalRole::Value;
+        assert!(observe(&state));
     }
     #[test]
     fn source_call_registered_root_rejects_invalid_registration_and_native_polarity() {

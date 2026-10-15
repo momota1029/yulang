@@ -23,8 +23,8 @@ Intrusion output uses `raw` row ordinals qualified by `Value` or `Effect`;
 these are the solver's original rows, not the graph's display labels.
 
 The `--intrusion` option adds retained source associations, including SCC
-qualification, parent copies, reuse groups, settlement state, and symbolic
-directional introductions:
+qualification, parent copies, reuse groups, settlement state, symbolic
+directional introductions, and static computation-root source plans:
 
 ```sh
 cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu
@@ -33,6 +33,19 @@ cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples
 Event locations identify the retained call-tail occurrence from LocalSource;
 they do not describe a whole-call range. The examples do not yet supply a
 source witness for the reuse observations.
+
+Static computation-root plans report original Lambda, formal, annotation, and
+outer-row positions, the native parameter root, the retained entry row, exact
+resolved concrete members, and an optional symbolic row variable. The outer
+row is the annotation's root row; nested annotation rows are not root members.
+An empty concrete member list (`[]`) does not impose a closed effect cap, and
+additional effects are not excluded. The selected annotation policy treats a
+contravariant concrete root annotation as local handling permission; an actual
+`Catch` performs handling. See the
+[annotation policy](../../notes/design/2026-10-10-annotation-effect-hygiene-integration.md).
+These plans are static source observations. They do not report a runtime
+receiver, grant, or handling event, and do not establish native `Name`, `AE`,
+or `FreshUse` transport.
 
 Each authenticated omitted-formal source call retains a distinct symbolic
 introduction at exactly its original negative demand's `ResultEffect`, with
@@ -45,6 +58,8 @@ evidence, not event consumption or runtime hygiene; they change neither allowanc
 semantics nor provider rows and do not establish H1 or production cutover.
 
 This output describes retained state; it is not a chronological runtime trace.
+The command remains a graph observation: it does not print a principal scheme
+or report current native execution.
 The examples in `tools/inference-playground/examples/` cover identity,
 nested recursion, effects, conditional bounds, normal-return Catch arms, and
 a type conflict. The
@@ -73,9 +88,11 @@ retained intrusion observations.
 The complete output or diagnostic report shares a 1 MiB byte budget and a
 16,384-entry observation work budget across all definitions and intrusion state.
 The work budget counts raw rows, node and child visits, bounds, definitions,
-diagnostics, source calls inspected for introductions, intrusion events, pairs, groups, reuses, and every printed
-source-event incidence. Exceeding a cap rejects the complete report with a
-distinct tool-cap error; no partial or truncated report is published.
+diagnostics, computation-root plans and their concrete members and symbolic
+row variable, source calls inspected for introductions, intrusion events,
+pairs, groups, reuses, and every printed source-event incidence. Exceeding a
+cap rejects the complete report with a distinct tool-cap error; no partial or
+truncated report is published.
 These are tool output and input limits. They do not set a source-language limit
 or a solver CPU-time bound.
 
@@ -129,10 +146,9 @@ opening, complete residual/effect hygiene, guards, labels, non-total and tuple
 patterns, and chained operation heads remain incomplete in this carrier. These
 are carrier limits, not language rejections.
 
-This carrier also does not observe arithmetic, omitted-`else` conditionals, or
-string interpolation. The playground does not prove general solver
-properties. Treat a bounded observation as evidence about the displayed case
-only.
+This carrier also does not observe arithmetic or string interpolation. The
+playground does not prove general solver properties. Treat a bounded
+observation as evidence about the displayed case only.
 
 Use the research loop from the
 [playground design](../../notes/design/2026-10-04-inference-research-playgrounds.md):

@@ -14,6 +14,15 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [playground source-plan slice](../notes/progress/2026-10-15-computation-source-plans.md)
+is integrated with clean M2 semantic/specification and fresh delta review.
+Original explicit-root annotation members now reach a bounded display consumer
+through the candidate's own canonical registration; no legacy startup capture
+is required. Thirty-two focused tests, one workspace check and three CLI
+observations pass. Actual argument Name/AE association and operational entry/
+read/Force remain separate next suppliers. No permission activation or Catch
+subtraction follows from the displayed source plans.
+
 The [native FreshUse admission bridge](../notes/theory/2026-10-15-computation-freshuse-admission-bridge.md)
 has independent review with no findings. It establishes actual mapped-bound
 capture/restoration for an isolated first-use direct-Name Computation provider,

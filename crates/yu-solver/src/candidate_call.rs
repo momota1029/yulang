@@ -165,6 +165,68 @@ pub enum PendingCallSupplier {
     ArgumentReifyAndWholeCarrier,
     ReceiverDispatchAndCompleteResultFutureInterfaces,
 }
+/// Borrowed original source construction at an explicitly annotated computation
+/// root. Static provenance does not identify a live receiver or authorize a
+/// handler, and nested annotation positions are not root members. The native
+/// root and entry row borrow retained constructor outputs; this observer does
+/// not independently reauthenticate Function, AE, or FreshUse correspondence.
+pub struct CandidateComputationSourcePlan<'a> {
+    registration: &'a FormalRegistrationInput,
+    lambda: &'a LocalSourceExpr,
+    parameter: &'a LocalSourceParameter,
+    annotation: &'a yu_hir::shadow::SourceAnnotation,
+    row: &'a yu_hir::shadow::SourceEffectRow,
+}
+impl<'a> CandidateComputationSourcePlan<'a> {
+    pub fn original_owner(&self) -> &'a DefinitionRootId { &self.registration.owner }
+    pub fn original_lambda(&self) -> &'a HirOccurrenceId { &self.lambda.occurrence }
+    pub fn original_formal(&self) -> &'a HirParameterId { &self.parameter.id }
+    pub fn annotation(&self) -> &'a yu_hir::shadow::SourceAnnotation { self.annotation }
+    pub fn outer_row(&self) -> &'a yu_hir::shadow::SourceEffectRow { self.row }
+    pub fn concrete_members(&self) -> &'a [yu_hir::shadow::SourceEffectId] { &self.row.concrete }
+    pub fn symbolic_row_variable(&self) -> Option<&'a str> { self.row.variables.first().map(AsRef::as_ref) }
+    /// Original retained registration endpoint; no independent Lambda-port or
+    /// fresh-use correspondence is asserted by this observation.
+    pub fn entry_effect_row(&self) -> u32 { self.registration.entry_effect.expect("validated computation entry") }
+    /// The positive Parameter endpoint installed once by source initialization.
+    pub fn native_parameter_root(&self) -> Term { self.registration.native_root.expect("validated registration root") }
+}
+
+pub(super) fn observe_computation_source_plan<'a>(
+    hir: &'a HirModule,
+    store: &ConstraintStore,
+    state: &'a State,
+    index: usize,
+) -> Result<Option<CandidateComputationSourcePlan<'a>>, ArtifactMismatch> {
+    let registration = state.formals.get(index).ok_or(ArtifactMismatch)?;
+    if !hir.owns_definition_root(&registration.owner) { return Err(ArtifactMismatch); }
+    let source = hir.local_source(&registration.owner).map_err(|_| ArtifactMismatch)?.ok_or(ArtifactMismatch)?;
+    let lambda = source.expressions().get(registration.lambda).ok_or(ArtifactMismatch)?;
+    let LocalSourceForm::Lambda { parameter, .. } = &lambda.form else { return Err(ArtifactMismatch); };
+    if parameter.id != registration.parameter
+        || parameter.id.definition_root() != source.definition_root()
+        || !hir.owns_occurrence(&lambda.occurrence)
+        || !scope_owned(source, &lambda.scope)
+        || !scope_owned(source, &parameter.scope)
+    { return Err(ArtifactMismatch); }
+    // initialize_candidate_source_levels checks recipe identity and installs
+    // this exact positive Parameter endpoint once; freeze retains that output.
+    let root = registration.native_root.ok_or(ArtifactMismatch)?;
+    if !matches!(store.term_view(root), Ok(TermView::LiveVariable(row)) if row.kind() == ComponentKind::Value && row.polarity() == Polarity::Positive)
+    { return Err(ArtifactMismatch); }
+    let annotation = parameter.annotation.as_ref();
+    if annotation.is_some_and(|annotation| annotation.owner != registration.owner) { return Err(ArtifactMismatch); }
+    let row = annotation.and_then(|annotation| annotation.ty.effects.as_ref());
+    if registration.role == FormalRole::Value {
+        if row.is_some() || registration.entry_effect.is_some() { return Err(ArtifactMismatch); }
+        return Ok(None);
+    }
+    let annotation = annotation.ok_or(ArtifactMismatch)?;
+    let row = row.ok_or(ArtifactMismatch)?;
+    if row.variables.len() > 1 || registration.entry_effect.is_none()
+    { return Err(ArtifactMismatch); }
+    Ok(Some(CandidateComputationSourcePlan { registration, lambda, parameter, annotation, row }))
+}
 /// Every coordinate is still required from the original Gen-Call-0 producer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OriginalGenCall0Input {

@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Playground explicit-root source supplier:** `--intrusion` now displays
+  borrowed original Computation-formal plans, including exact outer annotation
+  members and symbolic tail. The observer uses the canonical candidate
+  registration constructor and frozen HIR association, without a legacy capture
+  dependency or new constraint/storage. M2 semantic/specification review and a
+  fresh repair review converged; 32 focused tests, one workspace check and three
+  bounded CLI observations pass. See the [source-plan checkpoint](../notes/progress/2026-10-15-computation-source-plans.md).
+  These are static observations; actual argument-Name/AE transport, dynamic
+  entry/read/Force, Catch suppression and native execution remain OPEN.
+
 - **First native FreshUse forwarding supplier:** the independently reviewed
   [admission bridge](../notes/theory/2026-10-15-computation-freshuse-admission-bridge.md)
   derives capture and actual restoration of the original registration/Name/body
@@ -17,7 +27,7 @@ Status: full objective remains active. Native extrusion now schedules current co
   complete Call and full soundness remain OPEN. The next general bridge needs
   a source-qualified signed-copy AE/body/RE route before FreshUse. M2 independent
   compiler-referee review found no findings; no new tests or measurements ran
-  for this proof. Separate playground source-plan work is still in progress.
+  for this proof. The independent playground source-plan slice is recorded above.
 
 - **First positive hygiene-preservation step:** the user's request for a first
   soundness result is addressed by the independently reviewed

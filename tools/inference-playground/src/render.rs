@@ -148,6 +148,27 @@ pub(crate) fn intrusion_into(
     source: &str,
     output: &mut Output,
 ) -> Result<(), String> {
+    output.write_str("\nStatic computation root source plans (retained entry; no runtime receiver, grant or handling evidence):\n").map_err(cap)?;
+    for index in 0..candidate.computation_source_plan_count() {
+        output.observe(1)?;
+        let Some(plan) = candidate.computation_source_plan(index)
+            .map_err(|_| "candidate computation source observation unavailable".to_owned())? else { continue; };
+        write!(output, "  static computation root {index}: owner={:?}, lambda={:?}, formal={:?}, annotation={:?}, outer-row={:?}, parameter={:?}, retained-entry-row={}, concrete=[",
+            plan.original_owner(), plan.original_lambda(), plan.original_formal(),
+            plan.annotation().position, plan.outer_row().position,
+            plan.native_parameter_root(), plan.entry_effect_row()).map_err(cap)?;
+        for (member, effect) in plan.concrete_members().iter().enumerate() {
+            output.observe(1)?;
+            if member != 0 { output.write_str(", ").map_err(cap)?; }
+            write!(output, "{effect:?}").map_err(cap)?;
+        }
+        output.write_str("]").map_err(cap)?;
+        if let Some(variable) = plan.symbolic_row_variable() {
+            output.observe(1)?;
+            write!(output, ", symbolic={variable}").map_err(cap)?;
+        }
+        output.write_char('\n').map_err(cap)?;
+    }
     output.write_str("\nDirectional introductions (symbolic candidate evidence; not event consumption or runtime hygiene):\n").map_err(cap)?;
     for index in 0..candidate.source_call_count() {
         output.observe(1)?;

@@ -49,6 +49,11 @@ This index is a navigation aid. The listed source document remains authoritative
   publication for an isolated first-use direct-Name Computation provider.
   Independent review found no findings. General copied/merged provider
   correspondence and dynamic receiving evidence remain OPEN.
+  The [playground source-plan implementation](../progress/2026-10-15-computation-source-plans.md)
+  now exposes original explicit Computation-root annotation provenance to a
+  bounded display consumer. Source ownership comes from the candidate's own
+  verified registration, with no new solver constraints or legacy capture.
+  Actual argument Name/AE and runtime receiving correspondence remain OPEN.
 
 ## Active workflow navigation (2026-10-10)
 
