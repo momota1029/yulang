@@ -330,3 +330,72 @@ fn local_fresh_uses_transport_both_captured_branch_literals() {
     let candidate = CandidateInference::solve(rejected).unwrap();
     assert!(!candidate.candidate_conflicts().is_empty());
 }
+
+#[test]
+fn omitted_else_discards_body_values_and_returns_unit() {
+    for conditional in [
+        "if true: 1",
+        "if false: 1",
+        "if true: 1 elsif false: \"str\"",
+        "if false: \"str\" elsif true: 1",
+    ] {
+        let hir = module(&format!("my example:() = {conditional}"));
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{conditional}");
+        assert_leaves(
+            &candidate,
+            &hir,
+            "example",
+            &[CandidateGraphLeaf::UnitPositive],
+        );
+        for target in ["int", "str"] {
+            let candidate =
+                CandidateInference::solve(module(&format!("my example:{target} = {conditional}")))
+                    .unwrap();
+            assert!(
+                !candidate.candidate_conflicts().is_empty(),
+                "{target}: {conditional}"
+            );
+        }
+    }
+}
+
+#[test]
+fn omitted_else_checks_every_condition_and_discarded_body() {
+    for conditional in [
+        "if 1: 1",
+        "if true: 1 elsif 1: 2",
+        "if false: (1 as str)",
+        "if true: 1 elsif false: (1 as str)",
+    ] {
+        let candidate =
+            CandidateInference::solve(module(&format!("my example:() = {conditional}"))).unwrap();
+        assert!(!candidate.candidate_conflicts().is_empty(), "{conditional}");
+    }
+}
+
+#[test]
+fn omitted_else_preserves_all_condition_and_body_effects() {
+    for conditional in [
+        "if true: tick::next()",
+        "if false: tick::next()",
+        "if tick::test(): 1",
+        "if true: 1 elsif tick::test(): 2",
+        "if true: 1 elsif false: tick::next()",
+    ] {
+        let candidate = CandidateInference::solve(module(&format!(
+            "act tick:\n    our next: () -> int\n    our test: () -> bool\n\nmy example:[] () = {conditional}"
+        ))).unwrap();
+        assert!(
+            candidate
+                .candidate_conflicts()
+                .iter()
+                .any(|error| candidate.effect_conflict(error.kind()).is_ok()),
+            "{conditional}"
+        );
+    }
+    let candidate =
+        CandidateInference::solve(module("my example:[] () = if true: 1 elsif false: \"str\""))
+            .unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+}

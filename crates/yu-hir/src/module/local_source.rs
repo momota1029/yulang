@@ -134,7 +134,7 @@ pub enum LocalSourceForm {
     },
     If {
         arms: Vec<(LocalSourceIndex, LocalSourceIndex)>,
-        else_branch: LocalSourceIndex,
+        else_branch: Option<LocalSourceIndex>,
     },
     Name {
         spelling: Box<str>,
@@ -928,7 +928,7 @@ impl Builder<'_> {
                 _ => return Err(invalid()),
             }
         }
-        let else_branch = else_branch.ok_or_else(invalid)?;
+        if arms.is_empty() { return Err(invalid()); }
         self.set(index, &node, scope, LocalSourceForm::If { arms, else_branch })?;
         let depth = self.lexical.len();
         // Every condition and body starts in the enclosing lexical environment.

@@ -19,8 +19,9 @@ Both branches contribute type constraints even for a constant condition.
 Every condition and branch is traversed for its enclosing definition's source
 references. Nested local initializers retain their own definition owner.
 The existing If grammar is unchanged: `if p: f else: g` is an inline example.
-The new carrier requires an explicit else; it does not decide the value of an
-omitted else. Boolean literal resolution follows frozen Oracle `a58eefc31`,
+The initial carrier required an explicit else; it did not decide the value of
+an omitted else. The October 15 source extension below records that later work.
+Boolean literal resolution follows frozen Oracle `a58eefc31`,
 `crates/infer/src/lowering/name_ref.rs:72`: lexical bindings, Boolean literals,
 then module lookup. These facts do not determine a new If-result adjacency.
 
@@ -47,6 +48,19 @@ This construction does not make those constructors transparent. Their
 definition-owner traversal is unchanged, including local-initializer ownership.
 This is an additive construction for the explicitly named forms, not a claim
 of complete source-global incidence or preservation for all expressions.
+
+## October 15 omitted-else source extension
+
+The user's exact Yulang2 Callback Hygiene target requires omitted else.
+Pre-write spec review confirmed the frozen Oracle contract: discard each taken
+branch's value, return Unit on normal completion, and preserve every source
+constraint/effect. The carrier now retains `None` instead of fabricating an
+else source child. Choice A traverses all actual condition/body children with
+the same wrapper boundaries and no new incoming Expression edge.
+See the [implementation and review](../progress/2026-10-15-conditional-without-else.md).
+The earlier explicit-else join proof keeps its original scope; the local discard
+construction has separate semantic correspondence review. No runtime or global
+soundness claim follows from this extension.
 
 ## Choice B: branches only (unselected alternative)
 

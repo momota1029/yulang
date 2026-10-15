@@ -1,5 +1,10 @@
 # Conditional source construction in the inference playground
 
+October 15 follow-up: [omitted-else support](2026-10-15-conditional-without-else.md)
+now discards branch values and yields Unit while retaining every source
+constraint/effect. The explicit-else envelope below records this checkpoint's
+historical scope; its join proof is not silently extended.
+
 Status: experimental source implementation reviewed and verified; local theorem
 and bounded source/action bridge independently reviewed and accepted.
 Branch: `research/simple-sub-intrusion`.

@@ -6,6 +6,17 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Exact Callback Hygiene source is the current target:** the user wants the
+  Yulang2 web example to infer and execute. The first necessary native slice,
+  [omitted-else conditionals](../notes/progress/2026-10-15-conditional-without-else.md),
+  now retains all constraints/effects and returns Unit after branch-value
+  discard. M2 pre-write spec and semantic closure review converged; 30 focused
+  tests and one workspace check pass. Original imports/loop/std dependencies,
+  receiver-boundary hygiene, selective Catch consumption and native execution
+  remain OPEN. The original `h` demand's protection and its receiver's output
+  boundary need a source-owned correspondence; existing argument-scope release
+  alone is insufficient. Do not equate this frontend slice with sample success.
+
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded
   checks. Final selected native tests have 83 passes, the same three recorded

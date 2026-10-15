@@ -57,7 +57,7 @@ fn ordered_arms_retain_every_condition_and_body_even_for_constants() {
         );
     }
     assert!(
-        matches!(&source.expression(else_branch).unwrap().form, LocalSourceForm::String(value) if value.as_ref() == "\"str\"")
+        matches!(&source.expression(else_branch.as_ref().unwrap()).unwrap().form, LocalSourceForm::String(value) if value.as_ref() == "\"str\"")
     );
     assert_eq!(source.expressions().len(), 6);
     let mut occurrences = HashSet::new();
@@ -144,9 +144,8 @@ fn indented_arm_bodies_reuse_statement_block_projection() {
 }
 
 #[test]
-fn missing_else_and_interpolated_strings_are_explicitly_unsupported() {
+fn interpolated_strings_are_explicitly_unsupported() {
     for text in [
-        "my value = if true: 1",
         "my value = \"%{unknown}\"",
         "my value = if true: 1 else: \"%{unknown}\"",
     ] {
@@ -181,4 +180,71 @@ fn bool_and_str_annotations_work_standalone_and_in_arrow_heads() {
     assert!(matches!(argument.value, SourceAnnotationValue::Bool));
     assert!(matches!(result.value, SourceAnnotationValue::Str));
     assert!(argument.effects.is_none() && result.effects.is_none());
+}
+
+#[test]
+fn omitted_else_retains_only_ordered_authentic_children() {
+    let text = "my value = if true: 1 elsif false: \"str\"";
+    let module = lower(text).unwrap();
+    let source = sources(&module)[0];
+    let expression = source.expression(source.body()).unwrap();
+    let LocalSourceForm::If { arms, else_branch } = &expression.form else {
+        panic!("conditional");
+    };
+    assert!(else_branch.is_none());
+    assert_eq!(arms.len(), 2);
+    assert_eq!(source.expressions().len(), 5);
+    let children: Vec<_> = arms
+        .iter()
+        .flat_map(|(condition, body)| [condition, body])
+        .map(|index| source.expression(index).unwrap())
+        .collect();
+    assert!(matches!(children[0].form, LocalSourceForm::Boolean(true)));
+    assert!(matches!(&children[1].form, LocalSourceForm::Integer(value) if value.as_ref() == "1"));
+    assert!(matches!(children[2].form, LocalSourceForm::Boolean(false)));
+    assert!(
+        matches!(&children[3].form, LocalSourceForm::String(value) if value.as_ref() == "\"str\"")
+    );
+    assert!(
+        children
+            .windows(2)
+            .all(|pair| pair[0].range.end <= pair[1].range.start)
+    );
+    let mut occurrences = HashSet::new();
+    let mut positions = HashSet::new();
+    for child in source.expressions() {
+        assert!(module.owns_occurrence(&child.occurrence));
+        assert!(occurrences.insert(child.occurrence.clone()));
+        assert!(positions.insert(child.source.clone()));
+        assert!(!text[child.range.clone()].is_empty());
+    }
+}
+
+#[test]
+fn omitted_else_arms_restore_the_enclosing_lexical_scope() {
+    let module = lower("my value = if true: ({ my true = 1; true }) elsif true: ({true})").unwrap();
+    let source = sources(&module)[0];
+    assert_eq!(source.bindings().len(), 1);
+    assert_eq!(
+        source
+            .expressions()
+            .iter()
+            .filter(|expr| matches!(
+                &expr.form,
+                LocalSourceForm::Name {
+                    resolution: LocalSourceResolution::Local(_),
+                    ..
+                }
+            ))
+            .count(),
+        1
+    );
+    assert_eq!(
+        source
+            .expressions()
+            .iter()
+            .filter(|expr| matches!(expr.form, LocalSourceForm::Boolean(true)))
+            .count(),
+        3
+    );
 }

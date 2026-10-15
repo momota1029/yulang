@@ -14,6 +14,14 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+Latest target: the actual Yulang2 web **Callback Hygiene** example, including
+the nested `sub`, captured `h`, loop and final output. The independently reviewed
+[omitted-else source slice](../notes/progress/2026-10-15-conditional-without-else.md)
+passes 30 focused tests and the workspace check. Its completion does not close
+the sample's inference/runtime gate. The next controlling construction joins
+the original protected `h` demand to its receiving boundary and the reached
+handler; do not substitute the unrelated Apply argument scope for that owner.
+
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).
 The source/test map, constructive assurance application, native adversarial

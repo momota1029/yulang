@@ -98,9 +98,11 @@ impl Graph {
                     }
                 },
                 LocalSourceForm::If { arms, else_branch } => {
-                    let count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;
+                    let count = arms.len().checked_mul(2).and_then(|n| n.checked_add(usize::from(else_branch.is_some()))).ok_or_else(unavailable)?;
                     work.try_reserve(count).map_err(|_| unavailable())?;
-                    work.push((else_branch.ordinal() as usize, owner));
+                    if let Some(else_branch) = else_branch {
+                        work.push((else_branch.ordinal() as usize, owner));
+                    }
                     for (condition, body) in arms {
                         work.push((condition.ordinal() as usize, owner));
                         work.push((body.ordinal() as usize, owner));
@@ -153,7 +155,9 @@ impl Graph {
                         if let Some(child) = fragments[child.ordinal() as usize] { self.edge(fragment, child)?; }
                     }
                 }
-                if let Some(child) = fragments[else_branch.ordinal() as usize] { self.edge(fragment, child)?; }
+                if let Some(else_branch) = else_branch {
+                    if let Some(child) = fragments[else_branch.ordinal() as usize] { self.edge(fragment, child)?; }
+                }
             }
             let LocalSourceForm::Apply { callee, argument, .. } = &expr.form else { continue; };
             let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
@@ -272,6 +276,14 @@ mod conditional_reference_tests {
 
     fn expected(source: &LocalSource, names: &[&str]) -> std::collections::HashSet<Value> {
         names.iter().map(|name| named(source, name)).collect()
+    }
+
+    #[test]
+    fn omitted_else_retains_condition_and_every_discarded_body_reference() {
+        let (graph, source) = fixture("my choose p f q g = if p: f elsif q: g");
+        assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["p", "f", "q", "g"]));
+        assert!(!graph.edges.iter().any(|edges| edges.contains(&graph.vertices[&conditional(&source)])),
+            "the omitted else must not introduce incoming Expression edges");
     }
 
     #[test]

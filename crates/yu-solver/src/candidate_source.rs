@@ -669,7 +669,9 @@ impl ConstraintBatch {
                             push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
-                            push(&mut work, Work::Visit(else_branch.ordinal() as usize, level, region))?;
+                            if let Some(else_branch) = else_branch {
+                                push(&mut work, Work::Visit(else_branch.ordinal() as usize, level, region))?;
+                            }
                             for (condition, body) in arms.iter().rev() {
                                 push(&mut work, Work::Visit(body.ordinal() as usize, level, region))?;
                                 push(&mut work, Work::Visit(condition.ordinal() as usize, level, region))?;
@@ -861,15 +863,25 @@ impl ConstraintBatch {
                                 let condition_occurrence = &source.expressions()[condition_index].occurrence;
                                 let body_occurrence = &source.expressions()[body_index].occurrence;
                                 push(&mut actions, Action::ValueConstraint { occurrence: condition_occurrence.clone(), slot: 50, endpoint: endpoints[condition_index], upper: boolean })?;
-                                push(&mut actions, Action::ValueConstraint { occurrence: body_occurrence.clone(), slot: 50, endpoint: endpoints[body_index], upper: result })?;
+                                if else_branch.is_some() {
+                                    push(&mut actions, Action::ValueConstraint { occurrence: body_occurrence.clone(), slot: 50, endpoint: endpoints[body_index], upper: result })?;
+                                }
                                 self.emit(condition_occurrence.clone(), 51, self.component_term_at(positions[condition_index].effect), result_effect)?;
                                 self.emit(body_occurrence.clone(), 51, self.component_term_at(positions[body_index].effect), result_effect)?;
                             }
-                            let else_index = else_branch.ordinal() as usize;
-                            let else_occurrence = &source.expressions()[else_index].occurrence;
-                            push(&mut actions, Action::ValueConstraint { occurrence: else_occurrence.clone(), slot: 50, endpoint: endpoints[else_index], upper: result })?;
-                            self.emit(else_occurrence.clone(), 51, self.component_term_at(positions[else_index].effect), result_effect)?;
-                            let value_count = arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;
+                            let value_count = if let Some(else_branch) = else_branch {
+                                let else_index = else_branch.ordinal() as usize;
+                                let else_occurrence = &source.expressions()[else_index].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: else_occurrence.clone(), slot: 50, endpoint: endpoints[else_index], upper: result })?;
+                                self.emit(else_occurrence.clone(), 51, self.component_term_at(positions[else_index].effect), result_effect)?;
+                                arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?
+                            } else {
+                                // No-else bodies are checked and evaluated, but their values
+                                // are discarded. The actual conditional occurrence returns Unit.
+                                let unit = self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.emit(occurrence.clone(), 0, unit, result)?;
+                                arms.len()
+                            };
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(value_count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(value_count).ok_or_else(unavailable)?;
                         }
@@ -1379,39 +1391,45 @@ mod local_self_recursion_tests {
 
     #[test]
     fn conditional_constraints_use_distinct_direct_child_occurrences() {
-        let mut text = String::from("my example = if true: 1");
-        for _ in 0..60 { text.push_str(" elsif false: 2"); }
-        text.push_str(" elsif false: \"str\" else: ()");
-        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
-        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
-            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
-        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
-            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
-                "conditional-child-constraints", "source.yu"))),
-            &parsed, yu_hir::SemanticImports::empty(),
-        ).unwrap());
-        let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
-        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
-        let expression = &source.expressions()[source.body().ordinal() as usize];
-        let LocalSourceForm::If { arms, else_branch } = &expression.form else { panic!("conditional"); };
-        let children: HashSet<_> = arms.iter().flat_map(|(condition, body)| [condition, body])
-            .chain(std::iter::once(else_branch))
-            .map(|index| source.expressions()[index.ordinal() as usize].occurrence.clone()).collect();
-        assert_eq!(children.len(), arms.len() * 2 + 1);
-        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
-        let actions = &batch.candidate_source.schedules[binding.definition_root()];
-        let values: Vec<_> = actions.iter().filter_map(|action| match action {
-            Action::ValueConstraint { occurrence, slot: 50, .. } => Some(occurrence.clone()),
-            _ => None,
-        }).collect();
-        let effects: Vec<_> = batch.occurrences.iter()
-            .filter(|fact| fact.id.local_slot() == 51)
-            .map(|fact| fact.id.occurrence().clone()).collect();
-        assert_eq!(values.len(), children.len());
-        assert_eq!(effects.len(), children.len());
-        assert_eq!(values.into_iter().collect::<HashSet<_>>(), children);
-        assert_eq!(effects.into_iter().collect::<HashSet<_>>(), children);
-        assert!(!children.contains(&expression.occurrence));
+        for with_else in [true, false] {
+            let mut text = String::from("my example = if true: 1");
+            for _ in 0..60 { text.push_str(" elsif false: 2"); }
+            text.push_str(" elsif false: \"str\"");
+            if with_else { text.push_str(" else: ()"); }
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                    "conditional-child-constraints", "source.yu"))),
+                &parsed, yu_hir::SemanticImports::empty(),
+            ).unwrap());
+            let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+            let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+            let expression = &source.expressions()[source.body().ordinal() as usize];
+            let LocalSourceForm::If { arms, else_branch } = &expression.form else { panic!("conditional"); };
+            let children: HashSet<_> = arms.iter().flat_map(|(condition, body)| [condition, body])
+                .chain(else_branch.iter())
+                .map(|index| source.expressions()[index.ordinal() as usize].occurrence.clone()).collect();
+            assert_eq!(children.len(), arms.len() * 2 + usize::from(with_else));
+            let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+            let actions = &batch.candidate_source.schedules[binding.definition_root()];
+            let values: Vec<_> = actions.iter().filter_map(|action| match action {
+                Action::ValueConstraint { occurrence, slot: 50, .. } => Some(occurrence.clone()),
+                _ => None,
+            }).collect();
+            let effects: Vec<_> = batch.occurrences.iter()
+                .filter(|fact| fact.id.local_slot() == 51)
+                .map(|fact| fact.id.occurrence().clone()).collect();
+            let value_children: HashSet<_> = if with_else { children.clone() } else {
+                arms.iter().map(|(condition, _)| source.expressions()[condition.ordinal() as usize].occurrence.clone()).collect()
+            };
+            assert_eq!(values.len(), value_children.len());
+            assert_eq!(effects.len(), children.len());
+            assert_eq!(values.into_iter().collect::<HashSet<_>>(), value_children);
+            assert_eq!(effects.into_iter().collect::<HashSet<_>>(), children);
+            assert!(!children.contains(&expression.occurrence));
+        }
     }
 
 }
