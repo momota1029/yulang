@@ -72,7 +72,11 @@ fn identity_constant_and_generic_identifier_binders() {
         let LocalSourceForm::Integer(raw) = &body.form else {
             panic!("integer body: {:?}", body.form);
         };
-        assert_eq!(raw.as_ref(), &text[body.range.clone()]);
+        let artifact = ShadowArtifact::from_parsed(parse.clone()).unwrap();
+        let position = artifact.source_position(&body.source).unwrap();
+        let node = artifact.position(&position).unwrap();
+        assert_eq!(node.kind(), SyntaxKind::IntegerLiteral);
+        assert_eq!(node.range(), &body.range);
         let root = yu_syntax::SyntaxNode::new_root(parse.green().clone());
         let tokens: Vec<_> = root
             .descendants_with_tokens()
@@ -84,6 +88,7 @@ fn identity_constant_and_generic_identifier_binders() {
             })
             .collect();
         assert_eq!(tokens.len(), 1);
+        assert_eq!(raw.as_ref(), tokens[0].text());
         assert_eq!(tokens[0].text(), "1");
     }
 }

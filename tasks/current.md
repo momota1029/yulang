@@ -33,6 +33,9 @@ Status: full objective remains active. Native extrusion now schedules current co
   syntax tests and five HIR source tests pass. Literal spelling excludes exterior
   trivia at its HIR owner; Case/Catch uses the existing literal-aware opener.
   [Gate record](../notes/progress/2026-10-15-playground-request-control.md).
+  The inline-lambda sibling now checks exact token payload separately from its
+  unchanged branded node/range; pre/post specification review and six focused
+  HIR cases pass for that literal-contract follow-up.
   The reviewed [owner correspondence](../notes/theory/2026-10-15-runtime-execution-owner-correspondence.md)
   derives Invocation-or-ModuleRun ownership and the exact Catch installation
   handoff. Next construct receiving views and actual handler evidence. Matching

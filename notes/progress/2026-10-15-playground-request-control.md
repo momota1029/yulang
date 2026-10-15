@@ -34,6 +34,16 @@ uses the established literal-aware expression scanner, preserving coordinates,
 fences, stops, recovery and label precedence. The Authoritative direct-literal
 cone already specifies complete quote-run acquisition; no grammar choice changed.
 
+Follow-up on 2026-10-16: the full shadow-HIR suite exposed one inline-lambda
+test that intentionally equated integer payload with the whole trivia-bearing
+node text under the earlier inline-HIR record. The reviewed literal-owner fix
+supersedes that payload expectation while preserving C5's authentic node/range
+contract. Pre/post specification review approved asserting payload equality to
+the unique original Integer token and separately joining the branded source key
+to the unchanged IntegerLiteral range. No trimming or range adjustment occurred.
+All six `cargo test -p yu-hir --features shadow --test inline_lambda_local_source
+-- --test-threads=2` cases pass (two build jobs, 300-second timeout).
+
 ## Proof and review
 
 The [original request/control theorem](../theory/2026-10-15-playground-request-control-simulation.md)
