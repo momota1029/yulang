@@ -444,6 +444,17 @@ an actual source map/consumer handoff or exact owning obstruction before code.
 These static-only lanes change no primitive/Function policy and consume zero
 tests/builds/probes or benchmark samples/processes. M2 artifact review remains
 two distinct mathematical/source reviewers; primary owns records/integration.
+The Function-result source/consumer note is now frozen and independently CLEAN
+under `checked_result_semantics` at `354ddb7d...17b4d5`. It supplies the source
+two-input/prefix owner and proves that current Callee dispatch opens no complete
+callable execution view; a ground-return replacement alone is insufficient.
+This is a bounded obstruction, not a source-qualified counterexample or a
+projection theorem. M1, one relevant reviewer, zero executable checks/benchmarks.
+The same prover now owns the disjoint 15-minute constructive output
+`notes/theory/2026-10-16-runtime-function-result-source-construction.md`, requiring
+actual source elimination/export and complete-Call consumer inputs, not another
+given-a-lawful-packet lemma. Missing profile/applicability inputs stop that packet
+at their exact owner; existing definition permission cannot manufacture them.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns

@@ -186,6 +186,10 @@ This index is a navigation aid. The listed source document remains authoritative
   original positive permissions and ground-result projection. All 34 focused
   receiving/Resume/private tests and three CLI continuations pass. General
   profiles, Function/unknown roots, source MODEL and production remain OPEN.
+  The independently CLEAN [Function-result owner audit](../theory/2026-10-16-runtime-function-result-view-projection.md)
+  identifies the same-return two-input export and the later complete-Call
+  observation as separate missing edges. Current ground completion and Callee
+  dispatch supply neither Function bridge; schema widening is not selected.
 
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer

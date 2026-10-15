@@ -407,10 +407,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   The independent primitive computation-root receiving slice is now proved,
   implemented and verified above; it depends on neither this eligibility parent
   nor the raw-k interface completion.
-  A separate bounded proof lane now investigates Function-valued computation
-  result projection at RootCompReturn. The source-derived latent-position map
-  is needed before extending ground receiving; no runtime code is authorized by
-  a tag alone or a conditional given-a-projection lemma.
+  The independent [Function-result owner audit](../notes/theory/2026-10-16-runtime-function-result-view-projection.md)
+  now has CLEAN semantic/source-runtime review. It identifies two missing
+  owners: exporting both same-return indexed packets at source elimination,
+  and opening a later complete callable view over entry/body/designated result
+  consumption. Current Callee dispatch ignores that view; events observe only
+  active Comp views. Ground-only schema guards prevent an executed Function
+  counterexample. A bounded constructive source-output lane now consumes both
+  obligations; no matcher widening, representation choice or code cutover is
+  authorized by this audit. M1, one reviewer, static-only, zero measurements.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
   scoped substitutions and any recursive equation table. No nonuniform p_P or
