@@ -32,3 +32,19 @@ range, or an actual source-qualified unreachability proof. Internal
 need for a new law. The original proof gate remains OPEN; choices A/B remain
 unselected. Existing cache-bearing capture refusal is provisional, not a new
 approved source restriction. Independent native and module-root work continues.
+
+## Subsequent evidence
+
+The independently reviewed
+[Oracle exclusion](../../notes/theory/2026-10-16-resumed-definition-source-reachability.md)
+proves that neither reference interpreter puts the same instance invocation's
+pending cache publication in a raw continuation. A later
+[source-owner audit](../../notes/theory/2026-10-16-initializer-effect-admission-correspondence.md)
+also proves that stored-value body checking does not supply the separate
+initializer-effect/control certificate. It does not impose root purity.
+
+The original A/B choices remain unselected and are not justified by these
+results. The remaining successor issue belongs to source/root/InstanceBody
+control and its reified Name/GlobalRead publication frame, not a demonstrated
+need for repeated-publication semantics. See the
+[integration record](../../notes/progress/2026-10-16-initialization-source-premise.md).

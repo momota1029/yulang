@@ -27,9 +27,14 @@ focused solver routes and a workspace check pass without warnings.
 The consumed [resumed-definition correction](../questions/2026-10-16-resumed-definition-materialization/receipt.md)
 (bundle `1e62dfdc3`) requires establishing valid typed-source reachability
 before any A/B materialization choice. It selects no new law and closes no
-proof gate. A constructive source-reachability lane and an independent Oracle
-owner audit are active; primary owns integration and the original runtime gate.
-Internal GlobalRead/Root frame existence does not establish a source witness.
+proof gate. The [source-premise checkpoint](../notes/progress/2026-10-16-initialization-source-premise.md)
+now has two independently reviewed results: synchronous Oracle publication is
+outside raw continuations, and value-scheme body checks do not certify separate
+initializer control. No root-purity law follows. Primary retains the successor
+gate OPEN at source/root/InstanceBody-to-Name/GlobalRead control; next-action
+selection is active at that changed owner. Internal GlobalRead/Root existence
+does not establish a source witness; pure/internal-handler controls do not
+certify the full forward-source case.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -109,7 +114,7 @@ The [result](../notes/theory/2026-10-16-native-declared-support-source-embedding
 has independent review and establishes neither implication nor counterexample:
 the inspected authority leaves the annotation-to-complete-descriptor formation
 clause unselected. Architect/specification audits agree. The
-[pending formation question](../questions/2026-10-16-annotation-declared-envelope/question.md)
+pending formation question `questions/2026-10-16-annotation-declared-envelope/question.md`
 offers retained declared contract versus complete provider-specific refinement;
 fixed polarity/B, the original xi/z theorem and empty-fiber laws remain intact.
 Dependent native work waits for that decision. Do not repeat an equivalent

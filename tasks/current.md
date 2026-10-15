@@ -28,10 +28,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   [receipt](../questions/2026-10-16-resumed-definition-materialization/receipt.md)
   consume the user's correction: a definition's initialization effect is not
   handled merely by placing a handler around a later value reference. No A/B
-  materialization law was chosen. Establish a valid typed source capture or
-  source-qualified unreachability before requesting a new law. Prover owns the
-  construction; primary retains the original whole-runtime gate OPEN. Internal
-  frame existence and pure forward-demand tests are not source reachability.
+  materialization law was chosen. The independently reviewed
+  [source audit](../notes/progress/2026-10-16-initialization-source-premise.md)
+  now proves Oracle instance publication is outside raw continuations. Its
+  second result shows stored-value checking supplies no initializer-control
+  certificate; this imposes no root-purity requirement. The original successor
+  gate stays OPEN at source/root/InstanceBody-to-Name/GlobalRead control,
+  including before-publication forward demand. A bounded next-action selection
+  targets that owner; no repeated A/B question or conditional purity lemma.
+  Two CLI sentries confirm unhandled initialization fails and internal handling
+  returns `1`, without claiming whole-source admission from those executions.
 
 - **Direct primitive handlers implemented and proved:** the [closed-program gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
   supplies actual negative visibility from a once-computed authentic source
@@ -125,7 +131,7 @@ Status: full objective remains active. Native extrusion now schedules current co
   Architect and specification audits confirm a genuine unselected distinction:
   retain a declared contractual allowance in the whole comparison, or permit
   refinement from complete provider behavior. The narrow
-  [pending question](../questions/2026-10-16-annotation-declared-envelope/question.md)
+  pending question `questions/2026-10-16-annotation-declared-envelope/question.md`
   preserves existing polarity/B and original xi/z scope. Native dependent
   definition/implementation/cutover work waits for this choice; another census
   or equivalent conditional proof attempt is not the next action.

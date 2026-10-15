@@ -12,8 +12,14 @@ This index is a navigation aid. The listed source document remains authoritative
   no source-qualified counterexample or semantic change is established.
   The independently reviewed [formation audit](../theory/2026-10-16-native-declared-support-source-embedding.md)
   locates a genuine unselected annotation-to-complete-descriptor clause. The
-  [pending question](../../questions/2026-10-16-annotation-declared-envelope/question.md)
+  pending question `questions/2026-10-16-annotation-declared-envelope/question.md`
   selects no semantics until answered; existing polarity and callback B remain fixed.
+
+- [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
+  — Fresh independent proofs locate Oracle publication outside raw continuations
+  and show why stored-value body checks do not establish initializer-control
+  admission. No root-purity or new publication law follows. Successor source/
+  root/InstanceBody-to-Name/GlobalRead control correspondence remains OPEN.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
