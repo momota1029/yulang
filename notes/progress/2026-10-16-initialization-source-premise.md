@@ -55,6 +55,28 @@ artifact is assigned without another VM execution. Another conditional purity
 proof, blanket source restriction or A/B publication question would not resolve
 this premise.
 
+## Concrete trace resolved; empty-global source transition still open
+
+The subsequent [artifact correspondence](2026-10-16-forward-initializer-artifact-correspondence.md)
+has independent review CLEAN. One scratch wrapper compile and one artifact-only
+source-to-control process, with no VM repeat, establish distinct specializations
+of the same pending definition: main uses a cached inert effect thunk m5, while
+the later Int root m3 forces the operation at ExprId(15). Under the stated
+unchanged-construction premise, that later root explains the previous failure.
+It supplies no witness of one pending publication captured by the caller.
+
+The independently reviewed [Name-role theorem](../theory/2026-10-16-definition-name-computation-role.md)
+derives exact-pure Name effects, directional use of the original stored value,
+whole-Name Delay and populated-cache realization. Empty-cache initialization
+adds an administrative transition whose original execution context is not
+established by these rules. Name purity alone cannot prove caller-handler
+ineligibility: synchronous initialization could handle a request internally
+and still return only Value. The remaining parent needs the source operational
+materialization context, effect consumer and publication/capture boundary.
+Neither a signature-keyed successor cache nor an initializer delimiter is
+authorized by the failed example. No new A/B choice is justified; another
+Name/Apply transport lemma would leave this precise premise unchanged.
+
 ## Reviews, checks and scope
 
 Bounded source/proof work used a constructive prover and independent
