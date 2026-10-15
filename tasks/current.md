@@ -39,10 +39,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   [Replay pass](../notes/theory/2026-10-16-native-result-replay-adequacy.md) now has
   clean independent review: production Value relations cannot be discharged,
   Function Result retains its original parent context, and ordered bound-pair
-  Replay reaches the live consumer. Queued is not Complete. A normal Sol lane
-  now constructs the common source/native satisfaction interpretation at formal
-  slots 43/44 and Apply slot 0. No code, test, benchmark,
-  scoped-callee policy or production status changes follow from these notes.
+  Replay reaches the live consumer. Queued is not Complete. The independently
+  reviewed [scalar valuation](../notes/theory/2026-10-16-native-source-constraint-valuation.md)
+  derives the actual formal/Apply equations but leaves complete Call meaning
+  open. A [changed-method audit](../notes/progress/2026-10-16-native-call-correlation-consumer-audit.md)
+  now has its missing source discriminator supplied by the independently reviewed
+  [received-root instance](../notes/theory/2026-10-16-native-returned-callable-incidence-instance.md):
+  captured and direct returned providers differ at the original outer receipt.
+  Both actual source variants pass CLI candidate inference, with different native
+  graphs. The active lane traces their actual consumer difference; original
+  FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
+  policy or production status change follows from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

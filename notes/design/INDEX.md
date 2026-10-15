@@ -26,6 +26,15 @@ This index is a navigation aid. The listed source document remains authoritative
   establishes Value nondischarge, original Result context and ordered live
   activation. Common source/native satisfaction and original adequacy remain open.
 
+- [Native first-Call valuation](../theory/2026-10-16-native-source-constraint-valuation.md),
+  [consumer audit](../progress/2026-10-16-native-call-correlation-consumer-audit.md)
+  and [received-root discriminator](../theory/2026-10-16-native-returned-callable-incidence-instance.md)
+  — Independently reviewed local equations, bounded unsuccessful pure-provider
+  attack and concrete captured/direct incidence construction. Both concrete
+  sources pass CLI inference; their native graphs differ. The actual consumer
+  correspondence is now the active evidence-producing action. Original universal
+  adequacy, full B and production remain OPEN.
+
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through
   local install/capture/FreshUse; original first-Apply/result packet interpretation

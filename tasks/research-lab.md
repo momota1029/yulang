@@ -40,10 +40,15 @@ now have independent clean review. They establish original-coordinate wiring
 and common source-witness annotation, not native Replay/post-check evaluation.
 A single bounded Astra [Replay pass](../notes/theory/2026-10-16-native-result-replay-adequacy.md)
 has independent clean review for Value nondischarge, original Result context
-and ordered live activation. The remaining common satisfaction interpretation
-is assigned to normal Sol at formal slots 43/44 and Apply slot 0, preserving
-unresolved constraints and endpoint-dependent comparison. Missing interpretation is not
-demonstrated loss or permission to remove the scoped Local-callee guard.
+and ordered live activation. The reviewed [scalar valuation](../notes/theory/2026-10-16-native-source-constraint-valuation.md)
+derives the formal/Apply equations without complete source Call semantics.
+The changed-method consumer audit's missing concrete observation is now supplied
+by the reviewed [received-root incidence instance](../notes/theory/2026-10-16-native-returned-callable-incidence-instance.md).
+Both actual source variants pass primary CLI inference; their native graphs
+already differ. The current complementary lane traces the actual consumers of
+this pair, preserving original same-return packets and outer receipts. No new
+conditional interface lemma, scalar-collision assumption or scoped-guard removal
+is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
