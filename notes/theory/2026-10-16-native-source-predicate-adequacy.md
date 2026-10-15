@@ -15,6 +15,12 @@ not supply the declared-Support clause; this is neither a compiler
 counterexample nor impossibility of a richer valuation. The original
 whole-descriptor-to-native member/tail/Result implication remains OPEN.
 
+Subsequent consumed correction `cfded839e` and the independently reviewed
+[annotation type-flow correspondence](2026-10-16-native-annotation-flow-correspondence.md)
+supply the local declared-Support formation premise from already approved
+target exposure. The event-only method's failure below does not require a new
+envelope decision. Full dependent source/native adequacy remains OPEN.
+
 ## 1. Statement fixed before the derivation
 
 The original program is

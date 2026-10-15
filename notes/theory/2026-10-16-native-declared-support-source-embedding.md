@@ -12,8 +12,12 @@ at producer SHA-256
 The accepted result locates the unavailable annotation-to-complete-descriptor
 formation clause in the inspected authority. It proves neither that no clause
 could exist elsewhere nor a compiler counterexample. Architect and separate
-specification audits confirm the present underspecification; a narrow formation
-decision is pending, preserving the original theorem and fixed polarity rules.
+specification audits initially recommended a new formation decision. That
+recommendation is withdrawn by the consumed user correction `cfded839e` and
+the independently reviewed [target-type correspondence](2026-10-16-native-annotation-flow-correspondence.md):
+existing annotation-target exposure supplies the local type-formation owner.
+No new choice is needed for that owner. Complete independent descriptor-to-native
+adequacy remains OPEN; the original theorem and fixed polarity rules are retained.
 The primary's actual spawn requested `gpt-6-astra` with `reasoning_effort: low`;
 effective runtime model/effort metadata is unavailable. No escalation retry is
 authorized merely by this incomplete result.

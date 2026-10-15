@@ -39,3 +39,16 @@ Support, constraint inflow and subtraction residual at their actual producers
 and consumers. The original FIRST-RESULT-ADEQUACY theorem and full inference
 gate remain OPEN; the affected work no longer waits for an answer to the old
 two-option question. Runtime initialization investigation continues separately.
+
+## Consumed at the actual type owner
+
+The independently reviewed [source audit](../../notes/progress/2026-10-16-native-permission-inflow-residual-audit.md)
+and [constructive correspondence](../../notes/theory/2026-10-16-native-annotation-flow-correspondence.md)
+find the already approved annotation-target exposure law. After checking the
+actual endpoint, the target plus realization evidence passes outward; positive
+Function Support is that declared TYPE operand. A later use can therefore carry
+its advertised effect type without asserting a runtime event or residual
+reinjection. Direct computation Allowance checks do not inject declarations
+into actual inflow. No further formation choice is needed for these owners.
+The original complete source/native Result/context and subtraction proofs remain
+OPEN, with all original correlated scope intact.
