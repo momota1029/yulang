@@ -14,6 +14,13 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The three baseline Effect intrusion fixture failures are now
+[repaired and independently reviewed](../notes/progress/2026-10-16-effect-intrusion-fixture-qualification.md).
+Authentic recursive-source checking events replace missing source association;
+no production rule or assertion changed. All three focused cases pass, and the
+owning module has 28 passes, zero failures and two unchanged ignored observations.
+Global source eligibility and the native proof parents remain separate.
+
 The validated [module-expression ownership decision](../notes/design/2026-10-16-module-expression-source-owner.md)
 is now Authoritative (bundle `f40e4235d`). The
 [integrated implementation](../notes/progress/2026-10-16-module-expression-integration.md)

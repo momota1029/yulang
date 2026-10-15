@@ -608,18 +608,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   records the fixture lifecycle repair and complete checks. This replaces the
   baseline's missing direct scheduling at this native owner; it does not
   establish source eligibility, global completion or H2/U.
-- **Baseline-confirmed open regressions:** the owning Effect module has
-  25 passing tests, 3 failing tests and 2 ignored observations, identical to
-  isolated `c3c0fbdf5`. The three failures are
+- **Baseline Effect fixture regressions repaired:** the prior three failures
+  (also present at isolated `c3c0fbdf5`) were
   `raw_and_canonical_effect_roots_replay_late_conflict_after_parent_copy_intrusion`,
   `multiply_originated_bound_keeps_future_conflict_paths_through_extrusion_and_intrusion`,
   and `views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations`.
-  Owner: `candidate_effect.rs` fixture/source qualification for selected
-  Value-reference SCC intrusion. Their reciprocal type-bound setup does not
-  supply authentic qualifying Value provenance; the tests do not execute the
-  new incoming replay. Preserve every assertion and establish that source
-  correspondence before any repair. They remain a separate implementation/
-  regression task; no whole-module green result is claimed.
+  Their reciprocal type-bound setup lacked authentic qualifying Value-source
+  provenance. The [reviewed fixture repair](../notes/progress/2026-10-16-effect-intrusion-fixture-qualification.md)
+  uses a real self-call checking event around actual extrusion, preserving all
+  assertions/names/reverse bounds. Pre-write specification and M1 semantic
+  review are clean; each focused case passes and the owning module now reports
+  **28 passed, 0 failed, 2 ignored**. Production bytes are unchanged. This
+  closes these regressions, not global eligibility or the parent proof gates.
 - **H1-L:** the reviewed prover/researcher pair preserves the original
   quantifiers and establishes the native formal-row, Lambda entry-effect and
   Apply argument/effect prefix. Both stop at the initial/pre-receipt

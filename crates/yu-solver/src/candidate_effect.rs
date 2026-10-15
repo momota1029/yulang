@@ -2639,17 +2639,41 @@ mod tests {
         assert_effect_replay_has_one_owning_conflict(&mut session, second, second, 45);
     }
 
+    // Qualification comes from the resolved recursive source call, independently
+    // of the effect bounds whose transport these fixtures exercise.
+    fn source_qualified_effect_extrude(
+        session: &mut InferenceSession,
+        parent: EffectEndpointKey,
+        polarity: Polarity,
+    ) -> Result<ExtrusionEndpoint, SolveAvailabilityError> {
+        let seed = root(session, "intrusion_seed");
+        let source = session.batch.hir.local_source(&seed).unwrap().unwrap();
+        let references = &session.batch.candidate_source.references;
+        let (checking, event) = references.checking.iter().find(|(checking, _)| {
+            source.expressions().iter().any(|expression| &expression.occurrence == checking.occurrence())
+        }).unwrap();
+        assert!(references.qualifies(*event));
+        let checking = checking.clone();
+        let task = LiveConstraintTask::Effect(parent, parent);
+        let relation = session.candidate_context_seed(task, &checking, None)?.unwrap();
+        let previous = session.candidate_graph.as_mut().unwrap()
+            .intrusion.effect_algebra.context.processing.replace(relation);
+        let result = session.candidate_extrude(ExtrusionEndpoint::Effect(parent), polarity, 0);
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = previous;
+        result
+    }
+
     #[test]
     fn raw_and_canonical_effect_roots_replay_late_conflict_after_parent_copy_intrusion() {
-        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x; my intrusion_seed x = intrusion_seed x");
         let owner = root(&session, "left");
         session.execute_candidate_source_root(&owner).unwrap();
         let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
         let parent = EffectEndpointKey::EffectRow(session.fresh_effect_at_level(2).unwrap());
         session.candidate_insert_bound(ExtrusionEndpoint::Effect(parent), Polarity::Negative,
             ExtrusionEndpoint::Effect(allowed)).unwrap();
-        let ExtrusionEndpoint::Effect(copy) = session.candidate_extrude(
-            ExtrusionEndpoint::Effect(parent), Polarity::Positive, 0).unwrap() else { panic!("effect copy"); };
+        let ExtrusionEndpoint::Effect(copy) = source_qualified_effect_extrude(
+            &mut session, parent, Polarity::Positive).unwrap() else { panic!("effect copy"); };
         assert_ne!(copy, parent);
         solve_effect(&mut session, copy, allowed, 51);
         let (occurrence, cause) = cause(&session, "left", 52);
@@ -2666,7 +2690,7 @@ mod tests {
 
     #[test]
     fn multiply_originated_bound_keeps_future_conflict_paths_through_extrusion_and_intrusion() {
-        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x");
+        let mut session = make_session("act E\nact F\nmy left x: 'a -> [E] 'a = x; my intrusion_seed x = intrusion_seed x");
         let owner = root(&session, "left");
         session.execute_candidate_source_root(&owner).unwrap();
         let allowed = EffectEndpointKey::Allowance(view(&session, "left"));
@@ -2679,8 +2703,8 @@ mod tests {
             TypedPairKey::Effect { lower: first, upper: first },
             TypedPairKey::Effect { lower: second, upper: second },
         ]);
-        let ExtrusionEndpoint::Effect(copy) = session.candidate_extrude(
-            ExtrusionEndpoint::Effect(parent), Polarity::Negative, 0).unwrap() else { panic!("effect copy"); };
+        let ExtrusionEndpoint::Effect(copy) = source_qualified_effect_extrude(
+            &mut session, parent, Polarity::Negative).unwrap() else { panic!("effect copy"); };
         assert_ne!(copy, parent);
         let forbidden = atom(&mut session, "F");
         assert_effect_replay_has_one_owning_conflict(&mut session, forbidden, copy, 63);
@@ -2691,8 +2715,9 @@ mod tests {
             ExtrusionEndpoint::Effect(parent), &occurrence, &intrusion_cause).unwrap();
         solve_effect(&mut session, copy, copy, 67);
         assert_eq!(session.canonical_effect(copy), parent);
-        // Add another contribution after equality rather than relying only on
-        // the conflict retained before intrusion.
+        // Source-qualified extrusion queues intrusion, so the earlier drain
+        // may establish equality before the explicit reverse bound above.
+        // Add another contribution after equality as well as retaining the first.
         let later_forbidden = atom(&mut session, "F");
         assert_effect_replay_has_one_owning_conflict(&mut session, later_forbidden, parent, 68);
         // Both actual forbidden contributions remain reachable, once each.
@@ -2989,7 +3014,7 @@ mod tests {
     #[test]
     fn views_keep_fresh_use_ownership_and_intrusion_rollback_restores_relations() {
         let mut session = make_session(
-            "act E\nact F\nmy left x: 'a -> [E, 'e] 'a = x; my first = left; my second = left",
+            "act E\nact F\nmy left x: 'a -> [E, 'e] 'a = x; my first = left; my second = left; my intrusion_seed x = intrusion_seed x",
         );
         session.execute_candidate_graph_plan().unwrap();
         let graph = session.candidate_graph.as_ref().unwrap();
@@ -3088,12 +3113,9 @@ mod tests {
         let (occurrence, cause) = cause(&session, "left", 20);
         let result: Result<(), SolveAvailabilityError> =
             session.with_route_transaction(|session| {
-                let ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copy)) = session
-                    .candidate_extrude(
-                        ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(parent)),
-                        Polarity::Positive,
-                        0,
-                    )?
+                let ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(copy)) = source_qualified_effect_extrude(
+                    session, EffectEndpointKey::EffectRow(parent), Polarity::Positive,
+                )?
                 else {
                     unreachable!()
                 };
