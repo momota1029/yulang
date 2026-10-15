@@ -4,7 +4,7 @@ Date: 2026-10-15
 Status: Authoritative for the explicit behavioral decision below; source construction and proof remain open
 Approved-by: user, directly in the continuing playground hygiene conversation
 Reviewed-by: spec_auditor, pre-write scope and post-write transcription reviews; no remaining findings
-Scope: identity forwarding in the exact Yulang2 playground Callback Hygiene example and the direct clarification of ordinary forwarding for unhandled effects
+Scope: identity forwarding in the exact Yulang2 playground Callback Hygiene example, ordinary forwarding of unhandled effects, and receiver-relative protection
 Supersedes: the unresolved behavioral alternative in question 2026-10-15-callback-identity-release revision 1; no compose decision is superseded
 
 ## Direct decision
@@ -52,6 +52,37 @@ behavior; no separate question-board answer bundle is claimed.
 Clarification review: `spec_auditor` accepted the scope before transcription;
 post-write transcription review found no findings. The earlier review attribution
 below applies to the original identity decision.
+
+## Direct clarification: protection relative to the receiving boundary
+
+The user further clarified:
+
+> 保護の解除というのも全部解除するんじゃなくて引数として取り入れた場合関数内のハンドラ的関数から保護し，そこから出たら保護しなくなるみたいな話なんですよね．ここらへんの健全性って結構大変だと思います．質問があればどうぞ
+
+By default, receiving an argument protects its associated effects against
+handling within that receiving function's boundary. Once an effect passes
+outward beyond that boundary, that receiver's protection no longer blocks
+handling outside it. This ends the applicable receiver-relative protection;
+it does not remove the effect or erase protections belonging to other receivers.
+
+Existing explicit annotation permissions remain applicable: a permitted handler
+inside the receiving function may handle the specified effect. Annotation
+permission alone does not perform handling. The selected identity behavior and
+compose release remain binding; no identifier-specific rule or global clearing
+of protections follows from this clarification.
+
+"Leaving the boundary" records the observable boundary condition. It does not
+choose a particular normal-return, abort, escaped-callback, reentry or resumption
+implementation, or establish their source/runtime correspondence. In particular,
+forwarding a request outward is not itself proof that the receiving invocation
+has terminated or that all retained typed-view evidence should be destroyed.
+Those correspondence obligations remain OPEN under the existing transport and
+lifetime requirements.
+
+Receiver-relative clarification review: `spec_auditor` accepted this scope before
+transcription; the post-write review found no findings in this section and its
+task/index summaries. The direct conversation supplies
+the behavioral approval; no separate question-board answer bundle is claimed.
 
 ## Relationship to the selected compose rule
 

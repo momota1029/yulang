@@ -43,6 +43,13 @@ clarification now also records ordinary forwarding of each effect the function
 does not handle; it grants no new evaluation-order or runtime representation
 choice. Named-group facts and Call-route joins are now retained; intended
 source introduction across those routes is the active source premise.
+The latest direct clarification makes protection relative to the receiving
+boundary: its applicability ends outside that boundary, while effects and other
+receivers' protections survive. Existing annotation permissions remain. Actual
+source entry, matching typed path and exit must supply this relationship;
+outward request forwarding alone is not receiver termination or blanket evidence
+erasure. Reuse the existing conditional transport/lifetime results and establish
+their source suppliers rather than repeating the scope-set algebra.
 The historical question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.

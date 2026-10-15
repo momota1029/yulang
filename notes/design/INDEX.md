@@ -8,7 +8,9 @@ This index is a navigation aid. The listed source document remains authoritative
   — Authoritative for the user's direct requirement that `id (h i)` preserve
   Callback Hygiene's outward return and sole output `0`, without special
   meaning for the identifier. The direct clarification also requires ordinary
-  forwarding of each effect a function does not handle. The selected compose release remains binding;
+  forwarding of each effect a function does not handle, and protection relative
+  to the receiving boundary. Passing outside that boundary does not erase the
+  effect or independent receivers' protections. The selected compose release remains binding;
   source attribution, discharge, Catch integration and soundness remain OPEN.
   The [reviewed finite construction](../theory/2026-10-15-callback-identity-receiver-construction.md)
   identifies the actual selected-frame/formal source key and whole-output

@@ -40,6 +40,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   The user's subsequent clarification makes ordinary forwarding explicit:
   a function forwards each effect it does not handle; annotation permission
   and compose protection release do not themselves consume the effect.
+  The latest clarification makes protection relative to the receiving boundary:
+  passing outward ends that receiver's applicable protection, preserving the
+  effect and independent receivers' protections. Existing annotation permissions
+  still apply. Outward request forwarding does not by itself establish receiver
+  termination or authorize erasing stored typed-view evidence. The source-to-
+  operational entry, corresponding path and exit mapping remains the controlling
+  soundness premise; static named groups alone do not supply it.
   Named-group facts and Call-route joins are now retained; intended source
   introduction across those routes is the active next premise.
   Its local receipt and historical question remain uncommitted, with no
