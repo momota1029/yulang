@@ -235,11 +235,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   simultaneous same-w Value/RE and both tagged packets are retained, but full
   Comp(E1,A1) introduction is unproved. The selected source R_c=ReadInvoke is
   genuine; IF incidence and same-witness preservation do not discharge its
-  complete target guard telescope. Changed-method next-action selection now
-  assigns the owning Application checked-result constructor, with independent
-  guard falsification; no third marginal composition or MODEL assumption can
-  close it. Both original full parent directions, global model/principality
-  and copy applicability remain OPEN.
+  complete target guard telescope. The changed-method source/code attribution
+  now identifies the authentic generated Apply/Install owner, with no separate
+  RHS target annotation. The [source checked-result interpretation](../notes/design/2026-10-16-source-application-checked-result.md)
+  is selected under existing definition authorization after CLEAN mathematical
+  and source/conformance delta reviews. Its actual-branch guard introduction
+  retains full f membership and both packets; whole-Call W/Z remain separate.
+  Immediate consumer work applies that selected introduction to the original
+  neutral MODEL/Unit/Value/RE proof. Local forward application, original reverse,
+  global model/principality and copy applicability remain OPEN until their own
+  conclusions are integrated; no compiler/cutover gate closes from selection.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

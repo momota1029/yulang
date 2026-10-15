@@ -53,9 +53,12 @@ This index is a navigation aid. The listed source document remains authoritative
   challenges, keeping the imported interface and full routing evidence.
   The [joint pass](../theory/2026-10-16-first-call-joint-forward-preservation.md)
   has a reviewed MAJOR claim correction: full target Comp(E1,A1) introduction
-  remains OPEN despite accepted simultaneous transfers. The changed-method
-  source checked-result construction and independent guard attack now target
-  that owner. Global MODEL/copy applicability and both parent directions stay OPEN.
+  remained OPEN despite accepted simultaneous transfers. Actual source/code
+  attribution and two CLEAN delta reviews now justify selecting the
+  [generated checked-result constructor](2026-10-16-source-application-checked-result.md)
+  under existing definition permission. It preserves the full actual-source
+  guard telescope and independent foreign/whole-Call contracts. Native consumer
+  application, global MODEL/copy applicability and original reverse remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

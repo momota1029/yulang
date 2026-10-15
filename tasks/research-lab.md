@@ -216,13 +216,17 @@ interfaces, routing and latent alpha. The [joint pass](../notes/theory/2026-10-1
 received an accepted MAJOR: actual target Comp(E1,A1) introduction and every
 joint guard were not established. Its fresh CLEAN repair corrects that claim,
 retaining same-w transfers and conditional Bind without closing the theorem.
-The selected changed-method action is the owning Application checked-result
-constructor: one normal bounded prover constructs the actual telescope or a
-conservative source-owned candidate under existing definition authority, while
-an independent researcher attacks actual guard attribution/exhaustion. No
-CIncl/output membership premise, foreign-kernel replacement or new Function
-product semantics is allowed. Both original parent directions and cutover stay
-OPEN; global MODEL work waits for this decisive target introduction.
+The changed-method source/code attribution identifies generated Apply ports
+and ordinary unannotated Install. The [bounded source constructor](../notes/design/2026-10-16-source-application-checked-result.md)
+is now selected under existing definition authorization after CLEAN mathematical
+and actual-source/authority reviews. Its concrete actual-branch guard proof
+supplies the previously missing interpretation without fresh-erasure circularity,
+foreign-kernel replacement or Function product semantics. All actual providers,
+receiver-local alternatives and admitted developments remain; whole-Call W/Z
+keep their independent contracts. The next consumer integrates this introduction
+with the original neutral MODEL/Unit/Value/RE components. Local forward application,
+reverse FIRST-RESULT, global MODEL/copies/principality and cutover remain separate
+OPEN gates; source constructor selection is not native-engine success.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
