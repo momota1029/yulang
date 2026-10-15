@@ -119,8 +119,13 @@ CLEAN for producer SHA-256
 and the exact proposed definition at
 `2e459ab646ba5feafa39170757c0b98a5d15f0ec773ac20a589ea632726b97a3`.
 The primary selects precisely that bounded source interpretation. The original
-FORWARD-FIRST-CALL conclusion stays OPEN until its actual native-component
-application is integrated and independently checked. Reverse FIRST-RESULT, native MODEL establishment,
+[FORWARD-FIRST-CALL application](../theory/2026-10-16-first-call-joint-forward-preservation.md)
+now has fresh independent mathematical CLEAN review by `checked_result_semantics`
+at producer `175e358b75dfebc9020979d0d60bcabdeae1fde3ccef0536d167f31a0cda728b`.
+The primary accepts that original local forward theorem under its unchanged
+explicit anchored MODEL and lawful-map premises. Its exact source-target
+introduction and actual Return/Request/Bind consume this selected definition;
+no engine MODEL theorem follows. Reverse FIRST-RESULT, native MODEL establishment,
 canonical/copy applicability, full H2/U, principality, full C0 and production/F5
 remain separate OPEN gates. No compiler edit, build, test or measurement is
 part of this formal constructor proposal.

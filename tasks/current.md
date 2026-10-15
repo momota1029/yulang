@@ -231,9 +231,9 @@ Status: full objective remains active. Native extrusion now schedules current co
   E1 through authentic eR<=i<=j, keeping the imported interface and all
   admission/routing/dependency fields identical. The
   [joint composition](../notes/theory/2026-10-16-first-call-joint-forward-preservation.md)
-  has an accepted MAJOR and independently CLEAN claim correction: Unit/provider,
-  simultaneous same-w Value/RE and both tagged packets are retained, but full
-  Comp(E1,A1) introduction is unproved. The selected source R_c=ReadInvoke is
+  had an accepted MAJOR and independently CLEAN claim correction: Unit/provider,
+  simultaneous same-w Value/RE and both tagged packets were retained while full
+  Comp(E1,A1) introduction was unproved. The selected source R_c=ReadInvoke is
   genuine; IF incidence and same-witness preservation do not discharge its
   complete target guard telescope. The changed-method source/code attribution
   now identifies the authentic generated Apply/Install owner, with no separate
@@ -241,10 +241,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   is selected under existing definition authorization after CLEAN mathematical
   and source/conformance delta reviews. Its actual-branch guard introduction
   retains full f membership and both packets; whole-Call W/Z remain separate.
-  Immediate consumer work applies that selected introduction to the original
-  neutral MODEL/Unit/Value/RE proof. Local forward application, original reverse,
-  global model/principality and copy applicability remain OPEN until their own
-  conclusions are integrated; no compiler/cutover gate closes from selection.
+  The actual consumer now applies that selected introduction to the original
+  neutral MODEL/Unit/Value/RE proof. Fresh independent mathematical application
+  review by `checked_result_semantics` is CLEAN at producer `175e358b...a728b`;
+  the primary accepts the original local FORWARD-FIRST-CALL theorem under its
+  unchanged explicit MODEL/lawful-map premises. The same-provider Unit challenge,
+  exact Comp(E1,A1), both same-z packets and actual Return/Request/Bind follow
+  without an assumed target certificate or reduced context/provider/future domain.
+  Native MODEL establishment, input-scheme validity, universal copy applicability,
+  original reverse/full C0, hygiene, soundness/principality and F5 remain OPEN.
+  Static-only M2 application: one semantic reviewer, no builds/tests/measurements.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

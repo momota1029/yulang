@@ -57,8 +57,12 @@ This index is a navigation aid. The listed source document remains authoritative
   attribution and two CLEAN delta reviews now justify selecting the
   [generated checked-result constructor](2026-10-16-source-application-checked-result.md)
   under existing definition permission. It preserves the full actual-source
-  guard telescope and independent foreign/whole-Call contracts. Native consumer
-  application, global MODEL/copy applicability and original reverse remain OPEN.
+  guard telescope and independent foreign/whole-Call contracts. Its actual native
+  consumer application now has fresh independent mathematical CLEAN review:
+  original local FORWARD-FIRST-CALL is proved under the unchanged explicit
+  MODEL/lawful-map premises, with both same-z inputs and Return/Request/Bind.
+  Native MODEL establishment, universal copy/source applicability, original
+  reverse/full C0, global soundness/principality and F5 remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

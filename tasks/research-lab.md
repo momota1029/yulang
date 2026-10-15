@@ -30,7 +30,8 @@ completion; actual local/module routing recaptures live roots. Missing generatio
 semantic duplicate validity, nonidentity context meaning, pending source-cut
 reachability and full H2/U remain OPEN, with H3/P disabled. Static-only M2 scope:
 one semantic reviewer, zero executable checks and zero measurements. This lane
-is independent of the still-open full Application target construction below.
+is independent of the local Application forward result below and its still-open
+global MODEL/source-applicability parents.
 
 The validated [module-expression ownership decision](../notes/design/2026-10-16-module-expression-source-owner.md)
 is now Authoritative (bundle `f40e4235d`). The
@@ -223,10 +224,17 @@ and actual-source/authority reviews. Its concrete actual-branch guard proof
 supplies the previously missing interpretation without fresh-erasure circularity,
 foreign-kernel replacement or Function product semantics. All actual providers,
 receiver-local alternatives and admitted developments remain; whole-Call W/Z
-keep their independent contracts. The next consumer integrates this introduction
-with the original neutral MODEL/Unit/Value/RE components. Local forward application,
-reverse FIRST-RESULT, global MODEL/copies/principality and cutover remain separate
-OPEN gates; source constructor selection is not native-engine success.
+keep their independent contracts. The actual consumer now integrates this
+introduction with the original neutral MODEL/Unit/Value/RE components. Fresh
+independent mathematical application review by `checked_result_semantics` is
+CLEAN at producer `175e358b...a728b`; the primary accepts the original local
+FORWARD-FIRST-CALL under its unchanged explicit MODEL/lawful-map premises.
+Every complete/pending/future branch retains its actual provider and original
+indices, and both tagged packets and Bind follow without assumed target membership.
+Engine MODEL establishment, input-scheme validity, universal canonical/copy
+applicability, reverse FIRST-RESULT/full C0, hygiene, global principality and
+cutover remain OPEN. M2 static-only application: one semantic reviewer, zero
+executable checks or measurements; this result is not native-engine success.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

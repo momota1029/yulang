@@ -1,9 +1,12 @@
 # First Call: joint forward preservation from one anchored native model
 
 Date: 2026-10-16
-Status: bounded accepted joint transfers; complete local forward theorem OPEN.
-Accepted MAJOR repair independently reviewed CLEAN as claim correction only.
-Baseline supplied by primary: `bf0562382`; native production owners stable.
+Status: original local FORWARD-FIRST-CALL proved under the selected authentic
+Application interpretation and explicit MODEL/lawful-map premises; fresh
+independent mathematical application review CLEAN, accepted by primary.
+Earlier accepted MAJOR repair independently reviewed CLEAN as claim correction.
+Current application baseline supplied by primary: `0f26a951e`; native
+production owners remain stable from `bf0562382`.
 Exclusive lease: this note only. No implementation/cutover authority.
 
 Repair provenance: `ordinary_carrier_semantic` found an accepted MAJOR at the
@@ -14,10 +17,18 @@ complete descriptor membership or proved every joint guard. Old whole-provider
 membership plus full same-value Value(A1) and outward E1 support do not, without
 that owning introduction, exhaust Comp(E1,A1). This repair withdraws the full
 closure claim while retaining the original theorem and accepted components.
-No new semantic clause or source restriction is adopted.
+That repair adopted no new semantic clause or source restriction.
 Fresh delta review: `ordinary_carrier_semantic` returned CLEAN at repaired
 producer SHA-256 `35ff9b5ca83be4012e717e299fd974cd157ddf698484893c5b1f389f93356c0e`.
 This closes the false closure claim, not the original forward theorem.
+
+Changed-premise consumer integration: the Authoritative
+[source Application checked-result construction](../design/2026-10-16-source-application-checked-result.md)
+now fills the previously unfinished authentic generated target owner. Its
+reviewed introduction is applied in §6 below. This is explicit selected
+definition completion, not retrospective validation of the old producer or
+the rejected fresh-signature-erasure argument. The original theorem,
+quantifiers and MODEL premises in §§1–2 are retained.
 
 ## 1. Frozen FORWARD-FIRST-CALL statement
 
@@ -48,7 +59,7 @@ A1/E1, actual callable/provider and immutable captures, assume:
    independently justified. The model is fixed before any return z or
    response/future development is chosen.
 
-**Required conclusion (OPEN):** construct the actual source checked Unit
+**Required conclusion (proved below, independently reviewed CLEAN):** construct the actual source checked Unit
 challenge, establish acceptance by that same actual provider and its complete invocation contract, and
 construct the first Call's checked computation certificate at the original
 Comp(E1,A1) positions. This conclusion covers complete, pending,
@@ -67,8 +78,8 @@ pending Bind suffix. Name g reads it without another seed/provider/receiver.
 No return witness is asserted for a pending or divergent prefix.
 
 This is the unchanged required local **forward** theorem under an explicit
-model; it is not established by this packet. The accepted components below
-establish neither model existence nor absence-of-errors implying MODEL, nor the
+model. The source-constructor application below establishes its local
+conclusion; it establishes neither model existence nor absence-of-errors implying MODEL, nor the
 reverse original
 C_original-to-native theorem, global compiler soundness, principality or
 cutover. Those engine/parent gates remain separate. No source domain is
@@ -216,7 +227,7 @@ provider contract. The IF frame comes from the selected source-interface
 constructors; its fields are not treated as truth of the desired check.
 ReadInvoke-Desc explicitly requires **all** original hard/joint guards, not
 only phase evidence. Their actual fixed A1/E1 target introduction/checking is
-unclosed in §6; it is not imported here as closed DescMem or an ambient guard.
+constructed in §6; it is not imported here as closed DescMem or an ambient guard.
 
 This step supplies the original same-provider input/old-contract Call and
 Return evidence used by the accepted atomic transfer. It does not supply the
@@ -284,107 +295,110 @@ latent-alpha rows, captured/shared writable fields and any also-A/invariant
 occurrences retain their original values and proofs. There is no global
 covariant transformation of an imported Function argument descriptor.
 
-## 6. Actual complete target owner: the introduction remains unproved
+## 6. Apply the selected complete checked-result introduction
 
-### The selected source descriptor is genuinely ReadInvoke
+### Authentic source target, formed before MODEL
 
-This is a structural immutable `Name f` callee. The Authoritative pure-read
-constructor §4:67–71 **does** select its source result descriptor
-
-```text
-R_c := ReadInvoke(F_c,D_c,IF_e)
-```
-
-including the full dependent interpretation and decorations. It would be
-incorrect to classify this source route automatically as a foreign unrelated
-computation descriptor. The equation is existing authority, not a proposed
-new definition and not a convenience chosen after native success.
-
-That selection, however, has the explicit introduction at :76–81:
+The Authoritative source-Application construction §§1–3 selects
 
 ```text
-receiver evidence satisfying P_F_c(d)
-+ staged pure-read prefixes and original dependent Bind evidence
-+ ALL original scope/provider/authority/hard-bound/joint guards
------------------------------------------------------------
-DescMem(R_c,O,w;xi).
+Computation(E1,A1) @ c_star = AppTarget_c_star(E1,A1),
+R_c_star = ReadInvoke(F_c_star,D_c_star,IF_c_star).
 ```
 
-Line84 expressly says IF incidence alone does not map arbitrary tuples into
-that source result. Lines86,97 and109 preserve the original result checking
-and full decorations. The identity equation therefore removes a descriptor
-name; it does not remove any guard premise. The source-result owner is known,
-while its original fixed-target membership introduction is not yet discharged.
+AppTarget is the complete checked view of that existing staged R_c, not a
+product of independent Value/effect observations or a filtered source image.
+Its telescope is formed from the original source/context, independent F/D/IF,
+symbolic A1/E1 and typed maps before MODEL, actual provider, challenge,
+observation or return selection. None of those fixed domains is reduced by
+whether a later check succeeds. The explicit f annotation keeps its independent
+full Function contract; this target definition cannot replace its membership.
 
-### Instantiate the available premises, without inventing the missing ones
+This actual c_star is eligible. The original HIR Apply owns the empty-call
+Unit and occurrence; its g binding has annotation None. The actual emitter
+retains the matching CandidateRelation::Apply and ApplySourceInput with c_star,
+callee/argument, source result and application-effect positions
+(candidate_source.rs:1008–1049). The demand constructor verifies all those
+identities before retaining NativeInterface, fresh invocation i, result r=A1
+and application j=E1 (shadow_apply.rs:1531–1635). Unannotated Install uses the
+original initializer endpoint and boundary (candidate_source.rs:825–846).
+There is no RHS ascription or separately sealed result target at this c_star.
+These constructor facts establish applicability of the selected source rule;
+they do not themselves establish any semantic guard.
 
-| Actual source introduction premise | Established input or exact residual |
+Use APP-CHECKED-RESULT from the reviewed
+[actual-branch introduction §§3–4](2026-10-16-first-call-checked-result-construction.md),
+now selected by the governing design. Its independent premises are original
+Gamma/context and source formation, independent challenge and full f
+membership, uniform full same-object L_V, and designated local L_E. The
+following application supplies every guard family of its selected telescope.
+No whole-RHS Comp/CIncl/target G premise is added to MODEL or to the context.
+
+| Selected introduction premise/guard family | Application at these exact original indices |
 | --- | --- |
-| The same actual immutable callee/provider and accepted complete challenge | §4's admitted Unit construction and elimination of the independently supplied f membership. |
-| Actual receipt, entry/body/designated consumer and old P_F_c(d) observations | The same-provider receiver law at the original alpha/E_R contract, including pending developments. |
-| Pure-read lookup/Delay staging, actual worlds and original operator/reference incidences | Original source transitions and IF construction retain these phase fields; no receipt or return is asserted early. |
-| Full value certificate at the fixed A1 position for each actual return z | §5's uniform atomic inclusion on that same full decorated w_z, with both original tagged inputs. |
-| Designated outward support covered at fixed E1 | §5's independently reviewed local RE guarantee consequence on that same O. |
-| Every remaining original complete-target hard/joint guard, and the exact introduction identifying this checked Comp(E1,A1) judgment with its decorated R_c target | **Unproved.** Neither the old P_F_c envelope nor the two simultaneous consequences supplies an exhaustive introduction of this original target judgment. |
+| Hereditary original environment, immutable capture closure, JointWF and current history | Hypothesis1 and the independently compatible punctured context of hypothesis2; the environment/world restriction rule retains their shared references. No output binding has yet been installed. |
+| Actual immutable Name and same Act(v,U,r), source code/reference/path incidences | §4's original Name/Return derivation at CalRet, using the same f binding. Source IF is the original lawful correspondence assumed in §§1–2, not a new reference reconstructed from the positive Function term. |
+| Unit payload, inert Delay, reify/scope/registration and whole-carrier introduction | §4's independently proved literal/Return/Delay and native ground/AE interpretation; UNIT-ARROW-INLET-FORMATION assembles d with the open punctured context before provider acceptance. E_A stays symbolic subject to the derived formula. |
+| Actual challenge admission, provider acceptance, receipt, entry/body/native-return/consumer order | Only after d is formed, §4 eliminates that same full f membership. This gives ActualAdm(U,d) and its complete P_F_beta(d) witness at every actual admitted observation/development, including licensed nonliteral providers and receiver-local alternatives. Operation-valued providers include the designated consumer after native return. |
+| Intrinsic primitive, scope, authority, world, raw request/response and receiver-local hard predicates | The same complete P_F_beta(d) witness supplies its declared final guards. Their provider, role, scope and current world are unchanged; no whole-Call-root witness is projected from it. |
+| Original source IF/typed boundaries, matching paths, K identities and D incidences | The actual source/IF construction and the explicitly lawful original/canonical/copy maps in hypotheses2–3 act on this same final tuple. Unchanged positions use the original proof; changed typed positions use that declared action, not a copied proof handle. New A1 value paths use the full L_V conclusion below. |
+| Complete result and full hereditary Value(A1), with both tagged inputs | §5 supplies L_V uniformly from sigma(a)=S_alpha subset sigma(r)=S_A1. At each actual return z, apply it to the identical complete decorated w_z; the original Result maps give both W_z and matching F_R,z jointly. This includes arbitrary latent values and all their dependent future guards. |
+| Local outward request-support guarantee at fixed E1 | §5 supplies L_E on that same observation O from the original complete E_R guarantee and MODEL's eR<=i<=j. The application row j remains E1 and i remains its distinct single interpretation I. All imported E_R/alpha occurrences and all admission/invariant fields are retained. |
+| Actual target world, result incidence and ResultBind/environment extension | The original complete return supplies JointWF(C2,w) and its authentic result/provider incidences; L_V supplies hereditary Value(A1) there. Apply semantic-input Lemma W/ResultBind directly to that world and certificate. This does not require the desired RHS Comp certificate as an input. |
+| Pending Bind, independently admitted response/current-state developments and later live events | The source Bind/IF clauses keep the original q/raw k/response binder, current resumed C' and ordered suffix. Uniform L_V/L_E and the same P_F witness supply the dependent family at every actual later development. The open suffix is typed under hypothetical g:A1; actual g is supplied only upon Return. Later activity/Observe/Receive/Inc/Grant comes from full Value(A1) at its later event, never from first-call activity. |
 
-The last row is not an invented extra field. It is the uninstantiated premise
-explicitly required by ReadInvoke-Desc, at this original target's indices.
-This audit does not enumerate an allegedly exhaustive target telescope or
-claim that one of its genuine guards is false. Identifying the target's actual
-owning predicate and complete introduction is the next proof/source obligation.
-It must distinguish a genuinely unspecified target component from an already
-specified guard whose derivation has not been supplied.
+The table applies the selected introduction's exhaustive actual-source
+telescope, rather than inferring exhaustiveness from printed E/A fields.
+Its source-path/world premises are exactly the original independent compatible
+context and lawful maps already present in §§1–2. Its new target checks are
+exactly the proven L_V and L_E, not an extra ambient assertion that the output
+already belongs to Comp. The original independent context does not assert
+CompleteInvoke, safe plugged Bind or an actual g certificate.
 
-### Why the fixed application ports do not finish that introduction
+### Return, Request and prefix construction on one observation
 
-Typed-core §6:408–419 assigns application its symbolic E_call/A_call positions
-and constrains them by the **complete invocation relation**. These are not
-new row-union meanings. For this first Apply the original A1/E1 stay fixed;
-the same-w A1 proof and E1 support consequence do not redefine those positions
-or the complete source predicate at them.
+For Return z at C2, retain the old P_F certificate and original source phase
+proof. Use the original two-input Result operation on z, L_V on that complete
+same object, L_E on its enclosing complete observation, and the direct
+ResultBind/world construction in the table. The selected introduction now
+constructs the complete checked Return certificate at AppTarget_c_star(E1,A1),
+including its final hard/joint fields. It does not rewrite imported alpha,
+replace the provider or derive full Comp from independent marginal witnesses.
 
-Typed-core §7:537–552 defines VIncl and CIncl separately. Its proof-label erasure
-at :569–587 consumes the corresponding inclusion premise; it does not derive
-full CIncl from a Value check and nominal support. Semantic-input realization
-§1:46–53 explicitly leaves transport from the receiver's checked output to the
-independently named source Call result to its owning result-checking relation.
-That warning is applicable even though the structural source R_c constructor
-is selected: its complete decorated guard introduction still has to be applied.
+For Request(q,C,k), retain the typed q, payload/response declaration, raw k,
+response binder and every independently admitted response/current C'. The old
+complete contract supplies each actual development. Reapply the same uniform
+L_V/L_E and final guard construction there: a later Return uses the preceding
+case; another Request retains its original continuation and pending suffix.
+This is a dependent proof family over the fixed independent response/future
+domain. No z or g is asserted before Return, and that domain is not defined by
+which developments pass a native check. The original ordered Bind clause
+constructs the pending checked certificate; it does not assume an already
+checked full output continuation to prove the first call.
 
-Thus the exact unclosed sequent is introduction of the original checked
-computation membership at `(c_star,E1,A1,IF_e,xi,O,w)` from its actual source
-constructor and all original guard premises. A notation for this goal does
-not add a new semantic relation. It is the original conclusion of §1, localized
-to its first unproved introduction. This packet neither assumes it in MODEL
-nor adds it to the punctured-context hypothesis.
+Before entry, the original staged Name/Unit/Call derivation supplies the
+initial/lookup and inert-formation prefixes with their suspended dependent
+suffix obligations. The construction just given provides their eventual proof
+family. Administrative/zero-step observations assert no premature carrier,
+challenge, receipt or result. Divergence is covered through every finite prefix;
+no termination witness is needed. This is the selected constructor's original
+phase induction, instantiated with §4's real source formation and §5's uniform
+checking proofs, rather than a later receiver observation projected backwards.
 
-### Return, Request and prefixes: where the prior argument stopped
+Thus all premises of APP-CHECKED-RESULT hold on one xi and one original
+whole observation/development. It yields the exact original generated
+Computation(E1,A1) @ c_star certificate selected above. No generic Comp
+factorization or arbitrary-kernel equivalence is invoked. The accepted
+fresh-signature-erasure MAJOR remains correct historically: erasure alone did
+not supply this introduction; the new Authoritative source-owner completion
+and its reviewed introduction do.
 
-For Return, §5 really does provide hereditary Value(A1) of the original
-complete decorated value and the associated outward E1 support. The existing
-two-input Result operation supplies the actual maps and retained K/D/lineage.
-Those are accepted component certificates. The previous assertion that they
-were **exactly all** complete-target Return/hard-world/support fields was not
-justified by an actual exhaustive target constructor. It is withdrawn.
-
-For Request, the old certificate really does retain the exact operation,
-payload/response, original raw continuation and live resumed state. Applying
-the uniform Value/RE transfers at each actual later return/request preserves
-the accepted simultaneous consequences. Induction over finite developments
-cannot create a missing new-target hard/joint guard at its base or its steps.
-Inheriting the old guard is sufficient only after its correspondence with the
-fixed target guard is established at that guard's owner. No such universal
-correspondence is supplied by retaining the same tuple alone.
-
-The same issue appears in administrative/zero-step prefixes: retaining the
-original suspended suffix is genuine phase evidence, but does not establish
-all its fixed-target obligations. Neither divergence nor a pending request is
-converted to a completed return. No target certificate or safe plugged Bind
-is inferred from those retained fields.
-
-Consequently §6 does **not** close the original forward conclusion. This is
-an exact introduction/guard bridge gap, not a demonstrated source counterexample,
-a decision that ReadInvoke is unavailable, or permission to invent Comp clauses.
+This application is uniform in every provider allowed by the original f
+contract, not just literal source lambdas. All receiver-local alternatives of
+that same P_F and all actual complete/pending/future developments remain.
+Unanchored whole-Call W/Z production extras keep their own declarations and
+final guards; this actual-source theorem makes no claim to construct those
+unrelated source-free witnesses. Their full C0/reverse parents are unchanged.
 
 ## 7. Both tagged inputs, Bind and Name on the same z
 
@@ -404,11 +418,11 @@ both inputs and their original K/D; the RE result bounds the associated
 first-invocation observation without changing packet contents or introducing
 a new guarantee field into the packets.
 
-Once the missing complete fixed-target certificate and its required original
-world/result incidences are supplied, the original result-rebind clause and
-environment lemma W install that actual A1-certified value at g in the actual
-post-Return world. This remains a conditional Bind application, not an already
-discharged first-Call preservation step. All old
+Section6 now supplies the complete fixed-target certificate. Its Return
+construction retains the actual C2/world/result incidences and obtains
+hereditary Value(A1) without assuming full RHS membership. The original
+result-rebind clause and environment lemma W therefore install that actual
+A1-certified value at g in the actual post-Return world. All old
 bindings restrict to that same world, and the new certificate is hereditary.
 Name g reads its binding by the existing identity correspondence. This
 preserves J_z and the actual provider and creates no outer-formal seed.
@@ -423,53 +437,63 @@ Request(q,C,k) >>= S
 The response binder, current state, original K/D, raw k and ordered suffix S
 are unchanged. Only when k actually returns its z does the preceding rebind
 occur. The open continuation's independent typing under hypothetical
-g:Value(A1) can then use the obtained actual certificate. With the missing RHS
-certificate supplied, this discharges that hypothetical binder; it does not prove the missing RHS certificate or assume plugged
-continuation safety to prove the first Call. The suffix has its own E2/E_bind
+g:Value(A1) can then use the obtained actual certificate. The RHS certificate
+constructed in §6 discharges that hypothetical binder; plugged continuation
+safety was not used to prove that certificate. The suffix has its own E2/E_bind
 obligations, not a union invented from E1. A later g invocation uses its own current view/Observe
 occurrence and its full A1 membership, not the ended first Call's activity.
 
-## 8. Accepted results, repaired status and one next action
+## 8. Applied local forward result and separate open gates
 
-The full original FORWARD-FIRST-CALL conclusion is **OPEN** for its unchanged
-all-xi/all-provider/all-return/pending-development scope. The accepted MAJOR
-was that the old §6 asserted complete-target introduction without deriving
-all original target guards. That assertion and the resulting closure claim
-are withdrawn; no antecedent is strengthened to hide the missing conclusion.
+The original local FORWARD-FIRST-CALL conclusion of §1 is constructively
+derived under the same explicit anchored MODEL and lawful-map premises:
 
-Retained constructive results are: checked Unit challenge and same actual
-provider acceptance/old-contract invocation evidence; simultaneous full
-same-w Value(A1) and outward E1 support consequences under one MODEL; the same
-z's two tagged packet inputs; and ordinary Bind/Name preservation **once the
-full RHS/target certificate is actually supplied**. These accepted components
-remain useful and keep their original binders, world, source scopes and K/D.
-They are not relabeled a complete computation certificate.
+```text
+independent original Gamma(f:F_beta), compatible punctured context
++ one joint anchored neutral MODEL and its actual lawful source maps
+------------------------------------------------------------------
+checked Unit challenge d, same-provider acceptance/complete invocation,
+Computation(E1,A1) @ c_star, both same-z tagged packets,
+and original Return/Request/ResultBind/pending-Bind/Name preservation.
+```
 
-The precise remaining owner is the original first Apply's complete result
-predicate/introduction: selected decorated ReadInvoke at this source branch,
-its Comp(E1,A1) checking positions and IF/result/future guard telescope. The
-constructor identity is already authoritative; what remains is the actual
-fixed-target introduction and each required guard derivation. The packet has
-not established whether every residual component is specified elsewhere or
-whether a narrowly missing definition remains. That distinction must come
-from the owning source construction, not an invented exhaustive clause list.
+Section4 supplies the independently formed input before eliminating f's full
+membership. Section5 supplies L_V and L_E on one original observation with
+one xi and fixed alpha/A1/E1. Section6 applies the now-selected authentic
+Application introduction, including every final dependent guard; §7 applies
+the actual result rebind and current-state pending Bind. Neither MODEL nor
+ambient context assumes the concluded whole computation certificate.
+No original provider, capture, carrier domain, pending/future development,
+K/D identity or result position is narrowed. No receipt is replayed and no
+new seed is installed at g. The later g() obligations use full hereditary
+Value(A1) at their actual later event, not a copied first-call activity bit.
 
-One feasible next action is the primary's already assigned independent owner
-mapping: exhibit the exact source introduction tying the fixed Comp(E1,A1)
-judgment to the selected R_c and inventory its actual guard telescope, then
-attempt each guard using the retained §4–5 premises. If an original predicate
-has no governing introduction, report that precise definition seam through
-the existing design-review authority; if it does, prove that guard. Do not
-repeat a whole-Comp proof with the same unavailable introduction, assume
-CIncl/target membership in MODEL/context, rewrite E1/A1, or declare this
-source route foreign merely because the bridge is missing.
+This local closure derivation has fresh independent mathematical application
+review CLEAN from `checked_result_semantics` at producer SHA-256
+`175e358b75dfebc9020979d0d60bcabdeae1fde3ccef0536d167f31a0cda728b`.
+The primary accepts closure of the original local explicit-MODEL forward gate,
+with exactly its existing lawful-map premises. Earlier producer eb92598 and repaired producer35ff
+remain an unsupported closure claim followed by a valid claim withdrawal;
+they are not rewritten as if they had proved the new selected introduction.
+The changed input is the explicit Authoritative source-owner completion,
+not an erasure equivalence or a discovery that arbitrary Comp always factors.
 
-MODEL existence/engine establishment, copies/CanonicalEq applicability,
-reverse FIRST-RESULT-ADEQUACY, full B, hygiene, soundness, principality and
-cutover also remain OPEN. This repair changes no source/compiler mechanism
-and selects no new semantic policy. Fresh independent delta review is required.
+Still OPEN: no-errors/engine execution implies MODEL; formation/validity of
+all inferred input Gamma schemes; universal CanonicalEq/copy/outer-transport
+applicability; reverse FIRST-RESULT-ADEQUACY/C_original-to-native; full C0 and
+whole-Call W/Z final guards; full B/lifecycle, hygiene, global soundness,
+relative principality and production/F5. This local source theorem neither
+certifies unanchored whole-Call alternatives nor changes their quantifiers.
+Separately ascribed/imported/foreign targets retain their independently fixed
+membership and checking obligations. No compiler edit/default cutover follows.
 
-## 9. Static verification and freeze packet
+The review checks §6's exact premise map and §§6–7's dependent Request/Return/
+world construction against the selected source rule. No missing premise or
+scope reduction was found. The next independent owner must establish actual
+engine MODEL/source-map applicability; this result does not insert target
+membership in MODEL or certify that an error-free solver run supplies it.
+
+## 9. Historical repair verification and dependency snapshot
 
 Bounded static source/proof reads and one leased Markdown artifact; no tests,
 builds, probes, Git operations, delegation or production/shared-record edits.
@@ -479,7 +503,7 @@ repair uses a fresh bounded 15-minute constructor/guard audit; no experiment or
 performance samples. Primary owns independent review, records and integration.
 The producer does not certify its own result or change a shared gate status.
 
-Dependency digests:
+Historical repair dependency digests (retained snapshot, not the new selection):
 
 ```text
 7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81  notes/design/2026-10-11-yulang-inference-top-level-principles.md
@@ -518,3 +542,54 @@ changed by this repair. Suggested checkpoint:
 Primary shared-record delta: retain the accepted component results, record the
 accepted MAJOR and repaired OPEN full-forward status, and consume the pending
 independent target-owner map before another constructive composition attempt.
+
+## 10. Current selected-constructor consumer integration freeze
+
+Current packet baseline: `0f26a951e`. Incoming repaired/metadata note digest:
+`6d65ce7a892940b79177d0d4944eb32f0504987523a38735fe51779b4bff09e3`.
+The source construction's mathematical/source reviews were CLEAN at producer
+`74bd2de666db1d8cf0406d2f60c81aac95ade1aa88c6b37679753d841f370325`;
+the primary's Authoritative selection is consumed here. Those reviews do not
+certify this new application. Sections6–8 replace the historical missing-owner
+handoff with the concrete consumer application. Section9's older repair and
+dependency inventory remain historical evidence, including their then-OPEN
+status and checkpoint suggestion.
+
+Frozen direct dependencies at application baseline `0f26a951e`, before later
+primary review-status metadata, for the changed premise and its actual native
+owner correspondence:
+
+```text
+c1188327a8dc130c22f094351ea04e967b7301bbd9c95142d73ca74f1ad4d967  notes/design/2026-10-16-source-application-checked-result.md
+89fb62b1fe9e10d6972a79f17399d4a0332cf57817bb06a07f5e054ecb4b9dfa  notes/theory/2026-10-16-first-call-checked-result-construction.md
+199963ac9cd13eebca44c4881b859eeb1f801259cc944bf1d5a57df78dc0c070  crates/yu-solver/src/lib.rs
+efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38  crates/yu-solver/src/candidate_source.rs
+44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9  crates/yu-solver/src/candidate_effect.rs
+72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6  crates/yu-solver/src/candidate_context.rs
+2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e  crates/yu-solver/src/candidate_scheme.rs
+2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b  crates/yu-solver/src/candidate_extrusion.rs
+357b274d0de509931bda3015a99b1a1cf2ac86d75a45d230d62ab456c56740ba  crates/yu-solver/src/shadow_apply.rs
+```
+
+All seven native hashes match the historical inventory. The changed
+interpretation is explicitly selected at the authentic unannotated Apply;
+it does not change the production source, the input Function contract or the
+old underlying staged ReadInvoke. Static source/selected-rule reads, SHA-256
+and artifact whitespace inspection only; zero tests/builds/probes, children,
+Git operations, production/shared-record edits or measurements. One bounded
+15-minute leaf application pass. Requested normal Sol/high; observed runtime
+model/effort metadata unavailable. Writes stop before independent review.
+
+Current commit packet: sole leased path is
+`notes/theory/2026-10-16-first-call-joint-forward-preservation.md`; baseline
+`0f26a951e`; no dependency writes. Proposed checkpoint:
+`research: apply selected checked-result introduction to first-call forward theorem`.
+Primary review receipt: `checked_result_semantics` returned CLEAN at producer
+`175e358b75dfebc9020979d0d60bcabdeae1fde3ccef0536d167f31a0cda728b`,
+reviewing principally §§6–8 and their dependency cone. The selected introduction
+discharges the original local theorem without an added target premise or
+reduced provider/context/future domain. The primary accepts that bounded result
+and synchronizes task/laboratory/design records; all separate §8 global/reverse/
+copy/hygiene/principality gates remain OPEN. This receipt changes review metadata,
+not the reviewed derivation. Static-only M2 application scope: one independent
+semantic reviewer, no tests/builds/probes or performance measurements.
