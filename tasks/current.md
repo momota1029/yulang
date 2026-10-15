@@ -74,9 +74,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   [source interpretation application](../notes/theory/2026-10-16-native-received-root-interpretation.md)
   consumes the established receiving proofs at original native operands and
   preserves mapped-or-shared ancestry. The next census joins actual module
-  root-bound Transport witnesses to their selected use, with admission-time
-  canonicalization or a minimal test-only origin observation. No new production
-  metadata is selected. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
+  root-bound Transport witnesses to their selected use. The [module-use census](../notes/progress/2026-10-16-native-module-use-origin-census.md)
+  now authenticates those actual origins, second-call selected-publication ancestry
+  and outer ArgumentEffect images in both cases, with a passing focused test and
+  clean semantic delta review. An empty first-demand operand query is only a
+  query limitation. A constructive lane instead derives the pre-capture demand
+  frontier and targets the remaining correlated outer-copy interpretation.
+  Production inference behavior is unchanged. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
   policy or production status change follows from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed

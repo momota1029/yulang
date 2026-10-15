@@ -58,8 +58,13 @@ now passes both actual cases with independent code review. The reviewed
 [source application](../notes/theory/2026-10-16-native-received-root-interpretation.md)
 accepts original shared anchors as well as actual copied bounds. Next use
 retained module-route root-bound Transport witnesses to authenticate the exact
-selected use origin before adding any further observation hook. Complete
-selected-use/event interpretation remains OPEN. No new
+selected use origin. The [module-origin census](../notes/progress/2026-10-16-native-module-use-origin-census.md)
+now has a successful two-input focused execution and clean semantic review:
+actual module use origins, second-call selected ancestry and outer AE images
+are authenticated. The first-demand operand query is not semantic absence;
+the constructive lane derives its pre-capture demand frontier and isolates
+correlated outer-copy transport. Complete selected-use/event interpretation
+remains OPEN. No new
 conditional interface lemma, scalar-collision assumption or scoped-guard removal
 is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 

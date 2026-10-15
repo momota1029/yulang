@@ -6333,7 +6333,7 @@ mod native_selected_use_census {
             let mut session = InferenceSession::try_new_candidate(
                 ConstraintBatch::collect_candidate_mode_scoped(hir.clone(), true, true, false).unwrap()).unwrap();
             session.candidate_graph.as_mut().unwrap().local_use_census = Some(candidate_scheme::LocalUseCensus {
-                requested, snapshots: Vec::new(),
+                requested, snapshots: Vec::new(), module_uses: Vec::new(),
             });
             session.execute().unwrap();
             assert!(!state(&session).scoped_enabled);
@@ -6451,4 +6451,223 @@ mod native_selected_use_census {
             eprintln!("NEXT UNINSPECTED {selected}: selected module-use -> first f() dispatch use-instance/provider association; retained local maps authenticate each constructor but no cross-call provider association census is claimed. Both provider declarations and both ordered Replay inputs remain retained.");
         }
     }
+
+    fn bound_endpoints(bound: BoundKey) -> (ExtrusionEndpoint, ExtrusionEndpoint) {
+        if bound.1 == Polarity::Positive { (bound.2, bound.0) } else { (bound.0, bound.2) }
+    }
+    fn module_function_images(session: &InferenceSession, route: &candidate_scheme::FreshRoute,
+        use_origin: usize, original: ValueEndpointKey) -> Vec<(RelationId, ValueEndpointKey)> {
+        let context = state(session);
+        let mut images = Vec::new();
+        for bound in &route.graph.bounds {
+            let Some(parent) = bound.relation else { continue; };
+            let (lower, upper) = bound_endpoints(bound.source_bound);
+            let side = if lower == ExtrusionEndpoint::Value(original) { Some(true) }
+                else if upper == ExtrusionEndpoint::Value(original) { Some(false) } else { None };
+            let Some(lower_side) = side else { continue; };
+            for dependency in &context.dependencies {
+                let Dependency::Transport { child, parent: actual_parent, use_origin: actual_use,
+                    witness: Some(witness) } = *dependency else { continue; };
+                if actual_parent != parent || actual_use != use_origin || witness.from != bound.source_bound
+                    || witness.reason != TransportReason::FreshUse { continue; }
+                assert_eq!(context.relations[child.0 as usize].key.sources,
+                    context.relations[parent.0 as usize].key.sources);
+                assert_eq!(session.candidate_context_pair(context.relations[child.0 as usize].key.pair),
+                    session.candidate_context_pair(bound_pair(witness.to)));
+                let (lower, upper) = bound_endpoints(witness.to);
+                let ExtrusionEndpoint::Value(image) = (if lower_side { lower } else { upper })
+                    else { panic!("Value Function image"); };
+                images.push((child, image));
+            }
+        }
+        images
+    }
+
+    #[test]
+    fn native_module_use_origin_census_joins_actual_transport_instances() {
+        for selected in ["factory_captured", "factory_direct"] {
+            let text = CAPTURED.replace("receive factory_captured", &format!("receive {selected}"));
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text.as_str());
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+            let hir = Arc::new(lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("module-use-census", selected))),
+                &parsed, yu_hir::SemanticImports::empty()).unwrap());
+            let binding = |name: &str| hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding), _ => None,
+            }).unwrap();
+            let outer = hir.local_source(binding("outer").definition_root()).unwrap().unwrap();
+            let receive = hir.local_source(binding("receive").definition_root()).unwrap().unwrap();
+            let answer = hir.local_source(binding("answer").definition_root()).unwrap().unwrap();
+            let selected_local = outer.bindings().iter().find(|local| local.spelling.as_ref() == selected).unwrap();
+            let g = receive.bindings().iter().find(|local| local.spelling.as_ref() == "g").unwrap();
+            let module_name = |source: &yu_hir::LocalSource, id: &yu_hir::DefId| source.expressions().iter()
+                .find(|expression| matches!(&expression.form,
+                    LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(actual), .. } if actual == id))
+                .unwrap().occurrence.clone();
+            let receive_name = module_name(outer, binding("receive").id());
+            let outer_name = module_name(answer, binding("outer").id());
+            let mut requested = HashSet::from([receive_name.clone(), outer_name.clone()]);
+            for source in [outer, receive] {
+                for expression in source.expressions() {
+                    if matches!(&expression.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_), .. }) {
+                        requested.insert(expression.occurrence.clone());
+                    }
+                }
+            }
+            let mut session = InferenceSession::try_new_candidate(
+                ConstraintBatch::collect_candidate_mode_scoped(hir.clone(), true, true, false).unwrap()).unwrap();
+            session.candidate_graph.as_mut().unwrap().local_use_census = Some(candidate_scheme::LocalUseCensus {
+                requested, snapshots: Vec::new(), module_uses: Vec::new(),
+            });
+            session.execute().unwrap();
+            let context = state(&session);
+            assert!(!context.scoped_enabled);
+            let graph = session.candidate_graph.as_ref().unwrap();
+            let census = graph.local_use_census.as_ref().unwrap();
+            let parents = parents(context);
+            let first = session.batch.candidate_calls.calls.iter().find(|call|
+                call.owner == *binding("receive").definition_root()
+                    && matches!(&receive.expression(&call.callee).unwrap().form,
+                        LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(_), .. })).unwrap();
+            let second = session.batch.candidate_calls.calls.iter().find(|call|
+                call.owner == *binding("receive").definition_root()
+                    && matches!(&receive.expression(&call.callee).unwrap().form,
+                        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &g.id)).unwrap();
+            assert_eq!(g.initializer.ordinal() as usize, first.expression);
+            let selected_snapshot = census.snapshots.iter().find(|snapshot|
+                graph.local_routes[snapshot.route].local == selected_local.id).unwrap();
+            let selected_publication: HashSet<_> = context.origins.iter().filter(|origin|
+                origin.occurrence == ConstraintOccurrenceId::new(selected_snapshot.occurrence.clone(), 0))
+                .map(|origin| origin.relation).collect();
+            assert!(!selected_publication.is_empty());
+            let g_name = &receive.expression(&second.callee).unwrap().occurrence;
+            let g_snapshot = census.snapshots.iter().find(|snapshot| &snapshot.occurrence == g_name).unwrap();
+            let g_route = &graph.local_routes[g_snapshot.route];
+            assert_eq!(g_route.local, g.id);
+            assert_eq!(g_route.graph.live_root, graph.locals[g_route.slot].as_ref().unwrap().root);
+            assert!(facts(&session, g_name, 0).iter().any(|fact|
+                fact.lower() == g_snapshot.terms[g_route.graph.root].unwrap()
+                    && fact.upper() == session.batch.component_term_at(g_snapshot.target_component)));
+            let outer_registration = session.batch.candidate_calls.formals.iter().find(|formal|
+                formal.owner == *binding("outer").definition_root()
+                    && formal.role == candidate_call::FormalRole::Computation).unwrap();
+            let entry = outer_registration.entry_effect.unwrap();
+            let lambda = &outer.expressions()[outer_registration.lambda];
+            let original_outer_function = facts(&session, &lambda.occurrence, 2).into_iter().find_map(|fact| {
+                let endpoint = session.value_endpoint(fact.lower(), Polarity::Positive);
+                InferenceSession::positive_function_children(&session.store, endpoint).map(|_| endpoint)
+            }).unwrap();
+            let mut first_unavailable = None;
+            for (name, original_functions) in [
+                (&receive_name, vec![session.value_endpoint(first.native.unwrap().demand, Polarity::Negative),
+                    session.value_endpoint(second.native.unwrap().demand, Polarity::Negative)]),
+                (&outer_name, vec![original_outer_function]),
+            ] {
+                let routes: Vec<_> = graph.routes.iter().filter(|route| route.use_id.occurrence() == name).collect();
+                assert!(!routes.is_empty(), "actual module definition route");
+                let origins: Vec<_> = census.module_uses.iter().filter(|(occurrence, _)| occurrence == name).collect();
+                assert!(!origins.is_empty(), "actual module FreshUse constructor origin");
+                for route in routes {
+                    let uses: Vec<_> = session.batch.definition_uses().iter().filter(|use_record|
+                        use_record.id() == &route.use_id).collect();
+                    assert_eq!(uses.len(), 1);
+                    let record = uses[0];
+                    let publication: Vec<_> = session.routed_uses.iter().filter(|published|
+                        published.use_id == route.use_id).collect();
+                    assert_eq!(publication.len(), 1);
+                    let fact_id = publication[0].fact.expect("structured module root link");
+                    let fact = session.store.facts().iter().find(|fact| fact.id() == fact_id).unwrap();
+                    assert!(session.store.provenance().iter().any(|edge| edge.fact() == fact_id
+                        && edge.cause().occurrence() == &ConstraintOccurrenceId::new(name.clone(), 0)));
+                    assert_eq!(fact.upper(), session.batch.component_term_at(record.use_value_component));
+                    let source = if name == &receive_name { outer } else { answer };
+                    let expression = source.expressions().iter().find(|expression| &expression.occurrence == name).unwrap();
+                    assert_eq!(hir.occurrence_source_key(name).unwrap(), Some(&expression.source));
+                    for (_, use_origin) in &origins {
+                        let use_origin = *use_origin;
+                        let mut bound_transports = 0;
+                        for bound in &route.graph.bounds {
+                            let Some(parent) = bound.relation else { continue; };
+                            for dependency in &context.dependencies {
+                                if let Dependency::Transport { child, parent: original, use_origin: actual,
+                                    witness: Some(witness) } = *dependency {
+                                    if original == parent && actual == use_origin && witness.from == bound.source_bound {
+                                        assert_eq!(witness.reason, TransportReason::FreshUse);
+                                        assert_eq!(context.relations[child.0 as usize].key.sources,
+                                            context.relations[parent.0 as usize].key.sources);
+                                        assert_eq!(session.candidate_context_pair(context.relations[child.0 as usize].key.pair),
+                                            session.candidate_context_pair(bound_pair(witness.to)));
+                                        bound_transports += 1;
+                                    }
+                                }
+                            }
+                        }
+                        eprintln!("PRESENT {selected} module={name:?} DefinitionUse={:?} Fact={fact_id:?} actual_context_use={use_origin} captured_transports={bound_transports}", route.use_id);
+                        for (function_index, &original) in original_functions.iter().enumerate() {
+                            let images = module_function_images(&session, route, use_origin, original);
+                            if images.is_empty() {
+                                let shared_rows = route.graph.rows.iter().zip(&route.rows).filter(|(source, image)| source.key == **image).count();
+                                eprintln!("UNAVAILABLE {selected} exact Function image module={name:?} operand={original:?}; shared-row anchors={shared_rows} (no source-field association inferred from canonical equality)");
+                                first_unavailable.get_or_insert("original Function operand -> same-module-use copied Function/shared field anchor");
+                            }
+                            for (transport, image) in images {
+                                match original {
+                                    ValueEndpointKey::PositiveFunction(_) => {
+                                        let original = InferenceSession::positive_function_children(&session.store, original).unwrap();
+                                        let mapped = InferenceSession::positive_function_children(&session.store, image).unwrap();
+                                        assert_eq!(session.effect_endpoint(original.1, Polarity::Negative), session.canonical_effect(EffectEndpointKey::EffectRow(entry)));
+                                        eprintln!("PRESENT {selected} actual_outer_AE Transport={transport:?} original_term={:?} mapped_term={:?} mapped_endpoint={:?}", original.1, mapped.1, session.effect_endpoint(mapped.1, Polarity::Negative));
+                                    }
+                                    ValueEndpointKey::NegativeFunction(_) => {
+                                        let mut dispatches = 0;
+                                        let mut selected_dispatches = 0;
+                                        let mut result_children = 0;
+                                        let mut effect_children = 0;
+                                        for (index, relation) in context.relations.iter().enumerate() {
+                                            let TypedPairKey::Value(pair @ CanonicalValuePairKey {
+                                                lower: ValueEndpointKey::PositiveFunction(_), upper,
+                                            }) = relation.key.pair else { continue; };
+                                            if upper != image { continue; }
+                                            let parent = RelationId(index as u32);
+                                            let lineage = ancestry(parent, &parents);
+                                            if !lineage.contains(&transport) { continue; }
+                                            dispatches += 1;
+                                            selected_dispatches += usize::from(!lineage.is_disjoint(&selected_publication));
+                                            let lower = InferenceSession::positive_function_children(&session.store, pair.lower).unwrap();
+                                            let upper = InferenceSession::negative_function_children(&session.store, pair.upper).unwrap();
+                                            for dependency in &context.dependencies {
+                                                let Dependency::FunctionPort { child, parent: actual, field, .. } = *dependency else { continue; };
+                                                if actual != parent { continue; }
+                                                let expected = match field {
+                                                    FunctionField::Result => { result_children += 1;
+                                                        TypedPairKey::Value(CanonicalValuePairKey { lower: session.value_endpoint(lower.3, Polarity::Positive), upper: session.value_endpoint(upper.3, Polarity::Negative) }) }
+                                                    FunctionField::ResultEffect => { effect_children += 1;
+                                                        TypedPairKey::Effect { lower: session.effect_endpoint(lower.2, Polarity::Positive), upper: session.effect_endpoint(upper.2, Polarity::Negative) } }
+                                                    _ => continue,
+                                                };
+                                                assert_eq!(session.candidate_context_pair(context.relations[child.0 as usize].key.pair), session.candidate_context_pair(expected));
+                                            }
+                                        }
+                                        eprintln!("PRESENT {selected} same_module_use={use_origin} original_call={function_index} Function_image={image:?} via={transport:?} dispatch_candidates={dispatches} selected_publication_ancestry={selected_dispatches} Result={result_children} ResultEffect={effect_children}");
+                                        if selected_dispatches == 0 {
+                                            first_unavailable.get_or_insert("selected factory publication -> same-module-use Function dispatch directed retained ancestry");
+                                        }
+                                    }
+                                    _ => unreachable!(),
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            eprintln!("PRESENT {selected} original g initializer=first f() expression; local Name publication context_use={} actual mapped root retained", g_snapshot.context_use);
+            match first_unavailable {
+                Some(seam) => eprintln!("FIRST UNAVAILABLE {selected}: {seam}; bounded association search only, not erasure or source Inc"),
+                None => eprintln!("NEXT UNINSPECTED {selected}: compose both same-return packet inlets and event/view/receipt interpretation; candidate sets are not a uniqueness theorem"),
+            }
+        }
+    }
+
 }

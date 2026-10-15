@@ -143,6 +143,7 @@ pub(super) struct LocalFreshRoute {
 pub(super) struct LocalUseCensus {
     pub requested: HashSet<HirOccurrenceId>,
     pub snapshots: Vec<LocalUseSnapshot>,
+    pub module_uses: Vec<(HirOccurrenceId, usize)>,
 }
 #[cfg(test)]
 #[derive(Debug)]
@@ -1088,6 +1089,12 @@ impl InferenceSession {
             for index in 0..graph.bounds.len() {
                 let restoration = self.begin_candidate_fresh_bound(graph, &fresh, index, occurrence, cause)?;
                 self.candidate_drive_bound_restoration(restoration)?;
+            }
+            #[cfg(test)]
+            if let Some(census) = &mut self.candidate_graph.as_mut().unwrap().local_use_census {
+                if census.requested.contains(occurrence.occurrence()) {
+                    census.module_uses.push((occurrence.occurrence().clone(), fresh.context_use));
+                }
             }
             Ok((fresh.terms[graph.root].ok_or_else(exhausted)?, fresh.rows))
         })();

@@ -3,7 +3,7 @@
 Date: 2026-10-16
 Status: bounded application of independently established source results and
 original native constructor correspondence; selected-use transport remains
-unverified. Fresh independent review pending.
+unverified. Original-operand result independently reviewed; parent OPEN.
 Production baseline: `0a9af0da5080469f930da0032aa96d7d89d358c5`, supplied by primary.
 Exclusive lease: this file only. Test-only census instrumentation is concurrent;
 no result or moving test hook from that lane is assumed here.

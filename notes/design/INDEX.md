@@ -44,8 +44,10 @@ This index is a navigation aid. The listed source document remains authoritative
   now has clean independent review and an architect-confirmed minimal test-only
   selected-use census handoff. The [local-map census](../progress/2026-10-16-native-selected-use-census.md)
   and [source interpretation application](../theory/2026-10-16-native-received-root-interpretation.md)
-  now have independent review and focused executable evidence; selected module-use
-  and complete source/native event-view composition remain open.
+  now have independent review and focused executable evidence. The subsequent
+  [module-origin census](../progress/2026-10-16-native-module-use-origin-census.md)
+  authenticates actual use origins, second-call dispatch ancestry and outer AE
+  images. Complete source/native event-view and outer-copy composition remain open.
 
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through

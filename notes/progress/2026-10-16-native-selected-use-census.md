@@ -1,7 +1,7 @@
 # Native selected-use construction census
 
 Date: 2026-10-16
-Status: provisional test-only instrumentation and bounded positive-anchor census; focused verification passed, independent review pending.
+Status: provisional test-only instrumentation and bounded positive-anchor census; focused verification and independent review passed; parent OPEN.
 Baseline: `ca4f77cf3`, supplied by the primary.
 Owner: `ordinary_carrier_implement`; implementation producer, not independent reviewer.
 
