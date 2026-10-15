@@ -7,6 +7,13 @@ Frozen Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1` at
 `/tmp/yulang-hygiene-audit-my68a_85/oracle` (read-only source, not executable evidence).
 Exclusive lease: this note. Existing hygiene proofs remain unchanged.
 
+Current authority update: the later [direct identity decision](../design/2026-10-15-callback-identity-forwarding.md)
+resolves §6's behavioral alternative in favor of the same outer return through
+ordinary `id`. Section 6 retains the historical conditional derivation;
+source attribution and matching discharge remain OPEN. No theorem is closed
+by this decision. The [finite identity Oracle run](../progress/2026-10-15-callback-identity-oracle.md)
+is separate execution evidence.
+
 ## 1. Frozen exact claim, binders and premises
 
 Target: Oracle `web/playground/src/main.ts:508`, preserving its original `g`, `h`, loop `i`, callback `i`, `b`, `outer`, imports and standard definitions:

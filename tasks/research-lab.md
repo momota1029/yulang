@@ -42,6 +42,10 @@ matching discharge remain OPEN while preserving compose release. The historical
 question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.
+The [identity Oracle discriminator](../notes/progress/2026-10-15-callback-identity-oracle.md)
+has also executed once successfully with the original wrapper: same g type and
+sole output `Out 1: 0`, with independent provenance review clean. Native construction
+still must satisfy identity preservation and compose release together.
 The [attachment-only native slice](../notes/progress/2026-10-15-callback-receiver-attachment.md)
 now retains that source owner and passes four focused tests plus workspace/build
 and three compose controls. It changes no release or nominal owner. Curried

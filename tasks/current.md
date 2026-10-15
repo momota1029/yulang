@@ -39,6 +39,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   and discharge construction remain OPEN; the behavioral question is resolved.
   Its local receipt and historical question remain uncommitted, with no
   separate answering-primary bundle claimed.
+  The [exact identity variant also succeeds on frozen Oracle](../notes/progress/2026-10-15-callback-identity-oracle.md):
+  one unchanged-wrapper run inferred the same g type and produced byte-identical
+  output `Out 1: 0`; independent provenance review found no findings. This is reference execution,
+  not a native fix or proof of the selected receiver construction.
   [Source-owned receiver attachments](../notes/progress/2026-10-15-callback-receiver-attachment.md)
   now expose original formal/Lambda/body ownership separately from lexical
   scope. Four focused tests, workspace check, playground build and three retained

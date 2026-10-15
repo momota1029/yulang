@@ -1,0 +1,18 @@
+// Callback effects are hygienic:
+// a callback's return is not captured by g's local sub.
+
+use std::*
+use std::control::flow::*
+
+my id x = x
+
+our g h = sub:
+    for i in 0..3:
+        id (h i)
+    return 1
+
+my outer = sub:
+    my b = g \i -> if i == 0: return i
+    println b.show
+    2
+outer.say

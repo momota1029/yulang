@@ -117,6 +117,12 @@ soundness/principality verification were omitted; their gates remain open.
 
 ## Next semantic seam
 
+Subsequent authority update: the [direct user decision](../design/2026-10-15-callback-identity-forwarding.md)
+requires the same outer return through ordinary `id`. The historical open
+behavioral alternative below is resolved; source attribution and construction
+remain OPEN. This changes neither the recorded attachment-only implementation
+nor its proof scope.
+
 The [actual identity observation](2026-10-15-callback-identity-scope-observations.md)
 does not decide whether the original h witness is the released argument e
 witness or an independently licensed witness. The reviewed derivation permits
