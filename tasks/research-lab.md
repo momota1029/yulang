@@ -297,7 +297,22 @@ certificate for fresh P_F(d_i) guards. This avoids assumed opaque guard
 transport without postulating erasure or future-domain equality. A 25-minute
 prover owns `notes/theory/2026-10-16-first-call-source-context-invocation-reuse.md`;
 an independent 25-minute researcher owns `notes/progress/2026-10-16-first-call-executable-input-dependency-audit.md`.
-Both are static leaves; source/native applicability and cutover remain OPEN.
+Both static leaves are now frozen and accepted by independent mathematical
+`ordinary_carrier_semantic` and source `ordinary_carrier_contract` reviews.
+The selected Call §12.3/source IF §4 derive equal executable pi_exec, while
+IF_i/d_i/ReturnFutureRef_i and future typing records remain distinct. Both
+reviewers withdrew the earlier ReturnFutureRef MAJOR; explicit-projection
+MINOR clarification is accepted at producer `b6f49550...91bd66`. Fresh full-f
+elimination regenerates guards; independent response/history compatibility
+remains. Only this authentic source graph's local invocation-reuse subgate
+closes. The next 25-minute prover owns
+`notes/theory/2026-10-16-first-call-challenge-ownership-construction.md`; an
+independent 20-minute researcher owns
+`notes/progress/2026-10-16-first-call-challenge-ownership-audit.md`. They derive
+and attack the actual assembly/ResultBind ownership outputs under existing
+Source-Generalize §3.3/5.1, rather than assuming the complete d is fixed or
+logical. Eligibility, native applicability and cutover remain OPEN; no code,
+tests/builds or measurements accompany this static M2 checkpoint.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

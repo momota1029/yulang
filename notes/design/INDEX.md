@@ -81,8 +81,14 @@ This index is a navigation aid. The listed source document remains authoritative
   Its [repaired characterization](../theory/2026-10-16-first-call-local-result-view-generalization.md)
   has accepted mathematical/source correction review and withdraws eligibility/
   allocation. The [field audit](../progress/2026-10-16-first-call-local-result-view-dependency-audit.md)
-  leaves recursive projection OPEN. Actual-input equality and fresh f-certificate
-  elimination are the next method; no new semantic erasure law is selected.
+  leaves recursive ownership projection OPEN. The independently accepted
+  [source-context constructor](../theory/2026-10-16-first-call-source-context-invocation-reuse.md)
+  and [executable-field audit](../progress/2026-10-16-first-call-executable-input-dependency-audit.md)
+  now prove the actual source graph's equal executable pi_exec and fresh
+  full-f guard elimination. Complete IF/d/future typed records and independent
+  history premises remain distinct. Challenge-assembly/ResultBind ownership
+  and the full fixed-dependency walk are next; no Generalize eligibility,
+  native-use closure or new semantic erasure law is selected.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

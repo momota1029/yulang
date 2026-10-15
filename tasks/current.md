@@ -302,13 +302,20 @@ Status: full objective remains active. Native extrusion now schedules current co
   was corrected. The [Draft](../notes/design/2026-10-16-local-call-result-view-generalize.md)
   remains unselected, with eligibility/uniform allocation withdrawn. The
   [dependency audit](../notes/progress/2026-10-16-first-call-local-result-view-dependency-audit.md)
-  supplies bounded field evidence only. The next changed method reconstructs
-  actual source-generated C_i/d_i, proves equality of complete executable inputs
-  and re-eliminates the same full f certificate to regenerate P_F(d_i) proofs,
-  rather than transporting opaque old guard truth. A constructive packet and
-  independent executable-field audit are active; no erasure law or domain
-  equality is assumed. The broad forward theorem and source/native parents
-  keep their original scopes and OPEN dependencies.
+  supplies bounded field evidence only. The changed-method
+  [source-context constructor](../notes/theory/2026-10-16-first-call-source-context-invocation-reuse.md)
+  and [executable-field audit](../notes/progress/2026-10-16-first-call-executable-input-dependency-audit.md)
+  now have independent mathematical/source acceptance. Selected Call §12.3
+  derives equal executable pi_exec for source C_i/d_i, while complete IF/d/future
+  typed records may differ. Fresh elimination of the same full f certificate
+  supplies P_F(d_i); actual contracts and independent response/history
+  compatibility remain. The ReturnFutureRef objection was withdrawn after
+  checking that positive constructor. This closes the local invocation-reuse
+  subgate only. New disjoint constructive/attack packets derive actual
+  challenge-assembly/ResultBind ownership outputs before §5.1's fixed walk;
+  pre-receipt timing alone proves no partition. Eligibility, native copy/use,
+  broad forward and other source/native parents remain OPEN. M2 static-only:
+  two distinct-risk reviewers, zero tests/builds/probes/measurements.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)
