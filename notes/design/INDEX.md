@@ -124,12 +124,17 @@ This index is a navigation aid. The listed source document remains authoritative
   — Whole-program source certificate, fresh-context and actual handler consumer
   have independent proof review. M2 code/contract reviews are clean; 90 package
   tests and the direct CLI example pass. General negative/profile evidence,
-  cache-bearing Resume, full inference and production remain OPEN.
+  full source materialization, full inference and production remain OPEN.
+  Current-runtime pending-write raw capture is discharged by the corollary below.
 
 - [Reusable raw continuation execution](../progress/2026-10-16-playground-raw-resume.md)
   — Actual owner/control/view/recapture correspondence and flat template
   ownership have independent proof review; M3 code/contract/resource deltas are
-  clean and 82 playground tests pass. Cache-bearing capture, general visibility
+  clean and 82 playground tests pass. The later independently CLEAN
+  [delimiter corollary](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+  §8 closes current-public-runtime pending-publication capture/duplication by
+  constructional unreachability; cached references/current cells remain supported.
+  No A/B law or guard removal is needed. Source materialization, general visibility
   and full-source/production gates remain OPEN.
 
 - [Receiving operation-handler execution](../progress/2026-10-16-playground-receiving-handlers.md)

@@ -319,3 +319,48 @@ entry timing, scheduling/admission, automatic global consumers or whole
 materialization. Mode M2, one fresh semantic reviewer, static artifact/hash/
 link/whitespace checks only; zero new builds/tests/probes or measurement samples.
 The existing 108-test runtime checkpoint remains evidence for unchanged code.
+
+## 8. Corollary: pending publication is absent from selected raw templates
+
+Status: derived from the reviewed delimiter invariant; fresh parent-application
+review CLEAN, accepted by primary. This corollary closes the pending-write duplication
+obligation in [raw-Resume correspondence §6](2026-10-16-runtime-resume-template-correspondence.md).
+
+For every actual public machine execution in §1, every selected reusable raw
+template contains no Root, GlobalRead or ExpressionReturn frame. Section2's
+induction establishes this for the selected suffix; capture and entry preserve
+it. Owner, forwarding-handler and view constructors add only ordinary owner,
+Catch and execution-view frames. ResumeArgument points to an already validated
+template, so induction also covers nested/repeated use. No indirect template
+constructor recreates a pending initialization or root-schedule delimiter.
+
+Consequently a raw template contains no pending module-cache write W_j(c) from
+that materialization invocation. Reusing it cannot duplicate that write or its
+initializing marker. A selected wildcard arm discards the same delimiter-free
+suffix, so its abandon_suffix cannot clear a live pending demand marker. The
+initializer frame retained below the handler may complete once through normal
+Return when the arm eventually returns; that is not replayed publication.
+Captured code can later demand a different empty global and start a new
+materialization, which is not duplication of the old pending W_j.
+
+This theorem permits captured environments, values and references to current
+cache cells. Local continuation cells are distinct from pending global write
+frames. There is no store snapshot, one-use restriction or ban on cached latent
+execution. The defensive Root/GlobalRead capture rejection remains unchanged.
+
+Thus the original current-runtime pending-write duplication/capture obligation
+can be discharged by constructional unreachability, without choosing an A/B
+publication law. This covers every typed input that actually runs through the
+current from_hir/start API; it does not claim parser/inference completeness or
+unreachability in unimplemented source forms/contexts. Source materialization
+adequacy, entry timing/full traces, general visibility/transport and future
+global consumers retain their original gates. A future consumer changing the
+delimiter invariant requires new review.
+
+Independent application review: `runtime_semantic_review` returned CLEAN at
+this corollary's frozen SHA-256
+`5b0a98d3d4dbbe0a6e766997e4938699930e4e52ecf6aa3399a75d50a4ac91b4`,
+the original parent-note application `5ea071b5...150f41` and raw-Resume record
+`85a7b160...fd005`. The primary accepts the exact current-public-runtime
+pending-publication capture/duplication closure. This is one semantic delta
+review; no new code, executable checks or measurements accompany consumption.

@@ -11,8 +11,11 @@ constructor derivation at `88df21f55a40be18ab24f78eff0f7af12c42d65301f02994ae992
 `runtime_semantic_review` accepted the final actual-source §§9–12 bridge at
 `51784be9c242f185b66081a327cfc8503d12de0c287d5c5befbbc1ff99726ff3`,
 including arena ownership, map/active-bit equivalence, reuse and recapture.
-The source-typing/transport premises and cache/general-visibility/full-source
-exclusions remain explicit. M3 code, contract and resource deltas are clean;
+The source-typing/transport and general-visibility/full-source premises remain
+explicit. The historical pending-cache-capture residual is addressed by the
+later independently CLEAN delimiter corollary in §6.1 below; the primary
+accepts that current-public-runtime pending-write branch as discharged.
+M3 code, contract and resource deltas are clean;
 the primary's final raw-Resume package check passed 82 tests.
 
 ## 1. Frozen objective, authority and dependency boundary
@@ -322,7 +325,8 @@ for genuinely executed later source bind operations remains ordinary source
 behavior. Copying a saved cell's old contents into a new arena is not this
 semantics. Closure/environment cycles remain finite arena references.
 
-There is an additional OPEN runtime obligation for `GlobalRead`/`Root` pending
+Historical pre-initializer-boundary residual (current applicability in §6.1):
+there is an additional OPEN runtime obligation for `GlobalRead`/`Root` pending
 materialization markers. The receiving note §9.5 proves uniqueness of W(c)
 only for a machine with no Resume that duplicates a pending write owner.
 Reusable raw control can retain and re-enter that write continuation, while
@@ -384,6 +388,30 @@ including the stated two-owner discriminator. The primary retains the choice
 of protocol after that source-owner check. The control theorem's store-related
 premise includes that missing evidence when such a frame is present. These
 frames remain in the original parent domain.
+
+### 6.1 Current-runtime delimiter corollary
+
+The later [outward-order theorem §2 and corollary §8](2026-10-16-initialization-outward-order-current-runtime.md)
+provide actual all-path constructional unreachability for selected reusable
+templates containing Root, GlobalRead or ExpressionReturn. This applies to all
+current public from_hir/start traces, including raw Resume, nested demands and
+budget pauses, rather than relying on a new source purity restriction.
+
+No such template can reproduce the pending W_j(c) assumed by the historical
+two-owner discriminator. Entry reconstructs no demand frame indirectly;
+selected discard likewise cannot clear one. Normal initializer completion
+below a handler and future new Name demands are distinct operations. Captured
+cache references and current shared cells remain supported. Defensive guards
+stay in place; no new cache protocol or A/B law is selected.
+
+The corollary's fresh application review by `runtime_semantic_review` is CLEAN
+at parent-note SHA-256 `5ea071b59f135348379ece891071d54c8c8e5c61b1da7c303cef3e364d150f41`
+and corollary producer `5b0a98d3...ac91b4`. The primary closes exactly this
+current-public-runtime pending-publication capture/duplication obligation.
+General source-to-runtime materialization, initialization entry timing/full
+traces, unimplemented contexts and future global consumers remain OPEN. Earlier
+cache residuals in this baseline's handoff tables are historical within that
+scope; no whole-source or full-domain Resume theorem is thereby declared proved.
 
 ## 7. Decisive obstruction and smallest next evidence
 

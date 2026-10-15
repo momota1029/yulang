@@ -128,7 +128,13 @@ and actual-source semantic/specification review. All 108 playground tests pass.
 The nearest pending GlobalRead stops caller-handler search without altering
 internal handlers, cache return, live owners or store. This proves only that
 local boundary: the separately reviewed source-observation construction separates
-internal Requests from outward initialization effects. The pending
-`questions/2026-10-16-initialization-effect-order-observation/question.md` asks
-which observation supplies the ordering predicate, preserving prior approval
-and every unresolved forward-reference/materialization gate.
+internal Requests from outward initialization effects. The subsequently consumed
+[observation answer](../../questions/2026-10-16-initialization-effect-order-observation/receipt.md)
+selects actual outward effects. The independently reviewed current-runtime
+[delimiter corollary](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+§8 now discharges the pending-publication capture/duplication branch: selected
+raw templates cannot contain or reconstruct an old Root/GlobalRead/expression
+demand. No A/B law is needed for this current-runtime branch. Captured cell/cache
+references remain supported. The whole source materialization parent retains
+entry timing, earlier-effect/full-trace, admission/scheduling and future-consumer
+obligations; it is not closed by that local operational unreachability.

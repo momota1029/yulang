@@ -100,15 +100,20 @@ and actual constructor/consumer proof now have clean M3 review. Eighty-two
 playground tests pass, including reuse/recapture and the repaired flat template
 ownership control. Source scopes, current cells and historical view evidence
 remain distinct; lookup indexes have constructive equivalence proofs.
-Cache-bearing capture remains gated on its pending source decision.
+The later independently CLEAN [delimiter corollary](../notes/theory/2026-10-16-initialization-outward-order-current-runtime.md)
+§8 closes current-public-runtime pending-publication capture/duplication by
+all-path unreachability. Captured cache references remain supported; no A/B
+publication law or code change is needed. Source materialization/entry timing,
+general visibility and full-domain Resume remain OPEN.
 
 The [receiving-handler implementation](../notes/progress/2026-10-16-playground-receiving-handlers.md)
 has clean M3 semantic/proof, contract and resource review, with 72 playground
 tests passing. Authentic receiving and observing receipts join independently on
 the same view; known local Grant survives unknown older coverage. Primitive
 Value payload selection and continuation execution now have their respective
-completed local gates; cache-bearing Resume awaits its
-definition-publication/suspended-demand decision. Full B and hygiene remain OPEN.
+completed local gates; current-runtime pending-publication capture is now
+discharged by the delimiter corollary above. Full source materialization,
+B and hygiene remain OPEN.
 
 The next-action selection's native ownership audit is
 [independently reviewed](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md).

@@ -85,8 +85,11 @@ Raw Resume, nonprimitive/Computation payload selection, general negative/inherit
 profile completeness, Function/B, native joint result interpretation, full
 hygiene/soundness/principality and F5 cutover remain OPEN. Missing evidence is
 tool unavailability, not source rejection. Reusable templates proceed under
-existing rules; cache-bearing Resume alone awaits the separate pending
-definition-materialization decision. The no-Resume cache theorem is not extended.
+existing rules. The later independently CLEAN [delimiter corollary](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+§8 discharges current-public-runtime capture/duplication of pending cache writes
+by constructional unreachability, without an A/B publication decision. Captured
+cache references and normal below-handler publication remain supported. The
+full source materialization/entry-timing parent remains OPEN.
 
 README, tasks/current.md, tasks/research-lab.md and notes/design/INDEX.md are
 synchronized. Pending question files are excluded from this commit.

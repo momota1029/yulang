@@ -121,3 +121,8 @@ initializer entry, successful source admission/scheduling, an automatic global
 consumer or whole materialization. A future resumable consumer changes the
 absorption premise and requires new order correspondence. No detector, runtime
 edit or additional failure policy follows from this proof.
+
+Its later independently CLEAN §8 corollary also discharges current-public-runtime
+raw capture/duplication of pending publication by the same delimiter invariant.
+This is no separate A/B publication decision and no ban on captured cache
+references; source materialization and future consumers retain their own gates.

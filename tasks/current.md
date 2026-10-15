@@ -102,7 +102,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   correspondence review. M2 semantic/contract reviews are clean, all 90
   playground tests pass, and the CLI example returns `7`. Positive local Grant
   remains available outside this conservative certificate. General profile
-  coverage, cache-bearing Resume and full inference/runtime remain OPEN.
+  coverage and full inference/runtime remain OPEN. Current-runtime capture of
+  pending cache publication is discharged by the raw-Resume corollary below.
 
 - **Reusable raw continuation execution integrated:** the [raw-Resume gate](../notes/progress/2026-10-16-playground-raw-resume.md)
   now implements actual response Value entry, containing-owner capture, live
@@ -110,9 +111,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   view evidence and recapture. Flat template handles and per-entry owner indexes
   remove recursive destruction and repeated owner scans. The actual constructive
   bridge and M3 semantic/contract/resource reviews are clean; 82 playground tests
-  pass and the CLI example returns `11`. Cache-bearing capture alone awaits the
-  definition-publication/suspended-demand decision; full-domain and general
-  visibility/type-inference proofs remain OPEN.
+  pass and the CLI example returns `11`. The later independently CLEAN
+  [delimiter corollary](../notes/theory/2026-10-16-initialization-outward-order-current-runtime.md)
+  §8 now closes the current-public-runtime pending-publication capture/duplication
+  gate: selected templates contain/reconstruct no Root/GlobalRead/expression
+  demand, so no pending W_j can be replayed or cleared by discard. Captured cache
+  references/current cells remain supported. No A/B law or code change is needed.
+  Full source materialization/entry timing, full-domain and general visibility/
+  type-inference proofs remain OPEN; future consumers require renewed review.
 
 - **Receiving operation handlers implemented and proved:** actual original
   boundaries/views, authentic same-view receipt joins and event observations now
@@ -121,8 +127,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   no-Resume cache abandonment preserves live outer owners. All 72 playground
   tests pass, including 15 receiving controls; M3 semantic/proof, specification
   and resource delta reviews are clean. [Gate record](../notes/progress/2026-10-16-playground-receiving-handlers.md).
-  Raw Resume is implemented in the following control checkpoint. Cache-bearing
-  capture/Resume awaits the pending definition-materialization decision; complete
+  Raw Resume is implemented in the preceding control checkpoint. Its current
+  pending-publication capture branch is now discharged by unreachability; complete
   negative/profile evidence and whole-language proofs remain OPEN.
 
 - **First native Result interpretation reviewed:** the [source-indexed

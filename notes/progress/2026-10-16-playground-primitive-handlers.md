@@ -49,7 +49,11 @@ production/context closure and actual proof; spec-auditor `runtime_contract_revi
 for source scope, sibling behavior, tests and README. Both code reviews are
 CLEAN. The narrow README delta is independently CLEAN. No repair round was
 needed. Broader Function/B, general negative completeness, full runtime,
-cache-bearing Resume, source inference and F5 replacement remain OPEN.
+full source materialization, source inference and F5 replacement remain OPEN.
+The later independently CLEAN [delimiter corollary](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+§8 discharges the current-runtime pending-publication raw-capture branch by
+unreachability; captured cache references remain supported. It selects no A/B
+publication law or new global consumer.
 
 Frozen implementation hashes (under `tools/inference-playground/`):
 

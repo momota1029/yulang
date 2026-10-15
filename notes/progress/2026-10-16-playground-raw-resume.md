@@ -36,12 +36,15 @@ with the original view/receipt. Recapture records currently resolved scopes,
 not historical pop actions. Continuation arguments are forced once at actual
 Value entry and checked against the original primitive response declaration.
 
-The original Boolean initializer-owner proof excludes multi-shot cache writes.
-The separate pending definition-publication/suspended-demand question therefore
-gates capture containing GlobalRead/Root cache-write frames. Such capture reports
-ContinuationMaterialization before selection. Wildcard discard retains its
-proved cleanup. This tool-coverage boundary does not narrow the original source
-theorem or select the unresolved publication law.
+The original checkpoint excluded multi-shot cache writes and guarded capture
+containing GlobalRead/Root with ContinuationMaterialization. The subsequent
+[delimiter corollary](../theory/2026-10-16-initialization-outward-order-current-runtime.md)
+§8 closes that exact current-public-runtime pending-publication capture gate by
+all-path unreachability after the approved initializer boundary repair. Its
+fresh parent application review by `runtime_semantic_review` is CLEAN and the
+primary accepts the bounded closure. The guard remains defensive; no A/B law or
+source-domain restriction is selected. Captured cache references/current cells
+remain supported, distinct from pending publication frames.
 
 ## Review and resource repair
 
@@ -94,6 +97,6 @@ Final source hashes are pinned in proof §12.1 (machine `3c80ef1c…`, receiving
 §10.1. Task/laboratory/index/README records are synchronized. The pending question
 directory remains unstaged and uncommitted.
 
-Remaining: cache-bearing capture/Resume, general negative/profile completeness,
+Remaining: full source materialization/entry timing, general negative/profile completeness,
 nonprimitive consumers, missing source/library forms, native joint-result and
 callback B correspondence, soundness/principality, default solver and F5 cutover.
