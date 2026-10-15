@@ -6,15 +6,15 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
-- **Pending source decisions:** cache-bearing raw Resume still awaits the two
-  definition-materialization laws in
-  `questions/2026-10-16-resumed-definition-materialization/question.md`.
-  Bare module expressions have settled source-order execution but need an
-  authentic nondefinition source owner/receiver API. The independently reviewed
-  revision 2 proposal is pending in
-  `questions/2026-10-16-module-expression-source-owner/question.md`; its root
-  provenance explicitly preserves existing dynamic Invocation ownership.
-  Both pending directories remain uncommitted; independent native work continues.
+- **Module-expression ownership approved:** the exact question revision 2 / a1
+  revision 1 answer bundle is validated and integrated at `f40e4235d`. The
+  [governing design](../notes/design/2026-10-16-module-expression-source-owner.md)
+  authorizes authentic expression owners, level-1 nondefinition receivers,
+  ordinary definition-use FreshUse, and mixed source-ordered runtime roots.
+  G2–G4 implementation and correspondence now proceed; approval is not proof
+  closure. Cache-bearing raw Resume alone still awaits the two materialization
+  laws in `questions/2026-10-16-resumed-definition-materialization/question.md`.
+  That separate pending directory remains uncommitted.
 
 - **Direct primitive handlers implemented and proved:** the [closed-program gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
   supplies actual negative visibility from a once-computed authentic source

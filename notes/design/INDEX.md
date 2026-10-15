@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
+  — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
+  at `f40e4235d`. G1 complete; direct-root carrier formation, nondefinition
+  receiver/use correspondence and mixed runtime roots (G2–G4) remain open.
+  Cache-bearing Resume materialization is a separate pending decision.
+
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer
   have independent proof review. M2 code/contract reviews are clean; 90 package

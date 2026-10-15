@@ -14,6 +14,11 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The validated [module-expression ownership decision](../notes/design/2026-10-16-module-expression-source-owner.md)
+is now Authoritative (bundle `f40e4235d`): G2 carrier formation, G3 ordinary
+receiver/use correspondence and G4 ordered runtime roots may proceed. Separate
+cache-bearing Resume laws remain pending; no new native semantic authority follows.
+
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
 and contract review. All 90 playground tests pass; direct CLI handling returns
