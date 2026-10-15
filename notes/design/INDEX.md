@@ -72,7 +72,11 @@ This index is a navigation aid. The listed source document remains authoritative
   [local handler boundary](../progress/2026-10-16-playground-initializer-boundary.md)
   now has independently reviewed constructive/code correspondence and 108 passing
   playground tests. Effect-order/source admission and whole materialization remain
-  OPEN; old A/B laws remain unselected.
+  OPEN; old A/B laws remain unselected. The independently reviewed
+  [observation separation](../theory/2026-10-16-initialization-effect-order-source-observation.md)
+  authenticates internal request order with empty outward initializer support.
+  The pending observation question asks which projection supplies the ordering
+  predicate, without adopting a detector or changing prior approved scope.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated

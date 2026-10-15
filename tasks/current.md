@@ -65,9 +65,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   records exact validation and independent conformance review. Architectural
   source correspondence separates effect ordering from the now proved and
   implemented initializer/caller handler boundary above. Its top-GlobalRead cut
-  changes no owner or initialization timing. The separate effect-order source
-  observation packet distinguishes internal requests from outward initializer
-  effects; its boundary interpretation and whole materialization remain OPEN.
+  changes no owner or initialization timing. The independently CLEAN
+  [source-observation construction](../notes/theory/2026-10-16-initialization-effect-order-source-observation.md)
+  gives an internally handled later-then-first trace with both initializer
+  outward images empty; no whole-source/order compliance is claimed. The reviewed
+  pending question `questions/2026-10-16-initialization-effect-order-observation/question.md`
+  asks whether the ordering predicate counts internal requests or only outward
+  initializer effects. It selects no detector/uninitialized-reference policy.
+  Only dependent ordering work waits; native proofs continue.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
