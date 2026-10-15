@@ -190,6 +190,11 @@ This index is a navigation aid. The listed source document remains authoritative
   identifies the same-return two-input export and the later complete-Call
   observation as separate missing edges. Current ground completion and Callee
   dispatch supply neither Function bridge; schema widening is not selected.
+  The independently CLEAN [source export construction](../theory/2026-10-16-runtime-function-result-source-construction.md)
+  extracts both packets, complete Call ports and saved dependent return recipes
+  from the original independently typed source T, with erasure. This closes
+  only source extraction; native/profile supply and executable integration,
+  complete Call consumers and full Function receiving remain OPEN.
 
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer

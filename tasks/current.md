@@ -413,9 +413,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   and opening a later complete callable view over entry/body/designated result
   consumption. Current Callee dispatch ignores that view; events observe only
   active Comp views. Ground-only schema guards prevent an executed Function
-  counterexample. A bounded constructive source-output lane now consumes both
-  obligations; no matcher widening, representation choice or code cutover is
-  authorized by this audit. M1, one reviewer, static-only, zero measurements.
+  counterexample. The [source export construction](../notes/theory/2026-10-16-runtime-function-result-source-construction.md)
+  now has CLEAN mathematical/source review: from the original independently
+  typed T it extracts both actual-return inputs, the complete producer Call
+  port and dependent saved return recipe, preserving decorated-source erasure.
+  This closes the source-constructor extraction argument only. Source/native
+  profile supply and actual RuntimeProgram export/import, complete Call views,
+  templates and Function receiving remain OPEN; no representation choice or
+  matcher widening is selected. M2, two reviewers, static-only, zero measurements.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
   scoped substitutions and any recursive equation table. No nonuniform p_P or

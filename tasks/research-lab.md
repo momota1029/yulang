@@ -455,6 +455,16 @@ The same prover now owns the disjoint 15-minute constructive output
 actual source elimination/export and complete-Call consumer inputs, not another
 given-a-lawful-packet lemma. Missing profile/applicability inputs stop that packet
 at their exact owner; existing definition permission cannot manufacture them.
+That constructive source-output packet is now frozen and CLEAN under independent
+mathematical `checked_result_semantics` and source `capture_source_review` at
+`0f222cf0...4821c0`. Original source rule operands supply result edges, both
+same-return packets, full producer Call ports and dependent template recipes;
+erasure retains the original decorated source. This is extraction from the
+ORIGINAL independently typed T, not profile inference from coordinates or native
+acceptance. Only that bounded source-constructor argument closes. Native/profile
+supply, actual runtime representation/export/import/Call consumers, Function
+receiving and global parents remain OPEN. M2, two reviewers, static dependency
+and note checks only; zero executable checks or benchmark samples/processes.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns
