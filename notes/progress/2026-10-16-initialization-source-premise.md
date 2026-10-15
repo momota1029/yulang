@@ -45,10 +45,15 @@ initializer delimiter must preserve internal handlers, pure forwards, original
 dynamic owners and caller handling of subsequently executed cached functions
 or computations. Its source correctness has not yet been established.
 
-Primary owns the original gate. The next-action selector is assigned the
-actual source/root/InstanceBody-to-Name/GlobalRead control correspondence after
-the failed admission route. Another conditional purity proof, blanket source
-restriction or A/B publication question would not resolve this premise.
+Primary owns the original gate. The selected
+[forward discriminator](2026-10-16-forward-initializer-control-discriminator.md)
+now has independent review: one Oracle and one successor process reject the
+same relay source, at escaped request and GlobalRead capture respectively.
+This is finite negative-admission/control evidence, not a valid-source witness
+or semantic divergence. The exact missing Oracle root/instance/executable-demand
+artifact is assigned without another VM execution. Another conditional purity
+proof, blanket source restriction or A/B publication question would not resolve
+this premise.
 
 ## Reviews, checks and scope
 
@@ -69,8 +74,12 @@ Primary ran two 60-second-capped CLI processes using the existing built
 Exact sources are the two sentries in the admission note §6; logs share these
 basenames with `.log`. These are operational controls, not proof that either
 value-constraint result certifies complete source admission. No forward variant
-was asserted valid or run. No timing/RSS measurements or benchmark samples.
+was asserted valid in that initial checkpoint. The subsequent 1+1 bounded
+forward executions and resource guard observations are recorded separately in
+the linked discriminator; no benchmark campaign ran.
 
 Current task, research queue, design index and question receipt are synchronized
-at integration. Native annotation-formation work independently awaits the
-pending `questions/2026-10-16-annotation-declared-envelope/question.md` choice.
+at integration. Native work independently consumes the
+[annotation correction](../../questions/2026-10-16-annotation-declared-envelope/receipt.md)
+at `cfded839e`: actual permission/inflow/residual correspondence is active,
+with no further choice needed for that audit.

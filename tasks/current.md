@@ -34,8 +34,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   second result shows stored-value checking supplies no initializer-control
   certificate; this imposes no root-purity requirement. The original successor
   gate stays OPEN at source/root/InstanceBody-to-Name/GlobalRead control,
-  including before-publication forward demand. A bounded next-action selection
-  targets that owner; no repeated A/B question or conditional purity lemma.
+  including before-publication forward demand. The independently reviewed
+  [forward discriminator](../notes/progress/2026-10-16-forward-initializer-control-discriminator.md)
+  reaches the successor's pending GlobalRead capture guard; Oracle readiness
+  succeeds before an escaped request. Both executions fail, with neither source
+  validity nor semantic divergence established. One bounded artifact-only
+  Oracle root/instance correspondence is assigned to locate that escape;
+  no repeated A/B question or conditional purity lemma.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
@@ -128,13 +133,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   the bounded Astra/low [formation audit](../notes/theory/2026-10-16-native-declared-support-source-embedding.md)
   now has independent review. It identifies the missing annotation-to-complete
   descriptor formation clause, not a proof or source-qualified counterexample.
-  Architect and specification audits confirm a genuine unselected distinction:
-  retain a declared contractual allowance in the whole comparison, or permit
-  refinement from complete provider behavior. The narrow
-  pending question `questions/2026-10-16-annotation-declared-envelope/question.md`
-  preserves existing polarity/B and original xi/z scope. Native dependent
-  definition/implementation/cutover work waits for this choice; another census
-  or equivalent conditional proof attempt is not the next action.
+  The user's subsequent [correction](../questions/2026-10-16-annotation-declared-envelope/receipt.md),
+  exact bundle `cfded839e`, withdraws the offered contractual-envelope versus
+  behavioral-refinement framing. Declared permission, constraint-derived
+  inflow and subtraction residual must be distinguished; permission alone
+  never adds an unused effect to the residual. The governing annotation policy
+  §1.2 and receipt have clean independent transcription review. No further
+  user choice is needed for the next action: separate constructor-coverage and
+  constructive proof lanes now map actual Support operands to these roles,
+  retaining original xi/z, provider, symbolic constraints and Function
+  correlation. No blanket Support deletion or proof/cutover closure follows.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

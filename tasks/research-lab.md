@@ -31,10 +31,13 @@ proof gate. The [source-premise checkpoint](../notes/progress/2026-10-16-initial
 now has two independently reviewed results: synchronous Oracle publication is
 outside raw continuations, and value-scheme body checks do not certify separate
 initializer control. No root-purity law follows. Primary retains the successor
-gate OPEN at source/root/InstanceBody-to-Name/GlobalRead control; next-action
-selection is active at that changed owner. Internal GlobalRead/Root existence
-does not establish a source witness; pure/internal-handler controls do not
-certify the full forward-source case.
+gate OPEN at source/root/InstanceBody-to-Name/GlobalRead control. The reviewed
+[forward discriminator](../notes/progress/2026-10-16-forward-initializer-control-discriminator.md)
+reaches pending's GlobalRead capture guard; Oracle passes readiness then escapes
+an operation request. Neither run supplies valid-source admission or semantic
+divergence. The next bounded artifact-only packet authenticates exact Oracle
+roots, executable demand and InstanceId/signature joins without repeating VM
+execution. Pure/internal-handler controls do not certify the full forward case.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -112,14 +115,17 @@ code or probes; runtime settings are not independently observable. Its sole
 lease is `notes/theory/2026-10-16-native-declared-support-source-embedding.md`.
 The [result](../notes/theory/2026-10-16-native-declared-support-source-embedding.md)
 has independent review and establishes neither implication nor counterexample:
-the inspected authority leaves the annotation-to-complete-descriptor formation
-clause unselected. Architect/specification audits agree. The
-pending formation question `questions/2026-10-16-annotation-declared-envelope/question.md`
-offers retained declared contract versus complete provider-specific refinement;
-fixed polarity/B, the original xi/z theorem and empty-fiber laws remain intact.
-Dependent native work waits for that decision. Do not repeat an equivalent
-embedding/census/transport packet at the unchanged premise. Runtime source
-admission work remains independently active.
+the attempted annotation-to-complete-descriptor formation remains unproved.
+The subsequent user [correction](../questions/2026-10-16-annotation-declared-envelope/receipt.md),
+integrated at `cfded839e`, withdraws the offered envelope/refinement framing.
+Annotation permission, constraint-derived inflow and subtraction residual are
+different roles; a declaration alone does not put an effect into the residual.
+The reviewed policy clarification §1.2 retains unknown constraints and all
+original xi/z/provider/Function correlation. Architect confirms no new user
+choice is needed for the actual next audit. Distinct source-coverage and
+constructive proof lanes now identify those roles at Support producers and
+consumers. No behavioral analysis, blanket Support deletion or proof closure
+is authorized. Runtime source/control correspondence remains independently active.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

@@ -11,15 +11,23 @@ This index is a navigation aid. The listed source document remains authoritative
   Whole-descriptor-to-native adequacy for the original xi/z remains OPEN;
   no source-qualified counterexample or semantic change is established.
   The independently reviewed [formation audit](../theory/2026-10-16-native-declared-support-source-embedding.md)
-  locates a genuine unselected annotation-to-complete-descriptor clause. The
-  pending question `questions/2026-10-16-annotation-declared-envelope/question.md`
-  selects no semantics until answered; existing polarity and callback B remain fixed.
+  leaves the attempted annotation-to-complete-descriptor clause unproved.
+  The [consumed user correction](../../questions/2026-10-16-annotation-declared-envelope/receipt.md),
+  bundle `cfded839e`, withdraws the offered envelope/refinement framing.
+  [Annotation policy §1.2](2026-10-10-annotation-effect-hygiene-integration.md)
+  separates permission, constraint inflow and subtraction residual; declaration
+  alone does not add an effect to the residual. Actual Support-role correspondence
+  is active with original polarity/B and xi/z scope retained; no new choice waits.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
   and show why stored-value body checks do not establish initializer-control
   admission. No root-purity or new publication law follows. Successor source/
   root/InstanceBody-to-Name/GlobalRead control correspondence remains OPEN.
+  The reviewed [forward discriminator](../progress/2026-10-16-forward-initializer-control-discriminator.md)
+  reaches the successor guard while Oracle passes readiness then escapes a
+  request. No source-validity or divergence claim; exact generated root/instance
+  correspondence is the next bounded artifact.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
