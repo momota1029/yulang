@@ -1,7 +1,9 @@
 # Playground hygiene: bounded adversarial observations
 
 Date: 2026-10-15
-Status: frozen, unreviewed research characterization; no theorem or implementation gate closed
+Status: frozen, independently reviewed research characterization; no theorem or implementation gate closed
+Review: fresh M2 `compiler_referee`, no findings in the bounded semantic claims;
+no Oracle execution or complete source hygiene was certified.
 Baseline: `e9790f96f154ef0ddf67cb45aa26a569148569d7`
 Branch: `research/simple-sub-intrusion`
 Method: source mutations through the existing debug playground; independent of the constructive proof lane
@@ -192,7 +194,8 @@ a5564766c4b257f1bf51089a603e9bb23930c95f17047b0ab892fd3edd39c3db  tools/inferenc
 ff9bbd6f0fb48200dcf691602547ab4020d0013e2b007b2493a2cc9a06293bed  target/debug/yu-playground (untracked build artifact, not for commit)
 ```
 
-Claim/review status: bounded unreviewed observation; no independent review claimed.
+Claim/review status: bounded observation, independently reviewed by a fresh
+`compiler_referee` with no findings; no original proof gate closes.
 Checks already run: 16 bounded source executions, exact recipe/input equality,
 dependency hashes, note fences/line budget/whitespace. No required shared record
 is changed by this worker. Primary/curator retains any task/theory/index delta;
