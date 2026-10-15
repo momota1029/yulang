@@ -6,6 +6,13 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Grouped-spine regression restored:** the stale fourteen-case HIR research
+  subset now requires all thirty already-approved grouped ML/Call sources to
+  associate successfully. The October 5 grammar change supplies the causal
+  contract; the main baseline reproduced the old failure before carrier
+  integration. Pre/post specification review and the focused test pass.
+  [Repair record](../notes/progress/2026-10-15-hir-grouped-spine-regression.md).
+
 - **Request and normal-Catch runtime integrated:** declaration-derived operation
   entry returns its native carrier before exposing the request. Normal Catch
   arms run outside their delimiter; value-only and resolved different-operation

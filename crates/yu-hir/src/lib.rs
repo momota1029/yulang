@@ -1305,9 +1305,11 @@ mod tests {
                 }
                 let associated = parse(&source);
                 assert_eq!(associated.chains().len(), 1, "{source}");
-                if !research_expression_is_valid(associated.chains()[0].expression()) {
-                    continue;
-                }
+                // The 2026-10-05 parenthesized-ML addendum admits every grouped spine.
+                assert!(
+                    research_expression_is_valid(associated.chains()[0].expression()),
+                    "{source}"
+                );
                 valid_cases += 1;
                 valid_patterns.push((stage_count, forms));
                 let mut next = 0;
@@ -1357,29 +1359,12 @@ mod tests {
                 assert_eq!(next as usize, stage_count);
             }
         }
-        assert_eq!(
-            valid_cases, 14,
-            "fixed subset of generated sources is recovery-free"
-        );
+        assert_eq!(valid_cases, 30, "every generated source is recovery-free");
         assert_eq!(
             valid_patterns,
-            [
-                (1, 0),
-                (1, 1),
-                (2, 0),
-                (2, 1),
-                (2, 3),
-                (3, 0),
-                (3, 1),
-                (3, 3),
-                (3, 7),
-                (4, 0),
-                (4, 1),
-                (4, 3),
-                (4, 7),
-                (4, 15),
-            ],
-            "the enumerated recovery-free subset is fixed"
+            (1..=4)
+                .flat_map(|stages| (0..(1 << stages)).map(move |forms| (stages, forms)))
+                .collect::<Vec<_>>(),
         );
     }
 
