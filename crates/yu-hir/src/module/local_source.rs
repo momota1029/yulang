@@ -16,7 +16,7 @@ pub enum SourceCarrierFailureReason {
 }
 #[derive(Clone, Debug)]
 pub struct SourceCarrierFailure {
-    pub root: DefinitionRootId,
+    pub root: SourceRootId,
     pub source: SourceNodeKey,
     pub reason: SourceCarrierFailureReason,
 }
@@ -45,18 +45,20 @@ fn unsupported() -> FormationError {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LocalSourceIndex {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     ordinal: u32,
 }
 
 impl LocalSourceIndex {
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
     pub fn ordinal(&self) -> u32 {
         self.ordinal
     }
 }
 #[derive(Clone, Debug)]
 pub struct LocalSource {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     body: LocalSourceIndex,
     expressions: Vec<LocalSourceExpr>,
     bindings: Vec<LocalSourceBinding>,
@@ -66,10 +68,12 @@ pub struct LocalSource {
 /// A named header's construction identity within one retained source.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LocalSourceNamedGroupId {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     ordinal: u32,
 }
 impl LocalSourceNamedGroupId {
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
     pub fn ordinal(&self) -> u32 { self.ordinal }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -114,7 +118,12 @@ impl LocalSource {
                 .ok_or(HirAvailabilityError::StructuralProjection)?;
             if let Some(indices) = by_source.remove(source) {
                 for index in indices {
-                    let occurrence = next_occurrence(artifact, next)?;
+                    let occurrence = if index == self.body.ordinal as usize {
+                        match &self.owner {
+                            SourceRootId::Expression(root) => root.occurrence().clone(),
+                            SourceRootId::Definition(_) => next_occurrence(artifact, next)?,
+                        }
+                    } else { next_occurrence(artifact, next)? };
                     identity.record_occurrence(occurrence.clone(), source.clone());
                     self.expressions[index].occurrence = occurrence;
                 }
@@ -127,9 +136,8 @@ impl LocalSource {
     pub fn named_group(&self, id: &LocalSourceNamedGroupId) -> Option<&LocalSourceNamedGroup> {
         (id.owner == self.owner).then(|| self.named_groups.get(id.ordinal as usize)).flatten()
     }
-    pub fn definition_root(&self) -> &DefinitionRootId {
-        &self.owner
-    }
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
     pub fn body(&self) -> &LocalSourceIndex {
         &self.body
     }
@@ -281,6 +289,7 @@ pub enum LocalSourceResolution {
 #[derive(Clone, Debug)]
 pub enum LocalSourceScope {
     Definition(DefinitionRootId),
+    ModuleExpression(ExpressionRootId),
     Expression(LocalSourceIndex),
     Parameter(HirParameterId),
     LocalInitializer(HirLocalId),
@@ -288,12 +297,14 @@ pub enum LocalSourceScope {
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LocalSourceCatchBinderId {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     arm_source: SourceNodeKey,
     ordinal: u32,
 }
 impl LocalSourceCatchBinderId {
-    pub fn owner(&self) -> &DefinitionRootId { &self.owner }
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
+    pub fn owner(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
     pub fn arm_source(&self) -> &SourceNodeKey { &self.arm_source }
     pub fn ordinal(&self) -> u32 { self.ordinal }
 }
@@ -380,7 +391,7 @@ struct LexicalEntry {
     previous: Option<usize>,
 }
 struct Builder<'a> {
-    owner: &'a DefinitionRootId,
+    owner: &'a SourceRootId,
     namespace: &'a HashMap<String, Vec<DefId>>,
     counters: &'a mut LoweringCounters,
     artifact: &'a Arc<HirArtifactToken>,
@@ -487,7 +498,7 @@ fn body(statement: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
 }
 pub(super) fn form_ordinary(
     plan: &RootPlan,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     parameters: &[HirParameter],
     namespace: &HashMap<String, Vec<DefId>>,
     counters: &mut LoweringCounters,
@@ -512,6 +523,17 @@ pub(super) fn form_ordinary(
         Ok((mut carrier, _)) => {
             staged_next = *next_occurrence;
             carrier.order_occurrences(plan, counters, artifact, &mut staged_next, &mut staged_identity)?;
+            if let SourceRootId::Expression(root) = owner {
+                if let Some(existing) = identity.occurrences.get(root.occurrence()) {
+                    if staged_identity.occurrences.get(root.occurrence()) != Some(existing) {
+                        counters.source_identity = Some(identity);
+                        return Err(HirAvailabilityError::StructuralProjection);
+                    }
+                    // This authentic ordinary occurrence already has this exact
+                    // source origin; reuse it rather than replacing its mapping.
+                    staged_identity.occurrences.remove(root.occurrence());
+                }
+            }
             let merged = identity.append_stage(staged_identity);
             counters.source_identity = Some(identity);
             merged?;
@@ -530,7 +552,7 @@ pub(super) fn form_ordinary(
 
 pub(super) fn form(
     plan: &RootPlan,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     parameters: &[HirParameter],
     namespace: &HashMap<String, Vec<DefId>>,
     counters: &mut LoweringCounters,
@@ -543,9 +565,12 @@ pub(super) fn form(
     if parameters.len() >= 128 {
         return Err(FormationError::Unsupported(SourceCarrierFailureReason::SupportedDepth));
     }
-    let RootPlanKind::Binding(admitted) = &plan.kind else {
-        return Err(invalid());
+    let admitted = match &plan.kind {
+        RootPlanKind::Binding(admitted) => Some(admitted),
+        RootPlanKind::DirectExpression => None,
+        RootPlanKind::Unsupported(_) => return Err(invalid()),
     };
+    let admitted_parameters = admitted.map_or(&[][..], |admitted| admitted.parameters.as_slice());
     let mut builder = Builder {
         owner,
         namespace,
@@ -563,10 +588,13 @@ pub(super) fn form(
     };
     let root = builder.slot()?;
     let mut current = root.clone();
-    let mut scope = LocalSourceScope::Definition(owner.clone());
+    let mut scope = match owner {
+        SourceRootId::Definition(root) => LocalSourceScope::Definition(root.clone()),
+        SourceRootId::Expression(root) => LocalSourceScope::ModuleExpression(root.clone()),
+    };
     let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
     let mut named_formals = Vec::new();
-    for (parameter, admitted) in parameters.iter().zip(&admitted.parameters) {
+    for (parameter, admitted) in parameters.iter().zip(admitted_parameters) {
         let parameter = LocalSourceParameter {
             id: parameter.id.clone(),
             source: admitted.source.clone().ok_or_else(invalid)?,
@@ -599,10 +627,10 @@ pub(super) fn form(
         scope = LocalSourceScope::Parameter(parameter.id);
     }
     if let Some(id) = &named_group {
-        builder.record_named_group(id.clone(), LocalSourceNamedGroupOwner::Definition(owner.clone()), &plan.node,
+        builder.record_named_group(id.clone(), LocalSourceNamedGroupOwner::Definition(owner.definition_root().ok_or_else(invalid)?.clone()), &plan.node,
             None, named_formals, current.clone())?;
     }
-    let body_chain = body(&plan.node)?;
+    let body_chain = if admitted.is_some() { body(&plan.node)? } else { plan.node.clone() };
     push(
         &mut builder.work,
         Work::Expression(body_chain.clone(), current, scope, named_group.clone()),
@@ -689,7 +717,7 @@ pub(super) fn form(
         expressions,
         bindings: builder.bindings,
         named_groups: builder.named_groups,
-        annotation: source_annotation::form(&plan.node, owner, counters)?,
+        annotation: if admitted.is_some() { source_annotation::form(&plan.node, owner, counters)? } else { None },
     };
     // Successful formation establishes that this actual root chain has the
     // same simple result without constructing a discarded associated tree.
@@ -793,7 +821,12 @@ impl Builder<'_> {
         form: LocalSourceForm,
     ) -> Result<(), FormationError> {
         let source = self.key(node)?;
-        let occurrence = next_occurrence(self.artifact, self.next_occurrence)?;
+        let occurrence = if index.ordinal == 0 {
+            match self.owner {
+                SourceRootId::Expression(root) => root.occurrence().clone(),
+                SourceRootId::Definition(_) => next_occurrence(self.artifact, self.next_occurrence)?,
+            }
+        } else { next_occurrence(self.artifact, self.next_occurrence)? };
         self.counters
             .source_identity
             .as_mut()
@@ -1394,10 +1427,16 @@ mod tests {
                 if let HirItem::Binding(binding) = item { Some(binding) } else { None }).collect();
             let new_bindings: Vec<_> = ordinary.items().iter().filter_map(|item|
                 if let HirItem::Binding(binding) = item { Some(binding) } else { None }).collect();
-            assert_eq!(ordinary.source_carrier_outcomes().len(), old_bindings.len(), "{text}");
-            for ((old, new), (owner, _)) in old_bindings.iter().zip(new_bindings).zip(ordinary.source_carrier_outcomes()) {
+            let expected_roots: Vec<_> = ordinary.items().iter().filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(SourceRootId::Definition(binding.definition_root().clone())),
+                HirItem::Expression(expression) => Some(SourceRootId::Expression(ordinary.expression_root(expression.occurrence()).unwrap().unwrap().clone())),
+                HirItem::Error { .. } => None,
+            }).collect();
+            assert_eq!(ordinary.source_carrier_outcomes().iter().map(|(root, _)| root).collect::<Vec<_>>(), expected_roots.iter().collect::<Vec<_>>(), "{text}");
+            for (old, new) in old_bindings.iter().zip(new_bindings) {
                 assert_eq!(old.definition_root().definition, new.definition_root().definition);
-                assert_eq!(owner, new.definition_root());
+                let (owner, _) = ordinary.source_carrier_outcomes().iter().find(|(root, _)| root.definition_root() == Some(new.definition_root())).unwrap();
+                assert_eq!(owner.definition_root(), Some(new.definition_root()));
                 assert_eq!(old.parameters().iter().map(|p| p.id().ordinal()).collect::<Vec<_>>(),
                     new.parameters().iter().map(|p| p.id().ordinal()).collect::<Vec<_>>());
             }
@@ -1408,7 +1447,7 @@ mod tests {
         let (_, _, module) = ordinary_fixture("my f x = x; my use = f");
         let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
         let source = module.local_source(binding.definition_root()).unwrap().unwrap();
-        assert_eq!(source.definition_root(), binding.definition_root());
+        assert_eq!(source.definition_root(), Some(binding.definition_root()));
         let LocalSourceForm::Lambda { parameter, body } = &source.expression(source.body()).unwrap().form
             else { panic!("named lambda"); };
         assert_eq!(&parameter.id, binding.parameters()[0].id());
@@ -1485,7 +1524,7 @@ mod tests {
         let missing = root.descendants().find(|node| node.kind() == SyntaxKind::IdentifierExpression).unwrap();
         counters.source_nodes.remove(&missing);
         let mut next = 10;
-        assert!(matches!(form_ordinary(&plans[0], binding.definition_root(), binding.parameters(), &namespace,
+        assert!(matches!(form_ordinary(&plans[0], &SourceRootId::Definition(binding.definition_root().clone()), binding.parameters(), &namespace,
             &mut counters, &module.artifact, &mut next), Err(HirAvailabilityError::StructuralProjection)));
         assert_eq!(next, 10);
         let identity = counters.source_identity.as_ref().unwrap();
@@ -1506,7 +1545,7 @@ mod tests {
         };
         assert_eq!(expr.range, 13..18);
         assert_eq!(expr.source, annotation.position);
-        assert_eq!(annotation.owner, *source.definition_root());
+        assert_eq!(&annotation.owner, source.source_root());
         assert!(matches!(expr.scope, LocalSourceScope::Definition(_)));
         assert!(matches!(&annotation.ty.value,
             source_annotation::SourceAnnotationValue::Variable(name) if name.as_ref() == "'a"));

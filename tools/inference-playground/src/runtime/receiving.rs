@@ -21,7 +21,8 @@ pub(super) struct RootCompSchema {
 impl RootCompSchema {
     pub fn from_parameter(lambda: &SourceSite, formal: &LocalSourceParameter) -> Option<Arc<Self>> {
         let annotation = formal.annotation.as_ref()?;
-        if annotation.owner != lambda.definition
+        if annotation.owner != lambda.source_root
+            || formal.id.source_root() != &lambda.source_root
             || annotation.ty.effects.is_none()
             || !matches!(annotation.ty.value, SourceAnnotationValue::Int)
         {
@@ -249,7 +250,7 @@ impl Receiving {
         };
         let schema = &self.boundaries[target].schema;
         if !schema.formal.annotation.as_ref().is_some_and(|annotation| {
-            annotation.owner == schema.lambda.definition
+            annotation.owner == schema.lambda.source_root
                 && annotation
                     .ty
                     .effects
@@ -366,7 +367,9 @@ mod tests {
                     schemas.push(
                         RootCompSchema::from_parameter(
                             &SourceSite {
-                                definition: binding.definition_root().clone(),
+                                source_root: yu_hir::SourceRootId::Definition(
+                                    binding.definition_root().clone(),
+                                ),
                                 occurrence: expression.occurrence.clone(),
                                 range: expression.range.clone(),
                             },

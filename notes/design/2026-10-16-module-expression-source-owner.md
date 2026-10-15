@@ -1,6 +1,6 @@
 # Authentic module-expression source ownership
 
-Status: Authoritative; G1 complete, G2–G4 implementation/correspondence OPEN
+Status: Authoritative; G1–G3 complete; G4 implemented with reviewed structural/control correspondence; whole typed-source materialization/root adequacy OPEN
 Scope: authentic direct-expression source ownership, receiver routing and ordered runtime roots
 Approved-by: user, finalized module-expression-source-owner-a1 revision 1
 Approved-at: 2026-10-16
@@ -9,6 +9,15 @@ Reviewed-by: `native_consumer_architecture` proposal; `ordinary_carrier_contract
 Supersedes: extends the binding-only carrier scope of 2026-10-10 without changing that earlier scope's completed claims; no source-order or dynamic-owner semantic change
 
 ## Approved scope and provenance
+
+Implementation status (2026-10-16): the
+[integration record](../progress/2026-10-16-module-expression-integration.md)
+records independently reviewed G2 preservation, G3 actual construction and G4
+mixed-root control correspondence with focused verification. The consumed
+[source-premise correction](../../questions/2026-10-16-resumed-definition-materialization/receipt.md)
+requires a valid typed source witness or unreachability proof before choosing
+resumed-definition laws. It selects no such law; whole source materialization
+adequacy remains OPEN. The approved technical text below is retained verbatim.
 
 The matching question, byte-identical displayed draft and finalized answer were
 validated and committed together. The recorded approval is `良さそう`, immediately

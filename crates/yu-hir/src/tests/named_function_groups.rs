@@ -89,7 +89,7 @@ fn top_named_header_retains_ordered_formals_and_actual_terminal_body() {
     let group = &source.named_groups()[0];
     assert_eq!(
         group.owner,
-        LocalSourceNamedGroupOwner::Definition(source.definition_root().clone())
+        LocalSourceNamedGroupOwner::Definition(source.definition_root().unwrap().clone())
     );
     assert!(group.enclosing.is_none());
     assert_eq!(&group.formals[0].lambda, source.body());

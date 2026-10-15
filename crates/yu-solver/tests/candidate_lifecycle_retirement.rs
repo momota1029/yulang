@@ -43,7 +43,7 @@ fn candidate_result_keeps_exports_fresh_uses_call_inputs_and_foreign_root_reject
     }
     assert_eq!(candidate.source_call_count(), 2);
     let formal = candidate.source_call(0).unwrap();
-    assert_eq!(formal.owner(), binding(&hir, "apply").definition_root());
+    assert_eq!(formal.owner().definition_root(), Some(binding(&hir, "apply").definition_root()));
     assert!(formal.formal_registration().is_some());
     assert!(formal.lexical_formal_use().is_some());
     assert_eq!(formal.checking_occurrence().occurrence(), &formal.source().occurrence);

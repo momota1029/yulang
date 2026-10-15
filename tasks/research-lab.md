@@ -15,13 +15,21 @@ Do not reopen a closed gate merely because it appears in this seed.
 ## Current concrete-example discussion (2026-10-15)
 
 The validated [module-expression ownership decision](../notes/design/2026-10-16-module-expression-source-owner.md)
-is now Authoritative (bundle `f40e4235d`): G2 carrier formation, G3 ordinary
-receiver/use correspondence and G4 ordered runtime roots may proceed. Separate
-cache-bearing Resume laws remain pending; no new native semantic authority follows.
-The independently reviewed [G3 level/use construction](../notes/theory/2026-10-16-module-expression-receiver-construction.md)
-and [G4 root transition construction](../notes/theory/2026-10-16-runtime-module-expression-roots.md)
-now provide concrete implementation handoffs. G2 HIR and disjoint mechanical
-caller adaptation are active; actual G3/G4 correspondence remains OPEN.
+is now Authoritative (bundle `f40e4235d`). The
+[integrated implementation](../notes/progress/2026-10-16-module-expression-integration.md)
+has clean M2 semantic/contract review: G2 authentic carriers and G3 ordinary
+receiver/use correspondence have actual constructive proofs; G4 implements
+ordered mixed roots with reviewed structural/control correspondence relative
+to existing materialization premises. Full typed-source root adequacy remains
+OPEN. All 103 playground, 168 default HIR and 207 shadow HIR cases pass;
+focused solver routes and a workspace check pass without warnings.
+
+The consumed [resumed-definition correction](../questions/2026-10-16-resumed-definition-materialization/receipt.md)
+(bundle `1e62dfdc3`) requires establishing valid typed-source reachability
+before any A/B materialization choice. It selects no new law and closes no
+proof gate. A constructive source-reachability lane and an independent Oracle
+owner audit are active; primary owns integration and the original runtime gate.
+Internal GlobalRead/Root frame existence does not establish a source witness.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -83,7 +91,11 @@ environments. The remaining source-to-native predicate clause is at FunctionPort
 Result jointly with its parent's RE/entry obligations, including the original
 Effect post-check law when reached. No loss or new semantic decision is proved;
 primary owns this OPEN native premise while approved module-root construction
-proceeds independently. No repeated inverse census, conditional whole-interface
+proceeds independently. The current direct source-predicate construction must
+cover declared Support members (including members absent from one actual z),
+actual contributions, symbolic tails and residual discharge, jointly with the
+same-provider Result/RE/entry argument. Complementary static coverage found no
+source-qualified contradiction. No repeated inverse census, conditional whole-interface
 lemma, scalar-collision assumption or scoped-guard removal is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 
 Ordinary HIR binding-carrier formation is now implemented and independently

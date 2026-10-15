@@ -38,7 +38,13 @@ struct Conflict {
     annotation: Option<EffectAnnotationHandle>,
 }
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(super) enum AnnotationScope { Definition(DefinitionRootId), Local(HirLocalId), Expression(yu_hir::shadow::LocalSourceIndex) }
+pub(super) enum AnnotationScope { Definition(DefinitionRootId), Source(SourceRootId), Local(HirLocalId), Expression(yu_hir::shadow::LocalSourceIndex) }
+impl AnnotationScope {
+    pub(super) fn for_source(owner: SourceRootId) -> Self {
+        match owner { SourceRootId::Definition(root) => Self::Definition(root), expression => Self::Source(expression) }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct CaptureBucket { pub head: usize, pub tail: usize }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -155,10 +161,10 @@ pub(super) enum ViewOrigin {
 }
 enum SignatureContext<'a> {
     Annotation(&'a SourceAnnotation, AnnotationScope),
-    Operation { declaration: &'a Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &'a DefinitionRootId, occurrence: &'a HirOccurrenceId, retained_bytes: usize },
+    Operation { declaration: &'a Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &'a SourceRootId, occurrence: &'a HirOccurrenceId, retained_bytes: usize },
 }
 impl SignatureContext<'_> {
-    fn owner(&self) -> &DefinitionRootId { match self { Self::Annotation(a, _) => &a.owner, Self::Operation { owner, .. } => owner } }
+    fn owner(&self) -> &SourceRootId { match self { Self::Annotation(a, _) => &a.owner, Self::Operation { owner, .. } => owner } }
     fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a, _) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position } }
     fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_, _) => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
 }
@@ -167,7 +173,7 @@ pub(super) struct View {
     pub closed_weight: Option<candidate_context::LocalWeightId>,
     pub source_weight: Option<candidate_context::LocalWeightId>,
     pub provenance: ViewOrigin,
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub position: SourceNodeKey,
     pub allowed: Vec<SourceEffectId>,
     pub tail: Option<u32>,
@@ -742,11 +748,11 @@ impl InferenceSession {
         allowed: Vec<SourceEffectId>,
         tail: Option<u32>,
     ) -> Result<u32, SolveAvailabilityError> {
-        self.candidate_signature_view(owner, position, allowed, tail, None, None)
+        self.candidate_signature_view(owner.into(), position, allowed, tail, None, None)
     }
     fn candidate_signature_view(
         &mut self,
-        owner: DefinitionRootId,
+        owner: SourceRootId,
         position: SourceNodeKey,
         allowed: Vec<SourceEffectId>,
         tail: Option<u32>,
@@ -797,7 +803,7 @@ impl InferenceSession {
         }
         Ok(id)
     }
-    pub(super) fn candidate_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &DefinitionRootId, occurrence: &HirOccurrenceId, target: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn candidate_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, target: usize, level: u32) -> Result<(), SolveAvailabilityError> {
         let mut values = HashMap::new();
         let mut effects = HashMap::new();
         let mut views = HashMap::new();
@@ -817,7 +823,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
     }
-    pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &DefinitionRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32) -> Result<(), SolveAvailabilityError> {
         let SourceAnnotationValue::Function { argument, result } = &declaration.signature.value else { return Err(exhausted()); };
         let mut values = HashMap::new();
         let mut effects = HashMap::new();
@@ -1299,7 +1305,7 @@ impl InferenceSession {
     ) -> Result<(), SolveAvailabilityError> {
         self.candidate_annotation_pair(annotation, endpoint,
             shadow_apply::CandidateEndpoint::Component(target), occurrence, level, computation_effect,
-            &AnnotationScope::Definition(annotation.owner.clone()), [40, 41, 42])
+            &AnnotationScope::for_source(annotation.owner.clone()), [40, 41, 42])
     }
 
     pub(super) fn candidate_expression_ascription(
@@ -2486,7 +2492,7 @@ mod tests {
             .effect_algebra
             .views
             .iter()
-            .position(|view| view.owner == owner)
+            .position(|view| view.owner.definition_root() == Some(&owner))
             .unwrap() as u32
     }
     fn solve_effect(
@@ -2801,7 +2807,7 @@ mod tests {
             contribution_ref.effect,
             session.batch.hir.source_effect_declarations()[1].id
         );
-        assert_eq!(annotation_ref.unwrap().owner, root(&session, "left"));
+        assert_eq!(annotation_ref.unwrap().owner, SourceRootId::Definition(root(&session, "left")));
         let other = make_session("act E\nmy left x = x");
         assert!(
             other
@@ -2973,8 +2979,8 @@ mod tests {
                         .unwrap()
                         .1
                         .unwrap()
-                        .owner
-                        == root(&session, "right")
+                        .owner.definition_root()
+                        == Some(&root(&session, "right"))
                 }
                 _ => false,
             }
@@ -3049,7 +3055,7 @@ mod tests {
         for id in first.iter().chain(&second) {
             assert_eq!(
                 graph.intrusion.effect_algebra.views[*id as usize].owner,
-                root(&session, "left")
+                SourceRootId::Definition(root(&session, "left"))
             );
         }
         let allowed = view(&session, "left");

@@ -2,8 +2,8 @@ use super::{
     continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
     literal,
     program::{
-        Binder, Code, Instruction, Label, NameConsumption, ParameterRole, RuntimeProgram,
-        RuntimeUnavailable, SourceSite,
+        Binder, Code, ExecutionRoot, Instruction, Label, NameConsumption, ParameterRole,
+        RuntimeProgram, RuntimeUnavailable, SourceSite,
     },
     receiving::{ExecutionView, Observation, Receiving, RootCompSchema, ViewHandle},
 };
@@ -16,7 +16,7 @@ use yu_hir::shadow::{
     LocalSourceResolution, SourceAnnotationValue, SourceOperationDeclaration, SourceOperationId,
     SourceOperationResolution,
 };
-use yu_hir::{DefId, HirParameterId};
+use yu_hir::{DefId, ExpressionRootId, HirParameterId};
 
 /// Explicit source small-step state. Source recursion grows arenas/frames, never
 /// the Rust call stack. Environments and cells contain integer arena references,
@@ -30,7 +30,7 @@ pub struct Machine {
     environments: Vec<Environment>,
     cells: Vec<Option<ReceivedValue>>,
     globals: HashMap<DefId, usize>,
-    execution_roots: Vec<usize>,
+    execution_roots: Vec<ScheduledRoot>,
     initializing_globals: HashSet<usize>,
     selected: usize,
     steps: usize,
@@ -44,6 +44,12 @@ pub struct Machine {
     continuations: Vec<SavedContinuation>,
     receiving: Receiving,
     executing_views: Vec<ExecutionView>,
+}
+/// Resolved machine plan: only definitions index cache cells.
+#[derive(Clone)]
+enum ScheduledRoot {
+    Definition(usize),
+    Expression { root: ExpressionRootId, code: Label },
 }
 // Execution ownership is distinct from receiving-boundary authority. The
 // ambient module span never aliases invocation ordinal zero or grants a profile.
@@ -219,6 +225,10 @@ pub(super) enum Frame {
         next: usize,
         cell: usize,
     },
+    ExpressionReturn {
+        root: ExpressionRootId,
+        next: usize,
+    },
     GlobalRead {
         cell: usize,
         consumption: NameConsumption,
@@ -264,23 +274,44 @@ impl RuntimeProgram {
     pub fn start(
         self: &Arc<Self>,
         definition: &DefId,
-        execution_roots: &[DefId],
+        execution_roots: &[ExecutionRoot],
     ) -> Result<Machine, RuntimeUnavailable> {
         let selected = *self
             .definition_indices
             .get(definition)
             .ok_or(RuntimeUnavailable::MissingDefinition)?;
-        let mut seen = HashSet::new();
+        let mut seen_definitions = HashSet::new();
+        let mut seen_expressions = HashSet::new();
         let mut roots = Vec::new();
-        for id in execution_roots {
-            let index = *self
-                .definition_indices
-                .get(id)
-                .ok_or(RuntimeUnavailable::MissingDefinition)?;
-            if !seen.insert(index) {
-                return Err(RuntimeUnavailable::ModuleInitializationOrder);
+        for root in execution_roots {
+            match root {
+                ExecutionRoot::Definition(id) => {
+                    let index = *self
+                        .definition_indices
+                        .get(id)
+                        .ok_or(RuntimeUnavailable::MissingDefinition)?;
+                    if !seen_definitions.insert(index) {
+                        return Err(RuntimeUnavailable::ModuleInitializationOrder);
+                    }
+                    roots.push(ScheduledRoot::Definition(index));
+                }
+                ExecutionRoot::Expression(expression) => {
+                    let root = &expression.root;
+                    let Some(code) = self.expression_roots.get(root) else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    if code.0 != expression.code || !self._hir.owns_expression_root(root) {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    if !seen_expressions.insert(root.clone()) {
+                        return Err(RuntimeUnavailable::ModuleInitializationOrder);
+                    }
+                    roots.push(ScheduledRoot::Expression {
+                        root: root.clone(),
+                        code: *code,
+                    });
+                }
             }
-            roots.push(index);
         }
         let globals = self
             .definitions
@@ -863,6 +894,12 @@ impl Machine {
                     self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
                 }
             }
+            Frame::ExpressionReturn { root, next } => {
+                if !self.program.expression_roots.contains_key(&root) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                self.begin_root(next);
+            }
             Frame::Root { next, cell } => {
                 self.cells[cell] = Some(ReceivedValue {
                     value: received.value,
@@ -1395,20 +1432,40 @@ impl Machine {
         );
     }
     fn begin_root(&mut self, mut ordinal: usize) {
-        // Skip roots already materialized through an earlier dependency. Each
-        // root is visited once across the run, including these cached entries.
-        while let Some(index) = self.execution_roots.get(ordinal).copied() {
+        // Completion is reached only after the root's handlers and real
+        // invocation owners have returned. Never overwrite a mismatched owner.
+        if self.current_owner != ExecutionOwner::ModuleRun {
+            self.state = State::Stopped(RuntimeOutcome::Unavailable(
+                RuntimeUnavailable::InvalidSourceReference,
+            ));
+            return;
+        }
+        // A slot is visited once; dependency-materialized definitions skip their
+        // cache, while expression values have no publication cell or marker.
+        while let Some(root) = self.execution_roots.get(ordinal).cloned() {
             ordinal += 1;
-            if self.cells[index].is_some() {
-                continue;
-            }
-            self.initializing_globals.insert(index);
-            self.frames.push(Frame::Root {
-                next: ordinal,
-                cell: index,
-            });
+            let code = match root {
+                ScheduledRoot::Definition(index) => {
+                    if self.cells[index].is_some() {
+                        continue;
+                    }
+                    self.initializing_globals.insert(index);
+                    self.frames.push(Frame::Root {
+                        next: ordinal,
+                        cell: index,
+                    });
+                    self.program.definitions[index].body
+                }
+                ScheduledRoot::Expression { root, code } => {
+                    self.frames.push(Frame::ExpressionReturn {
+                        root,
+                        next: ordinal,
+                    });
+                    code
+                }
+            };
             self.state = State::Evaluate {
-                code: self.program.definitions[index].body,
+                code,
                 environment: 0,
             };
             return;
@@ -1594,5 +1651,119 @@ impl Machine {
             self.executables.insert(handle.0, executable);
         }
         handle
+    }
+}
+
+#[cfg(test)]
+mod module_expression_tests {
+    use super::*;
+    use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
+    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    fn machine(source: &str, opt_in_source: bool) -> Machine {
+        let source: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let lower = if opt_in_source {
+            yu_hir::shadow::lower_module_with_local_source
+        } else {
+            lower_module
+        };
+        let hir = Arc::new(
+            lower(
+                ModuleIdentity::source_root(FileId::new(FileKey::new("runtime-roots", "test.yu"))),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        let program =
+            RuntimeProgram::from_hir(hir, super::super::RuntimeEvidence::default()).unwrap();
+        program
+            .start(
+                program.definition_named("main").unwrap(),
+                &program.execution_roots().unwrap(),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn expression_roots_allocate_no_global_cells_or_initialization_markers() {
+        let mut machine = machine(
+            "later; 99; my later = { my value = 11; value }; later; my main = 7",
+            false,
+        );
+        assert_eq!(machine.cells.len(), 2);
+        assert_eq!(machine.globals.len(), 2);
+        assert!(machine.initializing_globals.is_empty());
+        assert!(matches!(
+            machine.frames.last(),
+            Some(Frame::ExpressionReturn { .. })
+        ));
+        assert!(matches!(machine.run(10_000), RuntimeOutcome::Completed(_)));
+        // One local initializer value, despite a forward Name demand and the
+        // definition's later scheduled slot. Expressions publish no cells.
+        assert_eq!(
+            machine
+                .values
+                .iter()
+                .filter(|value| matches!(
+                    &value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "11"
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(machine.cells.len(), 3); // Two globals and the actual local.
+        assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn expression_handle_must_match_its_original_code_join() {
+        let machine = machine("99; my main = 7", false);
+        let program = &machine.program;
+        let mut roots = program.execution_roots().unwrap();
+        let ExecutionRoot::Expression(expression) = &mut roots[0] else {
+            panic!("expression")
+        };
+        expression.code = program.definitions[0].body.0;
+        assert!(matches!(
+            program.start(program.definition_named("main").unwrap(), &roots),
+            Err(RuntimeUnavailable::InvalidSourceReference)
+        ));
+    }
+
+    #[test]
+    fn internal_raw_templates_exclude_the_module_scheduler() {
+        let mut machine = machine(
+            "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }; relay (io::tick 7); relay (io::tick 9); my main = 5",
+            true,
+        );
+        assert!(matches!(machine.run(30_000), RuntimeOutcome::Completed(_)));
+        assert_eq!(machine.resume_templates.len(), 2);
+        for template in &machine.resume_templates {
+            assert!(!template.nodes.iter().any(|node| matches!(
+                node,
+                TemplateNode::Bind {
+                    frame: Frame::ExpressionReturn { .. } | Frame::Root { .. },
+                    ..
+                }
+            )));
+        }
+        assert_eq!(
+            machine
+                .values
+                .iter()
+                .filter(|value| matches!(
+                    &value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "9"
+                ))
+                .count(),
+            1
+        );
+        assert!(machine.frames.is_empty());
+        assert_eq!(machine.current_owner, ExecutionOwner::ModuleRun);
     }
 }

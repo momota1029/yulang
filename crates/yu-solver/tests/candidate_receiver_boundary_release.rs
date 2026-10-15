@@ -171,7 +171,7 @@ fn named_header_call_joins(
         if formal.spelling.as_ref() != formal_spelling {
             continue;
         }
-        let source = hir.local_source(call.owner()).unwrap().unwrap();
+        let source = hir.local_source_for(call.owner()).unwrap().unwrap();
         let introduction = call
             .directional_introduction()
             .expect("authentic omitted-formal introduction");
@@ -355,7 +355,7 @@ fn source_join_preserves_group_ascription_and_zero_formal_initializer_context() 
             assert!(joins[0].route.iter().any(|step| step.form == "Ascription"));
         } else {
             let source = hir
-                .local_source(candidate.source_call(0).unwrap().owner())
+                .local_source_for(candidate.source_call(0).unwrap().owner())
                 .unwrap()
                 .unwrap();
             let value = source

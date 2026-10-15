@@ -291,14 +291,14 @@ impl HirModule {
             .source_identity
             .as_ref()
             .and_then(|source| source.local_binding.as_ref())
-            .filter(|binding| binding.local.definition_root() == root))
+            .filter(|binding| binding.local.definition_root() == Some(root)))
     }
 
     pub fn shadow_parameter_local_owner(
         &self,
         parameter: &HirParameterId,
     ) -> Result<Option<&crate::HirLocalId>, SourceIdentityError> {
-        if !self.owns_definition_root(parameter.definition_root()) {
+        if !self.owns_source_root(parameter.source_root()) {
             return Err(SourceIdentityError::ForeignHirArtifact);
         }
         Ok(self
@@ -676,7 +676,7 @@ impl ShadowArtifact {
         id: &HirParameterId,
     ) -> Result<ParameterSourceOrigin, SourceIdentityError> {
         if !hir.owns_parameter(id)
-            && !(hir.owns_definition_root(id.definition_root())
+            && !(hir.owns_source_root(id.source_root())
                 && hir.source_identity.as_ref().is_some_and(|source| source.parameters.contains_key(id)))
         {
             return Err(SourceIdentityError::ForeignHirArtifact);
@@ -708,7 +708,7 @@ impl ShadowArtifact {
         hir: &HirModule,
         id: &crate::HirLocalId,
     ) -> Result<PositionId, SourceIdentityError> {
-        if !hir.owns_definition_root(id.definition_root()) {
+        if !hir.owns_source_root(id.source_root()) {
             return Err(SourceIdentityError::ForeignHirArtifact);
         }
         let source = hir

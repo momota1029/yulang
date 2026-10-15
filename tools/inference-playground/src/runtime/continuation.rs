@@ -84,7 +84,7 @@ mod tests {
             .unwrap();
         let expression = local.expression(local.body()).unwrap();
         let source = SourceSite {
-            definition: binding.definition_root().clone(),
+            source_root: yu_hir::SourceRootId::Definition(binding.definition_root().clone()),
             occurrence: expression.occurrence.clone(),
             range: expression.range.clone(),
         };

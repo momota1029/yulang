@@ -384,7 +384,7 @@ fn retained_use_endpoints_preserve_exact_parent_target_and_component_identity() 
             .iter()
             .find(|record| record.id() == occurrence.collection_identity())
             .unwrap();
-        assert_eq!(parent.collection_identity(), record.parent());
+        assert_eq!(Some(parent.collection_identity()), record.parent().definition());
         assert_eq!(target.collection_identity(), record.target());
         assert!(components[0].same_identity(topology.component_of(parent).unwrap()));
         assert!(components[0].same_identity(topology.component_of(target).unwrap()));

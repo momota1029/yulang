@@ -195,7 +195,7 @@ fn inject_f5b_post_reserve_failure_after(lane: F5bCapacityLane, successful_reser
     F5B_POST_RESERVE_FAILURE_SKIP.with(|skip| skip.set(successful_reserves));
 }
 
-use yu_hir::{
+use yu_hir::{SourceRootId, ExpressionRootId,
     DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, HirParameterId, NameResolution,
     ResolvedExpr,
 };
@@ -619,11 +619,24 @@ impl DefinitionUseCause {
     }
 }
 
+/// Authentic consuming source; only definitions participate in definition SCCs.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum SourceReceiver {
+    Definition(DefinitionOrderId),
+    #[cfg_attr(not(feature = "shadow-apply-candidate"), allow(dead_code, reason = "expression receivers are constructed by the candidate source planner"))]
+    Expression(ExpressionRootId),
+}
+impl SourceReceiver {
+    pub(crate) fn definition(&self) -> Option<&DefinitionOrderId> {
+        match self { Self::Definition(id) => Some(id), Self::Expression(_) => None }
+    }
+}
+
 /// One resolved use from an admitted binding body to another definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct DefinitionUse {
     id: DefinitionUseId,
-    parent: DefinitionOrderId,
+    parent: SourceReceiver,
     target: DefinitionOrderId,
     occurrence: HirOccurrenceId,
     cause: DefinitionUseCause,
@@ -647,7 +660,7 @@ impl DefinitionUse {
     pub(crate) fn id(&self) -> &DefinitionUseId {
         &self.id
     }
-    pub(crate) fn parent(&self) -> &DefinitionOrderId {
+    pub(crate) fn parent(&self) -> &SourceReceiver {
         &self.parent
     }
     pub(crate) fn target(&self) -> &DefinitionOrderId {
@@ -675,7 +688,7 @@ pub(crate) enum CollectionLookupError {
 struct CollectionArtifactToken;
 
 struct PendingDefinitionUse<'hir> {
-    parent_ordinal: u32,
+    parent: SourceReceiver,
     target: &'hir DefId,
     occurrence: HirOccurrenceId,
 }
@@ -1146,16 +1159,27 @@ impl ConstraintBatch {
             batch.counters.occurrence_allocations += 1;
             #[cfg(feature = "shadow-apply-candidate")]
             if candidate_values {
+                let source_root = match definition_root {
+                    Some(root) => Some(SourceRootId::Definition(root.clone())),
+                    None if candidate_graph_effects => hir.expression_root(expression.occurrence())
+                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                        .cloned().map(SourceRootId::Expression),
+                    None => None,
+                };
                 let source = if candidate_graph_effects {
-                    definition_root.map(|root| hir.local_source(root)).transpose()
+                    source_root.as_ref().map(|root| hir.local_source_for(root)).transpose()
                         .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?.flatten()
                 } else { None };
                 let fact_start = batch.occurrences.len();
                 let candidate_start = batch.candidate_recipes.len();
                 let lambda_start = batch.lambda_recipes.len();
                 if let Some(source) = source {
-                    batch.emit_candidate_source(source, definition.as_ref()
-                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?, &mut pending_uses)?;
+                    let receiver = match (&definition, source_root.as_ref()) {
+                        (Some(id), Some(SourceRootId::Definition(_))) => SourceReceiver::Definition(id.clone()),
+                        (None, Some(SourceRootId::Expression(root))) => SourceReceiver::Expression(root.clone()),
+                        _ => return Err(CollectionAvailabilityError::MissingDefinitionEndpoint),
+                    };
+                    batch.emit_candidate_source(source, &receiver, &mut pending_uses)?;
                 } else {
                     let local = if !candidate_graph_effects {
                         definition_root
@@ -1214,7 +1238,7 @@ impl ConstraintBatch {
                     batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
                     let old_capacity = pending_uses.capacity();
                     pending_uses.push(PendingDefinitionUse {
-                        parent_ordinal: parent.ordinal(),
+                        parent: SourceReceiver::Definition(parent.clone()),
                         target,
                         occurrence: occurrence.clone(),
                     });
@@ -1263,7 +1287,7 @@ impl ConstraintBatch {
                     {
                         let old_capacity = pending_uses.capacity();
                         pending_uses.push(PendingDefinitionUse {
-                            parent_ordinal: parent.ordinal(),
+                            parent: SourceReceiver::Definition(parent.clone()),
                             target,
                             occurrence: body.occurrence().clone(),
                         });
@@ -1308,12 +1332,23 @@ impl ConstraintBatch {
                 .counters
                 .definition_endpoint_logical_successful_equality_byte_incidences +=
                 pending.target.hash_eq_payload_bytes();
-            let parent = batch
-                .definitions
-                .get(pending.parent_ordinal as usize)
-                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?
-                .definition
-                .clone();
+            let parent = pending.parent.clone();
+            match &parent {
+                SourceReceiver::Definition(id) => {
+                    let record = batch.definitions.get(id.ordinal() as usize)
+                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
+                    if &record.definition != id { return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+                SourceReceiver::Expression(root) => {
+                    let owner = SourceRootId::Expression(root.clone());
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if batch.candidate_source.source_owners.get(&pending.occurrence) != Some(&owner) {
+                        return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+                    }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { let _ = owner; return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+            }
             u32::try_from(batch.definition_uses.len())
                 .map_err(|_| CollectionAvailabilityError::DefinitionUseIdentityExhausted)?;
             let id = DefinitionUseId::new(
@@ -10377,13 +10412,17 @@ impl InferenceSession {
         let source_mode = self.candidate_graph.is_some() && self.batch.candidate_source.active;
         #[cfg(not(feature = "shadow-apply-candidate"))]
         let source_mode = false;
+        if !source_mode { self.admit_all_collected_facts()?; }
+        self.execute_scc_plan()?;
         if source_mode {
             #[cfg(feature = "shadow-apply-candidate")]
-            self.execute_candidate_loose()?;
-        } else {
-            self.admit_all_collected_facts()?;
+            {
+                self.execute_candidate_loose()?;
+                for index in 0..self.batch.candidate_source.expressions.len() {
+                    self.execute_candidate_expression(index)?;
+                }
+            }
         }
-        self.execute_scc_plan()?;
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.store.finish_accounting();
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
@@ -19164,7 +19203,7 @@ mod tests {
             batch.definition_uses.push(DefinitionUse {
                 cause: DefinitionUseCause::for_use(id.clone()),
                 id,
-                parent: parent_definition,
+                parent: SourceReceiver::Definition(parent_definition),
                 target: target_definition,
                 occurrence: occurrence.clone(),
                 use_level: 1,
@@ -21609,7 +21648,7 @@ mod tests {
                 .iter()
                 .map(|use_record| {
                     (
-                        use_record.parent().ordinal(),
+                        use_record.parent().definition().unwrap().ordinal(),
                         use_record.target().ordinal(),
                         use_record.id().occurrence().ordinal(),
                         use_record.occurrence().ordinal(),
@@ -21704,7 +21743,7 @@ mod tests {
             batch
                 .definition_uses()
                 .iter()
-                .map(|use_record| (use_record.parent().ordinal(), use_record.target().ordinal()))
+                .map(|use_record| (use_record.parent().definition().unwrap().ordinal(), use_record.target().ordinal()))
                 .collect::<Vec<_>>(),
             vec![(0, 0), (1, 2), (2, 1)]
         );
@@ -21781,7 +21820,7 @@ mod tests {
                 DefinitionUse {
                     cause: DefinitionUseCause::for_use(id.clone()),
                     id,
-                    parent: synthetic_definitions[parent].clone(),
+                    parent: SourceReceiver::Definition(synthetic_definitions[parent].clone()),
                     target: synthetic_definitions[target].clone(),
                     occurrence: occurrences[edge_index].clone(),
                     use_level: 1,
@@ -33320,7 +33359,7 @@ mod value_entry_effect_tests {
             HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
             _ => None,
         }).unwrap();
-        session.batch.candidate_calls.calls.iter().find(|call| &call.owner == owner)
+        session.batch.candidate_calls.calls.iter().find(|call| call.owner.definition_root() == Some(owner))
             .unwrap().native.as_ref().unwrap().invocation_row
     }
 

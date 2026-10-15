@@ -1,7 +1,7 @@
 //! Source provenance owned by the immutable HIR artifact.
 use std::{collections::HashMap, ops::Range};
 use yu_syntax::{ParsedFile, SourceNodeKey, SyntaxNode};
-use crate::{DefinitionRootId, HirOccurrenceId, HirParameterId};
+use crate::{DefinitionRootId, ExpressionRootId, HirOccurrenceId, HirParameterId};
 
 #[derive(Clone, Debug)]
 pub enum HirParameterSourceOrigin {
@@ -13,6 +13,7 @@ pub enum HirParameterSourceOrigin {
 pub(crate) struct HirSourceIdentity {
     pub(crate) parse_root: SourceNodeKey,
     pub(crate) definitions: HashMap<DefinitionRootId, SourceNodeKey>,
+    pub(crate) expressions: HashMap<ExpressionRootId, SourceNodeKey>,
     pub(crate) occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
     pub(crate) parameters: HashMap<HirParameterId, HirParameterSourceOrigin>,
     pub(crate) locals: HashMap<crate::HirLocalId, SourceNodeKey>,
@@ -53,6 +54,7 @@ impl HirSourceIdentity {
         Self {
             parse_root: parsed.source_root().key(),
             definitions: HashMap::new(),
+            expressions: HashMap::new(),
             occurrences: HashMap::new(),
             parameters: HashMap::new(),
             locals: HashMap::new(),
@@ -64,7 +66,7 @@ impl HirSourceIdentity {
     pub(crate) fn empty_stage(&self) -> Self {
         Self {
             parse_root: self.parse_root.clone(),
-            definitions: HashMap::new(), occurrences: HashMap::new(),
+            definitions: HashMap::new(), expressions: HashMap::new(), occurrences: HashMap::new(),
             parameters: HashMap::new(), locals: HashMap::new(),
             #[cfg(any(feature = "shadow", test))]
             local_binding: None,
@@ -78,7 +80,7 @@ impl HirSourceIdentity {
             || stage.parameters.keys().any(|id| self.parameters.contains_key(id))
             || stage.locals.keys().any(|id| self.locals.contains_key(id))
             || stage.local_parameter_owners.keys().any(|id| self.local_parameter_owners.contains_key(id))
-            || !stage.definitions.is_empty()
+            || !stage.definitions.is_empty() || !stage.expressions.is_empty()
         {
             return Err(HirAvailabilityError::StructuralProjection);
         }

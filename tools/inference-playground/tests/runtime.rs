@@ -90,8 +90,8 @@ fn computation_parameter_body_can_consume_its_argument() {
 }
 
 #[test]
-fn unsupported_module_expression_withholds_execution() {
-    assert!(run("my main = 1; 7").is_err());
+fn module_expression_result_is_discarded_before_selected_definition() {
+    assert_eq!(run("my main = 1; 7").unwrap(), "1\n");
 }
 
 #[test]

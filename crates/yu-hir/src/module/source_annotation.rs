@@ -68,9 +68,13 @@ pub enum SourceOperationResolution {
 }
 #[derive(Clone, Debug)]
 pub struct SourceAnnotation {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub position: SourceNodeKey,
     pub ty: SourceAnnotationType,
+}
+impl SourceAnnotation {
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
 }
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationType {
@@ -312,7 +316,7 @@ pub(super) fn declarations(
 }
 pub(super) fn form(
     statement: &SyntaxNode,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     counters: &LoweringCounters,
 ) -> Result<Option<SourceAnnotation>, FormationError> {
     let header = statement
@@ -337,14 +341,14 @@ pub(super) fn form(
 }
 pub(super) fn parse_annotation(
     annotation: &SyntaxNode,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     counters: &LoweringCounters,
 ) -> Result<SourceAnnotation, FormationError> {
     parse_annotation_with_marker(annotation, SyntaxKind::Colon, owner, counters)
 }
 pub(super) fn parse_expression_ascription(
     annotation: &SyntaxNode,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     counters: &LoweringCounters,
 ) -> Result<SourceAnnotation, FormationError> {
     if annotation.kind() != SyntaxKind::TypeAnnotationTail {
@@ -355,7 +359,7 @@ pub(super) fn parse_expression_ascription(
 fn parse_annotation_with_marker(
     annotation: &SyntaxNode,
     marker: SyntaxKind,
-    owner: &DefinitionRootId,
+    owner: &SourceRootId,
     counters: &LoweringCounters,
 ) -> Result<SourceAnnotation, FormationError> {
     if has_recovery(annotation) {

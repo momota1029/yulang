@@ -88,7 +88,7 @@ fn alias_source_uses_join_target_captures_and_distinct_receiving_scheme_owners()
     assert_eq!(parameter.name().spelling(), "x");
     assert_eq!(
         parameter.id().definition_root(),
-        source_binding.definition_root()
+        Some(source_binding.definition_root())
     );
     let ResolvedExpr::Lambda {
         parameter: lambda_parameter,

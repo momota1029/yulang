@@ -63,7 +63,7 @@ fn explicit_outer_rows_observe_resolved_members_and_symbolic_tail() {
         assert_eq!(plan.concrete_members().iter().collect::<Vec<_>>(), expected);
         assert_eq!(plan.symbolic_row_variable(), symbolic);
         assert_eq!(
-            plan.original_owner(),
+            plan.original_owner().definition_root(),
             plan.original_formal().definition_root()
         );
         assert_ne!(plan.annotation().position, plan.outer_row().position);

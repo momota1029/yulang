@@ -1,8 +1,9 @@
 # Mixed module roots: authentic expression ownership and scheduling
 
-Status: constructive source/transition derivation and implementation handoff;
-independent source/transition review CLEAN. G4 actual-source correspondence remains OPEN until
-the G2 authentic carriers and concrete runtime delta are supplied and reviewed.
+Status: original constructive transition derivation and §10 actual runtime
+correspondence independently reviewed CLEAN within the explicit component
+premises. G2 formation is separately established. Whole typed-source root and
+definition-materialization adequacy, and broader runtime/inference parents, OPEN.
 Governing approval: module-expression-source-owner, Authoritative, answer bundle
 `f40e4235d`; no new source semantics or materialization law selected here.
 Dispatch baseline: `1a64937f1` (runtime unchanged from `05ebaf2ce`).
@@ -14,6 +15,29 @@ at producer SHA-256
 The accepted result is the source/transition handoff, including dependency-demand
 ordering and the root-cursor/internal-capture invariant. Actual G2/G4 code joins
 and full-runtime/source-domain correspondence remain OPEN.
+
+Actual-bridge review: `runtime_semantic_review` returned CLEAN at producer
+SHA-256 `965b928570876f1e343abad99ba4e565edd3c875cdc6e487f20561682b34fd86`.
+Following the consumed user correction in bundle `1e62dfdc3`, the same reviewer
+accepted the narrow §4/§10.4 source-premise qualification at
+`f36e667265d7aaead29314bf27ddf1aad4a5488ab005638a850d70ad3734e352`.
+It preserves the original structural/control quantifiers and leaves whole
+typed GetDefinition/root adequacy OPEN at its preexisting source bridge.
+
+Final verification metadata: machine.rs changed only in its new cfg(test)
+helper to use existing opt-in lowering for an Act/annotated-header fixture;
+its final hash is
+`e30bb19c54b1a4ee07f3b1d2f0a5e88e57f2226fd055071a6d1ca5f1bdfd5e3a`.
+The integration-test hash is
+`6e62ed611c81e847bec4a33238da55b7e5ee6851116967f182b3ffe2d1c2cf40`.
+These precleared fixture changes preserve all source/outcome assertions except
+moving the bare-`@` refusal to its actual syntax entrypoint; no production
+premise changed. The primary's full package check passes all 103 tests.
+Section 10.9 retains the producer's earlier evidence hashes.
+
+Sections 1–9 retain the preimplementation snapshot and its missing-operation
+inventory. Section 10 consumes the later concrete runtime delta; those earlier
+descriptions of binding-only code do not describe the new frozen implementation.
 
 ## 1. Original claim, quantifiers and unresolved boundaries
 
@@ -143,11 +167,18 @@ has been scheduled by the root cursor. During a root's pending evaluation,
 its unique completion frame holds its exact next cursor; the later demand
 suffix is inert until that root normally completes.
 
-Dependency materialization is distinct: a Name in an earlier expression may
-demand a **later** definition before that definition's scheduled slot. This is
-the existing GetDefinition law, not a violation of root order. Its later
-Definition slot then observes the completed cache and skips. The theorem is
-about ordered scheduled demands, not timestamp-sorting all initializer calls.
+Dependency materialization is a distinct component premise. The actual empty-
+global Name machine path can enter a later definition body before its scheduled
+slot, after which that slot skips a completed cache. This structural cursor fact
+and the pure forward-reference fixture do not prove that an effectful initializer
+may execute or be handled at the reference site. The consumed user correction
+in bundle `1e62dfdc3` explicitly distinguishes the published value from its
+initialization effect; the earlier `pending` example is not a valid source
+reachability witness. G4 preserves ordered scheduled demands relative to the
+existing definition-materialization component premises. Whole typed root/
+materialization semantic adequacy remains OPEN at the unqualified GetDefinition
+source bridge in ordinary-runtime-simulation §5 (lines 538–549); no initialization
+publication, forwarding, failure or capture law is selected here.
 
 Proof by cursor/transition induction:
 
@@ -384,3 +415,322 @@ approved implementation without waiting for the separate cache-bearing Resume
 decision. Next action: implement these exact owners, freeze the code/G2 joins,
 then construct/review their actual-source correspondence; do not claim the
 present binding-only runtime already implements mixed roots.
+
+## 10. Actual frozen G4 constructor and consumer correspondence
+
+### 10.1 Statement and exact source dependency
+
+The primary supplied the six implementation hashes in §10.9; every one matched
+the first read. Observed read-start HEAD was
+`acf9422aecd1117886866ab881780bfeb55f5846`. Keep all original source scopes,
+identities, assignment xi and conclusions of §1. For authentic current HIR with
+its supported G2 carrier outcomes, let P=from_hir succeed, R=P.execution_roots()
+and let d be its existing selected definition. Prove actual start(d,R) and every
+finite implemented execution prefix realize §§3–6's mixed plan, cache-free
+expression completion, owner/control and certificate invariants; every actual
+Completed observation remains d's value after the complete mixed schedule.
+
+The original ordinary/request/selected-arm/typed-view/raw-Resume premises remain
+those of the reviewed component theorems. This proof does not assume a future
+runtime transition. It consumes actual HIR API/identity checks below, while
+the full source admission/formation/order/binding-preservation theorem is the
+separately owned G2 result now accepted independently CLEAN by the primary at
+producer SHA-256 `57ba5d19388ad30fce91fb3368bd6e07032336c4c3dd62175b52df6e7211f085`.
+Its exact source conclusions are applied below rather than left assumed. G3 is
+actively changing and is not read or used as inference-adequacy evidence.
+
+### 10.2 Actual root authentication, carrier compilation and provenance
+
+At each original HirItem, `from_hir` constructs the source owner by exact case:
+Binding uses its original DefinitionRootId; Expression calls
+`hir.expression_root(expression.occurrence())` and retains the returned original
+ExpressionRootId. Failure is explicit InvalidSourceReference/MissingSource,
+not a fabricated binding or skipped expression. The actual HIR constructor
+mints ExpressionRootId only under RootPlanKind::DirectExpression, from that
+plan's freshly branded original occurrence, and keeps it in the expression-root
+map. The API rejects foreign occurrences and map lookup cannot turn a child
+occurrence into a direct root. SourceRootId's disjoint tags preserve the
+old definition identity rather than allocate a replacement DefId.
+
+For either tagged owner, runtime calls `local_source_for`. Its actual HIR path
+checks owns_source_root and returns only Supported carrier contents. Unsupported
+is None; an expression has no definition-only fallback. Consequently any
+unsupplied/unsupported actual expression fails runtime construction, including
+genuine recovered expression carriers; it does not vanish from the schedule.
+The existing exact Act placeholder check is the sole skipped item case.
+
+The code-label closure validates each LocalSourceIndex through
+`source.expression(index)` before using offset+ordinal. That accessor checks
+the exact tagged owner, then bounds. All code is emitted once for the actual
+carrier arena and all SourceSites carry the same actual source_root plus their
+original occurrence/range. Child/cross-artifact ownership is never inferred
+from ordinal equality. The recursive-local walk, original parameter role table,
+source-resolved Name/Binder operands and all ordinary instruction constructors
+remain their existing algorithms, now parameterized by the honest source tag.
+
+The runtime uses full `SourceRootId` equality for expression-owned schemas:
+`RootCompSchema::from_parameter` requires annotation.owner=lambda.source_root
+and formal.id.source_root() equal to it, retaining the original annotation,
+formal and row. The later Grant check uses the same owner equality. It does
+not project an expression into a definition or silently drop its applicable
+Comp schema. Environment Binder lookup remains equality on original parameter/
+local/Catch IDs, so the existing lookup/closure-capture proof is parametric in
+this generalized owner type. G2 supplies the original scoped ID constructors;
+runtime retains them without another spelling-based resolution step.
+
+Apply the independently accepted G2 theorem's five original conclusions to
+these exact matching HIR hashes: (1) every and only actual direct Expression
+has its private authentic original-item root, discharging root-map provenance;
+(2) ordinary projection and old binding IDs/equalities are preserved by the
+injective definition-owner embedding, discharging compatibility rather than
+assuming numeric Hash identity; (3) each binding/expression has one source-
+ordered outcome and supported expressions retain their original body occurrence,
+discharging complete inventory/body-label joins; (4) generalized scope/owner/
+reference construction is exact, discharging the runtime Binder/source-owner
+premise; (5) refused/recovered formation publishes no partial carrier/cursor,
+while genuine failures remain availability errors, discharging staged refusal
+and atomic compilation inputs. Its opt-in single-ownership conclusion supplies
+the existing binding adapter case as well. No runtime or G3 claim is read into
+that HIR theorem; these are its actual source outputs consumed here.
+
+### 10.3 Mixed plan and public-to-internal validation
+
+Still inside the single left-to-right HIR item loop, after compiling its body:
+
+- Binding appends its unchanged DefId/body to definitions and its DefId/index
+  map. The same former fetch classifier follows Forward/empty Block and marks
+  Apply/If/Catch/nonempty Block. Only a computed definition adds a demand.
+- Expression inserts its exact original root/body join into expression_roots
+  and unconditionally appends an Expression demand, including literal/Name/
+  Lambda-valued expressions. No definition/cell record is appended for it.
+- The immutable program is published only after the entire item loop and
+  whole-program classification. A failed later carrier cannot expose a
+  supposedly completed prefix program.
+
+Public `ExecutionRoot::Definition(DefId)` is the compatibility adapter; it is
+not the internal cache representation. `start` resolves it through this
+program's unchanged definition_indices to ScheduledRoot::Definition(index),
+rejecting missing or duplicate definition indices. Thus every cache index is
+an actual definition's index, and definitions retain their old binding-only
+subsequence/order regardless of expression code interleaving.
+
+Public ExpressionExecutionRoot contains root and code fields private to the
+runtime implementation, with only a public read-only source_root accessor.
+`start` looks up that original root in this program's expression map, requires
+the exact stored code ordinal and `hir.owns_expression_root(root)`, rejects
+duplicates, then constructs ScheduledRoot::Expression {root,checked Label}.
+An identical-looking foreign artifact, a mismatched private code join or a
+child root cannot enter through this path. The G2 uniqueness of actual direct
+root occurrences makes the construction map injective; runtime never makes
+an expression alias by reusing a definition index.
+
+`execution_roots()` clones the actual source_schedule, so its list is exactly
+the HIR item-order fold of §4. It does not iterate the expression HashMap or
+concatenate separate kind vectors. The actual `lib::execute` still obtains
+definition_named, then this exact execution_roots vector and passes it to start.
+That closes the full-vector source-order consumer premise. Public start also
+allows validated custom subsets/order as before; this theorem does not falsely
+claim that their identity checks impose source order. Its fixed R is the actual
+constructor output, as in the original ordinary runtime theorem.
+
+### 10.4 Actual scheduler and expression completion
+
+Machine allocates global cells/globals from definitions only and stores the
+validated internal mixed plan. Initial owner is ModuleRun, with empty owner/
+handler/template/evidence history and environment 0. `begin_root` checks
+current_owner=ModuleRun rather than overwriting a conflicting owner.
+
+Its loop consumes one ScheduledRoot slot and increments the cursor. Definition
+uses the old completed-cache skip or marker+Root(cell,next) path. Expression
+pushes `Frame::ExpressionReturn {root,next}` and evaluates its checked code in
+environment 0. It allocates no initialization marker/cell and mints no Invoke.
+The return branch validates the retained root still belongs to the immutable
+program, then calls begin_root(next), without publishing or reusing received.
+Thus even a returned closure/carrier is discarded rather than invoked or stored
+as a module result. Original global values materialized by actual Names remain
+the existing shared cache, not an expression result cache.
+
+Apply §4's structural cursor induction to these actual branches: a root starts
+only at its slot, and the next root starts only after its completion branch.
+Definitions successfully materialized by the actual Name path are skipped at
+their later scheduled slot; expression slots are never cache-skipped. Relating
+that on-read materialization to a valid typed source is the existing component
+premise, not a new G4 conclusion about initialization-effect ownership. In
+particular bundle `1e62dfdc3` forbids using this runtime path or the pure forward
+fixture as proof of the withdrawn effectful `pending` scenario. On Request the completion remains
+pending or is saved during propagation; on unavailable/pause it cannot run.
+At exhaustion begin_root has precisely the old selected-definition observation/
+materialization branches using the existing selected index. It never reads the
+last expression result. This proves ordered demand completeness and discarded
+expression return for every actual completed run under the fixed R, relative
+to the source/control and definition-materialization component premises in
+§10.1/§4. It does not close the ordinary runtime's whole typed GetDefinition/
+root adequacy, establish valid cache-bearing capture, or prove its unreachability.
+
+### 10.5 Actual dynamic owner and reusable control paths
+
+SourceSite now holds source_root; the dynamic ExecutionOwner sum and owner
+transition rules are unchanged. `new_invocation` still receives original call/
+provider sites and allocates a fresh Invocation, rather than deriving an owner
+from either site's static root tag. Value entry and Delay execute under that
+actual current configuration; native result consumption follows its native
+receiver return. Catch snapshots current_owner; dispatch validates that exact
+installer's current/live occurrence. The receiving engine retains original
+boundary.receiver separately from source provenance and current owner.
+
+Therefore a direct expression Catch belongs to ModuleRun and a Catch in an
+invoked expression-owned relay belongs to that relay's actual Invocation.
+Captured lexical code keeps its source root but Force does not restore a maker
+owner. Returning each complete root restores ModuleRun through the existing
+matching owner delimiters before the next begin_root check. These are applications
+of the reviewed owner/ordinary/raw transition proofs to unchanged actual owner
+constructors; no additional source-root-dependent owner case was inserted.
+
+The new expression scheduler frame is below every handler installed during its
+root. The constructors only push ordinary/Call/Catch/View frames above it.
+Actual capture_template folds only request.suffix, which consists of frames
+already popped strictly inside the reached selected Catch; it adds the saved
+containing owner but no stack below that Catch. Hence §5's root-cursor exclusion
+is preserved by these actual constructors. Existing templates initially contain
+no scheduler frame; restoring/recapturing them cannot create one inductively.
+When a saved continuation is invoked in a later root, its original code may
+retain a prior ExpressionRootId, but its raw suffix has no prior root cursor.
+Its OwnerReturn restores the current resumer; the live scheduler belongs to the
+currently running root, not the code author's provenance.
+
+Each raw call still uses fresh per-use control and one ResumeReturn. Multiple
+k invocations can repeat only their captured inner suffix, returning to the
+actual root arm before its final return advances the module cursor once.
+The new Frame stores only root/cursor handles; TemplateNode::Bind and flat
+TemplateHandle arena ownership retain the previous nonrecursive storage rule.
+No new recursively owning scheduler/template pointer is introduced.
+
+Actual capture still rejects GlobalRead/definition Root before publication.
+ExpressionReturn is not a cache-bearing frame and is not added to that guard;
+its inside-handler capture case is unreachable as just proved. If an unhandled
+event crosses the expression completion, it is retained in the opaque saved
+continuation. The runtime still exposes no public execution API for that opaque
+handle. This is not a proof of an external scheduler-return/module-value rule.
+Current cache-bearing Resume unavailability and the unanswered materialization
+decision remain unchanged, including when an expression demands a definition
+inside its Catch. No inconvenient source suffix is declared forbidden.
+
+### 10.6 Actual whole-program negative certificate
+
+`primitive::closed_primitive` now seeds Ground traversal from **all** definition
+bodies and all values in program.expression_roots. The latter HashMap iteration
+order is irrelevant to this predicate; it is not execution order. Its full code
+prepass, all-arm traversal and orphan-state check remain. Local and Catch binder
+ownership checks now compare source_root() to code.site.source_root, accepting
+authentic expression-owned primitive bindings without inventing a definition.
+
+All previous declaration/known-callee/role/cycle/Lambda/continuation checks are
+retained, so accepting the expanded closed universe has exactly the additional
+initial-expression case proved in §6. It cannot ignore a Lambda or raw binder
+in an unselected expression/arm. `from_hir` runs this predicate after all roots
+and code exist and before publishing the immutable program. Actual dispatch
+still permits the negative branch only through this boolean, otherwise requiring
+the original authenticated positive Grant. Live owner/handler, exact operation,
+payload compatibility and original selected-arm OpCompat remain separate.
+
+Thus direct primitive expression handlers obtain source !Protected under the
+same closed initial context, while expression-owned higher-order/received
+programs retain the positive route and original unknown-coverage limitations.
+This changes neither source admission nor complete general negative visibility.
+
+### 10.7 Coverage, test comparison and limits
+
+The new runtime_module_expressions file checks mixed HIR item/root order,
+forward Name materialization and discarded Value roots, closure discard,
+ModuleRun primitive handling, expression-wide classifier exclusions, real
+expression-owned relay/helper receivers, repeated permitted raw continuations,
+request provenance/pending suffix, foreign/duplicate roots and unsupported
+source. Private machine tests inspect zero expression cache/marker allocation,
+mismatched root/code rejection and the absence of scheduler frames from actual
+raw templates. These are focused discriminators of §§4–8's invariants, not
+premises of their proofs, and were not executed by this leaf.
+
+The original test snapshot's `@` case is not used as evidence of an admitted
+recovered Expression. The primary cleared the existing admitted `f(@missing)`
+source fixture; the final observed file includes that case as well as the
+tuple and `@` cases. This proof uses the universal actual HirItem::Expression
+-> checked local_source_for branch, whose None/error stops construction,
+and the accepted G2 recovered-carrier theorem. No assertion is changed here,
+no claim about the `@` case is needed, and no successful package run is claimed
+by this leaf. Test-content changes do not alter the six frozen runtime files.
+
+There is no missing runtime operation postulated in §§10.2–10.6. The actual
+source dependency is discharged by the accepted G2 authenticity/formation/order/
+binding-preservation theorem at the frozen HIR hashes, with the original shared
+typing/interface hypotheses. Fresh actual G4 proof review must accept this
+application and its runtime joins before the primary closes G4. G3/inference adequacy is not inferred from
+runtime root scheduling. General visibility/Function/B, full source/Resume,
+cache-bearing capture and production parents retain their original OPEN scopes.
+
+Structural bounds match §7: one expression record/demand per actual item,
+one code emission per carrier node, one mixed-plan slot visit, no per-step
+source scan. Plan cloning/start validation cost O(R) structural work with ID
+clone/hash/equality costs; definition/cache maps remain definition-only.
+Classifier traversal is the reviewed expected-linear graph work with explicit
+ID hashing/comparison costs. Actual expression frames add constant-sized root/
+cursor references, not a cloned remainder or template chain. No timing or
+worst-case hash claim is made.
+
+### 10.8 Claim class and next action
+
+Submitted result: actual frozen runtime-side G4 correspondence for the original
+mixed-root statement under the named original source/type premises, consuming
+the independently established G2 source outputs rather than a pending source
+bridge. Every new runtime constructor/consumer is inspected and derived. It
+is not a future implementation plan, an unconditional whole-source theorem or
+producer-certified closure. Preserve the original source derivation/review and
+independently review this actual delta at its exact input hashes.
+No implementation or semantic change is requested by this result.
+
+### 10.9 Final dependency/verification/commit packet
+
+| Frozen actual runtime dependency | SHA-256 |
+| --- | --- |
+| program.rs | `b9798ac4c5d93e761582d712114615defa913f858d70e91f170471c8b8912748` |
+| machine.rs | `e5713fac40a2823168564d9f35ce824a1eb09f2fe3590a663ba626676422892b` |
+| primitive.rs | `97485b9439357497aaf3f19555b1d87eef4aabc955b3a2815f23cf49a65c0153` |
+| receiving.rs | `5443c8ca55e58a37b6d003cf5b2985214d37776094f02637adfbe30200cc36bd` |
+| continuation.rs | `194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3` |
+| mod.rs | `64d208743793a03501a76f56bc2b511c50ed40cff3f789757a00b7d608fc846b` |
+| tests/runtime_module_expressions.rs (final inspected, not run) | `5affadec63092d78ade24be22b53df60e381957c42e05a2d7767570531d2de53` |
+| playground src/lib.rs (full-vector CLI) | `bace98ef2f11c9bb638b4f1f7536178c668ca8b0448fb0276986fbf0772f524b` |
+
+Frozen G2 input hashes supplied by the primary and matched on read:
+
+```text
+yu-hir/src/module.rs 2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e
+yu-hir/src/module/local_source.rs ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5
+yu-hir/src/module/source_annotation.rs b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f
+yu-hir/src/source_identity.rs aa97bc34be51644cf944b2813af47ad9243a8eb270850eeb6df34b9cddb3b3a2
+yu-hir/src/lib.rs 5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464
+yu-hir/src/shadow.rs 2dffd7fd6542eed9fd3346e0672e76197c248be9c84334f341c4d612234b7ee9
+```
+
+Runtime paths are tools/inference-playground/src/runtime; HIR paths are under
+crates/. Original authority/component-proof dependencies are those of §9.
+Checks: all supplied runtime hashes first/final; G2 source hashes; bounded
+actual constructor/consumer/API/test-content reads and whitespace check. Zero
+tests/builds/probes/Git mutations/network/delegation or writes outside this note.
+Requested normal Sol/high, observed runtime model/effort unknown; one <=20-minute
+static pass, zero heavy processes or measurement samples. Fresh independent
+G4 proof review remains primary-owned. G2 producer note
+`notes/theory/2026-10-16-module-expression-carrier-correspondence.md` was read
+at hash `57ba5d19388ad30fce91fb3368bd6e07032336c4c3dd62175b52df6e7211f085`;
+the primary's explicit independent CLEAN receipt supplies its accepted review
+status, rather than this producer certifying that note. The test file changed
+from the first inspected `dc1351fd…` to the final hash above; runtime and HIR
+dependencies did not change.
+
+Commit packet: sole lease remains this file; original baseline 1a64937f1,
+actual implementation hash set/read HEAD above; original derivation clean at
+67f0c87f…, actual §10 review pending. Suggested checkpoint:
+`research: bridge authentic mixed runtime roots to source scheduling`.
+Shared-record delta for primary: consume this actual G4 bridge after its fresh
+review, with the independently accepted G2 source theorem applied; retain broader OPEN parents and
+separate cache-bearing Resume decision. Next action: independent delta review
+against this frozen runtime/HIR set, followed by primary's coherent integration.

@@ -4,7 +4,7 @@
 //! The cold boundary records that judgment without enforcing production execution.
 
 use crate::{
-    ConstraintBatch, DefinitionOrderId, DefinitionRootId, DefinitionUseId, HirOccurrenceId,
+    SourceReceiver, ConstraintBatch, DefinitionOrderId, DefinitionRootId, DefinitionUseId, HirOccurrenceId,
     SolvedModule, scc::SccComponentId,
 };
 use std::sync::Arc;
@@ -44,7 +44,7 @@ impl ConstraintBatch {
             let occurrence = binding.value().occurrence();
             let id = DefinitionUseId::new(self.collection_artifact.clone(), occurrence.clone());
             let use_record = &self.definition_uses[self.definition_use_positions[&id]];
-            assert_eq!(use_record.parent, definition.definition);
+            assert_eq!(use_record.parent, SourceReceiver::Definition(definition.definition.clone()));
             assert_eq!(use_record.target, definition.definition);
             let component = self
                 .scc_plan()
@@ -55,7 +55,7 @@ impl ConstraintBatch {
                 root: definition.root.clone(),
                 occurrence: occurrence.clone(),
                 use_id: use_record.id.clone(),
-                parent: use_record.parent.clone(),
+                parent: definition.definition.clone(),
                 target: use_record.target.clone(),
                 component,
             });

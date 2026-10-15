@@ -278,11 +278,16 @@ impl CandidateInference {
             if let HirItem::Error { errors, .. } = item {
                 if !errors.is_empty() && errors.iter().all(|error| declaration_errors.contains(error)) { continue; }
             }
-            if let HirItem::Binding(binding) = item {
-                if let Some(source) = hir.local_source(binding.definition_root())
-                    .map_err(|_| CandidateError::Unsupported)? {
+            let (expression, owner) = match item {
+                HirItem::Binding(binding) => (Some(binding.value()), Some(SourceRootId::Definition(binding.definition_root().clone()))),
+                HirItem::Expression(expression) => (Some(expression), hir.expression_root(expression.occurrence())
+                    .map_err(|_| CandidateError::Unsupported)?.cloned().map(SourceRootId::Expression)),
+                _ => (None, None),
+            };
+            if let (Some(expression), Some(owner)) = (expression, owner) {
+                if let Some(source) = hir.local_source_for(&owner).map_err(|_| CandidateError::Unsupported)? {
                     crate::candidate_source::preflight(source)?;
-                    crate::candidate_source::retain_placeholder_errors(binding.value(), &mut permitted_errors)?;
+                    crate::candidate_source::retain_placeholder_errors(expression, &mut permitted_errors)?;
                     continue;
                 }
             }
@@ -399,7 +404,7 @@ impl CandidateInference {
     }
 }
 pub enum CandidateEffectOperand<'a> {
-    OperationInterfaceMember { declaration: &'a yu_hir::shadow::SourceOperationDeclaration, owner: &'a DefinitionRootId, position: &'a yu_hir::shadow::SourceNodeKey, occurrence: &'a HirOccurrenceId, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
+    OperationInterfaceMember { declaration: &'a yu_hir::shadow::SourceOperationDeclaration, owner: &'a SourceRootId, position: &'a yu_hir::shadow::SourceNodeKey, occurrence: &'a HirOccurrenceId, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
     Contribution { effect: &'a yu_hir::shadow::SourceEffectId, origin: &'a yu_hir::shadow::SourceNodeKey, instance: u32 },
     AnnotationMember { annotation: CandidateEffectAnnotation<'a>, member: u32, effect: &'a yu_hir::shadow::SourceEffectId },
 }
@@ -408,7 +413,7 @@ pub struct CandidateEffectConflict<'a> {
     pub annotation: Option<CandidateEffectAnnotation<'a>>,
 }
 pub struct CandidateEffectAnnotation<'a> {
-    pub owner: &'a DefinitionRootId,
+    pub owner: &'a SourceRootId,
     pub position: &'a yu_hir::shadow::SourceNodeKey,
 }
 /// Exact immutable leaf of the private retained graph.
@@ -650,7 +655,7 @@ impl<'a> CandidateExport<'a> {
 struct CandidateDefinitionUse {
     record: DefinitionUse,
     target_root: DefinitionRootId,
-    receiving_root: DefinitionRootId,
+    receiving_root: SourceRootId,
 }
 
 /// Borrowed current module Name use. No source typing or export transport follows.
@@ -677,7 +682,7 @@ impl<'a> CandidateDefinitionUseRef<'a> {
     /// Actual receiving-root candidate observation from this same solve.
     /// This does not establish semantic source typing or export transport.
     pub fn receiving_export(self) -> Result<CandidateExport<'a>, ArtifactMismatch> {
-        self.observation.export(&self.retained.receiving_root)
+        self.observation.export(self.retained.receiving_root.definition_root().ok_or(ArtifactMismatch)?)
     }
     pub fn fresh_instantiation(self) -> crate::shadow_f5::FreshCaptureState<'a> {
         self.target.fresh_capture(
@@ -774,9 +779,10 @@ impl CandidateValueObservation {
                 target_root: batch.definitions[record.target().ordinal() as usize]
                     .root
                     .clone(),
-                receiving_root: batch.definitions[record.parent().ordinal() as usize]
-                    .root
-                    .clone(),
+                receiving_root: match record.parent() {
+                    SourceReceiver::Definition(parent) => SourceRootId::Definition(batch.definitions[parent.ordinal() as usize].root.clone()),
+                    SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
+                },
             })
             .collect();
         // Slot zero also belongs to Group recipes; retain the relation kind
@@ -857,7 +863,7 @@ impl CandidateValueObservation {
             observation: self,
             retained,
             target: schemes.for_root(&retained.target_root).ok()?,
-            receiving: schemes.for_root(&retained.receiving_root).ok()?,
+            receiving: schemes.for_root(retained.receiving_root.definition_root()?).ok()?,
         })
     }
     pub fn definition_uses(&self) -> impl Iterator<Item = CandidateDefinitionUseRef<'_>> {
@@ -1411,9 +1417,8 @@ impl ConstraintBatch {
                 uses.try_reserve(1)
                     .map_err(|_| CollectionAvailabilityError::DefinitionUseIdentityExhausted)?;
                 uses.push(PendingDefinitionUse {
-                    parent_ordinal: parent
-                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?
-                        .ordinal(),
+                    parent: SourceReceiver::Definition(parent
+                        .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone()),
                     target,
                     occurrence: occurrence.clone(),
                 });
@@ -1593,7 +1598,7 @@ impl InferenceSession {
                     let introduction = if let Some(name_index) = source_call.formal_name {
                         let name = &self.batch.candidate_calls.names[name_index];
                         let registration = &self.batch.candidate_calls.formals[name.registration];
-                        let source = self.batch.hir.local_source(&registration.owner)
+                        let source = self.batch.hir.local_source_for(&registration.owner)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         let lambda = source.expressions().get(registration.lambda)
@@ -1880,7 +1885,7 @@ mod tests {
             let mut state = original.clone();
             let record = state.calls[0].introduction.as_ref().unwrap();
             let registration = record.registration;
-            let source = candidate.solved.data.hir.local_source(&record.omitted.owner)
+            let source = candidate.solved.data.hir.local_source_for(&record.omitted.owner)
                 .unwrap().unwrap();
             let wrong_scope = crate::candidate_effect::AnnotationScope::Expression(source.body().clone());
             if corrupt_registration {

@@ -117,7 +117,7 @@ pub(super) struct LocalWeight {
     pub(super) allowed: Vec<SourceEffectId>,
     pub(super) right_pops: [(); 0],
     pub(super) boundary: u32,
-    pub(super) owner: DefinitionRootId,
+    pub(super) owner: SourceRootId,
     pub(super) position: SourceNodeKey,
     pub(super) attachment: Option<AttachmentSet>,
 }
@@ -145,7 +145,7 @@ pub(super) struct AttachmentBundleId(pub usize);
 #[derive(Clone, Debug)]
 #[cfg_attr(not(test), allow(dead_code, reason = "inert source provenance has no executable attachment consumer"))]
 pub(super) struct EmptyAttachmentSet {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub position: SourceNodeKey,
     pub source: AttachmentSource,
 }
@@ -2398,7 +2398,7 @@ impl State {
         }
         Ok(())
     }
-    pub fn source_weight(&mut self, boundary: u32, owner: &DefinitionRootId, position: &SourceNodeKey, allowed: &[SourceEffectId], source: Option<AttachmentSource>) -> Result<LocalWeightId, SolveAvailabilityError> {
+    pub fn source_weight(&mut self, boundary: u32, owner: &SourceRootId, position: &SourceNodeKey, allowed: &[SourceEffectId], source: Option<AttachmentSource>) -> Result<LocalWeightId, SolveAvailabilityError> {
         let id = LocalWeightId(u32::try_from(self.weights.len()).map_err(|_| exhausted())?);
         let mut members = Vec::new();
         members.try_reserve_exact(allowed.len()).map_err(|_| exhausted())?;
@@ -2904,7 +2904,7 @@ impl InferenceSession {
                         }
                     }
                     2 => {
-                        let source = self.batch.hir.local_source(&call.owner).map_err(|_| exhausted())?.ok_or_else(exhausted)?;
+                        let source = self.batch.hir.local_source_for(&call.owner).map_err(|_| exhausted())?.ok_or_else(exhausted)?;
                         let argument = source.expression(&call.argument).ok_or_else(exhausted)?;
                         let scope = self.batch.candidate_source.computation_scopes.get(&argument.occurrence).copied().ok_or_else(exhausted)?;
                         scoped.transformer = state.intern_scope(candidate_scope::ScopeTransformer::release(scope)?)?;

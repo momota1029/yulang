@@ -270,7 +270,7 @@ fn fresh_capture_routes_join_exact_scc_use_target_scheme_in_same_session() {
                 .pending_use_instantiation(&solved, occurrence)
                 .unwrap();
             assert!(pending.occurrence().same_identity(occurrence));
-            assert_eq!(pending.parent().collection_identity(), &use_record.parent);
+            assert_eq!(Some(pending.parent().collection_identity()), use_record.parent.definition());
             assert!(pending.target().same_identity(target));
             assert!(
                 pending

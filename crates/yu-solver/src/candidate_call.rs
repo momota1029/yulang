@@ -17,7 +17,7 @@ pub(super) struct State {
 pub(super) enum FormalRole { Value, Computation }
 #[derive(Clone, Debug)]
 pub(super) struct FormalRegistrationInput {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub lambda: usize,
     pub parameter: HirParameterId,
     pub scope: candidate_effect::AnnotationScope,
@@ -29,13 +29,13 @@ pub(super) struct FormalRegistrationInput {
 }
 #[derive(Clone, Debug)]
 pub(super) struct FormalNameInput {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub expression: usize,
     pub registration: usize,
 }
 #[derive(Clone, Debug)]
 pub(super) struct ApplySourceInput {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub expression: usize,
     pub callee: LocalSourceIndex,
     pub argument: LocalSourceIndex,
@@ -93,7 +93,7 @@ pub struct CandidateDirectionalIntroduction<'a> {
     record: &'a DirectionalIntroduction,
 }
 impl CandidateDirectionalIntroduction<'_> {
-    pub fn original_owner(&self) -> &DefinitionRootId {
+    pub fn original_owner(&self) -> &SourceRootId {
         &self.record.omitted.owner
     }
     pub fn original_lambda(&self) -> &HirOccurrenceId {
@@ -178,7 +178,7 @@ pub struct CandidateComputationSourcePlan<'a> {
     row: &'a yu_hir::shadow::SourceEffectRow,
 }
 impl<'a> CandidateComputationSourcePlan<'a> {
-    pub fn original_owner(&self) -> &'a DefinitionRootId { &self.registration.owner }
+    pub fn original_owner(&self) -> &'a SourceRootId { &self.registration.owner }
     pub fn original_lambda(&self) -> &'a HirOccurrenceId { &self.lambda.occurrence }
     pub fn original_formal(&self) -> &'a HirParameterId { &self.parameter.id }
     pub fn annotation(&self) -> &'a yu_hir::shadow::SourceAnnotation { self.annotation }
@@ -199,12 +199,11 @@ pub(super) fn observe_computation_source_plan<'a>(
     index: usize,
 ) -> Result<Option<CandidateComputationSourcePlan<'a>>, ArtifactMismatch> {
     let registration = state.formals.get(index).ok_or(ArtifactMismatch)?;
-    if !hir.owns_definition_root(&registration.owner) { return Err(ArtifactMismatch); }
-    let source = hir.local_source(&registration.owner).map_err(|_| ArtifactMismatch)?.ok_or(ArtifactMismatch)?;
+    let source = hir.local_source_for(&registration.owner).map_err(|_| ArtifactMismatch)?.ok_or(ArtifactMismatch)?;
     let lambda = source.expressions().get(registration.lambda).ok_or(ArtifactMismatch)?;
     let LocalSourceForm::Lambda { parameter, .. } = &lambda.form else { return Err(ArtifactMismatch); };
     if parameter.id != registration.parameter
-        || parameter.id.definition_root() != source.definition_root()
+        || parameter.id.source_root() != source.source_root()
         || !hir.owns_occurrence(&lambda.occurrence)
         || !scope_owned(source, &lambda.scope)
         || !scope_owned(source, &parameter.scope)
@@ -280,7 +279,7 @@ pub struct CandidateSourceCall<'a> {
     )>,
 }
 impl<'a> CandidateSourceCall<'a> {
-    pub fn owner(&self) -> &'a DefinitionRootId {
+    pub fn owner(&self) -> &'a SourceRootId {
         &self.input.owner
     }
     pub fn source(&self) -> &'a LocalSourceExpr {
@@ -421,16 +420,17 @@ fn native_port(
 }
 fn scope_owned(source: &LocalSource, scope: &LocalSourceScope) -> bool {
     match scope {
-        LocalSourceScope::Definition(owner) => owner == source.definition_root(),
+        LocalSourceScope::Definition(owner) => source.definition_root() == Some(owner),
+        LocalSourceScope::ModuleExpression(root) => source.source_root() == &SourceRootId::Expression(root.clone()),
         LocalSourceScope::Expression(index) => source.expression(index).is_some(),
         LocalSourceScope::CatchArm { catch, arm } => source.expression(catch).is_some_and(|expr| {
             matches!(&expr.form, LocalSourceForm::Catch { arms, .. } if arms.iter().any(|candidate| &candidate.source == arm))
         }),
         LocalSourceScope::Parameter(parameter) => {
-            parameter.definition_root() == source.definition_root()
+            parameter.source_root() == source.source_root()
         }
         LocalSourceScope::LocalInitializer(local) => {
-            local.definition_root() == source.definition_root()
+            local.source_root() == source.source_root()
         }
     }
 }
@@ -441,11 +441,8 @@ pub(super) fn observe<'a>(
     index: usize,
 ) -> Result<CandidateSourceCall<'a>, ArtifactMismatch> {
     let input = state.calls.get(index).ok_or(ArtifactMismatch)?;
-    if !hir.owns_definition_root(&input.owner) {
-        return Err(ArtifactMismatch);
-    }
     let source = hir
-        .local_source(&input.owner)
+        .local_source_for(&input.owner)
         .map_err(|_| ArtifactMismatch)?
         .ok_or(ArtifactMismatch)?;
     let expression = source
@@ -564,7 +561,7 @@ pub(super) fn observe<'a>(
             return Err(ArtifactMismatch);
         };
         if parameter.id != registration.parameter
-            || parameter.id.definition_root() != source.definition_root()
+            || parameter.id.source_root() != source.source_root()
             || !hir.owns_occurrence(&lambda.occurrence)
             || !hir.owns_occurrence(&name.occurrence)
             || !scope_owned(source, &lambda.scope)

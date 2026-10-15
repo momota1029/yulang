@@ -197,11 +197,12 @@ impl<'a> SccTopology<'a> {
     ) -> Result<impl Iterator<Item = SccUseRef<'a>> + '_, SccTopologyLookupError> {
         let component = self.component_of(component.canonical_definition())?;
         for record in &self.batch.definition_uses {
-            self.use_definitions(SccUseRef { id: &record.id })?;
+            if record.parent.definition().is_some() { self.use_definitions(SccUseRef { id: &record.id })?; }
         }
         Ok(self.batch.definition_uses.iter().filter_map(move |record| {
+            let parent_id = record.parent.definition()?;
             let parent = self
-                .component_of(SccDefinitionRef { id: &record.parent })
+                .component_of(SccDefinitionRef { id: parent_id })
                 .expect("outgoing inventory endpoints were validated");
             let target = self
                 .component_of(SccDefinitionRef { id: &record.target })
@@ -226,7 +227,7 @@ impl<'a> SccTopology<'a> {
             .get(occurrence.id)
             .and_then(|&position| self.batch.definition_uses.get(position))
             .ok_or(SccTopologyLookupError::MissingIdentity)?;
-        let parent = SccDefinitionRef { id: &record.parent };
+        let parent = SccDefinitionRef { id: record.parent.definition().ok_or(SccTopologyLookupError::MissingIdentity)? };
         let target = SccDefinitionRef { id: &record.target };
         self.component_of(parent)?;
         self.component_of(target)?;

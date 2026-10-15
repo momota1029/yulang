@@ -241,13 +241,19 @@ impl SccPlan {
         counters.scc_definition_index_capacity = node_for_definition.capacity();
 
         let mut seen_uses = HashSet::with_capacity(uses.len());
-        let mut ordered_uses = uses.iter().collect::<Vec<_>>();
-        for use_record in &ordered_uses {
+        let mut ordered_uses = uses.iter().filter(|record| record.parent.definition().is_some()).collect::<Vec<_>>();
+        for use_record in uses {
             if !Arc::ptr_eq(artifact, &use_record.id.artifact)
-                || !Arc::ptr_eq(artifact, &use_record.parent.artifact)
+                || use_record.parent.definition().is_some_and(|parent| !Arc::ptr_eq(artifact, &parent.artifact))
                 || !Arc::ptr_eq(artifact, &use_record.target.artifact)
             {
                 return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+            }
+            if use_record.parent.definition().is_none() {
+                counters.scc_definition_index_probes += 1;
+                if !node_for_definition.contains_key(&use_record.target) {
+                    return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+                }
             }
             counters.scc_seen_use_set_probes += 1;
             let capacity = seen_uses.capacity();
@@ -274,7 +280,7 @@ impl SccPlan {
             let first = ordered_uses[cursor];
             counters.scc_definition_index_probes += 1;
             let parent = *node_for_definition
-                .get(&first.parent)
+                .get(first.parent.definition().ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?)
                 .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
             counters.scc_definition_index_probes += 1;
             let target = *node_for_definition
@@ -634,10 +640,11 @@ impl SccPlan {
         );
         counters.scc_freeze_transition_peak_bytes = freeze_peak_bytes;
         // F1 clones stable handles only at the index/member/payload sites:
-        // 4D + 2C DefinitionOrderId handles and 2U DefinitionUseId handles.
+        // 4D + 2C DefinitionOrderId handles; each use enters the seen set,
+        // and each definition-parent use also enters a graph payload.
         // These are handle bytes, never their artifact/HIR referent payloads.
         let definition_id_clones = definitions.len() * 4 + ordered_components.len() * 2;
-        let use_id_clones = uses.len() * 2;
+        let use_id_clones = uses.len() + ordered_uses.len();
         counters.scc_stable_id_clone_count = definition_id_clones + use_id_clones;
         counters.scc_stable_id_clone_payload_bytes = definition_id_clones
             * std::mem::size_of::<DefinitionOrderId>()
@@ -812,9 +819,9 @@ impl SccPlan {
     }
 }
 
-fn use_key(use_record: &DefinitionUse) -> (u32, u32, u32) {
+fn use_key(use_record: &DefinitionUse) -> (Option<u32>, u32, u32) {
     (
-        use_record.parent.ordinal(),
+        use_record.parent.definition().map(DefinitionOrderId::ordinal),
         use_record.target.ordinal(),
         use_record.id.occurrence.ordinal(),
     )

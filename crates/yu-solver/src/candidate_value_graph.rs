@@ -65,8 +65,11 @@ impl Graph {
         }}
     }
     pub fn retain_source(&mut self, source: &LocalSource) -> Result<(), CollectionAvailabilityError> {
-        let module = self.modules.get(source.definition_root()).ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone();
-        let root = self.intern(Value::Module(module))?;
+        let value = match source.source_root() {
+            SourceRootId::Definition(definition) => Value::Module(self.modules.get(definition).ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone()),
+            SourceRootId::Expression(root) => Value::Expression(root.occurrence().clone()),
+        };
+        let root = self.intern(value)?;
         let mut owners = Vec::new(); owners.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         owners.resize(source.expressions().len(), root);
         let mut work = Vec::new(); work.try_reserve(1).map_err(|_| unavailable())?; work.push((source.body().ordinal() as usize, root));
@@ -326,7 +329,7 @@ mod conditional_reference_tests {
         let checking = ConstraintOccurrenceId::new(apply.occurrence.clone(), 0);
         let event = graph.checking[&checking];
         assert_eq!(graph.events[event].receiver, graph.vertices[&conditional]);
-        let root = Value::Module(graph.modules[source.definition_root()].clone());
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(graph.events[event].origin, graph.vertices[&root]);
         graph.seal().unwrap();
         assert!(!graph.qualifies(event));
@@ -341,7 +344,7 @@ mod conditional_reference_tests {
         ] {
             let (graph, source) = fixture(text);
             assert_eq!(references(&graph, &conditional(&source)), expected(&source, &["p", "g"]));
-            let root = Value::Module(graph.modules[source.definition_root()].clone());
+            let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
             assert!(references(&graph, &root).contains(&named(&source, "f")));
         }
     }
@@ -353,7 +356,7 @@ mod conditional_reference_tests {
         let names = expected(&source, &["p", "f", "g"]);
         assert_eq!(references(&graph, &inner), names);
         assert_eq!(references(&graph, &conditional(&source)), names);
-        let root = Value::Module(graph.modules[source.definition_root()].clone());
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(references(&graph, &root), [inner].into_iter().collect());
     }
 

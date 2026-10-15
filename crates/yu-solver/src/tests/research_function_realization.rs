@@ -1519,8 +1519,11 @@ fn returned_function_aliases_keep_source_identity_and_principal_diagonal() {
                 .definition_uses()
                 .iter()
                 .map(|usage| {
+                    let SourceReceiver::Definition(parent) = usage.parent() else {
+                        panic!("fixture uses are definition-owned");
+                    };
                     (
-                        names_by_ordinal[&usage.parent().ordinal()],
+                        names_by_ordinal[&parent.ordinal()],
                         names_by_ordinal[&usage.target().ordinal()],
                     )
                 })

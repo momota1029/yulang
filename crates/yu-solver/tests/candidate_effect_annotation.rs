@@ -191,10 +191,10 @@ fn exported_annotation_support_is_checked_by_an_outside_boundary() {
             else {
                 panic!("permission is not an emitted event")
             };
-            assert_eq!(annotation.owner, origin);
+            assert_eq!(annotation.owner.definition_root(), Some(origin));
             assert_eq!(member, 0);
             assert_eq!(effect, &hir.source_effect_declarations()[0].id);
-            assert_eq!(conflict.annotation.unwrap().owner, rejecting);
+            assert_eq!(conflict.annotation.unwrap().owner.definition_root(), Some(rejecting));
             members += 1;
         }
     }
@@ -301,7 +301,7 @@ fn root_symbolic_tail_carries_computation_effect_into_a_nested_function_port() {
             assert!(candidate.candidate_conflicts().iter().any(|error| {
                 candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
                     conflict.annotation.is_some_and(|boundary|
-                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+                        boundary.owner.definition_root() == Some(binding(&hir, "checked").definition_root()) && boundary.position == position))
             }), "root computation tick remains visible at the later other-only Function boundary");
         }
     }
@@ -332,7 +332,7 @@ fn local_root_symbolic_tail_preserves_a_future_lower_from_an_actual_argument() {
             assert!(candidate.candidate_conflicts().iter().any(|error| {
                 candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
                     conflict.annotation.is_some_and(|boundary|
-                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+                        boundary.owner.definition_root() == Some(binding(&hir, "checked").definition_root()) && boundary.position == position))
             }), "future tick lower through maker's actual argument reaches the retained nested port check");
         }
     }
@@ -413,7 +413,7 @@ fn mixed_root_tail_preserves_unmatched_future_lowers_after_local_capture() {
             assert!(candidate.candidate_conflicts().iter().any(|error| {
                 candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
                     conflict.annotation.is_some_and(|boundary|
-                        boundary.owner == binding(&hir, "checked").definition_root() && boundary.position == position))
+                        boundary.owner.definition_root() == Some(binding(&hir, "checked").definition_root()) && boundary.position == position))
             }), "unmatched future other lower reaches the later empty Function boundary");
         }
     }

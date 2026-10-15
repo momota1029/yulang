@@ -23,7 +23,7 @@ fn primitive_formals_retain_actual_identifier_and_annotation_nodes() {
     for expression in source.expressions() {
         if let LocalSourceForm::Lambda { parameter, .. } = &expression.form {
             let annotation = parameter.annotation.as_ref().unwrap();
-            assert_eq!(&annotation.owner, binding.definition_root());
+            assert_eq!(annotation.definition_root(), Some(binding.definition_root()));
             assert_ne!(parameter.source, annotation.position);
             let identifier = keys
                 .iter()
@@ -78,7 +78,7 @@ fn whole_local_primitives_retain_the_actual_annotation_owner_and_position() {
     assert_eq!(source.bindings().len(), 2);
     for local in source.bindings() {
         let annotation = local.annotation.as_ref().unwrap();
-        assert_eq!(&annotation.owner, binding.definition_root());
+        assert_eq!(annotation.definition_root(), Some(binding.definition_root()));
         assert_ne!(annotation.position, local.binder_source);
         let node = keys.iter().find(|(_, key)| **key == annotation.position).unwrap().0;
         assert_eq!(node.kind(), SyntaxKind::PatternTypeAnnotation);

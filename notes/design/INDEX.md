@@ -6,12 +6,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
-  at `f40e4235d`. G1 complete; direct-root carrier formation, nondefinition
-  receiver/use correspondence and mixed runtime roots (G2–G4) remain open.
-  Cache-bearing Resume materialization is a separate pending decision.
-  Independently reviewed [G3 level/routing construction](../theory/2026-10-16-module-expression-receiver-construction.md)
-  and [G4 runtime transition construction](../theory/2026-10-16-runtime-module-expression-roots.md)
-  supply their implementation prerequisites; actual source correspondence remains open.
+  at `f40e4235d`. G1–G3 complete; authentic carriers and receiver/use routing
+  have actual constructive proofs. G4 implements mixed roots with independently
+  reviewed structural/control correspondence; whole typed-source materialization
+  adequacy remains open. [Integration and checks](../progress/2026-10-16-module-expression-integration.md).
+  The separate [source-premise correction](../../questions/2026-10-16-resumed-definition-materialization/receipt.md),
+  bundle `1e62dfdc3`, selects no A/B law: establish a valid typed source capture
+  or unreachability before requesting that choice.
 
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer

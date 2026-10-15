@@ -19,11 +19,20 @@ pub(super) struct Plan {
     pub active: bool,
     pub references: candidate_value_graph::Graph,
     pub schedules: HashMap<DefinitionRootId, Vec<Action>>,
+    pub expressions: Vec<ExpressionSchedule>,
+    pub source_owners: HashMap<HirOccurrenceId, SourceRootId>,
     pub loose: Vec<Action>,
     pub component_levels: HashMap<usize, u32>,
     pub parameter_levels: HashMap<usize, u32>,
     pub locals: Vec<HirLocalId>,
     pub omitted_formals: HashMap<HirOccurrenceId, Arc<OmittedFormal>>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct ExpressionSchedule {
+    pub root: ExpressionRootId,
+    pub components: ComponentPositions,
+    pub value: CandidateEndpoint,
+    pub actions: Vec<Action>,
 }
 /// Source ownership is constructed before solving; numeric solver levels never
 /// determine whether a scope belongs to a captured source region.
@@ -268,7 +277,7 @@ impl ScopeInventory {
 #[derive(Clone, Debug)]
 #[cfg_attr(not(test), allow(dead_code, reason = "omission evidence has no semantic consumer"))]
 pub(super) struct OmittedFormal {
-    pub owner: DefinitionRootId,
+    pub owner: SourceRootId,
     pub lambda: HirOccurrenceId,
     pub formal: yu_hir::HirParameterId,
     pub position: yu_hir::shadow::SourceNodeKey,
@@ -289,14 +298,14 @@ pub(super) enum Action {
     Module(HirOccurrenceId),
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
-    Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
-    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: DefinitionRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32 },
+    Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
+    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
 }
 // The plan remains immutable while this frame is live. Root positions select
 // the original schedule, so resume never reconstructs actions from graph edges.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Schedule { Loose, Root(usize) }
+pub(super) enum Schedule { Loose, Root(usize), Expression(usize) }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Stage { Execute, PublishLocal { slot: usize, exposed: Term, boundary: u32 } }
 // Synthetic source-boundary token, not a certificate or readiness witness.
@@ -337,7 +346,10 @@ impl Plan {
             checked_capacity_bytes::<(DefinitionRootId, Vec<Action>)>(self.schedules.capacity(), "source schedules"),
             checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
-            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).map(|action| {
+            checked_capacity_bytes::<ExpressionSchedule>(self.expressions.capacity(), "expression schedules"),
+            checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
+            checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
+            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
                 if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } | Action::CatchOperation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
@@ -539,9 +551,25 @@ impl ConstraintBatch {
     pub(super) fn emit_candidate_source<'a>(
         &mut self,
         source: &'a LocalSource,
-        parent: &DefinitionOrderId,
+        parent: &SourceReceiver,
         uses: &mut Vec<PendingDefinitionUse<'a>>,
     ) -> Result<(), CollectionAvailabilityError> {
+        let owner = source.source_root();
+        let original = self.hir.local_source_for(owner).map_err(|_| invalid())?.ok_or_else(invalid)?;
+        if !std::ptr::eq(source, original) { return Err(invalid()); }
+        match (parent, owner) {
+            (SourceReceiver::Definition(id), SourceRootId::Definition(root))
+                if self.definitions.get(id.ordinal() as usize).is_some_and(|record| &record.definition == id && &record.root == root) => {},
+            (SourceReceiver::Expression(root), SourceRootId::Expression(actual)) if root == actual => {},
+            _ => return Err(invalid()),
+        }
+        self.candidate_source.source_owners.try_reserve(source.expressions().len()).map_err(|_| unavailable())?;
+        for expr in source.expressions() {
+            if !self.hir.owns_occurrence(&expr.occurrence) { return Err(invalid()); }
+            if self.candidate_source.source_owners.insert(expr.occurrence.clone(), owner.clone()).is_some_and(|previous| &previous != owner) {
+                return Err(invalid());
+            }
+        }
         self.candidate_source.references.retain_source(source)?;
         let mut positions = Vec::new();
         positions.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
@@ -570,11 +598,11 @@ impl ConstraintBatch {
                 parameters.insert(parameter.id.clone(), position);
                 let registration = self.candidate_calls.formals.len();
                 push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
-                    owner: source.definition_root().clone(), lambda: index,
+                    owner: owner.clone(), lambda: index,
                     parameter: parameter.id.clone(), recipe_position: position, native_root: None,
                     role: if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some()) { candidate_call::FormalRole::Computation } else { candidate_call::FormalRole::Value },
                     entry_effect: None, receiver_body: None,
-                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())),
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
                 formal_registrations.insert(parameter.id.clone(), registration);
@@ -622,7 +650,7 @@ impl ConstraintBatch {
             if let LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } = &expr.form {
                 let name = self.candidate_calls.names.len();
                 push(&mut self.candidate_calls.names, candidate_call::FormalNameInput {
-                    owner: source.definition_root().clone(), expression: index,
+                    owner: owner.clone(), expression: index,
                     registration: *formal_registrations.get(parameter).ok_or_else(invalid)?,
                 })?;
                 formal_names[index] = Some(name);
@@ -645,7 +673,9 @@ impl ConstraintBatch {
         let definition_region = self.candidate_source.region(None)?;
         if self.candidate_source.scoped_experiment {
             self.candidate_source.definition_regions.try_reserve(1).map_err(|_| unavailable())?;
-            self.candidate_source.definition_regions.insert(source.definition_root().clone(), definition_region);
+            if let SourceRootId::Definition(definition) = owner {
+                self.candidate_source.definition_regions.insert(definition.clone(), definition_region);
+            }
         }
         push(&mut work, Work::Visit(source.body().ordinal() as usize, 1, definition_region))?;
         while let Some(next) = work.pop() {
@@ -691,7 +721,7 @@ impl ConstraintBatch {
                             if parameter.annotation.is_none() {
                                 self.candidate_source.omitted_formals.try_reserve(1).map_err(|_| unavailable())?;
                                 self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
-                                    owner: source.definition_root().clone(), lambda: expr.occurrence.clone(),
+                                    owner: owner.clone(), lambda: expr.occurrence.clone(),
                                     formal: parameter.id.clone(), position: parameter.source.clone(),
                                     scope: self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].scope.clone(),
                                 }));
@@ -712,7 +742,7 @@ impl ConstraintBatch {
                                     self.term_for_leaf(Leaf::UnitPositive)?;
                                     self.term_for_leaf(Leaf::UnitNegative)?;
                                 }
-                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::clone(&annotation), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())) })?;
+                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::clone(&annotation), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())) })?;
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
@@ -772,7 +802,7 @@ impl ConstraintBatch {
                                 let count = 2 * usize::from(payload.is_some()) + 4 * usize::from(continuation.is_some());
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
-                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: source.definition_root().clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level })?;
+                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level })?;
                             }
                             _ => return Err(invalid()),
                         }
@@ -903,7 +933,7 @@ impl ConstraintBatch {
                             self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
                             self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
                             self.append_source_facts(start, &mut actions)?;
-                            push(&mut actions, Action::Operation { declaration: Arc::clone(declaration), owner: source.definition_root().clone(), occurrence: occurrence.clone(), target: pos.value, level })?;
+                            push(&mut actions, Action::Operation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: occurrence.clone(), target: pos.value, level })?;
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
                             continue;
@@ -930,7 +960,7 @@ impl ConstraintBatch {
                             }
                             match resolution {
                                 LocalSourceResolution::ModuleDef(target) => {
-                                    push(uses, PendingDefinitionUse { parent_ordinal: parent.ordinal(), target, occurrence: occurrence.clone() })?;
+                                    push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
                                 LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) => {}
@@ -1008,7 +1038,7 @@ impl ConstraintBatch {
                             } else { None };
                             let checking = ConstraintOccurrenceId::new(occurrence.clone(), 0);
                             push(&mut self.candidate_calls.calls, candidate_call::ApplySourceInput {
-                                owner: source.definition_root().clone(), expression: index,
+                                owner: owner.clone(), expression: index,
                                 callee: callee.clone(), argument: argument.clone(), level, recipe,
                                 callee_value: endpoints[callee.ordinal() as usize], callee_effect: c.effect,
                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
@@ -1030,9 +1060,10 @@ impl ConstraintBatch {
                             // when arm binder aliases become available during Visit.
                             endpoints[index] = endpoints[*ascription_children.get(&index).ok_or_else(invalid)?];
                             let scope = match &expr.scope {
+                                yu_hir::shadow::LocalSourceScope::ModuleExpression(root) => candidate_effect::AnnotationScope::Source(SourceRootId::Expression(root.clone())),
                                 yu_hir::shadow::LocalSourceScope::Definition(owner) => candidate_effect::AnnotationScope::Definition(owner.clone()),
                                 yu_hir::shadow::LocalSourceScope::LocalInitializer(local) => candidate_effect::AnnotationScope::Local(local.clone()),
-                                yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::Definition(source.definition_root().clone())),
+                                yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())),
                                 yu_hir::shadow::LocalSourceScope::CatchArm { arm, .. } => catch_arm_scopes.get(arm).cloned().ok_or_else(invalid)?,
                                 yu_hir::shadow::LocalSourceScope::Expression(expression) => candidate_effect::AnnotationScope::Expression(expression.clone()),
                             };
@@ -1105,29 +1136,36 @@ impl ConstraintBatch {
                 }
             }
         }
-        let root = self.root_component_positions[source.definition_root()].component;
         let body = source.body().ordinal() as usize;
-        if let Some(annotation) = source.annotation() {
-            // Prepare the annotation constructor's primitives before sealing,
-            // including bodies whose source expressions contain no literals.
-            for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
-                self.term_for_leaf(leaf)?;
+        if let SourceRootId::Definition(definition) = owner {
+            let root = self.root_component_positions[definition].component;
+            if let Some(annotation) = source.annotation() {
+                // Prepare the annotation constructor's primitives before sealing,
+                // including bodies whose source expressions contain no literals.
+                for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
+                    self.term_for_leaf(leaf)?;
+                }
+                self.prepare_source_annotation_primitives(&annotation.ty)?;
+                if annotation_contains_unit(&annotation.ty) {
+                    self.term_for_leaf(Leaf::UnitPositive)?;
+                    self.term_for_leaf(Leaf::UnitNegative)?;
+                }
+                push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
+                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+            } else {
+                push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
+                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
             }
-            self.prepare_source_annotation_primitives(&annotation.ty)?;
-            if annotation_contains_unit(&annotation.ty) {
-                self.term_for_leaf(Leaf::UnitPositive)?;
-                self.term_for_leaf(Leaf::UnitNegative)?;
-            }
-            push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
-            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
-            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
-        } else {
-            push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
-            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
-            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+            self.candidate_source.schedules.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.schedules.insert(definition.clone(), actions);
+        } else if let SourceRootId::Expression(root) = owner {
+            self.candidate_source.expressions.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.expressions.push(ExpressionSchedule {
+                root: root.clone(), components: positions[body], value: endpoints[body], actions,
+            });
         }
-        self.candidate_source.schedules.try_reserve(1).map_err(|_| unavailable())?;
-        self.candidate_source.schedules.insert(source.definition_root().clone(), actions);
         self.candidate_source.active = true;
         Ok(())
     }
@@ -1197,6 +1235,16 @@ impl InferenceSession {
             self.batch.candidate_calls.formals[index].entry_effect = entry;
         }
         Ok(())
+    }
+    pub(super) fn execute_candidate_expression(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let schedule = self.batch.candidate_source.expressions.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if self.batch.candidate_source.source_owners.get(schedule.root.occurrence()) != Some(&SourceRootId::Expression(schedule.root.clone()))
+            || self.batch.candidate_source.component_levels.get(&schedule.components.value) != Some(&1)
+            || self.batch.candidate_source.component_levels.get(&schedule.components.effect) != Some(&1)
+        { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        let value = schedule.value;
+        self.candidate_endpoint(value, Polarity::Positive)?;
+        self.execute_candidate_source_schedule(Schedule::Expression(index))
     }
     pub(super) fn execute_candidate_loose(&mut self) -> Result<(), SolveAvailabilityError> {
         self.execute_candidate_source_schedule(Schedule::Loose)
@@ -1270,6 +1318,7 @@ impl InferenceSession {
         }
         let actions = match frame.schedule {
             Schedule::Loose => &self.batch.candidate_source.loose,
+            Schedule::Expression(index) => &self.batch.candidate_source.expressions.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?.actions,
             Schedule::Root(position) => {
                 let root = &self.batch.definitions.get(position).ok_or(SolveAvailabilityError::IdentityExhausted)?.root;
                 self.batch.candidate_source.schedules.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?
@@ -1470,7 +1519,7 @@ mod local_self_recursion_tests {
         let (call_index, call) = batch.candidate_calls.calls.iter().enumerate()
             .find(|(_, call)| call.receiver_attachment.is_some()).unwrap();
         let attachment = call.receiver_attachment.as_ref().unwrap().clone();
-        let source = batch.hir.local_source(&call.owner).unwrap().unwrap();
+        let source = batch.hir.local_source_for(&call.owner).unwrap().unwrap();
         let id_call = batch.candidate_calls.calls.iter().find(|other| {
             other.owner == call.owner && source.expression(&other.callee).is_some_and(|callee| matches!(&callee.form,
                 LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "id"))
@@ -1550,4 +1599,74 @@ mod local_self_recursion_tests {
             "diagnostic attachment leaves every actual copied binder at its lexical owner");
     }
 
+}
+
+#[cfg(test)]
+mod expression_receiver_tests {
+    use super::*;
+
+    fn module(text: &str) -> Arc<HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::lower_module(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("expression-receiver", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap())
+    }
+
+    #[test]
+    fn expression_uses_keep_original_receivers_levels_and_definition_scc_domain() {
+        let hir = module("{ my local = target; local }; target; my target = 1");
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        assert_eq!(batch.definitions.len(), 1);
+        assert_eq!(batch.root_order.len(), 1);
+        assert_eq!(batch.candidate_source.expressions.len(), 2);
+        assert_eq!(batch.definition_uses.len(), 2);
+        let expected_roots: Vec<_> = hir.items().iter().filter_map(|item| match item {
+            HirItem::Expression(expr) => hir.expression_root(expr.occurrence()).unwrap().cloned(), _ => None,
+        }).collect();
+        assert_eq!(batch.candidate_source.expressions.iter().map(|schedule| &schedule.root).collect::<Vec<_>>(), expected_roots.iter().collect::<Vec<_>>());
+        for (record, (root, level)) in batch.definition_uses.iter().zip(expected_roots.iter().zip([2, 1])) {
+            assert_eq!(record.parent(), &SourceReceiver::Expression(root.clone()));
+            assert_eq!(record.use_level, level);
+            assert_eq!(record.id().occurrence(), record.occurrence());
+            assert_eq!(record.cause().id(), record.id());
+            assert_eq!(record.target(), &batch.definitions[0].definition);
+        }
+        for component in batch.scc_plan().components_in_dependency_first_order() {
+            assert!(batch.scc_plan().internal_uses(component).unwrap().is_empty());
+            assert!(batch.scc_plan().incoming_uses(component).unwrap().is_empty());
+        }
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        assert_eq!(state.graphs.len(), 1);
+        assert!(state.graphs[0].is_some());
+        assert_eq!(state.routes.len(), 2);
+        for record in &session.batch.definition_uses {
+            assert_eq!(state.routes.iter().filter(|route| &route.use_id == record.id()).count(), 1);
+        }
+    }
+
+    #[test]
+    fn source_planner_refuses_foreign_or_mismatched_expression_receivers_before_actions() {
+        let hir = module("1; 2");
+        let foreign = module("1; 2");
+        let root = |module: &HirModule, index| {
+            let HirItem::Expression(expr) = &module.items()[index] else { panic!("expression"); };
+            module.expression_root(expr.occurrence()).unwrap().unwrap().clone()
+        };
+        let owner = SourceRootId::Expression(root(&hir, 0));
+        let source = hir.local_source_for(&owner).unwrap().unwrap();
+        let mut batch = ConstraintBatch::collect(hir.clone()).unwrap();
+        let mut uses = Vec::new();
+        for receiver in [SourceReceiver::Expression(root(&hir, 1)), SourceReceiver::Expression(root(&foreign, 0))] {
+            assert!(matches!(batch.emit_candidate_source(source, &receiver, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+            assert!(batch.candidate_source.expressions.is_empty());
+            assert!(uses.is_empty());
+        }
+        let foreign_owner = SourceRootId::Expression(root(&foreign, 0));
+        let foreign_source = foreign.local_source_for(&foreign_owner).unwrap().unwrap();
+        assert!(matches!(batch.emit_candidate_source(foreign_source, &SourceReceiver::Expression(root(&foreign, 0)), &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+    }
 }

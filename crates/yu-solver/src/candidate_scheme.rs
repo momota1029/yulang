@@ -1049,7 +1049,7 @@ impl InferenceSession {
     pub(super) fn route_candidate_open_use(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
         let record = Self::validated_route_use(&self.batch, id)?.clone();
         let state = &self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion;
-        if !state.active_uses.contains(id) || !state.active_roots.contains_key(&record.parent) || !state.active_roots.contains_key(&record.target) { return Err(exhausted()); }
+        if !state.active_uses.contains(id) || record.parent.definition().is_none_or(|parent| !state.active_roots.contains_key(parent)) || !state.active_roots.contains_key(&record.target) { return Err(exhausted()); }
         // The original occurrence and cause enter the ordinary route owner;
         // the fresh occurrence row remains distinct from the live target root.
         self.route_internal(id)
@@ -1576,6 +1576,7 @@ impl InferenceSession {
         if source.stage != candidate_source::Stage::Execute { return Err(exhausted()); }
         let actions = match source.schedule {
             candidate_source::Schedule::Loose => &self.batch.candidate_source.loose,
+            candidate_source::Schedule::Expression(index) => &self.batch.candidate_source.expressions.get(index).ok_or_else(exhausted)?.actions,
             candidate_source::Schedule::Root(index) => {
                 let root = &self.batch.definitions.get(index).ok_or_else(exhausted)?.root;
                 self.batch.candidate_source.schedules.get(root).ok_or_else(exhausted)?
@@ -1728,7 +1729,7 @@ mod authentic_demand_capture_tests {
         let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
         let initializer = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "local").unwrap().id.clone();
         let original_call = session.batch.candidate_calls.calls.iter().enumerate().find_map(|(index, call)| {
-            if call.owner != owner { return None; }
+            if call.owner.definition_root() != Some(&owner) { return None; }
             let name = session.batch.candidate_calls.names.get(call.formal_name?)?;
             let registration = &session.batch.candidate_calls.formals[name.registration];
             let lambda = &source.expressions()[registration.lambda];

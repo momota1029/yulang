@@ -38,7 +38,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
             Instruction::Block { bindings, .. } => {
                 for binding in bindings {
                     if binding.recursive
-                        || binding.id.definition_root() != &code.site.definition
+                        || binding.id.source_root() != &code.site.source_root
                         || locals.insert(&binding.id, binding.initializer).is_some()
                     {
                         return false;
@@ -49,7 +49,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                 for arm in arms {
                     match &arm.pattern {
                         LocalSourceCatchPattern::Value(pattern) => {
-                            if !ground_pattern(pattern, &code.site.definition, &mut catches) {
+                            if !ground_pattern(pattern, &code.site.source_root, &mut catches) {
                                 return false;
                             }
                         }
@@ -72,7 +72,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                                 return false;
                             };
                             if let LocalSourceCatchPayloadPattern::Value(pattern) = payload {
-                                if !ground_pattern(pattern, &code.site.definition, &mut catches) {
+                                if !ground_pattern(pattern, &code.site.source_root, &mut catches) {
                                     return false;
                                 }
                             }
@@ -92,6 +92,9 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
             return false;
         }
         work.push(Visit::Enter(definition.body, Role::Ground));
+    }
+    for body in program.expression_roots.values() {
+        work.push(Visit::Enter(*body, Role::Ground));
     }
     let mut states = vec![[0u8; 2]; program.code.len()];
     while let Some(visit) = work.pop() {
@@ -188,13 +191,13 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
 
 fn ground_pattern<'a>(
     pattern: &'a LocalSourceCatchValuePattern,
-    owner: &yu_hir::DefinitionRootId,
+    owner: &yu_hir::SourceRootId,
     binders: &mut HashSet<&'a LocalSourceCatchBinderId>,
 ) -> bool {
     match pattern {
         LocalSourceCatchValuePattern::Wildcard => true,
         LocalSourceCatchValuePattern::Binder(binder) => {
-            binder.id.owner() == owner && binders.insert(&binder.id)
+            binder.id.source_root() == owner && binders.insert(&binder.id)
         }
     }
 }

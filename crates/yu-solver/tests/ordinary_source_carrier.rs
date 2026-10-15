@@ -33,7 +33,7 @@ fn ordinary_collection_retains_and_exposes_the_owning_source_carrier() {
     else {
         panic!("supported ordinary source");
     };
-    assert_eq!(carrier.definition_root(), root);
+    assert_eq!(carrier.definition_root(), Some(root));
 
     // Collection retains this HIR and exposes its carrier; successor constraint
     // consumption remains a separate gate.
@@ -41,7 +41,7 @@ fn ordinary_collection_retains_and_exposes_the_owning_source_carrier() {
     assert!(Arc::ptr_eq(batch.hir(), &hir));
     let retained = batch.hir().local_source(root).unwrap().unwrap();
     assert!(std::ptr::eq(carrier, retained));
-    assert_eq!(retained.definition_root(), root);
+    assert_eq!(retained.definition_root(), Some(root));
     for expression in retained.expressions() {
         assert!(hir.owns_occurrence(&expression.occurrence));
         assert_eq!(
@@ -203,7 +203,7 @@ mod candidate {
             );
             for index in 0..calls {
                 let call = candidate.source_call(index).unwrap();
-                assert_eq!(call.owner(), root);
+                assert_eq!(call.owner().definition_root(), Some(root));
                 for expression in [call.source(), call.callee_source(), call.argument_source()] {
                     assert!(
                         source

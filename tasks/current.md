@@ -6,21 +6,32 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
-- **Module-expression ownership approved:** the exact question revision 2 / a1
+- **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
   [governing design](../notes/design/2026-10-16-module-expression-source-owner.md)
   authorizes authentic expression owners, level-1 nondefinition receivers,
   ordinary definition-use FreshUse, and mixed source-ordered runtime roots.
-  The [G3 construction](../notes/theory/2026-10-16-module-expression-receiver-construction.md)
-  has independent proof review for nested levels, authentic use/Value ownership
-  and routing expression schedules after definition publication. The
-  [G4 transition construction](../notes/theory/2026-10-16-runtime-module-expression-roots.md)
-  has independent review for mixed root order, cache-free completion and exclusion
-  of the root cursor from internal raw captures. G2–G4 implementation and actual
-  source correspondence remain OPEN; these prerequisites authorize their exact
-  handoff, not full inference/runtime closure. Cache-bearing raw Resume alone still awaits the two materialization
-  laws in `questions/2026-10-16-resumed-definition-materialization/question.md`.
-  That separate pending directory remains uncommitted.
+  [G2 preservation](../notes/theory/2026-10-16-module-expression-carrier-correspondence.md)
+  and the [G3 actual bridge](../notes/theory/2026-10-16-module-expression-receiver-construction.md)
+  now have independent proof review; their implementation gates are complete.
+  [G4](../notes/theory/2026-10-16-runtime-module-expression-roots.md) implements
+  mixed source-ordered roots, cache-free expression completion, whole-program
+  classification and original dynamic owners. Its actual structural/control
+  correspondence is independently CLEAN relative to existing materialization
+  premises; whole typed-source root adequacy remains OPEN at that source bridge.
+  M2 semantic/contract reviews are clean; 168 default HIR, 207 shadow HIR and
+  all 103 playground tests pass, along with focused solver routes and one
+  workspace check. The CLI mixed-root example prints `7`.
+  [Integration and exact verification](../notes/progress/2026-10-16-module-expression-integration.md).
+
+- **Resumed-definition source premise corrected:** bundle `1e62dfdc3` and its
+  [receipt](../questions/2026-10-16-resumed-definition-materialization/receipt.md)
+  consume the user's correction: a definition's initialization effect is not
+  handled merely by placing a handler around a later value reference. No A/B
+  materialization law was chosen. Establish a valid typed source capture or
+  source-qualified unreachability before requesting a new law. Prover owns the
+  construction; primary retains the original whole-runtime gate OPEN. Internal
+  frame existence and pure forward-demand tests are not source reachability.
 
 - **Direct primitive handlers implemented and proved:** the [closed-program gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
   supplies actual negative visibility from a once-computed authentic source
@@ -96,8 +107,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   discharge must retain its source law. This is an unproved existing source
   contract, not a demonstrated loss or a new semantic decision. Primary owns
   this native parent; no further inverse census or metadata repair is justified.
-  Production inference behavior is unchanged. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
-  policy or production status change follows from these notes.
+  Those native research checkpoints changed no production inference behavior;
+  the separate module-expression extension above changes source ownership and
+  scheduling only. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN.
+  The active direct predicate proof must cover whole declared Support members,
+  actual contributions and symbolic tails under the same xi, together with
+  same-provider Result/RE/entry and reached post-check discharge. No inverse
+  census, scoped-callee policy or production status change follows from the notes.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

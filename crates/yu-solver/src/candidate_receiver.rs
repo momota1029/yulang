@@ -306,7 +306,7 @@ fn assemble(
         return Err(unavailable());
     }
     Ok(Assembly {
-        relay: relay.definition_root().clone(),
+        relay: relay.definition_root().ok_or_else(unavailable)?.clone(),
         answer: answer.clone(),
         catch: catch.occurrence.clone(),
         scrutinee: scrutinee.occurrence.clone(),
@@ -352,7 +352,10 @@ impl InferenceSession {
             return Err(native_unavailable());
         }
         let usage = &self.batch.definition_uses()[0];
-        if self.batch.definitions[usage.parent.ordinal() as usize].root != schema.answer
+        let SourceReceiver::Definition(parent) = &usage.parent else {
+            return Err(native_unavailable());
+        };
+        if self.batch.definitions[parent.ordinal() as usize].root != schema.answer
             || self.batch.definitions[usage.target.ordinal() as usize].root != schema.relay
         {
             return Err(native_unavailable());

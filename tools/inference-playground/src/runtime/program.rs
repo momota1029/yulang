@@ -8,8 +8,8 @@ use yu_hir::shadow::{
     SourceOperationResolution,
 };
 use yu_hir::{
-    DefId, DefinitionRootId, HirErrorKind, HirItem, HirLocalId, HirModule, HirOccurrenceId,
-    HirParameterId,
+    DefId, ExpressionRootId, HirErrorKind, HirItem, HirLocalId, HirModule, HirOccurrenceId,
+    HirParameterId, SourceRootId,
 };
 
 /// One immutable source-qualified code arena. Lowering visits each retained
@@ -19,8 +19,30 @@ pub struct RuntimeProgram {
     pub(super) code: Vec<Arc<Code>>,
     pub(super) definitions: Vec<Definition>,
     pub(super) definition_indices: HashMap<DefId, usize>,
+    pub(super) expression_roots: HashMap<ExpressionRootId, Label>,
+    pub(super) source_schedule: Vec<ExecutionRoot>,
     // Valid only for fresh ModuleRun entry into this complete constructed universe.
     pub(super) closed_primitive: bool,
+}
+
+/// Source-ordered module demand. Expression labels are accepted only when
+/// they match the program's authenticated original root/code join.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExecutionRoot {
+    Definition(DefId),
+    Expression(ExpressionExecutionRoot),
+}
+
+/// An authenticated expression demand; only source compilation constructs it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpressionExecutionRoot {
+    pub(super) root: ExpressionRootId,
+    pub(super) code: usize,
+}
+impl ExpressionExecutionRoot {
+    pub fn source_root(&self) -> &ExpressionRootId {
+        &self.root
+    }
 }
 
 /// Supplied by the source interface owner, never inferred from runtime shape.
@@ -35,7 +57,7 @@ pub struct RuntimeEvidence {
 }
 #[derive(Clone, Debug)]
 pub struct SourceSite {
-    pub definition: DefinitionRootId,
+    pub source_root: SourceRootId,
     pub occurrence: HirOccurrenceId,
     pub range: Range<usize>,
 }
@@ -148,33 +170,8 @@ impl RuntimeProgram {
 
     /// Derive top-level demand from source construction, never from solved effect
     /// support, SCC order, or a referenced definition's fetch classification.
-    pub fn execution_roots(&self) -> Result<Vec<DefId>, RuntimeUnavailable> {
-        let mut roots = Vec::new();
-        for definition in &self.definitions {
-            let mut current = definition.body;
-            let computation = loop {
-                let code = self
-                    .code
-                    .get(current.0)
-                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
-                match &code.instruction {
-                    Instruction::Forward(inner) => current = *inner,
-                    Instruction::Block {
-                        bindings,
-                        final_expression,
-                    } if bindings.is_empty() => current = *final_expression,
-                    Instruction::Apply { .. }
-                    | Instruction::If { .. }
-                    | Instruction::Catch { .. }
-                    | Instruction::Block { .. } => break true,
-                    _ => break false,
-                }
-            };
-            if computation {
-                roots.push(definition.id.clone());
-            }
-        }
-        Ok(roots)
+    pub fn execution_roots(&self) -> Result<Vec<ExecutionRoot>, RuntimeUnavailable> {
+        Ok(self.source_schedule.clone())
     }
     pub fn from_hir(
         hir: Arc<HirModule>,
@@ -183,6 +180,8 @@ impl RuntimeProgram {
         let mut code = Vec::new();
         let mut definitions = Vec::new();
         let mut definition_indices = HashMap::new();
+        let mut expression_roots = HashMap::new();
+        let mut source_schedule = Vec::new();
         let declaration_errors = hir
             .source_effect_declarations()
             .iter()
@@ -194,8 +193,16 @@ impl RuntimeProgram {
             .map(|error| (error.id(), error.kind()))
             .collect::<HashMap<_, _>>();
         for item in hir.items() {
-            let binding = match item {
-                HirItem::Binding(binding) => binding,
+            let source_root = match item {
+                HirItem::Binding(binding) => {
+                    SourceRootId::Definition(binding.definition_root().clone())
+                }
+                HirItem::Expression(expression) => SourceRootId::Expression(
+                    hir.expression_root(expression.occurrence())
+                        .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                        .ok_or(RuntimeUnavailable::MissingSource)?
+                        .clone(),
+                ),
                 HirItem::Error { errors, .. }
                     if !errors.is_empty()
                         && errors.iter().all(|error| {
@@ -208,7 +215,7 @@ impl RuntimeProgram {
                 _ => return Err(RuntimeUnavailable::MissingSource),
             };
             let source = hir
-                .local_source(binding.definition_root())
+                .local_source_for(&source_root)
                 .map_err(|_| RuntimeUnavailable::MissingSource)?
                 .ok_or(RuntimeUnavailable::MissingSource)?;
             let offset = code.len();
@@ -360,7 +367,8 @@ impl RuntimeProgram {
                         }
                     }
                     // This constructor validates the bounded LocalSource envelope:
-                    // only bindings and registered Act placeholders are admitted.
+                    // supported authentic roots and registered Act placeholders
+                    // are admitted.
                     // Error declarations/helpers/import items cannot enter it;
                     // SemanticImports currently carries no cast rules, and Act
                     // formation registers only family/operation namespaces. Thus
@@ -384,7 +392,7 @@ impl RuntimeProgram {
                         },
                         root_schema: super::receiving::RootCompSchema::from_parameter(
                             &SourceSite {
-                                definition: binding.definition_root().clone(),
+                                source_root: source_root.clone(),
                                 occurrence: expression.occurrence.clone(),
                                 range: expression.range.clone(),
                             },
@@ -440,24 +448,67 @@ impl RuntimeProgram {
                 };
                 code.push(Arc::new(Code {
                     site: SourceSite {
-                        definition: binding.definition_root().clone(),
+                        source_root: source_root.clone(),
                         occurrence: expression.occurrence.clone(),
                         range: expression.range.clone(),
                     },
                     instruction,
                 }));
             }
-            definition_indices.insert(binding.id().clone(), definitions.len());
-            definitions.push(Definition {
-                id: binding.id().clone(),
-                body: label(source.body())?,
-            });
+            let body = label(source.body())?;
+            match item {
+                HirItem::Binding(binding) => {
+                    let index = definitions.len();
+                    definition_indices.insert(binding.id().clone(), index);
+                    definitions.push(Definition {
+                        id: binding.id().clone(),
+                        body,
+                    });
+                    // Preserve the existing source fetch classifier. Expression
+                    // demands below are unconditional, including bare values.
+                    let mut current = body;
+                    let computation = loop {
+                        match &code
+                            .get(current.0)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                            .instruction
+                        {
+                            Instruction::Forward(inner) => current = *inner,
+                            Instruction::Block {
+                                bindings,
+                                final_expression,
+                            } if bindings.is_empty() => current = *final_expression,
+                            Instruction::Apply { .. }
+                            | Instruction::If { .. }
+                            | Instruction::Catch { .. }
+                            | Instruction::Block { .. } => break true,
+                            _ => break false,
+                        }
+                    };
+                    if computation {
+                        source_schedule.push(ExecutionRoot::Definition(binding.id().clone()));
+                    }
+                }
+                HirItem::Expression(_) => {
+                    let SourceRootId::Expression(root) = source_root else {
+                        unreachable!()
+                    };
+                    expression_roots.insert(root.clone(), body);
+                    source_schedule.push(ExecutionRoot::Expression(ExpressionExecutionRoot {
+                        root,
+                        code: body.0,
+                    }));
+                }
+                HirItem::Error { .. } => unreachable!(),
+            }
         }
         let mut program = Self {
             _hir: hir,
             code,
             definitions,
             definition_indices,
+            expression_roots,
+            source_schedule,
             closed_primitive: false,
         };
         program.closed_primitive = super::primitive::closed_primitive(&program);

@@ -222,16 +222,50 @@ impl Hash for DefinitionRootId {
     }
 }
 
+/// An actual direct-root expression, minted only while lowering that item.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct ExpressionRootId {
+    occurrence: HirOccurrenceId,
+}
+impl ExpressionRootId {
+    pub fn occurrence(&self) -> &HirOccurrenceId { &self.occurrence }
+}
+/// Authentic source ownership without manufacturing a definition.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum SourceRootId {
+    Definition(DefinitionRootId),
+    Expression(ExpressionRootId),
+}
+impl SourceRootId {
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> {
+        match self { Self::Definition(root) => Some(root), Self::Expression(_) => None }
+    }
+    pub fn expression_root(&self) -> Option<&ExpressionRootId> {
+        match self { Self::Expression(root) => Some(root), Self::Definition(_) => None }
+    }
+    fn artifact(&self) -> &Arc<HirArtifactToken> {
+        match self {
+            Self::Definition(root) => &root.artifact,
+            Self::Expression(root) => &root.occurrence.artifact,
+        }
+    }
+}
+impl From<DefinitionRootId> for SourceRootId {
+    fn from(root: DefinitionRootId) -> Self { Self::Definition(root) }
+}
+impl From<ExpressionRootId> for SourceRootId {
+    fn from(root: ExpressionRootId) -> Self { Self::Expression(root) }
+}
+
 /// A local identity anchored to its enclosing artifact root.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct HirLocalId {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     ordinal: u32,
 }
 impl HirLocalId {
-    pub fn definition_root(&self) -> &DefinitionRootId {
-        &self.owner
-    }
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
     pub fn ordinal(&self) -> u32 {
         self.ordinal
     }
@@ -270,18 +304,17 @@ impl HirLocalId {
 /// ```
 #[derive(Clone)]
 pub struct HirParameterId {
-    owner: DefinitionRootId,
+    owner: SourceRootId,
     ordinal: u32,
 }
 
 impl HirParameterId {
-    fn new(owner: DefinitionRootId, ordinal: u32) -> Self {
-        Self { owner, ordinal }
+    fn new(owner: impl Into<SourceRootId>, ordinal: u32) -> Self {
+        Self { owner: owner.into(), ordinal }
     }
 
-    pub fn definition_root(&self) -> &DefinitionRootId {
-        &self.owner
-    }
+    pub fn source_root(&self) -> &SourceRootId { &self.owner }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> { self.owner.definition_root() }
 
     pub const fn ordinal(&self) -> u32 {
         self.ordinal
@@ -791,8 +824,9 @@ pub struct HirModule {
     pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
-    source_carriers: Vec<(DefinitionRootId, local_source::SourceCarrierOutcome)>,
-    source_carrier_indices: HashMap<DefinitionRootId, usize>,
+    expression_roots: HashMap<HirOccurrenceId, ExpressionRootId>,
+    source_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)>,
+    source_carrier_indices: HashMap<SourceRootId, usize>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -803,25 +837,52 @@ pub struct HirModule {
 }
 
 impl HirModule {
-    /// One outcome per admitted ordinary binding, in direct-root source order.
-    pub fn source_carrier_outcomes(&self) -> &[(DefinitionRootId, local_source::SourceCarrierOutcome)] {
+    /// Ordinary binding/expression outcomes in direct-root source order.
+    /// The opt-in binding adapter keeps its existing single-owned binding map.
+    pub fn source_carrier_outcomes(&self) -> &[(SourceRootId, local_source::SourceCarrierOutcome)] {
         &self.source_carriers
+    }
+    /// Resolves only the original occurrence of an actual expression item.
+    pub fn expression_root(&self, occurrence: &HirOccurrenceId)
+        -> Result<Option<&ExpressionRootId>, HirAvailabilityError>
+    {
+        if !self.owns_occurrence(occurrence) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.expression_roots.get(occurrence))
+    }
+    pub fn owns_expression_root(&self, root: &ExpressionRootId) -> bool {
+        self.expression_roots.get(root.occurrence()) == Some(root)
+    }
+    pub fn owns_source_root(&self, root: &SourceRootId) -> bool {
+        match root {
+            SourceRootId::Definition(root) => self.owns_definition_root(root),
+            SourceRootId::Expression(root) => self.owns_expression_root(root),
+        }
+    }
+    pub fn source_carrier_for(&self, root: &SourceRootId)
+        -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
+    {
+        if !self.owns_source_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1))
     }
     pub fn source_carrier(&self, root: &DefinitionRootId)
         -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
     {
-        if !self.owns_definition_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
-        Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1))
+        self.source_carrier_for(&SourceRootId::Definition(root.clone()))
     }
-    /// Borrows the retained carrier only from its owning immutable HIR artifact.
+    pub fn local_source_for(&self, root: &SourceRootId)
+        -> Result<Option<&local_source::LocalSource>, HirAvailabilityError>
+    {
+        Ok(match self.source_carrier_for(root)? {
+            Some(local_source::SourceCarrierOutcome::Supported(source)) => Some(source),
+            Some(local_source::SourceCarrierOutcome::Unsupported(_)) => None,
+            None => root.definition_root().and_then(|root| self.local_sources.get(root)),
+        })
+    }
+    /// Definition-only compatibility adapter over the authentic source owner.
     pub fn local_source(&self, root: &DefinitionRootId)
         -> Result<Option<&local_source::LocalSource>, HirAvailabilityError>
     {
-        Ok(match self.source_carrier(root)? {
-            Some(local_source::SourceCarrierOutcome::Supported(source)) => Some(source),
-            Some(local_source::SourceCarrierOutcome::Unsupported(_)) => None,
-            None => self.local_sources.get(root),
-        })
+        self.local_source_for(&SourceRootId::Definition(root.clone()))
     }
     /// Exact parse-owned origin retained for a definition from this artifact.
     pub fn definition_source_key(&self, root: &DefinitionRootId)
@@ -829,6 +890,20 @@ impl HirModule {
     {
         if !self.owns_definition_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
         Ok(self.source_identity.as_ref().and_then(|identity| identity.definitions.get(root)))
+    }
+    pub fn expression_source_key(&self, root: &ExpressionRootId)
+        -> Result<Option<&yu_syntax::SourceNodeKey>, HirAvailabilityError>
+    {
+        if !self.owns_expression_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_identity.as_ref().and_then(|identity| identity.expressions.get(root)))
+    }
+    pub fn source_root_source_key(&self, root: &SourceRootId)
+        -> Result<Option<&yu_syntax::SourceNodeKey>, HirAvailabilityError>
+    {
+        match root {
+            SourceRootId::Definition(root) => self.definition_source_key(root),
+            SourceRootId::Expression(root) => self.expression_source_key(root),
+        }
     }
     /// Exact source node for an ordinary or retained structural occurrence.
     pub fn occurrence_source_key(&self, occurrence: &HirOccurrenceId)
@@ -841,7 +916,7 @@ impl HirModule {
     pub fn parameter_source_origin(&self, parameter: &HirParameterId)
         -> Result<Option<&crate::HirParameterSourceOrigin>, HirAvailabilityError>
     {
-        if !self.owns_definition_root(parameter.definition_root()) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        if !self.owns_source_root(parameter.source_root()) { return Err(HirAvailabilityError::InconsistentIdentity); }
         Ok(self.source_identity.as_ref().and_then(|identity| identity.parameters.get(parameter)))
     }
     /// Tests whether a branded occurrence was minted by this exact artifact.
@@ -855,10 +930,10 @@ impl HirModule {
     }
 
     pub fn owns_parameter(&self, parameter: &HirParameterId) -> bool {
-        Arc::ptr_eq(&self.artifact, &parameter.owner.artifact)
+        Arc::ptr_eq(&self.artifact, parameter.owner.artifact())
             && self.items.iter().any(|item| {
                 matches!(item, HirItem::Binding(binding)
-                    if binding.definition_root == parameter.owner
+                    if Some(&binding.definition_root) == parameter.definition_root()
                         && binding.parameters.iter().any(|candidate| candidate.id == *parameter))
             })
     }
@@ -1023,12 +1098,24 @@ fn lower_module_with_counters(
 
     let artifact = mint_artifact_token();
     let mut items = Vec::with_capacity(plans.len());
+    let mut expression_roots = HashMap::new();
     let mut next_occurrence_ordinal = 0u32;
     let mut scope = ScopeStack::default();
     #[cfg(any(feature = "shadow", test))]
     let mut effect_ordinal = 0usize;
     for (plan, errors) in plans.iter().zip(root_errors) {
         let occurrence = next_occurrence(&artifact, &mut next_occurrence_ordinal)?;
+        if matches!(plan.kind, RootPlanKind::DirectExpression) {
+            expression_roots.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            let root = ExpressionRootId { occurrence: occurrence.clone() };
+            if let Some(source) = &mut counters.source_identity {
+                let key = counters.source_nodes.get(&plan.node)
+                    .ok_or(HirAvailabilityError::StructuralProjection)?;
+                source.expressions.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                source.expressions.insert(root.clone(), key.clone());
+            }
+            expression_roots.insert(occurrence.clone(), root);
+        }
         let definition_root = match &plan.kind {
             RootPlanKind::Binding(admitted) => {
                 Some(DefinitionRootId::new(artifact.clone(), admitted.id.clone()))
@@ -1077,24 +1164,42 @@ fn lower_module_with_counters(
         }
         items.push(item);
     }
-    let mut source_carriers = Vec::new();
-    let mut source_carrier_indices = HashMap::new();
+    // Binding carrier allocation stays a complete first pass, preserving all
+    // previously published binding-carrier ordinals in mixed modules.
+    let mut outcomes = Vec::new();
+    outcomes.try_reserve_exact(plans.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    outcomes.resize_with(plans.len(), || None);
     if counters.ordinary_source_carriers {
-        for (plan, item) in plans.iter().zip(&items) {
+        for (index, (plan, item)) in plans.iter().zip(&items).enumerate() {
             let HirItem::Binding(binding) = item else { continue; };
+            let owner = SourceRootId::Definition(binding.definition_root.clone());
             let outcome = local_source::form_ordinary(
-                plan, &binding.definition_root, &binding.parameters, &namespace,
+                plan, &owner, &binding.parameters, &namespace,
                 counters, &artifact, &mut next_occurrence_ordinal,
             )?;
-            source_carriers.try_reserve(1)
-                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-            source_carrier_indices.try_reserve(1)
-                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-            source_carrier_indices.insert(binding.definition_root.clone(), source_carriers.len());
-            source_carriers.push((binding.definition_root.clone(), outcome));
+            outcomes[index] = Some((owner, outcome));
         }
     }
+    if counters.ordinary_source_carriers || counters.local_source {
+        for (index, (plan, item)) in plans.iter().zip(&items).enumerate() {
+            let HirItem::Expression(expression) = item else { continue; };
+            let root = expression_roots.get(expression.occurrence())
+                .ok_or(HirAvailabilityError::StructuralProjection)?;
+            let owner = SourceRootId::Expression(root.clone());
+            let outcome = local_source::form_ordinary(
+                plan, &owner, &[], &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+            )?;
+            outcomes[index] = Some((owner, outcome));
+        }
+    }
+    let source_carriers: Vec<_> = outcomes.into_iter().flatten().collect();
+    let mut source_carrier_indices = HashMap::new();
+    source_carrier_indices.try_reserve(source_carriers.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    for (index, (owner, _)) in source_carriers.iter().enumerate() {
+        source_carrier_indices.insert(owner.clone(), index);
+    }
     Ok(HirModule {
+        expression_roots,
         source_carriers,
         source_carrier_indices,
         artifact,
@@ -1458,7 +1563,7 @@ fn lower_plan(
     let simple_body_projection = if counters.local_source {
         let (carrier, projection) = local_source::form(
             plan,
-            &definition_root,
+            &SourceRootId::Definition(definition_root.clone()),
             &parameters,
             namespace,
             counters,
@@ -2646,7 +2751,7 @@ pub(crate) fn retain_shadow_local_binding(
         _ => return Err(invalid()),
     };
     let local = HirLocalId {
-        owner: binding.definition_root.clone(),
+        owner: SourceRootId::Definition(binding.definition_root.clone()),
         ordinal: u32::try_from(0usize).map_err(|_| invalid())?,
     };
     let x = HirParameterId::new(

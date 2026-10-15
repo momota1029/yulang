@@ -384,7 +384,7 @@ impl<'a> CandidateSourceCrosswalk<'a> {
         if &call.occurrence != occurrence
             || &call.callee != callee.occurrence()
             || &call.argument != argument.occurrence()
-            || local.local.definition_root() != root
+            || local.local.definition_root() != Some(root)
             || local.continuation.local != local.local
             || local.captures.as_ref() != std::slice::from_ref(outer)
             || hir

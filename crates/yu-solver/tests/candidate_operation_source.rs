@@ -97,9 +97,9 @@ fn aliased_interface_conflicts_retain_operation_members_and_reject_foreign_handl
             panic!("operation support must retain its actual interface owner")
         };
         assert_eq!(actual.id, declaration.id);
-        assert_eq!(owner, root(&hir, "lookup"));
+        assert_eq!(owner.definition_root(), Some(root(&hir, "lookup")));
         assert_eq!(origin, occurrence);
-        assert_eq!(conflict.annotation.unwrap().owner, root(&hir, "rejected"));
+        assert_eq!(conflict.annotation.unwrap().owner.definition_root(), Some(root(&hir, "rejected")));
         if effect == &declaration.id.family { assert_eq!(member, 0); family_seen = true; }
         if effect == &hir.source_effect_declarations()[0].id { assert_eq!(member, 1); explicit_seen = true; }
         assert!(foreign.effect_conflict(error.kind()).is_err());
@@ -123,9 +123,9 @@ fn owning_family_is_prepended_without_removing_original_interface_members() {
             panic!("operation support must retain its actual interface owner")
         };
         assert_eq!(actual.id, declaration.id);
-        assert_eq!(owner, root(&hir, "lookup"));
+        assert_eq!(owner.definition_root(), Some(root(&hir, "lookup")));
         assert_eq!(origin, occurrence);
-        assert_eq!(conflict.annotation.unwrap().owner, root(&hir, "rejected"));
+        assert_eq!(conflict.annotation.unwrap().owner.definition_root(), Some(root(&hir, "rejected")));
         assert!(member < seen.len() as u32);
         let expected = if member < 3 { &declaration.id.family } else { &hir.source_effect_declarations()[0].id };
         assert_eq!(effect, expected);

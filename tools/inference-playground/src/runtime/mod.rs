@@ -11,5 +11,6 @@ pub use machine::{
     ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, ValueHandle,
 };
 pub use program::{
-    NameConsumption, RuntimeEvidence, RuntimeProgram, RuntimeUnavailable, SourceSite,
+    ExecutionRoot, ExpressionExecutionRoot, NameConsumption, RuntimeEvidence, RuntimeProgram,
+    RuntimeUnavailable, SourceSite,
 };

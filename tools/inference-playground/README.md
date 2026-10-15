@@ -95,9 +95,10 @@ printf 'my id x = x\nmy main = id 7\n' | cargo run -q -p yu-playground -- --run 
 7
 ```
 
-The evaluator executes computed top-level definition roots in source order
-before producing the selected definition's value. `--steps N` sets a positive
-transition limit;
+For accepted source, the evaluator interleaves supported direct top-level
+expressions with computed definition roots in source order. It discards each
+expression's result before producing the selected definition's value.
+`--steps N` sets a positive transition limit;
 the default is `100000`. If execution exhausts that limit, the tool withholds
 the completed value. `--intrusion` is an inference-observation option and
 cannot be combined with `--run`. The optional `--scoped-experiment` selects a
@@ -172,8 +173,8 @@ inherited coverage, remain unavailable. When evidence is missing, `--run`
 reports the request as unavailable and withholds the selected definition's
 output.
 
-Bare module expressions, arithmetic, imports, and standard-library operations
-are also unavailable in this evaluator. Its provisional execution does not
+Arithmetic, imports, and standard-library operations are also unavailable in
+this evaluator. Its provisional execution does not
 establish production soundness or hygiene.
 
 ## Scope and limits

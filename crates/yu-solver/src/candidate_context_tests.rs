@@ -427,7 +427,7 @@ fn omitted_formal_structural_incidence_survives_source_capture_without_effect_au
     assert_eq!(state(&early).origins.iter().filter(|other| other.occurrence == origin.occurrence).count(), 1,
         "owning Lambda admission seeds exactly one origin");
     assert_eq!(construction.source.lambda, *origin.occurrence.occurrence());
-    assert_eq!(construction.source.owner, owner);
+    assert_eq!(construction.source.owner, SourceRootId::Definition(owner.clone()));
     assert!(early.batch.candidate_source.omitted_formals.contains_key(&construction.source.lambda));
     let ValueEndpointKey::ValueRow(domain) = construction.domain else { panic!("omitted formal stays an unknown row"); };
     let (original_child, _, _, _) = InferenceSession::positive_function_children(&early.store, construction.function).unwrap();
@@ -463,7 +463,7 @@ fn omitted_formal_structural_incidence_survives_source_capture_without_effect_au
     }).collect();
     let incidence = arguments.iter().find_map(|&argument| session.candidate_formal_argument_incidence(argument))
         .expect("source local capture/fresh use authenticates its Argument child");
-    assert_eq!(incidence.construction.source.owner, owner);
+    assert_eq!(incidence.construction.source.owner, SourceRootId::Definition(owner.clone()));
     assert_ne!(incidence.source_relation, incidence.transport_relation);
     let handoff = incidence.name_handoff.expect("local use retains the source Name handoff");
     let link = incidence.name_link.expect("handoff retains the Name publication input");
@@ -499,7 +499,7 @@ fn omitted_formal_source_domains_correlate_with_retained_extrusion_pairs() {
             .find(|recipe| recipe.occurrence == construction.source.lambda).unwrap();
         assert_eq!(domain, session.parameter_live_base + recipe.parameter_position as u32);
         assert_eq!(construction.source.lambda, *origin.occurrence.occurrence());
-        let local = session.batch.hir.local_source(&construction.source.owner).unwrap().unwrap();
+        let local = session.batch.hir.local_source_for(&construction.source.owner).unwrap().unwrap();
         let parameter = local.expressions().iter().find_map(|expression| {
             if expression.occurrence != construction.source.lambda { return None; }
             match &expression.form {
@@ -611,7 +611,7 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
             }
             _ => panic!("fixture lexical Apply resolution"),
         };
-        let input = session.batch.candidate_calls.calls.iter().find(|input| input.owner == owner && input.expression == index).unwrap();
+        let input = session.batch.candidate_calls.calls.iter().find(|input| input.owner.definition_root() == Some(&owner) && input.expression == index).unwrap();
         assert_eq!(input.checking.occurrence(), &expression.occurrence);
         assert_eq!(input.callee, *callee);
         assert_eq!(input.argument, *argument);
@@ -624,7 +624,7 @@ fn omitted_formal_receiving_call_records_authenticated_argument_dispatch() {
     for (binder, formal, _, lambda, parameter, position) in &selected {
         let origin = context.origins.iter().find(|origin| origin.formal.as_ref().is_some_and(|construction| construction.source.lambda == *lambda)).unwrap();
         let construction = origin.formal.as_ref().unwrap();
-        assert_eq!(construction.source.owner, owner);
+        assert_eq!(construction.source.owner, SourceRootId::Definition(owner.clone()));
         assert_eq!(&construction.source.formal, parameter);
         assert_eq!(&construction.source.position, position);
         assert_eq!(origin.occurrence.occurrence(), lambda);
@@ -2913,7 +2913,7 @@ fn negative_written_empty_bundles_preserve_leaf_ports_and_executable_graph() {
         assert_eq!(bundle.occurrence.local_slot(), 41);
         assert_eq!(bundle.sets.len(), 1);
         let set = &bundle.sets[0];
-        assert_eq!(set.owner, owner);
+        assert_eq!(set.owner, SourceRootId::Definition(owner.clone()));
         assert_eq!(set.source.composed_polarity, Polarity::Negative);
         assert_eq!(matches!(set.source.lexical_scope, candidate_effect::AnnotationScope::Local(_)), local);
         let actions: Vec<_> = session.batch.candidate_source.schedules.values().flatten().collect();
@@ -6168,7 +6168,7 @@ fn grouped_helper_actual_copied_h_ports_retain_protection_without_default_bypass
     }).unwrap();
     let source = session.batch.hir.local_source(owner).unwrap().unwrap();
     let calls: Vec<_> = session.batch.candidate_calls.calls.iter().enumerate().filter_map(|(index, call)| {
-        if &call.owner != owner { return None; }
+        if call.owner.definition_root() != Some(owner) { return None; }
         let name = session.batch.candidate_calls.names.get(call.formal_name?)?;
         let registration = &session.batch.candidate_calls.formals[name.registration];
         let yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. } = &source.expressions()[registration.lambda].form else { return None; };
@@ -6349,7 +6349,7 @@ mod native_selected_use_census {
                 let route = &graph_state.local_routes[snapshot.route];
                 assert_eq!(route.slot, snapshot.slot);
                 assert_eq!(route.occurrence, snapshot.occurrence);
-                let source = hir.local_source(route.local.definition_root()).unwrap().unwrap();
+                let source = hir.local_source(route.local.definition_root().unwrap()).unwrap().unwrap();
                 let expression = source.expressions().iter().find(|expression| expression.occurrence == route.occurrence).unwrap();
                 assert!(matches!(&expression.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &route.local));
                 assert_eq!(hir.occurrence_source_key(&route.occurrence).unwrap(), Some(&expression.source));
@@ -6390,7 +6390,7 @@ mod native_selected_use_census {
             }
             assert!(selected_routes > 0 && provider_routes > 0 && g_routes > 0);
             let outer_registration = session.batch.candidate_calls.formals.iter().find(|formal|
-                formal.owner == *root("outer") && formal.role == candidate_call::FormalRole::Computation).unwrap();
+                formal.owner.definition_root() == Some(root("outer")) && formal.role == candidate_call::FormalRole::Computation).unwrap();
             let entry = outer_registration.entry_effect.unwrap();
             let lambda = &outer.expressions()[outer_registration.lambda];
             let function = facts(&session, &lambda.occurrence, 2).into_iter().find_map(|fact|
@@ -6406,7 +6406,7 @@ mod native_selected_use_census {
                 LocalSourceForm::Operation { resolution: yu_hir::SourceOperationResolution::Resolved(_) })).unwrap();
             assert!(!facts(&session, &operation.occurrence, 42).is_empty());
             assert_eq!(hir.occurrence_source_key(&operation.occurrence).unwrap(), Some(&operation.source));
-            let calls: Vec<_> = session.batch.candidate_calls.calls.iter().filter(|call| call.owner == *root("receive")).collect();
+            let calls: Vec<_> = session.batch.candidate_calls.calls.iter().filter(|call| call.owner.definition_root() == Some(root("receive"))).collect();
             assert_eq!(calls.len(), 2);
             let first = calls.iter().find(|call| matches!(&receive.expression(&call.callee).unwrap().form,
                 LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(_), .. })).unwrap();
@@ -6528,11 +6528,11 @@ mod native_selected_use_census {
             let census = graph.local_use_census.as_ref().unwrap();
             let parents = parents(context);
             let first = session.batch.candidate_calls.calls.iter().find(|call|
-                call.owner == *binding("receive").definition_root()
+                call.owner.definition_root() == Some(binding("receive").definition_root())
                     && matches!(&receive.expression(&call.callee).unwrap().form,
                         LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(_), .. })).unwrap();
             let second = session.batch.candidate_calls.calls.iter().find(|call|
-                call.owner == *binding("receive").definition_root()
+                call.owner.definition_root() == Some(binding("receive").definition_root())
                     && matches!(&receive.expression(&call.callee).unwrap().form,
                         LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &g.id)).unwrap();
             assert_eq!(g.initializer.ordinal() as usize, first.expression);
@@ -6551,7 +6551,7 @@ mod native_selected_use_census {
                 fact.lower() == g_snapshot.terms[g_route.graph.root].unwrap()
                     && fact.upper() == session.batch.component_term_at(g_snapshot.target_component)));
             let outer_registration = session.batch.candidate_calls.formals.iter().find(|formal|
-                formal.owner == *binding("outer").definition_root()
+                formal.owner.definition_root() == Some(binding("outer").definition_root())
                     && formal.role == candidate_call::FormalRole::Computation).unwrap();
             let entry = outer_registration.entry_effect.unwrap();
             let lambda = &outer.expressions()[outer_registration.lambda];
