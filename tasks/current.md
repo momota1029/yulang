@@ -48,12 +48,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   scope. Four focused tests, workspace check, playground build and three retained
   compose CLI controls pass after independently reviewed fixture/provenance
   repairs. This is observational metadata, not changed hygiene semantics.
-  The grouped local-helper source still fails scoped inference with
-  `Solve(ReceiptMismatch)` while ordinary inference succeeds. The first failure
-  is now source-qualified: extrusion creates an Effect-row copy link during
-  Value-demand processing, and bound construction copies the Value qualifier
-  onto that Effect relation. A typed owner repair is active; later paths and
-  the original loop/capture source gate remain OPEN.
+  The [grouped local-helper repair](../notes/progress/2026-10-15-callback-helper-scoped-transport.md)
+  now passes scoped inference. Typed structural copy links preserve appropriate
+  payloads; retained demand roots enter the common capture map; initial and
+  cached whole-Function extrusion transport the authenticated root with the
+  copied endpoint. Seven focused tests, workspace check and helper/compose
+  CLI controls pass. M2 constructor and test-contract reviews converged,
+  including actual helper AE/RE projection and absence of a demand-free
+  same-pair/source sibling. Strictly latent-only source evidence remains
+  unestablished; this does not implement receiver discharge or Catch removal.
   The [new receiver construction](../notes/theory/2026-10-15-callback-identity-receiver-construction.md)
   now has a clean independent source/proof review: one key per selected
   function frame/formal can preserve ordinary identity forwarding and release
@@ -63,8 +66,9 @@ Status: full objective remains active. Native extrusion now schedules current co
   multi-argument compose uses its terminal body frame. The primary owns the
   next source bridge at HIR named-group/terminal-body formation, followed by
   joint owner-key/discharge transport; latent values, activation and actual
-  Catch/runtime consumption remain OPEN. The local-helper qualifier failure
-  has a separate active owner repair and is not assumed resolved by this proof.
+  Catch/runtime consumption remain OPEN. The local-helper qualifier repair
+  supplies finite native transport evidence independently of this proof;
+  the exact original loop/std/native execution gate remains OPEN.
 
 - **User-requested detailed hygiene verification:** current Catch, annotation,
   conditional core evidence and three scoped compose sources have fresh bounded

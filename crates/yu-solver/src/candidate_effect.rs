@@ -436,6 +436,7 @@ impl InferenceSession {
                 // The first transport loop owns every executable copied fiber.
                 candidate_context::BoundAdmissionCause::BoundTransport { .. } => None,
                 candidate_context::BoundAdmissionCause::OwnerEmission { .. } => Some(self.candidate_context_bound(bound, origin)?),
+                candidate_context::BoundAdmissionCause::ExtrusionLink { .. } => Some(self.candidate_context_extrusion_link(bound, origin)?),
             }
         } else { Some(self.candidate_context_bound(bound, origin)?) };
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;

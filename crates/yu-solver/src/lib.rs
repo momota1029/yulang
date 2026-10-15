@@ -12456,7 +12456,10 @@ impl InferenceSession {
                                 for index in 0..child_count {
                                     let edge = match &self.typed_pairs[&memo_key] { TypedPairMemo::Value { children, .. } => children[index], _ => unreachable!() };
                                     self.recapture_candidate_extrusion(memo_key, edge.child)?;
-                                    self.enqueue_task(LiveConstraintTask::Value(edge.child))?;
+                                    let relation = self.candidate_context_value_rewrite(key, edge.child)?;
+                                    self.enqueue_item(TypedWorkItem {
+                                        task: LiveConstraintTask::Value(edge.child), relation, replay_ack: None,
+                                    }, false)?;
                                 }
                                 return Ok(());
                             }
@@ -12537,7 +12540,10 @@ impl InferenceSession {
                                     },
                                 )?;
                                 self.record_diagnostic_edge(key, rewritten, None)?;
-                                self.enqueue_task(LiveConstraintTask::Value(rewritten))?;
+                                let relation = self.candidate_context_value_rewrite(key, rewritten)?;
+                                self.enqueue_item(TypedWorkItem {
+                                    task: LiveConstraintTask::Value(rewritten), relation, replay_ack: None,
+                                }, false)?;
                                 return Ok(());
                             }
                         }

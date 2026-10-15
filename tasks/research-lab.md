@@ -49,11 +49,14 @@ still must satisfy identity preservation and compose release together.
 The [attachment-only native slice](../notes/progress/2026-10-15-callback-receiver-attachment.md)
 now retains that source owner and passes four focused tests plus workspace/build
 and three compose controls. It changes no release or nominal owner. Curried
-capture supplies two authenticated copied witnesses; the separately retained
-local-helper source still has `ReceiptMismatch` in scoped inference. Its first
-failing owner is now identified: Effect-row copying during Value extrusion
-inherits the enclosing Value demand at bound construction. The typed bound
-repair is active; later paths and the original sample target remain OPEN.
+capture supplies two authenticated copied witnesses. The separately retained
+[local-helper source now solves](../notes/progress/2026-10-15-callback-helper-scoped-transport.md)
+after typed structural-link, capture-payload and authenticated whole-Function
+rewrite repairs, including cached replay. Seven focused tests and final
+workspace/build/helper/compose checks pass. M2 reviews converged; the exact
+helper's actual AE/RE projections and complete same-pair/source sibling scan
+are covered. Strictly latent-only source evidence remains unestablished.
+The original loop/std/runtime target and receiver discharge remain OPEN.
 
 The [receiver/frame construction](../notes/theory/2026-10-15-callback-identity-receiver-construction.md)
 has now passed independent source/proof review. A selected frame/formal key
@@ -61,7 +64,8 @@ and its frame-output discharge explain both finite identity and compose cases;
 native group selection, shared transport, latent values and runtime remain OPEN.
 Consume this result at HIR named-group/terminal-body formation, under primary
 ownership, rather than adding another guard or repeating the scoped algebra
-proof. The diagnosed local-helper qualifier transport is independent work.
+proof. The independently repaired local-helper qualifier transport supplies
+finite evidence, without closing those source/frame or runtime premises.
 
 The user's detailed Catch/hygiene verification is recorded in the
 [bounded audit](../notes/progress/2026-10-15-playground-hygiene-verification.md).

@@ -463,8 +463,11 @@ pub(super) enum BoundLane {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct PhysicalBoundSlot { pub owner: candidate_scheme::RowKey, pub lane: BoundLane, pub index: usize }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BoundConstructionPurpose { Ordinary, ExtrusionLink }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum BoundAdmissionCause {
     OwnerEmission { processing: Option<RelationId> },
+    ExtrusionLink { processing: Option<RelationId> },
     FreshUse { antecedent: EvidenceSnapshotId, use_origin: usize, source_bound: BoundKey, mapped_relation: Option<RelationId> },
     BoundTransport { antecedent: EvidenceSnapshotId, through: TransportReason },
 }
@@ -681,7 +684,7 @@ impl BoundEvidence {
         cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
         let mut coverage = EvidenceCoverage::default();
         let antecedent = match cause {
-            BoundAdmissionCause::OwnerEmission { .. } => {
+            BoundAdmissionCause::OwnerEmission { .. } | BoundAdmissionCause::ExtrusionLink { .. } => {
                 coverage.add(CoverageGap::ProcessingAntecedentsUnavailable);
                 coverage.add(CoverageGap::OrdinarySeedAuthenticationUnavailable);
                 coverage.add(CoverageGap::MissingAntecedent);
@@ -2538,6 +2541,31 @@ impl State {
         let scoped = self.processing.map(|id| self.scoped_flow(id)).transpose()?.unwrap_or_default();
         self.relation_with_scoped(pair, context, sources, scoped)
     }
+    // Structural bound emission is not Function-port projection. Keep deferred
+    // Value demands on Value links and executable transforms on Effect links.
+    #[cfg(test)]
+    fn bound_scoped_payload(&self, parent: RelationId, pair: TypedPairKey) -> Result<ScopedFlow, SolveAvailabilityError> {
+        self.bound_scoped_payload_for(parent, pair, BoundConstructionPurpose::Ordinary)
+    }
+    fn bound_scoped_payload_for(&self, parent: RelationId, pair: TypedPairKey, purpose: BoundConstructionPurpose) -> Result<ScopedFlow, SolveAvailabilityError> {
+        let parent_pair = self.relations.get(parent.0 as usize).ok_or_else(exhausted)?.key.pair;
+        let flow = self.scoped_flow(parent)?;
+        match parent_pair {
+            TypedPairKey::Value(_) if flow.transformer != 0 => return Err(SolveAvailabilityError::ReceiptMismatch),
+            TypedPairKey::Effect { .. } if flow.demand.is_some() => return Err(SolveAvailabilityError::ReceiptMismatch),
+            _ => {}
+        }
+        if !self.scoped_enabled && flow == ScopedFlow::default() { return Ok(flow); }
+        if purpose == BoundConstructionPurpose::ExtrusionLink && matches!(parent_pair, TypedPairKey::Value(_)) {
+            return Ok(ScopedFlow::default());
+        }
+        match (parent_pair, pair) {
+            (TypedPairKey::Value(_), TypedPairKey::Value(_))
+            | (TypedPairKey::Effect { .. }, TypedPairKey::Effect { .. }) => Ok(flow),
+            (TypedPairKey::Value(_), TypedPairKey::Effect { .. }) => Ok(ScopedFlow::default()),
+            (TypedPairKey::Effect { .. }, TypedPairKey::Value(_)) => Err(SolveAvailabilityError::ReceiptMismatch),
+        }
+    }
     pub(super) fn relation_with_scoped(&mut self, pair: TypedPairKey, context: ContextId, sources: Option<usize>, scoped: ScopedFlow) -> Result<RelationId, SolveAvailabilityError> {
         self.assert_context(context);
         // A nonidentity scoped self-relation needs transport semantics that
@@ -2946,6 +2974,30 @@ impl InferenceSession {
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
     }
+    /// The caller supplies the actual whole-Value extrusion rewrite. Its demand
+    /// root follows that copied upper Function, never a later consumer's shape.
+    pub(super) fn candidate_context_value_rewrite(&mut self, original: CanonicalValuePairKey, rewritten: CanonicalValuePairKey) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let Some(graph) = &self.candidate_graph else { return Ok(None); };
+        let parent = graph.intrusion.effect_algebra.context.processing.ok_or_else(exhausted)?;
+        let original_pair = self.candidate_context_pair(TypedPairKey::Value(original));
+        let pair = self.candidate_context_pair(TypedPairKey::Value(rewritten));
+        let context = self.candidate_context_source(pair)?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        if state.relations[parent.0 as usize].key.pair != original_pair { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        let mut flow = state.scoped_flow(parent)?;
+        if flow.transformer != 0 { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        if let Some(demand) = &mut flow.demand {
+            if original.upper != ValueEndpointKey::NegativeFunction(demand.root) { return Err(SolveAvailabilityError::ReceiptMismatch); }
+            if original.upper != rewritten.upper {
+                let ValueEndpointKey::NegativeFunction(root) = rewritten.upper else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                demand.root = root;
+            }
+        }
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, flow)?;
+        state.dependency(Dependency::Derived { child, parent })?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(child))
+    }
     pub(super) fn candidate_function_port_admit(
         &mut self,
         task: LiveConstraintTask,
@@ -3239,6 +3291,12 @@ impl InferenceSession {
         bound: BoundKey,
         origin: TypedPairKey,
     ) -> Result<RelationId, SolveAvailabilityError> {
+        self.candidate_context_bound_for(bound, origin, BoundConstructionPurpose::Ordinary)
+    }
+    pub(super) fn candidate_context_extrusion_link(&mut self, bound: BoundKey, origin: TypedPairKey) -> Result<RelationId, SolveAvailabilityError> {
+        self.candidate_context_bound_for(bound, origin, BoundConstructionPurpose::ExtrusionLink)
+    }
+    fn candidate_context_bound_for(&mut self, bound: BoundKey, origin: TypedPairKey, purpose: BoundConstructionPurpose) -> Result<RelationId, SolveAvailabilityError> {
         let pair = self.candidate_context_pair(bound_pair(bound));
         let origin = self.candidate_context_pair(origin);
         let origin_context = self.candidate_context_source(origin)?;
@@ -3272,7 +3330,8 @@ impl InferenceSession {
         // The exact allowance bound retains this boundary's executable check;
         // its derivation still points to the complete, undischarged parent DAG.
         let context = if checked_boundary { IDENTITY } else { state.post_check_context(parent) };
-        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, state.scoped_flow(parent)?)?;
+        let scoped = state.bound_scoped_payload_for(parent, pair, purpose)?;
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, scoped)?;
         state.dependency(Dependency::Derived { child, parent })?;
         state.attach(bound, child)?;
         Ok(child)

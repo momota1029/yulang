@@ -106,3 +106,29 @@ fn ordinary_candidate_does_not_construct_experimental_attachments() {
         );
     }
 }
+
+#[test]
+fn captured_local_helper_keeps_structural_effect_copies_separate_from_value_demands() {
+    let hir = module(
+        "act signal:\n    our ping: () -> int\n\nmy invoke cb = cb 0\nmy g h = catch ({ my step i = h i; my direct = signal::ping(); invoke step }) { signal::ping(), _ -> 1, v -> v }\nmy callback_first i = signal::ping()\nmy callback_second i = signal::ping()\nmy first = catch g callback_first { signal::ping(), _ -> 2, v -> v }\nmy second = catch g callback_second { signal::ping(), _ -> 3, v -> v }",
+    );
+    let candidate = CandidateInference::solve_scoped_experiment(hir).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    let mut captured = 0;
+    for index in 0..candidate.source_call_count() {
+        let call = candidate.source_call(index).unwrap();
+        if call.lexical_formal_use().is_some_and(|name| {
+            matches!(&name.form,
+            LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "h")
+        }) {
+            let attachment = call.experimental_receiver_attachment().unwrap();
+            assert_ne!(attachment.receiver_region(), attachment.lexical_region());
+            assert_eq!(
+                attachment.receiver_lambda(),
+                call.directional_introduction().unwrap().original_lambda()
+            );
+            captured += 1;
+        }
+    }
+    assert_eq!(captured, 1);
+}

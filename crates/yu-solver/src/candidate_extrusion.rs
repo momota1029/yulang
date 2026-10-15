@@ -123,7 +123,9 @@ impl InferenceSession {
                             };
                             self.retain_extrusion_parent(copy, endpoint, p, target, occurrence)?;
                             map_insert!(rows, key, copy)?;
-                            self.candidate_insert_bound(endpoint, opposite(p), copy)?;
+                            let processing = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?.intrusion.effect_algebra.context.processing;
+                            self.candidate_insert_bound_with_evidence(endpoint, opposite(p), copy, true,
+                                candidate_context::BoundAdmissionCause::ExtrusionLink { processing })?;
                             for n in (0..direct + exact).rev() {
                                 let bound = if effect {
                                     let b = &self.effect_bounds[i];

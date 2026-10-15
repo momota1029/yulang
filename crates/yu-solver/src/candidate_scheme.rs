@@ -814,6 +814,11 @@ impl InferenceSession {
                 if let Some(relation) = bound.relation {
                     let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
                     context.context_payloads(context.relation_context(relation)?, &mut context_seen, &mut context_pending, &mut payloads)?;
+                    // A deferred original demand is a retained latent payload,
+                    // even when no structural bound reaches its Function root.
+                    if let Some(demand) = context.scoped_flow(relation)?.demand {
+                        capture.intern(Endpoint::Value(ValueEndpointKey::NegativeFunction(demand.root), Polarity::Negative))?;
+                    }
                 }
             }
             while let Some(weight) = payloads.pop() {
@@ -1647,5 +1652,96 @@ impl InferenceSession {
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         frame.cursor.complete = true;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod authentic_demand_capture_tests {
+    use super::*;
+
+    #[test]
+    fn structural_bound_scoped_payload_authentic_capture_uses_shared_reconstruction() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my outer z = { my local h x = h z; local }\nmy first = outer 0\nmy second = outer 1",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("latent-demand", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        let owner = session.batch.hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "outer" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+        let initializer = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "local").unwrap().id.clone();
+        let original_call = session.batch.candidate_calls.calls.iter().enumerate().find_map(|(index, call)| {
+            if call.owner != owner { return None; }
+            let name = session.batch.candidate_calls.names.get(call.formal_name?)?;
+            let registration = &session.batch.candidate_calls.formals[name.registration];
+            let lambda = &source.expressions()[registration.lambda];
+            let yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. } = &lambda.form else { return None; };
+            (parameter.spelling.as_ref() == "h").then_some(index)
+        }).unwrap();
+        let local = session.candidate_graph.as_ref().unwrap().locals.iter().flatten().find(|local| local.id == initializer).unwrap();
+        let (root, boundary, capture_region) = (local.root, local.boundary, local.capture_region);
+        let graph = session.capture_candidate_graph_owned(root, boundary, capture_region.as_slice()).unwrap();
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        // Strict latent-only reachability is not established for this source.
+        // This control selects an authentic local-formal demand and its real scheme.
+        let demands: Vec<_> = graph.bounds.iter().filter_map(|bound| {
+            let relation = bound.relation?;
+            let demand = context.scoped_flow(relation).unwrap().demand?;
+            if demand.original_call != original_call { return None; }
+            assert!(matches!(bound.source_bound, candidate_effect::BoundKey(_, Polarity::Negative,
+                ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(root))) if root == demand.root));
+            assert_eq!(bound.upper, graph.negative_functions[&demand.root]);
+            Some((relation, demand))
+        }).collect();
+        assert!(!demands.is_empty());
+        assert_eq!(graph.nodes.iter().filter(|node| matches!(node,
+            Node::Function { polarity: Polarity::Negative, .. })).count(), graph.negative_functions.len(),
+            "structural and latent discovery share the same interned Function nodes");
+        for row in &graph.rows {
+            let ordinal = row.key.ordinal() as usize;
+            let (level, non_generic) = match row.key {
+                RowKey::Value(_) => (session.value_levels[ordinal], session.value_metadata[ordinal].non_generic),
+                RowKey::Effect(_) => (session.effect_levels[ordinal], session.effect_metadata[ordinal].non_generic),
+            };
+            assert_eq!(row.local, level > graph.boundary && !non_generic);
+        }
+        assert!(graph.rows.iter().any(|row| !row.local), "the local h demand retains borrowed outer z rows");
+        let caller = capture_region.unwrap();
+        let first = session.prepare_candidate_fresh_use(&graph, 1, Some(caller)).unwrap();
+        let second = session.prepare_candidate_fresh_use(&graph, 1, Some(caller)).unwrap();
+        assert_ne!(first.context_use, second.context_use);
+        for fresh in [&first, &second] {
+            for (index, row) in graph.rows.iter().enumerate() {
+                if !row.local { assert_eq!(fresh.rows[index], row.key, "borrowed coordinates stay shared with later constraints"); }
+            }
+            for (relation, demand) in &demands {
+                let index = graph.negative_functions[&demand.root];
+                let Node::Function { polarity: Polarity::Negative, children } = graph.nodes[index] else { panic!("negative demand root"); };
+                let term = fresh.terms[index].unwrap();
+                let TermView::NegativeFunction { argument, argument_effect, result_effect, result } = session.store.term_view(term).unwrap() else { panic!("reconstructed demand"); };
+                assert_eq!([argument, argument_effect, result_effect, result], children.map(|child| fresh.terms[child].unwrap()),
+                    "all four ports use the common reconstruction map");
+                let copied = fresh.scoped_relations[relation].demand.unwrap();
+                assert_eq!(copied.original_call, demand.original_call);
+                assert_eq!(copied.root, term);
+                assert_eq!(copied.output_scope, fresh.scope_remap.scopes.get(&demand.output_scope).copied().unwrap_or(demand.output_scope));
+                assert_eq!(copied.input, fresh.scope_remap.inputs.get(&demand.input).copied().unwrap_or(demand.input));
+                assert_eq!(copied.use_instance, fresh.context_use);
+                let first_copy = first.scoped_relations[relation].demand.unwrap();
+                let second_copy = second.scoped_relations[relation].demand.unwrap();
+                assert_ne!(first_copy.output_scope, second_copy.output_scope);
+                assert_ne!(first_copy.input, second_copy.input);
+            }
+        }
     }
 }

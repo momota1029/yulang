@@ -57,6 +57,12 @@ changed to declare the unsupported path successful.
 
 ## Unresolved local-helper evidence
 
+Subsequent checkpoint: the [scoped transport repair](2026-10-15-callback-helper-scoped-transport.md)
+now admits the unchanged grouped source below and checks its actual copied h
+projections. The original failure and diagnostic uncertainty recorded here
+describe the attachment-only checkpoint; receiver discharge and full hygiene
+remain OPEN.
+
 The original provisional integration fixture had an ungrouped block after
 `catch`; the parser treated that brace as the arm list, leaving no scrutinee.
 Grouping it fixed syntax. This fixture failure did not establish a general

@@ -6013,3 +6013,226 @@ fn structural_value_extrusion_replays_initialized_allowance_fibers() {
         assert!(session.errors.is_empty());
     }
 }
+
+#[test]
+fn structural_bound_scoped_payload_keeps_typed_owners_and_authentic_copied_demands() {
+    let text: Arc<yu_syntax::SourceText> = Arc::from(
+        "act signal:\n    our ping: () -> int\n\nmy g h x = h x\nmy callback i = signal::ping()\nmy first = g callback 0\nmy second = g callback 1",
+    );
+    let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    let hir = Arc::new(lower_module_with_local_source(
+        yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("typed-bound", "source.yu"))),
+        &parsed, yu_hir::SemanticImports::empty(),
+    ).unwrap());
+    let mut session = InferenceSession::try_new_candidate(
+        ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+    ).unwrap();
+    session.execute().unwrap();
+    let lower = session.fresh_effect_at_level(1).unwrap();
+    let upper = session.fresh_effect_at_level(1).unwrap();
+    let effect_pair = TypedPairKey::Effect {
+        lower: EffectEndpointKey::EffectRow(lower), upper: EffectEndpointKey::EffectRow(upper),
+    };
+    let bound = BoundKey(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(lower)),
+        Polarity::Negative, ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(upper)));
+    let (parent, parent_pair, copied) = state(&session).observed_relations().find_map(|(index, pair, flow)| {
+        let demand = flow.demand?;
+        if demand.use_instance == 0 { return None; }
+        if !matches!(pair, TypedPairKey::Value(CanonicalValuePairKey {
+            upper: ValueEndpointKey::NegativeFunction(root), .. }) if *root == demand.root) { return None; }
+        Some((RelationId(index as u32), *pair, flow))
+    }).expect("actual authenticated copied demand");
+    let demand = copied.demand.unwrap();
+    let original = &session.batch.candidate_calls.calls[demand.original_call];
+    assert!(original.introduction.is_some());
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    assert_eq!(context.bound_scoped_payload(parent, parent_pair).unwrap(), copied,
+        "original Call, use instance, mapped root, scope and input stay jointly retained");
+    assert_eq!(context.bound_scoped_payload(parent, effect_pair).unwrap(), ScopedFlow::default());
+    assert_eq!(context.bound_scoped_payload_for(parent, parent_pair, BoundConstructionPurpose::ExtrusionLink).unwrap(), ScopedFlow::default(),
+        "explicit structural Value copy purpose does not propagate the original demand to a sibling row");
+    context.processing = Some(parent);
+    let sources = context.relations[parent.0 as usize].key.sources;
+    let inherited = context.post_check_context(parent);
+    let child = session.candidate_context_bound(bound, parent_pair).unwrap();
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    assert_eq!(context.scoped_flow(child).unwrap(), ScopedFlow::default());
+    assert_eq!(context.relations[child.0 as usize].key.sources, sources);
+    assert_eq!(context.relations[child.0 as usize].key.context, inherited);
+    assert!(context.dependency_keys.contains(&Dependency::Derived { child, parent }));
+    assert!(context.bound_keys.iter().any(|(key, relation, _)| *key == bound && *relation == child));
+    let transform = context.intern_scope(candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input).unwrap()).unwrap();
+    let effect_flow = ScopedFlow { transformer: transform, demand: None };
+    let effect_parent = context.relation_with_scoped(effect_pair, IDENTITY, None, effect_flow).unwrap();
+    assert_eq!(context.bound_scoped_payload(effect_parent, effect_pair).unwrap(), effect_flow);
+    assert_eq!(context.bound_scoped_payload_for(effect_parent, effect_pair, BoundConstructionPurpose::ExtrusionLink).unwrap(), effect_flow);
+    assert_eq!(context.bound_scoped_payload(effect_parent, parent_pair), Err(SolveAvailabilityError::ReceiptMismatch));
+    let plain_effect = context.relation_with_scoped(effect_pair, IDENTITY, None, ScopedFlow::default()).unwrap();
+    context.scoped_enabled = false;
+    assert_eq!(context.bound_scoped_payload(plain_effect, parent_pair).unwrap(), ScopedFlow::default(),
+        "ordinary mode retains its existing unqualified structural behavior");
+    assert_eq!(context.bound_scoped_payload(effect_parent, parent_pair), Err(SolveAvailabilityError::ReceiptMismatch));
+    context.scoped_enabled = true;
+    assert_eq!(context.relation_with_scoped(effect_pair, IDENTITY, None, copied), Err(SolveAvailabilityError::ReceiptMismatch));
+    assert_eq!(context.relation_with_scoped(parent_pair, IDENTITY, None, effect_flow), Err(SolveAvailabilityError::ReceiptMismatch));
+    // The structural rule must not replace genuine Function-port projection.
+    for (field, expected) in [
+        (FunctionField::ArgumentEffect, candidate_scope::ScopeTransformer::stamp_input(demand.input).unwrap()),
+        (FunctionField::ResultEffect, candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input).unwrap()),
+    ] {
+        let child = session.candidate_function_port_admit(
+            LiveConstraintTask::Effect(EffectEndpointKey::EffectRow(lower), EffectEndpointKey::EffectRow(upper)), field,
+        ).unwrap().unwrap();
+        let context = state(&session);
+        let flow = context.scoped_flow(child).unwrap();
+        assert!(flow.demand.is_none());
+        assert_eq!(context.scope_transformer(flow.transformer).unwrap(), &expected);
+    }
+}
+
+#[test]
+fn whole_value_rewrite_transports_only_the_authentic_upper_demand_root() {
+    let text: Arc<yu_syntax::SourceText> = Arc::from("my g h = h 0");
+    let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    let hir = Arc::new(lower_module_with_local_source(
+        yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("whole-rewrite", "source.yu"))),
+        &parsed, yu_hir::SemanticImports::empty(),
+    ).unwrap());
+    let mut session = InferenceSession::try_new_candidate(
+        ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+    ).unwrap();
+    session.execute().unwrap();
+    let (parent, original, original_flow) = state(&session).observed_relations().find_map(|(index, pair, flow)| {
+        let demand = flow.demand?;
+        let TypedPairKey::Value(pair) = *pair else { return None; };
+        (pair.upper == ValueEndpointKey::NegativeFunction(demand.root)).then_some((RelationId(index as u32), pair, flow))
+    }).unwrap();
+    {
+        let algebra = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+        algebra.processing = Some(TypedPairKey::Value(original));
+        algebra.context.processing = Some(parent);
+    }
+    let ExtrusionEndpoint::Value(copied_upper) = session.candidate_extrude(
+        ExtrusionEndpoint::Value(original.upper), Polarity::Negative, 0,
+    ).unwrap() else { panic!("Value extrusion"); };
+    assert_ne!(copied_upper, original.upper);
+    let rewritten = CanonicalValuePairKey { upper: copied_upper, ..original };
+    let child = session.candidate_context_value_rewrite(original, rewritten).unwrap().unwrap();
+    let context = state(&session);
+    let mut expected = original_flow;
+    let ValueEndpointKey::NegativeFunction(root) = copied_upper else { panic!("copied upper Function"); };
+    expected.demand.as_mut().unwrap().root = root;
+    assert_eq!(context.scoped_flow(child).unwrap(), expected);
+    assert_eq!(context.relations[child.0 as usize].key.sources, context.relations[parent.0 as usize].key.sources);
+    assert!(context.dependency_keys.contains(&Dependency::Derived { child, parent }));
+    let ExtrusionEndpoint::Value(copied_lower) = session.candidate_extrude(
+        ExtrusionEndpoint::Value(original.lower), Polarity::Positive, 0,
+    ).unwrap() else { panic!("Value extrusion"); };
+    let lower_only = CanonicalValuePairKey { lower: copied_lower, ..original };
+    let lower_child = session.candidate_context_value_rewrite(original, lower_only).unwrap().unwrap();
+    assert_eq!(state(&session).scoped_flow(lower_child).unwrap(), original_flow);
+    let wrong_original = CanonicalValuePairKey { lower: ValueEndpointKey::IntPositive, ..original };
+    assert_eq!(session.candidate_context_value_rewrite(wrong_original, rewritten), Err(SolveAvailabilityError::ReceiptMismatch));
+    let context = &mut session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+    context.processing = Some(child);
+    let bad = CanonicalValuePairKey { lower: rewritten.lower, upper: original.upper };
+    let malformed = context.relation_with_scoped(TypedPairKey::Value(bad), IDENTITY, None, expected).unwrap();
+    context.processing = Some(malformed);
+    assert_eq!(session.candidate_function_port_admit(
+        LiveConstraintTask::Value(CanonicalValuePairKey { lower: ValueEndpointKey::IntPositive, upper: ValueEndpointKey::IntNegative }),
+        FunctionField::Result,
+    ), Err(SolveAvailabilityError::ReceiptMismatch));
+}
+
+#[test]
+fn grouped_helper_actual_copied_h_ports_retain_protection_without_default_bypass() {
+    let text: Arc<yu_syntax::SourceText> = Arc::from(
+        "act signal:\n    our ping: () -> int\n\nmy invoke cb = cb 0\nmy g h = catch ({ my step i = h i; my direct = signal::ping(); invoke step }) { signal::ping(), _ -> 1, v -> v }\nmy callback_first i = signal::ping()\nmy callback_second i = signal::ping()\nmy first = catch g callback_first { signal::ping(), _ -> 2, v -> v }\nmy second = catch g callback_second { signal::ping(), _ -> 3, v -> v }",
+    );
+    let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    assert!(parsed.structural_recoveries().is_empty());
+    let hir = Arc::new(lower_module_with_local_source(
+        yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("actual-helper-ports", "source.yu"))),
+        &parsed, yu_hir::SemanticImports::empty(),
+    ).unwrap());
+    let mut session = InferenceSession::try_new_candidate(
+        ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+    ).unwrap();
+    session.execute().unwrap();
+    let owner = session.batch.hir.items().iter().find_map(|item| match item {
+        yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "g" => Some(binding.definition_root()),
+        _ => None,
+    }).unwrap();
+    let source = session.batch.hir.local_source(owner).unwrap().unwrap();
+    let calls: Vec<_> = session.batch.candidate_calls.calls.iter().enumerate().filter_map(|(index, call)| {
+        if &call.owner != owner { return None; }
+        let name = session.batch.candidate_calls.names.get(call.formal_name?)?;
+        let registration = &session.batch.candidate_calls.formals[name.registration];
+        let yu_hir::shadow::LocalSourceForm::Lambda { parameter, .. } = &source.expressions()[registration.lambda].form else { return None; };
+        (parameter.spelling.as_ref() == "h").then_some((index, call))
+    }).collect();
+    assert_eq!(calls.len(), 1);
+    let (original_call, call) = calls[0];
+    assert!(call.introduction.is_some());
+    let original_scope = session.batch.candidate_source.computation_scopes[call.checking.occurrence()];
+    let context = state(&session);
+    let comparisons: Vec<_> = context.observed_relations().filter_map(|(index, pair, flow)| {
+        let demand = flow.demand?;
+        if demand.original_call != original_call || demand.use_instance == 0 { return None; }
+        let TypedPairKey::Value(pair @ CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveFunction(_), upper: ValueEndpointKey::NegativeFunction(root),
+        }) = *pair else { return None; };
+        assert_eq!(root, demand.root, "the actual comparison must retain its mapped demand root");
+        Some((RelationId(index as u32), pair, demand))
+    }).collect();
+    let mut uses = HashSet::new();
+    for (parent, pair, demand) in comparisons {
+        uses.insert(demand.use_instance);
+        assert_ne!(demand.output_scope, original_scope);
+        assert_ne!(demand.input, candidate_scope::InputRouteId(original_call as u32));
+        assert_eq!(context.scope_inventory.scope_origins[demand.output_scope.0 as usize], original_scope);
+        assert_eq!(context.scope_inventory.input_origins[demand.input.0 as usize], candidate_scope::InputRouteId(original_call as u32));
+        let key = context.relations[parent.0 as usize].key;
+        for (index, relation) in context.relations.iter().enumerate() {
+            if relation.key.pair == key.pair && relation.key.sources == key.sources {
+                assert!(context.scoped_flow(RelationId(index as u32)).unwrap().demand.is_some(),
+                    "actual helper comparison {parent:?} has an unqualified same-pair/source bypass at relation {index}");
+            }
+        }
+        let (_, lower_ae, lower_re, _) = InferenceSession::positive_function_children(&session.store, pair.lower).unwrap();
+        let (_, upper_ae, upper_re, _) = InferenceSession::negative_function_children(&session.store, pair.upper).unwrap();
+        for (field, operation, expected, lower, upper) in [
+            (FunctionField::ArgumentEffect, FunctionPortOperation::Swap,
+                candidate_scope::ScopeTransformer::stamp_input(demand.input).unwrap(), upper_ae, lower_ae),
+            (FunctionField::ResultEffect, FunctionPortOperation::Preserve,
+                candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input).unwrap(), lower_re, upper_re),
+        ] {
+            let children: Vec<_> = context.dependency_keys.iter().filter_map(|dependency| match dependency {
+                Dependency::FunctionPort { child, parent: owner, field: actual_field, operation: actual_operation }
+                    if *owner == parent && *actual_field == field => {
+                        assert_eq!(*actual_operation, operation);
+                        Some(*child)
+                    }
+                _ => None,
+            }).collect();
+            assert!(!children.is_empty(), "actual helper comparison must project {field:?}");
+            let expected_pair = session.candidate_context_pair(TypedPairKey::Effect {
+                lower: session.effect_endpoint(lower, Polarity::Positive),
+                upper: session.effect_endpoint(upper, Polarity::Negative),
+            });
+            for child in children {
+                assert_eq!(context.relations[child.0 as usize].key.pair, expected_pair);
+                let flow = context.scoped_flow(child).unwrap();
+                assert!(flow.demand.is_none());
+                assert_eq!(context.scope_transformer(flow.transformer).unwrap(), &expected);
+            }
+        }
+        assert!(context.scope_observations.iter().any(|observation| {
+            context.evaluate_observation(observation.relation).unwrap().1.protections.contains(&demand.output_scope)
+        }), "this actual copied h protection must reach a real source contribution");
+    }
+    assert!(uses.len() >= 2, "both real helper calls must yield authenticated copied Function comparisons");
+}
