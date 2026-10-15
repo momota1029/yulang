@@ -1,20 +1,29 @@
-# Playground execution owners: current configuration and the missing root case
+# Playground execution owners: actual source-to-machine correspondence
 
-Status: independently reviewed source-to-machine owner-stack derivation and
-source-qualified counterexample to the unqualified last-receiver shortcut;
-owner-decoder repair contract established; handler/profile implementation OPEN
+Status: independently reviewed original owner-stack derivation and counterexample;
+actual owner-decoder/handler-installation source bridge independently reviewed;
+local owner implementation gate complete; profiles/eligibility/resume OPEN
 Dispatch HEAD: `2dc90eaeb78dd9b13277bb3f41b6d10dbf60759a`
-Frozen runtime: machine `6004e345…`, program `6563dc9b…` (full hashes in §7)
+Frozen runtime: machine `bcfe3454…`, program `6563dc9b…` (full hashes in §7)
 Lease: this file only; constructive leaf; no production edits or delegation
 Method: derive executable-owner transitions from source Invoke/Force/Bind and
 GetDefinition, then inspect every actual machine owner-changing constructor
+
+Final delta review: `runtime_semantic_review` accepted §3.7 and machine
+`bcfe34546789b646aed53dda9519a05af14bbb52157187e0e9341871335ebad7`
+without findings at note SHA-256
+`99ac873d240ea0cbf01b71e90d6f35b3808e7182bb8a2407e2779783d2104f15`.
+All 55 playground tests pass on this runtime. Test success is separate from the
+constructive source proof and fresh independent review.
 
 Independent review: `runtime_semantic_review` accepted the original owner theorem
 and all actual stack-mutation/Force/global/native-result cases without findings,
 at artifact SHA-256
 `1549cc41bc951735538c2e88ed50bc638866e29612b2c78446ad8d6bcf04512b`.
-The tagged decoder and per-install Catch snapshot are implementation handoffs;
-this review does not claim that those proposed constructors already exist.
+That review covered the original theorem and implementation handoff. The
+primary now supplies frozen actual owner code and reports clean independent
+`runtime_semantic_review` of that code. Section 3.7 constructs the actual-source
+delta bridge; fresh independent review of that proof delta remains pending.
 
 ## 1. Frozen original claim and scope
 
@@ -95,13 +104,15 @@ current forcer can differ.
 ## 3. Actual source constructors establish the maximal stack invariant
 
 All runtime paths below are under `tools/inference-playground/src/runtime/`.
-The inspected hashes match the primary's frozen machine/program snapshot.
+Sections 3.1–3.6 preserve the reviewed first-snapshot owner derivation and its
+historical line locators. Section 3.7 applies it to the final actual owner
+constructors, with current locators and the frozen hashes in §7.
 
 Let μ denote this standalone program run's ambient module execution span.
 It is a proof name for the initial source evaluation context, not an invocation
 or a profile-granting receiver. Let A be the actual `active_receivers` vector.
 Relate its entries bijectively to the active source Invoke occurrences in their
-current nesting order. The candidate execution-owner decoding is
+current nesting order. The execution-owner decoding, now implemented in §3.7, is
 
 ```text
 ExecOwner(A) = Invocation(last(A))    if A is nonempty;
@@ -259,7 +270,119 @@ proves the maximal current invariant. An unavailable or completed terminal state
 is not queried for new handler eligibility. A fuel pause preserves the live
 state and A; it does not end any source owner.
 
-## 4. Concrete counterexample to raw last() and owning repair
+### 3.7 Actual owner decoder and handler occurrence bridge
+
+This delta quantifies over the **same original source domain and all finite
+machine prefixes** fixed in §1, including every Force, global materialization,
+native entry/result consumer and request unwind case in §§3.1–3.6. It adds no
+source restriction and assumes no successful handler selection. The original
+program constructor and its source-derived roles are unchanged at the supplied
+program hash. The argument below inspects the actual machine hash in §7.
+
+**One total decoder and its scope.** `ExecutionOwner` is the private disjoint
+sum `ModuleRun | Invocation(usize)` at `machine.rs:44–47`.
+`current_execution_owner` at lines 736–741 is the sole decoder: it returns
+Invocation of the last active receiver or ModuleRun for an empty vector.
+ModuleRun cannot equal Invocation(0); it is not added to the receiver vector
+and introduces no source receiving contract. Its μ interpretation is scoped
+to this Machine: frame/installation/saved-continuation types are private,
+and no API exports, compares or imports owners between machines. A globally
+unique module ordinal is unnecessary for the original per-run theorem.
+The decoder is used only on live Catch evaluation or a reached Catch frame,
+never to give a new executing owner to a terminal machine.
+
+Strengthen the reviewed stack induction with two constructional clauses:
+
+These clauses hold at machine-step boundaries and at the actual owner-query
+sites. Receiver frame/vector updates are paired within one step, with no source
+evaluation or external observation between the paired updates.
+
+1. Reading pending `ReceiverReturn` frames from bottom to top gives exactly A,
+   in the same order as active source Invoke occurrences. Their checked
+   allocator produces fresh IDs below `next_receiver`.
+2. For each pending Catch frame h, its retained installing owner decodes the
+   ReceiverReturn subsequence **below that particular h**. Its handler
+   occurrence is fresh in this Machine and below `next_handler`. This does
+   not equate h's installer with the innermost invocation while nested
+   invocation frames remain above h.
+
+Initialization has no receiver or Catch frames and `next_handler = 0`
+(`machine.rs:240–257`), so both clauses hold. Only the Closure and operation
+Callee branches push activations and matching delimiters (lines 532–537,
+588–599); only normal or request ReceiverReturn removes them (lines 616–624,
+796–803). No owner is restored from lexical data or source labels. Thus the
+mutation census remains exactly the reviewed Invoke/return/unwind census.
+
+**Actual Catch construction.** `Instruction::Catch` at lines 436–454 reads
+`next_handler`, advances it with checked_add, and retains
+`HandlerInstallation { occurrence, owner: current_execution_owner() }`
+in the new CatchReturn before evaluating its actual scrutinee. All current
+receiver delimiters are below the new frame, so clause 1 establishes clause 2
+at this constructor. Each evaluation of the same Code increments again:
+code/site/owner equality cannot collapse installations. Exhaustion returns
+IdentityExhausted before a new handler is installed. Code and lexical
+environment remain original; the owner is the current executor.
+
+**Reached normal delimiter.** When `return_value` pops a CatchReturn
+(lines 459–497), no pending frame lies above h. Clause 1 implies that A is
+precisely h's below-frame receiver subsequence; clause 2 therefore gives
+`installation.owner == current_execution_owner()`. Fresh construction gives
+`occurrence < next_handler`. These derive both predicates checked by
+`validate_handler_installation` (lines 742–755); the check is not assumed
+as a proof premise. Removing h removes no receiver. Value-pattern binding
+and arm evaluation follow under that same executable owner outside h.
+An internal validation failure stops Unavailable instead of exposing a false
+successful owner mapping.
+
+**Live request candidate and forwarding commit.** `propagate_request` now
+inspects `self.frames.last()` at lines 759–780. If that exact top frame is h,
+the same below-frame argument derives both validation predicates before any
+pop. A matching or unresolved operation arm returns HandlerEvidence with h
+still in `self.frames`; it neither selects h nor manufactures eligibility.
+The step wrapper makes this an explicit unavailable terminal outcome, with
+no later execution under a fabricated selection.
+
+Only after all inspected operation arms are resolved and unequal, or no
+operation arm exists, does `frames.pop()` at line 781 commit forwarding.
+The resulting `SavedFrame::HandlerBoundary` at lines 804–812 moves the same
+handler, environment and complete installation, preserving occurrence and
+original installer without decoding a request owner. Forwarding removes h
+while preserving A, every remaining handler's below-frame prefix, and the
+request's suffix/event/source/payload. The saved installation is historical
+evidence; it proves no current activity, fresh re-entry, receipt or raw resume.
+
+For non-Catch top frames, ordinary-frame transfer leaves A unchanged;
+ReceiverReturn consumes exactly its last activation and saves that original
+lineage in ReceiverBoundary. Removing a top receiver leaves every lower
+handler's below-frame prefix unchanged. Both clauses thus hold at the next
+candidate. An empty stack produces the existing UnhandledRequest/opaque
+continuation outcome, not another executing owner or a resumption transition.
+
+**Exhaustive source applications.** Delay execution at lines 922–926 changes
+only code/environment, so Force and captured Comp after maker expiry inherit
+C_now. ValueEntry stays above its fresh ReceiverReturn; retained Computation
+entry runs no Delay. Global Name demand/GlobalRead at lines 346–382, 719–730
+and Root/begin_root at lines 711–718, 834–868 change cells/code/environment
+without A mutation; materialization inherits the current Invocation or
+ModuleRun. Closure lexical capture stores no execution owner.
+OperationResultConsumer remains below native ReceiverReturn (lines 596–599);
+its execution at line 507 follows native return, while payload work remains
+above that delimiter. Request emission at lines 927–946 changes no A.
+Literals/forward/local/conditional/Catch-arm transitions likewise do not change
+A. These cover all actual span constructors and every push/pop; no checker
+assuming a supplied transition relation is used.
+
+Actual-step induction with the original source laws in §2 therefore establishes
+the original current-owner theorem and exact per-installation Catch
+correspondence for this frozen implementation. The module-root case now
+retains a fresh h owned by ModuleRun while A is empty. Resource pause preserves
+the live frames/counters; terminal completion/unavailability supplies no later
+candidate-activity inference. Selection, receipt/profile evidence, native
+handler eligibility, typed-view transport and raw resumption remain excluded
+exactly as in §1. This is the producer's constructive actual-source derivation;
+fresh independent proof delta review remains required.
+
+## 4. Historical counterexample to raw last() and implemented repair
 
 The existing admitted runtime control is enough:
 
@@ -282,7 +405,7 @@ always supplies a source handler owner.” Refine that prerequisite before
 handler implementation, rather than forbidding root handlers or fabricating
 a receiving contract at module entry.
 
-Minimal representation handoff:
+The representation handoff is now realized at the actual owners in §3.7:
 
 1. Represent an executable owner as the disjoint sum ModuleRun/Invocation.
    ModuleRun names this private machine's live ambient source span. It is
@@ -302,13 +425,13 @@ Minimal representation handoff:
    code, preserving its enclosing source owner. An invocation's removal is
    still owned by its own ReceiverReturn.
 
-Current request propagation physically pops a CatchReturn into its local
-candidate branch before stopping for missing evidence. A future eligibility
-consumer must retain that exact h as an active **candidate under inspection**
-until the source forwarding/selection transition commits; vector membership
-after the pop is not an Active(h) oracle. This does not claim a current wrong
-selection: the current branch stops without selecting. It fixes the owning
-lifetime of the candidate snapshot needed by the next implementation.
+The first snapshot physically popped CatchReturn before its candidate branch
+stopped for missing evidence. The frozen repaired owner inspects exact h
+through `frames.last()` and retains it until forwarding commits (§3.7).
+This supplies the candidate lifetime needed by a future eligibility consumer;
+it does not implement selection or turn stack membership into a complete
+source Active/Incidence judgment. A matching candidate still stops without
+selecting.
 
 The snapshot is construction-retained evidence of the proven install-time
 mapping. Reconstructing it later from SourceSite.definition or a closure's
@@ -319,7 +442,7 @@ mapping or for profile/receipt identities.
 
 ## 5. What this enables and what remains separate
 
-The proposed repair supplies a concrete total **execution-owner** prerequisite
+The implemented repair supplies a concrete total **execution-owner** prerequisite
 for current no-resume handler installation/dispatch. A RootComp receiving
 boundary still belongs only to an actual source receiving entry and must keep
 that original Invocation identity. ModuleRun cannot pass a local receiver-grant
@@ -338,15 +461,14 @@ an old source owner, or equating endpoint/source identities. The separately
 reviewed request-control proof and RootComp source schema remain reused inputs;
 full dynamic profile and raw-resumption gates remain OPEN.
 
-One next action: primary assigns the minimal ModuleRun/Invocation owner decoding
-and Catch installation snapshot repair to the runtime owner, then obtains focused
-source-correspondence review of that actual delta before enabling eligibility.
+One next action: primary obtains fresh independent proof delta review of §3.7's
+actual-source correspondence before consuming it at a later eligibility gate.
 The active receiver stack can be reused; no separate historical-maker stack or
 new universal Call reconstruction is needed.
 
-## 6. Actual producer/consumer inventory for implementation handoff
+## 6. Actual producer/consumer inventory
 
-| Owner | Required delta or preserved invariant |
+| Owner | Actual delta or preserved invariant |
 | --- | --- |
 | Machine start/begin_root | Supply the live ambient ModuleRun execution span; no receiving boundary. |
 | Closure and operation Callee branches | Preserve current fresh checked Invocation allocation before entry, and exact ReceiverReturn delimiter. |
@@ -357,17 +479,17 @@ new universal Call reconstruction is needed.
 | Catch normal/forwarding/request handling | Remove/test that exact occurrence; owner query uses retained installer, not request origin or blanket last(). |
 | ReceivedValue future profile extension | Preserve original receiver identities independently of current executable owner. |
 
-No code was changed by this packet. The proposed repair is an implementation
-handoff grounded in the current source rules, not authorization to expand into
-raw resume, another source ownership policy or a full runtime rewrite.
+No code was changed by this proof packet. The actual bounded implementation
+is bridged above under current source rules; this is not authorization to
+expand into raw resume, another ownership policy or a full runtime rewrite.
 
 ## 7. Frozen dependencies, checks and commit packet
 
 | Dependency | SHA-256 |
 | --- | --- |
-| runtime/machine.rs | `6004e3453114a831882181f5f39bcdd30dc0eddeeb9d4616db0818b4a8f917cc` |
+| runtime/machine.rs, actual owner implementation | `bcfe34546789b646aed53dda9519a05af14bbb52157187e0e9341871335ebad7` |
 | runtime/program.rs | `6563dc9b4951a18832e2d31d70d88dddf244a4a85df0b91fb5ae35ebef2c2e39` |
-| runtime_control.rs | `8fae651ed7d14f4ed25c2aaa7d1d5fd3ba40940414a1995a42ddfcb5fe6d4815` |
+| runtime_control.rs, historical first-snapshot fixture only | `8fae651ed7d14f4ed25c2aaa7d1d5fd3ba40940414a1995a42ddfcb5fe6d4815` |
 | Typed source owner | `5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa` |
 | Typed boundary | `1a5172366a1cb0d6b6cd84beac8994d6162793c217e11aef85872e642e2748bb` |
 | Source scheduling | `7b2d2556f4b6a93d7beb73a78f476bfea7d0f94de0c5f77649f6cd15ff69a530` |
@@ -378,11 +500,19 @@ raw resume, another source ownership policy or a full runtime rewrite.
 Runtime paths are under `tools/inference-playground/src/`; the fixture is under
 its tests directory. Named authority files and the previous runtime proof are
 linked by their full locators above. Dependency changes by this leaf: none.
+The first-snapshot machine hash was
+`6004e3453114a831882181f5f39bcdd30dc0eddeeb9d4616db0818b4a8f917cc`;
+it remains provenance for the reviewed original derivation, not the actual
+implementation dependency of §3.7. The fixture is not a proof premise and was
+not executed or assumed to retain its historical hash by this delta.
 
-Checks: bounded static cat/sed/rg/SHA-256 and read-only Git HEAD/status; apply_patch
-on this lease; final static whitespace/hash recheck reported in handoff. No test,
-probe, build, network, Git mutation, source/shared-record write or child. One
-bounded constructive leaf pass, zero heavy processes/measurement samples; RSS
+Initial checks: bounded static cat/sed/rg/SHA-256 and read-only Git HEAD/status.
+Actual-owner delta checks: source/authority reads and matching supplied machine
+and unchanged program/authority/proof hashes; apply_patch on this lease only;
+final static whitespace/hash recheck reported in handoff. No Git command,
+test, probe, build, network, source/shared-record write or child ran in this
+delta. Initial construction plus one bounded actual-source delta pass, zero
+heavy processes/measurement samples; RSS
 and exact elapsed time unmeasured. Requested normal Sol/high; observed runtime
 model/effort unknown. No Astra/reload claim. Review/implementation/integration
 remain primary-owned; the producer does not certify its derivation.
@@ -390,9 +520,12 @@ remain primary-owned; the producer does not certify its derivation.
 Commit packet: exact lease
 `notes/theory/2026-10-15-runtime-execution-owner-correspondence.md`; frozen runtime
 hashes above and dispatch HEAD `2dc90eaeb78dd9b13277bb3f41b6d10dbf60759a`;
-research-only derivation/repair contract, independently reviewed as above. Proposed
-checkpoint: `research: derive runtime execution owners and expose the module-root gap`.
+research-only original derivation independently reviewed as above, actual-source
+delta awaiting fresh independent proof review. Proposed checkpoint:
+`research: bridge runtime execution owners to actual handler installations`.
 Shared-record delta for primary/curator: raw last-receiver prerequisite refuted
-at module roots; maximal current-stack-plus-ambient correspondence supplied;
-assign concrete Catch installer snapshot, leaving profiles/eligibility/resume
-distinct and OPEN. No shared record was edited by this leaf.
+at module roots; actual total decoder, fresh Catch installer snapshot, live
+candidate inspection and saved-installation correspondence now constructively
+bridged to the frozen implementation. Fresh proof delta review remains
+required; profiles/eligibility/receipt/resume stay distinct and OPEN. No shared
+record was edited by this leaf. This note is frozen for independent review.

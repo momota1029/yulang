@@ -80,7 +80,26 @@ remains archived at `aefa527a7`; no pending question is included in this checkpo
 
 ## Original remaining gates
 
-Actual typed receiving views, receipts/Observe and path completeness precede
-matching operation selection. Raw continuation execution, Function/B transport,
+### Actual owner implementation follow-through
+
+The owner handoff is now implemented in `machine.rs`: ModuleRun remains distinct
+from every receiving invocation; each Catch allocates a checked fresh installation
+and retains its installer. Normal return checks the original owner, request
+inspection keeps the candidate delimiter live until forwarding commits, and the
+saved boundary preserves the exact installation. Work/storage per Catch is
+constant and no owner registry or scan was added. M1 implementation and fresh
+proof-delta review by `runtime_semantic_review` are clean; the original note's
+§3.7 derives checks from pending receiver frames rather than assuming them.
+The same bounded full playground command passes all 55 tests after this delta.
+
+The [positive receiving certificate](../theory/2026-10-15-runtime-receiving-view-construction.md)
+also passed independent proof review. Genuine explicit RootComp entry, same-view
+receipt/Observe, current original receiver/handler ownership and written family
+permission construct Grant; unknown inherited protection cannot veto it. The
+runtime constructor/consumer bridge remains the next separate packet. General
+negative completeness cannot be inferred from an empty recorded profile set.
+
+Actual typed receiving views, receipts/Observe and a sufficient eligibility
+certificate precede matching operation selection. Raw continuation execution, Function/B transport,
 complete hygiene, general source coverage, native inference soundness/principality
 and F5/production cutover remain OPEN. No finite test or local theorem closes them.

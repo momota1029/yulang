@@ -14,6 +14,13 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+Actual ModuleRun/Invocation ownership and Catch installation retention are now
+implemented, with independent code/proof delta review and 55 playground passes.
+The [local receiving certificate](../notes/theory/2026-10-15-runtime-receiving-view-construction.md)
+separately proves that a known source-generated Grant establishes visibility
+despite unknown inherited coverage. Its actual view/receipt/Observe owners are
+the next runtime packet; arbitrary Delay does not justify complete empty evidence.
+
 The [request/normal-Catch runtime](../notes/progress/2026-10-15-playground-request-control.md)
 now has actual declaration entry/result-consumer ordering, normal value-arm
 execution, exact structural request forwarding and original receiver-lineage

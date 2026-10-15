@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Actual Catch owner retention complete:** a distinct ModuleRun/Invocation
+  decoder and fresh per-install Catch owner now enforce the reviewed owner
+  invariant. Candidate inspection keeps its handler live until forwarding
+  commits; saved boundaries retain the original installation. M1 code and fresh
+  proof delta review are clean; all 55 playground tests pass. The independent
+  [receiving-view theorem](../notes/theory/2026-10-15-runtime-receiving-view-construction.md)
+  proves that a source-generated local Grant suffices despite unknown inherited
+  profiles. Next implement those exact view/receipt/Observe constructors and
+  total operation-arm execution; no empty-profile assumption is authorized.
+
 - **Grouped-spine regression restored:** the stale fourteen-case HIR research
   subset now requires all thirty already-approved grouped ML/Call sources to
   associate successfully. The October 5 grammar change supplies the causal
