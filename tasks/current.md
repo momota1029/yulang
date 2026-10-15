@@ -387,16 +387,30 @@ Status: full objective remains active. Native extrusion now schedules current co
   is assumed. A context containing the concrete arm still needs its independent
   OPEN response checks under hypothetical k; concrete context admission is OPEN.
   The closed nested response arrow's omitted AE has no established source
-  formation/default law from f's shared inlet rule. The next bounded lane checks
-  full response callables at an explicitly annotated alternate alpha in the
-  unchanged all-alpha domain; a separate actual-substitution census checks free
-  Contract_k support. Neither lane may choose a new default or infer no-free
-  from a logical checking slot.
+  formation/default law from f's shared inlet rule. The [explicit-alpha pass](../notes/theory/2026-10-16-explicit-alpha-response-callable-construction.md)
+  has CLEAN mathematical/source correction review. Negative `[ctrl]Unit` grants
+  handling permission while incoming effects stay OPEN; it cannot bound effects
+  forced by the original Value-entry providers. A distinct retained-entry zero+
+  has full alpha+ membership, and Call(k,zero+) has its original complete result.
+  Full h+/open-arm checking remains OPEN: actual saved S typing does not prove
+  every hypothetical J_raw realizer satisfies alpha+'s output. The exact local
+  finite inclusion Phi_e must follow from original R_e/J_raw constraints and all
+  alternatives, without tightening them or adding a target-success guard. This
+  is a missing witness check, not a new general inference prerequisite.
+  The independent support census found no authenticated free-q path: the first
+  missing actual field is Remaining's Ref(t,m), with the current source/capture
+  substitution. An architectural audit identifies existing reference naturality
+  as its owner; a bounded constructive lane now builds the actual map, preserving
+  all installed contracts, original scopes and provenance identities.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,
   implemented and verified above; it depends on neither this eligibility parent
   nor the raw-k interface completion.
+  A separate bounded proof lane now investigates Function-valued computation
+  result projection at RootCompReturn. The source-derived latent-position map
+  is needed before extending ground receiving; no runtime code is authorized by
+  a tag alone or a conditional given-a-projection lemma.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
   scoped substitutions and any recursive equation table. No nonuniform p_P or

@@ -114,6 +114,13 @@ This index is a navigation aid. The listed source document remains authoritative
   local supplier under independently valid Gamma/d0/full-f premises. Concrete
   arm/response/context admission, generic source derivation, actual fixed support,
   eligibility and production remain OPEN; no response-arrow default is chosen.
+  The [explicit-alpha application](../theory/2026-10-16-explicit-alpha-response-callable-construction.md)
+  has CLEAN correction review: retained zero+ and Call(k,zero+) at the original
+  result are established under the same independent premises. Full h+/open-arm
+  membership still needs the original R_e/J_raw's complete output inclusion;
+  actual saved-source behavior is not every hypothetical realizer's guarantee.
+  Negative ctrl permission is not an incoming effect cap. This alternate source
+  instance narrows no parent and supplies no source-qualified counterexample.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

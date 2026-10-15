@@ -422,6 +422,28 @@ constructs complete response checks at explicit `([ctrl]()) -> [ctrl]int`
 within the original all-alpha domain; researcher `native_correlation_consumer`,
 12 minutes, read-only actual Contract_k substitution/free-index census. The
 original omitted-alpha case and original all-provider parent remain OPEN.
+The explicit-alpha pass received source CLEAN and one accepted mathematical
+MAJOR: actual saved-source T_e membership was mistaken for a universal J_raw
+output guarantee. One batched repair now has CLEAN mathematical/source delta
+reviews at `6b43e8eb...9cfe87`. Retained zero+ and open Call(k,zero+) are accepted;
+h+/k h+ remain conditional on the exact original-root finite output inclusion
+Phi_e, with every permitted alternative/symbolic bound/guard retained. No new
+general prerequisite, provider restriction or root tightening is selected.
+The 12-minute support census and 8-minute architectural owner audit returned
+empty artifact packets. They identify Remaining's actual Ref(t,m) composition
+as the first missing field. Existing naturality requires current
+`mcap(a)=(m0(a)[delta])[sigma_cap]`; provenance IDs and historical maps remain.
+Prover `ordinary_carrier_proof` now owns the disjoint 15-minute constructor
+packet `notes/theory/2026-10-16-raw-continuation-current-reference-map.md`.
+An independent selector found no further proved runtime matcher expansion.
+The next runtime owner is Function-result projection: ground RootCompReturn
+uses ground(value), which cannot establish callable latent paths. A new
+25-minute prover `function_result_projection` owns
+`notes/theory/2026-10-16-runtime-function-result-view-projection.md`, requiring
+an actual source map/consumer handoff or exact owning obstruction before code.
+These static-only lanes change no primitive/Function policy and consume zero
+tests/builds/probes or benchmark samples/processes. M2 artifact review remains
+two distinct mathematical/source reviewers; primary owns records/integration.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns
