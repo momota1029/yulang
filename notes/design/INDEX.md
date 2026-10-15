@@ -44,6 +44,11 @@ This index is a navigation aid. The listed source document remains authoritative
   with base typing hypotheses explicit. The original native template inclusion
   is separate from the conditional FreshUse implication; actual mapped-bound
   admission, native/runtime correspondence and whole-language soundness stay OPEN.
+  The [native FreshUse bridge](../theory/2026-10-15-computation-freshuse-admission-bridge.md)
+  now establishes mapped-bound capture and physical restoration before
+  publication for an isolated first-use direct-Name Computation provider.
+  Independent review found no findings. General copied/merged provider
+  correspondence and dynamic receiving evidence remain OPEN.
 
 ## Active workflow navigation (2026-10-10)
 

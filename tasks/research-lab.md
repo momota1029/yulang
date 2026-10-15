@@ -14,6 +14,17 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [native FreshUse admission bridge](../notes/theory/2026-10-15-computation-freshuse-admission-bridge.md)
+has independent review with no findings. It establishes actual mapped-bound
+capture/restoration for an isolated first-use direct-Name Computation provider,
+with publication after completion and conditional actual Apply output inclusion.
+This consumes the corresponding subcase of the prior forwarding proof's native
+premise. General signed-copy/merged provider correspondence remains OPEN: source-
+qualify the first nontrivially copied provider and retain its joint AE/body/RE
+route before applying FreshUse. It does not supply runtime entry/read/Observe,
+selective Catch, full Call, soundness or principality. No proof-side execution
+or measurement was performed. Playground source-plan work is independent.
+
 The [first positive local preservation theorem](../notes/theory/2026-10-15-computation-forwarding-preservation.md)
 now passes independent review. Its source-generated root profiles/maps extend
 to arbitrary finite explicit-Computation forwarding chains and typed finite

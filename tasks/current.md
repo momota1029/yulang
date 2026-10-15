@@ -6,6 +6,19 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **First native FreshUse forwarding supplier:** the independently reviewed
+  [admission bridge](../notes/theory/2026-10-15-computation-freshuse-admission-bridge.md)
+  derives capture and actual restoration of the original registration/Name/body
+  effect edges for an isolated first-construction, first-use direct-Name
+  Computation provider. One authentic use map restores the three edges before
+  root publication; actual Function/Apply constraints then entail argument-to-
+  output effect inclusion. No mapped-bound premise is assumed for this subcase.
+  General copied/merged providers, later recapture, dynamic receiving evidence,
+  complete Call and full soundness remain OPEN. The next general bridge needs
+  a source-qualified signed-copy AE/body/RE route before FreshUse. M2 independent
+  compiler-referee review found no findings; no new tests or measurements ran
+  for this proof. Separate playground source-plan work is still in progress.
+
 - **First positive hygiene-preservation step:** the user's request for a first
   soundness result is addressed by the independently reviewed
   [computation-forwarding theorem](../notes/theory/2026-10-15-computation-forwarding-preservation.md).
