@@ -14,6 +14,14 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [receiving-handler implementation](../notes/progress/2026-10-16-playground-receiving-handlers.md)
+has clean M3 semantic/proof, contract and resource review, with 72 playground
+tests passing. Authentic receiving and observing receipts join independently on
+the same view; known local Grant survives unknown older coverage. Primitive
+Value payload selection and wildcard-continuation discard execute. Raw Resume
+template correspondence proceeds separately; cache-bearing Resume awaits its
+definition-publication/suspended-demand decision. Full B and hygiene remain OPEN.
+
 The next-action selection's native ownership audit is
 [independently reviewed](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md).
 Existing local capture/FreshUse retain structural roots, contexts, snapshots
@@ -40,7 +48,8 @@ implemented, with independent code/proof delta review and 55 playground passes.
 The [local receiving certificate](../notes/theory/2026-10-15-runtime-receiving-view-construction.md)
 separately proves that a known source-generated Grant establishes visibility
 despite unknown inherited coverage. Its actual view/receipt/Observe owners are
-the next runtime packet; arbitrary Delay does not justify complete empty evidence.
+integrated in the October 16 checkpoint; arbitrary Delay still does not justify
+complete empty evidence.
 
 The [request/normal-Catch runtime](../notes/progress/2026-10-15-playground-request-control.md)
 now has actual declaration entry/result-consumer ordering, normal value-arm

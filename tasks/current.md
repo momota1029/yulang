@@ -6,6 +6,17 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
+- **Receiving operation handlers implemented and proved:** actual original
+  boundaries/views, authentic same-view receipt joins and event observations now
+  drive positive local Grant selection. Primitive payloads and wildcard
+  continuation discard execute under the selected shallow-handler contract;
+  no-Resume cache abandonment preserves live outer owners. All 72 playground
+  tests pass, including 15 receiving controls; M3 semantic/proof, specification
+  and resource delta reviews are clean. [Gate record](../notes/progress/2026-10-16-playground-receiving-handlers.md).
+  Raw Resume proceeds at the reviewed template constructors. Cache-bearing
+  Resume alone awaits the pending definition-materialization decision; complete
+  negative/profile evidence and whole-language proofs remain OPEN.
+
 - **First native Result interpretation reviewed:** the [source-indexed
   construction](../notes/theory/2026-10-15-native-call-result-source-interpretation.md)
   authentically decodes the retained Apply/formal/Name origin and preserves the
@@ -35,8 +46,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   proof delta review are clean; all 55 playground tests pass. The independent
   [receiving-view theorem](../notes/theory/2026-10-15-runtime-receiving-view-construction.md)
   proves that a source-generated local Grant suffices despite unknown inherited
-  profiles. Next implement those exact view/receipt/Observe constructors and
-  total operation-arm execution; no empty-profile assumption is authorized.
+  profiles. The October 16 receiving checkpoint above implements those
+  constructors and primitive discard arms without an empty-profile assumption.
 
 - **Grouped-spine regression restored:** the stale fourteen-case HIR research
   subset now requires all thirty already-approved grouped ML/Call sources to

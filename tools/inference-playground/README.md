@@ -119,10 +119,34 @@ payload remains unevaluated.
 A `Catch` value arm runs after the scrutinee returns and outside that catch's
 delimiter. A binder receives the returned value; a wildcard arm runs its body
 without binding it. If no value arm is present, the normal return passes
-through. When a request reaches a matching or unresolved operation arm,
-execution is unavailable because handler evidence is not implemented. An arm for a known different
-operation forwards the request. Operation arm execution and continuation
-resumption are not available.
+through.
+
+A matching operation arm can run when the runtime has enough receiving
+evidence for that request. A ground `[io] int` computation formal supplies
+handling permission to its own receiving `Catch`, even when inherited coverage
+is unknown. This stdin example prints `7`:
+
+```sh
+printf 'act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), _ -> p }\nmy main = relay (io::tick 7)\n' | cargo run -q -p yu-playground -- --run main -
+```
+
+```text
+7
+```
+
+Operation arms support declared primitive payload types `()`, `int`, `bool`,
+and `str`. A total identifier or wildcard payload pattern can bind or discard
+the payload. An empty-call pattern is also a wildcard for the payload and does
+not require a unit payload. The continuation pattern must be a wildcard, which
+discards the saved continuation. A response does not need to be `int` when the
+arm discards that continuation. The selected arm runs outside the `Catch`
+delimiter, so a request it emits is not handled by that same `Catch`.
+
+A continuation binder and `Resume` are unavailable. Operation selection for
+`Comp` or nonprimitive payloads is also unavailable. The runtime cannot make
+handler decisions that require complete inherited coverage; when evidence is
+missing, `--run` reports the request as unavailable and withholds the selected
+definition's output.
 
 Bare module expressions, arithmetic, imports, and standard-library operations
 are also unavailable in this evaluator. Its provisional execution does not

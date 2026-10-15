@@ -4,14 +4,15 @@ use super::{
         Binder, Code, Instruction, Label, NameConsumption, ParameterRole, RuntimeProgram,
         RuntimeUnavailable, SourceSite,
     },
+    receiving::{ExecutionView, Observation, Receiving, RootCompSchema, ViewHandle},
 };
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 use yu_hir::shadow::{
-    LocalSourceCatchPattern, LocalSourceCatchValuePattern, LocalSourceResolution,
-    SourceAnnotationValue, SourceOperationDeclaration, SourceOperationId,
+    LocalSourceCatchPattern, LocalSourceCatchPayloadPattern, LocalSourceCatchValuePattern,
+    LocalSourceResolution, SourceAnnotationValue, SourceOperationDeclaration, SourceOperationId,
     SourceOperationResolution,
 };
 use yu_hir::{DefId, HirParameterId};
@@ -37,11 +38,13 @@ pub struct Machine {
     next_request: usize,
     active_receivers: Vec<usize>,
     continuations: Vec<SavedContinuation>,
+    receiving: Receiving,
+    executing_views: Vec<ExecutionView>,
 }
 // Execution ownership is distinct from receiving-boundary authority. The
 // ambient module span never aliases invocation ordinal zero or grants a profile.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ExecutionOwner {
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(super) enum ExecutionOwner {
     ModuleRun,
     Invocation(usize),
 }
@@ -92,6 +95,7 @@ pub enum RuntimeOutcome {
 struct ReceivedValue {
     value: ValueHandle,
     interface: ParameterRole,
+    view: ViewHandle,
 }
 struct Environment {
     parent: Option<usize>,
@@ -102,6 +106,7 @@ enum ExecutableValue {
     Closure {
         parameter: HirParameterId,
         role: ParameterRole,
+        root_schema: Option<Arc<RootCompSchema>>,
         body: Label,
         environment: usize,
     },
@@ -111,7 +116,7 @@ enum ExecutableValue {
     },
     Request {
         declaration: Arc<SourceOperationDeclaration>,
-        payload: ValueHandle,
+        payload: ReceivedValue,
         source: SourceSite,
     },
 }
@@ -123,6 +128,9 @@ enum State {
 }
 #[derive(Clone)]
 enum Frame {
+    RootCompReturn {
+        execution: ExecutionView,
+    },
     CatchReturn {
         handler: Arc<Code>,
         environment: usize,
@@ -176,13 +184,19 @@ enum Frame {
 
 struct PendingRequest {
     declaration: Arc<SourceOperationDeclaration>,
-    payload: ValueHandle,
+    payload: ReceivedValue,
     source: SourceSite,
     event: usize,
+    observations: Vec<Observation>,
     suffix: Vec<SavedFrame>,
 }
 struct SavedContinuation {
     frames: Vec<SavedFrame>,
+    #[allow(
+        dead_code,
+        reason = "original request observations retained for separately gated raw resumption"
+    )]
+    observations: Vec<Observation>,
 }
 // Templates are retained for the separate typed raw-resumption gate. A receiver
 // delimiter retains its original lineage identity for the future mapping to
@@ -255,6 +269,8 @@ impl RuntimeProgram {
             next_request: 0,
             active_receivers: Vec::new(),
             continuations: Vec::new(),
+            receiving: Receiving::default(),
+            executing_views: Vec::new(),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -319,8 +335,8 @@ impl Machine {
             .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
         let site = &code.site;
         match &code.instruction {
-            Instruction::Unit => self.data(site, RuntimeValueKind::Unit, None),
-            Instruction::Integer(text) => self.data(
+            Instruction::Unit => self.ground_data(site, RuntimeValueKind::Unit, None),
+            Instruction::Integer(text) => self.ground_data(
                 site,
                 RuntimeValueKind::Integer(
                     literal::integer(text)
@@ -328,8 +344,10 @@ impl Machine {
                 ),
                 None,
             ),
-            Instruction::Boolean(value) => self.data(site, RuntimeValueKind::Boolean(*value), None),
-            Instruction::String(text) => self.data(
+            Instruction::Boolean(value) => {
+                self.ground_data(site, RuntimeValueKind::Boolean(*value), None)
+            }
+            Instruction::String(text) => self.ground_data(
                 site,
                 RuntimeValueKind::String(
                     literal::string(text)
@@ -385,6 +403,7 @@ impl Machine {
             Instruction::Lambda {
                 parameter,
                 role,
+                root_schema,
                 body,
             } => {
                 self.data(
@@ -393,6 +412,7 @@ impl Machine {
                     Some(ExecutableValue::Closure {
                         parameter: parameter.clone(),
                         role: *role,
+                        root_schema: root_schema.clone(),
                         body: *body,
                         environment,
                     }),
@@ -427,7 +447,7 @@ impl Machine {
                         environment,
                     };
                 } else {
-                    self.data(site, RuntimeValueKind::Unit, None);
+                    self.ground_data(site, RuntimeValueKind::Unit, None);
                 }
             }
             Instruction::Operation(resolution) => {
@@ -462,6 +482,11 @@ impl Machine {
             return Ok(());
         };
         match frame {
+            Frame::RootCompReturn { execution } => {
+                self.end_execution_view(execution)?;
+                let view = self.receiving.ground(received.value);
+                self.state = State::Return(ReceivedValue { view, ..received });
+            }
             Frame::CatchReturn {
                 handler,
                 environment,
@@ -487,6 +512,7 @@ impl Machine {
                             ReceivedValue {
                                 value: received.value,
                                 interface: ParameterRole::Value,
+                                view: received.view,
                             },
                         ),
                         LocalSourceCatchValuePattern::Wildcard => environment,
@@ -503,9 +529,9 @@ impl Machine {
             Frame::OperationPayload {
                 declaration,
                 source,
-            } => self.make_request_carrier(declaration, received.value, &source),
+            } => self.make_request_carrier(declaration, received, &source),
             Frame::OperationResultConsumer { source } => self.execute(received.value, &source)?,
-            Frame::DiscardToUnit { site } => self.data(&site, RuntimeValueKind::Unit, None),
+            Frame::DiscardToUnit { site } => self.ground_data(&site, RuntimeValueKind::Unit, None),
             Frame::Callee {
                 argument,
                 environment,
@@ -521,11 +547,14 @@ impl Machine {
                         environment,
                     }),
                 );
+                let inherited = self.direct_formal_root(argument, environment);
+                let delay_view = self.receiving.delay(delay, inherited);
                 let executable = self.executables.get(&received.value.0).cloned();
                 match executable {
                     Some(ExecutableValue::Closure {
                         parameter,
                         role,
+                        root_schema,
                         body,
                         environment,
                     }) => {
@@ -545,12 +574,30 @@ impl Machine {
                                 self.execute(delay, &site)?;
                             }
                             ParameterRole::Computation => {
+                                let view = if let Some(schema) = root_schema {
+                                    let view = self.receiving.enter(
+                                        delay,
+                                        delay_view,
+                                        activation,
+                                        schema.clone(),
+                                    );
+                                    self.receiving.receipt(
+                                        ExecutionOwner::Invocation(activation),
+                                        view,
+                                        &schema.lambda,
+                                        Some(parameter.clone()),
+                                    );
+                                    view
+                                } else {
+                                    delay_view
+                                };
                                 let environment = self.bind(
                                     environment,
                                     Binder::Parameter(parameter),
                                     ReceivedValue {
                                         value: delay,
                                         interface: ParameterRole::Computation,
+                                        view,
                                     },
                                 );
                                 self.state = State::Evaluate {
@@ -605,9 +652,15 @@ impl Machine {
                                 });
                                 self.execute(delay, &site)?;
                             }
-                            ParameterRole::Computation => {
-                                self.make_request_carrier(declaration, delay, &site)
-                            }
+                            ParameterRole::Computation => self.make_request_carrier(
+                                declaration,
+                                ReceivedValue {
+                                    value: delay,
+                                    interface: ParameterRole::Computation,
+                                    view: delay_view,
+                                },
+                                &site,
+                            ),
                         }
                     }
                     _ => return Err(RuntimeUnavailable::ExpectedCallable(site)),
@@ -620,6 +673,7 @@ impl Machine {
                 self.state = State::Return(ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,
+                    view: received.view,
                 });
             }
             Frame::ValueEntry {
@@ -633,6 +687,7 @@ impl Machine {
                     ReceivedValue {
                         value: received.value,
                         interface: ParameterRole::Value,
+                        view: received.view,
                     },
                 );
                 self.state = State::Evaluate {
@@ -650,6 +705,7 @@ impl Machine {
                 self.cells[cell] = Some(ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,
+                    view: received.view,
                 });
                 let Instruction::Block { bindings, .. } = &block.instruction else {
                     unreachable!()
@@ -705,13 +761,14 @@ impl Machine {
                         environment,
                     };
                 } else {
-                    self.data(&conditional.site, RuntimeValueKind::Unit, None);
+                    self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
                 }
             }
             Frame::Root { next, cell } => {
                 self.cells[cell] = Some(ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,
+                    view: received.view,
                 });
                 self.initializing_globals.remove(&cell);
                 self.begin_root(next);
@@ -724,6 +781,7 @@ impl Machine {
                 let received = ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,
+                    view: received.view,
                 };
                 self.cells[cell] = Some(received);
                 self.initializing_globals.remove(&cell);
@@ -733,6 +791,27 @@ impl Machine {
         Ok(())
     }
 
+    fn direct_formal_root(&self, label: Label, environment: usize) -> Option<ViewHandle> {
+        let Instruction::Name {
+            resolution: LocalSourceResolution::Parameter(parameter),
+            consumption: NameConsumption::Execute,
+        } = &self.program.code.get(label.0)?.instruction
+        else {
+            return None;
+        };
+        let cell = self.lookup(environment, &Binder::Parameter(parameter.clone()))?;
+        let received = self.cells.get(cell).copied().flatten()?;
+        (received.interface == ParameterRole::Computation).then_some(received.view)
+    }
+    fn end_execution_view(&mut self, execution: ExecutionView) -> Result<(), RuntimeUnavailable> {
+        let Some(current) = self.executing_views.pop() else {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        };
+        if current.view != execution.view || current.receipt != execution.receipt {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(())
+    }
     fn current_execution_owner(&self) -> ExecutionOwner {
         self.active_receivers
             .last()
@@ -759,40 +838,117 @@ impl Machine {
         if let Some(Frame::CatchReturn {
             handler,
             installation,
-            ..
-        }) = self.frames.last()
+            environment,
+        }) = self.frames.last().cloned()
         {
-            self.validate_handler_installation(*installation)?;
+            self.validate_handler_installation(installation)?;
             let Instruction::Catch { arms, .. } = &handler.instruction else {
                 unreachable!()
             };
             for arm in arms {
-                if let LocalSourceCatchPattern::Operation { resolution, .. } = &arm.pattern {
-                    match resolution {
-                        SourceOperationResolution::Resolved(declaration)
-                            if declaration.id != request.declaration.id => {}
-                        // Exact operation equality identifies only a candidate;
-                        // it does not supply receiving/path/eligibility proof.
-                        _ => return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone())),
+                let LocalSourceCatchPattern::Operation {
+                    resolution,
+                    payloads,
+                    continuation,
+                    ..
+                } = &arm.pattern
+                else {
+                    continue;
+                };
+                let declaration = match resolution {
+                    SourceOperationResolution::Resolved(declaration)
+                        if declaration.id != request.declaration.id =>
+                    {
+                        continue;
                     }
+                    SourceOperationResolution::Resolved(declaration) => declaration,
+                    _ => return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone())),
+                };
+                // A positive local Grant suffices despite Unknown inherited
+                // coverage. Failure proves no negative fact and cannot forward.
+                if !self.receiving.local_grant(
+                    &request.observations,
+                    request.event,
+                    installation.owner,
+                    &self.active_receivers,
+                    &request.declaration.id.family,
+                ) {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
+                let SourceAnnotationValue::Function { argument, .. } = &declaration.signature.value
+                else {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                };
+                if declaration.signature.effects.is_some()
+                    || argument.effects.is_some()
+                    || !matches!(continuation, LocalSourceCatchValuePattern::Wildcard)
+                {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                let [payload_pattern] = payloads.as_slice() else {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                };
+                if request.payload.interface != ParameterRole::Value
+                    || !self
+                        .receiving
+                        .matches_value(request.payload.view, request.payload.value)
+                    || !matches!(
+                        (&argument.value, &self.values[request.payload.value.0].kind),
+                        (SourceAnnotationValue::Unit, RuntimeValueKind::Unit)
+                            | (SourceAnnotationValue::Int, RuntimeValueKind::Integer(_))
+                            | (SourceAnnotationValue::Bool, RuntimeValueKind::Boolean(_))
+                            | (SourceAnnotationValue::Str, RuntimeValueKind::String(_))
+                    )
+                {
+                    return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                }
+                // Commit shallow selection only after every ordered candidate
+                // premise succeeds. Discarding its raw suffix is source control;
+                // the arm executes outside this exact handler occurrence.
+                self.frames.pop();
+                self.abandon_suffix(&request.suffix);
+                let environment = match payload_pattern {
+                    LocalSourceCatchPayloadPattern::Value(
+                        LocalSourceCatchValuePattern::Binder(binder),
+                    ) => self.bind(
+                        environment,
+                        Binder::Catch(binder.id.clone()),
+                        request.payload,
+                    ),
+                    LocalSourceCatchPayloadPattern::Value(
+                        LocalSourceCatchValuePattern::Wildcard,
+                    )
+                    // Empty-call pattern syntax lowers to a wildcard; payload
+                    // compatibility is established above by the declaration.
+                    | LocalSourceCatchPayloadPattern::Unit { .. } => environment,
+                };
+                self.state = State::Evaluate {
+                    code: arm.body,
+                    environment,
+                };
+                return Ok(());
             }
         }
         let Some(frame) = self.frames.pop() else {
             let continuation = ContinuationHandle(self.continuations.len());
             self.continuations.push(SavedContinuation {
                 frames: request.suffix,
+                observations: request.observations,
             });
             self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
                 source: request.source,
                 operation: request.declaration.id.clone(),
-                payload: request.payload,
+                payload: request.payload.value,
                 event: request.event,
                 continuation,
             });
             return Ok(());
         };
         let template = match frame {
+            Frame::RootCompReturn { execution } => {
+                self.end_execution_view(execution)?;
+                SavedFrame::Ordinary(Frame::RootCompReturn { execution })
+            }
             Frame::ReceiverReturn { activation } => {
                 if self.active_receivers.pop() != Some(activation) {
                     return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -816,10 +972,22 @@ impl Machine {
         self.state = State::Request(request);
         Ok(())
     }
+    fn abandon_suffix(&mut self, suffix: &[SavedFrame]) {
+        // These writes will never run: release only their pending materialization
+        // markers. Live outer cache owners and retained/forwarded suffixes remain
+        // untouched, and the selected arm is not their initializer result.
+        for frame in suffix {
+            if let SavedFrame::Ordinary(Frame::GlobalRead { cell, .. } | Frame::Root { cell, .. }) =
+                frame
+            {
+                self.initializing_globals.remove(cell);
+            }
+        }
+    }
     fn make_request_carrier(
         &mut self,
         declaration: Arc<SourceOperationDeclaration>,
-        payload: ValueHandle,
+        payload: ReceivedValue,
         source: &SourceSite,
     ) {
         self.data(
@@ -871,11 +1039,25 @@ impl Machine {
         consumption: NameConsumption,
         site: &SourceSite,
     ) -> Result<(), RuntimeUnavailable> {
+        if !self.receiving.matches_value(received.view, received.value) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let receipt =
+            self.receiving
+                .receipt(self.current_execution_owner(), received.view, site, None);
         match consumption {
             NameConsumption::Observe => self.state = State::Return(received),
             NameConsumption::Execute => {
                 if received.interface != ParameterRole::Computation {
                     return Err(RuntimeUnavailable::MissingConsumptionEvidence(site.clone()));
+                }
+                if self.receiving.has_root(received.view) {
+                    let execution = ExecutionView {
+                        view: received.view,
+                        receipt,
+                    };
+                    self.executing_views.push(execution);
+                    self.frames.push(Frame::RootCompReturn { execution });
                 }
                 self.execute(received.value, site)?;
             }
@@ -940,6 +1122,10 @@ impl Machine {
                     payload,
                     source,
                     event,
+                    observations: self
+                        .receiving
+                        .observe(event, &self.executing_views)
+                        .ok_or(RuntimeUnavailable::IdentityExhausted)?,
                     suffix: Vec::new(),
                 });
                 Ok(())
@@ -971,6 +1157,20 @@ impl Machine {
         self.cells.push(Some(value));
         self.extend(environment, binder, cell)
     }
+    fn ground_data(
+        &mut self,
+        site: &SourceSite,
+        kind: RuntimeValueKind,
+        executable: Option<ExecutableValue>,
+    ) {
+        let value = self.allocate(site, kind, executable);
+        let view = self.receiving.ground(value);
+        self.state = State::Return(ReceivedValue {
+            value,
+            interface: ParameterRole::Value,
+            view,
+        });
+    }
     fn data(
         &mut self,
         site: &SourceSite,
@@ -978,9 +1178,11 @@ impl Machine {
         executable: Option<ExecutableValue>,
     ) {
         let value = self.allocate(site, kind, executable);
+        let view = self.receiving.opaque(value);
         self.state = State::Return(ReceivedValue {
             value,
             interface: ParameterRole::Value,
+            view,
         });
     }
     fn allocate(

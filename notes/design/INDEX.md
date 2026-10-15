@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Receiving operation-handler execution](../progress/2026-10-16-playground-receiving-handlers.md)
+  — Actual positive local Grant, independent same-view receipt join, primitive
+  payload selection and wildcard-continuation discard have independent source
+  proof and M3 code/contract/resource review. All 72 playground tests pass.
+  Raw Resume, general negative evidence and whole-language parents remain OPEN.
+
 - [Native first-Result source interpretation](../theory/2026-10-15-native-call-result-source-interpretation.md)
   and [origin falsification](../theory/2026-10-16-native-result-origin-falsification.md)
   — Independently reviewed source-coordinate decoder, constructor preservation

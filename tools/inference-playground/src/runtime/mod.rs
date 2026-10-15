@@ -3,6 +3,7 @@
 mod literal;
 mod machine;
 mod program;
+mod receiving;
 
 pub use machine::{
     ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, ValueHandle,

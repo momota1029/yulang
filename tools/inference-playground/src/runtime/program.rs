@@ -102,6 +102,7 @@ pub(super) enum Instruction {
     Lambda {
         parameter: HirParameterId,
         role: ParameterRole,
+        root_schema: Option<Arc<super::receiving::RootCompSchema>>,
         body: Label,
     },
     Apply {
@@ -377,6 +378,14 @@ impl RuntimeProgram {
                         } else {
                             ParameterRole::Value
                         },
+                        root_schema: super::receiving::RootCompSchema::from_parameter(
+                            &SourceSite {
+                                definition: binding.definition_root().clone(),
+                                occurrence: expression.occurrence.clone(),
+                                range: expression.range.clone(),
+                            },
+                            parameter,
+                        ),
                         body: label(body)?,
                     },
                     LocalSourceForm::Apply {
