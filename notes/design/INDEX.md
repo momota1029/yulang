@@ -104,6 +104,10 @@ This index is a navigation aid. The listed source document remains authoritative
   its original formation theorem and actual-source bridge are now independently
   reviewed, with 33 focused HIR/solver/playground tests and a successful package
   check. Callback-context delivery and runtime remain separate open gates.
+  The [native context source gate](../progress/2026-10-15-callback-context-delivery.md)
+  now records the actual generation/admission split and the remaining
+  phase-factorization and original Function-profile construction premises;
+  ordinary inference success does not close those obligations.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
   — Authoritative; the explicit principal-scheme source

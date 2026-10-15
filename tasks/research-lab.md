@@ -14,6 +14,15 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The next [callback-context construction gate](../notes/progress/2026-10-15-callback-context-delivery.md)
+is active under the user's continuation. The source audit distinguishes early
+body fact generation from later callee-before-body admission; shared FreshUse
+mapping alone does not supply original callback context. Phase factorization,
+Function-profile construction and an independent falsification method now
+attack the exact remaining premises. No production context implementation or
+parent proof closure is claimed. The parser question archive is integrated at
+`aefa527a7` and no longer pending.
+
 The user directly authorized the next anonymous-lambda HIR stage with
 `お願いします．`. The bounded [formation packet](../notes/progress/2026-10-15-inline-lambda-hir.md)
 uses ordinary formal binding, the shared parameter identity stream and

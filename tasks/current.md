@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Callback-context source gate active:** after the user's continuation, the
+  [current gate](../notes/progress/2026-10-15-callback-context-delivery.md)
+  retains normative B and all original source/profile premises. Independent
+  local source review establishes callee-before-body admission and shared
+  FreshUse child reconstruction, while body facts are generated earlier during
+  collection. Phase factorization and original Function-profile construction
+  are now the decisive proof lanes; production adoption remains OPEN.
+  The resolved parser question/receipt were archived at the user's explicit
+  request in `aefa527a7`, without a fabricated answer bundle.
+
 - **Inline-lambda HIR formation and source proof complete:** following the parser checkpoint,
   the user replied `お願いします．` to the next HIR stage. The bounded
   [formation gate](../notes/progress/2026-10-15-inline-lambda-hir.md) reuses
