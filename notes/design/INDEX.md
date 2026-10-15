@@ -89,8 +89,12 @@ This index is a navigation aid. The listed source document remains authoritative
   OPEN; old A/B laws remain unselected. The independently reviewed
   [observation separation](../theory/2026-10-16-initialization-effect-order-source-observation.md)
   authenticates internal request order with empty outward initializer support.
-  The pending observation question asks which projection supplies the ordering
-  predicate, without adopting a detector or changing prior approved scope.
+  The validated [observation answer](../../questions/2026-10-16-initialization-effect-order-observation/receipt.md),
+  bundle `6b6cafea1`, now selects actual effects escaping each initializer after
+  internal handling, including before global consumers. Internal-only requests
+  and static permission upper bounds do not count. The governing addendum fills
+  that observation boundary without selecting a detector/scheduler or certifying
+  source admission, materialization or production.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated

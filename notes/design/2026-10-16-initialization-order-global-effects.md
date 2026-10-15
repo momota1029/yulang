@@ -3,6 +3,7 @@
 Status: Authoritative replacement decision; source/implementation proof gates OPEN
 Scope: top-level initialization ordering and escaping-effect consumer
 Approved-by: user, forward-definition-initialization-context-a1 revision 2
+Observation addendum: user, initialization-effect-order-observation-a1 revision 1, exact bundle `6b6cafea1`
 Approved-at: 2026-10-16
 Approval: [exact approved answer](../../questions/2026-10-16-forward-definition-initialization-context/approved-answer.md), bundle `885012b42`
 Reviewed-by: `ordinary_carrier_contract`, exact bundle conformance and decision/receipt/status transcription CLEAN
@@ -72,5 +73,33 @@ implements the escaping-effect clause only. The constructive top-GlobalRead cut
 and exact repaired-source correspondence have independent CLEAN semantic/spec
 review; all 108 playground tests pass. This selects no source effect detector,
 early-entry timing or global consumer. Initialization order/source admission
-and whole materialization remain OPEN, including which source observation
-constitutes an effect-producing initializer for the ordering law.
+and whole materialization remain OPEN. The observation boundary is now selected
+by the following approved addendum; this does not certify an ordering algorithm.
+
+## Approved observation addendum (2026-10-16)
+
+Authority: [exact approved observation answer](../../questions/2026-10-16-initialization-effect-order-observation/approved-answer.md),
+question revision 1 / a1 revision 1, validated and integrated at `6b6cafea1`.
+The user selected option 1 and approved the complete displayed draft with `OK`.
+The [receipt](../../questions/2026-10-16-initialization-effect-order-observation/receipt.md)
+records exact bytes, source freshness and consumption. This addendum fills the
+previously unspecified observation predicate; the preceding ordering and
+global-handling decisions remain.
+Independent `ordinary_carrier_contract` review is CLEAN for the exact
+approved-scope addendum and matching receipt/task/index transcription.
+
+The relative-order rule counts effects **actually escaping each initializer
+after its internal handlers**. A request fully handled inside does not count.
+Effects escaping a handler arm or resumed computation do count, as do effects
+reaching an automatic global consumer, which is outside that initializer.
+A declared permission or nonempty static effect upper bound alone does not
+prove an occurrence.
+
+In the reviewed [source-observation example](../theory/2026-10-16-initialization-effect-order-source-observation.md),
+internal `ping 2` then `ping 1` with both outward images empty is not itself an
+ordering violation. This observation does not certify whole-program admission,
+forward-demand timing or the current scheduler. No concrete detector/scheduler,
+blanket dependency-first policy, additional uninitialized-reference rule,
+observable speculation or arbitrary global-handler registry is approved by
+this addendum. Source construction, actual runtime correspondence and full
+initialization/materialization gates retain their independent owners.

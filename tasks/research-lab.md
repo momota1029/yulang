@@ -74,11 +74,16 @@ all 108 playground tests pass, including retained live-prefix and internal-handl
 controls. Ordering/source-admission and whole materialization remain OPEN; the
 [source-observation proof](../notes/theory/2026-10-16-initialization-effect-order-source-observation.md)
 now has independent CLEAN review: internally handled later/first requests and
-empty outward initializer images are distinct. The independently reviewed pending
-question `questions/2026-10-16-initialization-effect-order-observation/question.md`
-asks for that exact ordering observation boundary. No detector, uninitialized
-reference policy or schedule is selected; only dependent ordering work waits.
-Native construction/guard-falsification work continues independently.
+empty outward initializer images are distinct. The validated observation answer
+[q1/a1 revision 1](../questions/2026-10-16-initialization-effect-order-observation/receipt.md),
+integrated `6b6cafea1`, selects effects actually escaping each initializer after
+internal handling, including before an automatic global consumer; internal-only
+requests and permission upper bounds do not count. The governing addendum
+records exactly that choice. No detector, uninitialized-reference policy or
+schedule is selected. A prover now checks actual all-current-runtime outward
+order in `notes/theory/2026-10-16-initialization-outward-order-current-runtime.md`,
+with an independent public-consumer/source-label audit. Whole source/order and
+materialization gates stay OPEN; native work continues independently.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic

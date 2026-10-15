@@ -79,10 +79,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   [source-observation construction](../notes/theory/2026-10-16-initialization-effect-order-source-observation.md)
   gives an internally handled later-then-first trace with both initializer
   outward images empty; no whole-source/order compliance is claimed. The reviewed
-  pending question `questions/2026-10-16-initialization-effect-order-observation/question.md`
-  asks whether the ordering predicate counts internal requests or only outward
-  initializer effects. It selects no detector/uninitialized-reference policy.
-  Only dependent ordering work waits; native proofs continue.
+  observation answer is now validated and consumed at `6b6cafea1`:
+  [q1/a1 revision 1](../questions/2026-10-16-initialization-effect-order-observation/receipt.md)
+  selects effects actually escaping each initializer after internal handling,
+  including effects reaching automatic global consumers. Completely handled
+  internal requests and declaration-only permissions do not count. The governing
+  observation addendum records this exact scope. No detector, scheduler or extra
+  uninitialized-reference policy follows. The all-current-runtime outward-order
+  proof and independent consumer/source-label audit are active; full source/order
+  construction and materialization remain OPEN. Native proofs continue.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
