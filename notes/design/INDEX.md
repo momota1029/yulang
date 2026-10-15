@@ -38,6 +38,12 @@ This index is a navigation aid. The listed source document remains authoritative
   future refutes lexical-only unconditional deletion; the conditional
   actual-instance theorem survives. Native entry/profile instantiation,
   complete-future Catch transport and full soundness remain OPEN.
+  The subsequent [first positive preservation theorem](../theory/2026-10-15-computation-forwarding-preservation.md)
+  has passed independent review for arbitrary finite explicit-root forwarding
+  chains and typed control/resumption prefixes. Source entry/maps are generated,
+  with base typing hypotheses explicit. The original native template inclusion
+  is separate from the conditional FreshUse implication; actual mapped-bound
+  admission, native/runtime correspondence and whole-language soundness stay OPEN.
 
 ## Active workflow navigation (2026-10-10)
 

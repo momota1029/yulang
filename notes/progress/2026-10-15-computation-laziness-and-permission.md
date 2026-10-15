@@ -125,3 +125,41 @@ explicit request; its [receipt](../../questions/2026-10-15-callback-identity-rel
 records that separate disposition without an answerer bundle. Omitted
 callbacks, native selective Catch, source/runtime correspondence, full soundness
 and exact native playground execution remain OPEN.
+
+## First positive preservation result and question closure
+
+The user subsequently requested archiving the resolved identity question and
+obtaining a first soundness step. Commit `bc960a131` preserves the original
+revision-1 question bytes beneath a closed-history header and records the
+direct archive instruction in its receipt. Exactly two files existed; no
+answerer draft/approval was invented. M0 disposition, original-body hash, local
+links and whitespace checks passed, with zero compiler checks or measurements.
+
+The independently reviewed [forwarding-preservation theorem](../theory/2026-10-15-computation-forwarding-preservation.md)
+is the positive proof step. It constructs profiles/maps from explicit Computation
+roots and actual Name/Delay/Argument routes, then inducts over arbitrary finite
+forwarding chains and typed control prefixes. It preserves original receiving
+owners and correlated request evidence, makes actual handling require current
+eligibility, and prevents raw reentry from reviving an expired grant. Pending
+matching, source-directed abandonment, inert unused arguments and forwarding
+value-arm effects are covered. Primitive/base typing contracts remain explicit
+hypotheses; no termination or full type-soundness theorem is claimed.
+
+| Gate | Result |
+| --- | --- |
+| Explicit-root source forwarding preservation | Established within the theorem's stated fragment and base hypotheses |
+| Original native registration/Name/body effect inclusion | Established from the emitted template constraints |
+| Actual FreshUse forwarding effect inclusion | Conditional on one authentic map per use, mapped-bound admission and actual Apply joins |
+| Native source profiles, entry/read/Observe and capture/replay coverage | OPEN; implementation correspondence still required |
+| Omitted callbacks, complete Call, progress and global soundness | OPEN |
+
+M2 used a constructive prover, complementary falsifier/native-source inspection
+and one independent compiler referee. Initial review found no blocking/major
+source-proof issue and one major native-template/FreshUse conflation. One
+batched repair made the original and copied endpoints distinct and kept the
+missing admission premise explicit; delta review closed the finding. Thirteen
+dependency hashes, six local proof links and whitespace checks pass. This
+follow-up added no tests, builds, source/Oracle executions or benchmark processes;
+the earlier six passing tests remain admission evidence only. Compiler code is
+unchanged. Task/research/index records now apply the local theorem to the parent
+gate and identify the remaining native suppliers.

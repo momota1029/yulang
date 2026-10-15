@@ -6,6 +6,24 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **First positive hygiene-preservation step:** the user's request for a first
+  soundness result is addressed by the independently reviewed
+  [computation-forwarding theorem](../notes/theory/2026-10-15-computation-forwarding-preservation.md).
+  For arbitrary finite chains of explicit Computation-root Name/Delay/Argument
+  forwarding and finite typed owner/resumption interactions, source-generated
+  profiles preserve original receiver ownership, correlated pending/latent
+  evidence and the necessary eligibility condition for actual handling.
+  Unused inputs, discarded continuations, suspended matching and value-arm
+  effects are included without an execution/termination claim. Base typing
+  contracts remain explicit hypotheses. The original-template native inclusion
+  is proved separately; an initial template/FreshUse conflation was repaired
+  and independently closed. Actual-instance inclusion still needs admitted
+  mapped bounds and per-use joins. Native received-view/Name/read/Force and
+  capture/replay suppliers remain the next owners; whole-language soundness,
+  omitted callbacks and complete Call remain OPEN. No new tests/builds or
+  measurements ran. The selected callback identity question is archived at
+  `bc960a131` under the user's direct instruction, with no fabricated answer bundle.
+
 - **Delayed computation arguments reaffirmed:** the user asked to continue and
   confirmed delayed argument evaluation for effect-taking functions. The
   [scheduling clarification](../notes/design/2026-10-02-source-call-scheduling-choice.md#11-direct-reaffirmation-delayed-computation-arguments-2026-10-15)

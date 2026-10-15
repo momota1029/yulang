@@ -14,6 +14,18 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [first positive local preservation theorem](../notes/theory/2026-10-15-computation-forwarding-preservation.md)
+now passes independent review. Its source-generated root profiles/maps extend
+to arbitrary finite explicit-Computation forwarding chains and typed finite
+control/resumption prefixes, including pending matching, source abandonment
+and value-arm requests. This closes that local source lemma, not the whole
+soundness parent. Native original-template inclusion is separate; the repaired
+FreshUse statement is conditional on actual mapped-bound admission and the
+per-use Apply joins. The next native suppliers remain actual received root
+views/carrier/Name/read/Force and complete capture/replay correspondence.
+No additional tests/builds/Oracle runs or measurements were performed.
+The user-requested question archive is committed at `bc960a131`.
+
 The user's latest continuation reaffirms delayed computation arguments under
 the existing [source scheduling](../notes/design/2026-10-02-source-call-scheduling-choice.md#11-direct-reaffirmation-delayed-computation-arguments-2026-10-15)
 rule. Computation receipt retains its carrier; Value entry still forces before
