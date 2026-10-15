@@ -14,6 +14,14 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The next exact-source syntax blocker has a
+[reviewed unary-lambda parser proposal](../notes/design/2026-10-15-unary-lambda-parser.md),
+with M3 compiler/specification review and user approval pending. Complete-header
+precedence and full lambda-body ML parsing are explicit scoped architecture
+changes. The pending question remains uncommitted. This is a separate frontend
+gate; it does not block continued native signed-copy or operational supplier
+work and does not select a runtime representation.
+
 The [playground source-plan slice](../notes/progress/2026-10-15-computation-source-plans.md)
 is integrated with clean M2 semantic/specification and fresh delta review.
 Original explicit-root annotation members now reach a bounded display consumer
