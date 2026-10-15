@@ -6,16 +6,19 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
-- **Next parser decision prepared:** the exact Callback Hygiene input still
+- **Unary-lambda parser approved, implementation active:** the exact Callback Hygiene input still
   cannot pass its inline `g \i -> ...` syntax. The narrow
   [unary-lambda parser proposal](../notes/design/2026-10-15-unary-lambda-parser.md)
-  is Reviewed after M3 compiler/specification review; explicit user approval
-  is pending. It selects complete-header precedence, lossless CST and ordinary
+  is Authoritative after M3 compiler/specification review and the user's direct
+  approval `基本的にはそれでいいと思う`. It selects complete-header precedence, lossless CST and ordinary
   full-body expression/recovery, without reviving old F5 callback construction.
-  `questions/2026-10-15-unary-lambda-parser/question.md` revision 1 is a pending
-  uncommitted question. Only this parser implementation waits; existing-authority
-  inference/proof work remains available. No answer or parser approval is inferred
-  from the broader completion request.
+  The local question/receipt remain uncommitted because archival integration
+  was not requested; no answering-primary bundle is invented. Implementation
+  proceeds under the direct approval. The M3 closure budget is focused syntax
+  tests, one package check, independent semantic/specification review and a
+  static header-cost review; no timing measurement is selected. Convergence
+  requires no accepted blocking/major finding. Inline-lambda HIR and execution
+  remain separate gates.
 
 - **Playground explicit-root source supplier:** `--intrusion` now displays
   borrowed original Computation-formal plans, including exact outer annotation

@@ -1,13 +1,22 @@
 # Unary lambda parser for the Callback Hygiene source
 
-Status: Reviewed; user approval pending; no implementation authority
+Status: Authoritative; parser implementation authorized
 Date: 2026-10-15
 Scope: complete unary identifier lambda admission, lossless CST and body recovery in yu-syntax
 Baseline: `13a8e36eb595e97b5667230c7463fdb09aed67b8`
 Drafted-by: primary from bounded architect callback_lambda_gate
 Reviewed-by: independent compiler_referee lambda_semantic_review and spec_auditor lambda_spec_review; no remaining blocking/major findings
-Approved-by: pending
-Supersedes: none until approval; the proposed narrow changes are listed in section 1
+Approved-by: user, direct reply to the reviewed sections 2–4 in this conversation
+Approved-at: 2026-10-15
+Supersedes: architecture LED operator-first arbitration for complete unary lambda headers, and outer ML whitespace stopping within their bodies, as delimited in section 1
+
+Approval provenance: after the primary asked whether to implement this exact
+reviewed construction, the user replied `基本的にはそれでいいと思う`.
+The response approves the presented parser direction with no requested change.
+It does not extend the decision to HIR binding, additional parameter forms,
+effect semantics or runtime representation. No separate answering-primary
+bundle exists or is claimed. The pending local question/receipt remain excluded
+from checkpoint commits under the board policy.
 
 ## 1. Concrete blocker and retained authority
 
@@ -31,7 +40,7 @@ source-order/trivia ownership, CST-derived diagnostics and caller fence/close
 handoff contracts remain binding. Dynamic operator association remains a
 separate phase.
 
-On approval this addendum narrowly supersedes the architecture's LED
+This addendum narrowly supersedes the architecture's LED
 operator-first arbitration for a complete lambda header, and the enclosing ML
 argument's nonempty-trivia stop while parsing the lambda body (architecture
 sections around lines 9920–9928 and 9976–9984 at this baseline). Ordinary
@@ -39,7 +48,7 @@ operator arbitration and ML-argument boundaries elsewhere remain binding.
 These are the explicit precedence/body choices in sections 2–3, not broader
 changes to operator association or layout.
 
-## 2. Proposed complete-header admission
+## 2. Complete-header admission
 
 ```text
 LambdaExpression := Backslash Gap Identifier Gap ExactArrow Expression
@@ -147,27 +156,27 @@ review leave no accepted blocking/major finding. Full original-file inference
 is not its acceptance criterion: imports, loop syntax, library dependencies,
 inline-lambda HIR, effect hygiene and execution have separate owners.
 
-## 5. Requested decision
+## 5. Approved scope
 
-Approve sections 2–4 for the first parser implementation: reserve only the
+The user's direct approval selects sections 2–4 for the first parser implementation: reserve only the
 complete `\ Identifier ->` header ahead of operator lookup, use the stated
 inline-trivia/identifier rules and dedicated CST, and inherit ordinary body
 boundaries/recovery. This authorizes the parser slice and its necessary tests.
 Additional lambda parameter forms and HIR/runtime integration are subsequent
 gates; this implementation envelope is not a language-wide rejection rule.
 
-Alternatively defer this parser construction and continue the native inference
-and receiving-boundary work. The unchanged Callback Hygiene input then retains
-this known parser blocker. Approval of this document would not certify any
-inference, hygiene, soundness or runtime theorem.
+Approval of this document does not certify any inference, hygiene, soundness
+or runtime theorem. Implementation and its focused proof/review gates remain
+to be completed.
 
 ## 6. Independent review
 
 M3 design review used two independent read-only roles on the frozen proposal.
 The compiler referee found no findings. The specification auditor found one
 minor missing supersession locator; section 1 now names the two affected
-architecture clauses. Neither review supplies user approval or implementation
-evidence. Primary inspection closes this documentary repair.
+architecture clauses. These reviews supplied no user approval or implementation
+evidence; the later direct approval is recorded above. Primary inspection closes
+the documentary repair.
 
 The specification auditor confirms that the two historical Error/prefix tests
 in `tails.rs` characterize the old parser gap. After approval, replacing their

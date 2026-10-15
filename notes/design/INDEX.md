@@ -85,11 +85,12 @@ This index is a navigation aid. The listed source document remains authoritative
 ## Active syntax navigation (2026-10-05)
 
 - [Unary lambda parser for Callback Hygiene](2026-10-15-unary-lambda-parser.md)
-  — Reviewed; user approval pending. Selects the complete unary identifier
+  — Authoritative after the user's direct approval. Selects the complete unary identifier
   header before dynamic operators in NUD/ML admission, a lossless CST, and
   ordinary full-expression body/recovery. M3 compiler/specification review
-  found no remaining blocking/major findings. No parser implementation,
-  inline-lambda HIR, old F5 callback rule or runtime authority follows yet.
+  found no remaining blocking/major findings. Parser implementation is active;
+  inline-lambda HIR, old F5 callback construction and runtime remain outside
+  this approval.
 
 - [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
   — Authoritative; the explicit principal-scheme source

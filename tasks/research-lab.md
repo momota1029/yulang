@@ -15,10 +15,11 @@ Do not reopen a closed gate merely because it appears in this seed.
 ## Current concrete-example discussion (2026-10-15)
 
 The next exact-source syntax blocker has a
-[reviewed unary-lambda parser proposal](../notes/design/2026-10-15-unary-lambda-parser.md),
-with M3 compiler/specification review and user approval pending. Complete-header
+[approved unary-lambda parser construction](../notes/design/2026-10-15-unary-lambda-parser.md),
+with M3 compiler/specification review and direct user approval. Complete-header
 precedence and full lambda-body ML parsing are explicit scoped architecture
-changes. The pending question remains uncommitted. This is a separate frontend
+changes. Its local question/receipt remain uncommitted; archive was not requested.
+The implementation is active under that approval. This is a separate frontend
 gate; it does not block continued native signed-copy or operational supplier
 work and does not select a runtime representation.
 
