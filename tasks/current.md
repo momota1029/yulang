@@ -261,16 +261,26 @@ Status: full objective remains active. Native extrusion now schedules current co
   original reverse/full C0, hygiene, soundness/principality and F5 remain OPEN.
   Static-only M2 application: one semantic reviewer, no builds/tests/measurements.
 
-  The next-action selector now targets actual FreshUse applicability, using the
-  newly complete guard telescope and reviewed restoration terminal. Constructive
-  and complementary falsification lanes examine real copied/shared coordinates
-  and source Generalize's scoped declaration allocation; an existential old-row
-  model alone cannot establish arbitrary lawful client instantiation. A separate
-  source-checking-to-native lane inverts the selected independent finite checking
-  judgment at this first Apply. Original reverse FIRST-RESULT remains unchanged
-  and OPEN; no stronger semantic converse is silently retired or made equivalent
-  to the required finite-derivation completeness contract. Static-only packets;
-  dependent implementation/cutover stays gated.
+  The selector's [FreshUse construction](../notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md)
+  and independent [guard audit](../notes/progress/2026-10-16-first-call-fresh-use-guard-falsifier.md)
+  now have fresh CLEAN semantic review. They construct one source-fixed copied
+  presentation and complete guard application, preserving historical/current
+  environments; the Int/Unit source-rule discriminator shows why this does not
+  prove arbitrary lawful instantiation. No compiler counterexample was found.
+  Actual level/non_generic copying → source scoped declaration/fixed-closure
+  allocation stays OPEN. The new exact owner is Apply/Return/ResultBind at local
+  g publication: retain shared f/alpha and actual event/installed contracts,
+  distinguish owned A1 logical checking, then perform the full dependency walk.
+  Constructive and source-attack packets target that constructor; module boundary0
+  remains separate. The [finite checking pass](../notes/theory/2026-10-16-first-call-source-checking-native-preservation.md)
+  also has independent CLEAN bounded-result review: uniform Value and nominal
+  RE premises embed locally, but lawful restricted-domain Complete Function
+  checking has no proved normalization to original alpha/A1 and E_R/E1 or actual
+  native Check consumer. Observation support alone is not nominal inclusion.
+  Both required correspondence parents and original reverse FIRST-RESULT remain
+  unchanged OPEN; none is silently retired or equated to universal semantic
+  completeness. M2 static checkpoint: two semantic reviewers over disjoint proof
+  risks; zero builds/tests/probes/measurements. Dependent cutover stays gated.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

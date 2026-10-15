@@ -245,17 +245,27 @@ applicability, reverse FIRST-RESULT/full C0, hygiene, global principality and
 cutover remain OPEN. M2 static-only application: one semantic reviewer, zero
 executable checks or measurements; this result is not native-engine success.
 
-Changed critical path: the next-action selector selects actual FreshUse
-applicability of this now-complete source constructor. Two static 25-minute
-producer packets own disjoint `notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md`
-and `notes/progress/2026-10-16-first-call-fresh-use-guard-falsifier.md`.
-They must establish actual scoped source allocation, not promote one old-row
-denotation extension to arbitrary-client correspondence. A separate 20-minute
-prover owns `notes/theory/2026-10-16-first-call-source-checking-native-preservation.md`,
-inverting independent finite Call/checking rules before native generation.
-The original all-semantic reverse parent remains unchanged OPEN; finite lawful
-source-derivation completeness is not silently equated to that larger claim.
-Primary owns adjudication, fresh artifact-local review and all integration.
+The selector's static 25-minute [FreshUse construction](../notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md)
+and [source guard audit](../notes/progress/2026-10-16-first-call-fresh-use-guard-falsifier.md)
+are frozen and independently CLEAN (`ordinary_carrier_semantic`); only the
+source-fixed presentation instance and source-rule quantifier discriminator
+are accepted. Universal scoped allocation remains OPEN. The read-only owner
+audit pins source birth scopes and actual mutable copy decisions; it does not
+equate metadata with the complete source fixed closure. Next changed-method
+packets own disjoint `notes/theory/2026-10-16-first-call-local-result-view-generalization.md`
+and `notes/progress/2026-10-16-first-call-local-result-view-dependency-audit.md`:
+construct and attack local g's actual Call/Return/ResultBind dependency walk,
+with f/alpha shared and arbitrary returned providers/event operands fixed.
+Module boundary0 remains separate; no numeric-only eligibility or new registry.
+
+The separate 20-minute [finite checking pass](../notes/theory/2026-10-16-first-call-source-checking-native-preservation.md)
+is independently CLEAN (`checked_result_semantics`) as bounded evidence.
+Explicit uniform Value and nominal RE checks embed; Complete Function checking
+on a restricted domain lacks normalization to the original field constraints
+or an actual native Check consumer. Finite-source-derivation preservation and
+the original broader semantic reverse parent both remain unchanged OPEN.
+M2 checkpoint has two semantic reviewers for distinct risks, zero executable
+checks/measurements. Primary owns all status adjudication/integration.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

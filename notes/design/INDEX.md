@@ -63,6 +63,14 @@ This index is a navigation aid. The listed source document remains authoritative
   MODEL/lawful-map premises, with both same-z inputs and Return/Request/Bind.
   Native MODEL establishment, universal copy/source applicability, original
   reverse/full C0, global soundness/principality and F5 remain OPEN.
+  The independently reviewed [FreshUse instance](../theory/2026-10-16-first-call-fresh-use-semantic-application.md)
+  and [guard audit](../progress/2026-10-16-first-call-fresh-use-guard-falsifier.md)
+  preserve one source-fixed presentation but leave arbitrary source-frame
+  allocation OPEN at the local ResultBind publication/fixed-dependency owner.
+  The reviewed [finite-checking pass](../theory/2026-10-16-first-call-source-checking-native-preservation.md)
+  embeds explicit uniform Value/nominal RE checks; permitted restricted-domain
+  Function checking still lacks native normalization/consumer correspondence.
+  No parent is retired, source domain narrowed or compiler defect established.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
