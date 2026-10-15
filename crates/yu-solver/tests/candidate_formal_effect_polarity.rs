@@ -62,9 +62,28 @@ fn positive_argument_effect_port_admits_a_concrete_row() {
 }
 
 #[test]
-fn negative_concrete_and_empty_formal_rows_still_reject_before_solving() {
-    for ty in ["int -> [io] ()", "int -> [] ()", "(int -> ()) -> [io] ()", "[io] int", "((int -> [io] ()) -> ()) -> ()"] {
+fn negative_concrete_and_empty_nested_callback_rows_still_reject_before_solving() {
+    for ty in ["int -> [io] ()", "int -> [] ()", "(int -> ()) -> [io] ()", "((int -> [io] ()) -> ()) -> ()"] {
         let source = format!("{EFFECTS}my bridge (callback:{ty}) = callback");
         assert!(matches!(solve(&source), Err(CandidateError::Unsupported)), "{ty}");
+    }
+}
+
+#[test]
+fn computation_formal_preserves_argument_effects_without_catch() {
+    // The outer annotation selects a Computation formal; it neither caps the
+    // argument's effects nor removes io without an actual Catch.
+    for (argument, allowance, accepted) in [
+        ("{ my first = io::tick 1; my second = other::tick 1; 1 }", "[io, other]", true),
+        ("{ my first = io::tick 1; my second = other::tick 1; 1 }", "[io]", false),
+        ("{ my ignored = io::tick 1; 1 }", "[]", false),
+        ("1", "[]", true),
+    ] {
+        let source = format!("{EFFECTS}my bridge (thunk:[io] int) = thunk; my answer:{allowance} int = bridge {argument}");
+        let candidate = solve(&source).unwrap();
+        assert_eq!(candidate.candidate_conflicts().is_empty(), accepted, "{allowance}: {argument}");
+        if !accepted {
+            assert!(candidate.candidate_conflicts().iter().any(|error| candidate.effect_conflict(error.kind()).is_ok()), "argument effects must reach the result allowance: {allowance}: {argument}");
+        }
     }
 }

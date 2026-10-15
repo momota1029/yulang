@@ -6,6 +6,20 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **User-requested detailed hygiene verification:** current Catch, annotation,
+  conditional core evidence and three scoped compose sources have fresh bounded
+  checks. Final selected native tests have 83 passes, the same three recorded
+  Effect fixture failures and two ignored observations. One stale outer
+  computation-formal rejection was corrected under charter §21 / annotation
+  integration §1.1, with pre/post spec review and seven passing formal tests.
+  The [verification record](../notes/progress/2026-10-15-playground-hygiene-verification.md)
+  separates executable protection/release from missing Catch subtraction.
+  The local proof/source audit passed independent review; original hygiene and
+  soundness remain OPEN. A clean frozen Oracle was rebuilt; its actual source
+  comparisons are being integrated. Do not interpret a pure bound Name or an
+  Oracle root annotation as proof of a pure initializer without checking its
+  owning constraint direction.
+
 - **Native scoped compose experiment implemented:** `--scoped-experiment`
   now applies the proved transform kernel to actual source constraints,
   Function ports, capture and FreshUse. `compose id g` releases its scope
