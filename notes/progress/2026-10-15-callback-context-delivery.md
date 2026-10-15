@@ -66,6 +66,18 @@ solutions and evidence. This needs a constructor/consumer commuting argument,
 not renaming admission as generation. A concrete noncommuting source body
 instead identifies the exact work that must be deferred.
 
+The independently reviewed
+[phase-factorization result](../theory/2026-10-15-callback-generation-phase-factorization.md)
+now establishes actual preparation congruence for every supported collector
+constructor and body-only commutation for primitive literals and the literal's
+own fixed Value parameter. It does not establish that all prepared constraints
+are semantically independent of the boundary. The exact remaining local
+equation maps supplied `Handler(β, Slots(β))` to the actual relation/Function
+effect-view constructor under the same use and assignment. A separate bounded
+adversarial source audit found no justified noncommuting counterexample; absence
+of one is not equivalence. No whole-collector rewrite or late marker-only
+implementation follows from these results.
+
 In parallel, the source profile supplier must derive applicable Function
 observation positions from original owner/formal/annotation and constructor
 paths. The reviewed RootCompSchema theorem explicitly covers only an exposed

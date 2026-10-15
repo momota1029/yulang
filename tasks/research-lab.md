@@ -18,8 +18,11 @@ The next [callback-context construction gate](../notes/progress/2026-10-15-callb
 is active under the user's continuation. The source audit distinguishes early
 body fact generation from later callee-before-body admission; shared FreshUse
 mapping alone does not supply original callback context. Phase factorization,
-Function-profile construction and an independent falsification method now
-attack the exact remaining premises. No production context implementation or
+Function-profile construction and an independent falsification method attack
+the exact remaining premises. The phase pass now has independent review for
+actual preparation congruence and primitive body-only commutation; full B
+factoring remains OPEN at its role-indexed native relation constructor.
+No production context implementation or
 parent proof closure is claimed. The parser question archive is integrated at
 `aefa527a7` and no longer pending.
 

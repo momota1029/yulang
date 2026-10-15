@@ -11,8 +11,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   retains normative B and all original source/profile premises. Independent
   local source review establishes callee-before-body admission and shared
   FreshUse child reconstruction, while body facts are generated earlier during
-  collection. Phase factorization and original Function-profile construction
-  are now the decisive proof lanes; production adoption remains OPEN.
+  collection. The independently reviewed phase pass proves actual preparation
+  congruence and primitive body-only commutation; the Handler-to-native-relation
+  equation and original Function-profile construction remain the decisive
+  premises. Production adoption remains OPEN.
   The resolved parser question/receipt were archived at the user's explicit
   request in `aefa527a7`, without a fabricated answer bundle.
 
