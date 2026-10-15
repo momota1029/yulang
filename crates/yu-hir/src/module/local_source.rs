@@ -340,6 +340,31 @@ fn identifier_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityErr
     if token.kind() != SyntaxKind::Identifier || tokens.next().is_some() { return Err(invalid()); }
     Ok(token.text().into())
 }
+fn integer_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> {
+    let mut tokens = node.children_with_tokens().filter(|element| !matches!(
+        element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+    ));
+    let token = tokens.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
+    if token.kind() != SyntaxKind::Integer || tokens.next().is_some() { return Err(invalid()); }
+    Ok(token.text().into())
+}
+fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> {
+    let mut delimiters = node.children_with_tokens().filter_map(|element| element.into_token())
+        .filter(|token| matches!(token.kind(), SyntaxKind::StringStart | SyntaxKind::StringEnd));
+    let start = delimiters.next().ok_or_else(invalid)?;
+    let end = delimiters.next().ok_or_else(invalid)?;
+    if start.kind() != SyntaxKind::StringStart || end.kind() != SyntaxKind::StringEnd
+        || delimiters.next().is_some() || start.text_range().end() > end.text_range().start()
+    {
+        return Err(invalid());
+    }
+    // Literal nodes can own exterior trivia. Delimiter coordinates retain every
+    // byte inside the string, including meaningful whitespace and heredoc text.
+    let origin = node.text_range().start();
+    let start = usize::from(start.text_range().start() - origin);
+    let end = usize::from(end.text_range().end() - origin);
+    node.text().to_string().get(start..end).map(Box::<str>::from).ok_or_else(invalid)
+}
 fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
     let mut children = node.children();
     let child = children.next().ok_or_else(invalid)?;
@@ -863,13 +888,13 @@ impl Builder<'_> {
                 &node,
                 scope,
                 named_group.clone(),
-                LocalSourceForm::Integer(node.text().to_string().into_boxed_str()),
+                LocalSourceForm::Integer(integer_spelling(&node)?),
             )?,
             SyntaxKind::StringLiteral => {
                 if node.descendants().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
                     return Err(invalid());
                 }
-                self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(node.text().to_string().into_boxed_str()))?;
+                self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(string_spelling(&node)?))?;
             }
             SyntaxKind::CatchExpression => self.catch(node, index, scope, named_group.clone())?,
             SyntaxKind::IfExpression => self.conditional(node, index, scope, named_group.clone())?,

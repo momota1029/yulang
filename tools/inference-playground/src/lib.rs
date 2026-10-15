@@ -159,7 +159,7 @@ pub fn execute(
         RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
         RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
             "runtime step budget exhausted after {steps} steps; no completed result")),
-        RuntimeOutcome::UnhandledRequest { source } => return Err(bounded_message(
+        RuntimeOutcome::UnhandledRequest { source, .. } => return Err(bounded_message(
             format_args!("unhandled runtime request at {:?}", source.range))),
         RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
     };

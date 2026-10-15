@@ -17,11 +17,13 @@ use crate::{
     handoff::{Either, MlMode, NormalizedExit, TailExit, complete, handoff},
     lexical::{
         current_item::{CurrentItem, LineEntry, current_item},
-        expression_item::{expression_item, scan_expression_item_lexical},
+        expression_item::{
+            expression_item, scan_expression_item_lexical, scan_expression_payload_with_literals,
+        },
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
             introduced_body_indentation_normalized, scan_case_label_payload,
-            scan_expression_payload, scan_pattern_nud_payload,
+            scan_pattern_nud_payload,
         },
         observation::{
             implicit_delimited_newline, indentation_after_newline, is_active_stop,
@@ -250,7 +252,7 @@ fn case_head_item(
                 fence,
                 |mut lex, leading, origin, fence, _| {
                     scan_case_label_payload(lex.rb()).or_else(|| {
-                        scan_expression_payload(
+                        scan_expression_payload_with_literals(
                             lex,
                             OperatorSite::Nud,
                             leading,

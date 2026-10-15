@@ -1971,3 +1971,198 @@ fn case_like_c7_keeps_arm_entry_trivia_with_its_block() {
         2
     );
 }
+
+fn case_like_literal_production(source: &str) -> SyntaxNode {
+    let text: std::sync::Arc<crate::SourceText> = std::sync::Arc::from(source);
+    let parsed = crate::parse_file(
+        text.clone(),
+        std::sync::Arc::new(crate::scan_header(text)),
+        std::sync::Arc::new(crate::SyntaxEnvironment::empty()),
+    );
+    assert_eq!(parsed.green().to_string(), source);
+    assert!(
+        parsed.syntax_diagnostics().unwrap().is_empty(),
+        "{source:?}"
+    );
+    assert!(structural_facts(parsed.green()).is_empty(), "{source:?}");
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    assert!(
+        !root.descendants_with_tokens().any(|element| matches!(
+            element.kind(),
+            SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+        )),
+        "{source:?}"
+    );
+    root
+}
+
+fn assert_case_like_string_scrutinee(root: &SyntaxNode, scrutinee_kind: SyntaxKind, width: usize) {
+    let scrutinee = expression(root, scrutinee_kind);
+    let children = scrutinee.children().collect::<Vec<_>>();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].kind(), SyntaxKind::OperatorChain);
+    let literals = scrutinee
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::StringLiteral)
+        .collect::<Vec<_>>();
+    assert_eq!(literals.len(), 1);
+    assert_eq!(literals[0].parent(), Some(children[0].clone()));
+    let delimiters = literals[0]
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| {
+            matches!(
+                token.kind(),
+                SyntaxKind::StringStart | SyntaxKind::StringEnd
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(delimiters.len(), 2);
+    assert_eq!(delimiters[0].kind(), SyntaxKind::StringStart);
+    assert_eq!(delimiters[1].kind(), SyntaxKind::StringEnd);
+    let delimiter = "\"".repeat(width);
+    assert_eq!(delimiters[0].text(), delimiter);
+    assert_eq!(delimiters[1].text(), delimiter);
+    let interior = usize::from(delimiters[0].text_range().end())
+        ..usize::from(delimiters[1].text_range().start());
+    assert_eq!(&root.to_string()[interior], r" a\nb ");
+}
+
+#[test]
+fn case_like_literal_heads_preserve_normal_and_heredoc_scrutinees() {
+    for (prefix, scrutinee_kind, label_kind, labeled, finish) in [
+        (
+            "case",
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseLabel,
+            false,
+            ": value -> value",
+        ),
+        (
+            "case 'go",
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseLabel,
+            true,
+            ": value -> value",
+        ),
+        (
+            "catch",
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchLabel,
+            false,
+            " { value -> value }",
+        ),
+        (
+            "catch 'go",
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchLabel,
+            true,
+            " { value -> value }",
+        ),
+    ] {
+        for width in [1, 3, 4] {
+            let delimiter = "\"".repeat(width);
+            let source = format!("{prefix} {delimiter} a\\nb {delimiter}{finish}");
+            let root = case_like_literal_production(&source);
+            assert_case_like_string_scrutinee(&root, scrutinee_kind, width);
+            let labels = root
+                .descendants()
+                .filter(|node| node.kind() == label_kind)
+                .collect::<Vec<_>>();
+            assert_eq!(labels.len(), usize::from(labeled), "{source:?}");
+            if labeled {
+                assert!(matches!(
+                    labels[0].parent().unwrap().kind(),
+                    SyntaxKind::CaseExpression | SyntaxKind::CatchExpression
+                ));
+            }
+        }
+    }
+}
+
+#[test]
+fn case_like_literal_heads_preserve_rule_literal_openers() {
+    for (prefix, scrutinee_kind, label_kind, labeled, finish) in [
+        (
+            "case",
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseLabel,
+            false,
+            ": value -> value",
+        ),
+        (
+            "case 'go",
+            SyntaxKind::CaseScrutinee,
+            SyntaxKind::CaseLabel,
+            true,
+            ": value -> value",
+        ),
+        (
+            "catch",
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchLabel,
+            false,
+            " { value -> value }",
+        ),
+        (
+            "catch 'go",
+            SyntaxKind::CatchScrutinee,
+            SyntaxKind::CatchLabel,
+            true,
+            " { value -> value }",
+        ),
+    ] {
+        let source = format!("{prefix} ~\"abc\"{finish}");
+        let root = case_like_literal_production(&source);
+        let scrutinee = expression(&root, scrutinee_kind);
+        let chain = scrutinee.children().collect::<Vec<_>>();
+        assert_eq!(chain.len(), 1);
+        assert_eq!(chain[0].kind(), SyntaxKind::OperatorChain);
+        let literals = scrutinee
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .collect::<Vec<_>>();
+        assert_eq!(literals.len(), 1);
+        assert_eq!(literals[0].parent(), Some(chain[0].clone()));
+        let tokens = literals[0]
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| {
+                matches!(
+                    token.kind(),
+                    SyntaxKind::RuleLiteralStart
+                        | SyntaxKind::RuleLiteralText
+                        | SyntaxKind::RuleLiteralEnd
+                )
+            })
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            tokens,
+            [
+                (SyntaxKind::RuleLiteralStart, "~\"".to_owned()),
+                (SyntaxKind::RuleLiteralText, "abc".to_owned()),
+                (SyntaxKind::RuleLiteralEnd, "\"".to_owned()),
+            ]
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == label_kind)
+                .count(),
+            usize::from(labeled)
+        );
+    }
+}
+
+#[test]
+fn case_like_literal_head_in_binding_preserves_exact_catch_heredoc() {
+    let source = r#"my main = catch """ a\nb """ { value -> value }"#;
+    let root = case_like_literal_production(source);
+    assert_case_like_string_scrutinee(&root, SyntaxKind::CatchScrutinee, 3);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::CatchLabel)
+            .count(),
+        0
+    );
+}

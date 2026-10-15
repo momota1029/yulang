@@ -4,7 +4,9 @@ mod literal;
 mod machine;
 mod program;
 
-pub use machine::{Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, ValueHandle};
+pub use machine::{
+    ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, ValueHandle,
+};
 pub use program::{
     NameConsumption, RuntimeEvidence, RuntimeProgram, RuntimeUnavailable, SourceSite,
 };

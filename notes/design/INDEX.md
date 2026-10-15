@@ -4,6 +4,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Request and normal-Catch execution checkpoint](../progress/2026-10-15-playground-request-control.md)
+  — Existing operation schedule and shallow normal-return semantics implemented,
+  with reviewed [source/control simulation](../theory/2026-10-15-playground-request-control-simulation.md).
+  [Execution-owner correspondence](../theory/2026-10-15-runtime-execution-owner-correspondence.md)
+  supplies the next actual owner constructor; receiving completeness, matching
+  operation selection, raw Resume and full hygiene remain open.
+
 - [Ordinary playground execution checkpoint](../progress/2026-10-15-playground-runtime.md)
   — Provisional implementation of existing scheduling and parameter-role
   decisions, with independently reviewed ordinary completed-path simulation.

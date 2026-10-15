@@ -14,6 +14,16 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [request/normal-Catch runtime](../notes/progress/2026-10-15-playground-request-control.md)
+now has actual declaration entry/result-consumer ordering, normal value-arm
+execution, exact structural request forwarding and original receiver-lineage
+capture. Its complete local suspension/control invariant passed independent
+proof review; 55 playground, 35 focused syntax and five HIR source tests pass.
+The independent owner theorem supplies the Invocation-or-ModuleRun decoder and
+Catch installer snapshot needed by the next handler implementation. Construct
+view completeness and receiving correspondence before selecting matching arms;
+raw Resume, Function/B profiles and whole-source hygiene remain open.
+
 The [ordinary playground runtime](../notes/progress/2026-10-15-playground-runtime.md)
 now reaches CLI execution under candidate admission. Its constructed-program
 ordinary completed-path theorem has fresh independent review, with source-owned

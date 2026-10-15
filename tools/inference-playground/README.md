@@ -58,9 +58,9 @@ evidence, not a language-wide absence claim. These records are symbolic candidat
 evidence, not event consumption or runtime hygiene; they change neither allowance
 semantics nor provider rows and do not establish H1 or production cutover.
 
-This output describes retained state; it is not a chronological runtime trace.
-Without `--run`, the command reports inference observations. It does not print a
-principal scheme or report current native execution.
+This output describes retained inference state; it is not a chronological
+runtime trace. Without `--run`, the command reports inference observations.
+It does not print a principal scheme or report runtime execution.
 The examples in `tools/inference-playground/examples/` cover identity,
 nested recursion, effects, conditional bounds, normal-return Catch arms, and
 a type conflict. The
@@ -110,9 +110,23 @@ recursive local definitions, and applications with `Value` or retained
 branch's value and returns unit. Type ascriptions and binding annotations in
 the covered forms preserve the ordinary value.
 
-Operation execution and `Catch` handling, bare module expressions, arithmetic,
-imports, and standard-library operations are not available in this evaluator.
-Its provisional execution does not establish production soundness or hygiene.
+Supported resolved operation calls use the declaration's `Value` or
+`Computation` entry and produce an operation request. If a request remains
+unhandled, `--run` reports it and withholds the selected definition's output.
+A `Value` payload is evaluated before the request is exposed; a `Computation`
+payload remains unevaluated.
+
+A `Catch` value arm runs after the scrutinee returns and outside that catch's
+delimiter. A binder receives the returned value; a wildcard arm runs its body
+without binding it. If no value arm is present, the normal return passes
+through. When a request reaches a matching or unresolved operation arm,
+execution is unavailable because handler evidence is not implemented. An arm for a known different
+operation forwards the request. Operation arm execution and continuation
+resumption are not available.
+
+Bare module expressions, arithmetic, imports, and standard-library operations
+are also unavailable in this evaluator. Its provisional execution does not
+establish production soundness or hygiene.
 
 ## Scope and limits
 
@@ -157,7 +171,8 @@ arm body's effect contribute to the Catch output. Both conditional branches
 remain present for either constant condition. Catch adds no result reference
 fragment to the existing Name/Apply/If construction.
 
-The operation Catch example uses a resolved monomorphic operation declaration:
+The operation `Catch` example below is an inference-carrier observation. It
+shows payload and raw-continuation typing, not execution with `--run`.
 
 ```sh
 cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-operation.yu
@@ -166,12 +181,12 @@ cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-opera
 The declaration supplies the operation's payload and response types. The arm
 binds the payload and continuation, checks that the payload has type `int`, and
 resumes with a `str`. In this carrier, the raw continuation returns the
-original scrutinee value, and the arm runs outside the selected handler. The
-effects of computing a response argument also remain outside that handler. The
-current conservative effect upper bound reuses the original scrutinee effect
-and retains the scrutinee and all arm effects without subtraction. This is a
-provisional approximation; it does not claim that raw resumption must re-emit
-the original request. The no-suffix raw continuation is semantically pure.
+original scrutinee value. The effects of computing a response argument also
+remain outside the selected handler. The current conservative effect upper
+bound reuses the original scrutinee effect and retains the scrutinee and all
+arm effects without subtraction. This is a provisional approximation; it does
+not claim that raw resumption must re-emit the original request. The no-suffix
+raw continuation is semantically pure.
 
 Operation arms currently support identifier or wildcard payload and
 continuation patterns, or an empty call pattern. Normal-return arms support

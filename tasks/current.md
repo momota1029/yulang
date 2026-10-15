@@ -6,6 +6,21 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Request and normal-Catch runtime integrated:** declaration-derived operation
+  entry returns its native carrier before exposing the request. Normal Catch
+  arms run outside their delimiter; value-only and resolved different-operation
+  handlers forward the original request. Captured suffixes retain original
+  receiver lineage and shared live cells without restoring an activation/store
+  snapshot. The original local [control simulation](../notes/theory/2026-10-15-playground-request-control-simulation.md)
+  has independent proof and contract review. All 55 playground tests, 35 focused
+  syntax tests and five HIR source tests pass. Literal spelling excludes exterior
+  trivia at its HIR owner; Case/Catch uses the existing literal-aware opener.
+  [Gate record](../notes/progress/2026-10-15-playground-request-control.md).
+  The reviewed [owner correspondence](../notes/theory/2026-10-15-runtime-execution-owner-correspondence.md)
+  derives Invocation-or-ModuleRun ownership and the exact Catch installation
+  handoff. Next construct receiving views and actual handler evidence. Matching
+  operation selection, raw Resume, full hygiene and production remain OPEN.
+
 - **Ordinary HIR carrier implementation authorized:** the unchanged reviewed
   [binding-carrier scope](../notes/design/2026-10-10-ordinary-hir-successor-carrier.md)
   is selected under the user's current direct continuation and preserved prior
@@ -27,7 +42,7 @@ Status: full objective remains active. Native extrusion now schedules current co
   root classification and the source-owned no-upcast premise. Fifteen runtime
   cases and all 43 playground tests pass; one workspace check passes without
   warnings. [Gate record](../notes/progress/2026-10-15-playground-runtime.md).
-  Operation/Catch execution, bare expression roots, missing source/library forms,
+  Operation selection/raw Resume, bare expression roots, missing source/library forms,
   complete hygiene, inference correctness/principality and production cutover
   remain OPEN. The next runtime owner is request/continuation handling with
   actual receiver evidence, alongside source-root coverage.

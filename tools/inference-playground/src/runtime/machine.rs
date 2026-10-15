@@ -9,7 +9,11 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use yu_hir::shadow::{LocalSourceResolution, SourceOperationResolution};
+use yu_hir::shadow::{
+    LocalSourceCatchPattern, LocalSourceCatchValuePattern, LocalSourceResolution,
+    SourceAnnotationValue, SourceOperationDeclaration, SourceOperationId,
+    SourceOperationResolution,
+};
 use yu_hir::{DefId, HirParameterId};
 
 /// Explicit source small-step state. Source recursion grows arenas/frames, never
@@ -29,10 +33,14 @@ pub struct Machine {
     selected: usize,
     steps: usize,
     next_receiver: usize,
+    next_request: usize,
     active_receivers: Vec<usize>,
+    continuations: Vec<SavedContinuation>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ValueHandle(usize);
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ContinuationHandle(usize);
 #[derive(Clone, Debug)]
 pub struct RuntimeValue {
     pub source: SourceSite,
@@ -52,10 +60,12 @@ pub enum RuntimeValueKind {
 pub enum RuntimeOutcome {
     Running,
     Completed(ValueHandle),
-    /// Reserved for the operation consumer gate; no request is manufactured
-    /// without its complete typed request/continuation evidence.
     UnhandledRequest {
         source: SourceSite,
+        operation: SourceOperationId,
+        event: usize,
+        payload: ValueHandle,
+        continuation: ContinuationHandle,
     },
     Unavailable(RuntimeUnavailable),
     ResourceExhausted {
@@ -86,13 +96,31 @@ enum ExecutableValue {
         code: Label,
         environment: usize,
     },
+    Request {
+        declaration: Arc<SourceOperationDeclaration>,
+        payload: ValueHandle,
+        source: SourceSite,
+    },
 }
 enum State {
     Evaluate { code: Label, environment: usize },
     Return(ReceivedValue),
+    Request(PendingRequest),
     Stopped(RuntimeOutcome),
 }
+#[derive(Clone)]
 enum Frame {
+    CatchReturn {
+        handler: Arc<Code>,
+        environment: usize,
+    },
+    OperationPayload {
+        declaration: Arc<SourceOperationDeclaration>,
+        source: SourceSite,
+    },
+    OperationResultConsumer {
+        source: SourceSite,
+    },
     DiscardToUnit {
         site: SourceSite,
     },
@@ -130,6 +158,34 @@ enum Frame {
         consumption: NameConsumption,
         site: SourceSite,
     },
+}
+
+struct PendingRequest {
+    declaration: Arc<SourceOperationDeclaration>,
+    payload: ValueHandle,
+    source: SourceSite,
+    event: usize,
+    suffix: Vec<SavedFrame>,
+}
+struct SavedContinuation {
+    frames: Vec<SavedFrame>,
+}
+// Templates are retained for the separate typed raw-resumption gate. A receiver
+// delimiter retains its original lineage identity for the future mapping to
+// fresh/borrowed occurrences. That historical ID is never reactivated here.
+#[allow(
+    dead_code,
+    reason = "raw-resumption execution is a separately gated consumer"
+)]
+enum SavedFrame {
+    ReceiverBoundary {
+        original_activation: usize,
+    },
+    HandlerBoundary {
+        handler: Arc<Code>,
+        environment: usize,
+    },
+    Ordinary(Frame),
 }
 
 impl RuntimeProgram {
@@ -180,7 +236,9 @@ impl RuntimeProgram {
             selected,
             steps: 0,
             next_receiver: 0,
+            next_request: 0,
             active_receivers: Vec::new(),
+            continuations: Vec::new(),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -190,6 +248,11 @@ impl RuntimeProgram {
 impl Machine {
     pub fn value(&self, handle: ValueHandle) -> Option<&RuntimeValue> {
         self.values.get(handle.0)
+    }
+    pub fn continuation_depth(&self, handle: ContinuationHandle) -> Option<usize> {
+        self.continuations
+            .get(handle.0)
+            .map(|saved| saved.frames.len())
     }
     pub fn steps(&self) -> usize {
         self.steps
@@ -219,6 +282,7 @@ impl Machine {
         let result = match state {
             State::Evaluate { code, environment } => self.evaluate(code, environment),
             State::Return(value) => self.return_value(value),
+            State::Request(request) => self.propagate_request(request),
             State::Stopped(_) => unreachable!(),
         };
         if let Err(error) = result {
@@ -353,11 +417,15 @@ impl Machine {
             Instruction::Operation(resolution) => {
                 self.data(site, RuntimeValueKind::Operation(resolution.clone()), None)
             }
-            Instruction::Catch { scrutinee, arms } => {
-                // Neither executing under a fake handler nor dropping its missing
-                // protection is a valid fallback. Keep all source metadata live.
-                let _ = (scrutinee, arms);
-                return Err(RuntimeUnavailable::HandlerEvidence(site.clone()));
+            Instruction::Catch { scrutinee, .. } => {
+                self.frames.push(Frame::CatchReturn {
+                    handler: code.clone(),
+                    environment,
+                });
+                self.state = State::Evaluate {
+                    code: *scrutinee,
+                    environment,
+                };
             }
         }
         Ok(())
@@ -369,6 +437,47 @@ impl Machine {
             return Ok(());
         };
         match frame {
+            Frame::CatchReturn {
+                handler,
+                environment,
+            } => {
+                // Popping this delimiter leaves the shallow handler before any
+                // value pattern binding or arm code executes.
+                let Instruction::Catch { arms, .. } = &handler.instruction else {
+                    unreachable!()
+                };
+                if let Some(arm) = arms
+                    .iter()
+                    .find(|arm| matches!(arm.pattern, LocalSourceCatchPattern::Value(_)))
+                {
+                    let LocalSourceCatchPattern::Value(pattern) = &arm.pattern else {
+                        unreachable!()
+                    };
+                    let environment = match pattern {
+                        LocalSourceCatchValuePattern::Binder(binder) => self.bind(
+                            environment,
+                            Binder::Catch(binder.id.clone()),
+                            ReceivedValue {
+                                value: received.value,
+                                interface: ParameterRole::Value,
+                            },
+                        ),
+                        LocalSourceCatchValuePattern::Wildcard => environment,
+                    };
+                    let _ = (&arm.source, &arm.range);
+                    self.state = State::Evaluate {
+                        code: arm.body,
+                        environment,
+                    };
+                } else {
+                    self.state = State::Return(received);
+                }
+            }
+            Frame::OperationPayload {
+                declaration,
+                source,
+            } => self.make_request_carrier(declaration, received.value, &source),
+            Frame::OperationResultConsumer { source } => self.execute(received.value, &source)?,
             Frame::DiscardToUnit { site } => self.data(&site, RuntimeValueKind::Unit, None),
             Frame::Callee {
                 argument,
@@ -429,7 +538,50 @@ impl Machine {
                         RuntimeValueKind::Operation(_)
                     ) =>
                     {
-                        return Err(RuntimeUnavailable::OperationConsumer(site));
+                        let RuntimeValueKind::Operation(SourceOperationResolution::Resolved(
+                            declaration,
+                        )) = &self.values[received.value.0].kind
+                        else {
+                            return Err(RuntimeUnavailable::UnresolvedOperation(site));
+                        };
+                        let declaration = declaration.clone();
+                        if declaration.signature.effects.is_some() {
+                            return Err(RuntimeUnavailable::OperationConsumer(site));
+                        }
+                        let SourceAnnotationValue::Function { argument, .. } =
+                            &declaration.signature.value
+                        else {
+                            return Err(RuntimeUnavailable::OperationConsumer(site));
+                        };
+                        let role = if argument.effects.is_some() {
+                            ParameterRole::Computation
+                        } else {
+                            ParameterRole::Value
+                        };
+                        let activation = self.next_receiver;
+                        self.next_receiver = activation
+                            .checked_add(1)
+                            .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                        self.active_receivers.push(activation);
+                        // The declared source consumer runs after native return.
+                        // Its authority comes from the operation declaration,
+                        // including when the written result effect row is absent.
+                        self.frames.push(Frame::OperationResultConsumer {
+                            source: site.clone(),
+                        });
+                        self.frames.push(Frame::ReceiverReturn { activation });
+                        match role {
+                            ParameterRole::Value => {
+                                self.frames.push(Frame::OperationPayload {
+                                    declaration,
+                                    source: site.clone(),
+                                });
+                                self.execute(delay, &site)?;
+                            }
+                            ParameterRole::Computation => {
+                                self.make_request_carrier(declaration, delay, &site)
+                            }
+                        }
                     }
                     _ => return Err(RuntimeUnavailable::ExpectedCallable(site)),
                 }
@@ -554,6 +706,79 @@ impl Machine {
         Ok(())
     }
 
+    fn propagate_request(&mut self, mut request: PendingRequest) -> Result<(), RuntimeUnavailable> {
+        let Some(frame) = self.frames.pop() else {
+            let continuation = ContinuationHandle(self.continuations.len());
+            self.continuations.push(SavedContinuation {
+                frames: request.suffix,
+            });
+            self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
+                source: request.source,
+                operation: request.declaration.id.clone(),
+                payload: request.payload,
+                event: request.event,
+                continuation,
+            });
+            return Ok(());
+        };
+        let template = match frame {
+            Frame::ReceiverReturn { activation } => {
+                if self.active_receivers.pop() != Some(activation) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                SavedFrame::ReceiverBoundary {
+                    original_activation: activation,
+                }
+            }
+            Frame::CatchReturn {
+                handler,
+                environment,
+            } => {
+                let Instruction::Catch { arms, .. } = &handler.instruction else {
+                    unreachable!()
+                };
+                for arm in arms {
+                    if let LocalSourceCatchPattern::Operation { resolution, .. } = &arm.pattern {
+                        match resolution {
+                            SourceOperationResolution::Resolved(declaration)
+                                if declaration.id != request.declaration.id => {}
+                            // Exact operation equality identifies only a candidate;
+                            // it does not supply receiving/path/eligibility proof.
+                            _ => {
+                                return Err(RuntimeUnavailable::HandlerEvidence(
+                                    handler.site.clone(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                SavedFrame::HandlerBoundary {
+                    handler,
+                    environment,
+                }
+            }
+            ordinary => SavedFrame::Ordinary(ordinary),
+        };
+        request.suffix.push(template);
+        self.state = State::Request(request);
+        Ok(())
+    }
+    fn make_request_carrier(
+        &mut self,
+        declaration: Arc<SourceOperationDeclaration>,
+        payload: ValueHandle,
+        source: &SourceSite,
+    ) {
+        self.data(
+            source,
+            RuntimeValueKind::Computation,
+            Some(ExecutableValue::Request {
+                declaration,
+                payload,
+                source: source.clone(),
+            }),
+        );
+    }
     fn begin_root(&mut self, mut ordinal: usize) {
         // Skip roots already materialized through an earlier dependency. Each
         // root is visited once across the run, including these cached entries.
@@ -643,12 +868,27 @@ impl Machine {
         Ok(())
     }
     fn execute(&mut self, value: ValueHandle, site: &SourceSite) -> Result<(), RuntimeUnavailable> {
-        match self.executables.get(&value.0) {
+        match self.executables.get(&value.0).cloned() {
             Some(ExecutableValue::Delay { code, environment }) => {
-                self.state = State::Evaluate {
-                    code: *code,
-                    environment: *environment,
-                };
+                self.state = State::Evaluate { code, environment };
+                Ok(())
+            }
+            Some(ExecutableValue::Request {
+                declaration,
+                payload,
+                source,
+            }) => {
+                let event = self.next_request;
+                self.next_request = event
+                    .checked_add(1)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                self.state = State::Request(PendingRequest {
+                    declaration,
+                    payload,
+                    source,
+                    event,
+                    suffix: Vec::new(),
+                });
                 Ok(())
             }
             _ => Err(RuntimeUnavailable::ExpectedComputation(site.clone())),

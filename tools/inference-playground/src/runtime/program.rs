@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 use yu_hir::shadow::{
-    LocalSourceCatchArm, LocalSourceForm, LocalSourceIndex, LocalSourceResolution,
+    LocalSourceCatchPattern, LocalSourceForm, LocalSourceIndex, LocalSourceResolution,
     SourceOperationResolution,
 };
 use yu_hir::{
@@ -50,6 +50,7 @@ pub enum RuntimeUnavailable {
     MissingConsumptionEvidence(SourceSite),
     LiteralDecoding(SourceSite),
     OperationConsumer(SourceSite),
+    UnresolvedOperation(SourceSite),
     HandlerEvidence(SourceSite),
     ExpectedCallable(SourceSite),
     ExpectedBoolean(SourceSite),
@@ -82,6 +83,12 @@ pub(super) struct LocalBinding {
     pub initializer: Label,
     pub recursive: bool,
 }
+pub(super) struct CatchArm {
+    pub pattern: LocalSourceCatchPattern,
+    pub body: Label,
+    pub source: yu_syntax::SourceNodeKey,
+    pub range: Range<usize>,
+}
 pub(super) enum Instruction {
     Unit,
     Integer(Box<str>),
@@ -113,7 +120,7 @@ pub(super) enum Instruction {
     // Retained intact until the owning handler/interface gate supplies evidence.
     Catch {
         scrutinee: Label,
-        arms: Vec<LocalSourceCatchArm>,
+        arms: Vec<CatchArm>,
     },
 }
 
@@ -405,7 +412,17 @@ impl RuntimeProgram {
                     }
                     LocalSourceForm::Catch { scrutinee, arms } => Instruction::Catch {
                         scrutinee: label(scrutinee)?,
-                        arms: arms.clone(),
+                        arms: arms
+                            .iter()
+                            .map(|arm| {
+                                Ok(CatchArm {
+                                    pattern: arm.pattern.clone(),
+                                    body: label(&arm.body)?,
+                                    source: arm.source.clone(),
+                                    range: arm.range.clone(),
+                                })
+                            })
+                            .collect::<Result<_, RuntimeUnavailable>>()?,
                     },
                 };
                 code.push(Arc::new(Code {
