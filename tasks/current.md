@@ -40,7 +40,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   The user's subsequent clarification makes ordinary forwarding explicit:
   a function forwards each effect it does not handle; annotation permission
   and compose protection release do not themselves consume the effect.
-  Named-group/terminal-frame source correspondence is the active next slice.
+  Named-group facts and Call-route joins are now retained; intended source
+  introduction across those routes is the active next premise.
   Its local receipt and historical question remain uncommitted, with no
   separate answering-primary bundle claimed.
   The [exact identity variant also succeeds on frozen Oracle](../notes/progress/2026-10-15-callback-identity-oracle.md):
@@ -67,10 +68,20 @@ Status: full objective remains active. Native extrusion now schedules current co
   the actual full compose output. This is a finite conditional argument;
   no extra shield is licensed and the native experiment is not promoted.
   The selected frame is not always the formal's introducing Lambda: named
-  multi-argument compose uses its terminal body frame. The primary owns the
-  next source bridge at HIR named-group/terminal-body formation, followed by
-  joint owner-key/discharge transport; latent values, activation and actual
-  Catch/runtime consumption remain OPEN. The local-helper qualifier repair
+  multi-argument compose uses its terminal body frame.
+  The [named-source group slice](../notes/progress/2026-10-15-callback-named-source-groups.md)
+  now retains actual header groups, formal/Lambda identities, terminal bodies
+  and lexical context at HIR formation. Existing validated Calls join those
+  facts and their real wrapper routes without new solver metadata. Thirteen
+  focused tests and one workspace check pass; both M2 reviews converged.
+  The [new source bridge](../notes/theory/2026-10-15-callback-named-frame-source-bridge.md)
+  passed independent review: named-frame selection is conditional on actual
+  Oracle eligibility, and the nonempty Block callee refutes the implication
+  from native formal authentication to Oracle Var-only eligibility. This is
+  a constructor mismatch, not an observed runtime error or a reason to reject
+  the native source. The primary owns intended source introduction across
+  these routes, followed by joint owner-key/discharge transport; latent values,
+  activation and actual Catch/runtime consumption remain OPEN. The local-helper qualifier repair
   supplies finite native transport evidence independently of this proof;
   the exact original loop/std/native execution gate remains OPEN.
 

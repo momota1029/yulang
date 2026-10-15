@@ -41,7 +41,8 @@ semantics. The behavioral alternative is resolved; source attribution and
 matching discharge remain OPEN while preserving compose release. The user's
 clarification now also records ordinary forwarding of each effect the function
 does not handle; it grants no new evaluation-order or runtime representation
-choice. Named-group/terminal-frame construction is the active source bridge.
+choice. Named-group facts and Call-route joins are now retained; intended
+source introduction across those routes is the active source premise.
 The historical question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.
@@ -65,9 +66,18 @@ The [receiver/frame construction](../notes/theory/2026-10-15-callback-identity-r
 has now passed independent source/proof review. A selected frame/formal key
 and its frame-output discharge explain both finite identity and compose cases;
 native group selection, shared transport, latent values and runtime remain OPEN.
-Consume this result at HIR named-group/terminal-body formation, under primary
-ownership, rather than adding another guard or repeating the scoped algebra
-proof. The independently repaired local-helper qualifier transport supplies
+The [named-source group slice](../notes/progress/2026-10-15-callback-named-source-groups.md)
+now retains those HIR construction facts and joins them to authentic Call and
+wrapper routes through existing validated accessors. Thirteen focused tests,
+one workspace check and both M2 reviews pass. No selection/discharge consumer
+or additional solver metadata was added.
+The [reviewed source bridge](../notes/theory/2026-10-15-callback-named-frame-source-bridge.md)
+establishes a conditional named-frame selector and refutes unconditional
+native-authentication-to-Oracle-eligibility correspondence using a nonempty
+Block callee. The primary owns the next intended source-introduction premise
+across direct and wrapped callees, then shared key/discharge transport.
+Do not reject the native Block route or silently adopt the Oracle syntax guard.
+The independently repaired local-helper qualifier transport supplies
 finite evidence, without closing those source/frame or runtime premises.
 
 The user's detailed Catch/hygiene verification is recorded in the

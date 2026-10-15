@@ -14,6 +14,11 @@ This index is a navigation aid. The listed source document remains authoritative
   identifies the actual selected-frame/formal source key and whole-output
   discharge; its native supplier, latent transport and runtime premises remain
   open, with no production representation adopted.
+  The [named-frame source bridge](../theory/2026-10-15-callback-named-frame-source-bridge.md)
+  separates conditional frame identity from Oracle callee eligibility: native
+  Block-wrapper authentication does not establish Oracle Var-only eligibility.
+  [Retained named groups and factual Call joins](../progress/2026-10-15-callback-named-source-groups.md)
+  supply source evidence; operational selection and discharge remain OPEN.
 
 ## Active workflow navigation (2026-10-10)
 

@@ -20,8 +20,43 @@ pub struct LocalSource {
     expressions: Vec<LocalSourceExpr>,
     bindings: Vec<LocalSourceBinding>,
     annotation: Option<source_annotation::SourceAnnotation>,
+    named_groups: Vec<LocalSourceNamedGroup>,
+}
+/// A named header's construction identity within one retained source.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct LocalSourceNamedGroupId {
+    owner: DefinitionRootId,
+    ordinal: u32,
+}
+impl LocalSourceNamedGroupId {
+    pub fn ordinal(&self) -> u32 { self.ordinal }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LocalSourceNamedGroupOwner {
+    Definition(DefinitionRootId),
+    Local(HirLocalId),
+}
+#[derive(Clone, Debug)]
+pub struct LocalSourceNamedFormal {
+    pub parameter: HirParameterId,
+    pub lambda: LocalSourceIndex,
+}
+/// Facts retained directly from one named header, without receiver/frame policy.
+#[derive(Clone, Debug)]
+pub struct LocalSourceNamedGroup {
+    pub id: LocalSourceNamedGroupId,
+    pub owner: LocalSourceNamedGroupOwner,
+    pub source: SourceNodeKey,
+    pub enclosing: Option<LocalSourceNamedGroupId>,
+    pub formals: Vec<LocalSourceNamedFormal>,
+    pub terminal_lambda: LocalSourceIndex,
+    pub terminal_body: LocalSourceIndex,
 }
 impl LocalSource {
+    pub fn named_groups(&self) -> &[LocalSourceNamedGroup] { &self.named_groups }
+    pub fn named_group(&self, id: &LocalSourceNamedGroupId) -> Option<&LocalSourceNamedGroup> {
+        (id.owner == self.owner).then(|| self.named_groups.get(id.ordinal as usize)).flatten()
+    }
     pub fn definition_root(&self) -> &DefinitionRootId {
         &self.owner
     }
@@ -50,6 +85,8 @@ impl LocalSource {
             .map_or(0, |annotation| annotation.retained_arena_bytes())
             + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
+            + self.named_groups.capacity() * std::mem::size_of::<LocalSourceNamedGroup>()
+            + self.named_groups.iter().map(|group| group.formals.capacity() * std::mem::size_of::<LocalSourceNamedFormal>()).sum::<usize>()
             + self
                 .expressions
                 .iter()
@@ -113,6 +150,7 @@ impl LocalSource {
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceExpr {
+    pub named_group: Option<LocalSourceNamedGroupId>,
     pub occurrence: HirOccurrenceId,
     pub source: SourceNodeKey,
     pub range: Range<usize>,
@@ -259,11 +297,11 @@ pub(super) enum SimpleBodyProjection {
 }
 
 enum Work {
-    Expression(SyntaxNode, LocalSourceIndex, LocalSourceScope),
-    Initializer(u32, SyntaxNode),
+    Expression(SyntaxNode, LocalSourceIndex, LocalSourceScope, Option<LocalSourceNamedGroupId>),
+    Initializer(u32, SyntaxNode, Option<LocalSourceNamedGroupId>),
     Publish(u32, usize),
     Restore(usize),
-    CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>),
+    CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>, Option<LocalSourceNamedGroupId>),
 }
 struct LexicalEntry {
     spelling: Box<str>,
@@ -278,6 +316,7 @@ struct Builder<'a> {
     next_occurrence: &'a mut u32,
     next_parameter: u32,
     expressions: Vec<Option<LocalSourceExpr>>,
+    named_groups: Vec<LocalSourceNamedGroup>,
     bindings: Vec<LocalSourceBinding>,
     lexical: Vec<LexicalEntry>,
     latest: HashMap<Box<str>, usize>,
@@ -374,6 +413,7 @@ pub(super) fn form(
         next_parameter: u32::try_from(parameters.len())
             .map_err(|_| HirAvailabilityError::IdentityExhausted)?,
         expressions: Vec::new(),
+        named_groups: Vec::new(),
         bindings: Vec::new(),
         lexical: Vec::new(),
         latest: HashMap::new(),
@@ -382,6 +422,8 @@ pub(super) fn form(
     let root = builder.slot()?;
     let mut current = root.clone();
     let mut scope = LocalSourceScope::Definition(owner.clone());
+    let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
+    let mut named_formals = Vec::new();
     for (parameter, admitted) in parameters.iter().zip(&admitted.parameters) {
         let parameter = LocalSourceParameter {
             id: parameter.id.clone(),
@@ -400,10 +442,12 @@ pub(super) fn form(
             LocalSourceResolution::Parameter(parameter.id.clone()),
         )?;
         let next = builder.slot()?;
+        push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: current.clone() })?;
         builder.set(
             current,
             &plan.node,
             scope,
+            named_group.clone(),
             LocalSourceForm::Lambda {
                 parameter: parameter.clone(),
                 body: next.clone(),
@@ -412,30 +456,37 @@ pub(super) fn form(
         current = next;
         scope = LocalSourceScope::Parameter(parameter.id);
     }
+    if let Some(id) = &named_group {
+        builder.record_named_group(id.clone(), LocalSourceNamedGroupOwner::Definition(owner.clone()), &plan.node,
+            None, named_formals, current.clone())?;
+    }
     let body_chain = body(&plan.node)?;
     push(
         &mut builder.work,
-        Work::Expression(body_chain.clone(), current, scope),
+        Work::Expression(body_chain.clone(), current, scope, named_group.clone()),
     )?;
     while let Some(work) = builder.work.pop() {
         match work {
-            Work::Expression(node, index, scope) => {
-                builder.expression(node, index, scope)?
+            Work::Expression(node, index, scope, named_group) => {
+                builder.expression(node, index, scope, named_group)?
             }
             Work::Restore(depth) => builder.restore(depth),
-            Work::CatchArm(node, index, scope, binders) => {
+            Work::CatchArm(node, index, scope, binders, named_group) => {
                 push(&mut builder.work, Work::Restore(builder.lexical.len()))?;
                 for binder in binders {
                     builder.push_binding(binder.spelling, LocalSourceResolution::CatchBinder(binder.id))?;
                 }
-                push(&mut builder.work, Work::Expression(node, index, scope))?;
+                push(&mut builder.work, Work::Expression(node, index, scope, named_group.clone()))?;
             }
-            Work::Initializer(binding, node) => {
+            Work::Initializer(binding, node, enclosing_named_group) => {
                 let guard = builder.lexical.len();
                 let data = &builder.bindings[binding as usize];
                 let mut scope = LocalSourceScope::LocalInitializer(data.id.clone());
                 let mut index = data.initializer.clone();
                 let count = data.parameters.len();
+                let group_owner = data.id.clone();
+                let named_group = if count == 0 { enclosing_named_group.clone() } else { Some(builder.next_named_group()?) };
+                let mut named_formals = Vec::new();
                 let self_binding = (count != 0).then(|| (data.spelling.clone(), data.id.clone()));
                 // The temporary self identity belongs to the initializer scope;
                 // parameters may shadow it, and Publish restores then installs it.
@@ -450,10 +501,12 @@ pub(super) fn form(
                         LocalSourceResolution::Parameter(parameter.id.clone()),
                     )?;
                     let next = builder.slot()?;
+                    push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: index.clone() })?;
                     builder.set(
                         index,
                         &node,
                         scope,
+                        named_group.clone(),
                         LocalSourceForm::Lambda {
                             parameter: parameter.clone(),
                             body: next.clone(),
@@ -462,9 +515,13 @@ pub(super) fn form(
                     index = next;
                     scope = LocalSourceScope::Parameter(parameter.id);
                 }
+                if count != 0 {
+                    builder.record_named_group(named_group.clone().ok_or_else(invalid)?, LocalSourceNamedGroupOwner::Local(group_owner), &node,
+                        enclosing_named_group, named_formals, index.clone())?;
+                }
                 push(
                     &mut builder.work,
-                    Work::Expression(body(&node)?, index, scope),
+                    Work::Expression(body(&node)?, index, scope, named_group.clone()),
                 )?;
             }
             Work::Publish(binding, guard) => {
@@ -489,6 +546,7 @@ pub(super) fn form(
         body: root,
         expressions,
         bindings: builder.bindings,
+        named_groups: builder.named_groups,
         annotation: source_annotation::form(&plan.node, owner, counters)?,
     };
     // Successful formation establishes that this actual root chain has the
@@ -566,11 +624,22 @@ impl Builder<'_> {
             .cloned()
             .ok_or_else(invalid)
     }
+    fn next_named_group(&self) -> Result<LocalSourceNamedGroupId, HirAvailabilityError> {
+        Ok(LocalSourceNamedGroupId { owner: self.owner.clone(), ordinal: u32::try_from(self.named_groups.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)? })
+    }
+    fn record_named_group(&mut self, id: LocalSourceNamedGroupId, owner: LocalSourceNamedGroupOwner, node: &SyntaxNode,
+        enclosing: Option<LocalSourceNamedGroupId>, formals: Vec<LocalSourceNamedFormal>, terminal_body: LocalSourceIndex,
+    ) -> Result<(), HirAvailabilityError> {
+        let terminal_lambda = formals.last().ok_or_else(invalid)?.lambda.clone();
+        let source = self.key(node)?;
+        push(&mut self.named_groups, LocalSourceNamedGroup { id, owner, source, enclosing, formals, terminal_lambda, terminal_body })
+    }
     fn set(
         &mut self,
         index: LocalSourceIndex,
         node: &SyntaxNode,
         scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
         form: LocalSourceForm,
     ) -> Result<(), HirAvailabilityError> {
         let source = self.key(node)?;
@@ -583,6 +652,7 @@ impl Builder<'_> {
         self.expressions[index.ordinal as usize] = Some(LocalSourceExpr {
             occurrence,
             source,
+            named_group,
             range: range_of(node),
             scope,
             form,
@@ -594,6 +664,7 @@ impl Builder<'_> {
         node: SyntaxNode,
         index: LocalSourceIndex,
         scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
     ) -> Result<(), HirAvailabilityError> {
         match node.kind() {
             SyntaxKind::OperatorChain => {
@@ -623,6 +694,7 @@ impl Builder<'_> {
                             current,
                             tail,
                             scope.clone(),
+                            named_group.clone(),
                             LocalSourceForm::Ascription {
                                 inner: inner.clone(),
                                 annotation,
@@ -664,6 +736,7 @@ impl Builder<'_> {
                         current,
                         tail,
                         scope.clone(),
+                        named_group.clone(),
                         LocalSourceForm::Apply {
                             callee: callee.clone(),
                             argument: argument.clone(),
@@ -673,10 +746,10 @@ impl Builder<'_> {
                     if let Some(argument_node) = argument_node {
                         push(
                             &mut self.work,
-                            Work::Expression(argument_node, argument, scope.clone()),
+                            Work::Expression(argument_node, argument, scope.clone(), named_group.clone()),
                         )?;
                     } else {
-                        self.set(argument, tail, scope.clone(), LocalSourceForm::Unit)?;
+                        self.set(argument, tail, scope.clone(), named_group.clone(), LocalSourceForm::Unit)?;
                     }
                     current = callee;
                 }
@@ -705,12 +778,13 @@ impl Builder<'_> {
                         current,
                         tail,
                         scope,
+                        named_group.clone(),
                         LocalSourceForm::Operation { resolution },
                     )?;
                 } else {
                     push(
                         &mut self.work,
-                        Work::Expression(head.clone(), current, scope),
+                        Work::Expression(head.clone(), current, scope, named_group.clone()),
                     )?;
                 }
             }
@@ -723,7 +797,7 @@ impl Builder<'_> {
                         _ => None,
                     };
                     if let Some(value) = boolean {
-                        self.set(index, &node, scope, LocalSourceForm::Boolean(value))?;
+                        self.set(index, &node, scope, named_group.clone(), LocalSourceForm::Boolean(value))?;
                         return Ok(());
                     }
                 }
@@ -742,6 +816,7 @@ impl Builder<'_> {
                     index,
                     &node,
                     scope,
+                    named_group.clone(),
                     LocalSourceForm::Name {
                         spelling,
                         resolution,
@@ -752,16 +827,17 @@ impl Builder<'_> {
                 index,
                 &node,
                 scope,
+                named_group.clone(),
                 LocalSourceForm::Integer(node.text().to_string().into_boxed_str()),
             )?,
             SyntaxKind::StringLiteral => {
                 if node.descendants().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
                     return Err(invalid());
                 }
-                self.set(index, &node, scope, LocalSourceForm::String(node.text().to_string().into_boxed_str()))?;
+                self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(node.text().to_string().into_boxed_str()))?;
             }
-            SyntaxKind::CatchExpression => self.catch(node, index, scope)?,
-            SyntaxKind::IfExpression => self.conditional(node, index, scope)?,
+            SyntaxKind::CatchExpression => self.catch(node, index, scope, named_group.clone())?,
+            SyntaxKind::IfExpression => self.conditional(node, index, scope, named_group.clone())?,
             SyntaxKind::ParenthesizedExpression => {
                 if node.children_with_tokens().any(|element| {
                     matches!(
@@ -772,7 +848,7 @@ impl Builder<'_> {
                     return Err(invalid());
                 }
                 if node.children().next().is_none() {
-                    self.set(index, &node, scope, LocalSourceForm::Unit)?;
+                    self.set(index, &node, scope, named_group.clone(), LocalSourceForm::Unit)?;
                     return Ok(());
                 }
                 let child = only_child(&node)?;
@@ -781,16 +857,17 @@ impl Builder<'_> {
                     index,
                     &node,
                     scope.clone(),
+                    named_group.clone(),
                     LocalSourceForm::Group {
                         inner: inner.clone(),
                     },
                 )?;
                 push(
                     &mut self.work,
-                    Work::Expression(child, inner, scope),
+                    Work::Expression(child, inner, scope, named_group.clone()),
                 )?;
             }
-            SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope)?,
+            SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope, named_group.clone())?,
             _ => return Err(invalid()),
         }
         Ok(())
@@ -829,6 +906,7 @@ impl Builder<'_> {
         node: SyntaxNode,
         index: LocalSourceIndex,
         scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
     ) -> Result<(), HirAvailabilityError> {
         let parts: Vec<_> = node.children().collect();
         let [scrutinee, block] = parts.as_slice() else { return Err(invalid()); };
@@ -880,12 +958,12 @@ impl Builder<'_> {
 
         }
         if arms.is_empty() { return Err(invalid()); }
-        self.set(index, &node, scope.clone(), LocalSourceForm::Catch { scrutinee: scrutinee_index.clone(), arms })?;
+        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::Catch { scrutinee: scrutinee_index.clone(), arms })?;
         for (body, index, scope, binder) in children.into_iter().rev() {
-            push(&mut self.work, Work::CatchArm(body, index, scope, binder))?;
+            push(&mut self.work, Work::CatchArm(body, index, scope, binder, named_group.clone()))?;
         }
         push(&mut self.work, Work::Restore(self.lexical.len()))?;
-        push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope))?;
+        push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope, named_group.clone()))?;
         Ok(())
     }
     fn conditional(
@@ -893,6 +971,7 @@ impl Builder<'_> {
         node: SyntaxNode,
         index: LocalSourceIndex,
         scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
     ) -> Result<(), HirAvailabilityError> {
         let conditional_scope = LocalSourceScope::Expression(index.clone());
         let mut arms = Vec::new();
@@ -929,12 +1008,12 @@ impl Builder<'_> {
             }
         }
         if arms.is_empty() { return Err(invalid()); }
-        self.set(index, &node, scope, LocalSourceForm::If { arms, else_branch })?;
+        self.set(index, &node, scope, named_group.clone(), LocalSourceForm::If { arms, else_branch })?;
         let depth = self.lexical.len();
         // Every condition and body starts in the enclosing lexical environment.
         for (child, child_index) in children.into_iter().rev() {
             push(&mut self.work, Work::Restore(depth))?;
-            push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone()))?;
+            push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone(), named_group.clone()))?;
         }
         Ok(())
     }
@@ -943,6 +1022,7 @@ impl Builder<'_> {
         node: SyntaxNode,
         index: LocalSourceIndex,
         scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
     ) -> Result<(), HirAvailabilityError> {
         let mut statements = Vec::new();
         let mut expect_statement = true;
@@ -1053,6 +1133,7 @@ impl Builder<'_> {
             index,
             &node,
             scope,
+            named_group.clone(),
             LocalSourceForm::Block {
                 bindings,
                 final_expression: final_expression.clone(),
@@ -1061,10 +1142,10 @@ impl Builder<'_> {
         push(&mut self.work, Work::Restore(self.lexical.len()))?;
         push(
             &mut self.work,
-            Work::Expression(final_node, final_expression, block_scope),
+            Work::Expression(final_node, final_expression, block_scope, named_group.clone()),
         )?;
         for (ordinal, statement) in initializers.into_iter().rev() {
-            push(&mut self.work, Work::Initializer(ordinal, statement))?;
+            push(&mut self.work, Work::Initializer(ordinal, statement, named_group.clone()))?;
         }
         Ok(())
     }

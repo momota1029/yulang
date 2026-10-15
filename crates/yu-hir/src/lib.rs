@@ -701,6 +701,7 @@ fn range_of_token(token: &SyntaxToken) -> Range<usize> {
 #[cfg(test)]
 mod tests {
     mod annotated_primitive_formals;
+    mod named_function_groups;
     mod local_self_recursive_binding;
     mod shadow_annotation_positions;
     mod shadow_call_source_occurrences;

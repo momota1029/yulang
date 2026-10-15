@@ -31,6 +31,7 @@ pub use crate::module::source_annotation::{
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
     LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
+    LocalSourceNamedGroupId, LocalSourceNamedGroupOwner, LocalSourceNamedFormal, LocalSourceNamedGroup,
     LocalSourceCatchArm, LocalSourceCatchBinder, LocalSourceCatchBinderId, LocalSourceCatchValuePattern, LocalSourceCatchPattern, LocalSourceCatchPayloadPattern,
 };
 
