@@ -190,9 +190,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   construct the actual filling before provider-membership elimination; the
   full compatible domain is retained. The selected 43/0 native lineage has
   constructionally Identity/default context. Actual native ambient/path/world
-  and copied semantic applicability remain OPEN. A separate atomic Value-row
-  interpretation now targets same-z Result transfer at fixed alpha/A1; RE and
-  both original full parent directions stay OPEN.
+  and copied semantic applicability remain OPEN. The independently reviewed
+  [atomic Value-row interpretation](../notes/theory/2026-10-16-neutral-result-row-source-interpretation.md)
+  now proves actual field-3 correspondence, direct row/replay preservation,
+  equality-respecting canonicalization and same-z value transfer to fixed A1.
+  MODEL satisfaction, CanonicalEq and the independent typed source Return/maps
+  remain explicit premises; no error-free drain implies them. A separate local
+  RE-guarantee proof keeps the imported callable/interface unchanged while
+  checking the current complete invocation's outward bound. Both original
+  full parent directions, global model/principality and copy applicability
+  remain OPEN.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

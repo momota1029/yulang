@@ -179,9 +179,17 @@ and full two-hole admission, with a local native Identity-lineage proof.
 The separate domain audit found no circularity or qualified falsifier.
 No Q-dependent admission, opaque complete I, source-only/terminating domain
 or Unit-purity shortcut is selected. Native ambient/copy applicability and
-full Apply soundness remain OPEN. A bounded atomic Value-row interpretation
-and same-z Return-transfer proof now targets the exact fixed alpha/A1 Result
-edge; RE retains its separate nominal-to-complete observation obligation.
+full Apply soundness remain OPEN. The
+[atomic Value-row interpretation](../notes/theory/2026-10-16-neutral-result-row-source-interpretation.md)
+and same-z Return transfer now have independent mathematical/conformance CLEAN
+reviews: fixed alpha/A1 selectors, one MODEL, exact physical bound orientation,
+neutral replay and CanonicalEq-respecting quotient preserve the full source
+value record and both existing tagged inputs. Model existence/satisfaction,
+source typed correspondences and copy/intrusion adequacy are not supplied by
+that result. A separate RE proof derives the genuine complete-invocation
+support projection and local G-only certificate weakening at fixed challenges;
+imported interfaces, routing and latent alpha remain invariant. Neither full
+parent direction or cutover is closed by these components.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

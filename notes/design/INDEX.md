@@ -37,6 +37,10 @@ This index is a navigation aid. The listed source document remains authoritative
   existing definition authority. It constructs the actual Unit filling and
   full-domain two-hole inlet, plus the selected native Identity kernel. Native
   ambient/copy applicability and both full parent directions remain OPEN.
+  The reviewed [neutral Result-row interpretation](../theory/2026-10-16-neutral-result-row-source-interpretation.md)
+  gives same-value source inclusion and same-z transfer for the actual plain
+  field-3 fragment under explicit MODEL/CanonicalEq/source-correspondence
+  premises. It supplies no model-existence, RE or global solver theorem.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
