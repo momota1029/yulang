@@ -1,11 +1,36 @@
 # Ordinary HIR successor source carrier
 
-Status: Reviewed proposal; user approval pending
+Status: Authoritative for the unchanged binding-carrier scope under the direct continuation recorded below; implementation OPEN
 Scope: retain successor source facts during the ordinary `ParsedFile -> HirModule` path without changing existing HIR admission, items, errors, diagnostics, or occurrence identities
 Baseline: `5fc8acfc0`
 Authority: active user objective to use successor inference through ordinary entrypoints; existing HIR association, recovery, identity, and Simple-sub withdrawal contracts
 Reviewed-by: spec_auditor and compiler_referee; two minor review findings repaired and delta-closed
 Supersedes: none
+
+## Direct continuation and authority (2026-10-15)
+
+The archived q1/a1 answer records the user's explicit `承認` of option 1 and
+the technical scope below. Its receipt rejected exact handoff consumption
+because one administrative sentence used `unstaged and uncommitted` in one
+copy and `unstaged/uncommitted` in the other. That archive and rejection are
+unchanged; this record does not claim a valid or consumed q1/a1 handoff.
+
+The current user directly instructed continuation (`あとはそのまま進めて構いません`)
+and completion of the remaining work (`残りを一気にお願いしますよ．`). The primary
+adjudicates that continuation together with the preserved substantive approval
+as authorization for this already selected, unchanged technical scope. It does
+not require a new architecture choice or repeat approval for the administrative
+wording discrepancy. The current conversation's stable ID/timestamp is unavailable.
+
+A fresh architect inspection against `943342ec9` finds no contradictory premise:
+ordinary lowering still owns admission/identities, the opt-in builder still
+changes that behavior, and its staged payload now includes inline Lambdas,
+Catch binders and named groups. The mechanism below remains applicable. The
+implementation must distinguish unsupported source from identity/allocation/
+internal failures rather than blanket-converting `StructuralProjection`.
+General expression-root carriers, header expansion, solver cutover and F5
+retirement remain separate gates; none is silently authorized as completed by
+this binding-only carrier decision.
 
 ## 1. Problem and constraints
 
@@ -111,8 +136,8 @@ and storage owners, obtain a focused performance review before merging.
 This proposal is an internal architecture choice beyond the opt-in source
 carrier checkpoint. Its intended outcome is determined by the user's ordinary
 successor-inference objective; the exact sidecar and unsupported-result
-representation remain to be approved under `rules/design-authority.md` before
-implementation. It does not reopen Simple-sub let/generalization, parent-copy
+representation are authorized by the direct continuation recorded above.
+It does not reopen Simple-sub let/generalization, parent-copy
 intrusion, annotation polarity, or the existing HIR error contract.
 
 The pre-write specification review confirmed that enabling the existing

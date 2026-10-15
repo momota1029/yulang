@@ -6,6 +6,17 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Ordinary HIR carrier implementation authorized:** the unchanged reviewed
+  [binding-carrier scope](../notes/design/2026-10-10-ordinary-hir-successor-carrier.md)
+  is selected under the user's current direct continuation and preserved prior
+  substantive approval. The archived q1/a1 handoff remains rejected/unconsumed;
+  its administrative exact-text discrepancy is not a new architecture choice.
+  Fresh source review finds no contradiction. Next implement post-ordinary,
+  atomic per-binding carrier outcomes with original identities, preserving all
+  ordinary items/diagnostics and separating unsupported source from genuine
+  availability failures. General expression-root ownership, default solver
+  selection and F5 withdrawal remain independent open gates.
+
 - **Ordinary playground execution integrated:** `--run DEFINITION` now performs
   candidate inference, executes source-ordered computed definition roots and
   materializes the requested value. The provisional explicit machine supports
