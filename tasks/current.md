@@ -41,16 +41,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   handoff. Next construct receiving views and actual handler evidence. Matching
   operation selection, raw Resume, full hygiene and production remain OPEN.
 
-- **Ordinary HIR carrier implementation authorized:** the unchanged reviewed
+- **Ordinary HIR carrier formation complete:** the unchanged reviewed
   [binding-carrier scope](../notes/design/2026-10-10-ordinary-hir-successor-carrier.md)
   is selected under the user's current direct continuation and preserved prior
   substantive approval. The archived q1/a1 handoff remains rejected/unconsumed;
   its administrative exact-text discrepancy is not a new architecture choice.
-  Fresh source review finds no contradiction. Next implement post-ordinary,
-  atomic per-binding carrier outcomes with original identities, preserving all
-  ordinary items/diagnostics and separating unsupported source from genuine
-  availability failures. General expression-root ownership, default solver
-  selection and F5 withdrawal remain independent open gates.
+  The ordinary lowerer now publishes atomic per-binding carrier outcomes after
+  original lowering, retaining original branded identities and diagnostics.
+  Unsupported roots discard their private stage and permit later roots; genuine
+  availability failures remain distinct. All five original preservation claims
+  have constructive actual-source proof and fresh independent review. Default
+  checking/full HIR tests and all 201 shadow-feature cases pass without warnings.
+  [Formation record](../notes/progress/2026-10-16-ordinary-hir-carrier.md).
+  A default solver probe confirms exact retained carrier/ordinary identities
+  across collection. Next connect actual constraint generation to these
+  outcomes. General expression roots, solver selection and
+  F5 withdrawal remain independent open gates.
 
 - **Ordinary playground execution integrated:** `--run DEFINITION` now performs
   candidate inference, executes source-ordered computed definition roots and

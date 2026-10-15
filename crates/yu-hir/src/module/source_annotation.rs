@@ -1,5 +1,6 @@
 //! Source-owned nullary effect declarations and complete binding annotations.
 use super::*;
+use super::local_source::{FormationError, SourceCarrierFailureReason};
 use yu_syntax::SourceNodeKey;
 enum SyntaxElement {
     Node(SyntaxNode),
@@ -33,6 +34,7 @@ pub struct SourceEffectId {
     pub module: Arc<ModuleId>,
     pub declaration: SourceNodeKey,
 }
+#[cfg(any(feature = "shadow", test))]
 #[derive(Clone, Debug)]
 pub struct SourceEffectDeclaration {
     pub id: SourceEffectId,
@@ -93,8 +95,8 @@ pub struct SourceEffectRow {
     pub concrete: Vec<SourceEffectId>,
     pub variables: Vec<Box<str>>,
 }
-fn unavailable() -> HirAvailabilityError {
-    HirAvailabilityError::StructuralProjection
+fn unavailable() -> FormationError {
+    FormationError::Unsupported(SourceCarrierFailureReason::UnsupportedForm)
 }
 fn trivia(kind: SyntaxKind) -> bool {
     matches!(
@@ -117,6 +119,7 @@ fn elements(node: &SyntaxNode) -> Vec<SyntaxElement> {
         })
         .collect()
 }
+#[cfg(any(feature = "shadow", test))]
 fn singleton_identifier(node: &SyntaxNode) -> Option<String> {
     let elements = elements(node);
     let [token] = elements.as_slice() else {
@@ -124,11 +127,12 @@ fn singleton_identifier(node: &SyntaxNode) -> Option<String> {
     };
     (token.kind() == SyntaxKind::Identifier).then(|| token.to_string())
 }
+#[cfg(any(feature = "shadow", test))]
 pub(super) fn declarations(
     root: &SyntaxNode,
     module: &ModuleId,
     counters: &mut LoweringCounters,
-) -> Result<Vec<SourceEffectDeclaration>, HirAvailabilityError> {
+) -> Result<Vec<SourceEffectDeclaration>, FormationError> {
     let mut result = Vec::new();
     let mut bodies = Vec::new();
     for node in root
@@ -187,7 +191,7 @@ pub(super) fn declarations(
             declaration: counters
                 .source_nodes
                 .get(&node)
-                .ok_or_else(unavailable)?
+                .ok_or(HirAvailabilityError::StructuralProjection)?
                 .clone(),
         };
         counters
@@ -252,8 +256,8 @@ pub(super) fn declarations(
                 return Err(unavailable());
             }
             let ty = ty.as_node().ok_or_else(unavailable)?;
-            annotation_depth_preflight(ty)?;
-            let signature = parse_type(ty, counters)?;
+            annotation_depth_preflight_source(ty)?;
+            let signature = parse_type_source(ty, counters)?;
             if !matches!(signature.value, SourceAnnotationValue::Function { .. }) {
                 return Err(unavailable());
             }
@@ -267,7 +271,7 @@ pub(super) fn declarations(
                     declaration: counters
                         .source_nodes
                         .get(&member)
-                        .ok_or_else(unavailable)?
+                        .ok_or(HirAvailabilityError::StructuralProjection)?
                         .clone(),
                 },
                 spelling: name.spelling.into_boxed_str(),
@@ -275,12 +279,12 @@ pub(super) fn declarations(
                 name_position: counters
                     .source_nodes
                     .get(&name_node)
-                    .ok_or_else(unavailable)?
+                    .ok_or(HirAvailabilityError::StructuralProjection)?
                     .clone(),
                 signature_position: counters
                     .source_nodes
                     .get(ty)
-                    .ok_or_else(unavailable)?
+                    .ok_or(HirAvailabilityError::StructuralProjection)?
                     .clone(),
                 range: range_of(&member),
                 signature,
@@ -310,7 +314,7 @@ pub(super) fn form(
     statement: &SyntaxNode,
     owner: &DefinitionRootId,
     counters: &LoweringCounters,
-) -> Result<Option<SourceAnnotation>, HirAvailabilityError> {
+) -> Result<Option<SourceAnnotation>, FormationError> {
     let header = statement
         .children()
         .find(|node| node.kind() == SyntaxKind::BindingHeader)
@@ -335,14 +339,14 @@ pub(super) fn parse_annotation(
     annotation: &SyntaxNode,
     owner: &DefinitionRootId,
     counters: &LoweringCounters,
-) -> Result<SourceAnnotation, HirAvailabilityError> {
+) -> Result<SourceAnnotation, FormationError> {
     parse_annotation_with_marker(annotation, SyntaxKind::Colon, owner, counters)
 }
 pub(super) fn parse_expression_ascription(
     annotation: &SyntaxNode,
     owner: &DefinitionRootId,
     counters: &LoweringCounters,
-) -> Result<SourceAnnotation, HirAvailabilityError> {
+) -> Result<SourceAnnotation, FormationError> {
     if annotation.kind() != SyntaxKind::TypeAnnotationTail {
         return Err(unavailable());
     }
@@ -353,7 +357,7 @@ fn parse_annotation_with_marker(
     marker: SyntaxKind,
     owner: &DefinitionRootId,
     counters: &LoweringCounters,
-) -> Result<SourceAnnotation, HirAvailabilityError> {
+) -> Result<SourceAnnotation, FormationError> {
     if has_recovery(annotation) {
         return Err(unavailable());
     }
@@ -365,25 +369,25 @@ fn parse_annotation_with_marker(
         return Err(unavailable());
     }
     let ty = ty.as_node().ok_or_else(unavailable)?;
-    annotation_depth_preflight(ty)?;
+    annotation_depth_preflight_source(ty)?;
     Ok(SourceAnnotation {
         owner: owner.clone(),
         position: counters
             .source_nodes
             .get(annotation)
-            .ok_or_else(unavailable)?
+            .ok_or(HirAvailabilityError::StructuralProjection)?
             .clone(),
-        ty: parse_type(ty, counters)?,
+        ty: parse_type_source(ty, counters)?,
     })
 }
 // Root TypeExpression has depth one. Each parenthesized-inner or arrow-result
 // parse_type transition adds one; wrappers and row atoms add no extra depth.
-fn annotation_depth_preflight(root: &SyntaxNode) -> Result<usize, HirAvailabilityError> {
+fn annotation_depth_preflight_source(root: &SyntaxNode) -> Result<usize, FormationError> {
     let mut work = vec![(root.clone(), 1usize)];
     let mut visits = 0usize;
     while let Some((node, depth)) = work.pop() {
         if depth > 128 {
-            return Err(unavailable());
+            return Err(FormationError::Unsupported(SourceCarrierFailureReason::SupportedDepth));
         }
         visits += 1;
         let recursive_child = matches!(
@@ -398,10 +402,10 @@ fn annotation_depth_preflight(root: &SyntaxNode) -> Result<usize, HirAvailabilit
     }
     Ok(visits)
 }
-fn parse_type(
+fn parse_type_source(
     node: &SyntaxNode,
     counters: &LoweringCounters,
-) -> Result<SourceAnnotationType, HirAvailabilityError> {
+) -> Result<SourceAnnotationType, FormationError> {
     let mut children = elements(node);
     let effects = if children
         .first()
@@ -483,7 +487,7 @@ fn parse_type(
                 effects: None,
                 value: SourceAnnotationValue::Function {
                     argument: Box::new(argument),
-                    result: Box::new(parse_type(
+                    result: Box::new(parse_type_source(
                         result.as_node().ok_or_else(unavailable)?,
                         counters,
                     )?),
@@ -497,7 +501,7 @@ fn parse_type(
 fn parse_group(
     node: &SyntaxNode,
     counters: &LoweringCounters,
-) -> Result<SourceAnnotationType, HirAvailabilityError> {
+) -> Result<SourceAnnotationType, FormationError> {
     let children = elements(node);
     match children.as_slice() {
         [open, close]
@@ -513,7 +517,7 @@ fn parse_group(
                 && inner.kind() == SyntaxKind::TypeExpression
                 && close.kind() == SyntaxKind::RParen =>
         {
-            parse_type(inner.as_node().ok_or_else(unavailable)?, counters)
+            parse_type_source(inner.as_node().ok_or_else(unavailable)?, counters)
         }
         _ => Err(unavailable()),
     }
@@ -521,12 +525,12 @@ fn parse_group(
 fn parse_row(
     node: &SyntaxNode,
     counters: &LoweringCounters,
-) -> Result<SourceEffectRow, HirAvailabilityError> {
+) -> Result<SourceEffectRow, FormationError> {
     let mut result = SourceEffectRow {
         position: counters
             .source_nodes
             .get(node)
-            .ok_or_else(unavailable)?
+            .ok_or(HirAvailabilityError::StructuralProjection)?
             .clone(),
         concrete: Vec::new(),
         variables: Vec::new(),
@@ -619,6 +623,14 @@ impl SourceAnnotationType {
     }
 }
 
+#[cfg(test)]
+fn parse_type(node: &SyntaxNode, counters: &LoweringCounters) -> Result<SourceAnnotationType, HirAvailabilityError> {
+    parse_type_source(node, counters).map_err(Into::into)
+}
+#[cfg(test)]
+fn annotation_depth_preflight(root: &SyntaxNode) -> Result<usize, HirAvailabilityError> {
+    annotation_depth_preflight_source(root).map_err(Into::into)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

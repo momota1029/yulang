@@ -49,16 +49,7 @@ impl HirModule {
     pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] {
         &self.effect_declarations
     }
-    /// Returns only a carrier belonging to this exact immutable artifact.
-    pub fn local_source(
-        &self,
-        root: &DefinitionRootId,
-    ) -> Result<Option<&LocalSource>, HirAvailabilityError> {
-        if !self.owns_definition_root(root) {
-            return Err(HirAvailabilityError::InconsistentIdentity);
-        }
-        Ok(self.local_sources.get(root))
-    }
+
 }
 
 /// Retains one leaf-only application with source identity and explicit pending errors.
@@ -347,75 +338,8 @@ pub enum ParameterSourceOrigin {
     InlineLambda { lambda: PositionId, binder: PositionId },
 }
 
-#[derive(Clone, Debug)]
-enum ParameterOrigin {
-    IdentifierPattern(SourceNodeKey),
-    InlineLambda { lambda: SourceNodeKey, binder_range: Range<usize> },
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct HirSourceIdentity {
-    parse_root: SourceNodeKey,
-    definitions: HashMap<DefinitionRootId, SourceNodeKey>,
-    occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
-    parameters: HashMap<HirParameterId, ParameterOrigin>,
-    locals: HashMap<crate::HirLocalId, SourceNodeKey>,
-    pub(crate) local_binding: Option<ShadowLocalBind>,
-    pub(crate) local_parameter_owners: HashMap<HirParameterId, crate::HirLocalId>,
-}
-
-pub(crate) fn source_keys(parsed: &ParsedFile) -> HashMap<SyntaxNode, SourceNodeKey> {
-    let mut keys = HashMap::new();
-    let mut stack = vec![parsed.source_root()];
-    while let Some(node) = stack.pop() {
-        keys.insert(node.syntax().clone(), node.key());
-        stack.extend(node.children());
-    }
-    keys
-}
-
-impl HirSourceIdentity {
-    pub(crate) fn new(parsed: &ParsedFile) -> Self {
-        Self {
-            parse_root: parsed.source_root().key(),
-            definitions: HashMap::new(),
-            occurrences: HashMap::new(),
-            parameters: HashMap::new(),
-            locals: HashMap::new(),
-            local_binding: None,
-            local_parameter_owners: HashMap::new(),
-        }
-    }
-    pub(crate) fn record_local(&mut self, id: crate::HirLocalId, key: SourceNodeKey) {
-        self.locals.insert(id, key);
-    }
-    pub(crate) fn maximum_occurrence_ordinal(&self) -> Option<u32> {
-        self.occurrences.keys().map(HirOccurrenceId::ordinal).max()
-    }
-    pub(crate) fn record_unique_occurrence(
-        &mut self,
-        id: HirOccurrenceId,
-        key: SourceNodeKey,
-    ) -> bool {
-        let std::collections::hash_map::Entry::Vacant(entry) = self.occurrences.entry(id) else {
-            return false;
-        };
-        entry.insert(key);
-        true
-    }
-    pub(crate) fn record_definition(&mut self, id: DefinitionRootId, key: SourceNodeKey) {
-        self.definitions.insert(id, key);
-    }
-    pub(crate) fn record_parameter(&mut self, id: HirParameterId, key: SourceNodeKey) {
-        self.parameters.insert(id, ParameterOrigin::IdentifierPattern(key));
-    }
-    pub(crate) fn record_inline_parameter(&mut self, id: HirParameterId, lambda: SourceNodeKey, binder_range: Range<usize>) {
-        self.parameters.insert(id, ParameterOrigin::InlineLambda { lambda, binder_range });
-    }
-    pub(crate) fn record_occurrence(&mut self, id: HirOccurrenceId, key: SourceNodeKey) {
-        self.occurrences.insert(id, key);
-    }
-}
+use crate::source_identity::HirParameterSourceOrigin as ParameterOrigin;
+pub(crate) use crate::source_identity::{HirSourceIdentity, source_keys};
 
 /// Complete caller-selected parse snapshot and its bounded structural projections.
 #[derive(Debug)]
@@ -2931,7 +2855,7 @@ mod tests {
         let foreign_hir =
             lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
                 .unwrap();
-        let default_hir =
+        let mut default_hir =
             crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
         let root = |hir: &HirModule| match &hir.items()[0] {
             crate::HirItem::Binding(binding) => binding.definition_root().clone(),
@@ -2942,6 +2866,9 @@ mod tests {
             shadow.definition_source_position(&hir, &root(&foreign_hir)),
             Err(SourceIdentityError::ForeignHirArtifact)
         );
+        assert!(shadow.definition_source_position(&default_hir, &root(&default_hir)).is_ok());
+        // Exercise the missing-sidecar branch explicitly: ordinary lowering now retains provenance.
+        default_hir.source_identity = None;
         assert_eq!(
             shadow.definition_source_position(&default_hir, &root(&default_hir)),
             Err(SourceIdentityError::MissingSource)
@@ -3007,17 +2934,21 @@ mod tests {
         let ordinary =
             crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
         assert_eq!(hir, ordinary);
-        assert!(ordinary.source_identity.is_none());
+        assert!(ordinary.source_identity.is_some());
         let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
         let mut positions = Vec::new();
-        for item in hir.items() {
+        for (item, ordinary_item) in hir.items().iter().zip(ordinary.items()) {
             let crate::HirItem::Binding(binding) = item else {
                 panic!("binding")
             };
+            let crate::HirItem::Binding(ordinary_binding) = ordinary_item else { panic!("binding"); };
             let parameter = &binding.parameters()[0];
             let position = shadow
                 .parameter_source_position(&hir, parameter.id())
                 .unwrap();
+            let ordinary_position = shadow.parameter_source_position(&ordinary, ordinary_binding.parameters()[0].id()).unwrap();
+            assert_eq!(shadow.position(&position).unwrap().kind(), shadow.position(&ordinary_position).unwrap().kind());
+            assert_eq!(shadow.position(&position).unwrap().range(), shadow.position(&ordinary_position).unwrap().range());
             assert_eq!(
                 shadow.position(&position).unwrap().kind(),
                 SyntaxKind::IdentifierPattern
@@ -3065,7 +2996,7 @@ mod tests {
         let foreign =
             lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
                 .unwrap();
-        let ordinary =
+        let mut ordinary =
             crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
         let parameter = |hir: &HirModule| match &hir.items()[0] {
             crate::HirItem::Binding(binding) => binding.parameters()[0].id().clone(),
@@ -3076,6 +3007,8 @@ mod tests {
             shadow.parameter_source_position(&hir, &parameter(&foreign)),
             Err(SourceIdentityError::ForeignHirArtifact)
         );
+        assert!(shadow.parameter_source_position(&ordinary, &parameter(&ordinary)).is_ok());
+        ordinary.source_identity = None;
         assert_eq!(
             shadow.parameter_source_position(&ordinary, &parameter(&ordinary)),
             Err(SourceIdentityError::MissingSource)

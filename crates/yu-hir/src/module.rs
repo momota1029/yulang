@@ -14,9 +14,7 @@ use yu_syntax::{
 
 use crate::{AssociationError, HirExpr, associate_chain_owned, range_of};
 
-#[cfg(any(feature = "shadow", test))]
 pub(crate) mod local_source;
-#[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_annotation;
 
 /// A compiler-supplied, already-normalized file key.
@@ -224,14 +222,12 @@ impl Hash for DefinitionRootId {
     }
 }
 
-#[cfg(any(feature = "shadow", test))]
-/// A cold shadow local identity anchored to its enclosing artifact root.
+/// A local identity anchored to its enclosing artifact root.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct HirLocalId {
     owner: DefinitionRootId,
     ordinal: u32,
 }
-#[cfg(any(feature = "shadow", test))]
 impl HirLocalId {
     pub fn definition_root(&self) -> &DefinitionRootId {
         &self.owner
@@ -789,14 +785,14 @@ impl HirDiagnostic {
 #[derive(Clone, Debug)]
 pub struct HirModule {
     artifact: Arc<HirArtifactToken>,
-    #[cfg(any(feature = "shadow", test))]
-    pub(crate) source_identity: Option<crate::shadow::HirSourceIdentity>,
+    pub(crate) source_identity: Option<crate::source_identity::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
-    #[cfg(any(feature = "shadow", test))]
     pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
+    source_carriers: Vec<(DefinitionRootId, local_source::SourceCarrierOutcome)>,
+    source_carrier_indices: HashMap<DefinitionRootId, usize>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -807,6 +803,47 @@ pub struct HirModule {
 }
 
 impl HirModule {
+    /// One outcome per admitted ordinary binding, in direct-root source order.
+    pub fn source_carrier_outcomes(&self) -> &[(DefinitionRootId, local_source::SourceCarrierOutcome)] {
+        &self.source_carriers
+    }
+    pub fn source_carrier(&self, root: &DefinitionRootId)
+        -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
+    {
+        if !self.owns_definition_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1))
+    }
+    /// Borrows the retained carrier only from its owning immutable HIR artifact.
+    pub fn local_source(&self, root: &DefinitionRootId)
+        -> Result<Option<&local_source::LocalSource>, HirAvailabilityError>
+    {
+        Ok(match self.source_carrier(root)? {
+            Some(local_source::SourceCarrierOutcome::Supported(source)) => Some(source),
+            Some(local_source::SourceCarrierOutcome::Unsupported(_)) => None,
+            None => self.local_sources.get(root),
+        })
+    }
+    /// Exact parse-owned origin retained for a definition from this artifact.
+    pub fn definition_source_key(&self, root: &DefinitionRootId)
+        -> Result<Option<&yu_syntax::SourceNodeKey>, HirAvailabilityError>
+    {
+        if !self.owns_definition_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_identity.as_ref().and_then(|identity| identity.definitions.get(root)))
+    }
+    /// Exact source node for an ordinary or retained structural occurrence.
+    pub fn occurrence_source_key(&self, occurrence: &HirOccurrenceId)
+        -> Result<Option<&yu_syntax::SourceNodeKey>, HirAvailabilityError>
+    {
+        if !self.owns_occurrence(occurrence) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_identity.as_ref().and_then(|identity| identity.occurrences.get(occurrence)))
+    }
+    /// Retains named and inline parameter origins without reconstructing binders.
+    pub fn parameter_source_origin(&self, parameter: &HirParameterId)
+        -> Result<Option<&crate::HirParameterSourceOrigin>, HirAvailabilityError>
+    {
+        if !self.owns_definition_root(parameter.definition_root()) { return Err(HirAvailabilityError::InconsistentIdentity); }
+        Ok(self.source_identity.as_ref().and_then(|identity| identity.parameters.get(parameter)))
+    }
     /// Tests whether a branded occurrence was minted by this exact artifact.
     pub fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool {
         Arc::ptr_eq(&self.artifact, &occurrence.artifact)
@@ -879,6 +916,9 @@ pub fn lower_module(
     _imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
     let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    counters.ordinary_source_carriers = true;
     lower_module_with_counters(identity, parsed, _imports, &mut counters)
 }
 
@@ -889,8 +929,8 @@ pub(crate) fn lower_module_with_source_identity(
     imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
     let mut counters = LoweringCounters::default();
-    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
-    counters.source_nodes = crate::shadow::source_keys(parsed);
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
@@ -901,8 +941,8 @@ pub(crate) fn lower_module_with_shadow_applications(
     imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
     let mut counters = LoweringCounters::default();
-    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
-    counters.source_nodes = crate::shadow::source_keys(parsed);
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
     counters.shadow_applications = true;
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
@@ -914,8 +954,8 @@ pub(crate) fn lower_module_with_local_source(
     imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
     let mut counters = LoweringCounters::default();
-    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
-    counters.source_nodes = crate::shadow::source_keys(parsed);
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
     counters.local_source = true;
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
@@ -995,7 +1035,6 @@ fn lower_module_with_counters(
             }
             RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => None,
         };
-        #[cfg(any(feature = "shadow", test))]
         if let (Some(source), Some(definition)) = (&mut counters.source_identity, &definition_root)
         {
             if let Some(key) = counters.source_nodes.get(&plan.node) {
@@ -1038,13 +1077,30 @@ fn lower_module_with_counters(
         }
         items.push(item);
     }
+    let mut source_carriers = Vec::new();
+    let mut source_carrier_indices = HashMap::new();
+    if counters.ordinary_source_carriers {
+        for (plan, item) in plans.iter().zip(&items) {
+            let HirItem::Binding(binding) = item else { continue; };
+            let outcome = local_source::form_ordinary(
+                plan, &binding.definition_root, &binding.parameters, &namespace,
+                counters, &artifact, &mut next_occurrence_ordinal,
+            )?;
+            source_carriers.try_reserve(1)
+                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            source_carrier_indices.try_reserve(1)
+                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            source_carrier_indices.insert(binding.definition_root.clone(), source_carriers.len());
+            source_carriers.push((binding.definition_root.clone(), outcome));
+        }
+    }
     Ok(HirModule {
+        source_carriers,
+        source_carrier_indices,
         artifact,
-        #[cfg(any(feature = "shadow", test))]
         source_identity: counters.source_identity.take(),
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
-        #[cfg(any(feature = "shadow", test))]
         local_sources: std::mem::take(&mut counters.local_sources),
         #[cfg(any(feature = "shadow", test))]
         effect_declarations: std::mem::take(&mut counters.effect_declarations),
@@ -1071,24 +1127,18 @@ fn next_occurrence(
 
 #[derive(Default)]
 struct LoweringCounters {
-    #[cfg(any(feature = "shadow", test))]
+    ordinary_source_carriers: bool,
     local_source: bool,
-    #[cfg(any(feature = "shadow", test))]
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
-    #[cfg(any(feature = "shadow", test))]
     effect_namespace: HashMap<String, Vec<source_annotation::SourceEffectId>>,
-    #[cfg(any(feature = "shadow", test))]
     operation_namespace: HashMap<
         (source_annotation::SourceEffectId, Box<str>),
         Vec<Arc<source_annotation::SourceOperationDeclaration>>,
     >,
-    #[cfg(any(feature = "shadow", test))]
     shadow_applications: bool,
-    #[cfg(any(feature = "shadow", test))]
-    source_identity: Option<crate::shadow::HirSourceIdentity>,
-    #[cfg(any(feature = "shadow", test))]
+    source_identity: Option<crate::source_identity::HirSourceIdentity>,
     source_nodes: HashMap<SyntaxNode, yu_syntax::SourceNodeKey>,
     recovery_visits: usize,
     syntax_emissions: usize,
@@ -1245,9 +1295,7 @@ struct Admitted {
 #[derive(Clone)]
 struct AdmittedParameter {
     name: HirName,
-    #[cfg(any(feature = "shadow", test))]
     source: Option<yu_syntax::SourceNodeKey>,
-    #[cfg(any(feature = "shadow", test))]
     annotation: Option<SyntaxNode>,
 }
 
@@ -1400,7 +1448,6 @@ fn lower_plan(
             name: admitted.name.clone(),
             range: admitted.name.range.clone(),
         };
-        #[cfg(any(feature = "shadow", test))]
         if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
             source.record_parameter(parameter.id.clone(), key.clone());
         }
@@ -2144,7 +2191,6 @@ fn lower_leaf(
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
 ) -> Result<SimpleChainLowering, HirAvailabilityError> {
-    #[cfg(any(feature = "shadow", test))]
     if let Some(source) = &mut counters.source_identity {
         if let Some(key) = counters.source_nodes.get(&atom.source) {
             source.record_occurrence(occurrence.clone(), key.clone());
@@ -2222,7 +2268,6 @@ fn plain_binding_header(
     let pattern_children = target
         .children()
         .filter(|_child| {
-            #[cfg(any(feature = "shadow", test))]
             if _counters.local_source && _child.kind() == SyntaxKind::PatternTypeAnnotation {
                 return false;
             }
@@ -2231,16 +2276,12 @@ fn plain_binding_header(
         .collect::<Vec<_>>();
     let (head, tails) = pattern_children.split_first()?;
     let head = identifier_pattern_name(head)?;
-    #[cfg(any(feature = "shadow", test))]
     let multiple_parameters = _counters.shadow_applications || _counters.local_source;
-    #[cfg(not(any(feature = "shadow", test)))]
-    let multiple_parameters = false;
     if tails.len() > 1 && !multiple_parameters {
         return None;
     }
     let mut parameters = Vec::with_capacity(tails.len());
     for tail in tails {
-        #[cfg(any(feature = "shadow", test))]
         if _counters.local_source && tail.kind() == SyntaxKind::PatternCallTail {
             if tails.len() != 1 || has_recovery(tail) {
                 return None;
@@ -2283,7 +2324,6 @@ fn plain_binding_header(
         let [argument] = argument_children.as_slice() else {
             return None;
         };
-        #[cfg(any(feature = "shadow", test))]
         let (argument, annotation) =
             if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern {
                 if argument
@@ -2323,9 +2363,7 @@ fn plain_binding_header(
             };
         parameters.push(AdmittedParameter {
             name: identifier_pattern_name(&argument)?,
-            #[cfg(any(feature = "shadow", test))]
             source: _counters.source_nodes.get(&argument).cloned(),
-            #[cfg(any(feature = "shadow", test))]
             annotation,
         });
     }

@@ -181,7 +181,7 @@ fn shadow_colon_application_multiple_direct_arguments_remain_unsupported() {
     ));
     assert_eq!(multiple.children().count(), 2);
     assert!(matches!(
-        crate::module::local_source::inline_colon_argument(&multiple),
+        crate::module::local_source::inline_colon_argument(&multiple).map_err(HirAvailabilityError::from),
         Err(HirAvailabilityError::StructuralProjection)
     ));
 }

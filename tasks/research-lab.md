@@ -14,6 +14,14 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+Ordinary HIR binding-carrier formation is now implemented and independently
+proved under the unchanged approved scope. Default checking/full HIR tests and
+201 shadow-feature cases pass; see the [formation gate](../notes/progress/2026-10-16-ordinary-hir-carrier.md).
+Ordinary output is preserved before per-binding atomic supplementary formation.
+Default collection retains and exposes the exact carrier in its passing
+identity probe. Actual successor constraint consumption remains the next
+source/solver seam; this gate changes no default inference selection or F5 owner.
+
 Actual ModuleRun/Invocation ownership and Catch installation retention are now
 implemented, with independent code/proof delta review and 55 playground passes.
 The [local receiving certificate](../notes/theory/2026-10-15-runtime-receiving-view-construction.md)

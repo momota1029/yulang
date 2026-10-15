@@ -5,6 +5,8 @@ use std::{cmp::Ordering, ops::Range};
 use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 
 mod module;
+mod source_identity;
+pub use source_identity::HirParameterSourceOrigin;
 
 #[cfg(any(feature = "shadow", test))]
 pub mod shadow;
@@ -16,8 +18,12 @@ pub use module::{
     ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports, lower_module,
 };
 
-#[cfg(any(feature = "shadow", test))]
 pub use module::HirLocalId;
+pub use module::local_source::*;
+pub use module::source_annotation::{
+    SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectRow,
+    SourceOperationDeclaration, SourceOperationId, SourceOperationResolution,
+};
 
 /// Every top-level operator chain associated from one parsed file, in source order.
 ///
@@ -174,7 +180,6 @@ impl OwnedAssociatedExpr {
 
 #[derive(Debug)]
 struct OwnedAtom {
-    #[cfg(any(feature = "shadow", test))]
     source: SyntaxNode,
     kind: SyntaxKind,
     spelling: String,
@@ -201,7 +206,6 @@ fn direct_atom(node: &SyntaxNode) -> Option<OwnedAtom> {
         return None;
     }
     Some(OwnedAtom {
-        #[cfg(any(feature = "shadow", test))]
         source: child.clone(),
         kind: child.kind(),
         spelling: token.text().to_owned(),

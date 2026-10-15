@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Ordinary HIR carrier formation](../progress/2026-10-16-ordinary-hir-carrier.md)
+  — Approved binding-carrier scope implemented with atomic per-root outcomes,
+  preserved ordinary output and authentic provenance. All five local claims
+  have independent proof review; default HIR and 201 shadow-feature cases pass.
+  Default collection consumption, general expression roots and F5 remain open.
+
 - [Request and normal-Catch execution checkpoint](../progress/2026-10-15-playground-request-control.md)
   — Existing operation schedule and shallow normal-return semantics implemented,
   with reviewed [source/control simulation](../theory/2026-10-15-playground-request-control-simulation.md).

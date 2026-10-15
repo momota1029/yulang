@@ -1,6 +1,6 @@
 # Ordinary HIR successor source carrier
 
-Status: Authoritative for the unchanged binding-carrier scope under the direct continuation recorded below; implementation OPEN
+Status: Authoritative for the unchanged binding-carrier scope; HIR formation implemented and proved; solver collection integration OPEN
 Scope: retain successor source facts during the ordinary `ParsedFile -> HirModule` path without changing existing HIR admission, items, errors, diagnostics, or occurrence identities
 Baseline: `5fc8acfc0`
 Authority: active user objective to use successor inference through ordinary entrypoints; existing HIR association, recovery, identity, and Simple-sub withdrawal contracts
@@ -146,8 +146,14 @@ independent compiler review found two minor wording gaps: carrier outcome
 coverage/allocation order and cross-run branded-ID comparison. This draft now
 requires exactly one outcome per admitted root in source order, atomic staging
 of sidecar identities, and structural comparison across distinct artifacts.
-The fresh delta review closed both findings. No implementation review or
-compiler verification has run.
+The fresh delta review closed both findings. The subsequent
+[implementation gate](../progress/2026-10-16-ordinary-hir-carrier.md) has clean
+M2 compiler/specification review and independent constructive proof review.
+Default-feature HIR checking and its full test suite pass; the shadow suite
+passes 201 cases. A default solver collection probe also passes, establishing
+retention and public access to the exact carrier through the existing HIR Arc.
+Actual successor constraint consumption remains the separate source/solver
+integration gate named in §4.
 
 Remaining gates include ordinary source/solver selection, complete Call,
 contextual effect attachment and hygiene, live generalization, complete public

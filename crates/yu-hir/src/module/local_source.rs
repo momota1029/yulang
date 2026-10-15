@@ -2,6 +2,47 @@
 use super::*;
 use yu_syntax::SourceNodeKey;
 
+/// Retained source availability for one already admitted ordinary binding.
+#[derive(Clone, Debug)]
+pub enum SourceCarrierOutcome {
+    Supported(LocalSource),
+    Unsupported(SourceCarrierFailure),
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceCarrierFailureReason {
+    Recovery,
+    UnsupportedForm,
+    SupportedDepth,
+}
+#[derive(Clone, Debug)]
+pub struct SourceCarrierFailure {
+    pub root: DefinitionRootId,
+    pub source: SourceNodeKey,
+    pub reason: SourceCarrierFailureReason,
+}
+/// Source refusal is distinct from corruption or exhaustion at the builder owner.
+#[derive(Debug)]
+pub(crate) enum FormationError {
+    Unsupported(SourceCarrierFailureReason),
+    Availability(HirAvailabilityError),
+}
+impl From<HirAvailabilityError> for FormationError {
+    fn from(error: HirAvailabilityError) -> Self { Self::Availability(error) }
+}
+// The existing opt-in API retains its established refusal result.
+impl From<FormationError> for HirAvailabilityError {
+    fn from(error: FormationError) -> Self {
+        match error {
+            FormationError::Unsupported(_) => Self::StructuralProjection,
+            FormationError::Availability(error) => error,
+        }
+    }
+}
+fn unsupported() -> FormationError {
+    FormationError::Unsupported(SourceCarrierFailureReason::UnsupportedForm)
+}
+
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LocalSourceIndex {
     owner: DefinitionRootId,
@@ -53,6 +94,35 @@ pub struct LocalSourceNamedGroup {
     pub terminal_body: LocalSourceIndex,
 }
 impl LocalSource {
+    fn order_occurrences(
+        &mut self, plan: &RootPlan, counters: &LoweringCounters,
+        artifact: &Arc<HirArtifactToken>, next: &mut u32,
+        identity: &mut crate::source_identity::HirSourceIdentity,
+    ) -> Result<(), HirAvailabilityError> {
+        let mut by_source: HashMap<SourceNodeKey, Vec<usize>> = HashMap::new();
+        by_source.try_reserve(self.expressions.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for (index, expression) in self.expressions.iter().enumerate() {
+            let indices = by_source.entry(expression.source.clone()).or_default();
+            indices.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            indices.push(index);
+        }
+        identity.occurrences.clear();
+        // The candidate worklist visits application tails before their heads.
+        // Assign published IDs only now, by the source owner's child order.
+        for node in plan.node.descendants() {
+            let source = counters.source_nodes.get(&node)
+                .ok_or(HirAvailabilityError::StructuralProjection)?;
+            if let Some(indices) = by_source.remove(source) {
+                for index in indices {
+                    let occurrence = next_occurrence(artifact, next)?;
+                    identity.record_occurrence(occurrence.clone(), source.clone());
+                    self.expressions[index].occurrence = occurrence;
+                }
+            }
+        }
+        if !by_source.is_empty() { return Err(HirAvailabilityError::StructuralProjection); }
+        Ok(())
+    }
     pub fn named_groups(&self) -> &[LocalSourceNamedGroup] { &self.named_groups }
     pub fn named_group(&self, id: &LocalSourceNamedGroupId) -> Option<&LocalSourceNamedGroup> {
         (id.owner == self.owner).then(|| self.named_groups.get(id.ordinal as usize)).flatten()
@@ -292,6 +362,7 @@ fn catch_pattern_bytes(pattern: &LocalSourceCatchValuePattern) -> usize {
 }
 
 pub(super) enum SimpleBodyProjection {
+    #[cfg(any(feature = "shadow", test))]
     Atom(crate::OwnedAtom),
     Unsupported,
 }
@@ -322,25 +393,25 @@ struct Builder<'a> {
     latest: HashMap<Box<str>, usize>,
     work: Vec<Work>,
 }
-fn invalid() -> HirAvailabilityError {
-    HirAvailabilityError::StructuralProjection
+fn invalid() -> FormationError {
+    FormationError::Availability(HirAvailabilityError::StructuralProjection)
 }
-fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), HirAvailabilityError> {
+fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), FormationError> {
     values
         .try_reserve(1)
         .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
     values.push(value);
     Ok(())
 }
-fn identifier_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> {
+fn identifier_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let mut tokens = node.children_with_tokens().filter(|element| !matches!(
         element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
     ));
-    let token = tokens.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
-    if token.kind() != SyntaxKind::Identifier || tokens.next().is_some() { return Err(invalid()); }
+    let token = tokens.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+    if token.kind() != SyntaxKind::Identifier || tokens.next().is_some() { return Err(unsupported()); }
     Ok(token.text().into())
 }
-fn integer_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> {
+fn integer_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let mut tokens = node.children_with_tokens().filter(|element| !matches!(
         element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
     ));
@@ -348,7 +419,7 @@ fn integer_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError>
     if token.kind() != SyntaxKind::Integer || tokens.next().is_some() { return Err(invalid()); }
     Ok(token.text().into())
 }
-fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> {
+fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let mut delimiters = node.children_with_tokens().filter_map(|element| element.into_token())
         .filter(|token| matches!(token.kind(), SyntaxKind::StringStart | SyntaxKind::StringEnd));
     let start = delimiters.next().ok_or_else(invalid)?;
@@ -365,29 +436,29 @@ fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, HirAvailabilityError> 
     let end = usize::from(end.text_range().end() - origin);
     node.text().to_string().get(start..end).map(Box::<str>::from).ok_or_else(invalid)
 }
-fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
+fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let mut children = node.children();
-    let child = children.next().ok_or_else(invalid)?;
+    let child = children.next().ok_or_else(unsupported)?;
     if children.next().is_some() {
-        return Err(invalid());
+        return Err(unsupported());
     }
     Ok(child)
 }
-pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
+pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let child = only_child(node)?;
     if child.kind() != SyntaxKind::OperatorChain {
-        return Err(invalid());
+        return Err(unsupported());
     }
     Ok(child)
 }
-fn body(statement: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
+fn body(statement: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let mut nodes = Vec::new();
     for node in statement.children() {
         push(&mut nodes, node)?;
     }
     if !matches!(nodes.as_slice(), [header, body] if header.kind() == SyntaxKind::BindingHeader && body.kind() == SyntaxKind::BindingBody)
     {
-        return Err(invalid());
+        return Err(unsupported());
     }
     let mut header_kinds = nodes[0]
         .children_with_tokens()
@@ -406,14 +477,57 @@ fn body(statement: &SyntaxNode) -> Result<SyntaxNode, HirAvailabilityError> {
         || header_kinds.next() != Some(SyntaxKind::Equals)
         || header_kinds.next().is_some()
     {
-        return Err(invalid());
+        return Err(unsupported());
     }
     let child = only_child(&nodes[1])?;
     if child.kind() != SyntaxKind::OperatorChain {
-        return Err(invalid());
+        return Err(unsupported());
     }
     Ok(child)
 }
+pub(super) fn form_ordinary(
+    plan: &RootPlan,
+    owner: &DefinitionRootId,
+    parameters: &[HirParameter],
+    namespace: &HashMap<String, Vec<DefId>>,
+    counters: &mut LoweringCounters,
+    artifact: &Arc<HirArtifactToken>,
+    next_occurrence: &mut u32,
+) -> Result<SourceCarrierOutcome, HirAvailabilityError> {
+    let mut identity = counters.source_identity.take()
+        .ok_or(HirAvailabilityError::StructuralProjection)?;
+    let source = counters.source_nodes.get(&plan.node).cloned()
+        .ok_or(HirAvailabilityError::StructuralProjection)?;
+    counters.source_identity = Some(identity.empty_stage());
+    let mut staged_next = *next_occurrence;
+    // Only local candidate headers use this grammar switch. All ordinary
+    // admission, lowering, errors and occurrence allocation have completed.
+    let previous_local_source = counters.local_source;
+    counters.local_source = true;
+    let result = form(plan, owner, parameters, namespace, counters, artifact, &mut staged_next);
+    counters.local_source = previous_local_source;
+    let mut staged_identity = counters.source_identity.take()
+        .ok_or(HirAvailabilityError::StructuralProjection)?;
+    let outcome = match result {
+        Ok((mut carrier, _)) => {
+            staged_next = *next_occurrence;
+            carrier.order_occurrences(plan, counters, artifact, &mut staged_next, &mut staged_identity)?;
+            let merged = identity.append_stage(staged_identity);
+            counters.source_identity = Some(identity);
+            merged?;
+            *next_occurrence = staged_next;
+            return Ok(SourceCarrierOutcome::Supported(carrier));
+        }
+        Err(FormationError::Unsupported(reason)) =>
+            Ok(SourceCarrierOutcome::Unsupported(SourceCarrierFailure {
+                root: owner.clone(), source, reason,
+            })),
+        Err(FormationError::Availability(error)) => Err(error),
+    };
+    counters.source_identity = Some(identity);
+    outcome
+}
+
 pub(super) fn form(
     plan: &RootPlan,
     owner: &DefinitionRootId,
@@ -422,9 +536,12 @@ pub(super) fn form(
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
     next_occurrence: &mut u32,
-) -> Result<(LocalSource, SimpleBodyProjection), HirAvailabilityError> {
-    if has_recovery(&plan.node) || parameters.len() >= 128 {
-        return Err(invalid());
+) -> Result<(LocalSource, SimpleBodyProjection), FormationError> {
+    if has_recovery(&plan.node) {
+        return Err(FormationError::Unsupported(SourceCarrierFailureReason::Recovery));
+    }
+    if parameters.len() >= 128 {
+        return Err(FormationError::Unsupported(SourceCarrierFailureReason::SupportedDepth));
     }
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return Err(invalid());
@@ -576,6 +693,7 @@ pub(super) fn form(
     };
     // Successful formation establishes that this actual root chain has the
     // same simple result without constructing a discarded associated tree.
+    #[cfg(any(feature = "shadow", test))]
     let projection = if source.expressions().iter().any(|expr| {
         matches!(expr.form, LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::If { .. })
     }) {
@@ -584,10 +702,12 @@ pub(super) fn form(
         crate::direct_atom(&body_chain)
             .map_or(SimpleBodyProjection::Unsupported, SimpleBodyProjection::Atom)
     };
+    #[cfg(not(any(feature = "shadow", test)))]
+    let projection = SimpleBodyProjection::Unsupported;
     Ok((source, projection))
 }
 impl Builder<'_> {
-    fn parameter_id(&mut self) -> Result<HirParameterId, HirAvailabilityError> {
+    fn parameter_id(&mut self) -> Result<HirParameterId, FormationError> {
         let ordinal = self.next_parameter;
         self.next_parameter = ordinal.checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
         Ok(HirParameterId::new(self.owner.clone(), ordinal))
@@ -596,7 +716,7 @@ impl Builder<'_> {
         &mut self,
         spelling: Box<str>,
         resolution: LocalSourceResolution,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let previous = self.latest.get(spelling.as_ref()).copied();
         self.lexical
             .try_reserve(1)
@@ -638,7 +758,7 @@ impl Builder<'_> {
             }
         }
     }
-    fn slot(&mut self) -> Result<LocalSourceIndex, HirAvailabilityError> {
+    fn slot(&mut self) -> Result<LocalSourceIndex, FormationError> {
         let index = u32::try_from(self.expressions.len())
             .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         push(&mut self.expressions, None)?;
@@ -647,19 +767,19 @@ impl Builder<'_> {
             ordinal: index,
         })
     }
-    fn key(&self, node: &SyntaxNode) -> Result<SourceNodeKey, HirAvailabilityError> {
+    fn key(&self, node: &SyntaxNode) -> Result<SourceNodeKey, FormationError> {
         self.counters
             .source_nodes
             .get(node)
             .cloned()
             .ok_or_else(invalid)
     }
-    fn next_named_group(&self) -> Result<LocalSourceNamedGroupId, HirAvailabilityError> {
+    fn next_named_group(&self) -> Result<LocalSourceNamedGroupId, FormationError> {
         Ok(LocalSourceNamedGroupId { owner: self.owner.clone(), ordinal: u32::try_from(self.named_groups.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)? })
     }
     fn record_named_group(&mut self, id: LocalSourceNamedGroupId, owner: LocalSourceNamedGroupOwner, node: &SyntaxNode,
         enclosing: Option<LocalSourceNamedGroupId>, formals: Vec<LocalSourceNamedFormal>, terminal_body: LocalSourceIndex,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let terminal_lambda = formals.last().ok_or_else(invalid)?.lambda.clone();
         let source = self.key(node)?;
         push(&mut self.named_groups, LocalSourceNamedGroup { id, owner, source, enclosing, formals, terminal_lambda, terminal_body })
@@ -671,7 +791,7 @@ impl Builder<'_> {
         scope: LocalSourceScope,
         named_group: Option<LocalSourceNamedGroupId>,
         form: LocalSourceForm,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let source = self.key(node)?;
         let occurrence = next_occurrence(self.artifact, self.next_occurrence)?;
         self.counters
@@ -695,14 +815,14 @@ impl Builder<'_> {
         index: LocalSourceIndex,
         scope: LocalSourceScope,
         named_group: Option<LocalSourceNamedGroupId>,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         match node.kind() {
             SyntaxKind::OperatorChain => {
                 let mut children = Vec::new();
                 for child in node.children() {
                     push(&mut children, child)?;
                 }
-                let (head, all_tails) = children.split_first().ok_or_else(invalid)?;
+                let (head, all_tails) = children.split_first().ok_or_else(unsupported)?;
                 let operation_tail = all_tails
                     .first()
                     .filter(|tail| tail.kind() == SyntaxKind::PathTail);
@@ -739,7 +859,7 @@ impl Builder<'_> {
                             | SyntaxKind::CallTail
                             | SyntaxKind::ColonApplicationTail
                     ) {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     if tail.children_with_tokens().any(|element| {
                         matches!(
@@ -747,7 +867,7 @@ impl Builder<'_> {
                             SyntaxKind::Comma | SyntaxKind::ExpressionDelimitedSeparator
                         )
                     }) {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     let argument_node = if tail.kind() == SyntaxKind::CallTail
                         && tail.children().next().is_none()
@@ -785,7 +905,7 @@ impl Builder<'_> {
                 }
                 if let Some(tail) = operation_tail {
                     if head.kind() != SyntaxKind::IdentifierExpression || has_recovery(tail) {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     let tokens: Vec<_> = tail
                         .children_with_tokens()
@@ -794,12 +914,12 @@ impl Builder<'_> {
                         })
                         .collect();
                     let [separator, member] = tokens.as_slice() else {
-                        return Err(invalid());
+                        return Err(unsupported());
                     };
                     if separator.kind() != SyntaxKind::ColonColon
                         || member.kind() != SyntaxKind::Identifier
                     {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     let family = identifier_spelling(head)?;
                     let member: Box<str> = member.to_string().into_boxed_str();
@@ -823,15 +943,15 @@ impl Builder<'_> {
                     element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
                         | SyntaxKind::LineComment | SyntaxKind::BlockComment,
                 ));
-                let slash = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
-                let binder = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
-                let arrow = elements.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
-                let body_node = elements.next().and_then(|element| element.into_node()).ok_or_else(invalid)?;
+                let slash = elements.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+                let binder = elements.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+                let arrow = elements.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+                let body_node = elements.next().and_then(|element| element.into_node()).ok_or_else(unsupported)?;
                 if slash.kind() != SyntaxKind::Backslash || binder.kind() != SyntaxKind::Identifier
                     || arrow.kind() != SyntaxKind::Arrow || body_node.kind() != SyntaxKind::OperatorChain
                     || elements.next().is_some()
                 {
-                    return Err(invalid());
+                    return Err(unsupported());
                 }
                 let id = self.parameter_id()?;
                 let source = self.key(&node)?;
@@ -892,7 +1012,7 @@ impl Builder<'_> {
             )?,
             SyntaxKind::StringLiteral => {
                 if node.descendants().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
-                    return Err(invalid());
+                    return Err(unsupported());
                 }
                 self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(string_spelling(&node)?))?;
             }
@@ -905,7 +1025,7 @@ impl Builder<'_> {
                         SyntaxKind::Comma | SyntaxKind::ExpressionDelimitedSeparator
                     )
                 }) {
-                    return Err(invalid());
+                    return Err(unsupported());
                 }
                 if node.children().next().is_none() {
                     self.set(index, &node, scope, named_group.clone(), LocalSourceForm::Unit)?;
@@ -928,7 +1048,7 @@ impl Builder<'_> {
                 )?;
             }
             SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope, named_group.clone())?,
-            _ => return Err(invalid()),
+            _ => return Err(unsupported()),
         }
         Ok(())
     }
@@ -948,10 +1068,10 @@ impl Builder<'_> {
     fn catch_value_pattern(
         &self, pattern: &SyntaxNode, arm_source: &SourceNodeKey, ordinal: u32,
         binders: &mut Vec<LocalSourceCatchBinder>,
-    ) -> Result<LocalSourceCatchValuePattern, HirAvailabilityError> {
-        if pattern.kind() != SyntaxKind::Pattern { return Err(invalid()); }
+    ) -> Result<LocalSourceCatchValuePattern, FormationError> {
+        if pattern.kind() != SyntaxKind::Pattern { return Err(unsupported()); }
         let pattern = only_child(pattern)?;
-        if pattern.kind() != SyntaxKind::IdentifierPattern { return Err(invalid()); }
+        if pattern.kind() != SyntaxKind::IdentifierPattern { return Err(unsupported()); }
         let spelling = identifier_spelling(&pattern)?;
         if spelling.as_ref() == "_" { return Ok(LocalSourceCatchValuePattern::Wildcard); }
         let binder = LocalSourceCatchBinder {
@@ -967,11 +1087,11 @@ impl Builder<'_> {
         index: LocalSourceIndex,
         scope: LocalSourceScope,
         named_group: Option<LocalSourceNamedGroupId>,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let parts: Vec<_> = node.children().collect();
-        let [scrutinee, block] = parts.as_slice() else { return Err(invalid()); };
+        let [scrutinee, block] = parts.as_slice() else { return Err(unsupported()); };
         if scrutinee.kind() != SyntaxKind::CatchScrutinee || block.kind() != SyntaxKind::CatchBlock {
-            return Err(invalid());
+            return Err(unsupported());
         }
         let scrutinee_node = only_child(scrutinee)?;
         let scrutinee_index = self.slot()?;
@@ -979,45 +1099,45 @@ impl Builder<'_> {
         let mut children = Vec::new();
         for arm in block.children() {
             if arm.kind() == SyntaxKind::CatchArmSeparator { continue; }
-            if arm.kind() != SyntaxKind::CatchArm { return Err(invalid()); }
+            if arm.kind() != SyntaxKind::CatchArm { return Err(unsupported()); }
             let mut parts = Vec::new();
             for child in arm.children() { push(&mut parts, child)?; }
-            let (body, patterns) = parts.split_last().ok_or_else(invalid)?;
-            if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) { return Err(invalid()); }
+            let (body, patterns) = parts.split_last().ok_or_else(unsupported)?;
+            if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) { return Err(unsupported()); }
             let arm_source = self.key(&arm)?;
             let mut binders = Vec::new();
             let pattern = match patterns {
                 [value] => LocalSourceCatchPattern::Value(self.catch_value_pattern(value, &arm_source, 0, &mut binders)?),
                 [operation, continuation] => {
-                    if operation.kind() != SyntaxKind::Pattern { return Err(invalid()); }
+                    if operation.kind() != SyntaxKind::Pattern { return Err(unsupported()); }
                     let mut operation_parts = Vec::new();
                     for child in operation.children() { push(&mut operation_parts, child)?; }
-                    let [head, path, call] = operation_parts.as_slice() else { return Err(invalid()); };
-                    if head.kind() != SyntaxKind::IdentifierPattern || path.kind() != SyntaxKind::PatternPathTail || call.kind() != SyntaxKind::PatternCallTail { return Err(invalid()); }
+                    let [head, path, call] = operation_parts.as_slice() else { return Err(unsupported()); };
+                    if head.kind() != SyntaxKind::IdentifierPattern || path.kind() != SyntaxKind::PatternPathTail || call.kind() != SyntaxKind::PatternCallTail { return Err(unsupported()); }
                     let family = identifier_spelling(head)?;
                     let mut path_tokens = path.children_with_tokens().filter(|element| !matches!(element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment));
-                    if path_tokens.next().map(|token| token.kind()) != Some(SyntaxKind::ColonColon) { return Err(invalid()); }
-                    let member = path_tokens.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
-                    if member.kind() != SyntaxKind::Identifier || path_tokens.next().is_some() { return Err(invalid()); }
+                    if path_tokens.next().map(|token| token.kind()) != Some(SyntaxKind::ColonColon) { return Err(unsupported()); }
+                    let member = path_tokens.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+                    if member.kind() != SyntaxKind::Identifier || path_tokens.next().is_some() { return Err(unsupported()); }
                     let resolution = self.resolve_operation(family.as_ref(), member.text().into());
                     let mut payloads = Vec::new();
                     let mut payload_nodes = call.children();
                     match (payload_nodes.next(), payload_nodes.next()) {
                         (None, None) => push(&mut payloads, LocalSourceCatchPayloadPattern::Unit { source: self.key(call)?, range: range_of(call) })?,
                         (Some(payload), None) => push(&mut payloads, LocalSourceCatchPayloadPattern::Value(self.catch_value_pattern(&payload, &arm_source, 0, &mut binders)?))?,
-                        _ => return Err(invalid()),
+                        _ => return Err(unsupported()),
                     }
                     let continuation = self.catch_value_pattern(continuation, &arm_source, 1, &mut binders)?;
                     LocalSourceCatchPattern::Operation { resolution, operation_source: self.key(operation)?, payloads, continuation }
                 }
-                _ => return Err(invalid()),
+                _ => return Err(unsupported()),
             };
             let body_index = self.slot()?;
             push(&mut arms, LocalSourceCatchArm { source: arm_source.clone(), range: range_of(&arm), pattern, body: body_index.clone() })?;
             push(&mut children, (body.clone(), body_index, LocalSourceScope::CatchArm { catch: index.clone(), arm: arm_source }, binders))?;
 
         }
-        if arms.is_empty() { return Err(invalid()); }
+        if arms.is_empty() { return Err(unsupported()); }
         self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::Catch { scrutinee: scrutinee_index.clone(), arms })?;
         for (body, index, scope, binder) in children.into_iter().rev() {
             push(&mut self.work, Work::CatchArm(body, index, scope, binder, named_group.clone()))?;
@@ -1032,7 +1152,7 @@ impl Builder<'_> {
         index: LocalSourceIndex,
         scope: LocalSourceScope,
         named_group: Option<LocalSourceNamedGroupId>,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let conditional_scope = LocalSourceScope::Expression(index.clone());
         let mut arms = Vec::new();
         let mut children = Vec::new();
@@ -1041,14 +1161,14 @@ impl Builder<'_> {
             match arm.kind() {
                 SyntaxKind::IfArm if else_branch.is_none() => {
                     let parts: Vec<_> = arm.children().collect();
-                    let [condition, body] = parts.as_slice() else { return Err(invalid()); };
+                    let [condition, body] = parts.as_slice() else { return Err(unsupported()); };
                     if condition.kind() != SyntaxKind::Condition
                         || !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
                     {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     let condition_node = only_child(condition)?;
-                    if condition_node.kind() != SyntaxKind::OperatorChain { return Err(invalid()); }
+                    if condition_node.kind() != SyntaxKind::OperatorChain { return Err(unsupported()); }
                     let condition_index = self.slot()?;
                     let body_index = self.slot()?;
                     push(&mut arms, (condition_index.clone(), body_index.clone()))?;
@@ -1058,16 +1178,16 @@ impl Builder<'_> {
                 SyntaxKind::ElseArm if !arms.is_empty() && else_branch.is_none() => {
                     let body = only_child(&arm)?;
                     if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) {
-                        return Err(invalid());
+                        return Err(unsupported());
                     }
                     let body_index = self.slot()?;
                     else_branch = Some(body_index.clone());
                     push(&mut children, (body, body_index))?;
                 }
-                _ => return Err(invalid()),
+                _ => return Err(unsupported()),
             }
         }
-        if arms.is_empty() { return Err(invalid()); }
+        if arms.is_empty() { return Err(unsupported()); }
         self.set(index, &node, scope, named_group.clone(), LocalSourceForm::If { arms, else_branch })?;
         let depth = self.lexical.len();
         // Every condition and body starts in the enclosing lexical environment.
@@ -1083,7 +1203,7 @@ impl Builder<'_> {
         index: LocalSourceIndex,
         scope: LocalSourceScope,
         named_group: Option<LocalSourceNamedGroupId>,
-    ) -> Result<(), HirAvailabilityError> {
+    ) -> Result<(), FormationError> {
         let mut statements = Vec::new();
         let mut expect_statement = true;
         for child in node.children() {
@@ -1091,16 +1211,16 @@ impl Builder<'_> {
                 push(&mut statements, only_child(&child)?)?;
             } else if !expect_statement && child.kind() == SyntaxKind::BlockStatementSeparator {
                 if child.children().next().is_some() {
-                    return Err(invalid());
+                    return Err(unsupported());
                 }
             } else {
-                return Err(invalid());
+                return Err(unsupported());
             }
             expect_statement = !expect_statement;
         }
-        let final_node = statements.pop().ok_or_else(invalid)?;
+        let final_node = statements.pop().ok_or_else(unsupported)?;
         if final_node.kind() != SyntaxKind::OperatorChain {
-            return Err(invalid());
+            return Err(unsupported());
         }
         let block_scope = LocalSourceScope::Expression(index.clone());
         let final_expression = self.slot()?;
@@ -1108,13 +1228,13 @@ impl Builder<'_> {
         let mut initializers = Vec::new();
         for statement in statements {
             if statement.kind() != SyntaxKind::BindingStatement {
-                return Err(invalid());
+                return Err(unsupported());
             }
             let annotation = source_annotation::form(&statement, &self.owner, self.counters)?;
             let (visibility, name, parameters) =
-                plain_binding_header(&statement, self.counters).ok_or_else(invalid)?;
+                plain_binding_header(&statement, self.counters).ok_or_else(unsupported)?;
             if visibility != HirVisibility::Private {
-                return Err(invalid());
+                return Err(unsupported());
             }
             body(&statement)?;
             let ordinal = u32::try_from(self.bindings.len())
@@ -1126,9 +1246,9 @@ impl Builder<'_> {
             let header = statement
                 .children()
                 .find(|child| child.kind() == SyntaxKind::BindingHeader)
-                .ok_or_else(invalid)?;
+                .ok_or_else(unsupported)?;
             let pattern = only_child(&header)?;
-            let binder = pattern.children().next().ok_or_else(invalid)?;
+            let binder = pattern.children().next().ok_or_else(unsupported)?;
             let binder_source = self.key(&binder)?;
             self.counters
                 .source_identity
@@ -1223,6 +1343,157 @@ mod tests {
             &parsed,
             SemanticImports::empty(),
         )
+    }
+
+    fn ordinary_fixture(text: &str) -> (ParsedFile, HirModule, HirModule) {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", "ordinary.yu")));
+        let legacy = lower_module_with_counters(identity.clone(), &parsed, SemanticImports::empty(),
+            &mut LoweringCounters::default()).unwrap();
+        let ordinary = lower_module(identity, &parsed, SemanticImports::empty()).unwrap();
+        (parsed, legacy, ordinary)
+    }
+    fn ordinary_occurrences(module: &HirModule) -> Vec<u32> {
+        let mut work = Vec::new();
+        for item in module.items() {
+            match item {
+                HirItem::Binding(binding) => work.push(binding.value()),
+                HirItem::Expression(expression) => work.push(expression),
+                HirItem::Error { .. } => {}
+            }
+        }
+        let mut ordinals = Vec::new();
+        while let Some(expression) = work.pop() {
+            ordinals.push(expression.occurrence().ordinal());
+            match expression {
+                ResolvedExpr::Apply { callee, argument, .. } => { work.push(callee); work.push(argument); }
+                ResolvedExpr::Lambda { body, .. } => work.push(body),
+                ResolvedExpr::Group { inner, .. } => work.push(inner),
+                _ => {}
+            }
+        }
+        ordinals
+    }
+    #[test]
+    fn ordinary_carriers_preserve_existing_hir_and_structural_identities() {
+        for text in [
+            "my x = 1; my y = x", "my f x = x; my missing = unknown",
+            "my x = @; my y = 1", "my bad = (1, 2); my later = 1",
+            "my x = later; my later = 1", "my x = 1; my x = 2; my y = x",
+            "my f x y = x; my accepted = 1", "my x: int = 1; my accepted = 1",
+            "1; my x = 1; x; my y = x", r"my value = \x -> x", "my operation = E::read",
+        ] {
+            let (_, legacy, ordinary) = ordinary_fixture(text);
+            assert_eq!(legacy, ordinary, "{text}");
+            assert_eq!(ordinary_occurrences(&legacy), ordinary_occurrences(&ordinary), "{text}");
+            let old_bindings: Vec<_> = legacy.items().iter().filter_map(|item|
+                if let HirItem::Binding(binding) = item { Some(binding) } else { None }).collect();
+            let new_bindings: Vec<_> = ordinary.items().iter().filter_map(|item|
+                if let HirItem::Binding(binding) = item { Some(binding) } else { None }).collect();
+            assert_eq!(ordinary.source_carrier_outcomes().len(), old_bindings.len(), "{text}");
+            for ((old, new), (owner, _)) in old_bindings.iter().zip(new_bindings).zip(ordinary.source_carrier_outcomes()) {
+                assert_eq!(old.definition_root().definition, new.definition_root().definition);
+                assert_eq!(owner, new.definition_root());
+                assert_eq!(old.parameters().iter().map(|p| p.id().ordinal()).collect::<Vec<_>>(),
+                    new.parameters().iter().map(|p| p.id().ordinal()).collect::<Vec<_>>());
+            }
+        }
+    }
+    #[test]
+    fn ordinary_carrier_reuses_branded_roots_parameters_and_namespace() {
+        let (_, _, module) = ordinary_fixture("my f x = x; my use = f");
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        assert_eq!(source.definition_root(), binding.definition_root());
+        let LocalSourceForm::Lambda { parameter, body } = &source.expression(source.body()).unwrap().form
+            else { panic!("named lambda"); };
+        assert_eq!(&parameter.id, binding.parameters()[0].id());
+        assert!(module.definition_source_key(binding.definition_root()).unwrap().is_some());
+        assert!(matches!(module.parameter_source_origin(&parameter.id).unwrap(),
+            Some(crate::HirParameterSourceOrigin::IdentifierPattern(key)) if key == &parameter.source));
+        for expression in source.expressions() {
+            assert_eq!(module.occurrence_source_key(&expression.occurrence).unwrap(), Some(&expression.source));
+        }
+
+        assert!(matches!(&source.expression(body).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if id == &parameter.id));
+        let (_, second) = &module.source_carrier_outcomes()[1];
+        let SourceCarrierOutcome::Supported(second) = second else { panic!("supported name"); };
+        assert!(matches!(&second.expression(second.body()).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(id), .. } if id == binding.id()));
+        let (_, _, foreign) = ordinary_fixture("my f x = x");
+        let HirItem::Binding(foreign) = &foreign.items()[0] else { panic!("binding"); };
+        assert!(matches!(module.source_carrier(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
+        assert!(matches!(module.local_source(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
+    }
+    #[test]
+    fn ordinary_inline_parameter_provenance_retains_source_key_and_binder_span() {
+        let (_, legacy, module) = ordinary_fixture(r"my value = \x -> x");
+        assert_eq!(legacy, module);
+        let SourceCarrierOutcome::Supported(source) = &module.source_carrier_outcomes()[0].1 else { panic!("supported inline lambda"); };
+        let LocalSourceForm::Lambda { parameter, .. } = &source.expression(source.body()).unwrap().form
+            else { panic!("inline lambda"); };
+        assert!(matches!(module.parameter_source_origin(&parameter.id).unwrap(),
+            Some(crate::HirParameterSourceOrigin::InlineLambda { lambda, binder_range })
+                if lambda == &parameter.source && binder_range == &parameter.range));
+    }
+    #[test]
+    fn ordinary_unsupported_roots_leave_no_partial_identity_and_later_roots_continue() {
+        for text in ["my bad = @; my later = 1", "my bad = {my local x = x; (1, 2)}; my later = 1"] {
+            let (_, legacy, module) = ordinary_fixture(text);
+            assert_eq!(legacy, module);
+            assert!(matches!(&module.source_carrier_outcomes()[0].1, SourceCarrierOutcome::Unsupported(_)));
+            let SourceCarrierOutcome::Supported(later) = &module.source_carrier_outcomes()[1].1 else { panic!("later supported"); };
+            assert_eq!(later.expressions().len(), 1);
+            assert_eq!(later.expressions()[0].occurrence.ordinal(), 2);
+            let identity = module.source_identity.as_ref().unwrap();
+            assert!(identity.locals.is_empty());
+            assert!(identity.parameters.is_empty());
+            assert!(identity.local_parameter_owners.is_empty());
+            assert_eq!(identity.maximum_occurrence_ordinal(), Some(2));
+        }
+    }
+    #[test]
+    fn ordinary_source_occurrences_follow_actual_source_child_order() {
+        let (parsed, _, module) = ordinary_fixture("my f x = {my g y = y; g(x)}");
+        let SourceCarrierOutcome::Supported(source) = &module.source_carrier_outcomes()[0].1 else { panic!("supported"); };
+        let keys = crate::source_identity::source_keys(&parsed);
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let ranks: HashMap<_, _> = root.descendants().enumerate().map(|(i, node)| (keys[&node].clone(), i)).collect();
+        let mut expressions: Vec<_> = source.expressions().iter().collect();
+        expressions.sort_by_key(|expression| expression.occurrence.ordinal());
+        let source_ranks: Vec<_> = expressions.iter().map(|expression| ranks[&expression.source]).collect();
+        assert!(source_ranks.windows(2).all(|pair| pair[0] <= pair[1]));
+        let maximum = ordinary_occurrences(&module).into_iter().max().unwrap();
+        assert!(expressions.iter().all(|expression| expression.occurrence.ordinal() > maximum));
+        assert!(expressions.iter().all(|expression| module.owns_occurrence(&expression.occurrence)));
+    }
+    #[test]
+    fn ordinary_internal_source_failure_is_availability_and_discards_staged_identities() {
+        let (parsed, _, module) = ordinary_fixture("my f = {my x = 1; x}");
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let mut counters = LoweringCounters::default();
+        counters.source_nodes = crate::source_identity::source_keys(&parsed);
+        counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(&parsed));
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let mut plans = vec![plan_root(root.children().next().unwrap(), 0, module.identity(), &mut counters).unwrap()];
+        let namespace = namespace(&mut plans).unwrap();
+        let missing = root.descendants().find(|node| node.kind() == SyntaxKind::IdentifierExpression).unwrap();
+        counters.source_nodes.remove(&missing);
+        let mut next = 10;
+        assert!(matches!(form_ordinary(&plans[0], binding.definition_root(), binding.parameters(), &namespace,
+            &mut counters, &module.artifact, &mut next), Err(HirAvailabilityError::StructuralProjection)));
+        assert_eq!(next, 10);
+        let identity = counters.source_identity.as_ref().unwrap();
+        assert!(identity.occurrences.is_empty());
+        assert!(identity.locals.is_empty());
+        assert!(identity.parameters.is_empty());
+        assert!(identity.local_parameter_owners.is_empty());
+        assert!(!counters.local_source);
     }
 
     #[test]
