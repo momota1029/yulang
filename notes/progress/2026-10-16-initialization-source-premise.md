@@ -3,8 +3,9 @@
 Date: 2026-10-16
 Branch: `research/simple-sub-intrusion`
 Runtime baseline: `35e87f844`; record baseline: `64c875556`
-Status: two bounded source results independently reviewed; original successor
-control correspondence OPEN. No new runtime law or implementation adopted.
+Status: bounded source results independently reviewed; local initializer handler
+boundary now implemented/proved. Whole successor initialization/order and
+materialization correspondence remain OPEN.
 
 The [consumed user correction](../../questions/2026-10-16-resumed-definition-materialization/receipt.md)
 requires source reachability before choosing repeated-definition publication
@@ -118,3 +119,16 @@ their limits. A bounded architecture packet locates the actual effect-order and
 entry/return constructions, with initializer/caller handler separation as an
 independent local consequence. No production edit or parent proof closure
 accompanies answer consumption; no compiler check or measurement is repeated.
+
+## Local boundary repair integrated
+
+The [initializer boundary gate](2026-10-16-playground-initializer-boundary.md)
+now implements the approved escaping-effect clause with independent constructive
+and actual-source semantic/specification review. All 108 playground tests pass.
+The nearest pending GlobalRead stops caller-handler search without altering
+internal handlers, cache return, live owners or store. This proves only that
+local boundary: the separately reviewed source-observation construction separates
+internal Requests from outward initialization effects. The pending
+`questions/2026-10-16-initialization-effect-order-observation/question.md` asks
+which observation supplies the ordering predicate, preserving prior approval
+and every unresolved forward-reference/materialization gate.

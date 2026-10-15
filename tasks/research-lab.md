@@ -56,9 +56,13 @@ The [approved replacement](../notes/design/2026-10-16-initialization-order-globa
 conformance checks. Effect-producing lines cannot exchange relative order;
 escaping initializer effects require global handling or an error. Blanket
 dependency-first timing, detection/uninitialized-reference policy and old A/B
-laws are unselected. The source architecture packet now separates effect-order
-construction from a local initializer/caller handler-boundary theorem; both
-implementation parents stay OPEN pending proof. Native work continues.
+laws are unselected. The [local handler boundary](../notes/progress/2026-10-16-playground-initializer-boundary.md)
+now has actual constructive/code correspondence and CLEAN M2 semantic/spec review:
+all 108 playground tests pass, including retained live-prefix and internal-handler
+controls. Ordering/source-admission and whole materialization remain OPEN; the
+separate source-observation proof distinguishes internally handled Requests from
+outward initializer effects before selecting a detector or scheduler. Native
+work continues independently.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic

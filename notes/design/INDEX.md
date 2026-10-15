@@ -68,8 +68,11 @@ This index is a navigation aid. The listed source document remains authoritative
   integrated `885012b42`, now fixes effect-producing-line relative order and
   global handling/error for escaping initialization effects. It selects neither
   offered blanket dependency-first rule, an effect detector nor additional
-  uninitialized-reference policy. Source correspondence and the local handler
-  boundary remain proof/implementation gates; old A/B laws remain unselected.
+  uninitialized-reference policy. The
+  [local handler boundary](../progress/2026-10-16-playground-initializer-boundary.md)
+  now has independently reviewed constructive/code correspondence and 108 passing
+  playground tests. Effect-order/source admission and whole materialization remain
+  OPEN; old A/B laws remain unselected.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated

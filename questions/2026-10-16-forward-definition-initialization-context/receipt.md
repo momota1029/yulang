@@ -48,3 +48,13 @@ for exact entry/return, order and global-consumer obligations. The local
 initializer-to-caller handler boundary can be proved separately from scheduling;
 its implementation still requires that proof and independent review. Native
 inference proofs continue independently.
+
+## Applied local escaping-effect boundary
+
+The [local gate](../../notes/progress/2026-10-16-playground-initializer-boundary.md)
+now implements the approved escaping-effect rule after constructive proof and
+CLEAN semantic/spec reviews. It prevents caller-handler search across pending
+GlobalRead while retaining internal handlers, live state and normal cache return.
+All 108 playground tests pass. The answer is not reapplied as dependency-first
+permission: effect-order observation/source scheduling and whole materialization
+remain OPEN. No old A/B or automatic-global-consumer law is inferred.

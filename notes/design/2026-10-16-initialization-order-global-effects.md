@@ -64,3 +64,13 @@ and will dispatch proof-supported implementation only within established scope.
 The [receipt](../../questions/2026-10-16-forward-definition-initialization-context/receipt.md)
 records exact hashes, approval provenance and consumption checks. The unapproved
 revision-1 draft is preserved locally outside the integration bundle.
+
+## Local implementation checkpoint
+
+The [initializer handler boundary](../progress/2026-10-16-playground-initializer-boundary.md)
+implements the escaping-effect clause only. The constructive top-GlobalRead cut
+and exact repaired-source correspondence have independent CLEAN semantic/spec
+review; all 108 playground tests pass. This selects no source effect detector,
+early-entry timing or global consumer. Initialization order/source admission
+and whole materialization remain OPEN, including which source observation
+constitutes an effect-producing initializer for the ordering law.

@@ -24,6 +24,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   workspace check. The CLI mixed-root example prints `7`.
   [Integration and exact verification](../notes/progress/2026-10-16-module-expression-integration.md).
 
+- **Initializer handler boundary implemented and proved:** the [local gate](../notes/progress/2026-10-16-playground-initializer-boundary.md)
+  stops escaping initializer requests before a pending GlobalRead can search
+  caller handlers. Internal Catch/Resume, nested boundaries, original event/
+  source and live caller/cache/owner/view state have constructive correspondence
+  and CLEAN M2 semantic/spec reviews. One minor new control was strengthened;
+  all 108 playground tests pass without warnings. No early-entry ordering,
+  detector, builtin consumer or old A/B law is selected. The complete source
+  initialization/order and materialization parents remain OPEN.
+
 - **Resumed-definition source premise corrected:** bundle `1e62dfdc3` and its
   [receipt](../questions/2026-10-16-resumed-definition-materialization/receipt.md)
   consume the user's correction: a definition's initialization effect is not
@@ -54,9 +63,11 @@ Status: full objective remains active. Native extrusion now schedules current co
   blanket dependency-first timing nor an effect detector/uninitialized-reference
   policy is selected. The [receipt](../questions/2026-10-16-forward-definition-initialization-context/receipt.md)
   records exact validation and independent conformance review. Architectural
-  source correspondence now separates effect ordering from the independently
-  provable initializer/caller handler boundary. Both implementation/proof parents
-  remain OPEN; no delimiter or ownership change is adopted yet.
+  source correspondence separates effect ordering from the now proved and
+  implemented initializer/caller handler boundary above. Its top-GlobalRead cut
+  changes no owner or initialization timing. The separate effect-order source
+  observation packet distinguishes internal requests from outward initializer
+  effects; its boundary interpretation and whole materialization remain OPEN.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 

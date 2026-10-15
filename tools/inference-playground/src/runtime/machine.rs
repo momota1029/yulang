@@ -1344,19 +1344,15 @@ impl Machine {
                 return Ok(());
             }
         }
+        // An initializer's escaping request cannot search handlers installed
+        // around the Name that demanded its value. Keep the cache-write frame
+        // and caller prefix live; only the already unwound suffix is saved.
+        if matches!(self.frames.last(), Some(Frame::GlobalRead { .. })) {
+            self.stop_unhandled_request(request);
+            return Ok(());
+        }
         let Some(frame) = self.frames.pop() else {
-            let continuation = ContinuationHandle(self.continuations.len());
-            self.continuations.push(SavedContinuation {
-                frames: request.suffix,
-                observations: request.observations,
-            });
-            self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
-                source: request.source,
-                operation: request.declaration.id.clone(),
-                payload: request.payload.value,
-                event: request.event,
-                continuation,
-            });
+            self.stop_unhandled_request(request);
             return Ok(());
         };
         let template = match frame {
@@ -1402,6 +1398,20 @@ impl Machine {
         request.suffix.push(template);
         self.state = State::Request(request);
         Ok(())
+    }
+    fn stop_unhandled_request(&mut self, request: PendingRequest) {
+        let continuation = ContinuationHandle(self.continuations.len());
+        self.continuations.push(SavedContinuation {
+            frames: request.suffix,
+            observations: request.observations,
+        });
+        self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
+            source: request.source,
+            operation: request.declaration.id.clone(),
+            payload: request.payload.value,
+            event: request.event,
+            continuation,
+        });
     }
     fn abandon_suffix(&mut self, suffix: &[SavedFrame]) {
         // These writes will never run: release only their pending materialization
@@ -1719,6 +1729,153 @@ mod module_expression_tests {
         );
         assert_eq!(machine.cells.len(), 3); // Two globals and the actual local.
         assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn initializer_stop_retains_the_cache_write_and_live_caller_prefix() {
+        // A low-level boundary reproduction, without a claim about source
+        // initialization order or resumed cache publication.
+        let mut machine = machine(
+            "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> k p }\nmy main = relay later\nmy later = io::tick 7",
+            true,
+        );
+        for _ in 0..10_000 {
+            if matches!(machine.state, State::Request(_))
+                && matches!(machine.frames.last(), Some(Frame::GlobalRead { .. }))
+            {
+                break;
+            }
+            assert!(matches!(machine.step(), RuntimeOutcome::Running));
+        }
+        let State::Request(request) = &machine.state else {
+            panic!("pending request");
+        };
+        let expected_source = request.source.clone();
+        let expected_operation = request.declaration.id.clone();
+        let expected_event = request.event;
+        let expected_payload = request.payload.value;
+        let suffix_len = request.suffix.len();
+        let observations_len = request.observations.len();
+        let Frame::GlobalRead { cell, .. } = machine.frames.last().unwrap() else {
+            panic!("cache write");
+        };
+        let cell = *cell;
+        assert!(machine.cells[cell].is_none());
+        assert!(machine.initializing_globals.contains(&cell));
+        assert!(
+            machine
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, Frame::CatchReturn { .. }))
+        );
+        let frames_len = machine.frames.len();
+        let caller_handlers: Vec<_> = machine
+            .frames
+            .iter()
+            .enumerate()
+            .filter_map(|(index, frame)| {
+                if let Frame::CatchReturn { installation, .. } = frame {
+                    Some((index, *installation))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let markers = machine.initializing_globals.clone();
+        let owner = machine.current_owner;
+        let active = machine.active_receivers.clone();
+        let invocation_activity: Vec<_> = machine
+            .invocations
+            .iter()
+            .map(|invocation| invocation.active)
+            .collect();
+        let views: Vec<_> = machine
+            .executing_views
+            .iter()
+            .map(|view| (view.view, view.receipt, view.occurrence))
+            .collect();
+        let templates_len = machine.resume_templates.len();
+        let values_len = machine.values.len();
+        let RuntimeOutcome::UnhandledRequest {
+            source,
+            operation,
+            event,
+            payload,
+            continuation,
+        } = machine.step()
+        else {
+            panic!("initializer boundary must stop before caller selection");
+        };
+        assert_eq!(source.source_root, expected_source.source_root);
+        assert_eq!(source.occurrence, expected_source.occurrence);
+        assert_eq!(source.range, expected_source.range);
+        assert_eq!(operation, expected_operation);
+        assert_eq!(event, expected_event);
+        assert_eq!(payload, expected_payload);
+        assert_eq!(machine.frames.len(), frames_len);
+        assert!(
+            matches!(machine.frames.last(), Some(Frame::GlobalRead { cell: retained, .. }) if *retained == cell)
+        );
+        assert!(
+            machine
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, Frame::CatchReturn { .. }))
+        );
+        assert_eq!(
+            machine
+                .frames
+                .iter()
+                .enumerate()
+                .filter_map(|(index, frame)| {
+                    if let Frame::CatchReturn { installation, .. } = frame {
+                        Some((index, *installation))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            caller_handlers
+        );
+        assert_eq!(machine.initializing_globals, markers);
+        assert!(machine.cells[cell].is_none());
+        assert_eq!(machine.current_owner, owner);
+        assert_eq!(machine.active_receivers, active);
+        assert_eq!(
+            machine
+                .invocations
+                .iter()
+                .map(|invocation| invocation.active)
+                .collect::<Vec<_>>(),
+            invocation_activity
+        );
+        assert_eq!(
+            machine
+                .executing_views
+                .iter()
+                .map(|view| (view.view, view.receipt, view.occurrence))
+                .collect::<Vec<_>>(),
+            views
+        );
+        assert_eq!(
+            machine.resume_templates.len(),
+            templates_len,
+            "caller raw binder is never captured"
+        );
+        assert_eq!(
+            machine.values.len(),
+            values_len,
+            "no continuation value is published"
+        );
+        let saved = &machine.continuations[continuation.0];
+        assert_eq!(saved.frames.len(), suffix_len);
+        assert_eq!(saved.observations.len(), observations_len);
+        assert!(
+            !saved
+                .frames
+                .iter()
+                .any(|frame| matches!(frame, SavedFrame::Ordinary(Frame::GlobalRead { .. })))
+        );
     }
 
     #[test]
