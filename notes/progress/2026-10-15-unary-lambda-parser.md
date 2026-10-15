@@ -146,6 +146,9 @@ was reviewed, repaired and integrated separately at `77870d207`. It establishes
 one source-generated AE/body/RE copy and FreshUse route; general shared/merged
 histories and global inference/runtime theorems remain OPEN.
 
-The local parser question and direct-resolution receipt remain uncommitted.
-No separate answering-primary bundle or archival authorization is claimed.
+The user subsequently requested archiving the resolved local parser question
+and direct-resolution receipt. Their two-file historical archive records that
+instruction and preserves the original question body; no separate
+answering-primary bundle is fabricated. The completed HIR follow-on is
+recorded separately at `266da3dd6`; callback-context work remains OPEN.
 `tasks/current.md`, `tasks/research-lab.md` and the design index are synchronized.

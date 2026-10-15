@@ -153,7 +153,8 @@ Pure/Handler context delivery, full inference proof, ordinary HIR cutover,
 imports/loops/std and runtime remain OPEN.
 
 Primary synchronized `tasks/current.md`, `tasks/research-lab.md`, the design
-index and the proof's adjudication status. The parser question directory stays
-untracked and outside this checkpoint. No documentation or record sync is
+index and the proof's adjudication status. The parser question directory was
+excluded from this implementation checkpoint; the user subsequently requested
+its separate historical archive. No documentation or record sync is
 silently deferred. The coherent change is integrated on the recorded research
 branch after explicit-path staging and outbound-range inspection.

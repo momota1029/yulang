@@ -28,7 +28,8 @@ The exact-source inline-lambda syntax blocker is closed under the
 [approved unary-lambda parser construction](../notes/design/2026-10-15-unary-lambda-parser.md),
 with M3 compiler/specification review and direct user approval. Complete-header
 precedence and full lambda-body ML parsing are explicit scoped architecture
-changes. Its local question/receipt remain uncommitted; archive was not requested.
+changes. The resolved local question/receipt are subsequently archived at the
+user's explicit request, without a fabricated answering-primary bundle.
 The [implementation and construction proof](../notes/progress/2026-10-15-unary-lambda-parser.md)
 are now independently reviewed and verified: 20 focused lambda passes, 1417
 syntax passes with one existing manual ignored, and a successful playground

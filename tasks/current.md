@@ -25,8 +25,9 @@ Status: full objective remains active. Native extrusion now schedules current co
   is Authoritative after M3 compiler/specification review and the user's direct
   approval `基本的にはそれでいいと思う`. It selects complete-header precedence, lossless CST and ordinary
   full-body expression/recovery, without reviving old F5 callback construction.
-  The local question/receipt remain uncommitted because archival integration
-  was not requested; no answering-primary bundle is invented. Implementation
+  The user subsequently requested archiving the resolved local question/receipt;
+  that historical pair is retained without inventing an answering-primary
+  bundle. Implementation
   followed the direct approval. M3 semantic/specification delta reviews and
   fresh independent proof review have no remaining findings. The
   [construction theorem](../notes/theory/2026-10-15-unary-lambda-parser-preservation.md)
