@@ -51,6 +51,10 @@ The [reviewed role bridge](../notes/theory/2026-10-16-definition-name-computatio
 proves exact pure Name/Apply and populated-cache correspondence. Its unresolved
 empty-cell materialization needs an independently justified source execution
 context; pure Name does not select an initializer delimiter or cache law.
+The pending forward-definition-initialization-context question is independently
+reviewed and presented. It asks the foundational timing/consumer rule without
+claiming a valid cache-bearing witness or selecting old A/B publication laws.
+Only dependent runtime semantics waits for that answer and its proof.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic
@@ -162,6 +166,14 @@ The next bounded constructive packet proves the required forward native-joint-
 constraint-to-source invocation direction, keeping same-witness coverage and
 the selected abstraction's principality requirements distinct. No parent or
 production dependency is silently retired.
+The [forward pass](../notes/theory/2026-10-16-first-call-native-forward-soundness.md)
+has independent CLEAN review. Actual Unit/Delay validity precedes the still
+unproved declared-target inlet check. A 25-minute `prover` assignment actually
+requests `gpt-6-astra`/low for this localized Unit-arrow inlet; effective runtime
+metadata is unavailable. One complementary static falsification lane retains
+actual source qualification and original contextual incidences. Neither lane
+may assume target checking, choose an arbitrary D_F, or close the parent from
+Unit scalar equality. Full Result/context soundness remains subsequent.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

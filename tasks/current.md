@@ -47,6 +47,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   correspondence. Empty-cache initialization's source execution context is the
   precise remaining premise. No delimiter or new cache law follows from Name
   purity, and another pure-Name lemma would not supply that operational rule.
+  The independently reviewed pending question
+  `questions/2026-10-16-forward-definition-initialization-context/question.md`
+  now asks for that foundational forward-demand timing/initialization context,
+  preserving the rejected example and leaving the old A/B law unselected.
+  No proposed delimiter or ownership change is adopted before its answer and
+  the corresponding proof; independent inference work continues.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 
@@ -170,6 +176,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   constraints to lawful source invocation and same-witness coverage, using
   sufficient containment in its valid direction. Full abstract principality,
   B and production remain separate required gates.
+  The [forward pass](../notes/theory/2026-10-16-first-call-native-forward-soundness.md)
+  now has independent CLEAN review: actual Unit/Delay is valid at its original
+  view, but target-inlet checking is not supplied by scalar equality or a
+  nominally formed interpretation. A bounded actual `prover` spawn requests
+  Astra/low for this precise declared `() -> 'a` inlet and Argument/AE context
+  correspondence, alongside a distinct static falsification audit. This is a
+  new localized proof question; no new native semantic choice is presumed.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

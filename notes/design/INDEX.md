@@ -28,6 +28,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Apply translation. Its reverse implication stays OPEN while required forward
   soundness is pursued; abstraction-relative principality does not automatically
   imply universal extensional completeness or authorize gate retirement.
+  The reviewed [forward constructor pass](../theory/2026-10-16-first-call-native-forward-soundness.md)
+  establishes Unit/Delay validity and locates the original declared-arrow inlet
+  correspondence. The narrow proof is active; scalar truth is not whole checked
+  admission, and neither direction of the parent is closed.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
@@ -43,6 +47,9 @@ This index is a navigation aid. The listed source document remains authoritative
   explains the escape. The [Name-role proof](../theory/2026-10-16-definition-name-computation-role.md)
   independently closes pure Name/Apply and populated-cache correspondence;
   empty-global execution context remains an open source operational premise.
+  The reviewed pending question
+  `questions/2026-10-16-forward-definition-initialization-context/question.md`
+  asks the timing/context rule; no materialization semantics is adopted yet.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
