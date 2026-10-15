@@ -371,8 +371,17 @@ for the whole-Value rewrite consumer. The authentic two-call source witnesses
 the branch and missing original bound fiber, with scalar compensation and
 some Derived provenance explicitly retained. No observable semantic CE is
 claimed. The primary authorizes only the [causal provenance repair](../notes/progress/2026-10-16-native-value-rewrite-provenance.md),
-with semantic and resource closure review; universal duplicate/H2 parents
-stay OPEN. Cost audit consumes zero timing samples/processes.
+with semantic and resource closure review. The repair and
+[actual source bridge](../notes/theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+are now complete: the original local native operational retention composition
+has fresh independent semantic acceptance; resource review is CLEAN. One new
+fixture quiescence finding and one minor source-qualification correction were
+batched and closed without a production-code repair round. The final 17
+intrusion, one contextual completion and all 108 playground cases pass, default
+solver checking passes, and the exact unchanged regression fails before/passes
+after. Source MODEL, semantic adequacy of the underlying operations, full H2/U
+and global parents stay OPEN. Cost audit consumes zero timing samples/processes;
+the progress gate records actual commands, resource telemetry and omitted suites.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

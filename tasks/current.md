@@ -34,6 +34,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   Missing generation, semantic duplicate redundancy, contextual interpretation,
   exact source-cut reachability and full H2/U remain OPEN; H3/P stay disabled.
 
+- **Native retained-Value rewrite provenance repaired and proved:** the
+  [local gate](../notes/progress/2026-10-16-native-value-rewrite-provenance.md)
+  records genuine whole-Value extrusion separately from diagnostic consequences
+  in the existing candidate memo. Ordinary repeated relations now reach original
+  bound admission; genuine reuse preserves one copied graph through invalidation,
+  reopening and rollback. The [actual invariant](../notes/theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+  and native operational retention composition have CLEAN semantic/resource
+  review. An unchanged source regression fails before and passes after repair;
+  17 intrusion, one context and all 108 playground cases pass without warnings,
+  together with the default-feature solver check. No source MODEL, general
+  extrusion/context semantic adequacy, H2/U or F5 gate follows.
+
 - **Initializer handler boundary implemented and proved:** the [local gate](../notes/progress/2026-10-16-playground-initializer-boundary.md)
   stops escaping initializer requests before a pending GlobalRead can search
   caller handlers. Internal Catch/Resume, nested boundaries, original event/
@@ -344,9 +356,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   Independent semantic adjudication accepts this MAJOR under contextual
   attachment §4 and authorizes the [bounded causal repair](../notes/progress/2026-10-16-native-value-rewrite-provenance.md).
   The authentic source trace loses an original bound fiber, but no observable
-  type-result counterexample is claimed. The universal preservation theorem
-  remains OPEN; other mutation cases are bounded evidence. M2 repair reviewers
-  cover semantic/lifecycle and hot-path resource risks; no code change yet.
+  type-result counterexample is claimed. The implemented provenance field and
+  [actual bridge](../notes/theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+  now have CLEAN semantic/resource closure review; the original local native
+  operational retention claim is proved. Source semantic adequacy, full H2/U
+  and other global parents remain OPEN. Final verification and scope are recorded
+  in the local gate above; no broad source theorem is inferred from test passes.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

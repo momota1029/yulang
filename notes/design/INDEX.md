@@ -100,10 +100,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
-  consumed as whole-Value extrusion certificates. Independent semantic review
-  authorizes a bounded causal repair under the existing attachment contract.
-  The source trace is not an observable counterexample; universal duplicate,
-  source and production parents remain OPEN.
+  consumed as whole-Value extrusion certificates. The causal repair and
+  [actual constructor/lifecycle proof](../theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+  now have CLEAN semantic/resource closure review. The original local native
+  operational retention claim closes; the unchanged regression fails before
+  and passes after, with 18 focused solver and all 108 playground cases passing.
+  The source trace is not an observable counterexample; underlying semantic
+  adequacy, source MODEL, full H2/U and production parents remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

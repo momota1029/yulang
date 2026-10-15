@@ -2,7 +2,7 @@
 
 Date: 2026-10-16
 Branch: `research/simple-sub-intrusion`
-Status: confirmed local responsibility defect; bounded repair active
+Status: bounded causal repair and native operational retention gate complete
 Code baseline: native `bf0562382`; full working HEAD `43d8ab1a1`
 
 ## Cause and existing authority
@@ -76,12 +76,66 @@ memory, journal reconstruction and repeated dispatch; avoid another registry
 or allocating fresh copy graphs. Timing budget remains zero samples/processes
 unless a concrete unresolved decision later requires measurement.
 
-No new executable checks have run at this checkpoint. Broad solver/workspace
-safety is not established by the old playground tests; inspect focused
-inventory and resource bounds before the code verification phase.
+Independent semantic `checked_result_semantics` and resource
+`rewrite_provenance_cost` closure reviews are CLEAN. One new lifecycle fixture
+initially attempted Fresh admission with unfinished diagnostic work. The
+batched repair uses a separate identical solver instance driven through two
+complete production `constrain_live_item` calls and asserts quiescence before
+the original rollback assertions. No unfinished state was cleared, production
+code changed or expectation weakened. A minor proof qualification now
+distinguishes the authentic source trace from manually constructed mixed
+diagnostic coverage. The semantic delta reviewer accepts both repairs.
+
+The [constructive invariant and actual code bridge](../theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+has fresh independent semantic acceptance, including the original local native
+operational obligation-retention composition. The primary accepts that gate
+under its existing transition/drain laws. This is not source MODEL or semantic
+adequacy of every underlying extrusion/context rewrite.
+
+## Exact verification
+
+All Cargo runs used two build jobs, one test thread and a 180-second timeout.
+The unchanged authentic regression has SHA-256
+`2a5550bef88d985c4d344247c9c91c865a49c2e7e3ab5a9b620b1f074261f5a0`.
+It was transplanted unchanged into a disposable detached `8d2699197` worktree:
+0 passed/1 failed at the missing original-bound association. The same test
+passes after repair. Cached baseline binaries from shared-target reuse were
+excluded; candidate evidence uses a fresh root-source compilation. The
+disposable worktree was removed after exact fixture equality verification.
+
+Commands below share the prefix `CARGO_BUILD_JOBS=2 timeout 180s`:
+
+```sh
+cargo test --locked -p yu-solver --features shadow-apply-candidate --lib candidate_intrusion::tests::repeated_source_argument_keeps_original_bound_relations_with_ordinary_diagnostics -- --exact --test-threads=1
+cargo test --locked -p yu-solver --features shadow-apply-candidate --lib candidate_intrusion::tests:: -- --test-threads=1
+cargo test --locked -p yu-solver --features shadow-apply-candidate --lib candidate_context::tests::exact_relation_completion_keeps_contexts_and_component_kinds_distinct -- --exact --test-threads=1
+cargo check --locked -p yu-solver
+cargo test --locked -p yu-playground -- --test-threads=1
+```
+
+Final results: authentic regression 1 pass; intrusion module 17 pass; contextual
+completion 1 pass; default-feature solver check pass; playground phase check
+108 pass, zero failures/ignored/warnings. `git diff --check` and focused
+documentation/hash checks pass. The authentic regression is included in the
+17 intrusion cases, rather than an additional distinct case.
+
+Observed build/verification resources (not timing benchmarks): baseline
+reproduction 30.29 s / 1,454,296 KiB peak; fresh fixed reproduction 23.00 s /
+1,460,548 KiB; final intrusion module 4.39 s / 944,872 KiB; default check
+3.08 s / 387,536 KiB; playground 8.45 s / 665,796 KiB. Logs and `.resources`
+files are under `/tmp/yulang-native-rewrite-*-20261016.*`. Benchmark processes
+and samples: zero. Exact memo padding-dependent byte growth was not queried;
+the static resource audit confirms constant inline growth and actual-size
+accounting, with no new collection or child scan.
+
+The unfiltered 711-test solver library, broad contextual suite, workspace
+tests/check and timing benchmarks were omitted. Their resource behavior is
+not required for this focused repair; the known playground package supplies
+the M2 phase check. No broad run is repeated after these record updates.
 
 ## Residual parents
 
-The universal duplicate-preservation theorem, semantic context interpretation,
-source MODEL, generalization, H1/H2/U, soundness/principality and F5 remain
-OPEN. This gate repairs the exact native rewrite-authority mismatch only.
+Native operational duplicate retention is closed at the reviewed scope.
+Semantic adequacy of underlying extrusion/context operations, source MODEL,
+generalization, H1/H2/U, soundness/principality and F5 remain OPEN. This gate
+does not promote those separate source or production obligations.

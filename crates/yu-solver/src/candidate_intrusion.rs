@@ -406,6 +406,7 @@ impl InferenceSession {
                 children,
                 direct_witness,
                 completion,
+                retained_extrusion_rewrite,
             } => {
                 let mut entries = Vec::new();
                 entries
@@ -416,6 +417,7 @@ impl InferenceSession {
                     children: DiagnosticChildren::from_vec(entries),
                     direct_witness: *direct_witness,
                     completion: *completion,
+                    retained_extrusion_rewrite: *retained_extrusion_rewrite,
                 }
             }
         };

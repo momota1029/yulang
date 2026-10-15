@@ -1,7 +1,8 @@
 # Native relation duplicate suppression: ordinary diagnostic-child reuse seam
 
 Date: 2026-10-16
-Status: unreviewed static falsification/source audit. Concrete production
+Status: historical static falsification/source audit with accepted causal
+adjudication and verified local repair. Concrete pre-repair production
 branch and missing relation-fiber route identified; no missing-required-
 consequence counterexample or duplicate-preservation theorem established.
 Baseline supplied by primary: `87ac89419`; native owners unchanged.
@@ -16,6 +17,13 @@ repair. This audit's authentic missing-bound-fiber trace is not an observable
 counterexample; some Derived provenance and scalar compensation remain.
 The primary accepts the responsibility finding without promoting the whole
 duplicate-preservation parent. [Repair gate](2026-10-16-native-value-rewrite-provenance.md).
+
+Later receipt: the unchanged authentic source regression fails at the original
+bound association on baseline `8d2699197` and passes after repair. The separate
+[actual native invariant](../theory/2026-10-16-native-retained-value-rewrite-invariant.md)
+now has independent semantic acceptance for operational obligation retention.
+That post-repair theorem closes only the local native subgate; this audit
+still establishes no observable source-semantic counterexample.
 
 ## 1. Original obligation and method
 

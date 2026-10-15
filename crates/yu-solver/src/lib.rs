@@ -4213,6 +4213,9 @@ enum TypedPairMemo {
     Effect,
     Value {
         children: DiagnosticChildren,
+        /// Only the whole-Value extrusion producer certifies this replacement.
+        #[cfg(feature = "shadow-apply-candidate")]
+        retained_extrusion_rewrite: Option<CanonicalValuePairKey>,
         /// A direct incompatibility is a completion seed, not a completed
         /// summary.  The call-local SCC pass is the only place that changes a
         /// Pending entry into Complete.
@@ -12485,33 +12488,38 @@ impl InferenceSession {
                     if self.candidate_graph.is_some() {
                         let canonical = CanonicalValuePairKey { lower: self.canonical_value(key.lower), upper: self.canonical_value(key.upper) };
                         if canonical != key {
-                            self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
+                            self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { retained_extrusion_rewrite: None, children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
                             self.record_diagnostic_edge(key, canonical, None)?;
                             self.enqueue_item(TypedWorkItem { task: LiveConstraintTask::Value(canonical), relation: item.relation, replay_ack: None }, false)?;
                             return Ok(());
                         }
-                        // A previously extruded structural bound retains its transformed
-                        // child. Replaying the original would allocate another copy graph.
-                        if !(Self::positive_function_children(&self.store, key.lower).is_some() && Self::negative_function_children(&self.store, key.upper).is_some()) {
-                            let child_count = match self.typed_pairs.get(&memo_key) { Some(TypedPairMemo::Value { children, .. }) => children.len(), _ => 0 };
-                            if child_count != 0 {
-                                self.record_typed_pair_admission(memo_key, TypedPairMemo::Value { children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending })?;
-                                for index in 0..child_count {
-                                    let edge = match &self.typed_pairs[&memo_key] { TypedPairMemo::Value { children, .. } => children[index], _ => unreachable!() };
-                                    self.recapture_candidate_extrusion(memo_key, edge.child)?;
-                                    let relation = self.candidate_context_value_rewrite(key, edge.child)?;
-                                    self.enqueue_item(TypedWorkItem {
-                                        task: LiveConstraintTask::Value(edge.child), relation, replay_ack: None,
-                                    }, false)?;
-                                }
-                                return Ok(());
-                            }
+                        // Diagnostic consequences do not certify replacement of the
+                        // original contextual bound. Only actual extrusion does.
+                        let retained = match self.typed_pairs.get(&memo_key) {
+                            Some(TypedPairMemo::Value { retained_extrusion_rewrite, .. }) => *retained_extrusion_rewrite,
+                            _ => None,
+                        };
+                        if let Some(rewritten) = retained {
+                            self.record_typed_pair_admission(memo_key, TypedPairMemo::Value {
+                                retained_extrusion_rewrite: None,
+                                children: DiagnosticChildren::new(),
+                                direct_witness: None,
+                                completion: DiagnosticCompletion::Pending,
+                            })?;
+                            self.recapture_candidate_extrusion(memo_key, rewritten)?;
+                            let relation = self.candidate_context_value_rewrite(key, rewritten)?;
+                            self.enqueue_item(TypedWorkItem {
+                                task: LiveConstraintTask::Value(rewritten), relation, replay_ack: None,
+                            }, false)?;
+                            return Ok(());
                         }
                     }
                     if let Some((lower, upper)) = Self::incompatible_value_shapes(key) {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                retained_extrusion_rewrite: None,
                                 children: DiagnosticChildren::new(),
                                 direct_witness: Some(DiagnosticWitness {
                                     terminal: key,
@@ -12530,6 +12538,8 @@ impl InferenceSession {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                retained_extrusion_rewrite: None,
                                 children: DiagnosticChildren::new(),
                                 direct_witness: None,
                                 completion: DiagnosticCompletion::Pending,
@@ -12577,6 +12587,8 @@ impl InferenceSession {
                                 self.record_typed_pair_admission(
                                     memo_key,
                                     TypedPairMemo::Value {
+                                        #[cfg(feature = "shadow-apply-candidate")]
+                                        retained_extrusion_rewrite: None,
                                         children: DiagnosticChildren::new(),
                                         direct_witness: None,
                                         completion: DiagnosticCompletion::Pending,
@@ -12584,6 +12596,7 @@ impl InferenceSession {
                                 )?;
                                 self.record_diagnostic_edge(key, rewritten, None)?;
                                 let relation = self.candidate_context_value_rewrite(key, rewritten)?;
+                                self.retain_candidate_value_rewrite(key, rewritten)?;
                                 self.enqueue_item(TypedWorkItem {
                                     task: LiveConstraintTask::Value(rewritten), relation, replay_ack: None,
                                 }, false)?;
@@ -12618,6 +12631,8 @@ impl InferenceSession {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                retained_extrusion_rewrite: None,
                                 children: DiagnosticChildren::new(),
                                 direct_witness: None,
                                 completion: DiagnosticCompletion::Pending,
@@ -12659,6 +12674,8 @@ impl InferenceSession {
                     self.record_typed_pair_admission(
                         memo_key,
                         TypedPairMemo::Value {
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            retained_extrusion_rewrite: None,
                             children: DiagnosticChildren::new(),
                             direct_witness: None,
                             completion: DiagnosticCompletion::Pending,
@@ -13020,6 +13037,27 @@ impl InferenceSession {
                 ));
     }
 
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn retain_candidate_value_rewrite(
+        &mut self,
+        original: CanonicalValuePairKey,
+        rewritten: CanonicalValuePairKey,
+    ) -> Result<(), SolveAvailabilityError> {
+        let key = TypedPairKey::Value(original);
+        let Some(TypedPairMemo::Value { retained_extrusion_rewrite, .. }) = self.typed_pairs.get(&key) else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        if let Some(retained) = retained_extrusion_rewrite {
+            return if *retained == rewritten { Ok(()) } else { Err(SolveAvailabilityError::IdentityExhausted) };
+        }
+        self.journal_candidate_memo(key)?;
+        let Some(TypedPairMemo::Value { retained_extrusion_rewrite, .. }) = self.typed_pairs.get_mut(&key) else {
+            unreachable!("the admitted Value memo retains its kind")
+        };
+        *retained_extrusion_rewrite = Some(rewritten);
+        Ok(())
+    }
+
     fn record_typed_pair_admission(
         &mut self,
         key: TypedPairKey,
@@ -13083,8 +13121,8 @@ impl InferenceSession {
         #[cfg(feature = "shadow-apply-candidate")]
         if replacing { self.journal_candidate_memo(key)?; }
         if replacing {
-            // Intrusion invalidates completion, while every earlier diagnostic
-            // edge remains the provenance of a meaningful source constraint.
+            // Intrusion invalidates completion, while diagnostic provenance and
+            // the actual extrusion replacement retain their existing graph.
             match (self.typed_pairs.get_mut(&key).unwrap(), entry) {
                 (TypedPairMemo::Value { direct_witness, completion, .. }, TypedPairMemo::Value { direct_witness: witness, completion: next, .. }) => { *direct_witness = witness; *completion = next; }
                 (TypedPairMemo::Effect, TypedPairMemo::Effect) => {}
@@ -24661,6 +24699,8 @@ mod tests {
                 upper: ValueEndpointKey::IntNegative,
             };
             let terminal_memo = |terminal, kind| TypedPairMemo::Value {
+                #[cfg(feature = "shadow-apply-candidate")]
+                retained_extrusion_rewrite: None,
                 children: DiagnosticChildren::new(),
                 direct_witness: Some(DiagnosticWitness {
                     terminal,
@@ -24696,6 +24736,8 @@ mod tests {
                 ),
             );
             let node_memo = |children: Vec<DiagnosticEdge>| TypedPairMemo::Value {
+                #[cfg(feature = "shadow-apply-candidate")]
+                retained_extrusion_rewrite: None,
                 children: children.into(),
                 direct_witness: None,
                 completion: DiagnosticCompletion::Pending,
@@ -24781,6 +24823,8 @@ mod tests {
             upper: ValueEndpointKey::ValueRow(first_row),
         };
         let pending = |child, field| TypedPairMemo::Value {
+            #[cfg(feature = "shadow-apply-candidate")]
+            retained_extrusion_rewrite: None,
             children: vec![DiagnosticEdge { child, field }].into(),
             direct_witness: None,
             completion: DiagnosticCompletion::Pending,
@@ -24833,6 +24877,8 @@ mod tests {
         session.typed_pairs.insert(
             TypedPairKey::Value(key),
             TypedPairMemo::Value {
+                #[cfg(feature = "shadow-apply-candidate")]
+                retained_extrusion_rewrite: None,
                 children: DiagnosticChildren::new(),
                 direct_witness: Some(witness),
                 completion: DiagnosticCompletion::Pending,

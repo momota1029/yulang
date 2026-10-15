@@ -517,3 +517,135 @@ fn rollback_restores_preexisting_group_activation_and_pending_cursor_for_retry()
     assert!(state.parents.iter().all(|parent| state.rep(parent.copy) != state.rep(parent.parent)));
     session.with_route_transaction(activate).unwrap();
 }
+
+#[test]
+fn repeated_source_argument_keeps_original_bound_relations_with_ordinary_diagnostics() {
+    let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(
+        "my apply (f: 'a -> int) (x: int) = { my first = f x; f x }"), true, true).unwrap()).unwrap();
+    session.start_candidate_graph().unwrap();
+    session.execute().unwrap();
+    assert!(session.errors.is_empty());
+    let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+    let mut witnessed = false;
+    for (&memo_key, memo) in &session.typed_pairs {
+        let TypedPairKey::Value(pair) = memo_key else { continue; };
+        let (ValueEndpointKey::ValueRow(lower), ValueEndpointKey::ValueRow(upper)) = (pair.lower, pair.upper) else { continue; };
+        let TypedPairMemo::Value { children, .. } = memo else { continue; };
+        if !children.iter().any(|edge| edge.child.lower == ValueEndpointKey::IntPositive && edge.child.upper == pair.upper) { continue; }
+        let mut arguments: Vec<_> = context.observed_dependencies().filter_map(|dependency| match dependency {
+            candidate_context::Dependency::FunctionPort { child, field: FunctionField::Argument, .. }
+                if context.observed_pair(*child).unwrap() == memo_key => Some(*child),
+            _ => None,
+        }).collect();
+        arguments.sort_by_key(|relation| relation.0);
+        arguments.dedup();
+        if arguments.len() < 2 { continue; }
+        assert_eq!(session.value_levels[lower as usize], session.value_levels[upper as usize]);
+        let bound = crate::candidate_effect::BoundKey(
+            ExtrusionEndpoint::Value(pair.lower), Polarity::Negative, ExtrusionEndpoint::Value(pair.upper));
+        for relation in &arguments {
+            assert!(context.bound_relations(bound).any(|attached| attached == *relation),
+                "each authentic call's original argument relation owns its bound association");
+        }
+        witnessed = true;
+    }
+    assert!(witnessed, "two authentic calls revisit a row pair with an ordinary Int replay child and no extrusion replacement");
+}
+
+#[test]
+fn retained_whole_value_extrusion_reuses_exactly_one_child_and_survives_memo_lifecycle() {
+    let fixture = || {
+        let mut session = InferenceSession::try_new(ConstraintBatch::collect_candidate_mode(hir(
+            "my loop x = loop x\nmy id x = x\nmy client x = id x"), true, true).unwrap()).unwrap();
+        session.start_candidate_graph().unwrap();
+        let references = &session.batch.candidate_source.references;
+        let nonrecursive = references.checking.iter().find(|(_, event)| !references.qualifies(**event)).unwrap().0.clone();
+        let recursive = references.checking.iter().find(|(_, event)| references.qualifies(**event)).unwrap().0.clone();
+        let checking = [nonrecursive, recursive];
+        let owner = session.fresh_value_at_level(0).unwrap();
+        let parent = session.fresh_value_at_level(2).unwrap();
+        let argument = session.live_value_term(Polarity::Positive, parent).unwrap();
+        let function = session.negative_function_term(argument,
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session.batch.collected_leaf_term(Leaf::IntNegative)).unwrap();
+        let pair = CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(owner), upper: session.value_endpoint(function, Polarity::Negative) };
+        let key = TypedPairKey::Value(pair);
+        let task = LiveConstraintTask::Value(pair);
+        let first = session.candidate_context_seed(task, &checking[0], None).unwrap().unwrap();
+        let item = TypedWorkItem { task, relation: Some(first), replay_ack: None };
+        (session, pair, key, item, checking)
+    };
+    let (mut session, pair, key, item, checking) = fixture();
+    let task = item.task;
+    let first = item.relation.unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(first);
+    session.candidate_processing(Some(key));
+    // A failed route must remove a newly published replacement and its copy graph.
+    let before_rows = session.bounds.len();
+    let result = session.with_route_transaction(|session| {
+        session.dispatch_live_item(item, None, false, &mut 0)?;
+        assert!(matches!(session.typed_pairs.get(&key), Some(TypedPairMemo::Value { retained_extrusion_rewrite: Some(_), .. })));
+        Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+    });
+    assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+    assert!(!session.typed_pairs.contains_key(&key));
+    assert_eq!(session.bounds.len(), before_rows);
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(first);
+    session.candidate_processing(Some(key));
+    session.dispatch_live_item(item, None, false, &mut 0).unwrap();
+    let rewritten = match session.typed_pairs[&key] {
+        TypedPairMemo::Value { retained_extrusion_rewrite: Some(rewritten), .. } => rewritten,
+        _ => panic!("the actual extrusion producer retains its final rewritten pair"),
+    };
+    assert_ne!(rewritten, pair);
+    assert_eq!(session.pop_worklist().unwrap().unwrap().task, LiveConstraintTask::Value(rewritten));
+    assert!(session.pop_worklist().unwrap().is_none());
+    // An additional diagnostic consequence cannot become another replacement.
+    let ordinary = CanonicalValuePairKey { lower: ValueEndpointKey::IntPositive, upper: pair.upper };
+    session.record_diagnostic_edge(pair, ordinary, None).unwrap();
+    let rows = session.bounds.len();
+    let parents = session.candidate_graph.as_ref().unwrap().intrusion.parents.len();
+    assert!(parents > 0);
+    let second = session.candidate_context_seed(task, &checking[1], None).unwrap().unwrap();
+    session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(second);
+    session.dispatch_live_item(TypedWorkItem { relation: Some(second), ..item }, None, false, &mut 0).unwrap();
+    assert_eq!(session.pop_worklist().unwrap().unwrap().task, LiveConstraintTask::Value(rewritten));
+    assert!(session.pop_worklist().unwrap().is_none(), "mixed diagnostics do not enqueue more rewrite children");
+    assert_eq!(session.bounds.len(), rows, "reuse allocates no new copied rows");
+    assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.parents.len(), parents);
+    session.settle_candidate_intrusion(None).unwrap();
+    assert!(session.candidate_graph.as_ref().unwrap().intrusion.generation > 0);
+    assert!(matches!(session.typed_pairs[&key], TypedPairMemo::Value { retained_extrusion_rewrite: Some(retained), .. } if retained == rewritten),
+        "intrusion invalidation retains the original copied graph replacement");
+    assert_eq!(session.retain_candidate_value_rewrite(pair, ordinary), Err(SolveAvailabilityError::IdentityExhausted));
+    // Selection inspection above deliberately owns popped work without draining
+    // it. Exercise old-memo rollback in a separate, fully drained solver route.
+    let (mut session, pair, key, item, checking) = fixture();
+    let task = item.task;
+    let occurrence = checking[0].clone();
+    let cause = CauseId::for_occurrence(occurrence.clone());
+    session.constrain_live_item(item, &occurrence, &cause).unwrap();
+    let rewritten = match session.typed_pairs[&key] {
+        TypedPairMemo::Value { retained_extrusion_rewrite: Some(rewritten), .. } => rewritten,
+        _ => panic!("the completed producer retains its actual extrusion replacement"),
+    };
+    let second = session.candidate_context_seed(task, &checking[1], None).unwrap().unwrap();
+    let occurrence = checking[1].clone();
+    let cause = CauseId::for_occurrence(occurrence.clone());
+    session.constrain_live_item(TypedWorkItem { relation: Some(second), ..item }, &occurrence, &cause).unwrap();
+    assert!(session.typed_worklist.is_empty());
+    assert!(session.diagnostic_delta.is_empty());
+    let memo = session.typed_pairs[&key].clone();
+    let result = session.with_route_transaction(|session| {
+        session.candidate_reopen_root(pair)?;
+        session.record_typed_pair_admission(key, TypedPairMemo::Value {
+            children: DiagnosticChildren::new(), direct_witness: None,
+            completion: DiagnosticCompletion::Pending, retained_extrusion_rewrite: None,
+        })?;
+        assert!(matches!(session.typed_pairs[&key], TypedPairMemo::Value { retained_extrusion_rewrite: Some(retained), .. } if retained == rewritten));
+        Err::<(), _>(SolveAvailabilityError::IdentityExhausted)
+    });
+    assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(session.typed_pairs[&key], memo, "journal reconstruction preserves the retained rewrite and diagnostic edges");
+}

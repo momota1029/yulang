@@ -1,10 +1,9 @@
 # Native relation duplicates: mutable reads and the retained-child gap
 
 Date: 2026-10-16
-Status: bounded constructive mutation audit; original duplicate-preservation
-claim OPEN. Independent review pending. A source-generated retained-child
-case is identified; no semantic counterexample or implementation authority is
-claimed.
+Status: historical pre-repair mutation audit; its local native operational
+retention obligation is discharged by the independently reviewed repair and
+composition linked below. No observable semantic counterexample is claimed.
 Baseline: `87ac89419`; native owners `bf0562382`.
 Exclusive write lease: this new note only. No compiler/shared-record edits.
 
@@ -17,6 +16,14 @@ an observable counterexample or of the universal duplicate theorem. The
 producer snapshot is `1259423fa8fb4a2ad12a8abfb7c4528c3c12512f0481ffa1a238f82cbac39185`.
 Other mutation-audit cases below remain bounded research evidence pending
 closure review. See the [repair gate](../progress/2026-10-16-native-value-rewrite-provenance.md).
+
+Post-repair receipt: the [actual retained-rewrite invariant](2026-10-16-native-retained-value-rewrite-invariant.md)
+§§8–9 replaces the unsupported diagnostic-frontier premise with genuine
+producer provenance and composes the original native operational case split.
+Independent semantic review accepts this exact scope; the primary accepts
+the result after focused/phase verification. The old producer body below
+records the original obstruction. Source MODEL, semantic adequacy of the
+underlying rewrites and full H2/U remain OPEN.
 
 ## 1. Frozen original claim
 

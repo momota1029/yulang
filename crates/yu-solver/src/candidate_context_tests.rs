@@ -3294,6 +3294,7 @@ fn exact_relation_completion_keeps_contexts_and_component_kinds_distinct() {
         assert!(!session.pair_is_current(pair));
         session.record_typed_pair_admission(pair, match task {
             LiveConstraintTask::Value(_) => TypedPairMemo::Value {
+                retained_extrusion_rewrite: None,
                 children: DiagnosticChildren::new(), direct_witness: None, completion: DiagnosticCompletion::Pending,
             },
             LiveConstraintTask::Effect(..) => TypedPairMemo::Effect,
