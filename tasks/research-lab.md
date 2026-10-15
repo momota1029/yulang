@@ -20,11 +20,13 @@ rule. Computation receipt retains its carrier; Value entry still forces before
 the body. Six independently reviewed [source controls](../notes/progress/2026-10-15-computation-laziness-and-permission.md)
 now pass, including two permissively admitted raw-resumption variants. The
 root-annotation permission construction and conditional residual argument have
-passed scoped review, but semantic Catch suppression is held for the actual
-owner/path/instance and source RootComp protection supplier. Static Lambda/Name
-identity is insufficient. The corrected resumption investigations establish no
-source-qualified counterexample; a body-pause source exposes an actual later
-Name lookup, while its original protection profile still needs construction.
+passed scoped review. The later reviewed [source root-profile construction](../notes/theory/2026-10-15-root-computation-profile-source-construction.md)
+now generates the finite explicit Comp-entry profile and exact Name/Delay/Argument
+map. Its actual post-resume Name read supplies the matching receipt/observation;
+live keep protection and expired relay permission refute lexical-only permanent
+deletion. The earlier argument-pause attack remains retracted. Semantic Catch
+suppression stays held for native actual-entry instantiation and complete-future
+consumer transport; the conditional same-instance theorem is not refuted.
 One additional Oracle source failed poly lowering before execution. No production
 compiler change, memoization choice or runtime-correspondence closure is claimed.
 

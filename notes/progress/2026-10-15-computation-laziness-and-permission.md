@@ -4,8 +4,9 @@ Date: 2026-10-15
 Branch: `research/simple-sub-intrusion`
 Compiler baseline: `af3ed318b4c022e6baa211134ef89d0f3810eecb`
 Task baseline: `1bd0ad3bf`
-Status: six source regression controls pass; conditional static permission
-construction reviewed; native Catch suppression and full hygiene remain OPEN
+Status: six source regression controls pass; finite source permission/profile
+construction reviewed; lexical-only deletion refuted; native Catch suppression
+and full hygiene remain OPEN
 
 ## Authority and completed controls
 
@@ -53,12 +54,27 @@ unchanged. Permission alone removes no effect; Allowance is not subtraction.
 
 The first resumption attack assumed a saved-binding load before query without
 a source constructor. That claim was corrected. The body-pause variant instead
-has an explicit formal Name lookup after raw reentry. Both investigations
-still require source construction of keep's RootComp protection for the known
-io computation and its correlated typed transport into relay. RootPermit
-supplies permission only. No source-qualified refutation or output 2 is claimed
-by this checkpoint. The next owner is that source profile constructor; arbitrary
-supplied profiles and static binders treated as live instances do not close it.
+has an explicit formal Name lookup after raw reentry. At initial checkpoint
+`7cf804e85`, both investigations still lacked source construction of keep's
+RootComp protection and its correlated typed transport into relay. RootPermit
+supplies permission only, so that checkpoint claimed no source-qualified
+refutation or output 2.
+
+The subsequent independently reviewed [root-profile construction](../theory/2026-10-15-root-computation-profile-source-construction.md)
+closes these finite source premises. The selected receiving default constructs
+protection at the explicit Computation root, separately from annotation
+permission; actual entry instantiates its boundary on the received view. The
+exact Name/Delay/Argument constructors generate the root map. After body pause,
+the actual formal read supplies Receive for the same view consumed by Observe.
+Keep's boundary remains live, while the expired relay grant does not revive.
+
+Consequently a static same-Lambda/direct-Name check cannot justify permanent
+flat deletion of io: that source has an escaping io future after raw reentry.
+This refutes the proposed unconditional mechanism, not the conditional theorem
+requiring actual same-instance evidence. No current native bug or runtime
+output is established. The next implementation owners are Comp-entry/profile
+instantiation and complete-future transport to the actual Catch consumer.
+Current conservative forwarding remains intact; native and global gates stay OPEN.
 
 Frozen non-authoritative handoffs remain under `/tmp`:
 
@@ -69,7 +85,8 @@ Frozen non-authoritative handoffs remain under `/tmp`:
 | `yulang-pause-resume-consumer-falsifier-20261015/REPORT.md` | `9897c7bdf2aa6fed9e77dad019248a2184bf1bc4c60fd4fc871f71c32ab4af90` |
 | `yulang-pause-resume-consumer-falsifier-20261015/body-pause-discriminator.md` | `233836e30fb9549d13ef13ee3b7c0194eb68a5b3ab3fe21fc134668e70381147` |
 
-These are research handoffs, not independently certified source theorems.
+These remain historical research handoffs. The reviewed repository note above
+contains the finite source construction and the applied feasibility result.
 
 ## Review and bounded verification
 
@@ -77,6 +94,10 @@ M2 used one scoped spec auditor for scheduling and one compiler referee for the
 conditional permission note and tests. Both scopes closed without remaining
 findings. The referee separately reviewed the sixth-test delta and verified
 that the prior five tests were byte-identical.
+The later root-profile proof received a separate frozen-artifact review from
+the independent compiler referee, with no blocking or major findings. Ten
+dependency hashes and six linked paths matched. This proof review closes its
+finite source premises only; it does not certify native enforcement.
 
 Exact focused command:
 

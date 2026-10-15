@@ -32,8 +32,12 @@ This index is a navigation aid. The listed source document remains authoritative
   derives that finite source licence and an exact injected-operation classifier.
   Its residual theorem remains conditional on dynamic owner/path/instance;
   semantic suppression stays held. Six [delayed-computation source controls](../progress/2026-10-15-computation-laziness-and-permission.md)
-  pass, including permissive resumption admission. Native protection-profile
-  construction and full soundness remain OPEN.
+  pass, including permissive resumption admission. The [reviewed root-profile
+  source construction](../theory/2026-10-15-root-computation-profile-source-construction.md)
+  generates the finite entry schema and exact forwarding map. Its body-pause
+  future refutes lexical-only unconditional deletion; the conditional
+  actual-instance theorem survives. Native entry/profile instantiation,
+  complete-future Catch transport and full soundness remain OPEN.
 
 ## Active workflow navigation (2026-10-10)
 

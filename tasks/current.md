@@ -19,11 +19,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   construction preserves original formal/AE/RE ownership and distinguishes
   exact injected operations from nested annotation members. Its residual proof
   is conditional; same-Lambda/direct-Name is not dynamic receiver evidence.
-  Semantic Catch suppression is held pending actual owner/path/instance and
-  source RootComp protection construction. No source-qualified resumption
-  counterexample is established; the original assumed pre-query load was
-  corrected. One additional frozen Oracle probe failed poly lowering, giving
-  no runtime result. Production compiler code is unchanged.
+  The later independently reviewed [root-profile source construction](../notes/theory/2026-10-15-root-computation-profile-source-construction.md)
+  derives the known Computation root's protection, actual-entry boundary and
+  exact Name/Delay/Argument transport. Its body-pause case supplies the real
+  post-resume receipt/observation: keep's protection remains live while relay's
+  old grant has expired. This refutes lexical-only unconditional effect deletion;
+  the actual-instance conditional theorem remains valid. Native Comp-entry/profile
+  instantiation and complete-future transport to Catch are the next owners, so
+  semantic suppression stays held. The first argument-pause attack's assumed
+  pre-query load remains retracted. One additional Oracle probe failed poly
+  lowering and gave no runtime result. Production compiler code is unchanged.
 
 - **Exact Callback Hygiene source is the current target:** the user wants the
   Yulang2 web example to infer and execute. The [exact unchanged source now
