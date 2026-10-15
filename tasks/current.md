@@ -47,6 +47,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   termination or authorize erasing stored typed-view evidence. The source-to-
   operational entry, corresponding path and exit mapping remains the controlling
   soundness premise; static named groups alone do not supply it.
+  The [receiver-relative proof application](../notes/theory/2026-10-15-receiver-relative-protection-exit.md)
+  passed independent compiler-referee review. Candidate-relative receipt,
+  actual receiver expiry and conditional protection-only exit are distinct.
+  Its selected-source derivation places ordinary id's receiving entry before
+  Value-entry Force, although its native module Call has no omitted-callee
+  directional introduction. Those records therefore cannot enumerate receiving
+  invocations. Complementary two-receiver/escaped-view paper controls refuted
+  none of the stated conditional claims. Nineteen frozen dependency hashes and
+  eleven local proof references pass; no new tests, builds or executions ran.
+  This changes the identified owner distinction, not the still-open native
+  source/profile/receipt/exit supplier or global soundness status.
   Named-group facts and Call-route joins are now retained; intended source
   introduction across those routes is the active next premise.
   Its local receipt and historical question remain uncommitted, with no

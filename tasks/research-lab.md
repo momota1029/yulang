@@ -50,6 +50,14 @@ source entry, matching typed path and exit must supply this relationship;
 outward request forwarding alone is not receiver termination or blanket evidence
 erasure. Reuse the existing conditional transport/lifetime results and establish
 their source suppliers rather than repeating the scope-set algebra.
+The [receiver-relative application](../notes/theory/2026-10-15-receiver-relative-protection-exit.md)
+now has a clean independent compiler-referee review. It distinguishes matching
+candidate receipts, exact expiry and a conditional protection-only exit, and
+derives ordinary id's source entry before Force. Native ordinary-id module Calls
+have no omitted-callee introduction, so that producer cannot enumerate receiving
+invocations. Complementary two-receiver and escaped-view paper controls found no
+counterexample to the scoped claims. This is source-owner evidence, not a new
+native receiving/exit implementation or a full soundness proof.
 The historical question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.

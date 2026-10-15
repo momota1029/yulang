@@ -21,6 +21,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Block-wrapper authentication does not establish Oracle Var-only eligibility.
   [Retained named groups and factual Call joins](../progress/2026-10-15-callback-named-source-groups.md)
   supply source evidence; operational selection and discharge remain OPEN.
+  The [reviewed receiver-relative application](../theory/2026-10-15-receiver-relative-protection-exit.md)
+  distinguishes candidate receipt, receiver expiry and conditional outgoing
+  protection release. Ordinary receiving Calls cannot be identified with the
+  omitted-callee introduction records; their native correspondence remains OPEN.
 
 ## Active workflow navigation (2026-10-10)
 
