@@ -14,6 +14,21 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [ordinary playground runtime](../notes/progress/2026-10-15-playground-runtime.md)
+now reaches CLI execution under candidate admission. Its constructed-program
+ordinary completed-path theorem has fresh independent review, with source-owned
+root classification and annotation-adapter absence discharged. Effectful Call,
+actual handler evidence, full source coverage and complete inference proofs
+remain open; the provisional machine is not production adoption.
+
+The [finite receiving residual theorem](../notes/theory/2026-10-15-native-receiving-residual-prototype.md)
+and [returned-value seed classification](../notes/theory/2026-10-15-callback-result-exposure-classification.md)
+have independent review. A separate exact-use native assembly prototype now
+changes the actual Catch edge and is undergoing focused native-bound verification.
+Its private monomorphic assembly neither publishes a generic relay scheme nor
+establishes ordinary generalized-inference equivalence. Keep the universal
+receiver/transport/B parents open while integrating this executable evidence.
+
 The next [callback-context construction gate](../notes/progress/2026-10-15-callback-context-delivery.md)
 is active under the user's continuation. The source audit distinguishes early
 body fact generation from later callee-before-body admission; shared FreshUse

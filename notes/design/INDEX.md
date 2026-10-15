@@ -4,6 +4,15 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Ordinary playground execution checkpoint](../progress/2026-10-15-playground-runtime.md)
+  — Provisional implementation of existing scheduling and parameter-role
+  decisions, with independently reviewed ordinary completed-path simulation.
+  This is not new semantic authority or production/hygiene certification.
+  The [finite receiving residual theorem](../theory/2026-10-15-native-receiving-residual-prototype.md)
+  separately closes one exact assembled use; generic native consumer transport
+  remains open. The [returned exposure classification](../theory/2026-10-15-callback-result-exposure-classification.md)
+  preserves inherited evidence without manufacturing a new outer-formal seed.
+
 - [Ordinary identity forwarding](2026-10-15-callback-identity-forwarding.md)
   — Authoritative for the user's direct requirement that `id (h i)` preserve
   Callback Hygiene's outward return and sole output `0`, without special

@@ -1,11 +1,12 @@
 # Inference playground
 
 `yu-playground` runs the existing experimental candidate inference path on a
-small Yulang source file and prints its finite graph observations. It is a
-research tool, not the production compiler path. Its output does not establish
-soundness, principality, or production admission.
+small Yulang source file and prints its finite graph observations by default.
+The optional `--run` mode executes a selected definition with a provisional
+source evaluator. This is a research tool, not the production compiler path;
+its output does not establish soundness, principality, or production admission.
 
-## Run a source file
+## Observe the inference graph by default
 
 From the repository root, pass one source path:
 
@@ -58,8 +59,8 @@ evidence, not event consumption or runtime hygiene; they change neither allowanc
 semantics nor provider rows and do not establish H1 or production cutover.
 
 This output describes retained state; it is not a chronological runtime trace.
-The command remains a graph observation: it does not print a principal scheme
-or report current native execution.
+Without `--run`, the command reports inference observations. It does not print a
+principal scheme or report current native execution.
 The examples in `tools/inference-playground/examples/` cover identity,
 nested recursion, effects, conditional bounds, normal-return Catch arms, and
 a type conflict. The
@@ -79,6 +80,39 @@ Use `--help` to print the command summary. A source conflict exits unsuccessfull
 and withholds graph output. Source the current candidate path cannot observe is
 reported as unsupported by the tool; this does not reject that source from the
 Yulang language.
+
+## Run a definition
+
+Pass `--run` and a definition name to execute the source after candidate
+inference accepts it. This stdin example prints the selected definition's
+completed value:
+
+```sh
+printf 'my id x = x\nmy main = id 7\n' | cargo run -q -p yu-playground -- --run main -
+```
+
+```text
+7
+```
+
+The evaluator executes computed top-level definition roots in source order
+before producing the selected definition's value. `--steps N` sets a positive
+transition limit;
+the default is `100000`. If execution exhausts that limit, the tool withholds
+the completed value. `--intrusion` is an inference-observation option and
+cannot be combined with `--run`. The optional `--scoped-experiment` selects a
+candidate inference experiment; it retains that path's source-availability
+restrictions.
+
+The evaluator supports ordinary literal values, lambdas, lexical closures,
+recursive local definitions, and applications with `Value` or retained
+`Computation` arguments. A conditional without `else` discards the taken
+branch's value and returns unit. Type ascriptions and binding annotations in
+the covered forms preserve the ordinary value.
+
+Operation execution and `Catch` handling, bare module expressions, arithmetic,
+imports, and standard-library operations are not available in this evaluator.
+Its provisional execution does not establish production soundness or hygiene.
 
 ## Scope and limits
 

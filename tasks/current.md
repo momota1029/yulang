@@ -6,6 +6,33 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-15)
 
+- **Ordinary playground execution integrated:** `--run DEFINITION` now performs
+  candidate inference, executes source-ordered computed definition roots and
+  materializes the requested value. The provisional explicit machine supports
+  lexical closures/local recursion, delayed arguments, source-derived Value/
+  Computation consumption, conditionals and literals. The original completed-path
+  [simulation](../notes/theory/2026-10-15-playground-ordinary-runtime-simulation.md)
+  has independent semantic/proof review; a separate spec review covers CLI,
+  root classification and the source-owned no-upcast premise. Fifteen runtime
+  cases and all 43 playground tests pass; one workspace check passes without
+  warnings. [Gate record](../notes/progress/2026-10-15-playground-runtime.md).
+  Operation/Catch execution, bare expression roots, missing source/library forms,
+  complete hygiene, inference correctness/principality and production cutover
+  remain OPEN. The next runtime owner is request/continuation handling with
+  actual receiver evidence, alongside source-root coverage.
+
+- **Native receiving residual experiment active:** the independently reviewed
+  [finite source theorem](../notes/theory/2026-10-15-native-receiving-residual-prototype.md)
+  permits suppression for one complete original receiving-call assembly. An
+  isolated native prototype now retains slot 51 before admission and consumes
+  actual original operation contributions; ordinary solve and generic capture
+  remain unchanged. Compilation and source/semantic review pass. Actual-family
+  observations and focused Suppress/Forward checks are being integrated before
+  adoption of the prototype checkpoint. General capture/FreshUse and callback B
+  remain OPEN. The reviewed [returned-value classification](../notes/theory/2026-10-15-callback-result-exposure-classification.md)
+  creates no new outer-formal seed; original inherited seeds still require native
+  Call-result/local-install/Name transport, so the local-callee guard stays.
+
 - **Callback-context source gate active:** after the user's continuation, the
   [current gate](../notes/progress/2026-10-15-callback-context-delivery.md)
   retains normative B and all original source/profile premises. Independent
