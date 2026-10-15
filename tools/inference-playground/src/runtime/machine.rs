@@ -1,4 +1,5 @@
 use super::{
+    continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
     literal,
     program::{
         Binder, Code, Instruction, Label, NameConsumption, ParameterRole, RuntimeProgram,
@@ -34,6 +35,9 @@ pub struct Machine {
     selected: usize,
     steps: usize,
     next_receiver: usize,
+    current_owner: ExecutionOwner,
+    invocations: Vec<InvocationDescriptor>,
+    resume_templates: Vec<ResumeTemplate>,
     next_handler: usize,
     next_request: usize,
     active_receivers: Vec<usize>,
@@ -49,9 +53,28 @@ pub(super) enum ExecutionOwner {
     Invocation(usize),
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct HandlerInstallation {
+pub(super) struct HandlerInstallation {
     occurrence: usize,
     owner: ExecutionOwner,
+}
+#[derive(Clone)]
+pub(super) struct InvocationDescriptor {
+    call: SourceSite,
+    provider: SourceSite,
+    active: bool,
+}
+impl InvocationDescriptor {
+    pub(super) fn is_active(&self) -> bool {
+        self.active
+    }
+    #[cfg(test)]
+    pub(super) fn active_for_test(site: SourceSite) -> Self {
+        Self {
+            call: site.clone(),
+            provider: site,
+            active: true,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ValueHandle(usize);
@@ -103,6 +126,7 @@ struct Environment {
 }
 #[derive(Clone)]
 enum ExecutableValue {
+    Continuation(TemplateHandle),
     Closure {
         parameter: HirParameterId,
         role: ParameterRole,
@@ -121,13 +145,32 @@ enum ExecutableValue {
     },
 }
 enum State {
-    Evaluate { code: Label, environment: usize },
+    Evaluate {
+        code: Label,
+        environment: usize,
+    },
     Return(ReceivedValue),
+    EnterTemplate {
+        template: TemplateHandle,
+        node: usize,
+        control: HashMap<usize, usize>,
+        response: ReceivedValue,
+    },
     Request(PendingRequest),
     Stopped(RuntimeOutcome),
 }
 #[derive(Clone)]
-enum Frame {
+pub(super) enum Frame {
+    ResumeArgument {
+        template: TemplateHandle,
+        source: SourceSite,
+    },
+    ResumeReturn,
+    OwnerReturn {
+        owner: ExecutionOwner,
+        owned: bool,
+        previous: ExecutionOwner,
+    },
     RootCompReturn {
         execution: ExecutionView,
     },
@@ -153,6 +196,7 @@ enum Frame {
     },
     ReceiverReturn {
         activation: usize,
+        previous: ExecutionOwner,
     },
     ValueEntry {
         parameter: HirParameterId,
@@ -194,18 +238,14 @@ struct SavedContinuation {
     frames: Vec<SavedFrame>,
     #[allow(
         dead_code,
-        reason = "original request observations retained for separately gated raw resumption"
+        reason = "unhandled request observations retained for a future external response consumer"
     )]
     observations: Vec<Observation>,
 }
-// Templates are retained for the separate typed raw-resumption gate. A receiver
-// delimiter retains its original lineage identity for the future mapping to
-// fresh/borrowed occurrences. That historical ID is never reactivated here.
-#[allow(
-    dead_code,
-    reason = "raw-resumption execution is a separately gated consumer"
-)]
+// Capture retains original lineage; template entry resolves a live occurrence
+// afresh and never reactivates a historical ID.
 enum SavedFrame {
+    AmbientBoundary,
     ReceiverBoundary {
         original_activation: usize,
     },
@@ -265,6 +305,9 @@ impl RuntimeProgram {
             selected,
             steps: 0,
             next_receiver: 0,
+            current_owner: ExecutionOwner::ModuleRun,
+            invocations: Vec::new(),
+            resume_templates: Vec::new(),
             next_handler: 0,
             next_request: 0,
             active_receivers: Vec::new(),
@@ -314,6 +357,12 @@ impl Machine {
         let result = match state {
             State::Evaluate { code, environment } => self.evaluate(code, environment),
             State::Return(value) => self.return_value(value),
+            State::EnterTemplate {
+                template,
+                node,
+                control,
+                response,
+            } => self.enter_template(template, node, control, response),
             State::Request(request) => self.propagate_request(request),
             State::Stopped(_) => unreachable!(),
         };
@@ -482,6 +531,42 @@ impl Machine {
             return Ok(());
         };
         match frame {
+            Frame::ResumeArgument { template, source } => {
+                let SourceAnnotationValue::Function { result, .. } = &self
+                    .resume_templates
+                    .get(template.0)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                    .declaration
+                    .signature
+                    .value
+                else {
+                    return Err(RuntimeUnavailable::ContinuationResponse(source));
+                };
+                if !self.primitive_matches(&result.value, received) {
+                    return Err(RuntimeUnavailable::ContinuationResponse(source));
+                }
+                self.frames.push(Frame::ResumeReturn);
+                let node = self
+                    .resume_templates
+                    .get(template.0)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                    .root;
+                self.state = State::EnterTemplate {
+                    template,
+                    node,
+                    control: HashMap::new(),
+                    response: received,
+                };
+            }
+            Frame::ResumeReturn => self.state = State::Return(received),
+            Frame::OwnerReturn {
+                owner,
+                owned,
+                previous,
+            } => {
+                self.leave_owner(owner, owned, previous)?;
+                self.state = State::Return(received);
+            }
             Frame::RootCompReturn { execution } => {
                 self.end_execution_view(execution)?;
                 let view = self.receiving.ground(received.value);
@@ -551,6 +636,19 @@ impl Machine {
                 let delay_view = self.receiving.delay(delay, inherited);
                 let executable = self.executables.get(&received.value.0).cloned();
                 match executable {
+                    Some(ExecutableValue::Continuation(template)) => {
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
+                        self.frames.push(Frame::ResumeArgument {
+                            template,
+                            source: site.clone(),
+                        });
+                        self.execute(delay, &site)?;
+                    }
                     Some(ExecutableValue::Closure {
                         parameter,
                         role,
@@ -558,12 +656,12 @@ impl Machine {
                         body,
                         environment,
                     }) => {
-                        let activation = self.next_receiver;
-                        self.next_receiver = activation
-                            .checked_add(1)
-                            .ok_or(RuntimeUnavailable::IdentityExhausted)?;
-                        self.active_receivers.push(activation);
-                        self.frames.push(Frame::ReceiverReturn { activation });
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
                         match role {
                             ParameterRole::Value => {
                                 self.frames.push(Frame::ValueEntry {
@@ -632,18 +730,18 @@ impl Machine {
                         } else {
                             ParameterRole::Value
                         };
-                        let activation = self.next_receiver;
-                        self.next_receiver = activation
-                            .checked_add(1)
-                            .ok_or(RuntimeUnavailable::IdentityExhausted)?;
-                        self.active_receivers.push(activation);
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
                         // The declared source consumer runs after native return.
                         // Its authority comes from the operation declaration,
                         // including when the written result effect row is absent.
                         self.frames.push(Frame::OperationResultConsumer {
                             source: site.clone(),
                         });
-                        self.frames.push(Frame::ReceiverReturn { activation });
+                        self.frames.push(Frame::ReceiverReturn {
+                            activation,
+                            previous,
+                        });
                         match role {
                             ParameterRole::Value => {
                                 self.frames.push(Frame::OperationPayload {
@@ -666,10 +764,11 @@ impl Machine {
                     _ => return Err(RuntimeUnavailable::ExpectedCallable(site)),
                 }
             }
-            Frame::ReceiverReturn { activation } => {
-                if self.active_receivers.pop() != Some(activation) {
-                    return Err(RuntimeUnavailable::InvalidSourceReference);
-                }
+            Frame::ReceiverReturn {
+                activation,
+                previous,
+            } => {
+                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
                 self.state = State::Return(ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,
@@ -791,6 +890,247 @@ impl Machine {
         Ok(())
     }
 
+    fn primitive_matches(&self, ty: &SourceAnnotationValue, received: ReceivedValue) -> bool {
+        received.interface == ParameterRole::Value
+            && self.receiving.matches_value(received.view, received.value)
+            && matches!(
+                (ty, &self.values[received.value.0].kind),
+                (SourceAnnotationValue::Unit, RuntimeValueKind::Unit)
+                    | (SourceAnnotationValue::Int, RuntimeValueKind::Integer(_))
+                    | (SourceAnnotationValue::Bool, RuntimeValueKind::Boolean(_))
+                    | (SourceAnnotationValue::Str, RuntimeValueKind::String(_))
+            )
+    }
+    fn new_invocation(
+        &mut self,
+        call: SourceSite,
+        provider: SourceSite,
+    ) -> Result<(usize, ExecutionOwner), RuntimeUnavailable> {
+        let activation = self.next_receiver;
+        self.next_receiver = activation
+            .checked_add(1)
+            .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+        debug_assert_eq!(self.invocations.len(), activation);
+        self.invocations.push(InvocationDescriptor {
+            call,
+            provider,
+            active: true,
+        });
+        self.active_receivers.push(activation);
+        let previous = self.current_owner;
+        self.current_owner = ExecutionOwner::Invocation(activation);
+        Ok((activation, previous))
+    }
+    fn leave_owner(
+        &mut self,
+        owner: ExecutionOwner,
+        owned: bool,
+        previous: ExecutionOwner,
+    ) -> Result<(), RuntimeUnavailable> {
+        if self.current_owner != owner {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        if owned {
+            let ExecutionOwner::Invocation(id) = owner else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            if self.active_receivers.pop() != Some(id) {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let invocation = self
+                .invocations
+                .get_mut(id)
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if !invocation.active {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            invocation.active = false;
+        } else if !self.owner_active(owner) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        self.current_owner = previous;
+        Ok(())
+    }
+    fn resolve_control(
+        original: ExecutionOwner,
+        control: &HashMap<usize, usize>,
+    ) -> ExecutionOwner {
+        match original {
+            ExecutionOwner::ModuleRun => ExecutionOwner::ModuleRun,
+            ExecutionOwner::Invocation(id) => {
+                ExecutionOwner::Invocation(control.get(&id).copied().unwrap_or(id))
+            }
+        }
+    }
+    fn capture_template(
+        &mut self,
+        request: &PendingRequest,
+        containing: ExecutionOwner,
+    ) -> Result<TemplateHandle, RuntimeUnavailable> {
+        let mut nodes = vec![TemplateNode::Hole];
+        let mut root = 0;
+        for frame in &request.suffix {
+            let node = match frame {
+                SavedFrame::Ordinary(Frame::GlobalRead { .. } | Frame::Root { .. }) => {
+                    return Err(RuntimeUnavailable::ContinuationMaterialization(
+                        request.source.clone(),
+                    ));
+                }
+                SavedFrame::Ordinary(Frame::RootCompReturn { execution }) => TemplateNode::View {
+                    inner: root,
+                    original: *execution,
+                },
+                SavedFrame::Ordinary(frame) => {
+                    if let Frame::ResumeArgument { template, .. } = frame {
+                        self.resume_templates
+                            .get(template.0)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    }
+                    TemplateNode::Bind {
+                        inner: root,
+                        frame: frame.clone(),
+                    }
+                }
+                SavedFrame::ReceiverBoundary {
+                    original_activation,
+                } => TemplateNode::Owner {
+                    inner: root,
+                    original: ExecutionOwner::Invocation(*original_activation),
+                },
+                SavedFrame::AmbientBoundary => TemplateNode::Owner {
+                    inner: root,
+                    original: ExecutionOwner::ModuleRun,
+                },
+                SavedFrame::HandlerBoundary {
+                    handler,
+                    environment,
+                    installation,
+                } => TemplateNode::ForwardHandler {
+                    inner: root,
+                    handler: handler.clone(),
+                    environment: *environment,
+                    owner: installation.owner,
+                },
+            };
+            nodes.push(node);
+            root = nodes.len() - 1;
+        }
+        // The installing source span still contains the capture bound, even
+        // when its ordinary ReceiverReturn lies below it and was not captured.
+        nodes.push(TemplateNode::Owner {
+            inner: root,
+            original: containing,
+        });
+        root = nodes.len() - 1;
+        // Publish only after the whole cache-free template has validated. Nodes
+        // and saved Bind frames retain handles, never owning template pointers.
+        let handle = TemplateHandle(self.resume_templates.len());
+        self.resume_templates.push(ResumeTemplate {
+            nodes,
+            root,
+            declaration: request.declaration.clone(),
+            original_event: request.event,
+        });
+        Ok(handle)
+    }
+    fn enter_template(
+        &mut self,
+        template: TemplateHandle,
+        node: usize,
+        mut control: HashMap<usize, usize>,
+        response: ReceivedValue,
+    ) -> Result<(), RuntimeUnavailable> {
+        let inner = match self
+            .resume_templates
+            .get(template.0)
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+            .nodes
+            .get(node)
+            .cloned()
+            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+        {
+            TemplateNode::Hole => {
+                self.state = State::Return(response);
+                return Ok(());
+            }
+            TemplateNode::Bind { inner, frame } => {
+                self.frames.push(frame);
+                inner
+            }
+            TemplateNode::Owner { inner, original } => {
+                let previous = self.current_owner;
+                let resolved = Self::resolve_control(original, &control);
+                let (owner, owned) = if self.owner_active(resolved) {
+                    self.current_owner = resolved;
+                    (resolved, false)
+                } else {
+                    let ExecutionOwner::Invocation(original_id) = original else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let descriptor = self
+                        .invocations
+                        .get(original_id)
+                        .cloned()
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    let (fresh, _) = self.new_invocation(descriptor.call, descriptor.provider)?;
+                    (ExecutionOwner::Invocation(fresh), true)
+                };
+                if let (
+                    ExecutionOwner::Invocation(original),
+                    ExecutionOwner::Invocation(resolved),
+                ) = (original, owner)
+                {
+                    // Entry follows one inward path before Hole. Moving this
+                    // fresh per-use map and shadowing here equals the nearest
+                    // parent binding; no later completion consults this map.
+                    control.insert(original, resolved);
+                }
+                self.frames.push(Frame::OwnerReturn {
+                    owner,
+                    owned,
+                    previous,
+                });
+                inner
+            }
+            TemplateNode::ForwardHandler {
+                inner,
+                handler,
+                environment,
+                owner,
+            } => {
+                let owner = Self::resolve_control(owner, &control);
+                if !self.owner_active(owner) || self.current_owner != owner {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                let occurrence = self.next_handler;
+                self.next_handler = occurrence
+                    .checked_add(1)
+                    .ok_or(RuntimeUnavailable::IdentityExhausted)?;
+                self.frames.push(Frame::CatchReturn {
+                    handler,
+                    environment,
+                    installation: HandlerInstallation { occurrence, owner },
+                });
+                inner
+            }
+            TemplateNode::View { inner, original } => {
+                let execution = self
+                    .receiving
+                    .execution(original.view, original.receipt)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                self.executing_views.push(execution);
+                self.frames.push(Frame::RootCompReturn { execution });
+                inner
+            }
+        };
+        self.state = State::EnterTemplate {
+            template,
+            node: inner,
+            control,
+            response,
+        };
+        Ok(())
+    }
     fn direct_formal_root(&self, label: Label, environment: usize) -> Option<ViewHandle> {
         let Instruction::Name {
             resolution: LocalSourceResolution::Parameter(parameter),
@@ -807,26 +1147,36 @@ impl Machine {
         let Some(current) = self.executing_views.pop() else {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         };
-        if current.view != execution.view || current.receipt != execution.receipt {
+        if current.view != execution.view
+            || current.receipt != execution.receipt
+            || current.occurrence != execution.occurrence
+        {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
         Ok(())
     }
     fn current_execution_owner(&self) -> ExecutionOwner {
-        self.active_receivers
-            .last()
-            .copied()
-            .map_or(ExecutionOwner::ModuleRun, ExecutionOwner::Invocation)
+        self.current_owner
+    }
+    fn owner_active(&self, owner: ExecutionOwner) -> bool {
+        match owner {
+            ExecutionOwner::ModuleRun => true,
+            ExecutionOwner::Invocation(id) => self
+                .invocations
+                .get(id)
+                .is_some_and(InvocationDescriptor::is_active),
+        }
     }
     fn validate_handler_installation(
         &self,
         installation: HandlerInstallation,
     ) -> Result<(), RuntimeUnavailable> {
-        // Pending frame nesting establishes that a reached Catch's installing
-        // invocation is still current after nested invocations have returned or
-        // unwound. Module execution is the distinct empty-invocation base case.
+        // The retained installer must be both executable here and actually live.
+        // A borrowed resumed owner can be below the resumer in active order;
+        // ModuleRun is the distinct ambient case, never an invocation ordinal.
         if installation.occurrence >= self.next_handler
             || installation.owner != self.current_execution_owner()
+            || !self.owner_active(installation.owner)
         {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
@@ -870,43 +1220,46 @@ impl Machine {
                     &request.observations,
                     request.event,
                     installation.owner,
-                    &self.active_receivers,
+                    &self.invocations,
                     &request.declaration.id.family,
                 ) {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
-                let SourceAnnotationValue::Function { argument, .. } = &declaration.signature.value
+                let SourceAnnotationValue::Function { argument, result } =
+                    &declaration.signature.value
                 else {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 };
-                if declaration.signature.effects.is_some()
-                    || argument.effects.is_some()
-                    || !matches!(continuation, LocalSourceCatchValuePattern::Wildcard)
-                {
+                if declaration.signature.effects.is_some() || argument.effects.is_some() {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
                 let [payload_pattern] = payloads.as_slice() else {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 };
-                if request.payload.interface != ParameterRole::Value
-                    || !self
-                        .receiving
-                        .matches_value(request.payload.view, request.payload.value)
-                    || !matches!(
-                        (&argument.value, &self.values[request.payload.value.0].kind),
-                        (SourceAnnotationValue::Unit, RuntimeValueKind::Unit)
-                            | (SourceAnnotationValue::Int, RuntimeValueKind::Integer(_))
-                            | (SourceAnnotationValue::Bool, RuntimeValueKind::Boolean(_))
-                            | (SourceAnnotationValue::Str, RuntimeValueKind::String(_))
-                    )
-                {
+                if !self.primitive_matches(&argument.value, request.payload) {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
+                let captured = if matches!(continuation, LocalSourceCatchValuePattern::Binder(_)) {
+                    if !matches!(
+                        result.value,
+                        SourceAnnotationValue::Unit
+                            | SourceAnnotationValue::Int
+                            | SourceAnnotationValue::Bool
+                            | SourceAnnotationValue::Str
+                    ) {
+                        return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
+                    }
+                    Some(self.capture_template(&request, self.current_owner)?)
+                } else {
+                    None
+                };
                 // Commit shallow selection only after every ordered candidate
                 // premise succeeds. Discarding its raw suffix is source control;
                 // the arm executes outside this exact handler occurrence.
                 self.frames.pop();
-                self.abandon_suffix(&request.suffix);
+                if captured.is_none() {
+                    self.abandon_suffix(&request.suffix);
+                }
                 let environment = match payload_pattern {
                     LocalSourceCatchPayloadPattern::Value(
                         LocalSourceCatchValuePattern::Binder(binder),
@@ -922,6 +1275,28 @@ impl Machine {
                     // compatibility is established above by the declaration.
                     | LocalSourceCatchPayloadPattern::Unit { .. } => environment,
                 };
+                let environment =
+                    if let (LocalSourceCatchValuePattern::Binder(binder), Some(template)) =
+                        (continuation, captured)
+                    {
+                        let value = self.allocate(
+                            &handler.site,
+                            RuntimeValueKind::Closure,
+                            Some(ExecutableValue::Continuation(template)),
+                        );
+                        let view = self.receiving.opaque(value);
+                        self.bind(
+                            environment,
+                            Binder::Catch(binder.id.clone()),
+                            ReceivedValue {
+                                value,
+                                interface: ParameterRole::Value,
+                                view,
+                            },
+                        )
+                    } else {
+                        environment
+                    };
                 self.state = State::Evaluate {
                     code: arm.body,
                     environment,
@@ -949,12 +1324,28 @@ impl Machine {
                 self.end_execution_view(execution)?;
                 SavedFrame::Ordinary(Frame::RootCompReturn { execution })
             }
-            Frame::ReceiverReturn { activation } => {
-                if self.active_receivers.pop() != Some(activation) {
-                    return Err(RuntimeUnavailable::InvalidSourceReference);
-                }
+            Frame::ReceiverReturn {
+                activation,
+                previous,
+            } => {
+                self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
                 SavedFrame::ReceiverBoundary {
                     original_activation: activation,
+                }
+            }
+            Frame::OwnerReturn {
+                owner,
+                owned,
+                previous,
+            } => {
+                self.leave_owner(owner, owned, previous)?;
+                match owner {
+                    ExecutionOwner::Invocation(original_activation) => {
+                        SavedFrame::ReceiverBoundary {
+                            original_activation,
+                        }
+                    }
+                    ExecutionOwner::ModuleRun => SavedFrame::AmbientBoundary,
                 }
             }
             Frame::CatchReturn {
@@ -1052,10 +1443,10 @@ impl Machine {
                     return Err(RuntimeUnavailable::MissingConsumptionEvidence(site.clone()));
                 }
                 if self.receiving.has_root(received.view) {
-                    let execution = ExecutionView {
-                        view: received.view,
-                        receipt,
-                    };
+                    let execution = self
+                        .receiving
+                        .execution(received.view, receipt)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
                     self.executing_views.push(execution);
                     self.frames.push(Frame::RootCompReturn { execution });
                 }

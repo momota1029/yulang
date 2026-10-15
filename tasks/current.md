@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
+- **Reusable raw continuation execution integrated:** the [raw-Resume gate](../notes/progress/2026-10-16-playground-raw-resume.md)
+  now implements actual response Value entry, containing-owner capture, live
+  borrowing/fresh execution, nested completion, forwarded handlers, original
+  view evidence and recapture. Flat template handles and per-entry owner indexes
+  remove recursive destruction and repeated owner scans. The actual constructive
+  bridge and M3 semantic/contract/resource reviews are clean; 82 playground tests
+  pass and the CLI example returns `11`. Cache-bearing capture alone awaits the
+  definition-publication/suspended-demand decision; full-domain and general
+  visibility/type-inference proofs remain OPEN.
+
 - **Receiving operation handlers implemented and proved:** actual original
   boundaries/views, authentic same-view receipt joins and event observations now
   drive positive local Grant selection. Primitive payloads and wildcard
@@ -13,8 +23,8 @@ Status: full objective remains active. Native extrusion now schedules current co
   no-Resume cache abandonment preserves live outer owners. All 72 playground
   tests pass, including 15 receiving controls; M3 semantic/proof, specification
   and resource delta reviews are clean. [Gate record](../notes/progress/2026-10-16-playground-receiving-handlers.md).
-  Raw Resume proceeds at the reviewed template constructors. Cache-bearing
-  Resume alone awaits the pending definition-materialization decision; complete
+  Raw Resume is implemented in the following control checkpoint. Cache-bearing
+  capture/Resume awaits the pending definition-materialization decision; complete
   negative/profile evidence and whole-language proofs remain OPEN.
 
 - **First native Result interpretation reviewed:** the [source-indexed

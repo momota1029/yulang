@@ -139,10 +139,13 @@ fn a_nested_helper_cannot_borrow_its_captured_formals_receiver_permission() {
 }
 
 #[test]
-fn matching_continuation_binder_requires_the_separate_raw_resumption_gate() {
-    assert_missing_evidence(&format!(
-        "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), k -> p }}\nmy main = relay (io::tick 7)"
-    ));
+fn matching_continuation_binder_can_be_discarded_by_its_arm() {
+    assert_integer(
+        &format!(
+            "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), k -> p }}\nmy main = relay (io::tick 7)"
+        ),
+        "7",
+    );
 }
 
 #[test]

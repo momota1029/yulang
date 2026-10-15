@@ -4,6 +4,12 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Reusable raw continuation execution](../progress/2026-10-16-playground-raw-resume.md)
+  — Actual owner/control/view/recapture correspondence and flat template
+  ownership have independent proof review; M3 code/contract/resource deltas are
+  clean and 82 playground tests pass. Cache-bearing capture, general visibility
+  and full-source/production gates remain OPEN.
+
 - [Receiving operation-handler execution](../progress/2026-10-16-playground-receiving-handlers.md)
   — Actual positive local Grant, independent same-view receipt join, primitive
   payload selection and wildcard-continuation discard have independent source

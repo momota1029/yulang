@@ -124,29 +124,34 @@ through.
 A matching operation arm can run when the runtime has enough receiving
 evidence for that request. A ground `[io] int` computation formal supplies
 handling permission to its own receiving `Catch`, even when inherited coverage
-is unknown. This stdin example prints `7`:
+is unknown. This stdin example resumes the request and prints `11`:
 
 ```sh
-printf 'act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), _ -> p }\nmy main = relay (io::tick 7)\n' | cargo run -q -p yu-playground -- --run main -
+printf 'act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay (io::tick 7)\n' | cargo run -q -p yu-playground -- --run main -
 ```
 
 ```text
-7
+11
 ```
 
 Operation arms support declared primitive payload types `()`, `int`, `bool`,
 and `str`. A total identifier or wildcard payload pattern can bind or discard
 the payload. An empty-call pattern is also a wildcard for the payload and does
-not require a unit payload. The continuation pattern must be a wildcard, which
-discards the saved continuation. A response does not need to be `int` when the
-arm discards that continuation. The selected arm runs outside the `Catch`
-delimiter, so a request it emits is not handled by that same `Catch`.
+not require a unit payload. A response does not need to be `int` when the arm
+discards the saved continuation. A continuation binder can instead receive the
+saved continuation. Calling it with a value of the declared primitive response
+type resumes the captured computation with that value. The saved context keeps
+current binding cells, forwarding handlers, and normal-return arms. It excludes
+the selected shallow `Catch`, so that handler cannot catch a request emitted
+after resumption.
 
-A continuation binder and `Resume` are unavailable. Operation selection for
-`Comp` or nonprimitive payloads is also unavailable. The runtime cannot make
-handler decisions that require complete inherited coverage; when evidence is
-missing, `--run` reports the request as unavailable and withholds the selected
-definition's output.
+Continuation capture remains unavailable when its saved path includes a
+top-level global read or root materialization. The CLI also exposes no external
+response input for an unhandled request. Operation selection for
+`Computation` or nonprimitive payloads, and decisions that require complete
+inherited coverage, remain unavailable. When evidence is missing, `--run`
+reports the request as unavailable and withholds the selected definition's
+output.
 
 Bare module expressions, arithmetic, imports, and standard-library operations
 are also unavailable in this evaluator. Its provisional execution does not
@@ -196,7 +201,8 @@ remain present for either constant condition. Catch adds no result reference
 fragment to the existing Name/Apply/If construction.
 
 The operation `Catch` example below is an inference-carrier observation. It
-shows payload and raw-continuation typing, not execution with `--run`.
+shows payload and raw-continuation typing, not execution with `--run`, because
+it lacks a local receiving certificate at a declared computation formal.
 
 ```sh
 cargo run -q -p yu-playground -- tools/inference-playground/examples/catch-operation.yu

@@ -1,7 +1,7 @@
 //! Constructor-owned positive RootComp certificates. Unknown inherited coverage
 //! is retained; absence of a local certificate never proves nonprotection.
 use super::{
-    machine::{ExecutionOwner, ValueHandle},
+    machine::{ExecutionOwner, InvocationDescriptor, ValueHandle},
     program::SourceSite,
 };
 use std::{
@@ -41,6 +41,7 @@ pub(super) struct ReceiptHandle(usize);
 pub(super) struct ExecutionView {
     pub view: ViewHandle,
     pub receipt: ReceiptHandle,
+    pub occurrence: usize,
 }
 #[derive(Clone)]
 pub(super) struct Observation {
@@ -80,6 +81,7 @@ pub(super) struct Receiving {
     receipts: Vec<Receipt>,
     receipt_index: HashMap<(ExecutionOwner, ViewHandle, Option<HirParameterId>), ReceiptHandle>,
     next_observer: usize,
+    executions: Vec<(ViewHandle, ReceiptHandle)>,
     #[cfg(test)]
     query_visits: std::cell::RefCell<Vec<usize>>,
 }
@@ -181,6 +183,21 @@ impl Receiving {
     pub fn has_root(&self, view: ViewHandle) -> bool {
         self.views[view.0].image.is_some()
     }
+    pub fn execution(&mut self, view: ViewHandle, receipt: ReceiptHandle) -> Option<ExecutionView> {
+        if self.receipts.get(receipt.0)?.view != view {
+            return None;
+        }
+        let occurrence = self.executions.len();
+        self.executions.push((view, receipt));
+        Some(ExecutionView {
+            view,
+            receipt,
+            occurrence,
+        })
+    }
+    fn authentic_execution(&self, execution: ExecutionView) -> bool {
+        self.executions.get(execution.occurrence) == Some(&(execution.view, execution.receipt))
+    }
     pub fn observe(
         &mut self,
         event: usize,
@@ -188,6 +205,9 @@ impl Receiving {
     ) -> Option<Vec<Observation>> {
         let mut observations = Vec::with_capacity(executing.len());
         for execution in executing {
+            if !self.authentic_execution(*execution) {
+                return None;
+            }
             let observer = self.next_observer;
             self.next_observer = observer.checked_add(1)?;
             observations.push(Observation {
@@ -205,7 +225,7 @@ impl Receiving {
         observations: &[Observation],
         event: usize,
         owner: ExecutionOwner,
-        active_receivers: &[usize],
+        invocations: &[InvocationDescriptor],
         family: &SourceEffectId,
     ) -> bool {
         #[cfg(test)]
@@ -213,9 +233,12 @@ impl Receiving {
         let ExecutionOwner::Invocation(receiver) = owner else {
             return false;
         };
-        // At a reached live handler, owner correspondence makes its installer
-        // the current (last) receiver; no registry scan or historical reactivation.
-        if active_receivers.last().copied() != Some(receiver) {
+        // A resumed span may borrow an owner below its resumer. Activity is
+        // exact live membership, independently of current executable attribution.
+        if !invocations
+            .get(receiver)
+            .is_some_and(InvocationDescriptor::is_active)
+        {
             return false;
         }
         let Ok(target) = self
@@ -242,7 +265,10 @@ impl Receiving {
         // never a negative Grant verdict tied to a mismatching receipt/formal.
         let mut visited = HashSet::new();
         for observation in observations {
-            if observation.event != event || observation.observer >= self.next_observer {
+            if observation.event != event
+                || observation.observer >= self.next_observer
+                || !self.authentic_execution(observation.execution)
+            {
                 continue;
             }
             let observing_receipt = &self.receipts[observation.execution.receipt.0];
@@ -404,7 +430,10 @@ mod tests {
         family: &SourceEffectId,
     ) -> bool {
         observations.iter().any(|observation| {
-            if observation.event != event || observation.observer >= receiving.next_observer {
+            if observation.event != event
+                || observation.observer >= receiving.next_observer
+                || !receiving.authentic_execution(observation.execution)
+            {
                 return false;
             }
             let observing_receipt = &receiving.receipts[observation.execution.receipt.0];
@@ -483,7 +512,7 @@ mod tests {
                         &schema.lambda,
                         None,
                     );
-                    ExecutionView { view, receipt }
+                    receiving.execution(view, receipt).unwrap()
                 })
                 .collect::<Vec<_>>();
             let observations = receiving.observe(1, &executions).unwrap();
@@ -496,7 +525,7 @@ mod tests {
                     &observations,
                     1,
                     ExecutionOwner::Invocation(0),
-                    &[0],
+                    &[InvocationDescriptor::active_for_test(schema.lambda.clone())],
                     &family
                 ),
                 expected
@@ -538,20 +567,10 @@ mod tests {
                 &schema.lambda,
                 None,
             );
+            let first_execution = receiving.execution(view, wrong).unwrap();
+            let second_execution = receiving.execution(forwarded, observing).unwrap();
             let observations = receiving
-                .observe(
-                    2,
-                    &[
-                        ExecutionView {
-                            view,
-                            receipt: wrong,
-                        },
-                        ExecutionView {
-                            view: forwarded,
-                            receipt: observing,
-                        },
-                    ],
-                )
+                .observe(2, &[first_execution, second_execution])
                 .unwrap();
             assert_constructor_order(&receiving);
             assert_eq!(query_inventory(&receiving, &observations).len(), depth + 1);
@@ -562,7 +581,7 @@ mod tests {
                     &observations,
                     2,
                     ExecutionOwner::Invocation(0),
-                    &[0],
+                    &[InvocationDescriptor::active_for_test(schema.lambda.clone())],
                     &family
                 ),
                 expected

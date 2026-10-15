@@ -14,12 +14,19 @@ Do not reopen a closed gate merely because it appears in this seed.
 
 ## Current concrete-example discussion (2026-10-15)
 
+The [raw-Resume control implementation](../notes/progress/2026-10-16-playground-raw-resume.md)
+and actual constructor/consumer proof now have clean M3 review. Eighty-two
+playground tests pass, including reuse/recapture and the repaired flat template
+ownership control. Source scopes, current cells and historical view evidence
+remain distinct; lookup indexes have constructive equivalence proofs.
+Cache-bearing capture remains gated on its pending source decision.
+
 The [receiving-handler implementation](../notes/progress/2026-10-16-playground-receiving-handlers.md)
 has clean M3 semantic/proof, contract and resource review, with 72 playground
 tests passing. Authentic receiving and observing receipts join independently on
 the same view; known local Grant survives unknown older coverage. Primitive
-Value payload selection and wildcard-continuation discard execute. Raw Resume
-template correspondence proceeds separately; cache-bearing Resume awaits its
+Value payload selection and continuation execution now have their respective
+completed local gates; cache-bearing Resume awaits its
 definition-publication/suspended-demand decision. Full B and hygiene remain OPEN.
 
 The next-action selection's native ownership audit is

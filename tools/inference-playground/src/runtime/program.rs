@@ -52,6 +52,8 @@ pub enum RuntimeUnavailable {
     OperationConsumer(SourceSite),
     UnresolvedOperation(SourceSite),
     HandlerEvidence(SourceSite),
+    ContinuationMaterialization(SourceSite),
+    ContinuationResponse(SourceSite),
     ExpectedCallable(SourceSite),
     ExpectedBoolean(SourceSite),
     ExpectedComputation(SourceSite),
