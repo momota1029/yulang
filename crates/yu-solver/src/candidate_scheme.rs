@@ -10,6 +10,8 @@ pub(super) struct GraphState {
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
     pub local_use: Vec<LocalUse>,
+    #[cfg(test)]
+    pub local_use_census: Option<LocalUseCensus>,
     pub source: Option<candidate_source::Frame>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
@@ -134,6 +136,28 @@ pub(super) struct LocalFreshRoute {
     pub graph: Graph,
     pub rows: Vec<RowKey>,
 }
+// Disposable, explicitly enabled native-constructor observations. The route
+// continues to own its graph and row map; this retains only expiring maps.
+#[cfg(test)]
+#[derive(Debug, Default)]
+pub(super) struct LocalUseCensus {
+    pub requested: HashSet<HirOccurrenceId>,
+    pub snapshots: Vec<LocalUseSnapshot>,
+}
+#[cfg(test)]
+#[derive(Debug)]
+pub(super) struct LocalUseSnapshot {
+    pub route: usize,
+    pub slot: usize,
+    pub occurrence: HirOccurrenceId,
+    pub target_component: usize,
+    pub terms: Vec<Option<Term>>,
+    pub effect_operands: HashMap<usize, EffectEndpointKey>,
+    pub context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
+    pub evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
+    pub context_use: usize,
+    pub restored_bounds: usize,
+}
 // Construction is atomic. Only the ordered restoration frontier is mutable
 // after this fresh use is retained; resume never rebuilds these remaps.
 #[derive(Debug)]
@@ -240,6 +264,22 @@ impl Graph {
 impl GraphState {
     pub(super) fn commit_local_use(&mut self) {
         let frame = self.local_use.pop().expect("completed local parent");
+        #[cfg(test)]
+        if let Some(census) = &mut self.local_use_census {
+            if census.requested.contains(&frame.occurrence) {
+                census.snapshots.push(LocalUseSnapshot {
+                    route: self.local_routes.len(), slot: frame.slot,
+                    occurrence: frame.occurrence.clone(), target_component: frame.value,
+                    terms: frame.fresh.terms.clone(),
+                    effect_operands: frame.fresh.effect_operands.clone(),
+                    context_remap: frame.fresh.context_remap.clone(),
+                    evidence_remap: frame.fresh.evidence_remap.clone(),
+                    context_use: frame.fresh.context_use,
+                    restored_bounds: frame.cursor.next_bound,
+                });
+            }
+        }
+
         // All capacities and arithmetic were preflighted by frame accounting and
         // final route reservation. Only construction maps are released here.
         let released = frame.fresh.bytes().expect("accounted fresh storage")

@@ -53,9 +53,13 @@ by the reviewed [received-root incidence instance](../notes/theory/2026-10-16-na
 Both actual source variants pass primary CLI inference; their native graphs
 already differ. The reviewed [consumer trace](../notes/progress/2026-10-16-native-received-root-consumer-instance.md)
 locates actual captured entry-effect/Name lineage and the direct operation
-route. A bounded test-only same-State selected-use census now keeps authentic
-FreshUse substitutions at publication; a constructive lane applies existing
-receiving proofs to the remaining event/view interpretation. No new
+route. The [local-map census](../notes/progress/2026-10-16-native-selected-use-census.md)
+now passes both actual cases with independent code review. The reviewed
+[source application](../notes/theory/2026-10-16-native-received-root-interpretation.md)
+accepts original shared anchors as well as actual copied bounds. Next use
+retained module-route root-bound Transport witnesses to authenticate the exact
+selected use origin before adding any further observation hook. Complete
+selected-use/event interpretation remains OPEN. No new
 conditional interface lemma, scalar-collision assumption or scoped-guard removal
 is authorized. FIRST-RESULT-ADEQUACY and full B remain OPEN.
 

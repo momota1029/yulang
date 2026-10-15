@@ -42,7 +42,10 @@ This index is a navigation aid. The listed source document remains authoritative
   adequacy, full B and production remain OPEN.
   The [actual consumer trace](../progress/2026-10-16-native-received-root-consumer-instance.md)
   now has clean independent review and an architect-confirmed minimal test-only
-  selected-use census handoff; source/native event-view interpretation remains open.
+  selected-use census handoff. The [local-map census](../progress/2026-10-16-native-selected-use-census.md)
+  and [source interpretation application](../theory/2026-10-16-native-received-root-interpretation.md)
+  now have independent review and focused executable evidence; selected module-use
+  and complete source/native event-view composition remain open.
 
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through

@@ -6236,3 +6236,219 @@ fn grouped_helper_actual_copied_h_ports_retain_protection_without_default_bypass
     }
     assert!(uses.len() >= 2, "both real helper calls must yield authenticated copied Function comparisons");
 }
+
+// Bounded construction census, not an Inc/same-z or selected-provider theorem.
+mod native_selected_use_census {
+    use super::*;
+    use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+
+    const CAPTURED: &str = "act signal:\n    our ping: () -> int\nact write:\n    our put: () -> int\nmy receive (f: () -> 'a) = { my g = f(); g() }\nmy outer (thunk:[write] int) = {\n    my captured (u:()) = thunk;\n    my direct (u:()) = signal::ping();\n    my factory_captured (u:()) = captured;\n    my factory_direct (u:()) = direct;\n    catch receive factory_captured { signal::ping(), _ -> 1, v -> v }\n}\nmy answer = outer (signal::ping())\n";
+
+    fn facts<'a>(session: &'a InferenceSession, occurrence: &HirOccurrenceId, slot: u8) -> Vec<&'a SemanticFact> {
+        session.store.provenance().iter().filter(|edge| {
+            edge.cause().occurrence().occurrence() == occurrence
+                && edge.cause().occurrence().local_slot() == slot
+        }).map(|edge| session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap()).collect()
+    }
+    fn canonical_bound(session: &InferenceSession, bound: BoundKey) -> BoundKey {
+        let endpoint = |value| match value {
+            ExtrusionEndpoint::Value(value) => ExtrusionEndpoint::Value(session.canonical_value(value)),
+            ExtrusionEndpoint::Effect(effect) => ExtrusionEndpoint::Effect(session.canonical_effect(effect)),
+        };
+        BoundKey(endpoint(bound.0), bound.1, endpoint(bound.2))
+    }
+    fn mapped_bound(session: &InferenceSession, graph: &candidate_scheme::Graph,
+        snapshot: &candidate_scheme::LocalUseSnapshot, bound: &candidate_scheme::Bound) -> BoundKey {
+        let endpoint = |index: usize, polarity: Polarity| match bound.kind {
+            ComponentKind::Value => ExtrusionEndpoint::Value(session.value_endpoint(snapshot.terms[index].unwrap(), polarity)),
+            ComponentKind::Effect => ExtrusionEndpoint::Effect(snapshot.effect_operands.get(&index).copied()
+                .unwrap_or_else(|| session.effect_endpoint(snapshot.terms[index].unwrap(), polarity))),
+        };
+        assert_eq!(snapshot.terms.len(), graph.nodes.len());
+        let lower = endpoint(bound.lower, Polarity::Positive);
+        let upper = endpoint(bound.upper, Polarity::Negative);
+        if bound.side == Polarity::Positive { BoundKey(upper, bound.side, lower) }
+        else { BoundKey(lower, bound.side, upper) }
+    }
+    fn parents(context: &State) -> HashMap<RelationId, Vec<(RelationId, &'static str)>> {
+        let mut parents: HashMap<_, Vec<_>> = HashMap::new();
+        for dependency in &context.dependencies {
+            let (child, inputs): (_, Vec<_>) = match *dependency {
+                Dependency::Derived { child, parent } => (child, vec![(parent, "Derived")]),
+                Dependency::FunctionPort { child, parent, .. } => (child, vec![(parent, "FunctionPort")]),
+                Dependency::Transport { child, parent, .. } => (child, vec![(parent, "Transport")]),
+                Dependency::Replay { child, lower, upper, .. } =>
+                    (child, vec![(lower, "Replay.lower"), (upper, "Replay.upper")]),
+            };
+            for (parent, role) in inputs {
+                assert!((parent.0 as usize) < context.relations.len());
+                parents.entry(child).or_default().push((parent, role));
+            }
+        }
+        parents
+    }
+    fn ancestry(start: RelationId, parents: &HashMap<RelationId, Vec<(RelationId, &'static str)>>) -> HashSet<RelationId> {
+        let mut seen = HashSet::new();
+        let mut work = vec![start];
+        while let Some(relation) = work.pop() {
+            if !seen.insert(relation) { continue; }
+            for &(parent, _) in parents.get(&relation).into_iter().flatten() { work.push(parent); }
+        }
+        seen
+    }
+
+    #[test]
+    fn native_selected_use_census_retains_actual_local_maps_and_source_anchors() {
+        for selected in ["factory_captured", "factory_direct"] {
+            let text = CAPTURED.replace("receive factory_captured", &format!("receive {selected}"));
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text.as_str());
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+            let hir = Arc::new(lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("selected-use-census", selected))),
+                &parsed, yu_hir::SemanticImports::empty()).unwrap());
+            let root = |name: &str| hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
+                _ => None,
+            }).unwrap();
+            let outer = hir.local_source(root("outer")).unwrap().unwrap();
+            let receive = hir.local_source(root("receive")).unwrap().unwrap();
+            let local = |source: &yu_hir::LocalSource, name: &str| source.bindings().iter()
+                .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
+            let selected_id = local(outer, selected);
+            let provider_id = local(outer, if selected == "factory_captured" { "captured" } else { "direct" });
+            let g_id = local(receive, "g");
+            let mut requested = HashSet::new();
+            for item in hir.items() {
+                let HirItem::Binding(binding) = item else { continue; };
+                if let Some(source) = hir.local_source(binding.definition_root()).unwrap() {
+                    for expression in source.expressions() {
+                        if matches!(&expression.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_), .. }) {
+                            requested.insert(expression.occurrence.clone());
+                        }
+                    }
+                }
+            }
+            let mut session = InferenceSession::try_new_candidate(
+                ConstraintBatch::collect_candidate_mode_scoped(hir.clone(), true, true, false).unwrap()).unwrap();
+            session.candidate_graph.as_mut().unwrap().local_use_census = Some(candidate_scheme::LocalUseCensus {
+                requested, snapshots: Vec::new(),
+            });
+            session.execute().unwrap();
+            assert!(!state(&session).scoped_enabled);
+            let context = state(&session);
+            let graph_state = session.candidate_graph.as_ref().unwrap();
+            let snapshots = &graph_state.local_use_census.as_ref().unwrap().snapshots;
+            assert!(!snapshots.is_empty());
+            let mut selected_routes = 0;
+            let mut provider_routes = 0;
+            let mut g_routes = 0;
+            let mut restored = 0;
+            for snapshot in snapshots {
+                let route = &graph_state.local_routes[snapshot.route];
+                assert_eq!(route.slot, snapshot.slot);
+                assert_eq!(route.occurrence, snapshot.occurrence);
+                let source = hir.local_source(route.local.definition_root()).unwrap().unwrap();
+                let expression = source.expressions().iter().find(|expression| expression.occurrence == route.occurrence).unwrap();
+                assert!(matches!(&expression.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &route.local));
+                assert_eq!(hir.occurrence_source_key(&route.occurrence).unwrap(), Some(&expression.source));
+                assert_eq!(route.graph.live_root, graph_state.locals[route.slot].as_ref().unwrap().root);
+                assert_eq!(snapshot.restored_bounds, route.graph.bounds.len());
+                assert_eq!(snapshot.evidence_remap.len(), route.graph.bound_evidence.len());
+                let fresh_root = snapshot.terms[route.graph.root].unwrap();
+                let target = session.batch.component_term_at(snapshot.target_component);
+                assert!(facts(&session, &route.occurrence, 0).iter().any(|fact| fact.lower() == fresh_root && fact.upper() == target), "actual FreshUse publication");
+                for (index, bound) in route.graph.bounds.iter().enumerate() {
+                    let antecedent = snapshot.evidence_remap[bound.evidence.0];
+                    assert_eq!(context.evidence.snapshots[antecedent.0], route.graph.bound_evidence[bound.evidence.0]);
+                    let mapped = mapped_bound(&session, &route.graph, snapshot, bound);
+                    let admissions: Vec<_> = context.evidence.admissions.iter().enumerate().filter(|(_, admission)| {
+                        matches!(admission.cause, BoundAdmissionCause::FreshUse { antecedent: actual, use_origin, source_bound, .. }
+                            if actual == antecedent && use_origin == snapshot.context_use && source_bound == bound.source_bound)
+                    }).collect();
+                    assert!(!admissions.is_empty(), "bound {index} has actual FreshUse restoration evidence");
+                    assert!(admissions.iter().any(|(_, admission)| canonical_bound(&session, admission.bound) == canonical_bound(&session, mapped)));
+                    for (admission_index, admission) in admissions {
+                        assert!(context.evidence.emissions.iter().any(|emission| emission.admission.0 == admission_index));
+                        if let BoundAdmissionCause::FreshUse { mapped_relation: Some(child), .. } = admission.cause {
+                            let parent = bound.relation.unwrap();
+                            assert!(context.dependency_keys.iter().any(|dependency| matches!(dependency,
+                                Dependency::Transport { child: actual, parent: original, use_origin, witness: Some(witness) }
+                                if *actual == child && *original == parent && *use_origin == snapshot.context_use
+                                    && witness.reason == TransportReason::FreshUse && witness.from == bound.source_bound
+                                    && canonical_bound(&session, witness.to) == canonical_bound(&session, mapped))));
+                            assert!(snapshot.context_remap.values().any(|mapped| *mapped == context.relations[child.0 as usize].key.context));
+                        }
+                    }
+                    restored += 1;
+                }
+                selected_routes += usize::from(route.local == selected_id);
+                provider_routes += usize::from(route.local == provider_id);
+                g_routes += usize::from(route.local == g_id);
+                eprintln!("PRESENT {selected} local route={} use={} occurrence={:?} root={fresh_root:?} target={target:?} restored={}", snapshot.route, snapshot.context_use, snapshot.occurrence, snapshot.restored_bounds);
+            }
+            assert!(selected_routes > 0 && provider_routes > 0 && g_routes > 0);
+            let outer_registration = session.batch.candidate_calls.formals.iter().find(|formal|
+                formal.owner == *root("outer") && formal.role == candidate_call::FormalRole::Computation).unwrap();
+            let entry = outer_registration.entry_effect.unwrap();
+            let lambda = &outer.expressions()[outer_registration.lambda];
+            let function = facts(&session, &lambda.occurrence, 2).into_iter().find_map(|fact|
+                InferenceSession::positive_function_children(&session.store, session.value_endpoint(fact.lower(), Polarity::Positive))).unwrap();
+            assert_eq!(session.effect_endpoint(function.1, Polarity::Negative), session.canonical_effect(EffectEndpointKey::EffectRow(entry)));
+            let thunk = outer.expressions().iter().find(|expression| matches!(&expression.form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if id == &outer_registration.parameter)).unwrap();
+            for slot in [1, 2] {
+                assert!(!facts(&session, &thunk.occurrence, slot).is_empty());
+                assert!(context.origins.iter().any(|origin| origin.occurrence == ConstraintOccurrenceId::new(thunk.occurrence.clone(), slot)));
+            }
+            let operation = outer.expressions().iter().find(|expression| matches!(&expression.form,
+                LocalSourceForm::Operation { resolution: yu_hir::SourceOperationResolution::Resolved(_) })).unwrap();
+            assert!(!facts(&session, &operation.occurrence, 42).is_empty());
+            assert_eq!(hir.occurrence_source_key(&operation.occurrence).unwrap(), Some(&operation.source));
+            let calls: Vec<_> = session.batch.candidate_calls.calls.iter().filter(|call| call.owner == *root("receive")).collect();
+            assert_eq!(calls.len(), 2);
+            let first = calls.iter().find(|call| matches!(&receive.expression(&call.callee).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(_), .. })).unwrap();
+            let second = calls.iter().find(|call| matches!(&receive.expression(&call.callee).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &g_id)).unwrap();
+            for call in [*first, *second] {
+                let native = call.native.unwrap();
+                let demand = InferenceSession::negative_function_children(&session.store, session.value_endpoint(native.demand, Polarity::Negative)).unwrap();
+                assert_eq!(demand.3, native.result);
+                assert_eq!(demand.2, native.invocation_effect);
+                assert_eq!(session.value_endpoint(native.result, Polarity::Negative), session.canonical_value(ValueEndpointKey::ValueRow(session.live_components[call.result].ordinal)));
+                assert_eq!(hir.occurrence_source_key(call.checking.occurrence()).unwrap(), Some(&receive.expressions()[call.expression].source));
+                eprintln!("PRESENT {selected} call={:?} result={:?} invocation={:?} application={:?}", call.checking, native.result, native.invocation_effect, native.application_effect);
+            }
+            let first_result = session.value_endpoint(first.native.unwrap().result, Polarity::Negative);
+            let scheme = graph_state.locals.iter().flatten().find(|scheme| scheme.id == g_id).unwrap();
+            assert_eq!(session.canonical_value(ValueEndpointKey::ValueRow(scheme.root)), first_result);
+            let parents = parents(context);
+            let first_origins: HashSet<_> = context.origins.iter().filter(|origin| origin.occurrence == first.checking).map(|origin| origin.relation).collect();
+            let second_origins: HashSet<_> = context.origins.iter().filter(|origin| origin.occurrence == second.checking).map(|origin| origin.relation).collect();
+            assert!(!first_origins.is_empty() && !second_origins.is_empty());
+            let mut projected = [0usize; 2];
+            for dependency in &context.dependencies {
+                let Dependency::FunctionPort { child, parent, field, .. } = *dependency else { continue; };
+                if !matches!(field, FunctionField::Result | FunctionField::ResultEffect) { continue; }
+                let lineage = ancestry(parent, &parents);
+                for (index, origins) in [&first_origins, &second_origins].iter().enumerate() {
+                    if !lineage.is_disjoint(origins) {
+                        let parent_key = context.relations[parent.0 as usize].key;
+                        let TypedPairKey::Value(pair) = parent_key.pair else { panic!("Function parent"); };
+                        let lower = InferenceSession::positive_function_children(&session.store, pair.lower).unwrap();
+                        let upper = InferenceSession::negative_function_children(&session.store, pair.upper).unwrap();
+                        let expected = if field == FunctionField::Result {
+                            TypedPairKey::Value(CanonicalValuePairKey { lower: session.value_endpoint(lower.3, Polarity::Positive), upper: session.value_endpoint(upper.3, Polarity::Negative) })
+                        } else { TypedPairKey::Effect { lower: session.effect_endpoint(lower.2, Polarity::Positive), upper: session.effect_endpoint(upper.2, Polarity::Negative) } };
+                        assert_eq!(session.candidate_context_pair(context.relations[child.0 as usize].key.pair), session.candidate_context_pair(expected));
+                        projected[index] += 1;
+                    }
+                }
+            }
+            eprintln!("PRESENT {selected} entry_raw={entry} entry_rep={:?} outward={:?} mapped_restorations={restored} call_projection_counts={projected:?} directed_dependencies={}", session.canonical_effect(EffectEndpointKey::EffectRow(entry)), session.effect_endpoint(function.2, Polarity::Positive), context.dependencies.len());
+            eprintln!("NEXT UNINSPECTED {selected}: selected module-use -> first f() dispatch use-instance/provider association; retained local maps authenticate each constructor but no cross-call provider association census is claimed. Both provider declarations and both ordered Replay inputs remain retained.");
+        }
+    }
+}

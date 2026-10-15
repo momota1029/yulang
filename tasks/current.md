@@ -6,6 +6,16 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
+- **Pending source decisions:** cache-bearing raw Resume still awaits the two
+  definition-materialization laws in
+  `questions/2026-10-16-resumed-definition-materialization/question.md`.
+  Bare module expressions have settled source-order execution but need an
+  authentic nondefinition source owner/receiver API. The independently reviewed
+  revision 2 proposal is pending in
+  `questions/2026-10-16-module-expression-source-owner/question.md`; its root
+  provenance explicitly preserves existing dynamic Invocation ownership.
+  Both pending directories remain uncommitted; independent native work continues.
+
 - **Direct primitive handlers implemented and proved:** the [closed-program gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
   supplies actual negative visibility from a once-computed authentic source
   certificate. Internal module-cache and transparent-ascription edges have
@@ -58,9 +68,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   Both actual source variants pass CLI candidate inference, with different native
   graphs. The independently reviewed [actual consumer trace](../notes/progress/2026-10-16-native-received-root-consumer-instance.md)
   locates captured entry-effect/Name lineage versus the direct operation route.
-  A bounded test-only same-State census now authenticates selected-use transport;
-  a constructive lane applies the existing receiving proofs to its event/view
-  interpretation. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
+  The [test-only same-State census](../notes/progress/2026-10-16-native-selected-use-census.md)
+  now independently verifies local FreshUse/source anchors in both actual cases;
+  selected module-use composition remains uninspected. A reviewed
+  [source interpretation application](../notes/theory/2026-10-16-native-received-root-interpretation.md)
+  consumes the established receiving proofs at original native operands and
+  preserves mapped-or-shared ancestry. The next census joins actual module
+  root-bound Transport witnesses to their selected use, with admission-time
+  canonicalization or a minimal test-only origin observation. No new production
+  metadata is selected. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN. No code, scoped-callee
   policy or production status change follows from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed
