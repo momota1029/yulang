@@ -319,7 +319,19 @@ the bound/free challenge distinction. Full Result/private installed-evidence
 support remains OPEN. A new 25-minute prover owns
 `notes/theory/2026-10-16-first-call-result-binding-projection.md`, making that
 exact ResultBind projection explicit under existing source rules and definition
-permission. A separate 20-minute researcher completed the changed-method
+permission. It is now independently CLEAN mathematically and for source
+conformance at producer `73401efb...fe040b`; the primary selects the
+[governing projection](../notes/design/2026-10-16-source-result-bind-projection.md).
+The complete typed packet/actual contracts retain exact telescopes, and the
+logical hereditary checking proof stays separate. Its inherited-support
+theorem removes/adds no fixed dependency. Universal eligibility remains OPEN
+at the authentic arbitrary opaque L1 output telescope/substitution. A new
+20-minute source-law witness/exclusion attempt has sole possible lease
+`notes/theory/2026-10-16-first-call-installed-contract-source-witness.md`;
+it must authenticate actual installation, fixed-pi_exec realization and full
+original membership, or prove the exact owner rule excludes the candidate.
+A schema alone is no counterexample; no artifact is required without new evidence.
+A separate 20-minute researcher completed the changed-method
 finite-proof backward slice without an artifact; the proposed lease
 `notes/theory/2026-10-16-first-call-finite-check-proof-dependencies.md` is unused.
 Authentic Guarantee/Absorb leaves both require scoped Cov; Eq-only descriptor
@@ -332,6 +344,19 @@ rejection or counterexample is claimed. This consumes the distinct method's
 result without another conditional note or optional saturation prerequisite.
 Eligibility, native applicability and cutover remain OPEN; no code, tests/builds
 or measurements accompany this static M2 checkpoint.
+
+The selector's changed critical-path pass also identifies an independent ready
+native obligation: exact-relation duplicate suppression. A 25-minute prover
+owns `notes/theory/2026-10-16-native-relation-duplicate-preservation.md`; an
+independent 25-minute researcher owns
+`notes/progress/2026-10-16-native-relation-duplicate-falsifier.md`. Frozen native
+inputs are unchanged. They trace mutable reads and every production writer at
+pair_is_current/dispatch_live_item, context dependency/bundle/execution and
+intrusion generations, consuming the reviewed drain-ownership theorem. The
+acceptance criterion is all required skipped consequences retained or owned,
+and later changes propagated or suppression invalidated; a genuine contrary
+trace needs authentic source/actions. No fresh-copy rerun oracle, code change,
+tests/builds/probes or semantic-memo axiom is authorized by that packet.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

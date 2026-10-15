@@ -317,9 +317,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   fresh d container with separately fixed actual operands; bound d in f's
   certificate is not a free A1 field after logical elimination. This removes
   the unsupported blanket-fixed-whole-d edge. Universal eligibility remains
-  OPEN at ResultBind's full alpha-result installed/private certificate
-  projection, including every real Shared/Mono dependency. A new constructor
-  packet targets that exact projection under existing definition permission;
+  OPEN at the full alpha-result's instantiated installed/private contract
+  support, including every real Shared/Mono dependency. The exact
+  [ResultBind projection](../notes/design/2026-10-16-source-result-bind-projection.md)
+  is now selected after CLEAN mathematical/source reviews: all actual packet,
+  contract and telescope fields remain, with a separate hereditary logical
+  checking proof. Its inherited-support theorem adds/removes no real dependency.
+  This closes the ordinary output-projection subgate, not universal absence of
+  A1 from an opaque producer's instantiated L1 output-contract telescope.
+  A bounded source-law witness/exclusion attempt targets that precise leaf;
   current-runtime same-value/view preservation is supporting evidence only.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
@@ -327,6 +333,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   new artifact was manufactured; provider saturation is not required. Native copy/use,
   broad forward and other parents remain OPEN. M2 static-only: two distinct-risk
   reviewers, zero tests/builds/probes/measurements.
+
+  An independent native proof/falsifier pair now checks exact-relation duplicate
+  suppression at pair_is_current/dispatch_live_item and context/intrusion writers.
+  Acceptance requires every skipped consequence retained/drain-owned, or later
+  mutation incrementally propagated/generation-invalidated, including dependency-
+  only changes and early stamps. No cache fix or broad implementation is assumed.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

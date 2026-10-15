@@ -90,9 +90,13 @@ This index is a navigation aid. The listed source document remains authoritative
   [ownership construction](../theory/2026-10-16-first-call-challenge-ownership-construction.md)
   and [audit](../progress/2026-10-16-first-call-challenge-ownership-audit.md)
   remove the blanket-fixed-whole-d edge at fresh assembly's introducing rule.
-  The ResultBind installed/private certificate projection and full fixed-leaf
-  support remain OPEN; no Generalize eligibility, native-use closure or new
-  semantic erasure law is selected.
+  The [ResultBind projection](2026-10-16-source-result-bind-projection.md)
+  is now selected under existing definition permission after CLEAN math/source
+  review of its [construction](../theory/2026-10-16-first-call-result-binding-projection.md).
+  It retains all typed packet/actual contract fields and original dependencies,
+  separating their hereditary checking proof. Full fixed-leaf support remains
+  OPEN at the authentic opaque L1 output telescope/substitution; no Generalize
+  eligibility, native-use closure or semantic erasure law is selected.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
