@@ -2,6 +2,14 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+## Current callback identity decision (2026-10-15)
+
+- [Ordinary identity forwarding](2026-10-15-callback-identity-forwarding.md)
+  — Authoritative for the user's direct requirement that `id (h i)` preserve
+  Callback Hygiene's outward return and sole output `0`, without special
+  meaning for the identifier. The selected compose release remains binding;
+  source attribution, discharge, Catch integration and soundness remain OPEN.
+
 ## Active workflow navigation (2026-10-10)
 
 - [Evidence-based next-action selection](2026-10-12-next-action-selection.md)

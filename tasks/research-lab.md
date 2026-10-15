@@ -34,9 +34,14 @@ Lambda slot 4, while retaining source attribution and nominal maps as premises.
 The [identity witness](../notes/progress/2026-10-15-callback-identity-scope-observations.md)
 shows an actual protected/released difference before Catch. Do not reinterpret
 it as a soundness counterexample or proof that id must preserve the same
-released scope. The overlapping h/e witness attribution is a pending user
-question under `questions/2026-10-15-callback-identity-release/`; dependent
-semantic changes wait. The directory remains outside ordinary checkpoints.
+released scope. The user has now selected
+[ordinary identity forwarding](../notes/design/2026-10-15-callback-identity-forwarding.md):
+the return still reaches the outer sub after `id (h i)`, with no name-specific
+semantics. The behavioral alternative is resolved; source attribution and
+matching discharge remain OPEN while preserving compose release. The historical
+question and direct-resolution receipt under
+`questions/2026-10-15-callback-identity-release/` remain outside ordinary
+checkpoints; no separate answerer bundle exists.
 The [attachment-only native slice](../notes/progress/2026-10-15-callback-receiver-attachment.md)
 now retains that source owner and passes four focused tests plus workspace/build
 and three compose controls. It changes no release or nominal owner. Curried

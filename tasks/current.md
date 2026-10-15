@@ -32,9 +32,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   retains callback protection before Catch for `h 0` but releases it for
   `id (h 0)`. Neither proves actual capture. Existing compose authority releases
   its attributed e witness even while the receiver lives; no independent
-  second shield is established. The exact attribution/visibility choice is
-  pending in `questions/2026-10-15-callback-identity-release/question.md`, kept
-  uncommitted. Do not adopt a guard or expiry repair that presumes either answer.
+  second shield is established. The user has now directly selected
+  [ordinary identity forwarding](../notes/design/2026-10-15-callback-identity-forwarding.md):
+  `id (h i)` preserves the callback's outer return and sole output `0`, without
+  special meaning for `id`. Compose release remains binding. Source attribution
+  and discharge construction remain OPEN; the behavioral question is resolved.
+  Its local receipt and historical question remain uncommitted, with no
+  separate answering-primary bundle claimed.
   [Source-owned receiver attachments](../notes/progress/2026-10-15-callback-receiver-attachment.md)
   now expose original formal/Lambda/body ownership separately from lexical
   scope. Four focused tests, workspace check, playground build and three retained
