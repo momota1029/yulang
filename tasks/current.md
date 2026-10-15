@@ -46,6 +46,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   together with the default-feature solver check. No source MODEL, general
   extrusion/context semantic adequacy, H2/U or F5 gate follows.
 
+- **All four primitive computation roots receive locally:** the
+  [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)
+  and its [actual matcher handoff](../notes/progress/2026-10-16-playground-primitive-root-receiving.md)
+  have CLEAN independent semantic review. Explicit outer computation formals
+  now supply their local receiving certificate for Unit/Int/Bool/Str, preserving
+  original ownership, permissions, unknown coverage and ground-result projection.
+  All 34 focused receiving/Resume/private tests and three new-type CLI cases
+  pass without warnings. No new negative, Function, general-profile, source MODEL
+  or full inference/production claim follows.
+
 - **Initializer handler boundary implemented and proved:** the [local gate](../notes/progress/2026-10-16-playground-initializer-boundary.md)
   stops escaping initializer requests before a pending GlobalRead can search
   caller handlers. Internal Catch/Resume, nested boundaries, original event/
@@ -350,15 +360,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   lawful response and full typing remain premises. No-free is not proved.
   The architect identifies IF-Bind, retaining original A1 outside capture,
   as the decisive interface constructor, without inventing an A1 View.
-  A new 20-minute proof packet constructs the original inherited `J_raw=IF(K)`
-  and its actual support; no new description binder or contract projection is
-  assumed. Original eligibility/typed-witness/native parents remain OPEN.
+  The changed-owner attempt inspected original IF-Bind scopes, then withdrew
+  the unproved equation `J_raw=all IF(K) fields fixed`: contextual incidence
+  does not make a logical checking slot an actual contract parameter. It stopped
+  without another artifact. The remaining owner is the source-constructed raw
+  callable's validation registration and actual capture/import versus inferred
+  description/body-proof projection, at the original scopes. A selector now
+  targets that constructor; no new binder, retagging or closure is assumed.
+  Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
-  An independent ready runtime slice proves computation-root receiving for
-  Unit/Int/Bool/Str before widening the current Int-only schema matcher; its
-  complete source certificate, ground-result projection and every consumer are
-  assigned to a separate proof owner. It depends on neither this eligibility
-  parent nor the raw-k interface completion.
+  The independent primitive computation-root receiving slice is now proved,
+  implemented and verified above; it depends on neither this eligibility parent
+  nor the raw-k interface completion.
   Finite checking's distinct backward-dependency pass found the authentic local
   proof input still unavailable: original D/M clause roots, guard-rule instance,
   scoped substitutions and any recursive equation table. No nonuniform p_P or

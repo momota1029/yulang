@@ -364,7 +364,15 @@ decisive possible edge, not a fabricated executable A1 View. A changed-owner
 construct inherited full `J_raw=IF(K)` at its original scope, without capture
 generalization, and derive actual free support. A support path does not itself
 prove the full h/f/handler typing/compatibility witness or a qualified CE.
-Original generalization/native/cutover parents remain OPEN.
+That attempt is now stopped without a retained artifact. IF's full contextual
+Bind slot does not establish that every logical endpoint is a free actual
+installed-contract parameter; the unproved exposure equation is withdrawn.
+No free-A1 conclusion follows from metadata. Under proof-obligation economy a
+10-minute read-only selector now targets source-constructed raw-k validation
+registration and the actual-field/inferred-description/body-proof introduction,
+using ordinary Lambda discipline at original scopes. It must supply the missing
+constructor rather than another conditional catalogue. Original
+generalization/native/cutover parents remain OPEN.
 It selected an independent runtime coverage handoff: explicit computation-root
 formals already select retained Comp entry, but `RootCompSchema::from_parameter`
 only authenticates Int. A 15-minute prover `callback_context_proof` owns
@@ -373,10 +381,16 @@ reviewed source certificate and ground-result projection to Unit/Int/Bool/Str.
 All current receiving/return/raw-View consumers must be checked for Int-specific
 assumptions before widening the production matcher. This is ordinary approved
 primitive coverage, independent of raw-k/J_raw and opaque result generalization.
-One independent semantic review precedes implementation; primary owns focused
-tests/CLI verification, with zero benchmark samples and no new broad suite
-without a concrete shared-change reason. No production change is authorized
-by the selector report alone.
+The proof and [actual handoff](../notes/progress/2026-10-16-playground-primitive-root-receiving.md)
+are now CLEAN under independent `checked_result_semantics` pre-write and delta
+review. Implementation widens only the ground tag predicate, retaining exact
+source ownership/effects guards. New source controls cover direct/forwarded
+repeated Resume for every new root, distinct response/final types and missing
+permission/owner rejection. Primary verified 18 receiving, 13 Resume and three
+private tests plus Bool/Str/Unit CLI continuations, zero failures/warnings.
+M1: one semantic reviewer, no broad package/solver/workspace rerun, zero benchmark
+samples/processes. The source theorem, README and shared records are synchronized;
+general/Function/unknown profile, MODEL and production parents remain OPEN.
 A separate 20-minute researcher completed the changed-method
 finite-proof backward slice without an artifact; the proposed lease
 `notes/theory/2026-10-16-first-call-finite-check-proof-dependencies.md` is unused.

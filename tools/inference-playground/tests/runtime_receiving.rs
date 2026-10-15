@@ -263,3 +263,85 @@ fn live_receiver_joins_its_retained_receipt_with_a_helpers_same_view_observation
     let source = "act io:\n    our tick: int -> int\nmy helper (item:[] int) = item\nmy relay (thunk:[io] int) = catch helper thunk { io::tick(p), _ -> p }\nmy main = relay (io::tick 7)";
     assert_integer(source, "7");
 }
+
+fn assert_primitive_root(source: &str, expected: RuntimeValueKind) {
+    let (mut machine, _) = machine(source);
+    let outcome = machine.run(10_000);
+    let RuntimeOutcome::Completed(value) = outcome else {
+        panic!("expected completion, got {outcome:?}");
+    };
+    let actual = &machine.value(value).unwrap().kind;
+    match (actual, expected) {
+        (RuntimeValueKind::Unit, RuntimeValueKind::Unit) => {}
+        (RuntimeValueKind::Boolean(actual), RuntimeValueKind::Boolean(expected)) => {
+            assert_eq!(*actual, expected);
+        }
+        (RuntimeValueKind::String(actual), RuntimeValueKind::String(expected)) => {
+            assert_eq!(actual, &expected);
+        }
+        (actual, expected) => panic!("expected {expected:?}, got {actual:?}"),
+    }
+}
+
+#[test]
+fn primitive_computation_roots_resume_repeatedly_through_direct_formal_forwarding() {
+    for (ty, payload_type, payload, responses, expected) in [
+        (
+            "bool",
+            "bool",
+            "true",
+            "{ my first = k true; k false }",
+            RuntimeValueKind::Boolean(false),
+        ),
+        (
+            "str",
+            "str",
+            "\"payload\"",
+            "{ my first = k \"first\"; k \"second\" }",
+            RuntimeValueKind::String("second".into()),
+        ),
+        (
+            "()",
+            "int",
+            "7",
+            "{ my first = k(); k() }",
+            RuntimeValueKind::Unit,
+        ),
+    ] {
+        for forwarded in [false, true] {
+            let receiver = if forwarded { "forward" } else { "receive" };
+            assert_primitive_root(
+                &format!(
+                    "act signal:\n    our ping: {payload_type} -> {ty}\nmy receive (input:[signal] {ty}) = catch input {{ signal::ping(p), k -> {responses} }}\nmy forward (pending:[signal] {ty}) = receive pending\nmy main = {receiver} {{ my result = signal::ping {payload}; result }}"
+                ),
+                expected.clone(),
+            );
+        }
+    }
+}
+
+#[test]
+fn operation_response_type_is_independent_of_the_final_boolean_computation_root() {
+    assert_primitive_root(
+        "act signal:\n    our ping: int -> int\nmy receive (input:[signal] bool) = catch input { signal::ping(p), k -> k 23 }\nmy forward (pending:[signal] bool) = receive pending\nmy main = forward { my ignored = signal::ping 7; false }",
+        RuntimeValueKind::Boolean(false),
+    );
+}
+
+#[test]
+fn primitive_roots_require_the_original_receivers_exact_concrete_permission() {
+    for (ty, payload_type, payload, result) in [
+        ("bool", "bool", "true", "false"),
+        ("str", "str", "\"text\"", "\"handled\""),
+        ("()", "int", "7", "()"),
+    ] {
+        for permission in ["", "other"] {
+            assert_missing_evidence(&format!(
+                "act signal:\n    our ping: {payload_type} -> {ty}\nact other:\n    our unrelated: int -> int\nmy receive (input:[{permission}] {ty}) = catch input {{ signal::ping(p), _ -> {result} }}\nmy main = receive (signal::ping {payload})"
+            ));
+        }
+        assert_missing_evidence(&format!(
+            "act signal:\n    our ping: {payload_type} -> {ty}\nmy receive (input:[signal] {ty}) = {{ my helper ignored = catch input {{ signal::ping(p), _ -> {result} }}; helper() }}\nmy main = receive (signal::ping {payload})"
+        ));
+    }
+}

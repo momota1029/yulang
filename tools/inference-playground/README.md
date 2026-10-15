@@ -123,9 +123,10 @@ without binding it. If no value arm is present, the normal return passes
 through.
 
 A matching operation arm can run when the runtime has enough receiving
-evidence for that request. A ground `[io] int` computation formal supplies
-handling permission to its own receiving `Catch`, even when inherited coverage
-is unknown. This stdin example resumes the request and prints `11`:
+evidence for that request. A ground `[io]` computation formal with result type
+`()`, `int`, `bool`, or `str` supplies handling permission to its own receiving
+`Catch`, even when inherited coverage is unknown. This stdin example resumes
+the request and prints `11`:
 
 ```sh
 printf 'act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay (io::tick 7)\n' | cargo run -q -p yu-playground -- --run main -
@@ -151,8 +152,9 @@ The closed form covers primitive operation payload and response types: `()`,
 `int`, `bool`, and `str`. It does not cover lambdas, aliases to operations,
 continuation binders, or `Computation` parameter ports. Every definition in the
 program must fit this form, so even an unused callable definition withholds
-the evidence needed for this direct handling path. The receiving `[io] int`
-formal described above remains a separate handling path.
+the evidence needed for this direct handling path. The receiving `[io]`
+computation formal described above remains a separate handling path for these
+four ground result types.
 
 Operation arms support declared primitive payload types `()`, `int`, `bool`,
 and `str`. A total identifier or wildcard payload pattern can bind or discard

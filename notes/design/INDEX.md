@@ -162,6 +162,13 @@ This index is a navigation aid. The listed source document remains authoritative
   bundle `1e62dfdc3`, selects no A/B law: establish a valid typed source capture
   or unreachability before requesting that choice.
 
+- [Primitive computation-root receiving](../progress/2026-10-16-playground-primitive-root-receiving.md)
+  — The [uniform source theorem](../theory/2026-10-16-primitive-computation-root-receiving.md)
+  and actual matcher have CLEAN semantic review for Unit/Int/Bool/Str, exact
+  original positive permissions and ground-result projection. All 34 focused
+  receiving/Resume/private tests and three CLI continuations pass. General
+  profiles, Function/unknown roots, source MODEL and production remain OPEN.
+
 - [Direct primitive operation handlers](../progress/2026-10-16-playground-primitive-handlers.md)
   — Whole-program source certificate, fresh-context and actual handler consumer
   have independent proof review. M2 code/contract reviews are clean; 90 package

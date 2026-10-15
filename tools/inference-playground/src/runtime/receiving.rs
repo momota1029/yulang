@@ -24,7 +24,13 @@ impl RootCompSchema {
         if annotation.owner != lambda.source_root
             || formal.id.source_root() != &lambda.source_root
             || annotation.ty.effects.is_none()
-            || !matches!(annotation.ty.value, SourceAnnotationValue::Int)
+            || !matches!(
+                annotation.ty.value,
+                SourceAnnotationValue::Unit
+                    | SourceAnnotationValue::Int
+                    | SourceAnnotationValue::Bool
+                    | SourceAnnotationValue::Str
+            )
         {
             return None;
         }
@@ -389,6 +395,45 @@ mod tests {
             panic!("ground source value");
         };
         (schemas[0].clone(), schemas[1].clone(), family, value)
+    }
+
+    #[test]
+    fn primitive_schema_matcher_preserves_outer_effect_and_source_owner_guards() {
+        let (schema, different, _, _) = source_operands();
+        let mut formal = schema.formal.clone();
+        for value in [
+            SourceAnnotationValue::Unit,
+            SourceAnnotationValue::Int,
+            SourceAnnotationValue::Bool,
+            SourceAnnotationValue::Str,
+        ] {
+            formal.annotation.as_mut().unwrap().ty.value = value;
+            assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_some());
+        }
+        let ty = schema.formal.annotation.as_ref().unwrap().ty.clone();
+        for value in [
+            SourceAnnotationValue::Variable("a".into()),
+            SourceAnnotationValue::Function {
+                argument: Box::new(ty.clone()),
+                result: Box::new(ty),
+            },
+        ] {
+            formal.annotation.as_mut().unwrap().ty.value = value;
+            assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
+        }
+        let mut formal = schema.formal.clone();
+        formal.annotation.as_mut().unwrap().ty.effects = None;
+        assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
+        let mut formal = schema.formal.clone();
+        formal.annotation.as_mut().unwrap().owner = different.lambda.source_root.clone();
+        assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
+        assert!(RootCompSchema::from_parameter(&different.lambda, &schema.formal).is_none());
+        let mut formal = different.formal.clone();
+        formal.annotation.as_mut().unwrap().owner = schema.lambda.source_root.clone();
+        assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
+        let mut formal = schema.formal.clone();
+        formal.annotation = None;
+        assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
     }
 
     fn assert_constructor_order(receiving: &Receiving) {
