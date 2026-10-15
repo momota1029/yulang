@@ -18,10 +18,14 @@ The next-action selection's native ownership audit is
 [independently reviewed](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md).
 Existing local capture/FreshUse retain structural roots, contexts, snapshots
 and attachment evidence. The next decisive premise is first-Apply/Result
-interpretation of both source packet inputs under one original return witness;
-constructive interpretation and independent source-qualified falsification
-are separate active methods. Missing interpretation is not demonstrated loss
-or permission to remove the scoped Local-callee guard.
+interpretation of both source packet inputs under one original return witness.
+The [constructive source-indexed decoder](../notes/theory/2026-10-15-native-call-result-source-interpretation.md)
+and [static falsification attempt](../notes/theory/2026-10-16-native-result-origin-falsification.md)
+now have independent clean review. They establish original-coordinate wiring
+and common source-witness annotation, not native Replay/post-check evaluation.
+A single bounded Astra proof assignment targets that remaining joint-fiber
+adequacy premise after the Sol constructor pass. Missing interpretation is not
+demonstrated loss or permission to remove the scoped Local-callee guard.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

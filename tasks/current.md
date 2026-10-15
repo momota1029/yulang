@@ -1,10 +1,22 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-15
+Date: 2026-10-16
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active. Native extrusion now schedules current copied Allowance replay after initialization, with an independently reviewed sparse queue-admission invariant and focused runtime evidence. Source H1/H2/U and production correspondence remain open, with H3/P disabled.
 
-## Current checkpoint (2026-10-15)
+## Current checkpoint (2026-10-16)
+
+- **First native Result interpretation reviewed:** the [source-indexed
+  construction](../notes/theory/2026-10-15-native-call-result-source-interpretation.md)
+  authentically decodes the retained Apply/formal/Name origin and preserves the
+  Result coordinate through the inspected constructors. Its two packet inputs
+  share the original `(xi,z)` witness. The independent [static falsification
+  attempt](../notes/theory/2026-10-16-native-result-origin-falsification.md) found
+  no missing edge or source-qualified counterexample. Fresh independent review
+  accepts these limited results. Actual Replay/post-check evaluation of that
+  joint source fiber, including copied/merged histories, remains OPEN; a bounded
+  Astra proof packet now targets that exact premise. No code, test, benchmark,
+  scoped-callee policy or production status changes follow from these notes.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

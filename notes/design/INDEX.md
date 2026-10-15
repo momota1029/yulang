@@ -4,6 +4,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Current callback identity decision (2026-10-15)
 
+- [Native first-Result source interpretation](../theory/2026-10-15-native-call-result-source-interpretation.md)
+  and [origin falsification](../theory/2026-10-16-native-result-origin-falsification.md)
+  — Independently reviewed source-coordinate decoder, constructor preservation
+  and joint source-witness annotation; bounded static search found no actual
+  counterexample. Native Replay/post-check and copied/merged-history adequacy
+  remain OPEN. No new metadata or source restriction is selected.
+
 - [Native Call-result transport audit](../progress/2026-10-15-native-call-result-profile-transport-audit.md)
   — Independently reviewed owner inventory. Structural retention exists through
   local install/capture/FreshUse; original first-Apply/result packet interpretation
