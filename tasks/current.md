@@ -311,11 +311,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   supplies P_F(d_i); actual contracts and independent response/history
   compatibility remain. The ReturnFutureRef objection was withdrawn after
   checking that positive constructor. This closes the local invocation-reuse
-  subgate only. New disjoint constructive/attack packets derive actual
-  challenge-assembly/ResultBind ownership outputs before §5.1's fixed walk;
-  pre-receipt timing alone proves no partition. Eligibility, native copy/use,
-  broad forward and other source/native parents remain OPEN. M2 static-only:
-  two distinct-risk reviewers, zero tests/builds/probes/measurements.
+  subgate only. The subsequent [ownership construction](../notes/theory/2026-10-16-first-call-challenge-ownership-construction.md)
+  and [field audit](../notes/progress/2026-10-16-first-call-challenge-ownership-audit.md)
+  now have CLEAN mathematical/source review. Introducing rules derive a logical
+  fresh d container with separately fixed actual operands; bound d in f's
+  certificate is not a free A1 field after logical elimination. This removes
+  the unsupported blanket-fixed-whole-d edge. Universal eligibility remains
+  OPEN at ResultBind's full alpha-result installed/private certificate
+  projection, including every real Shared/Mono dependency. A new constructor
+  packet targets that exact projection under existing definition permission;
+  current-runtime same-value/view preservation is supporting evidence only.
+  Finite checking's distinct backward-dependency pass found the authentic local
+  proof input still unavailable: original D/M clause roots, guard-rule instance,
+  scoped substitutions and any recursive equation table. No nonuniform p_P or
+  new artifact was manufactured; provider saturation is not required. Native copy/use,
+  broad forward and other parents remain OPEN. M2 static-only: two distinct-risk
+  reviewers, zero tests/builds/probes/measurements.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

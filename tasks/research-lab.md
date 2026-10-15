@@ -311,8 +311,27 @@ independent 20-minute researcher owns
 `notes/progress/2026-10-16-first-call-challenge-ownership-audit.md`. They derive
 and attack the actual assembly/ResultBind ownership outputs under existing
 Source-Generalize §3.3/5.1, rather than assuming the complete d is fixed or
-logical. Eligibility, native applicability and cutover remain OPEN; no code,
-tests/builds or measurements accompany this static M2 checkpoint.
+logical. Both artifacts are now frozen and independently CLEAN: math
+`ordinary_carrier_semantic`, source `ordinary_carrier_contract`; construction
+producer `df9f421d...ed26e`, audit `cc942d99...902d0f`. The primary accepts only
+fresh assembly's owner-derived logical container/separately fixed operands and
+the bound/free challenge distinction. Full Result/private installed-evidence
+support remains OPEN. A new 25-minute prover owns
+`notes/theory/2026-10-16-first-call-result-binding-projection.md`, making that
+exact ResultBind projection explicit under existing source rules and definition
+permission. A separate 20-minute researcher completed the changed-method
+finite-proof backward slice without an artifact; the proposed lease
+`notes/theory/2026-10-16-first-call-finite-check-proof-dependencies.md` is unused.
+Authentic Guarantee/Absorb leaves both require scoped Cov; Eq-only descriptor
+leaves cannot create a changed target. Composition preserves dependencies and
+recursive pairing needs its complete original equation table. The first missing
+input remains an actual Check proof instance with original D/M clauses, local
+guard laws and scoped substitutions; annotation/Apply constructors supply
+endpoints rather than that proof. No nonuniform p_P, normalization, source
+rejection or counterexample is claimed. This consumes the distinct method's
+result without another conditional note or optional saturation prerequisite.
+Eligibility, native applicability and cutover remain OPEN; no code, tests/builds
+or measurements accompany this static M2 checkpoint.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

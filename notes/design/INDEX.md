@@ -86,9 +86,13 @@ This index is a navigation aid. The listed source document remains authoritative
   and [executable-field audit](../progress/2026-10-16-first-call-executable-input-dependency-audit.md)
   now prove the actual source graph's equal executable pi_exec and fresh
   full-f guard elimination. Complete IF/d/future typed records and independent
-  history premises remain distinct. Challenge-assembly/ResultBind ownership
-  and the full fixed-dependency walk are next; no Generalize eligibility,
-  native-use closure or new semantic erasure law is selected.
+  history premises remain distinct. The subsequent independently accepted
+  [ownership construction](../theory/2026-10-16-first-call-challenge-ownership-construction.md)
+  and [audit](../progress/2026-10-16-first-call-challenge-ownership-audit.md)
+  remove the blanket-fixed-whole-d edge at fresh assembly's introducing rule.
+  The ResultBind installed/private certificate projection and full fixed-leaf
+  support remain OPEN; no Generalize eligibility, native-use closure or new
+  semantic erasure law is selected.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations
