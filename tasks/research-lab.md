@@ -105,8 +105,16 @@ descriptor is unproved. The selector's changed-method packet is dispatched as
 one bounded `prover` with requested `gpt-6-astra`/low, 25 minutes, no children,
 code or probes; runtime settings are not independently observable. Its sole
 lease is `notes/theory/2026-10-16-native-declared-support-source-embedding.md`.
-It must derive the original implication or supply a full source-qualified
-counterexample; unused declared effects alone are not that counterexample.
+The [result](../notes/theory/2026-10-16-native-declared-support-source-embedding.md)
+has independent review and establishes neither implication nor counterexample:
+the inspected authority leaves the annotation-to-complete-descriptor formation
+clause unselected. Architect/specification audits agree. The
+[pending formation question](../questions/2026-10-16-annotation-declared-envelope/question.md)
+offers retained declared contract versus complete provider-specific refinement;
+fixed polarity/B, the original xi/z theorem and empty-fiber laws remain intact.
+Dependent native work waits for that decision. Do not repeat an equivalent
+embedding/census/transport packet at the unchanged premise. Runtime source
+admission work remains independently active.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and

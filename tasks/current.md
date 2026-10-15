@@ -119,9 +119,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   proves that selected observations alone do not justify declared Support.
   It establishes no compiler counterexample. Next-action selection confirms
   the precise whole-descriptor implication at the annotation/signature owner;
-  one bounded Astra/low prover lane targets that clause with original xi/z
-  and source-domain quantifiers unchanged. Native implementation/cutover stays
-  gated on the result and fresh independent review.
+  the bounded Astra/low [formation audit](../notes/theory/2026-10-16-native-declared-support-source-embedding.md)
+  now has independent review. It identifies the missing annotation-to-complete
+  descriptor formation clause, not a proof or source-qualified counterexample.
+  Architect and specification audits confirm a genuine unselected distinction:
+  retain a declared contractual allowance in the whole comparison, or permit
+  refinement from complete provider behavior. The narrow
+  [pending question](../questions/2026-10-16-annotation-declared-envelope/question.md)
+  preserves existing polarity/B and original xi/z scope. Native dependent
+  definition/implementation/cutover work waits for this choice; another census
+  or equivalent conditional proof attempt is not the next action.
 
 - **Native returned-packet owner located:** the independently reviewed
   [Call-result audit](../notes/progress/2026-10-15-native-call-result-profile-transport-audit.md)

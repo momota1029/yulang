@@ -10,6 +10,10 @@ This index is a navigation aid. The listed source document remains authoritative
   Selected observations alone do not establish the declared Support predicates.
   Whole-descriptor-to-native adequacy for the original xi/z remains OPEN;
   no source-qualified counterexample or semantic change is established.
+  The independently reviewed [formation audit](../theory/2026-10-16-native-declared-support-source-embedding.md)
+  locates a genuine unselected annotation-to-complete-descriptor clause. The
+  [pending question](../../questions/2026-10-16-annotation-declared-envelope/question.md)
+  selects no semantics until answered; existing polarity and callback B remain fixed.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated
