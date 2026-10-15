@@ -313,6 +313,100 @@ synchronized `tasks/current.md`, `tasks/research-lab.md` and the design index;
 the original parent remains OPEN with the primary owning the missing source
 entry/profile/exit correspondence.
 
+## 7. Concrete annotated instance at its actual producer
+
+A further bounded construction attempt uses the existing successful branch of
+`crates/yu-solver/tests/candidate_formal_effect_polarity.rs:72–91`:
+
+```yu
+act io:
+    our tick: int -> ()
+act other:
+    our tick: int -> ()
+my bridge (thunk:[io] int) = thunk
+my answer:[io, other] int = bridge {
+    my first = io::tick 1;
+    my second = other::tick 1;
+    1
+}
+```
+
+The checked-in acceptance assertion was inspected, not rerun. The paired
+`[other]` annotation below is a source-substitution argument, not a newly
+parsed/executed fixture. This concrete computation-formal control does not
+replace the omitted callback h case or establish its no-grant behavior.
+
+The outer annotation determines Computation role and the root argument
+computation position. Annotation integration §1.1 determines local permission
+for io, accepting additional other effects without granting their removal.
+There is no nested function-position choice in this instance. Entry binds the
+whole carrier without Value-entry Force; the later body/result consumer uses it.
+An ordinary Value id need not introduce a nonempty protection profile merely
+because it has a receiving invocation.
+
+At frozen compiler N the actual producer branches are:
+
+1. `candidate_source.rs:575,699–715` selects Computation role and schedules
+   FormalEntry and FormalAnnotation with the original annotation/formal scope.
+2. `:1192–1198,1304–1307` allocates entry row e_t and generates equality between
+   the body Name effect and that same entry row.
+3. `candidate_effect.rs:1170–1182::candidate_formal_entry_annotation` sees no
+   variable tail in `[io]`; its variable-equality branch emits nothing. Concrete
+   io produces no permission, profile or receipt output here. The handling
+   integration is explicitly deferred in the source comment.
+4. `candidate_formal_annotation` and `candidate_formal_value_pair` produce the
+   Int positive/negative pair and constrain the formal Value at slots 43/44;
+   this branch does not traverse the outer concrete effects.
+5. `lib.rs:11271–11335::admit_lambda_fact` uses e_t, omits the Value-entry
+   slot-3 inclusion, and sends the body Name effect to the returned row at slot 4.
+
+The authentic Function-port comparison therefore gives Argument to Int,
+ArgumentEffect to e_t, and returned effect to the Call result-effect row. The
+Lambda's Value result remains the original parameter row v_t, constrained by
+`Int+ <= v_t` and `v_t <= Int-`; the result child is `v_t+ <= v_result-`, not
+a replacement of that row by the Int leaf. The body Name equality connects e_t
+to the returned effect. These scalar channels
+can carry both io and other. They are not a complete original scoped assignment,
+FrameCall, receipt, operation Observe or actual receiver completion witness.
+
+**Finite information loss at this output.** Replacing only `[io]` with `[other]`
+retains Computation role, an empty variable list and Int Value. The inspected
+Value/AE/RE constraint outputs are isomorphic up to fresh/provenance address
+renaming, while the required local permissions differ. No renaming-invariant
+consumer of only those erased scalar channels can recover both permissions;
+source/provenance lookup is excluded from this statement. The original HIR,
+source annotations and scheduled actions remain distinct and retain the needed
+fact; this is not a claim that the entire source/native state is identical.
+It instantiates the acknowledged permission implementation gap, without a
+runtime counterexample or a new semantic decision.
+
+The first missing formation rule must take that original annotation, formal,
+root position and actual receiving carrier under one assignment, preserve its
+old evidence, and produce local io permission plus the corresponding typed
+receipt tied to that receiver. It must precede the carrier's body/result
+consumer. The current scalar Function incidence does not produce that output;
+the conditional evidence consumer assumes it. The same source identity must
+then reach operation exposure and normal completion. Those latter steps remain
+unproved for this finite instance as well as for the original parent.
+
+This gives the next owner at FormalEntry/annotation formation, without selecting
+a new record representation or an interpreter. A proposed test-only interpreter
+was held because choosing its own profiles would assume this absent constructor.
+The inferred h position/profile remains an additional obligation. The primary
+owns the concrete constructor and its matching receiving/output consumer.
+
+The frozen detailed derivation is
+`/tmp/yulang-receiver-entry-instance-20261015/REPORT.md`, SHA-256
+`4d4aa4a6b3f0422909c15b47809b3272681ce7b01b0d91b83f5720dbd90e59d5`.
+Independent compiler-referee delta review found an original Value endpoint
+collapsed to an Int leaf and an overbroad nonrecoverability quantifier. One
+batched repair retained v_t and its annotation constraints and restricted the
+claim to renaming-invariant erased-channel consumers. The reviewer checked the
+repaired frozen report and this archival summary, closed both findings and
+reported no new findings. Primary integration matched the repaired report hash
+and its nine additional baseline dependency hashes, including unchanged working
+compiler/test bytes. No new tests, builds or executions ran.
+
 Commit packet: this leased path only; baseline N above; dependency bytes
 unchanged. Suggested checkpoint: `research: bridge receiver-relative forwarding and isolate entry/exit source owners`.
 Primary/curator delta: preserve original parent OPEN; reuse decorated lifetime,

@@ -58,6 +58,15 @@ have no omitted-callee introduction, so that producer cannot enumerate receiving
 invocations. Complementary two-receiver and escaped-view paper controls found no
 counterexample to the scoped claims. This is source-owner evidence, not a new
 native receiving/exit implementation or a full soundness proof.
+Its independently reviewed §7 now instantiates the gap at concrete FormalEntry:
+the `[io]` versus `[other]` permission distinction survives in original source,
+but is absent from the inspected scalar formal/AE/RE outputs. The original
+parameter row remains distinct from Int, and the erasure result is limited to
+renaming-invariant consumers without source lookup. The next constructor must
+produce that original annotation's permission/root-path evidence and connect it
+to the same received carrier and consumer. A proposed separate interpreter was
+held because it would assume this rule. No new nonempty id profile or production
+subtraction is authorized; original omitted and lifetime gates remain OPEN.
 The historical question and direct-resolution receipt under
 `questions/2026-10-15-callback-identity-release/` remain outside ordinary
 checkpoints; no separate answerer bundle exists.

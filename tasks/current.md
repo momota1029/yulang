@@ -58,6 +58,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   eleven local proof references pass; no new tests, builds or executions ran.
   This changes the identified owner distinction, not the still-open native
   source/profile/receipt/exit supplier or global soundness status.
+  Section 7 now isolates that supplier on an existing concrete computation-formal
+  control: `[io]` and `[other]` retain distinct source permissions but the inspected
+  FormalEntry/FormalAnnotation Value/AE/RE outputs omit that distinction. The
+  original parameter endpoint is preserved; the nonrecoverability claim applies
+  only to renaming-invariant consumers of those erased channels, excluding source
+  lookup. Independent source review closed both initial findings after one repair.
+  The primary's next constructor owner is FormalEntry/annotation formation:
+  source permission and root path must reach the same receiving carrier/consumer,
+  then its matching output. A separate interpreter is held until it can consume
+  that rule. No nonempty new protection is required merely by an ordinary id call;
+  omitted h formation, actual receipts/exposure/expiry and full soundness stay OPEN.
   Named-group facts and Call-route joins are now retained; intended source
   introduction across those routes is the active next premise.
   Its local receipt and historical question remain uncommitted, with no

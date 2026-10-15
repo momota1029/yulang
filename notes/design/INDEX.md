@@ -25,6 +25,9 @@ This index is a navigation aid. The listed source document remains authoritative
   distinguishes candidate receipt, receiver expiry and conditional outgoing
   protection release. Ordinary receiving Calls cannot be identified with the
   omitted-callee introduction records; their native correspondence remains OPEN.
+  Its concrete annotated instance locates absent permission output at
+  FormalEntry/annotation formation; the original source retains the fact that
+  the inspected scalar Function channels cannot recover on their own.
 
 ## Active workflow navigation (2026-10-10)
 
