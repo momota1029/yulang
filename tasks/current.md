@@ -195,9 +195,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   now proves actual field-3 correspondence, direct row/replay preservation,
   equality-respecting canonicalization and same-z value transfer to fixed A1.
   MODEL satisfaction, CanonicalEq and the independent typed source Return/maps
-  remain explicit premises; no error-free drain implies them. A separate local
-  RE-guarantee proof keeps the imported callable/interface unchanged while
-  checking the current complete invocation's outward bound. Both original
+  remain explicit premises; no error-free drain implies them. The reviewed
+  [local RE guarantee](../notes/theory/2026-10-16-first-call-re-guarantee-preservation.md)
+  now derives the complete-invocation outward bound and preserves it to fixed
+  E1 through authentic eR<=i<=j, keeping the imported interface and all
+  admission/routing/dependency fields identical. A joint forward-preservation
+  proof now composes these results under one original xi/z and explicit MODEL;
+  it must establish the original joint clauses rather than assume a product
+  of independent value/effect guarantees. Both original
   full parent directions, global model/principality and copy applicability
   remain OPEN.
 

@@ -41,6 +41,11 @@ This index is a navigation aid. The listed source document remains authoritative
   gives same-value source inclusion and same-z transfer for the actual plain
   field-3 fragment under explicit MODEL/CanonicalEq/source-correspondence
   premises. It supplies no model-existence, RE or global solver theorem.
+  The separately reviewed [RE guarantee component](../theory/2026-10-16-first-call-re-guarantee-preservation.md)
+  preserves the current invocation's outward bound to original E1 at fixed
+  challenges, keeping the imported interface and full routing evidence.
+  Joint forward composition is active; global MODEL/copy applicability and
+  the reverse parent remain OPEN.
 
 - [Initialization source-premise correction](../progress/2026-10-16-initialization-source-premise.md)
   — Fresh independent proofs locate Oracle publication outside raw continuations

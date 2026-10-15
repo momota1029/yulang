@@ -186,10 +186,14 @@ reviews: fixed alpha/A1 selectors, one MODEL, exact physical bound orientation,
 neutral replay and CanonicalEq-respecting quotient preserve the full source
 value record and both existing tagged inputs. Model existence/satisfaction,
 source typed correspondences and copy/intrusion adequacy are not supplied by
-that result. A separate RE proof derives the genuine complete-invocation
-support projection and local G-only certificate weakening at fixed challenges;
-imported interfaces, routing and latent alpha remain invariant. Neither full
-parent direction or cutover is closed by these components.
+that result. The [RE component](../notes/theory/2026-10-16-first-call-re-guarantee-preservation.md)
+now has fresh semantic CLEAN review: the genuine complete-invocation support
+projection and local G-only weakening at fixed challenges preserve imported
+interfaces, routing and latent alpha. A bounded joint forward-preservation
+packet consumes the inlet, Value and RE results at one original xi/z. It must
+construct the original complete output certificate, retaining the pending
+Bind and all joint K/D clauses; a factorization assumption cannot replace it.
+Neither full parent direction or cutover is closed by these components.
 
 Ordinary HIR binding-carrier formation is now implemented and independently
 proved under the unchanged approved scope. Default checking/full HIR tests and
