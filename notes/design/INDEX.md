@@ -61,9 +61,12 @@ This index is a navigation aid. The listed source document remains authoritative
   explains the escape. The [Name-role proof](../theory/2026-10-16-definition-name-computation-role.md)
   independently closes pure Name/Apply and populated-cache correspondence;
   empty-global execution context remains an open source operational premise.
-  The reviewed pending question
-  `questions/2026-10-16-forward-definition-initialization-context/question.md`
-  asks the timing/context rule; no materialization semantics is adopted yet.
+  The [approved initialization replacement](2026-10-16-initialization-order-global-effects.md),
+  integrated `885012b42`, now fixes effect-producing-line relative order and
+  global handling/error for escaping initialization effects. It selects neither
+  offered blanket dependency-first rule, an effect detector nor additional
+  uninitialized-reference policy. Source correspondence and the local handler
+  boundary remain proof/implementation gates; old A/B laws remain unselected.
 
 - [Authentic module-expression source ownership](2026-10-16-module-expression-source-owner.md)
   — Authoritative option 1, question revision 2 / answer a1 revision 1 integrated

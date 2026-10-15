@@ -1,0 +1,66 @@
+# Initialization order and global effect handling
+
+Status: Authoritative replacement decision; source/implementation proof gates OPEN
+Scope: top-level initialization ordering and escaping-effect consumer
+Approved-by: user, forward-definition-initialization-context-a1 revision 2
+Approved-at: 2026-10-16
+Approval: [exact approved answer](../../questions/2026-10-16-forward-definition-initialization-context/approved-answer.md), bundle `885012b42`
+Reviewed-by: `ordinary_carrier_contract`, exact bundle conformance and decision/receipt/status transcription CLEAN
+Supersedes: the two proposed alternatives in question revision 1; does not select either proposed dependency-first rule
+
+## Approved replacement
+
+The latest explicit user wording is:
+
+> エフェクトが発生した行同士は交換できない，ということで．それ以外はOKです
+
+1. Effect-producing lines cannot be exchanged with one another. Forward demand
+   for an unavailable definition alone does not authorize earlier initialization
+   that violates that ordering. This does not require every effect-producing
+   line to remain individually immovable, or impose the earlier proposed
+   contiguous-pure-lines-only restriction.
+2. Effects escaping top-level initialization are handled globally or produce an
+   error. A handler surrounding a read of the definition's value does not thereby
+   handle that definition's initialization effects.
+3. Allow the possibility of registering global handlers, but keep the present
+   scope to automatic handling of `nondet`, `io` and similar effects. An arbitrary
+   global-handler registration feature is outside this decision's implementation
+   scope. This decision does not certify any existing automatic consumer.
+4. This is a replacement for the offered alternatives. In particular, neither
+   alternative's blanket dependency-first initialization timing is selected.
+5. Connect this rule to existing forward references, dependencies and ordered
+   source root demands. Establish the actual initialization entry/return and
+   effect-handling construction. Do not infer an effect-detection method or an
+   additional rule for uninitialized references from this answer.
+
+Internal initializer handlers keep their ordinary semantics. No concrete owner
+switch, store snapshot, signature-keyed cache, repeated publication,
+cancellation/reinitialization rule or old A/B resumed-publication alternative is
+selected. Approval does not establish reachability, unreachability, soundness,
+implementation correspondence or production readiness.
+
+## Source correspondence and integration obligations
+
+Retain the authentic mixed-root schedule from the
+[module-expression design](2026-10-16-module-expression-source-owner.md).
+Its implemented source-order root cursor and cache skip do not, by themselves,
+prove that a suspended earlier root and demanded later initializer preserve the
+approved effect-producing-line order. The [Name-role theorem](../theory/2026-10-16-definition-name-computation-role.md)
+proves populated-cache observation and pure Name routing; it supplies neither
+empty-cache initialization timing nor a source effect detector.
+
+At the escaping-initializer boundary, prove the original initializer's internal
+handlers remain eligible and caller-only handlers are not used to discharge
+initialization. Any global consumer requires its own existing justification;
+otherwise preserve an error/unhandled outcome. Establish current-store,
+publication, original Name/Observe return and later cached latent execution
+correspondence without importing the unresolved scheduling premise.
+
+Keep effect-order/source construction, local handler-boundary correctness,
+materialization/publication and whole-source/cutover gates distinct. No runtime
+edit accompanies this decision transcription. The primary retains their owners
+and will dispatch proof-supported implementation only within established scope.
+
+The [receipt](../../questions/2026-10-16-forward-definition-initialization-context/receipt.md)
+records exact hashes, approval provenance and consumption checks. The unapproved
+revision-1 draft is preserved locally outside the integration bundle.

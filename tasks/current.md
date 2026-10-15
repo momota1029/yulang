@@ -47,12 +47,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   correspondence. Empty-cache initialization's source execution context is the
   precise remaining premise. No delimiter or new cache law follows from Name
   purity, and another pure-Name lemma would not supply that operational rule.
-  The independently reviewed pending question
-  `questions/2026-10-16-forward-definition-initialization-context/question.md`
-  now asks for that foundational forward-demand timing/initialization context,
-  preserving the rejected example and leaving the old A/B law unselected.
-  No proposed delimiter or ownership change is adopted before its answer and
-  the corresponding proof; independent inference work continues.
+  The [validated replacement decision](../notes/design/2026-10-16-initialization-order-global-effects.md),
+  bundle `885012b42` (q1/a1 revision 2), now supplies the user's order/global-effect
+  law: effect-producing lines cannot exchange relative order, and escaping
+  initializer effects require global handling or an error. Neither offered
+  blanket dependency-first timing nor an effect detector/uninitialized-reference
+  policy is selected. The [receipt](../questions/2026-10-16-forward-definition-initialization-context/receipt.md)
+  records exact validation and independent conformance review. Architectural
+  source correspondence now separates effect ordering from the independently
+  provable initializer/caller handler boundary. Both implementation/proof parents
+  remain OPEN; no delimiter or ownership change is adopted yet.
   Two CLI sentries confirm unhandled initialization fails and internal handling
   returns `1`, without claiming whole-source admission from those executions.
 

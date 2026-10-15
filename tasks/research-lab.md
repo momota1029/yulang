@@ -51,10 +51,14 @@ The [reviewed role bridge](../notes/theory/2026-10-16-definition-name-computatio
 proves exact pure Name/Apply and populated-cache correspondence. Its unresolved
 empty-cell materialization needs an independently justified source execution
 context; pure Name does not select an initializer delimiter or cache law.
-The pending forward-definition-initialization-context question is independently
-reviewed and presented. It asks the foundational timing/consumer rule without
-claiming a valid cache-bearing witness or selecting old A/B publication laws.
-Only dependent runtime semantics waits for that answer and its proof.
+The [approved replacement](../notes/design/2026-10-16-initialization-order-global-effects.md)
+(q1/a1 revision 2, integrated `885012b42`) is now consumed after exact byte and
+conformance checks. Effect-producing lines cannot exchange relative order;
+escaping initializer effects require global handling or an error. Blanket
+dependency-first timing, detection/uninitialized-reference policy and old A/B
+laws are unselected. The source architecture packet now separates effect-order
+construction from a local initializer/caller handler-boundary theorem; both
+implementation parents stay OPEN pending proof. Native work continues.
 
 The [closed primitive handler gate](../notes/progress/2026-10-16-playground-primitive-handlers.md)
 now has actual classifier/source/context/consumer proof and clean M2 semantic

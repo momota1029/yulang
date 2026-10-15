@@ -105,3 +105,16 @@ at integration. Native work independently consumes the
 [annotation correction](../../questions/2026-10-16-annotation-declared-envelope/receipt.md)
 at `cfded839e`: actual permission/inflow/residual correspondence is active,
 with no further choice needed for that audit.
+
+## Approved ordering/global-effect replacement consumed
+
+The [exact q1/a1 revision-2 bundle](../../questions/2026-10-16-forward-definition-initialization-context/receipt.md),
+`885012b42`, is validated and consumed. The [governing decision](../design/2026-10-16-initialization-order-global-effects.md)
+records the user's replacement: effect-producing lines cannot exchange relative
+order; escaping initializer effects require global handling or an error. It
+selects neither blanket dependency-first timing nor a detector or extra
+uninitialized-reference rule. The original Name proof and failed example retain
+their limits. A bounded architecture packet locates the actual effect-order and
+entry/return constructions, with initializer/caller handler separation as an
+independent local consequence. No production edit or parent proof closure
+accompanies answer consumption; no compiler check or measurement is repeated.
