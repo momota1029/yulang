@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": null,
   "active_sprint": {
     "id": "call-contextual-effects-20261016",
     "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2-amendment-1.json",
     "revision": 2,
     "sha256": "37ba82bee8e5c7e0da71ad5f78671ce5bf1b08cdf870bc001f7f95e0b5c5519a",
-    "state": "ACTIVE",
+    "state": "ENDED-PARTIAL",
     "activation_receipt": "notes/progress/2026-10-16-call-contextual-effects-sprint-start.md",
     "migration_review": "CLOSED-CLEAN (major/minor repaired and delta reviewed)",
     "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna",
@@ -16,7 +16,9 @@
     "amendment_revision": 1,
     "implementation_reconciliation_receipt": "notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md",
     "source_attack_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-source-review.md",
-    "core_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-core-review.md"
+    "core_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-core-review.md",
+    "closeout_receipt": "tasks/agent-loop/history/20261016-call-contextual-effects-reviewed-milestone.md",
+    "closeout_sha256": "760bdb0f5b32e36764a976c6630b8209e47774e85aecdd2f20794f5d4b5a7988"
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
   "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
@@ -64,7 +66,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Astra assignment completed/STOPPED; artifact `notes/theory/2026-10-16-call-contextual-effects-core.md` SHA-256 83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f, handoff `tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md` SHA-256 672b2e060722a5d38c2925094832e75e247aad4e5a48e4fbf4dcad5c019ba1ad. Claims a conditional local View case for F1; remaining full F1/FK1/FIRST-RESULT gates open. Seven stages/900 sec charged of cap; model/session unknown. Pending fresh independent review."
+      "receipt": "STOPPED; core artifact 83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f and handoff 672b2e060722a5d38c2925094832e75e247aad4e5a48e4fbf4dcad5c019ba1ad. Local conditional View constructor accepted by independent review; full gates open. 7 stages/900 sec; model/session UNKNOWN."
     },
     {
       "id": "/root/sol_source_attack",
@@ -75,7 +77,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Sol assignment completed/STOPPED with independent review accepted as static source-owner evidence and conditional separators; receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md."
+      "receipt": "STOPPED; source attack 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and handoff 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. Independent review accepted conditional static evidence only; all gates open. 504.5 sec incl wait; model/session UNKNOWN."
     },
     {
       "id": "/root/luna_implementation",
@@ -86,7 +88,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current collaboration tool confirms continuation revision 2 completed/STOPPED. Only edited path candidate_effect_annotation.rs SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d. Worker reports exact focused regression passed 1/1; model/session metadata unavailable."
+      "receipt": "STOPPED; test-only output 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, handoff 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Focused test reported 1/1; independent delta review closed both minor findings. No production change. Model/session UNKNOWN."
     },
     {
       "id": "/root/implementation_review",
@@ -97,7 +99,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Independent compiler_referee completed both delta findings: MINOR 1 and MINOR 2 closed. Repaired test accepted as provisional regression evidence only; final reconciliation receipt SHA-256 1d44c94d36950fd71446c7eb133867507a0e89c6c3bfad5e6ee1012e936bf92e matches. Theorem and production gates remain OPEN."
+      "receipt": "STOPPED; independent delta review accepted repaired test as provisional regression only; both findings closed. Receipt notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md."
     },
     {
       "id": "/root/source_review",
@@ -108,7 +110,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Fresh compiler_referee completed independent review of frozen Sol output; accepted as conditional static evidence only, no theorem/source-qualified counterexample promotion."
+      "receipt": "STOPPED; independent source review accepted Sol output as conditional static evidence only. Receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md."
+    },
+    {
+      "id": "/root/core_review",
+      "role": "independent Astra core review (compiler_referee)",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "STOPPED; independent review accepted local conditional View lemma/native trace only; all original gates remain open. Receipt notes/progress/2026-10-16-call-contextual-effects-core-review.md."
     }
   ],
   "leases": [
@@ -191,7 +204,7 @@
       "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
     }
   ],
-  "worker_inventory_scope": "Current inventory has no active writers. Astra core, Sol source attack, Luna implementation and all assigned reviewers are completed/STOPPED with frozen, reviewed outputs. Historical legacy identities remain UNKNOWN/reserved. Current contracts/receipts and exact dependency snapshots are retained; no protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Sprint ended with all current workers STOPPED/completed and all outputs FROZEN. Historical legacy identities remain UNKNOWN with prior reservations/quarantines. End status grants no lease transfer. No protected untracked question/inbox paths were leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -203,65 +216,29 @@
     {
       "id": "F1-FULL",
       "state": "OPEN",
-      "owner": "Astra core proof / Sol source check",
-      "needs": "Authentic remaining OriginalFrame actions and whole-grammar source evidence."
+      "owner": "Luna primary / next proof packet",
+      "needs": "Conditional local View action discharged. Still need other authentic OriginalFrame actions, whole-grammar source coverage and lawful composition in original scope."
     },
     {
       "id": "FK1-FOREIGN",
       "state": "OPEN",
-      "owner": "Astra core proof / Sol source check",
-      "needs": "Distinct opaque foreign continuation application/transport relation."
+      "owner": "Original parent / source law owner",
+      "needs": "Original opaque foreign-continuation application and transport law over same continuation/provider/future interface."
     },
     {
       "id": "FIRST-RESULT-ADEQUACY",
       "state": "OPEN",
-      "owner": "Astra/Sol source-native bridge",
-      "needs": "Original first-Apply translation and reverse source/native implication."
+      "owner": "Original Call/effect parent",
+      "needs": "Original fixed-xi/z/provider first-Apply obligation-to-native implication and reverse adequacy; no generated antecedent or assumed successful comparison."
     },
     {
-      "id": "DEPENDENCY-REVISION-ACK",
-      "state": "DONE",
-      "owner": "Luna primary",
-      "needs": "Astra and Sol each acknowledged exact active v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and verified all 26 dependency hashes. Typed-boundary Draft remains research-only."
-    },
-    {
-      "id": "IMPLEMENTATION-REVIEW",
-      "state": "DONE",
-      "owner": "fresh compiler_referee",
-      "needs": "Completed: accepted as provisional regression evidence only; see current compiler_referee receipt recorded in worker inventory. Two minor integration findings remain."
-    },
-    {
-      "id": "IMPLEMENTATION-REVIEW-FIXES",
-      "state": "DONE",
-      "owner": "Luna primary / dispatcher ruling",
-      "needs": "Both minor review findings closed by independent delta review. Accepted only as provisional narrow regression evidence; no source-to-execution completion or theorem/production promotion."
-    },
-    {
-      "id": "SOL-SOURCE-ATTACK-REVIEW",
-      "state": "DONE",
-      "owner": "fresh independent reviewer",
-      "needs": "Independent source review accepted only static evidence/conditional separators; source review receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md. Parent gates remain OPEN."
-    },
-    {
-      "id": "IMPLEMENTATION-LOCATOR-ACK",
+      "id": "IMPLEMENTATION-E2E",
       "state": "OPEN",
-      "owner": "Astra core proof",
-      "needs": "Acknowledge test input relocation from mutable path to immutable history snapshot SHA 91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56; semantic inputs unchanged."
-    },
-    {
-      "id": "ASTRA-CORE-REVIEW",
-      "state": "DONE",
-      "owner": "fresh compiler_referee",
-      "needs": "Independent review accepted only the conditional local View constructor and bounded native trace; full F1/FK1/FIRST-RESULT remain OPEN."
-    },
-    {
-      "id": "RESOURCE-ACCOUNTING",
-      "state": "OPEN",
-      "owner": "Luna primary / dispatcher",
-      "needs": "Clarify accounting of five serialized Luna Cargo invocations against four-probe/one-heavy-build caps; preserve spent budgets and do not reset before any next dispatch."
+      "owner": "Luna implementation",
+      "needs": "Current accepted change is a native regression test only. No production change or contextual-effect public execution bridge is justified until original Call/first-result obligations supply an owner-local safe path."
     }
   ],
-  "next_action": "Adjudicate resource accounting with dispatcher before authorizing additional work; preserve all conditional proof outcomes and open parent gates.",
+  "next_action": "Sprint ended partial. Preserve the original user goal. Continuation candidates are unassigned; before any new dispatch, reconcile remaining sprint time and pin the next discriminating original premise, outputs, review seam and finite budget.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -271,5 +248,21 @@
     "adjudication": "Both repaired; second delta binds evidence to the frozen Luna artifact hash; fresh delta review CLEAN; tooling tests/static checker pass.",
     "receipt": "collaboration messages in this turn; reviewer wrote no files; no semantic approval implied."
   },
-  "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md"
+  "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
+  "resource_accounting": {
+    "policy": "rules/research-lab.pre-sprint.md § Parallel calculations without resource multiplication",
+    "policy_sha256": "3f70daf755fd6af59959fa48a35aa2d5153639621cc18edc58934246f2aabb69",
+    "classification": "concurrent occupancy",
+    "lightweight_probes_reported": 0,
+    "cargo_attempts": 5,
+    "heavy_verification_peak": 1,
+    "astra_active_seconds": 900,
+    "sol_elapsed_seconds": 504.5,
+    "luna_verification_upper_bound_seconds": 600,
+    "identified_subtotal_seconds": 2004.5,
+    "sprint_cap_seconds": 7200,
+    "remaining_time": "UNKNOWN; editing/analysis, reviews, primary coordination and other activity not reconciled",
+    "cap_status": "No breach evidenced; full aggregate remaining budget cannot be certified. No reset."
+  },
+  "integration_outcome": "Partial: conditional local View constructor/native trace, conditional Sol source attack, and independently reviewed test-only endpoint-attributed regression. No source-to-public contextual-effect execution bridge. F1/FK1/FIRST-RESULT/implementation E2E remain OPEN."
 }
