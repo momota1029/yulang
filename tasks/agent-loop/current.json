@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
     "revision": 1,
     "sha256": "bdb5f6fb16d7dba84fca79c0197775e2ea23bb3bd49856b324fcd2152b13a6ee",
-    "state": "ARCHITECTURE-RUNNING",
+    "state": "FROZEN-PENDING-INDEPENDENT-REVIEW",
     "baseline": "ab32591e91d0759620a2b9d3d0d54513fb4a0f73",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -38,7 +38,7 @@
       "receipt": "Four substantive stages; full 240s conservatively charged; writer STOPPED; conditional finite-query R1; current code does not implement retention."
     },
     "architecture": {
-      "state": "RUNNING",
+      "state": "STOPPED",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
@@ -47,15 +47,22 @@
         "tasks/agent-loop/snapshots/20261017-npair-native-architecture-pre-commit-repair.md"
       ],
       "session": "current-session",
-      "active_work_receipt": "Proof writer confirmed STOPPED with frozen R1; Luna starts exact leased Draft-candidate repair within 600s cap."
+      "active_work_receipt": "Proof writer confirmed STOPPED with frozen R1; Luna starts exact leased Draft-candidate repair within 600s cap.",
+      "artifact_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
+      "handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
+      "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
     },
     "review": {
-      "state": "WAITING-FOR-CANDIDATE-FREEZE",
+      "state": "WAITING-REVIEW-ALLOCATION-ADJUDICATION",
       "sequence": [
         "architect",
         "spec_auditor"
       ],
-      "cap_seconds": 240
+      "cap_seconds": 240,
+      "target_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
+      "handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
+      "proof_sha256": "c5c069798cd5822918e09438ac7e82e627d562ba0b13f8233ca5709e43f9c922",
+      "proof_handoff_sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; whole native rho_u, actual consumer, source/native, implementation and production remain OPEN."
   },
@@ -100,13 +107,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Proof STOPPED and frozen; primary is repairing the exact leased Draft candidate within the 600s architecture cap."
+      "receipt": "Candidate repair frozen and proof/architecture writers STOPPED; primary preparing fresh review allocation."
     },
     {
       "id": "/root/npair_use_certificate_retention",
@@ -118,6 +125,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Writer STOPPED; four stages; 240s conservatively charged; frozen conditional R1, hashes pinned in active_sprint."
+    },
+    {
+      "id": "/root/npair_retention_architecture_review",
+      "role": "architect",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Awaiting primary review assignment; candidate and conditional R1 frozen."
+    },
+    {
+      "id": "/root/npair_retention_spec_review",
+      "role": "spec_auditor",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Awaiting architect outcome and primary review assignment."
     }
   ],
   "leases": [
@@ -147,12 +176,14 @@
     {
       "path": "notes/design/2026-10-17-npair-native-architecture-candidate.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-npair-commit-retention-architecture-repair.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21"
     },
     {
       "path": "tasks/agent-loop/snapshots/20261017-npair-native-architecture-pre-commit-repair.md",
@@ -195,10 +226,10 @@
     }
   ],
   "next_action": {
-    "state": "ARCHITECTURE-RUNNING",
+    "state": "REVIEW-ALLOCATION-BOUNDARY",
     "dispatcher": "Correction sprint adopted after selector proposal; next consultation at material boundary.",
     "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
-    "implementation": "After proof STOP, repair Draft candidate lifecycle/progress/resource contract; no code authority."
+    "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
   },
   "resource_accounting": {
     "current_sprint_id": "npair-commit-retention-repair-20261017",
@@ -209,13 +240,13 @@
     "coordination": 60,
     "reserve": 60,
     "unknown_reservations_preserved": 3,
-    "active_authors": 1,
+    "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 240,
-    "status": "Proof stopped after full 240s conservative charge; Luna architecture repair running under 600s cap; reviews not started.",
-    "authors_spent_seconds": 240,
+    "charged_total_seconds": 840,
+    "status": "Proof and architecture writers STOPPED; 840s of 1200s charged conservatively; 240s reviews remain, pending review assignment.",
+    "authors_spent_seconds": 840,
     "review_spent_seconds": 0,
-    "architecture_spent_seconds": 0,
+    "architecture_spent_seconds": 600,
     "coordination_spent_seconds": 0
   },
   "history": "Prior sprint PARTIAL—ARCHITECTURE MAJOR is archived at notes/progress/2026-10-17-npair-native-architecture-major-closeout.md. CLEAN bounded proof and candidate hashes are in that receipt and the new contract. Three UNKNOWN reservations, board quarantine, and unrelated dirty file are preserved.",
