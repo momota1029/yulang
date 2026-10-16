@@ -4,83 +4,84 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-forward-source-witness-realization-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
+    "id": "npair-operation-contribution-supplier-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-operation-contribution-supplier-20261017.md",
     "revision": 1,
-    "sha256": "f3e55f3f8e0dc95658e69b85e0deb443265e9e5e1916fb5b90f4e688167309ef",
-    "state": "REVIEWED-PARTIAL-CLOSED",
-    "baseline": "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
+    "sha256": "49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71",
+    "state": "READY-TO-LAUNCH",
+    "baseline": "a868fbe59334a90337e1a5daa8880c09440de70b",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "fixed_outcome": "Carry the original complete Operation witness w forward through actual source/native seed, emission/admission, FunctionPort/ordered Replay and recovered Permission port; establish adopted At(D,w,delta) or exact missing source premise; apply to parent.",
+    "fixed_outcome": "Qualify whether exact adopted original constructor clauses supply eta_op and realization_op for the same original w; otherwise record exact authority/input boundary. In parallel write a one-shot snapshot-only structural validator readiness contract, structural incidence only.",
     "review": {
-      "state": "ADJUDICATED-REVIEWED-PARTIAL",
+      "state": "AUTHORS-SEQUENTIAL",
       "current_reviewer": null,
       "sequence": [
-        "compiler_referee:120s",
-        "architect:120s",
-        "spec_auditor:120s"
-      ],
-      "after_proof": "Luna/high readiness contract lane; starts only after proof STOP",
-      "receipt": "Compiler_referee CLEAN. Architect no blocking, LOW snapshot/subscription boundary. Spec_auditor no blocking/major, minor same lifecycle boundary. All reviewers STOPPED; Draft remains unapplied. Luna adjudication and sprint-end selector next.",
-      "adjudication": "Accept proof/readiness as reviewed candidate analysis and unapplied Draft. Resolve architect LOW/spec minor only before any executable validator contract; no present code lease or source authority. Parent remains OPEN.",
-      "outcome": "Compiler_referee CLEAN; architect no blocking (LOW snapshot/subscription lifecycle boundary); spec_auditor no blocking/major (minor same boundary). All reviewers STOPPED. Candidate proof and unapplied Draft accepted; parent OPEN."
+        "proof author STOP",
+        "Luna readiness STOP",
+        "compiler_referee:120s if new proof claim",
+        "architect:90s",
+        "spec_auditor:90s"
+      ]
     },
     "resources": {
-      "cap_seconds": 2100,
-      "proof_cap_seconds": 900,
-      "readiness_cap_seconds": 600,
-      "reviews_cap_seconds": 360,
-      "coordination_seconds": 120,
+      "cap_seconds": 1440,
+      "proof_cap_seconds": 300,
+      "readiness_cap_seconds": 360,
+      "reviews_cap_seconds": 300,
+      "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 1890,
+      "charged_seconds": 0,
       "active_authors": 0,
-      "status": "1890/2100s charged: proof 900 + readiness 600 + reviews 360 + coordination 30. Retire unused 90s coordination and 120s reserve without transfer; no carryover."
+      "status": "No authors launched yet. Proof 300s; readiness 360s after proof STOP; conditional review up to 300s; no transfer."
     },
     "lanes": {
       "proof": {
-        "owner": "/root/npair_forward_source_witness_realization",
-        "state": "STOPPED-FROZEN",
+        "owner": "/root/npair_operation_contribution_supplier",
+        "role": "prover (Sol/high)",
+        "state": "READY",
         "outputs": [
-          "notes/theory/2026-10-17-npair-forward-source-witness-realization.md",
-          "tasks/agent-loop/inbox/20261017-npair-forward-source-witness-realization.md"
+          "notes/theory/2026-10-17-npair-operation-contribution-supplier.md",
+          "tasks/agent-loop/inbox/20261017-npair-operation-contribution-supplier.md"
         ]
       },
       "implementation_readiness": {
         "owner": "/root",
-        "state": "STOPPED-FROZEN",
+        "role": "Luna/high",
+        "state": "WAITING-FOR-PROOF-STOP",
         "outputs": [
-          "notes/design/2026-10-17-npair-forward-witness-ingress-code-contract.md",
-          "tasks/agent-loop/inbox/20261017-npair-forward-witness-ingress-code-contract.md"
+          "notes/design/2026-10-17-npair-one-shot-structural-validator-contract.md",
+          "tasks/agent-loop/inbox/20261017-npair-one-shot-structural-validator-contract.md"
         ],
         "compiler_lease": false
       }
     },
     "artifacts": [
       {
-        "path": "notes/theory/2026-10-17-npair-forward-source-witness-realization.md",
-        "sha256": "1d2c827cdf7661cc77a9edbb869bffd3cdcca7b51afba418789eaae9abf3cb3a"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-forward-source-witness-realization.md",
-        "sha256": "184bcd86658ef5ed7f77513986b15be13e3f9e3b5223968153cc730fd5e309ad"
-      },
-      {
-        "path": "notes/design/2026-10-17-npair-forward-witness-ingress-code-contract.md",
-        "sha256": "f1615c43ef74829cde9e53b7169614f015733eb81e40dc5966ba4430189081fe"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-forward-witness-ingress-code-contract.md",
-        "sha256": "bdd4c84d3deb238682e3953cb64ee653a015426588e7f5f0eb8314d55bc8591b"
-      },
-      {
-        "path": "notes/progress/2026-10-17-npair-forward-source-witness.md",
-        "sha256": "452867e76c088e00d8840fd48c903184d144a884bee3c9fbb071d64de5d94127"
+        "path": "tasks/agent-loop/sprints/npair-operation-contribution-supplier-20261017.md",
+        "sha256": "49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71"
       }
-    ]
+    ],
+    "source_qualification": "Adopted complete Call contribution definition explicitly selects historical reviewed construction SHA 7dd4520d…; exact bytes unavailable in accessible Git history. Current construction is ead206bf… and cannot substitute. Operation primitive candidate 4fe70b18… has no semantic adoption. Use exact adopted statements visible in authoritative definitions only; promptly stop branch if genuine constructor input is absent.",
+    "non_goals": [
+      "source admission",
+      "At consumer or realization as semantic ingress",
+      "compiler implementation",
+      "later-lower subscription",
+      "N-Transport",
+      "rho_u",
+      "receive consumer",
+      "subtraction",
+      "mixed/multiple-symbolic coverage",
+      "F1/FK1",
+      "soundness",
+      "principality",
+      "production"
+    ],
+    "next_boundary": "Source-authority gap, need for a different semantic dependency, lease expansion, contradictory evidence, resource cap or sprint end returns to Luna/selector."
   },
-  "candidate": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
-  "baseline": "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
-  "scope": "Forward-realize the original dependent Operation witness w through actual native source/emission/processing evidence to the recovered NPAIR Permission port; classify At(D,w,delta) or exact missing constructor premise; preserve original receive quantifiers and parent OPEN.",
+  "candidate": "tasks/agent-loop/sprints/npair-operation-contribution-supplier-20261017.md",
+  "baseline": "a868fbe59334a90337e1a5daa8880c09440de70b",
+  "scope": "Original Operation contribution supplier for eta_op/realization_op, with strict exact-version boundary; independent one-shot structural validator readiness contract over a fixed live snapshot.",
   "worker_inventory_scope": "Three historical UNKNOWN reservations remain; current-session Astra/medium author has active receipt. Luna readiness begins after proof STOP; no compiler source lease.",
   "workers": [
     {
@@ -119,67 +120,26 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole Git integrator",
-      "state": "STOPPED",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 600,
-      "receipt": "Luna readiness Draft and handoff frozen after proof STOP; hashes f1615c43…9081fe and bdd4c84d…c8591b. No source/consumer/compiler lease, tests/builds or execution.",
-      "elapsed_seconds_charged": 600
+      "receipt": "Current-session primary owns exact central state and readiness lease; readiness remains WAITING until proof author STOP."
     },
     {
-      "id": "/root/npair_forward_source_witness_realization",
-      "role": "astra_prover, forward source-witness proof author",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
+      "id": "/root/npair_operation_contribution_supplier",
+      "role": "prover, Sol/high constructive proof assignment",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 900,
-      "receipt": "Frozen candidate forward source-witness result: artifact 1d2c827c…3cb3a; handoff 184bcd86…e309ad. Exact missing source premises eta_op and realization_op; native seed/member not full w; At unproved; receive preflight remains refusal. All 21 pins and contract rechecked; STOPPED with no descendants/execution.",
-      "elapsed_seconds_charged": 900
-    },
-    {
-      "id": "/root/npair_forward_compiler_review",
-      "role": "compiler_referee, fresh isolated review of frozen proof/readiness bundle",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 120,
-      "elapsed_seconds_charged": 120,
-      "receipt": "CLEAN; all 21 dependency pins and five bundle hashes match. Source-to-claim and compiler path inspection support exact open premises eta_op, realization_op and dependent lifts; source refusal separate; Draft structural-only. Bounded static review; no execution/writes/descendants."
-    },
-    {
-      "id": "/root/npair_forward_arch_review",
-      "role": "architect, fresh independent review of frozen proof/readiness bundle",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 120,
-      "elapsed_seconds_charged": 120,
-      "receipt": "No blocking architecture finding. LOW recommendation: distinguish one-shot snapshot validation from persistent later-lower subscriptions before implementation. All pins match; actual invalidation/resource limits remain unverified; STOPPED read-only."
-    },
-    {
-      "id": "/root/npair_forward_spec_review",
-      "role": "spec_auditor, fresh independent conformance review of frozen proof/readiness bundle",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 120,
-      "elapsed_seconds_charged": 120,
-      "receipt": "No blocking/major conformance finding. Minor lifecycle ambiguity: single snapshot versus later-lower subscription; clarify before executable contract approval. All 5 bundle and 21 direct dependency hashes match. Static review; no writes/execution; STOPPED."
+      "session": null,
+      "cap_seconds": 300,
+      "elapsed_seconds_charged": 0,
+      "receipt": "Exact proof and handoff leases granted in frozen sprint contract; launch not yet acknowledged."
     }
   ],
   "leases": [
@@ -190,6 +150,32 @@
     },
     {
       "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-operation-contribution-supplier-20261017.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71"
+    },
+    {
+      "path": "notes/theory/2026-10-17-npair-operation-contribution-supplier.md",
+      "owner": "/root/npair_operation_contribution_supplier",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-operation-contribution-supplier.md",
+      "owner": "/root/npair_operation_contribution_supplier",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-17-npair-one-shot-structural-validator-contract.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-one-shot-structural-validator-contract.md",
       "owner": "/root",
       "state": "HELD"
     }
@@ -231,19 +217,19 @@
     "suggested_lanes": "Sol/high proof 600s; Luna/high readiness 360s after proof STOP; fresh compiler_referee 120s, architect 90s, spec_auditor 90s; coordination 60s, reserve 120s. No workers launched and no leases granted."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-forward-source-witness-realization-20261017",
-    "cap_seconds": 2100,
-    "proof_cap_seconds": 900,
-    "readiness_cap_seconds": 600,
-    "reviews_cap_seconds": 360,
-    "coordination_seconds": 120,
+    "current_sprint_id": "npair-operation-contribution-supplier-20261017",
+    "cap_seconds": 1440,
+    "proof_cap_seconds": 300,
+    "readiness_cap_seconds": 360,
+    "reviews_cap_seconds": 300,
+    "coordination_seconds": 60,
     "reserve_seconds": 120,
-    "charged_total_seconds": 1890,
+    "charged_total_seconds": 0,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Current sprint closed REVIEWED-PARTIAL; 1890/2100s charged; unused 210s retired without transfer. All current authors/reviewers STOPPED; 3 historical UNKNOWN reservations preserved."
+    "status": "Ready only; 3 historical UNKNOWN reservations preserved; no transfer."
   },
-  "history": "Forward source-witness realization sprint closed REVIEWED-PARTIAL at 452867e76c088e00d8840fd48c903184d144a884bee3c9fbb071d64de5d94127. Candidate proof preserves original quantifiers and names eta_op/realization_op; structural incidence only, At and source admission open. Readiness Draft remains unapplied; reviewers request snapshot/subscription lifecycle distinction before executable contract. Parent remains OPEN. Selector proposed source-constructor qualification plus separate snapshot validator contract; selected source version requires Luna qualification before issue. Preserve 3 UNKNOWN reservations, quarantined board and foreign dirty JSON. Resolved frozen worker and lease rows compacted after outcome receipt; hashes remain in sprint contract and durable progress receipts.",
+  "history": "Prior forward source-witness sprint closed REVIEWED-PARTIAL and pushed at a868fbe59334a90337e1a5daa8880c09440de70b; progress receipt notes/progress/2026-10-17-npair-forward-source-witness.md. New 1440s sprint contract frozen at 49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71 on baseline a868fbe. Proof is constrained to adopted visible clauses; exact selected 7dd4520d proof bytes unavailable and ead206bf cannot substitute. Readiness is one-shot snapshot-only; no code authority. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -257,6 +243,7 @@
     "77cf984a6",
     "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
     "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
-    "6843e917d4cf56a9a57b7da700c2778074ecf57d"
+    "6843e917d4cf56a9a57b7da700c2778074ecf57d",
+    "a868fbe59334a90337e1a5daa8880c09440de70b"
   ]
 }
