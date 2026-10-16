@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "sprint_id": "source-constructor-instantiation-and-export-cut-20261017",
+  "contract_revision": 1,
+  "status": "READY",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
+  "goal": "Advance the original inference/F5 goal by applying the concrete operation source constructor to the selected choose instance and attempting the public export cut from its authenticated internal root.",
+  "authority": "Preserve the original Simple-sub A/B claims, quantifiers, source domains, complete Call/provider/guard/future obligations, source-Generalize and annotation hygiene. Operation-constructor and export-bridge inputs remain conditional research. No primitive semantics, semantic selection, public representation, compiler write or cutover is authorized.",
+  "primary_approval": "Luna validated the sprint-end selector delta, verified the new direct pins, preserved the reviewed bounded results and all open gates, and authorized proof first followed by implementation only after confirmed proof cessation. Three historical UNKNOWN identities/reservations remain quarantined; no resource transfer.",
+  "original_parent": {
+    "id": "Original Call/effect H1/H2/JOINT_DEC and source-Generalize/public-export correspondence; F5 withdrawal remains downstream.",
+    "source": "Instantiate the selected choose source position against HIR declaration/use and authoritative Call/IF source constructors. Independently trace that same selected source instance through HIR registration, candidate root, export/use and conditional abstraction cut.",
+    "quantifiers": "Keep the original full source declaration and ordered telescope, shared assignment/evidence strategy, source provider, complete guards, pending continuations/futures, foreign alternatives, and every current/later lawful bound/admission. Export correspondence must preserve generic/fixed coordinates, alias partitions, caller-environment live anchors and lawful independent uses.",
+    "required_direction": "Derive only the actual structural operation-source case supported by a concrete declaration/use/IF instance, separating each independent nonstructural clause. Apply finite expansion only under established premises. At an authenticated internal candidate root, attempt the conditional Generalize/export abstraction and identify the exact public-cut clause still requiring selection. Missing source or semantic fields produce exact owner proposals and compatibility obligations. No compiler/API/cutover lease.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Proof: provide explicit declaration/use/IF derivation for the selected choose source position; record source owner/address and binder telescope, Request/response gluing, guard/future obligations and demand transport where supplied. Separate constructed structural operation semantics from independently specified nonstructural Z/primitive clauses. If any complete clause is undefined, identify its concrete owning field and compatibility obligations rather than claim a generic lookup obstruction.",
+    "Implementation/source-owner: establish source registration to authenticated candidate root and associated use for the same selected source instance through candidate preflight and existing capture/fresh-use/restoration. A preflight refusal remains evidence about the current entrypoint and cannot be bypassed.",
+    "At that authenticated internal root, attempt the abstraction in generalize-export-constructor-bridge.md §11 as conditional research. Identify which exact public-cut clause still requires selection; do not assume a detached package, schema, package-only consumer or field law.",
+    "Keep proof and source/export findings independent. Apply only to their corresponding parents. H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain OPEN."
+  ],
+  "accepted_meaning": "Original Call, effects, guards, source-Generalize, F5 withdrawal, approved display-scheme plus justified-necessary-information policy, and top-level Simple-sub obligations remain fixed. The selected operation construction and export bridge are conditional research inputs, not semantic adoption or implementation authority.",
+  "dependencies": {
+    "crates/yu-hir/src/module.rs": "2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e",
+    "crates/yu-hir/src/module/local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+    "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
+    "crates/yu-solver/src/candidate_context.rs": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-solver/src/candidate_extrusion.rs": "2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b",
+    "crates/yu-solver/src/candidate_scheme.rs": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/shadow_initialization.rs": "6ea0914a11a4a05d6dde8d63c413cfd42fb887596b3315d998848d502a91715a",
+    "notes/design/2026-10-02-operation-instance-binding-package.md": "1eb2cbdb49368b0839d839d6a5e72698bb06252813b00200098e70371645c7c9",
+    "notes/design/2026-10-02-ordinary-computation-semantics-package.md": "ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917",
+    "notes/design/2026-10-02-typed-computation-core-elaboration.md": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
+    "notes/design/2026-10-02-typed-source-owner-realization.md": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa",
+    "notes/design/2026-10-05-inferred-function-call-views.md": "4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1",
+    "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/design/2026-10-08-source-generalize-definition.md": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+    "notes/design/2026-10-10-annotation-effect-hygiene-integration.md": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "notes/design/2026-10-10-simple-sub-legacy-withdrawal.md": "93c2bf1c425522fdb41d0f4120d8430597a6091014741a64546e9fedb7bcf79a",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-16-source-remaining-root-constructor.md": "4f9c483b6f3ca7a41ba3af622f91c17446823724269f2f1473b844b9f534cbd5",
+    "notes/progress/2026-10-16-concrete-declaration-export-root-review.md": "07d27df963812d7ed95cebe4a5643eda59ab7efce8c18f271bae83ce7093d16b",
+    "notes/progress/2026-10-16-residual-public-export-review.md": "a65090ec2b1fc200d98c951a5a0c85bbebb4a71f3847d91bde4c332ea3341f0f",
+    "notes/theory/2026-10-08-call-source-interface-construction.md": "278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98",
+    "notes/theory/2026-10-08-generalize-export-constructor-bridge.md": "0a2f966b0ded7f7c5a176aa9966080daf81a58bf7f0a66e5d03d38d289a27734",
+    "notes/theory/2026-10-15-call-native-correspondence-construction.md": "9a6bf7a37ec1ead4571422e8216e419ba2a377aee321e80d42905623ef42ba02",
+    "notes/theory/2026-10-16-call-suffix-image-demand-construction.md": "11a058d90ca46c9cb58fdff38d532efe3401f0a0131e8ba8567e91af89d689b4",
+    "notes/theory/2026-10-16-catch-image-later-lower-feasibility.md": "63ace8b183386737f4b328a2840a4e1585dc6ede22d9df7ec88a37ea92070e67",
+    "notes/theory/2026-10-16-choose-context-and-catch-source-construction.md": "d03e2d3e61922742a8a62e9049598cbc7009c72492d8f5d6e6718c5e526a9212",
+    "notes/theory/2026-10-16-choose-phase-declaration-qualification.md": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
+    "notes/theory/2026-10-16-choose-producer-full-source-certificate.md": "5abbe5f849cbe3f92ba743e0a51c5928350cead62ed8d688766895c2035e1971",
+    "notes/theory/2026-10-16-choose-source-declaration-initial-installation.md": "b27eed06d5a3eae63b2dfacb62a1f76d01b71f92a478402b452cd8a3b3346471",
+    "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md": "76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f",
+    "notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md": "9d5ec6a410c2b358187c1fcf105ba9efe5b2f5f9f4ede37ea2bb5364801ff46b",
+    "notes/theory/2026-10-16-guarded-catch-image-normalization.md": "4a92452cf91ee06a5bf55bb07a5f92cce664866c56716b642bf17ad0c92a19d8",
+    "notes/theory/2026-10-16-open-negative-formal-catch-image-design.md": "639b0282ef08d8e3657dde8ee5654333480f5ce194981dbdfa55c546e25334ff",
+    "notes/theory/2026-10-16-operation-primitive-image-contract-construction.md": "4fe70b18cad9ded249869b21b84bbf26e2a5f95320f79632a29a5071ddb1c4e9",
+    "notes/theory/2026-10-16-source-remaining-root-contract-construction.md": "058c6606ece58867587b20fbb7dcf3ed9de1171b7eb4bb1e071489276c72781a",
+    "notes/theory/successor-proof-obligations.md": "e192f63930adea325f1be5fc92766fc9b58b938217176cb87d4678e4edd68092",
+    "questions/2026-10-08-successor-generalize-root-policy/approved-answer.md": "e358a5d796f0a26b2d7dbe5891b3d1f21d0ac9089ab655796fa0b696a13194e5",
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1",
+    "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md": "c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef",
+    "tasks/agent-loop/inbox/20261016-f5-consumer-migration-boundary.md": "62439df2322cc688eb83abf442261721b4e4b282b4fc81be0deaa0c7967c1981",
+    "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
+    "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md": "2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0",
+    "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-choose-operation-source-instantiation-20261017",
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "Instantiate the concrete source-operation constructor at the selected original choose position and derive the structural declaration/use/IF Request/action obligations under exact original premises; isolate any concrete missing nonstructural definition and compatibility obligations.",
+      "method": "Use the pinned original choose source constructor and previous bounded handoff to identify the exact selected source position. Inspect the pinned HIR declaration pass and local-source operation/Catch resolution. Trace to the authoritative complete Call/IF constructors and selected remaining-root construction. Write an explicit declaration/use/IF derivation with its original binder telescope and Request/response gluing. Derive source-native structural operation behavior only where the input construction supplies it; keep every independent Z/nonstructural/primitive/guard/future clause as an input. Apply finite expansion only when all its premises are established. If complete semantics are absent, propose the exact missing definition field and compatibility obligations; do not adopt semantics or generalize one source constructor to all alternatives.",
+      "outputs": [
+        "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
+        "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md"
+      ],
+      "budget": {
+        "active_seconds": 900,
+        "stages": 8,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "First author alone; freeze both outputs and account for descendants before Luna grants the implementation lease."
+    },
+    "implementation": {
+      "assignment_id": "assignment-authentic-root-export-cut-20261017",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Read-only source-owner derivation for the same selected source instance: HIR registration -> candidate root preflight/position -> export/use association. At the authenticated internal root, attempt the conditional abstraction in generalize-export-constructor-bridge.md §11 and identify the exact public-cut clause still needing selection. Do not bypass preflight or modify compiler/API semantics.",
+      "outputs": [
+        "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
+      ],
+      "budget": {
+        "active_seconds": 360,
+        "stages": 7,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Only after proof-author STOP and capacity recheck. This lane is independently useful if the proof leaves semantic fields open; it may not certify the proof result or close any parent."
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
+      "owner": "assignment-choose-operation-source-instantiation-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md",
+      "owner": "assignment-choose-operation-source-instantiation-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md",
+      "owner": "assignment-authentic-root-export-cut-20261017",
+      "state": "FROZEN",
+      "reason": "Reserved for sequential Luna grant only after confirmed proof cessation; no current writer lease."
+    }
+  ],
+  "review": {
+    "proof": "Fresh isolated compiler_referee, not proof author; check exact source declaration/use/IF instance, original telescope, separation of structural and nonstructural clauses, Request/action derivation and scope of finite expansion.",
+    "implementation": "Fresh architect or regression_auditor, not source-owner author; inspect HIR declaration and local-source resolution, candidate preflight/root/export/use chain, and the exact conditional cut against frozen pins.",
+    "budget_seconds": 300,
+    "execution": "After both lane authors and descendants STOP, sequential fresh proof then implementation review. Reserve one review/integration slot; unknown historical reservations remain untouched."
+  },
+  "resource_accounting": {
+    "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; receipt notes/progress/2026-10-16-concrete-declaration-export-root-review.md; no seconds or lane remainder transfers.",
+    "historical_unknown": "Three UNKNOWN historical identities/reservations and quarantined tasks/agent-loop/board.md lease remain unchanged.",
+    "fresh_cap_seconds": 1800,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 360,
+      "review": 300,
+      "coordination": 120,
+      "reserve": 120
+    },
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two assignment slots reserved during authorship and one available review/integration slot during review."
+  },
+  "falsifiers": [
+    "A substituted choose declaration/IF position, omitted ordered binder, guard or future, altered shared original witness, or manufactured Request/response law refutes the proof instantiation.",
+    "A selected source whose HIR registration fails candidate preflight cannot be bypassed to create an authentic root; an unauthenticated root/use association, alias split, independent-use collapse, frozen caller live anchor, or omitted lawful dependency falsifies the proposed export cut."
+  ],
+  "non_goals": [
+    "No compiler/API/representation edits, semantic adoption, new public representation or production cutover.",
+    "No generic residual solver closure, H1/H2/JOINT_DEC, F1/FK1, first-result adequacy, soundness, principality or F5 gate closure from one source instance.",
+    "No tests/builds/probes, code writes, unpinned dependencies, nested CLI, worker Git operations or budget transfer."
+  ],
+  "dispatcher_decision": "At the sprint boundary, next_action_selector proposed a bounded source-constructor instantiation followed by a conditional internal-root export-cut attempt. Luna verified the four new authority/source pins and additional exact HIR/Call/operation/selected-root dependencies, retained all open gates and three UNKNOWN reservations, and granted proof-first sequential work. No compiler implementation slice is authorized.",
+  "next_consultation": "Newly authenticated source instance that changes dependencies/authority, a source-qualified counterexample, exact unsupplied semantic clause, source-preflight refusal, lease/resource boundary, cross-lane seam or sprint end."
+}

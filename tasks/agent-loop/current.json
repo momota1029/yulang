@@ -4,19 +4,19 @@
   "phase": "ACTIVE",
   "session": "UNKNOWN",
   "active_sprint": {
-    "id": "concrete-declaration-and-export-root-qualification-20261016",
-    "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
+    "id": "source-constructor-instantiation-and-export-cut-20261017",
+    "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
     "revision": 1,
-    "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ENDED-PARTIAL-REVIEWED",
-    "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
-    "dispatcher": "Sprint-end selector kept proof and source/export results independent; recommended applying the concrete operation source construction to an authentic HIR source instance, then attempting the export cut at that authenticated internal root.",
+    "sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
+    "state": "AUTHORIZED-PROOF-READY",
+    "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
+    "dispatcher": "At sprint end, selector proposed applying the operation source constructor to the selected choose instance and attempting the conditional export cut at its authenticated internal root. Compiler changes remain unauthorized.",
     "proof": {
-      "state": "STOPPED-CLEAN-BOUNDED",
-      "assignment": "assignment-choose-phase-declaration-qualification",
+      "state": "AUTHORIZED-NOT-STARTED",
+      "assignment": "assignment-choose-operation-source-instantiation-20261017",
       "outputs": [
-        "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
-        "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md"
+        "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
+        "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md"
       ],
       "role": "astra_prover",
       "requested_model": "gpt-6-astra",
@@ -25,17 +25,14 @@
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
       "contract_revision": 1,
-      "contract_sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-      "receipt": "Six stages; conservative charge 360/900s. All 38 direct pins match. Exact obstruction: pinned inputs identify structural choose consumer cut but no actual original choose clause/IF address, complete telescope, Request gluing or lawful future action. No parent closure, tests/probes/code/Git, descendants or scratch paths. Writer STOPPED.",
-      "runtime_receipt": "Explicit spawn returned /root/choose_phase_qualification; live message reports active leaf, no descendants. Session ID UNKNOWN.",
-      "artifact_sha256": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
-      "handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
+      "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
+      "receipt": "Exact multi-stage proof lease authorized; worker launch receipt pending."
     },
     "implementation": {
-      "state": "STOPPED-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
-      "assignment": "assignment-source-final-root-export-law",
+      "state": "SEQUENTIAL-DEFERRED",
+      "assignment": "assignment-authentic-root-export-cut-20261017",
       "outputs": [
-        "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
+        "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
       ],
       "role": "implementer",
       "requested_model": "gpt-6-luna",
@@ -43,52 +40,20 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 360,
-      "receipt": "Six stages; conservative charge 300/360s. All 38 pins and proof hashes match. Direct code chain reaches concrete candidate root registration/capture/fresh-use/same-state restoration, but no binding from formal R_e to actual HIR/root/use and no detached displayed-scheme extractor/consumer. No tests/builds/probes/code/Git, descendants or scratch. Writer STOPPED.",
-      "runtime_receipt": "Explicit spawn returned /root/source_final_root_export_law; live acknowledgement received; session ID UNKNOWN; no descendants.",
-      "handoff_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
-      "worker_state": "STOPPED; model/effort UNKNOWN"
+      "contract_revision": 1,
+      "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
+      "receipt": "No write lease or launch until proof author cessation and primary capacity recheck."
     },
     "review": {
-      "state": "STOPPED-CLEAN-BOUNDED",
+      "state": "NOT-STARTED",
       "budget_seconds": 300,
-      "execution": "Both authors STOPPED. Proof and implementation reviews STOPPED; proof CLEAN bounded; implementation CLEAN bounded with two low wording findings recorded in progress receipt.",
-      "implementation_review": {
-        "state": "STOPPED-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
-        "reviewer": "/root/export_root_review",
-        "target_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
-        "receipt": "CLEAN for bounded source-path/obstruction; 38/38 pins and all frozen artifact hashes match. Two low wording findings: emit_candidate_source is implemented in candidate_source.rs:551 (collector lib.rs:1182); falsifier should specify discarded exporter-session registries and not ban caller-environment infrastructure for live anchors. No substantive contradiction; STOPPED."
-      },
-      "proof_review": {
-        "state": "STOPPED-CLEAN",
-        "reviewer": "/root/choose_phase_review",
-        "target_artifact_sha256": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
-        "target_handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1",
-        "receipt": "Fresh compiler_referee CLEAN for bounded exact-obstruction claim. Contract 8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961; artifact cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478; handoff 167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1; all 38 pins matched. No theorem parent closed."
-      }
+      "execution": "After both authors and descendants STOP, fresh sequential proof then implementation reviews."
     },
-    "open_parent": "D_tail remains to be instantiated from an actual original choose declaration; one authenticated selected root and detached export field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
-    "leases": [
-      {
-        "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
-        "owner": "assignment-choose-phase-declaration-qualification",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
-        "owner": "assignment-choose-phase-declaration-qualification",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
-        "owner": "assignment-source-final-root-export-law",
-        "state": "FROZEN"
-      }
-    ],
-    "next_action": "Ended partial-reviewed. Successor sprint applies the operation source constructor to a selected HIR instance and attempts the export cut at an authenticated internal root; no code slice authorized."
+    "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open."
   },
-  "candidate": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
-  "baseline": "46ea212940f3ec3afba5cd87e12d765fa606a342",
-  "scope": "Continue original inference/F5 goal through concrete original-phase declaration qualification and independent source-selected export-root correspondence.",
+  "candidate": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
+  "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
+  "scope": "Apply source operation constructor to selected choose source; independently attempt authentic internal-root export cut.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -99,7 +64,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Historical board reports resident WAITING and board-only lease frozen; current runtime does not expose the identity."
+      "receipt": "Historical resident; current runtime does not expose identity or cessation. Preserve quarantined board lease and reservation."
     },
     {
       "id": "/root/resident_implementer_idle",
@@ -110,7 +75,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Historical board reports runtime RUNNING/lane WAITING, no task/output/inbox lease; current runtime does not expose the identity. Reserve one assignment slot."
+      "receipt": "Historical resident; current runtime does not expose identity or cessation. Preserve capacity reservation."
     },
     {
       "id": "/root/runtime_source_supplier_proof",
@@ -121,51 +86,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
-    },
-    {
-      "id": "/root/choose_phase_qualification",
-      "role": "astra_prover",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Frozen artifact cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478 and handoff 167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1; all 38 pins match; six stages, conservative 360/900s; no descendants/scratch."
-    },
-    {
-      "id": "/root/source_final_root_export_law",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Frozen implementation handoff 7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000; six stages, conservative 300/360s; no tests/builds/probes/Git/descendants/scratch."
-    },
-    {
-      "id": "/root/choose_phase_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Fresh compiler_referee review STOPPED CLEAN for bounded missing-declaration result; 38 pins matched; no writes/tests/builds/probes/Git/delegation."
-    },
-    {
-      "id": "/root/export_root_review",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Fresh architect review STOPPED CLEAN bounded with two low wording findings; 38 pins matched; no edits/tests/builds/probes/Git/descendants."
+      "receipt": "Historical proof worker; current runtime does not expose identity or cessation. Preserve capacity reservation."
     }
   ],
   "leases": [
@@ -174,24 +95,9 @@
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
       "reason": "Historical writer remains UNKNOWN; not visible in current runtime."
-    },
-    {
-      "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
-      "owner": "/root/choose_phase_qualification",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
-      "owner": "/root/choose_phase_qualification",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
-      "owner": "/root/source_final_root_export_law",
-      "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; proof and implementation authors STOPPED; both fresh sequential reviewers STOPPED; no live assigned work.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. New proof assignment is authorized but not started; implementation remains sequentially deferred.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -206,59 +112,51 @@
     },
     {
       "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
-      "state": "DONE-CLEAN-BOUNDED",
-      "owner": "/root/choose_phase_review",
-      "needs": "Actual original choose declaration/IF address, Request gluing/action and demand transport remain open."
+      "state": "ASSIGNED",
+      "owner": "assignment-choose-operation-source-instantiation-20261017",
+      "needs": "Instantiate selected source with exact declaration/use/IF telescope, Request/response gluing, lawful action and demand transport or identify the exact concrete missing definition field."
     },
     {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
       "state": "OPEN",
       "owner": "Original parents",
-      "needs": "Retain distinct; no closure follows from this assignment."
+      "needs": "Remain distinct; this source instance cannot close them."
     },
     {
-      "id": "PROOF-REVIEW",
-      "state": "DONE-CLEAN-BOUNDED",
-      "owner": "/root/choose_phase_review",
-      "needs": "No pinned input supplies concrete choose clause/IF address; parents remain open."
-    },
-    {
-      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
-      "state": "DONE-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
-      "owner": "/root/export_root_review",
-      "needs": "Selected-root association, detached extractor/schema, package-only consumer and field law remain open; wording findings are recorded in notes/progress/2026-10-16-concrete-declaration-export-root-review.md."
+      "id": "SOURCE-FINAL-ROOT-EXPORT-CUT",
+      "state": "WAITING-SEQUENTIAL",
+      "owner": "assignment-authentic-root-export-cut-20261017",
+      "needs": "After proof author STOP, establish HIR registration to authenticated candidate root/use and attempt conditional public export cut at internal root."
     }
   ],
-  "next_action": "Architect reviews the frozen source/export handoff; after STOP, adjudicate both results and consult selector at sprint end.",
+  "next_action": "Spawn proof author under exact rev1 contract; after confirmed STOP and capacity recheck, start Luna/high source-owner lane. Review both sequentially after all authors stop.",
   "adoption_review": {
-    "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
       "MAJOR: implementation escalation handoff validation",
       "MINOR: design index entry"
     ],
-    "adjudication": "Both repaired; second delta binds evidence to the frozen Luna artifact hash; fresh delta review CLEAN; tooling tests/static checker pass.",
-    "receipt": "Prior current-state receipt and collaboration review; no semantic approval implied."
+    "adjudication": "Both repaired; fresh delta review CLEAN; tooling static checker and prior tooling tests passed; no current semantic adoption."
   },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
   "resource_accounting": {
     "historical_unknown": "Three old unknown identities and reservations remain; no capacity released.",
-    "previous_sprint": "Prior sprint partial-reviewed; no seconds or lane remainder transfer.",
-    "current_sprint_id": "concrete-declaration-and-export-root-qualification-20261016",
+    "previous_sprint": "Partial-reviewed; no seconds or lane remainder transfer.",
+    "current_sprint_id": "source-constructor-instantiation-and-export-cut-20261017",
     "current_sprint_cap_seconds": 1800,
     "lane_budgets_seconds": {
       "proof": 900,
       "implementation": 360,
       "review": 300,
-      "coordination_and_integration": 120,
+      "coordination": 120,
       "reserve": 120
     },
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof 360/900; implementation 300/360; review exact time UNKNOWN; all lanes stopped.",
-    "status": "Authors and both reviewers STOPPED; no remaining lane budget or capacity transferred.",
-    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
+    "spent_seconds": "0 this sprint; proof not yet started.",
+    "status": "Authorized proof queue; implementation sequentially deferred; no live author started yet.",
+    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two assignment slots."
   },
-  "integration_outcome": "Sprint ended partial-reviewed; proof and implementation results plus bounded review receipts recorded in notes/progress/2026-10-16-concrete-declaration-export-root-review.md. Frozen author outputs unchanged. No gate promoted.",
-  "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
+  "integration_outcome": "Previous sprint receipt committed and pushed at cba9d794d1f0498262b3668f9d5cc055c16749e9. New rev1 contract is pinned and ready for first author launch.",
+  "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
 }
