@@ -1,0 +1,1672 @@
+//! Private, sequential source inference. Planning does not admit constraints.
+use crate::*;
+use crate::shadow_apply::{CandidateEndpoint, CandidateRelation};
+use yu_hir::shadow::{LocalSource, LocalSourceForm, LocalSourceResolution};
+use yu_hir::HirLocalId;
+
+#[derive(Clone, Debug, Default)]
+pub(super) struct Plan {
+    pub scoped_experiment: bool,
+    pub scoped_work_used: usize,
+    pub scoped_scratch_envelope: usize,
+    pub regions: Vec<SourceRegion>,
+    pub definition_regions: HashMap<DefinitionRootId, SourceRegionId>,
+    pub occurrence_regions: HashMap<HirOccurrenceId, SourceRegionId>,
+    pub local_regions: HashMap<HirLocalId, SourceRegionId>,
+    pub computation_scopes: HashMap<HirOccurrenceId, candidate_scope::EffectScopeId>,
+    pub scope_regions: Vec<SourceRegionId>,
+    pub scope_occurrences: Vec<HirOccurrenceId>,
+    pub active: bool,
+    pub references: candidate_value_graph::Graph,
+    pub schedules: HashMap<DefinitionRootId, Vec<Action>>,
+    pub expressions: Vec<ExpressionSchedule>,
+    pub source_owners: HashMap<HirOccurrenceId, SourceRootId>,
+    pub loose: Vec<Action>,
+    pub component_levels: HashMap<usize, u32>,
+    pub parameter_levels: HashMap<usize, u32>,
+    pub locals: Vec<HirLocalId>,
+    pub omitted_formals: HashMap<HirOccurrenceId, Arc<OmittedFormal>>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct ExpressionSchedule {
+    pub root: ExpressionRootId,
+    pub components: ComponentPositions,
+    pub value: CandidateEndpoint,
+    pub actions: Vec<Action>,
+}
+/// Source ownership is constructed before solving; numeric solver levels never
+/// determine whether a scope belongs to a captured source region.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct SourceRegionId(pub usize);
+#[derive(Clone, Debug)]
+pub(super) struct SourceRegion {
+    pub parent: Option<SourceRegionId>,
+    pub children: Vec<SourceRegionId>,
+    pub scopes: Vec<candidate_scope::EffectScopeId>,
+    pub inputs: Vec<candidate_scope::InputRouteId>,
+}
+impl Plan {
+    fn charge_scoped_work(&mut self, work: usize) -> Result<(), CollectionAvailabilityError> {
+        let next = self.scoped_work_used.checked_add(work).ok_or_else(unavailable)?;
+        if next > SCOPED_WORK_LIMIT { return Err(unavailable()); }
+        self.scoped_work_used = next; Ok(())
+    }
+    fn note_guard_stack(&mut self, capacity: usize) -> Result<(), CollectionAvailabilityError> {
+        let bytes = capacity.checked_mul(std::mem::size_of::<usize>()).ok_or_else(unavailable)?;
+        self.scoped_scratch_envelope = self.scoped_scratch_envelope.max(bytes); Ok(())
+    }
+    fn region(&mut self, parent: Option<SourceRegionId>) -> Result<SourceRegionId, CollectionAvailabilityError> {
+        if !self.scoped_experiment { return Ok(SourceRegionId(usize::MAX)); }
+        if self.regions.len() >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        self.charge_scoped_work(1)?;
+        self.regions.try_reserve(1).map_err(|_| unavailable())?;
+        if let Some(parent) = parent {
+            self.regions[parent.0].children.try_reserve(1).map_err(|_| unavailable())?;
+        }
+        let id = SourceRegionId(self.regions.len());
+        self.regions.push(SourceRegion { parent, children: Vec::new(), scopes: Vec::new(), inputs: Vec::new() });
+        if let Some(parent) = parent { self.regions[parent.0].children.push(id); }
+        Ok(id)
+    }
+    fn computation_scope(&mut self, occurrence: &HirOccurrenceId, region: SourceRegionId) -> Result<(), CollectionAvailabilityError> {
+        if !self.scoped_experiment { return Ok(()); }
+        self.charge_scoped_work(1)?;
+        self.occurrence_regions.try_reserve(1).map_err(|_| unavailable())?;
+        self.computation_scopes.try_reserve(1).map_err(|_| unavailable())?;
+        if self.scope_regions.len() >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        self.scope_regions.try_reserve(1).map_err(|_| unavailable())?;
+        self.scope_occurrences.try_reserve(1).map_err(|_| unavailable())?;
+        self.regions[region.0].scopes.try_reserve(1).map_err(|_| unavailable())?;
+        let scope = candidate_scope::EffectScopeId(u32::try_from(self.scope_regions.len()).map_err(|_| unavailable())?);
+        self.scope_regions.push(region);
+        self.scope_occurrences.push(occurrence.clone());
+        self.regions[region.0].scopes.push(scope);
+        self.occurrence_regions.insert(occurrence.clone(), region);
+        self.computation_scopes.insert(occurrence.clone(), scope);
+        Ok(())
+    }
+}
+/// Runtime copy of the sealed source inventory. Fresh source instances extend
+/// this forest without mutating the collected source plan.
+#[derive(Debug, Default)]
+pub(super) struct ScopeInventory {
+    nested_bytes: usize,
+    pub scope_occurrences: Vec<HirOccurrenceId>,
+    pub work_used: usize,
+    pub scratch_peak_bytes: usize,
+    pub scope_origins: Vec<candidate_scope::EffectScopeId>,
+    pub input_origins: Vec<candidate_scope::InputRouteId>,
+    pub copies: Vec<ScopeCopyStatistics>,
+    pub regions: Vec<SourceRegion>,
+    pub scope_regions: Vec<SourceRegionId>,
+    pub input_regions: Vec<SourceRegionId>,
+}
+#[derive(Debug, Default)]
+pub(super) struct ScopeRemap {
+    pub regions: HashMap<SourceRegionId, SourceRegionId>,
+    pub scopes: HashMap<candidate_scope::EffectScopeId, candidate_scope::EffectScopeId>,
+    pub inputs: HashMap<candidate_scope::InputRouteId, candidate_scope::InputRouteId>,
+}
+/// Private experiment availability limits, never a language input boundary.
+pub(super) const SCOPED_RECORD_LIMIT: usize = 4096;
+pub(super) const SCOPED_WORK_LIMIT: usize = 65536;
+#[derive(Clone, Copy, Debug)]
+pub struct ScopeCopyStatistics {
+    pub regions: usize, pub scopes: usize, pub inputs: usize,
+    pub graph_nodes: usize, pub graph_bounds: usize,
+}
+fn scope_unavailable() -> SolveAvailabilityError { SolveAvailabilityError::IdentityExhausted }
+fn scope_copy<T: Copy>(values: &[T]) -> Result<Vec<T>, SolveAvailabilityError> {
+    let mut out = Vec::new(); out.try_reserve_exact(values.len()).map_err(|_| scope_unavailable())?;
+    out.extend_from_slice(values); Ok(out)
+}
+impl ScopeRemap {
+    pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (self.regions.capacity(), std::mem::size_of::<(SourceRegionId, SourceRegionId)>()),
+            (self.scopes.capacity(), std::mem::size_of::<(candidate_scope::EffectScopeId, candidate_scope::EffectScopeId)>()),
+            (self.inputs.capacity(), std::mem::size_of::<(candidate_scope::InputRouteId, candidate_scope::InputRouteId)>()),
+        ])
+    }
+}
+impl ScopeInventory {
+    pub fn charge(&mut self, work: usize) -> Result<(), SolveAvailabilityError> {
+        let next = self.work_used.checked_add(work).ok_or_else(scope_unavailable)?;
+        if next > SCOPED_WORK_LIMIT { return Err(scope_unavailable()); }
+        self.work_used = next; Ok(())
+    }
+    pub fn note_scratch(&mut self, bytes: usize) { self.scratch_peak_bytes = self.scratch_peak_bytes.max(bytes); }
+    pub fn from_plan(plan: &Plan) -> Result<Self, SolveAvailabilityError> {
+        if plan.regions.len() > SCOPED_RECORD_LIMIT || plan.scope_regions.len() > SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        let mut regions = Vec::new(); regions.try_reserve_exact(plan.regions.len()).map_err(|_| scope_unavailable())?;
+        let mut input_regions = Vec::new();
+        let count: usize = plan.regions.iter().map(|r| r.inputs.len()).sum();
+        if count > SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        input_regions.try_reserve_exact(count).map_err(|_| scope_unavailable())?;
+        input_regions.resize(count, SourceRegionId(usize::MAX));
+        for (index, region) in plan.regions.iter().enumerate() {
+            for input in &region.inputs { input_regions[input.0 as usize] = SourceRegionId(index); }
+            regions.push(SourceRegion { parent: region.parent, children: scope_copy(&region.children)?, scopes: scope_copy(&region.scopes)?, inputs: scope_copy(&region.inputs)? });
+        }
+        let mut scope_occurrences = Vec::new(); scope_occurrences.try_reserve_exact(plan.scope_occurrences.len()).map_err(|_| scope_unavailable())?;
+        scope_occurrences.extend(plan.scope_occurrences.iter().cloned());
+        let mut scope_origins = Vec::new(); scope_origins.try_reserve_exact(plan.scope_regions.len()).map_err(|_| scope_unavailable())?;
+        for index in 0..plan.scope_regions.len() { scope_origins.push(candidate_scope::EffectScopeId(u32::try_from(index).map_err(|_| scope_unavailable())?)); }
+        let mut input_origins = Vec::new(); input_origins.try_reserve_exact(count).map_err(|_| scope_unavailable())?;
+        for index in 0..count { input_origins.push(candidate_scope::InputRouteId(u32::try_from(index).map_err(|_| scope_unavailable())?)); }
+        let nested_bytes = regions.iter().try_fold(0usize, |n, r| n.checked_add(Self::region_bytes(r)?).ok_or_else(scope_unavailable))?;
+        let mut inventory = Self { regions, scope_regions: scope_copy(&plan.scope_regions)?, input_regions, scope_origins, input_origins, scope_occurrences, nested_bytes,
+            work_used: plan.scoped_work_used, scratch_peak_bytes: plan.scoped_scratch_envelope, ..Self::default() };
+        inventory.charge(plan.regions.len().checked_add(plan.scope_regions.len()).and_then(|n| n.checked_add(count)).ok_or_else(scope_unavailable)?)?;
+        Ok(inventory)
+    }
+    fn region_bytes(region: &SourceRegion) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (region.children.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (region.scopes.capacity(), std::mem::size_of::<candidate_scope::EffectScopeId>()),
+            (region.inputs.capacity(), std::mem::size_of::<candidate_scope::InputRouteId>()),
+        ])
+    }
+    fn fixed_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes([
+            (self.regions.capacity(), std::mem::size_of::<SourceRegion>()),
+            (self.scope_regions.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (self.input_regions.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (self.scope_origins.capacity(), std::mem::size_of::<candidate_scope::EffectScopeId>()),
+            (self.input_origins.capacity(), std::mem::size_of::<candidate_scope::InputRouteId>()),
+            (self.copies.capacity(), std::mem::size_of::<ScopeCopyStatistics>()),
+            (self.scope_occurrences.capacity(), std::mem::size_of::<HirOccurrenceId>()),
+        ])
+    }
+    pub fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.fixed_bytes()?.checked_add(self.nested_bytes).ok_or_else(scope_unavailable)
+    }
+    #[cfg(test)]
+    pub fn enumerated_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.regions.iter().try_fold(self.fixed_bytes()?, |n, r| n.checked_add(Self::region_bytes(r)?).ok_or_else(scope_unavailable))
+    }
+    /// Parent-before-child closure of an explicitly supplied capture forest.
+    /// Work is proportional to that forest, including dormant source handles.
+    pub fn owned(&mut self, roots: &[SourceRegionId]) -> Result<Vec<SourceRegionId>, SolveAvailabilityError> {
+        self.charge(roots.len())?;
+        let mut out = Vec::new(); let mut seen = HashSet::new();
+        seen.try_reserve(roots.len()).map_err(|_| scope_unavailable())?;
+        for &root in roots { if seen.insert(root) { out.try_reserve(1).map_err(|_| scope_unavailable())?; out.push(root); } }
+        let mut cursor = 0;
+        while cursor < out.len() {
+            let child_count = self.regions.get(out[cursor].0).ok_or_else(scope_unavailable)?.children.len();
+            self.charge(child_count.checked_add(1).ok_or_else(scope_unavailable)?)?;
+            if out.len().checked_add(child_count).is_none_or(|n| n > SCOPED_RECORD_LIMIT) { return Err(scope_unavailable()); }
+            let region = &self.regions[out[cursor].0];
+            seen.try_reserve(region.children.len()).map_err(|_| scope_unavailable())?;
+            out.try_reserve(region.children.len()).map_err(|_| scope_unavailable())?;
+            for &child in &region.children { if seen.insert(child) { out.push(child); } }
+            cursor += 1;
+        }
+        self.note_scratch(checked_fixed_capacity_bytes([
+            (out.capacity(), std::mem::size_of::<SourceRegionId>()),
+            (seen.capacity(), std::mem::size_of::<SourceRegionId>()),
+        ])?);
+        Ok(out)
+    }
+    pub fn fresh(&mut self, owned: &[SourceRegionId], caller: SourceRegionId, graph_nodes: usize, graph_bounds: usize) -> Result<ScopeRemap, SolveAvailabilityError> {
+        self.regions.get(caller.0).ok_or_else(scope_unavailable)?;
+        self.charge(owned.len())?;
+        let (mut scopes_to_copy, mut inputs_to_copy) = (0usize, 0usize);
+        for &id in owned {
+            let region = self.regions.get(id.0).ok_or_else(scope_unavailable)?;
+            scopes_to_copy = scopes_to_copy.checked_add(region.scopes.len()).ok_or_else(scope_unavailable)?;
+            inputs_to_copy = inputs_to_copy.checked_add(region.inputs.len()).ok_or_else(scope_unavailable)?;
+        }
+        if self.regions.len().checked_add(owned.len()).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.scope_regions.len().checked_add(scopes_to_copy).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.input_regions.len().checked_add(inputs_to_copy).is_none_or(|n| n > SCOPED_RECORD_LIMIT)
+            || self.copies.len() >= SCOPED_RECORD_LIMIT { return Err(scope_unavailable()); }
+        self.charge(owned.len().checked_mul(3).and_then(|n| n.checked_add(scopes_to_copy)).and_then(|n| n.checked_add(inputs_to_copy)).ok_or_else(scope_unavailable)?)?;
+        self.scope_origins.try_reserve(scopes_to_copy).map_err(|_| scope_unavailable())?;
+        self.input_origins.try_reserve(inputs_to_copy).map_err(|_| scope_unavailable())?;
+        self.copies.try_reserve(1).map_err(|_| scope_unavailable())?;
+        let mut map = ScopeRemap::default();
+        map.regions.try_reserve(owned.len()).map_err(|_| scope_unavailable())?;
+        self.regions.try_reserve(owned.len()).map_err(|_| scope_unavailable())?;
+        // Reserve identities first, so an owned parent is recognized regardless
+        // of which root in a multi-definition forest was supplied first.
+        let base = self.regions.len();
+        for (offset, &old) in owned.iter().enumerate() { map.regions.insert(old, SourceRegionId(base.checked_add(offset).ok_or_else(scope_unavailable)?)); }
+        for &old in owned {
+            let original = self.regions.get(old.0).ok_or_else(scope_unavailable)?;
+            let parent = original.parent.and_then(|p| map.regions.get(&p).copied()).unwrap_or(caller);
+            let scope_count = original.scopes.len();
+            let input_count = original.inputs.len();
+            let id = map.regions[&old];
+            let mut scopes = Vec::new(); scopes.try_reserve_exact(scope_count).map_err(|_| scope_unavailable())?;
+            let mut inputs = Vec::new(); inputs.try_reserve_exact(input_count).map_err(|_| scope_unavailable())?;
+            map.scopes.try_reserve(scope_count).map_err(|_| scope_unavailable())?;
+            map.inputs.try_reserve(input_count).map_err(|_| scope_unavailable())?;
+            self.scope_regions.try_reserve(scope_count).map_err(|_| scope_unavailable())?;
+            self.input_regions.try_reserve(input_count).map_err(|_| scope_unavailable())?;
+            for index in 0..scope_count {
+                let old_scope = self.regions[old.0].scopes[index];
+                let fresh = candidate_scope::EffectScopeId(u32::try_from(self.scope_regions.len()).map_err(|_| scope_unavailable())?);
+                self.scope_origins.push(self.scope_origins[old_scope.0 as usize]);
+                self.scope_regions.push(id); scopes.push(fresh); map.scopes.insert(old_scope, fresh);
+            }
+            for index in 0..input_count {
+                let old_input = self.regions[old.0].inputs[index];
+                let fresh = candidate_scope::InputRouteId(u32::try_from(self.input_regions.len()).map_err(|_| scope_unavailable())?);
+                self.input_origins.push(self.input_origins[old_input.0 as usize]);
+                self.input_regions.push(id); inputs.push(fresh); map.inputs.insert(old_input, fresh);
+            }
+            let region = SourceRegion { parent: Some(parent), children: Vec::new(), scopes, inputs };
+            self.nested_bytes = self.nested_bytes.checked_add(Self::region_bytes(&region)?).ok_or_else(scope_unavailable)?;
+            self.regions.push(region);
+        }
+        for &old in owned {
+            let id = map.regions[&old]; let parent = self.regions[id.0].parent.ok_or_else(scope_unavailable)?;
+            let before = self.regions[parent.0].children.capacity();
+            self.regions[parent.0].children.try_reserve(1).map_err(|_| scope_unavailable())?;
+            let growth = self.regions[parent.0].children.capacity() - before;
+            self.nested_bytes = self.nested_bytes.checked_add(growth.checked_mul(std::mem::size_of::<SourceRegionId>()).ok_or_else(scope_unavailable)?).ok_or_else(scope_unavailable)?;
+            self.regions[parent.0].children.push(id);
+        }
+        self.copies.push(ScopeCopyStatistics { regions: owned.len(), scopes: scopes_to_copy, inputs: inputs_to_copy, graph_nodes, graph_bounds });
+        Ok(map)
+    }
+}
+// Source construction only: no effect-position or receiver-role judgment.
+#[derive(Clone, Debug)]
+#[cfg_attr(not(test), allow(dead_code, reason = "omission evidence has no semantic consumer"))]
+pub(super) struct OmittedFormal {
+    pub owner: SourceRootId,
+    pub lambda: HirOccurrenceId,
+    pub formal: yu_hir::HirParameterId,
+    pub position: yu_hir::shadow::SourceNodeKey,
+    pub scope: candidate_effect::AnnotationScope,
+}
+#[derive(Clone, Debug)]
+pub(super) enum Action {
+    Ascription { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, scope: candidate_effect::AnnotationScope },
+    LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
+    FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
+    FormalEntry { registration: usize, annotation: Arc<yu_hir::shadow::SourceAnnotation>, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
+    FormalNameEffect { registration: usize, occurrence: HirOccurrenceId, effect: usize },
+    Fact(usize),
+    Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
+    ValueConstraint { occurrence: HirOccurrenceId, slot: u8, endpoint: CandidateEndpoint, upper: Term },
+    Candidate(usize),
+    Lambda(usize),
+    Module(HirOccurrenceId),
+    Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
+    Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
+    Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
+    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32 },
+    Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
+}
+// The plan remains immutable while this frame is live. Root positions select
+// the original schedule, so resume never reconstructs actions from graph edges.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Schedule { Loose, Root(usize), Expression(usize) }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Stage { Execute, PublishLocal { slot: usize, exposed: Term, boundary: u32 } }
+// Synthetic source-boundary token, not a certificate or readiness witness.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Wait { pub generation: u64, pub dependency: usize }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Frame {
+    pub schedule: Schedule,
+    pub next: usize,
+    pub stage: Stage,
+    pub wait: Option<Wait>,
+    pub registration: Option<candidate_context::SourceSupportId>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CandidateRun<T> { Complete(T), Suspended(Wait) }
+// Only the test adapter supplies a wait here; a production lifecycle owner
+// must supply authenticated support before this can be connected to certificates.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Support { pub wait: Option<Wait> }
+impl Support { pub const READY: Self = Self { wait: None }; }
+
+impl Plan {
+    pub fn bytes(&self) -> usize {
+        checked_usize_sum([
+            self.references.bytes(),
+            checked_capacity_bytes::<SourceRegion>(self.regions.capacity(), "source regions"),
+            checked_usize_sum(self.regions.iter().map(|region| checked_usize_sum([
+                checked_capacity_bytes::<SourceRegionId>(region.children.capacity(), "source region children"),
+                checked_capacity_bytes::<candidate_scope::EffectScopeId>(region.scopes.capacity(), "source region scopes"),
+                checked_capacity_bytes::<candidate_scope::InputRouteId>(region.inputs.capacity(), "source region inputs"),
+            ], "source region inventory")), "source region forest"),
+            checked_capacity_bytes::<(DefinitionRootId, SourceRegionId)>(self.definition_regions.capacity(), "source definition regions"),
+            checked_capacity_bytes::<(HirOccurrenceId, SourceRegionId)>(self.occurrence_regions.capacity(), "source occurrence regions"),
+            checked_capacity_bytes::<(HirLocalId, SourceRegionId)>(self.local_regions.capacity(), "source local regions"),
+            checked_capacity_bytes::<(HirOccurrenceId, candidate_scope::EffectScopeId)>(self.computation_scopes.capacity(), "source computation scopes"),
+            checked_capacity_bytes::<SourceRegionId>(self.scope_regions.capacity(), "source scope owners"),
+            checked_capacity_bytes::<HirOccurrenceId>(self.scope_occurrences.capacity(), "source scope occurrences"),
+            checked_capacity_bytes::<(DefinitionRootId, Vec<Action>)>(self.schedules.capacity(), "source schedules"),
+            checked_usize_sum(self.schedules.values().map(|actions| checked_capacity_bytes::<Action>(actions.capacity(), "source actions")), "source action storage"),
+            checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
+            checked_capacity_bytes::<ExpressionSchedule>(self.expressions.capacity(), "expression schedules"),
+            checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
+            checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
+            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
+                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } | Action::CatchOperation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+            }), "source annotation storage"),
+            checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
+            checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
+            checked_capacity_bytes::<HirLocalId>(self.locals.capacity(), "source local identities"),
+            checked_capacity_bytes::<(HirOccurrenceId, Arc<OmittedFormal>)>(self.omitted_formals.capacity(), "omitted formal source identities"),
+            checked_capacity_bytes::<OmittedFormal>(self.omitted_formals.len(), "omitted formal source records"),
+        ], "candidate source plan")
+    }
+}
+// Result callees have no direct formal-name supplier. Until that supplier is
+// retained, admit only a source-grounded result whose entire Apply spine has
+// no parameter/local/binder alias or unresolved join. This is opt-in deferral.
+fn scoped_result_callee(source: &LocalSource, root: usize, plan: &mut Plan) -> Result<(), CollectionAvailabilityError> {
+    let mut work = Vec::new(); work.try_reserve(1).map_err(|_| unavailable())?;
+    plan.note_guard_stack(work.capacity())?; work.push(root);
+    let mut steps = 0usize;
+    while let Some(index) = work.pop() {
+        plan.charge_scoped_work(1)?;
+        steps = steps.checked_add(1).ok_or_else(unavailable)?;
+        if steps > SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+        match &source.expressions().get(index).ok_or_else(invalid)?.form {
+            LocalSourceForm::Apply { callee, argument, .. } => {
+                work.try_reserve(2).map_err(|_| unavailable())?;
+                plan.note_guard_stack(work.capacity())?;
+                work.push(callee.ordinal() as usize); work.push(argument.ordinal() as usize);
+            }
+            LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; plan.note_guard_stack(work.capacity())?; work.push(inner.ordinal() as usize); }
+            LocalSourceForm::Block { bindings, final_expression } if bindings.is_empty() => { work.try_reserve(1).map_err(|_| unavailable())?; plan.note_guard_stack(work.capacity())?; work.push(final_expression.ordinal() as usize); }
+            LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }
+            | LocalSourceForm::Operation { .. } | LocalSourceForm::Integer(_) | LocalSourceForm::Unit
+            | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {}
+            _ => return Err(unavailable()),
+        }
+    }
+    Ok(())
+}
+fn unavailable() -> CollectionAvailabilityError {
+    CollectionAvailabilityError::ComponentIdentityExhausted
+}
+fn invalid() -> CollectionAvailabilityError {
+    CollectionAvailabilityError::MissingDefinitionEndpoint
+}
+fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityError> {
+    values.try_reserve(1).map_err(|_| unavailable())?;
+    values.push(value);
+    Ok(())
+}
+pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
+    let mut referenced_catch_binders = std::collections::HashSet::new();
+    for expr in source.expressions() {
+        if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
+            referenced_catch_binders.try_reserve(1).map_err(|_| shadow_apply::CandidateError::Collection(unavailable()))?;
+            referenced_catch_binders.insert(id);
+        }
+    }
+    if source.annotation().is_some_and(|annotation| !preflight_annotation(&annotation.ty, true)) {
+        return Err(shadow_apply::CandidateError::Unsupported);
+    }
+    for binding in source.bindings() {
+        if binding.annotation.as_ref().is_some_and(|a| !preflight_local_annotation(&a.ty)) {
+            return Err(shadow_apply::CandidateError::Unsupported);
+        }
+    }
+    for expr in source.expressions() {
+        if let LocalSourceForm::Ascription { annotation, .. } = &expr.form {
+            if !preflight_local_annotation(&annotation.ty) {
+                return Err(shadow_apply::CandidateError::Unsupported);
+            }
+        }
+        if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
+            if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1) || !preflight_formal_value(&a.ty.value, false)) {
+                return Err(shadow_apply::CandidateError::Unsupported);
+            }
+        }
+        if let LocalSourceForm::Operation { resolution } = &expr.form {
+            match resolution {
+                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && preflight_annotation(&declaration.signature, true) => {},
+                _ => return Err(shadow_apply::CandidateError::Unsupported),
+            }
+        }
+        if let LocalSourceForm::Catch { arms, .. } = &expr.form {
+            for arm in arms {
+                if let yu_hir::shadow::LocalSourceCatchPattern::Operation { resolution, payloads, continuation, .. } = &arm.pattern {
+                    match resolution {
+                        yu_hir::shadow::SourceOperationResolution::Resolved(declaration)
+                            if payloads.len() == 1 && declaration.signature.effects.is_none()
+                            && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. })
+                            && monomorphic_signature(&declaration.signature)
+                            && preflight_catch_signature(&declaration.signature, payloads, continuation, &referenced_catch_binders) => {},
+                        _ => return Err(shadow_apply::CandidateError::Unsupported),
+                    }
+                }
+            }
+        }
+        if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous, .. }) {
+            return Err(shadow_apply::CandidateError::Unsupported);
+        }
+    }
+    Ok(())
+}
+pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    preflight_annotation(ty, true)
+}
+fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
+    ty.effects.as_ref().is_none_or(|row| if positive { row.variables.len() <= 1 } else { row.concrete.is_empty() && row.variables.len() == 1 }) && preflight_formal_value(&ty.value, positive)
+}
+fn preflight_formal_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
+    match value {
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument, !positive) && preflight_formal(result, positive),
+        _ => true,
+    }
+}
+fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
+    if let Some(row) = &ty.effects {
+        if row.variables.len() > 1 || (!positive && !row.concrete.is_empty()) { return false; }
+    }
+    preflight_value(&ty.value, positive)
+}
+// Value construction ignores its own computation row. Function children each
+// contribute their complete annotation according to their port variance.
+fn preflight_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
+    match value {
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
+            preflight_annotation(argument, !positive) && preflight_annotation(result, positive),
+        _ => true,
+    }
+}
+
+fn preflight_catch_signature(
+    ty: &yu_hir::shadow::SourceAnnotationType,
+    payloads: &[yu_hir::shadow::LocalSourceCatchPayloadPattern],
+    continuation: &yu_hir::shadow::LocalSourceCatchValuePattern,
+    referenced: &std::collections::HashSet<&yu_hir::shadow::LocalSourceCatchBinderId>,
+) -> bool {
+    use yu_hir::shadow::{LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
+    let yu_hir::shadow::SourceAnnotationValue::Function { argument, result } = &ty.value else { return false; };
+    let used = |pattern: &Value| matches!(pattern, Value::Binder(binder) if referenced.contains(&binder.id));
+    let payload_used = payloads.iter().any(|payload| matches!(payload, Payload::Value(pattern) if used(pattern)));
+    (!payload_used || (preflight_value(&argument.value, true) && preflight_value(&argument.value, false)))
+        && (!used(continuation) || (preflight_value(&result.value, true) && preflight_value(&result.value, false)))
+}
+// Generic arms require rigid existential opening (charter §§19–20).
+fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    ty.effects.as_ref().is_none_or(|row| row.variables.is_empty()) && match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Variable(_) => false,
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => monomorphic_signature(argument) && monomorphic_signature(result),
+        _ => true,
+    }
+}
+fn annotation_contains_unit(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Unit => true,
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
+            annotation_contains_unit(argument) || annotation_contains_unit(result),
+        _ => false,
+    }
+}
+
+pub(super) fn retain_placeholder_errors(expr: &ResolvedExpr, permitted: &mut HashSet<yu_hir::HirErrorId>) -> Result<(), shadow_apply::CandidateError> {
+    // The HIR carrier owns this unsupported legacy placeholder. Its successful
+    // source formation is checked separately; unrelated diagnostics stay visible.
+    let mut current = expr;
+    loop {
+        match current {
+            ResolvedExpr::Lambda { body, .. } => current = body,
+            ResolvedExpr::Error { errors, .. } => {
+                permitted.try_reserve(errors.len()).map_err(|_| shadow_apply::CandidateError::Unsupported)?;
+                permitted.extend(errors.iter().copied());
+                break;
+            }
+            _ => break,
+        }
+    }
+    Ok(())
+}
+#[derive(Clone, Copy)]
+enum Work {
+    Visit(usize, u32, SourceRegionId),
+    Finish(usize, u32),
+    Install(usize, usize, u32),
+    Initializer(usize, u32, SourceRegionId),
+    CatchArms(usize, u32, SourceRegionId),
+}
+impl ConstraintBatch {
+    fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
+        match &ty.value {
+            yu_hir::shadow::SourceAnnotationValue::Bool => { self.term_for_leaf(Leaf::BoolPositive)?; self.term_for_leaf(Leaf::BoolNegative)?; }
+            yu_hir::shadow::SourceAnnotationValue::Str => { self.term_for_leaf(Leaf::StrPositive)?; self.term_for_leaf(Leaf::StrNegative)?; }
+            yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => {
+                self.prepare_source_annotation_primitives(argument)?;
+                self.prepare_source_annotation_primitives(result)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub(super) fn emit_candidate_source<'a>(
+        &mut self,
+        source: &'a LocalSource,
+        parent: &SourceReceiver,
+        uses: &mut Vec<PendingDefinitionUse<'a>>,
+    ) -> Result<(), CollectionAvailabilityError> {
+        let owner = source.source_root();
+        let original = self.hir.local_source_for(owner).map_err(|_| invalid())?.ok_or_else(invalid)?;
+        if !std::ptr::eq(source, original) { return Err(invalid()); }
+        match (parent, owner) {
+            (SourceReceiver::Definition(id), SourceRootId::Definition(root))
+                if self.definitions.get(id.ordinal() as usize).is_some_and(|record| &record.definition == id && &record.root == root) => {},
+            (SourceReceiver::Expression(root), SourceRootId::Expression(actual)) if root == actual => {},
+            _ => return Err(invalid()),
+        }
+        self.candidate_source.source_owners.try_reserve(source.expressions().len()).map_err(|_| unavailable())?;
+        for expr in source.expressions() {
+            if !self.hir.owns_occurrence(&expr.occurrence) { return Err(invalid()); }
+            if self.candidate_source.source_owners.insert(expr.occurrence.clone(), owner.clone()).is_some_and(|previous| &previous != owner) {
+                return Err(invalid());
+            }
+        }
+        self.candidate_source.references.retain_source(source)?;
+        let mut positions = Vec::new();
+        positions.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
+        let mut parameters = HashMap::new();
+        let mut local_slots = HashMap::new();
+        let mut lambdas = HashMap::new();
+        let mut formal_registrations = HashMap::new();
+        let mut parameter_scopes = HashMap::new();
+        let mut catch_arm_scopes = HashMap::new();
+        for binding in source.bindings() {
+            parameter_scopes.try_reserve(binding.parameters.len()).map_err(|_| unavailable())?;
+            for parameter in &binding.parameters {
+                parameter_scopes.insert(parameter.id.clone(), candidate_effect::AnnotationScope::Local(binding.id.clone()));
+            }
+        }
+        for (index, expr) in source.expressions().iter().enumerate() {
+            positions.push(self.candidate_component(&expr.occurrence)?);
+            if let LocalSourceForm::Catch { arms, .. } = &expr.form {
+                catch_arm_scopes.try_reserve(arms.len()).map_err(|_| unavailable())?;
+                for arm in arms { catch_arm_scopes.insert(arm.source.clone(), candidate_effect::AnnotationScope::Expression(arm.body.clone())); }
+            }
+            if let LocalSourceForm::Lambda { parameter, .. } = &expr.form {
+                let position = self.parameter_recipes.len();
+                push(&mut self.parameter_recipes, parameter.id.clone())?;
+                parameters.try_reserve(1).map_err(|_| unavailable())?;
+                parameters.insert(parameter.id.clone(), position);
+                let registration = self.candidate_calls.formals.len();
+                push(&mut self.candidate_calls.formals, candidate_call::FormalRegistrationInput {
+                    owner: owner.clone(), lambda: index,
+                    parameter: parameter.id.clone(), recipe_position: position, native_root: None,
+                    role: if parameter.annotation.as_ref().is_some_and(|a| a.ty.effects.is_some()) { candidate_call::FormalRole::Computation } else { candidate_call::FormalRole::Value },
+                    entry_effect: None, receiver_body: None,
+                    scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())),
+                })?;
+                formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
+                formal_registrations.insert(parameter.id.clone(), registration);
+            }
+        }
+        for binding in source.bindings() {
+            let slot = self.candidate_source.locals.len();
+            push(&mut self.candidate_source.locals, binding.id.clone())?;
+            local_slots.try_reserve(1).map_err(|_| unavailable())?;
+            local_slots.insert(binding.id.clone(), slot);
+        }
+        let mut endpoints = Vec::new();
+        endpoints.try_reserve_exact(positions.len()).map_err(|_| unavailable())?;
+        for (index, expr) in source.expressions().iter().enumerate() {
+            let endpoint = match &expr.form {
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } =>
+                    CandidateEndpoint::Parameter(*parameters.get(parameter).ok_or_else(invalid)?),
+                _ => CandidateEndpoint::Component(positions[index].value),
+            };
+            endpoints.push(endpoint);
+        }
+        let mut ascription_children = HashMap::new();
+        // Resolve aliases before recursive initializer links capture endpoints.
+        // Group facades stay intact; only an ascription peels parentheses.
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Ascription { inner, .. } = &expr.form {
+                let mut child = inner.ordinal() as usize;
+                loop {
+                    match &source.expressions()[child].form {
+                        LocalSourceForm::Ascription { inner, .. } | LocalSourceForm::Group { inner } => child = inner.ordinal() as usize,
+                        _ => break,
+                    }
+                }
+                ascription_children.try_reserve(1).map_err(|_| unavailable())?;
+                ascription_children.insert(index, child);
+                positions[index] = positions[child];
+                *self.occurrence_component_positions.get_mut(&expr.occurrence).ok_or_else(invalid)? = positions[child];
+                endpoints[index] = endpoints[child];
+            }
+        }
+        let mut formal_names = Vec::new();
+        formal_names.try_reserve_exact(positions.len()).map_err(|_| unavailable())?;
+        formal_names.resize(positions.len(), None);
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } = &expr.form {
+                let name = self.candidate_calls.names.len();
+                push(&mut self.candidate_calls.names, candidate_call::FormalNameInput {
+                    owner: owner.clone(), expression: index,
+                    registration: *formal_registrations.get(parameter).ok_or_else(invalid)?,
+                })?;
+                formal_names[index] = Some(name);
+            }
+        }
+        let mut catch_positions = HashMap::new();
+        for (index, expr) in source.expressions().iter().enumerate() {
+            if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
+                catch_positions.try_reserve(1).map_err(|_| unavailable())?;
+                catch_positions.entry(id.clone()).or_insert(positions[index].value);
+            }
+        }
+        let mut catch_binders = HashMap::new();
+        let mut actions = Vec::new();
+        let mut work = Vec::new();
+        // Only currently forming function initializers use an open monomorphic
+        // root. Published locals continue through the ordinary scheme route.
+        let mut active_initializers = HashMap::new();
+        active_initializers.try_reserve(source.bindings().len()).map_err(|_| unavailable())?;
+        let definition_region = self.candidate_source.region(None)?;
+        if self.candidate_source.scoped_experiment {
+            self.candidate_source.definition_regions.try_reserve(1).map_err(|_| unavailable())?;
+            if let SourceRootId::Definition(definition) = owner {
+                self.candidate_source.definition_regions.insert(definition.clone(), definition_region);
+            }
+        }
+        push(&mut work, Work::Visit(source.body().ordinal() as usize, 1, definition_region))?;
+        while let Some(next) = work.pop() {
+            match next {
+                Work::Visit(index, level, region) => {
+                    self.candidate_source.computation_scope(&source.expressions()[index].occurrence, region)?;
+                    let expr = source.expressions().get(index).ok_or_else(invalid)?;
+                    if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(binder), .. } = &expr.form {
+                        endpoints[index] = *catch_binders.get(binder).ok_or_else(invalid)?;
+                    }
+                    let pos = positions[index];
+                    self.candidate_source.component_levels.try_reserve(2).map_err(|_| unavailable())?;
+                    // A Catch binder's representative is introduced at the arm level;
+                    // its first Name can occur inside a deeper initializer.
+                    self.candidate_source.component_levels.entry(pos.value).or_insert(level);
+                    self.candidate_source.component_levels.insert(pos.effect, level);
+                    push(&mut work, Work::Finish(index, level))?;
+                    match &expr.form {
+                        LocalSourceForm::Catch { scrutinee, .. } => {
+                            push(&mut work, Work::CatchArms(index, level, region))?;
+                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
+                        }
+                        LocalSourceForm::If { arms, else_branch } => {
+                            if let Some(else_branch) = else_branch {
+                                push(&mut work, Work::Visit(else_branch.ordinal() as usize, level, region))?;
+                            }
+                            for (condition, body) in arms.iter().rev() {
+                                push(&mut work, Work::Visit(body.ordinal() as usize, level, region))?;
+                                push(&mut work, Work::Visit(condition.ordinal() as usize, level, region))?;
+                            }
+                        }
+                        LocalSourceForm::Apply { callee, argument, .. } => {
+                            push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
+                            push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
+                        }
+                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
+                        LocalSourceForm::Lambda { parameter, body } => {
+                            let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
+                            self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
+                            self.candidate_source.parameter_levels.insert(position, level);
+                            lambdas.try_reserve(1).map_err(|_| unavailable())?;
+                            lambdas.insert(index, position);
+                            if parameter.annotation.is_none() {
+                                self.candidate_source.omitted_formals.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
+                                    owner: owner.clone(), lambda: expr.occurrence.clone(),
+                                    formal: parameter.id.clone(), position: parameter.source.clone(),
+                                    scope: self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].scope.clone(),
+                                }));
+                            }
+                            if let Some(annotation) = &parameter.annotation {
+                                let annotation = Arc::new(annotation.clone());
+                                if annotation.ty.effects.is_some() {
+                                    let registration = *formal_registrations.get(&parameter.id).ok_or_else(invalid)?;
+                                    push(&mut actions, Action::FormalEntry { registration, annotation: Arc::clone(&annotation), occurrence: expr.occurrence.clone(), scope: self.candidate_calls.formals[registration].scope.clone() })?;
+                                    if annotation.ty.effects.as_ref().is_some_and(|row| !row.variables.is_empty()) {
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                                    }
+                                }
+                                for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                                self.prepare_source_annotation_primitives(&annotation.ty)?;
+                                if annotation_contains_unit(&annotation.ty) {
+                                    self.term_for_leaf(Leaf::UnitPositive)?;
+                                    self.term_for_leaf(Leaf::UnitNegative)?;
+                                }
+                                push(&mut actions, Action::FormalAnnotation { annotation: Arc::clone(&annotation), parameter: position, occurrence: expr.occurrence.clone(), scope: parameter_scopes.get(&parameter.id).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())) })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                            }
+                            let body_region = self.candidate_source.region(Some(region))?;
+                            if self.candidate_source.scoped_experiment {
+                                let registration = *formal_registrations.get(&parameter.id).ok_or_else(invalid)?;
+                                self.candidate_calls.formals[registration].receiver_body = Some((
+                                    source.expressions()[body.ordinal() as usize].occurrence.clone(), body_region));
+                            }
+                            push(&mut work, Work::Visit(body.ordinal() as usize, level, body_region))?;
+                        }
+                        LocalSourceForm::Block { bindings, final_expression } => {
+                            push(&mut work, Work::Visit(final_expression.ordinal() as usize, level, region))?;
+                            let child = level.checked_add(1).ok_or_else(unavailable)?;
+                            for &binding in bindings.iter().rev() {
+                                source.bindings().get(binding as usize).ok_or_else(invalid)?;
+                                push(&mut work, Work::Install(binding as usize, index, level))?;
+                                push(&mut work, Work::Initializer(binding as usize, child, region))?;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Work::CatchArms(index, level, region) => {
+                    let LocalSourceForm::Catch { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
+                    for arm in arms {
+                        use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchPayloadPattern as Payload, LocalSourceCatchValuePattern as Value};
+                        match &arm.pattern {
+                            Pattern::Value(Value::Binder(binder)) => {
+                                catch_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                catch_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                            }
+                            Pattern::Value(Value::Wildcard) => {},
+                            Pattern::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration), payloads, continuation, .. } => {
+                                let mut retain = |pattern: &Value| -> Result<Option<usize>, CollectionAvailabilityError> {
+                                    let Value::Binder(binder) = pattern else { return Ok(None); };
+                                    let position = catch_positions.get(&binder.id).copied();
+                                    if let Some(position) = position {
+                                        catch_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                        catch_binders.insert(binder.id.clone(), CandidateEndpoint::Component(position));
+                                        self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                        self.candidate_source.component_levels.insert(position, level);
+                                    }
+                                    Ok(position)
+                                };
+                                let payload = match &payloads[0] { Payload::Value(pattern) => retain(pattern)?, Payload::Unit { .. } => None };
+                                let continuation = retain(continuation)?;
+                                self.term_for_leaf(Leaf::IntPositive)?;
+                                self.term_for_leaf(Leaf::IntNegative)?;
+                                self.prepare_source_annotation_primitives(&declaration.signature)?;
+                                if annotation_contains_unit(&declaration.signature) {
+                                    self.term_for_leaf(Leaf::UnitPositive)?;
+                                    self.term_for_leaf(Leaf::UnitNegative)?;
+                                }
+                                self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                                self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                                let count = 2 * usize::from(payload.is_some()) + 4 * usize::from(continuation.is_some());
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level })?;
+                            }
+                            _ => return Err(invalid()),
+                        }
+                    }
+                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?; }
+                }
+                Work::Initializer(binding, level, parent_region) => {
+                    let region = self.candidate_source.region(Some(parent_region))?;
+                    if self.candidate_source.scoped_experiment {
+                        self.candidate_source.local_regions.try_reserve(1).map_err(|_| unavailable())?;
+                        self.candidate_source.local_regions.insert(source.bindings()[binding].id.clone(), region);
+                    }
+                    let binding = &source.bindings()[binding];
+                    if !binding.parameters.is_empty() {
+                        active_initializers.insert(binding.id.clone(), endpoints[binding.initializer.ordinal() as usize]);
+                    }
+                    push(&mut work, Work::Visit(binding.initializer.ordinal() as usize, level, region))?;
+                }
+                Work::Install(binding, block, boundary) => {
+                    let binding = &source.bindings()[binding];
+                    active_initializers.remove(&binding.id);
+                    let init = positions[binding.initializer.ordinal() as usize];
+                    let occurrence = &source.expressions()[binding.initializer.ordinal() as usize].occurrence;
+                    // Initialization effects are one-shot computation, outside
+                    // the generalized value interface and every later fresh use.
+                    let start = self.occurrences.len();
+                    self.emit(occurrence.clone(), 20, self.component_term_at(init.effect), self.component_term_at(positions[block].effect))?;
+                    self.append_source_facts(start, &mut actions)?;
+                    if let Some(annotation) = &binding.annotation {
+                        for leaf in [Leaf::IntPositive, Leaf::IntNegative] { self.term_for_leaf(leaf)?; }
+                        self.prepare_source_annotation_primitives(&annotation.ty)?;
+                        if annotation_contains_unit(&annotation.ty) {
+                            self.term_for_leaf(Leaf::UnitPositive)?;
+                            self.term_for_leaf(Leaf::UnitNegative)?;
+                        }
+                        push(&mut actions, Action::LocalAnnotation { annotation: Arc::new(annotation.clone()), slot: local_slots[&binding.id], endpoint: endpoints[binding.initializer.ordinal() as usize], computation_effect: init.effect, occurrence: occurrence.clone(), level: boundary.checked_add(1).ok_or_else(unavailable)?, boundary })?;
+                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                    } else {
+                        push(&mut actions, Action::Install { slot: local_slots[&binding.id], initializer: endpoints[binding.initializer.ordinal() as usize], boundary })?;
+                    }
+                }
+                Work::Finish(index, level) => {
+                    let expr = &source.expressions()[index];
+                    let pos = positions[index];
+                    let occurrence = &expr.occurrence;
+                    let start = self.occurrences.len();
+                    match &expr.form {
+                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {
+                            let (positive_leaf, negative_leaf) = match &expr.form {
+                                LocalSourceForm::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
+                                LocalSourceForm::Boolean(_) => (Leaf::BoolPositive, Leaf::BoolNegative),
+                                LocalSourceForm::String(_) => (Leaf::StrPositive, Leaf::StrNegative),
+                                _ => (Leaf::IntPositive, Leaf::IntNegative),
+                            };
+                            let positive = self.term_for_leaf(positive_leaf)?;
+                            let negative = self.term_for_leaf(negative_leaf)?;
+                            self.emit(occurrence.clone(), 0, positive, self.component_term_at(pos.value))?;
+                            self.emit(occurrence.clone(), 1, self.component_term_at(pos.value), negative)?;
+                            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                            self.emit(occurrence.clone(), 2, bottom, self.component_term_at(pos.effect))?;
+                            self.emit(occurrence.clone(), 3, self.component_term_at(pos.effect), empty)?;
+                        }
+                        LocalSourceForm::Catch { scrutinee, arms } => {
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            let scrutinee_index = scrutinee.ordinal() as usize;
+                            self.emit(source.expressions()[scrutinee_index].occurrence.clone(), 51, self.component_term_at(positions[scrutinee_index].effect), result_effect)?;
+                            if !arms.iter().any(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCatchPattern::Value(_))) {
+                                push(&mut actions, Action::ValueConstraint { occurrence: occurrence.clone(), slot: 52, endpoint: endpoints[scrutinee_index], upper: result })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            }
+                            for arm in arms {
+                                let body = arm.body.ordinal() as usize;
+                                let occurrence = &source.expressions()[body].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: occurrence.clone(), slot: 50, endpoint: endpoints[body], upper: result })?;
+                                self.emit(occurrence.clone(), 51, self.component_term_at(positions[body].effect), result_effect)?;
+                            }
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(arms.len()).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(arms.len()).ok_or_else(unavailable)?;
+                        }
+                        LocalSourceForm::If { arms, else_branch } => {
+                            // Direct children have unique source occurrences in the HIR tree.
+                            // Their parent constraints use slots separate from their own constructors.
+                            let boolean = self.term_for_leaf(Leaf::BoolNegative)?;
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            for (condition, body) in arms {
+                                let condition_index = condition.ordinal() as usize;
+                                let body_index = body.ordinal() as usize;
+                                let condition_occurrence = &source.expressions()[condition_index].occurrence;
+                                let body_occurrence = &source.expressions()[body_index].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: condition_occurrence.clone(), slot: 50, endpoint: endpoints[condition_index], upper: boolean })?;
+                                if else_branch.is_some() {
+                                    push(&mut actions, Action::ValueConstraint { occurrence: body_occurrence.clone(), slot: 50, endpoint: endpoints[body_index], upper: result })?;
+                                }
+                                self.emit(condition_occurrence.clone(), 51, self.component_term_at(positions[condition_index].effect), result_effect)?;
+                                self.emit(body_occurrence.clone(), 51, self.component_term_at(positions[body_index].effect), result_effect)?;
+                            }
+                            let value_count = if let Some(else_branch) = else_branch {
+                                let else_index = else_branch.ordinal() as usize;
+                                let else_occurrence = &source.expressions()[else_index].occurrence;
+                                push(&mut actions, Action::ValueConstraint { occurrence: else_occurrence.clone(), slot: 50, endpoint: endpoints[else_index], upper: result })?;
+                                self.emit(else_occurrence.clone(), 51, self.component_term_at(positions[else_index].effect), result_effect)?;
+                                arms.len().checked_mul(2).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?
+                            } else {
+                                // No-else bodies are checked and evaluated, but their values
+                                // are discarded. The actual conditional occurrence returns Unit.
+                                let unit = self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.emit(occurrence.clone(), 0, unit, result)?;
+                                arms.len()
+                            };
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(value_count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(value_count).ok_or_else(unavailable)?;
+                        }
+                        LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration) } => {
+                            self.term_for_leaf(Leaf::IntPositive)?;
+                            self.term_for_leaf(Leaf::IntNegative)?;
+                            self.prepare_source_annotation_primitives(&declaration.signature)?;
+                            if annotation_contains_unit(&declaration.signature) {
+                                self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.term_for_leaf(Leaf::UnitNegative)?;
+                            }
+                            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                            self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                            self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                            self.append_source_facts(start, &mut actions)?;
+                            push(&mut actions, Action::Operation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: occurrence.clone(), target: pos.value, level })?;
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            continue;
+                        }
+                        LocalSourceForm::Operation { .. } => return Err(invalid()),
+                        LocalSourceForm::Name { resolution, .. } => {
+                            let computation = match resolution {
+                                LocalSourceResolution::Parameter(parameter) => {
+                                    let registration = *formal_registrations.get(parameter).ok_or_else(invalid)?;
+                                    (self.candidate_calls.formals[registration].role == candidate_call::FormalRole::Computation).then_some(registration)
+                                }
+                                _ => None,
+                            };
+                            if let Some(registration) = computation {
+                                push(&mut actions, Action::FormalNameEffect { registration, occurrence: occurrence.clone(), effect: pos.effect })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
+                            } else {
+                                let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                                let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                                self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                                self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                                self.append_source_facts(start, &mut actions)?;
+                            }
+                            match resolution {
+                                LocalSourceResolution::ModuleDef(target) => {
+                                    push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
+                                    push(&mut actions, Action::Module(occurrence.clone()))?;
+                                }
+                                LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) => {}
+                                LocalSourceResolution::Local(local) => {
+                                    if let Some(&endpoint) = active_initializers.get(local) {
+                                        push(&mut actions, Action::Link { occurrence: occurrence.clone(), endpoint, target: pos.value })?;
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                                    } else {
+                                        push(&mut actions, Action::Local { slot: *local_slots.get(local).ok_or_else(invalid)?, occurrence: occurrence.clone(), value: pos.value, level })?;
+                                    }
+                                }
+                                _ => return Err(invalid()),
+                            }
+                            continue;
+                        }
+                        LocalSourceForm::Apply { callee, argument, .. } => {
+                            if self.candidate_source.scoped_experiment {
+                                let mut argument_index = argument.ordinal() as usize;
+                                loop {
+                                    self.candidate_source.charge_scoped_work(1)?;
+                                    match &source.expressions()[argument_index].form {
+                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => argument_index = inner.ordinal() as usize,
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. } => return Err(unavailable()),
+                                        LocalSourceForm::Block { bindings, final_expression } => {
+                                            if !bindings.is_empty() { return Err(unavailable()); }
+                                            argument_index = final_expression.ordinal() as usize;
+                                        }
+                                        _ => break,
+                                    }
+                                }
+                                let mut callee_index = callee.ordinal() as usize;
+                                loop {
+                                    self.candidate_source.charge_scoped_work(1)?;
+                                    match &source.expressions()[callee_index].form {
+                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => callee_index = inner.ordinal() as usize,
+                                        LocalSourceForm::Block { final_expression, .. } => callee_index = final_expression.ordinal() as usize,
+                                        LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
+                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_) | LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
+                                        _ => break,
+                                    }
+                                }
+                            }
+                            let c = positions[callee.ordinal() as usize];
+                            let a = positions[argument.ordinal() as usize];
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Apply { callee: endpoints[callee.ordinal() as usize], callee_effect: c.effect, argument: endpoints[argument.ordinal() as usize], argument_effect: a.effect, result: pos.value, result_effect: pos.effect })?;
+                            let source_input = self.candidate_calls.calls.len();
+                            if self.candidate_source.scoped_experiment {
+                                if source_input >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+                                self.candidate_source.charge_scoped_work(1)?;
+                                self.candidate_calls.by_occurrence.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_calls.by_occurrence.insert(occurrence.clone(), source_input);
+                                let region = self.candidate_source.occurrence_regions[occurrence];
+                                let input_route = candidate_scope::InputRouteId(u32::try_from(source_input).map_err(|_| unavailable())?);
+                                self.candidate_source.regions[region.0].inputs.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_source.regions[region.0].inputs.push(input_route);
+                            }
+                            let receiver_attachment = if self.candidate_source.scoped_experiment {
+                                if let Some(name) = formal_names[callee.ordinal() as usize] {
+                                    let registration_index = self.candidate_calls.names[name].registration;
+                                    let registration = &self.candidate_calls.formals[registration_index];
+                                    let lambda = &source.expressions()[registration.lambda];
+                                    if self.candidate_source.omitted_formals.contains_key(&lambda.occurrence) {
+                                        let (receiver_body, receiver_region) = registration.receiver_body.as_ref().ok_or_else(invalid)?;
+                                        Some(candidate_call::ReceiverBoundaryAttachment {
+                                            registration: registration_index, receiver_lambda: lambda.occurrence.clone(),
+                                            receiver_body: receiver_body.clone(), receiver_region: *receiver_region,
+                                            lexical_region: self.candidate_source.occurrence_regions[occurrence],
+                                            scope: self.candidate_source.computation_scopes[occurrence],
+                                        })
+                                    } else { None }
+                                } else { None }
+                            } else { None };
+                            let checking = ConstraintOccurrenceId::new(occurrence.clone(), 0);
+                            push(&mut self.candidate_calls.calls, candidate_call::ApplySourceInput {
+                                owner: owner.clone(), expression: index,
+                                callee: callee.clone(), argument: argument.clone(), level, recipe,
+                                callee_value: endpoints[callee.ordinal() as usize], callee_effect: c.effect,
+                                argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
+                                result: pos.value, application_effect: pos.effect,
+                                cause: CauseId::for_occurrence(checking.clone()), checking,
+                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None, receiver_attachment,
+                            })?;
+                            self.candidate_recipes[recipe].source_input = Some(source_input);
+                            push(&mut actions, Action::Candidate(recipe))?;
+                        }
+                        LocalSourceForm::Ascription { inner, annotation } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
+                            formal_names[index] = formal_names[inner.ordinal() as usize];
+                            // The retained canonical peeled child avoids rescanning wrappers
+                            // when arm binder aliases become available during Visit.
+                            endpoints[index] = endpoints[*ascription_children.get(&index).ok_or_else(invalid)?];
+                            let scope = match &expr.scope {
+                                yu_hir::shadow::LocalSourceScope::ModuleExpression(root) => candidate_effect::AnnotationScope::Source(SourceRootId::Expression(root.clone())),
+                                yu_hir::shadow::LocalSourceScope::Definition(owner) => candidate_effect::AnnotationScope::Definition(owner.clone()),
+                                yu_hir::shadow::LocalSourceScope::LocalInitializer(local) => candidate_effect::AnnotationScope::Local(local.clone()),
+                                yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())),
+                                yu_hir::shadow::LocalSourceScope::CatchArm { arm, .. } => catch_arm_scopes.get(arm).cloned().ok_or_else(invalid)?,
+                                yu_hir::shadow::LocalSourceScope::Expression(expression) => candidate_effect::AnnotationScope::Expression(expression.clone()),
+                            };
+                            // An expression annotation constrains the child's
+                            // computation directly, without a fresh facade.
+                            for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
+                                self.term_for_leaf(leaf)?;
+                            }
+                            self.prepare_source_annotation_primitives(&annotation.ty)?;
+                            if annotation_contains_unit(&annotation.ty) {
+                                self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.term_for_leaf(Leaf::UnitNegative)?;
+                            }
+                            push(&mut actions, Action::Ascription {
+                                annotation: Arc::new(annotation.clone()), endpoint: endpoints[index],
+                                computation_effect: pos.effect, occurrence: occurrence.clone(), level, scope,
+                            })?;
+                            let count = 2 + usize::from(annotation.ty.effects.is_some());
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                        }
+                        LocalSourceForm::Group { inner } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
+                            formal_names[index] = formal_names[inner.ordinal() as usize];
+                            let child = positions[inner.ordinal() as usize];
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Group { child: endpoints[inner.ordinal() as usize], child_effect: child.effect, result: pos.value, result_effect: pos.effect })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
+                        }
+                        LocalSourceForm::Lambda { parameter, body } => {
+                            self.candidate_local_lambda_effect(occurrence, pos.effect)?;
+                            self.append_source_facts(start, &mut actions)?;
+                            let body_index = body.ordinal() as usize;
+                            let body = positions[body_index];
+                            let recipe = self.lambda_recipes.len();
+                            self.lambda_recipes.try_reserve(1).map_err(|_| unavailable())?;
+                            self.lambda_recipes.push(LambdaRecipe {
+                                occurrence: occurrence.clone(), parameter_position: lambdas[&index],
+                                formal_registration: Some(*formal_registrations.get(&parameter.id).ok_or_else(invalid)?),
+                                root_component: pos.value, body_value_endpoint: endpoints[body_index], body_effect_component: body.effect, lambda_effect_component: pos.effect,
+                                after_collected_fact: self.occurrences.len(),
+                            });
+                            let count = if self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].role == candidate_call::FormalRole::Value { 3 } else { 2 };
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                            push(&mut actions, Action::Lambda(recipe))?;
+                            continue;
+                        }
+                        LocalSourceForm::Block { final_expression, .. } => {
+                            if self.candidate_source.scoped_experiment {
+                                let child_occurrence = &source.expressions()[final_expression.ordinal() as usize].occurrence;
+                                let child_scope = self.candidate_source.computation_scopes[child_occurrence];
+                                self.candidate_source.computation_scopes.insert(occurrence.clone(), child_scope);
+                            }
+                            formal_names[index] = formal_names[final_expression.ordinal() as usize];
+                            let child = positions[final_expression.ordinal() as usize];
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Group {
+                                child: endpoints[final_expression.ordinal() as usize], child_effect: child.effect,
+                                result: pos.value, result_effect: pos.effect,
+                            })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
+                        }
+                    }
+                    self.append_source_facts(start, &mut actions)?;
+                }
+            }
+        }
+        let body = source.body().ordinal() as usize;
+        if let SourceRootId::Definition(definition) = owner {
+            let root = self.root_component_positions[definition].component;
+            if let Some(annotation) = source.annotation() {
+                // Prepare the annotation constructor's primitives before sealing,
+                // including bodies whose source expressions contain no literals.
+                for leaf in [Leaf::IntPositive, Leaf::IntNegative, Leaf::EffectBottomPositive, Leaf::EmptyEffectNegative] {
+                    self.term_for_leaf(leaf)?;
+                }
+                self.prepare_source_annotation_primitives(&annotation.ty)?;
+                if annotation_contains_unit(&annotation.ty) {
+                    self.term_for_leaf(Leaf::UnitPositive)?;
+                    self.term_for_leaf(Leaf::UnitNegative)?;
+                }
+                push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
+                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+            } else {
+                push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
+                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+            }
+            self.candidate_source.schedules.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.schedules.insert(definition.clone(), actions);
+        } else if let SourceRootId::Expression(root) = owner {
+            self.candidate_source.expressions.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.expressions.push(ExpressionSchedule {
+                root: root.clone(), components: positions[body], value: endpoints[body], actions,
+            });
+        }
+        self.candidate_source.active = true;
+        Ok(())
+    }
+    fn append_source_facts(&self, start: usize, actions: &mut Vec<Action>) -> Result<(), CollectionAvailabilityError> {
+        for index in start..self.occurrences.len() { push(actions, Action::Fact(index))?; }
+        Ok(())
+    }
+    pub(super) fn candidate_legacy_actions(&self, start: usize, end: usize, candidate_start: usize, lambda_start: usize) -> Result<Vec<Action>, CollectionAvailabilityError> {
+        let mut actions = Vec::new();
+        let mut routed = HashSet::new();
+        let mut candidate = candidate_start;
+        let mut lambda = lambda_start;
+        for index in start..=end {
+            while self.candidate_recipes.get(candidate).is_some_and(|r| r.after_collected_fact == index) {
+                push(&mut actions, Action::Candidate(candidate))?;
+                candidate += 1;
+            }
+            while self.lambda_recipes.get(lambda).is_some_and(|r| r.after_collected_fact == index) {
+                push(&mut actions, Action::Lambda(lambda))?;
+                lambda += 1;
+            }
+            if index < end {
+                let occurrence = self.occurrences[index].id.occurrence();
+                routed.try_reserve(1).map_err(|_| unavailable())?;
+                if routed.insert(occurrence.clone()) { push(&mut actions, Action::Module(occurrence.clone()))?; }
+                push(&mut actions, Action::Fact(index))?;
+            }
+        }
+        Ok(actions)
+    }
+
+}
+impl InferenceSession {
+    pub(super) fn initialize_candidate_source_levels(&mut self) -> Result<(), SolveAvailabilityError> {
+        for (&component, &level) in &self.batch.candidate_source.component_levels {
+            let endpoint = self.live_components[component];
+            match endpoint.kind {
+                ComponentKind::Value => self.value_levels[endpoint.ordinal as usize] = level,
+                ComponentKind::Effect => self.effect_levels[endpoint.ordinal as usize] = level,
+            }
+        }
+        for (&parameter, &level) in &self.batch.candidate_source.parameter_levels {
+            self.value_levels[self.parameter_live_base as usize + parameter] = level;
+        }
+        for index in 0..self.batch.candidate_calls.formals.len() {
+            let registration = &self.batch.candidate_calls.formals[index];
+            if self
+                .batch
+                .parameter_recipes
+                .get(registration.recipe_position)
+                != Some(&registration.parameter)
+                || registration.native_root.is_some()
+            {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let parameter = registration.recipe_position;
+            let role = registration.role;
+            let root = self.candidate_endpoint(
+                CandidateEndpoint::Parameter(parameter),
+                Polarity::Positive,
+            )?;
+            let entry = if role == candidate_call::FormalRole::Computation {
+                let level = *self.batch.candidate_source.parameter_levels.get(&parameter).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                Some(self.fresh_effect_at_level(level)?)
+            } else { None };
+            self.batch.candidate_calls.formals[index].native_root = Some(root);
+            self.batch.candidate_calls.formals[index].entry_effect = entry;
+        }
+        Ok(())
+    }
+    pub(super) fn execute_candidate_expression(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let schedule = self.batch.candidate_source.expressions.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if self.batch.candidate_source.source_owners.get(schedule.root.occurrence()) != Some(&SourceRootId::Expression(schedule.root.clone()))
+            || self.batch.candidate_source.component_levels.get(&schedule.components.value) != Some(&1)
+            || self.batch.candidate_source.component_levels.get(&schedule.components.effect) != Some(&1)
+        { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        let value = schedule.value;
+        self.candidate_endpoint(value, Polarity::Positive)?;
+        self.execute_candidate_source_schedule(Schedule::Expression(index))
+    }
+    pub(super) fn execute_candidate_loose(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.execute_candidate_source_schedule(Schedule::Loose)
+    }
+    pub(super) fn execute_candidate_source_root(&mut self, root: &DefinitionRootId) -> Result<(), SolveAvailabilityError> {
+        let position = *self.batch.root_definition_positions.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.execute_candidate_source_schedule(Schedule::Root(position))
+    }
+    fn execute_candidate_source_schedule(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
+        self.begin_candidate_source(schedule)?;
+        // Completed-result callers never attach invalidatable synthetic support.
+        debug_assert!(self.candidate_graph.as_ref().unwrap().source.unwrap().registration.is_none());
+        let result = self.drive_candidate_source(Support::READY);
+        if result.is_err() { self.candidate_graph.as_mut().unwrap().source = None; }
+        match result? {
+            CandidateRun::Complete(()) => Ok(()),
+            CandidateRun::Suspended(_) => unreachable!("synchronous source caller supplies supported execution"),
+        }
+    }
+    pub(super) fn begin_candidate_source(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
+        let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if state.source.is_some() { return Err(SolveAvailabilityError::IdentityExhausted); }
+        state.source = Some(Frame { schedule, next: 0, stage: Stage::Execute, wait: None, registration: None });
+        if let Err(error) = self.sample_f4_resources(ResourceBoundary::SourceDrafts) {
+            self.candidate_graph.as_mut().unwrap().source = None;
+            return Err(error);
+        }
+        Ok(())
+    }
+    // This private driver retains the session in `self`. Until inner operations
+    // have retained outcomes, support may only change at completed action or
+    // construction boundaries. Production certificate creation remains disabled.
+    #[cfg(test)]
+    pub(super) fn supply_synthetic_source_support(&mut self, watched: &[candidate_context::RelationId]) -> Result<candidate_context::SourceSupportId, SolveAvailabilityError> {
+        let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if !graph.source.is_some_and(|frame| matches!(frame.stage, Stage::PublishLocal { .. })) { return Err(SolveAvailabilityError::IdentityExhausted); }
+        let id = graph.intrusion.effect_algebra.context.synthetic_source_support(watched)?;
+        graph.source.as_mut().unwrap().registration = Some(id);
+        graph.source.as_mut().unwrap().wait = None;
+        Ok(id)
+    }
+    pub(super) fn drive_candidate_source(&mut self, support: Support) -> Result<CandidateRun<()>, SolveAvailabilityError> {
+        loop {
+            match self.step_candidate_source(support)? {
+                CandidateRun::Complete(true) => return Ok(CandidateRun::Complete(())),
+                CandidateRun::Complete(false) => {},
+                CandidateRun::Suspended(wait) => return Ok(CandidateRun::Suspended(wait)),
+            }
+        }
+    }
+    pub(super) fn step_candidate_source(&mut self, support: Support) -> Result<CandidateRun<bool>, SolveAvailabilityError> {
+        let frame = self.candidate_graph.as_ref().and_then(|state| state.source).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if let Some(registration) = frame.registration {
+            if let Some(wait) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.source_support_wait(registration)? {
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = Some(wait);
+                return Ok(CandidateRun::Suspended(wait));
+            }
+        }
+        if let Some(wait) = support.wait {
+            self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = Some(wait);
+            return Ok(CandidateRun::Suspended(wait));
+        }
+        self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().wait = None;
+        if let Stage::PublishLocal { slot, exposed, boundary } = frame.stage {
+            self.install_candidate_local_term(slot, exposed, boundary)?;
+            let current = self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap();
+            current.stage = Stage::Execute;
+            current.registration = None;
+            current.next += 1;
+            return Ok(CandidateRun::Complete(false));
+        }
+        let actions = match frame.schedule {
+            Schedule::Loose => &self.batch.candidate_source.loose,
+            Schedule::Expression(index) => &self.batch.candidate_source.expressions.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?.actions,
+            Schedule::Root(position) => {
+                let root = &self.batch.definitions.get(position).ok_or(SolveAvailabilityError::IdentityExhausted)?.root;
+                self.batch.candidate_source.schedules.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?
+            }
+        };
+        let Some(action) = actions.get(frame.next).cloned() else {
+            self.candidate_graph.as_mut().unwrap().source = None;
+            return Ok(CandidateRun::Complete(true));
+        };
+        match &action {
+            Action::Install { slot, initializer, boundary } => {
+                let exposed = self.candidate_endpoint(*initializer, Polarity::Positive)?;
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().stage = Stage::PublishLocal { slot: *slot, exposed, boundary: *boundary };
+                return Ok(CandidateRun::Complete(false));
+            }
+            Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => {
+                let exposed = self.construct_candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *computation_effect)?;
+                self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().stage = Stage::PublishLocal { slot: *slot, exposed, boundary: *boundary };
+                return Ok(CandidateRun::Complete(false));
+            }
+            _ => {},
+        }
+        self.execute_candidate_action(&action)?;
+        self.candidate_graph.as_mut().unwrap().source.as_mut().unwrap().next += 1;
+        Ok(CandidateRun::Complete(false))
+    }
+    pub(super) fn execute_candidate_action(&mut self, action: &Action) -> Result<(), SolveAvailabilityError> {
+            match action {
+                Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
+                Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
+                Action::FormalEntry { registration, annotation, occurrence, scope } => self.candidate_formal_entry_annotation(*registration, annotation, occurrence, scope)?,
+                Action::FormalNameEffect { registration, occurrence, effect } => {
+                    let entry = self.batch.candidate_calls.formals[*registration].entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let name = self.live_components[*effect].ordinal;
+                    self.candidate_formal_effect_equal(occurrence, 1, entry, name)?;
+                }
+                Action::Fact(index) => self.admit_collected_fact(*index)?,
+                Action::Link { occurrence, endpoint, target } => {
+                    let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;
+                    let upper = self.batch.component_term_at(*target);
+                    self.admit_candidate_value_link(occurrence, 30, lower, upper)?;
+                }
+                Action::ValueConstraint { occurrence, slot, endpoint, upper } => {
+                    let lower = self.candidate_endpoint(*endpoint, Polarity::Positive)?;
+                    self.admit_candidate_value_link(occurrence, *slot, lower, *upper)?;
+                }
+                Action::Candidate(index) => { let recipe = self.batch.candidate_recipes[*index].clone(); self.admit_candidate_fact(&recipe)?; }
+                Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
+                Action::Module(occurrence) => {
+                    let id = DefinitionUseId::new(self.batch.collection_artifact.clone(), occurrence.clone());
+                    if self.batch.definition_use_positions.contains_key(&id) {
+                        if self.candidate_graph.as_ref().is_some_and(|state| state.intrusion.active_uses.contains(&id)) { self.route_candidate_open_use(&id)?; }
+                        else { self.route_incoming(&id)?; }
+                    }
+                }
+                Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
+                Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
+                Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
+                Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level)?,
+                Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
+                Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
+            }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod local_self_recursion_tests {
+    use super::*;
+
+    fn hir() -> Arc<yu_hir::HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(
+            "my outer = { my loop x = { my direct = loop x; my helper y = loop y; helper x }; loop }",
+        );
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "local-self-recursion-kernel", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap())
+    }
+
+    #[test]
+    fn nested_recursive_link_targets_the_outer_initializer_before_installation() {
+        let hir = hir();
+        let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let local = source.bindings().iter().find(|local| local.spelling.as_ref() == "loop").unwrap();
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let slot = batch.candidate_source.locals.iter().position(|id| id == &local.id).unwrap();
+        let actions = &batch.candidate_source.schedules[binding.definition_root()];
+        let (install, initializer) = actions.iter().enumerate().find_map(|(index, action)| match action {
+            Action::Install { slot: target, initializer, .. } if *target == slot => Some((index, initializer)),
+            _ => None,
+        }).unwrap();
+        let occurrences: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &local.id))
+            .map(|expression| &expression.occurrence).collect();
+        assert_eq!(occurrences.len(), 3);
+        let mut links = 0;
+        let mut fresh_uses = 0;
+        for occurrence in occurrences {
+            for (index, action) in actions.iter().enumerate() {
+                match action {
+                    Action::Link { occurrence: actual, endpoint, .. } if actual == occurrence => {
+                        assert!(index < install);
+                        assert!(matches!((endpoint, initializer),
+                            (CandidateEndpoint::Component(a), CandidateEndpoint::Component(b)) if a == b));
+                        links += 1;
+                    }
+                    Action::Local { occurrence: actual, slot: target, .. } if actual == occurrence => {
+                        assert_eq!(*target, slot);
+                        assert!(index > install);
+                        fresh_uses += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        assert_eq!(links, 2, "direct and nested recursive occurrences both link to the installed initializer endpoint");
+        assert_eq!(fresh_uses, 1);
+    }
+
+    #[test]
+    fn failed_recursive_publication_drops_session_and_rebuilds_from_same_hir() {
+        let hir = hir();
+        let mut batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let actions = batch.candidate_source.schedules.values_mut().next().unwrap();
+        let position = actions.iter().rposition(|action| matches!(action, Action::Install { .. })).unwrap();
+        assert!(actions[..position].iter().any(|action| matches!(action, Action::Link { .. })));
+        assert!(actions[..position].iter().any(|action| matches!(action, Action::Candidate(_))));
+        let Action::Install { slot, .. } = &mut actions[position] else { unreachable!(); };
+        *slot = usize::MAX; // Exercise a failed destination after recursive intrinsic actions.
+        let session = InferenceSession::try_new_candidate(batch).unwrap();
+        assert!(matches!(session.run_candidate(), Err(SolveAvailabilityError::IdentityExhausted)));
+        let candidate = crate::shadow_apply::CandidateInference::solve(hir).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+    }
+
+    #[test]
+    fn conditional_constraints_use_distinct_direct_child_occurrences() {
+        for with_else in [true, false] {
+            let mut text = String::from("my example = if true: 1");
+            for _ in 0..60 { text.push_str(" elsif false: 2"); }
+            text.push_str(" elsif false: \"str\"");
+            if with_else { text.push_str(" else: ()"); }
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                    "conditional-child-constraints", "source.yu"))),
+                &parsed, yu_hir::SemanticImports::empty(),
+            ).unwrap());
+            let yu_hir::HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+            let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+            let expression = &source.expressions()[source.body().ordinal() as usize];
+            let LocalSourceForm::If { arms, else_branch } = &expression.form else { panic!("conditional"); };
+            let children: HashSet<_> = arms.iter().flat_map(|(condition, body)| [condition, body])
+                .chain(else_branch.iter())
+                .map(|index| source.expressions()[index.ordinal() as usize].occurrence.clone()).collect();
+            assert_eq!(children.len(), arms.len() * 2 + usize::from(with_else));
+            let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+            let actions = &batch.candidate_source.schedules[binding.definition_root()];
+            let values: Vec<_> = actions.iter().filter_map(|action| match action {
+                Action::ValueConstraint { occurrence, slot: 50, .. } => Some(occurrence.clone()),
+                _ => None,
+            }).collect();
+            let effects: Vec<_> = batch.occurrences.iter()
+                .filter(|fact| fact.id.local_slot() == 51)
+                .map(|fact| fact.id.occurrence().clone()).collect();
+            let value_children: HashSet<_> = if with_else { children.clone() } else {
+                arms.iter().map(|(condition, _)| source.expressions()[condition.ordinal() as usize].occurrence.clone()).collect()
+            };
+            assert_eq!(values.len(), value_children.len());
+            assert_eq!(effects.len(), children.len());
+            assert_eq!(values.into_iter().collect::<HashSet<_>>(), value_children);
+            assert_eq!(effects.into_iter().collect::<HashSet<_>>(), children);
+            assert!(!children.contains(&expression.occurrence));
+        }
+    }
+
+
+    #[test]
+    fn receiver_attachment_exposes_the_existing_argument_release_collision() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "act signal:\n    our ping: () -> int\n\nmy id x = x\nmy g h = catch id (h 0) { signal::ping(), _ -> 1, v -> v }\nmy callback i = signal::ping()\nmy answer = g callback",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "receiver-release-collision", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap();
+        let (call_index, call) = batch.candidate_calls.calls.iter().enumerate()
+            .find(|(_, call)| call.receiver_attachment.is_some()).unwrap();
+        let attachment = call.receiver_attachment.as_ref().unwrap().clone();
+        let source = batch.hir.local_source_for(&call.owner).unwrap().unwrap();
+        let id_call = batch.candidate_calls.calls.iter().find(|other| {
+            other.owner == call.owner && source.expression(&other.callee).is_some_and(|callee| matches!(&callee.form,
+                LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "id"))
+        }).unwrap();
+        let argument = source.expression(&id_call.argument).unwrap();
+        assert_eq!(batch.candidate_source.computation_scopes[&argument.occurrence], attachment.scope,
+            "the actual id argument reuses h's protection scope inside its receiver");
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let copied_demands: Vec<_> = context.observed_relations().filter_map(|(_, pair, flow)| {
+            let demand = flow.demand?;
+            if demand.original_call != call_index || demand.use_instance == 0 { return None; }
+            if !matches!(pair, TypedPairKey::Value(CanonicalValuePairKey {
+                upper: ValueEndpointKey::NegativeFunction(root), .. }) if *root == demand.root) { return None; }
+            let inventory = &context.scope_inventory;
+            assert_eq!(inventory.scope_origins[demand.output_scope.0 as usize], attachment.scope);
+            assert_eq!(inventory.input_origins[demand.input.0 as usize], candidate_scope::InputRouteId(call_index as u32));
+            assert_ne!(demand.output_scope, attachment.scope);
+            assert_ne!(demand.input, candidate_scope::InputRouteId(call_index as u32));
+            Some(demand)
+        }).collect();
+        assert!(!copied_demands.is_empty(), "an authenticated nonidentity FreshUse demand must activate");
+        assert!(copied_demands.iter().any(|demand| {
+            let release = candidate_scope::ScopeTransformer::release(demand.output_scope).unwrap();
+            let protection = candidate_scope::ScopeTransformer::protect_body(demand.output_scope, demand.input).unwrap();
+            context.observed_relations().any(|(_, _, flow)| context.scope_transformer(flow.transformer)
+                .is_ok_and(|transformer| transformer == &release))
+                && context.observed_relations().any(|(_, _, flow)| context.scope_transformer(flow.transformer)
+                    .is_ok_and(|transformer| transformer == &protection))
+        }), "the same authenticated copied scope/input must supply both native protection and argument release");
+    }
+
+
+    #[test]
+    fn captured_receiver_attachment_does_not_reown_fresh_scope_instances() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my g h x = h x\nmy callback i = i\nmy first = g callback 0\nmy second = g callback 1",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "receiver-capture-owner", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap();
+        let (call_index, attachment) = batch.candidate_calls.calls.iter().enumerate()
+            .filter_map(|(index, call)| call.receiver_attachment.as_ref().map(|attachment| (index, attachment)))
+            .find(|(_, attachment)| attachment.receiver_region != attachment.lexical_region).unwrap();
+        let attachment = attachment.clone();
+        let receiver_scope = batch.candidate_source.computation_scopes[&attachment.receiver_body];
+        assert_eq!(batch.candidate_source.scope_regions[attachment.scope.0 as usize], attachment.lexical_region);
+        assert_eq!(batch.candidate_source.scope_regions[receiver_scope.0 as usize], attachment.receiver_region);
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
+        let inventory = &context.scope_inventory;
+        let receiver_regions: HashSet<_> = inventory.scope_origins.iter().enumerate()
+            .filter(|(_, original)| **original == receiver_scope)
+            .map(|(actual, _)| inventory.scope_regions[actual]).collect();
+        let copied_scopes: HashSet<_> = context.observed_relations().filter_map(|(_, pair, flow)| {
+            let demand = flow.demand?;
+            if demand.original_call != call_index || demand.use_instance == 0 { return None; }
+            if !matches!(pair, TypedPairKey::Value(CanonicalValuePairKey {
+                upper: ValueEndpointKey::NegativeFunction(root), .. }) if *root == demand.root) { return None; }
+            assert_eq!(inventory.scope_origins[demand.output_scope.0 as usize], attachment.scope);
+            assert_eq!(inventory.input_origins[demand.input.0 as usize], candidate_scope::InputRouteId(call_index as u32));
+            assert_ne!(demand.output_scope, attachment.scope);
+            assert_ne!(demand.input, candidate_scope::InputRouteId(call_index as u32));
+            Some(demand.output_scope)
+        }).collect();
+        assert!(copied_scopes.len() >= 2, "two distinct authenticated nonidentity FreshUse images of the captured h scope are required");
+        let demand_regions: Vec<_> = copied_scopes.iter()
+            .map(|scope| inventory.scope_regions[scope.0 as usize]).collect();
+        assert!(demand_regions.iter().all(|region| !receiver_regions.contains(region)),
+            "diagnostic attachment leaves every actual copied binder at its lexical owner");
+    }
+
+}
+
+#[cfg(test)]
+mod expression_receiver_tests {
+    use super::*;
+
+    fn module(text: &str) -> Arc<HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::lower_module(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("expression-receiver", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap())
+    }
+
+    #[test]
+    fn expression_uses_keep_original_receivers_levels_and_definition_scc_domain() {
+        let hir = module("{ my local = target; local }; target; my target = 1");
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        assert_eq!(batch.definitions.len(), 1);
+        assert_eq!(batch.root_order.len(), 1);
+        assert_eq!(batch.candidate_source.expressions.len(), 2);
+        assert_eq!(batch.definition_uses.len(), 2);
+        let expected_roots: Vec<_> = hir.items().iter().filter_map(|item| match item {
+            HirItem::Expression(expr) => hir.expression_root(expr.occurrence()).unwrap().cloned(), _ => None,
+        }).collect();
+        assert_eq!(batch.candidate_source.expressions.iter().map(|schedule| &schedule.root).collect::<Vec<_>>(), expected_roots.iter().collect::<Vec<_>>());
+        for (record, (root, level)) in batch.definition_uses.iter().zip(expected_roots.iter().zip([2, 1])) {
+            assert_eq!(record.parent(), &SourceReceiver::Expression(root.clone()));
+            assert_eq!(record.use_level, level);
+            assert_eq!(record.id().occurrence(), record.occurrence());
+            assert_eq!(record.cause().id(), record.id());
+            assert_eq!(record.target(), &batch.definitions[0].definition);
+        }
+        for component in batch.scc_plan().components_in_dependency_first_order() {
+            assert!(batch.scc_plan().internal_uses(component).unwrap().is_empty());
+            assert!(batch.scc_plan().incoming_uses(component).unwrap().is_empty());
+        }
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        assert_eq!(state.graphs.len(), 1);
+        assert!(state.graphs[0].is_some());
+        assert_eq!(state.routes.len(), 2);
+        for record in &session.batch.definition_uses {
+            assert_eq!(state.routes.iter().filter(|route| &route.use_id == record.id()).count(), 1);
+        }
+    }
+
+    #[test]
+    fn source_planner_refuses_foreign_or_mismatched_expression_receivers_before_actions() {
+        let hir = module("1; 2");
+        let foreign = module("1; 2");
+        let root = |module: &HirModule, index| {
+            let HirItem::Expression(expr) = &module.items()[index] else { panic!("expression"); };
+            module.expression_root(expr.occurrence()).unwrap().unwrap().clone()
+        };
+        let owner = SourceRootId::Expression(root(&hir, 0));
+        let source = hir.local_source_for(&owner).unwrap().unwrap();
+        let mut batch = ConstraintBatch::collect(hir.clone()).unwrap();
+        let mut uses = Vec::new();
+        for receiver in [SourceReceiver::Expression(root(&hir, 1)), SourceReceiver::Expression(root(&foreign, 0))] {
+            assert!(matches!(batch.emit_candidate_source(source, &receiver, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+            assert!(batch.candidate_source.expressions.is_empty());
+            assert!(uses.is_empty());
+        }
+        let foreign_owner = SourceRootId::Expression(root(&foreign, 0));
+        let foreign_source = foreign.local_source_for(&foreign_owner).unwrap().unwrap();
+        assert!(matches!(batch.emit_candidate_source(foreign_source, &SourceReceiver::Expression(root(&foreign, 0)), &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+    }
+}

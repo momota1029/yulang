@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "sprint_id": "receive-negative-row-and-refusal-cut-20261017",
+  "contract_revision": 7,
+  "status": "ENDED-PARTIAL-REVIEWED",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
+  "goal": "For the exact pinned receive/choose fixture, derive the original source judgment for its negative nested effect annotation or identify its first missing premise, and identify the actual first native CandidateInference refusal without changing inference semantics.",
+  "authority": "Preserve the user's approved annotation polarity/subtraction meaning, ordinary Simple-sub generation/accumulation/propagation and the original source/theorem domain. The instrumentation is temporary and observational: preserve branch order, returns, public APIs, fixture bytes and candidate admission. No negative-row preflight relaxation, accepted-typing claim, semantic/API change, test or production promotion is authorized.",
+  "primary_approval": "Luna approves the selector proposal after the prior source-authentication sprint ended ENDED-PARTIAL-REVIEWED and reconciles every direct dependency pin. The earlier single-run cap is exhausted and does not transfer. Three legacy UNKNOWN reservations remain quarantined. Proof/source author runs first and freezes both outputs before the implementation writer starts. The implementation author may add only temporary branch-label instrumentation at existing CandidateInference preflight refusal sites in shadow_apply.rs and candidate_source.rs, preserving evaluation order, result values, and public API. Luna snapshots both source files before the write lease, runs exactly one primary Cargo attempt <=120s after the author stops, and restores both exact snapshots immediately afterward. No retry or semantic repair is authorized. Fresh proof and implementation reviews are sequential, with 240s combined review maximum. Proof author STOPPED and Luna accepts the exact bounded source-judgment artifact and handoff; their hashes become direct dependencies before implementation starts. Luna has frozen exact pre-edit snapshots for both temporary instrumentation targets and pins them before the implementation acknowledgement; the one primary run receipt path is now fixed. Implementation author STOPPED with exact branch-label instrumentation and handoff frozen; these output hashes are now pinned before the one primary run. The single run completed with the predicted lambda-formal preflight branch; Luna restored both exact snapshots and pins the run receipt and restored source bytes for sequential fresh review. After restoration, Luna reconstructed immutable review copies solely by applying the handoff-listed labels to the pinned pre-edit snapshots; both reconstructed byte hashes exactly match the author-reported frozen output hashes and are pinned for implementation review. No source or execution input changed. Both required independent reviewers STOPPED with bounded CLEAN dispositions; Luna records the final review receipt. No source production change, semantic closure or further run is authorized by this sprint.",
+  "previous_sprint": {
+    "id": "source-authentication-admission-20261017",
+    "state": "ENDED-PARTIAL-REVIEWED",
+    "contract_sha256": "1a133c84d8cba088ef040548f768e502cf015da51f002c4bcb29ace0f361d2bf",
+    "receipt": "notes/progress/2026-10-17-source-authentication-admission-review.md"
+  },
+  "original_parent": {
+    "id": "CHOOSE-SOURCE-2 / negative nested effect annotation and first candidate refusal.",
+    "source": "For exactly tasks/agent-loop/fixtures/20261017-receive-choose.yu, derive the approved source judgment applicable to receive's formal f: Unit -> (Unit -> [ctrl] Int), with complete parameter polarity and both f()/g() demands, or expose the first unsupported premise. Independently identify the exact first existing native preflight branch returning CandidateError::Unsupported for that frozen fixture. This establishes no typing acceptance, historical source provenance, phase-root R_e, complete choose semantics, or general program behavior.",
+    "quantifiers": "The source judgment is instantiated only for the exact pinned 357-byte fixture and every row/port in receive's one formal annotation. Runtime classification concerns the first refusal for those exact bytes, unchanged HIR and library baseline. No claim generalizes to other source programs or historical source artifacts.",
+    "required_direction": "Reuse reviewed diagnostic ownership/preflight work without repeating it. Locate the governing original negative-annotation introduction/elimination or source-judgment laws. Derive composed polarity through the complete nested Function type, retain concrete [ctrl], symbolic tails and both call demands, and state the exact derivation or first missing premise. Compare that source requirement to existing candidate formal annotation lowering. For the native lane, trace solve_mode item order into LocalSource preflight; if static control flow cannot discriminate the observed generic refusal, add only reversible branch-label instrumentation at existing refusal sites, then make one run and restore exact source snapshots.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Proof/source: reviewed governing law and exact source judgment or precise missing premise for receive's complete nested callable annotation, all relevant polarity positions, resolved ctrl identity, symbolic-tail status, and both actual application demands; compare the required constraint path with current implementation owners. Keep source semantics, operational execution and inference-solver acceptance distinct.",
+    "Implementation/source: frozen before/after hashes for exactly two solver source files; one observational instrumentation diff only; one primary run identifying the exact first refusal owner/branch or honestly reporting an earlier boundary; restoration of exact source bytes independently hash-verified. No further retry.",
+    "No tests, fixture changes, library semantic/API changes, preflight relaxation, diagnostic expectation updates, export claim, or production promotion."
+  ],
+  "accepted_meaning": "Approved negative concrete annotations at composed-contravariant positions grant local subtraction permission; the permission does not impose a closed upper bound, force a successful inference, or mean every admitted source has an executable subtraction path. Native preflight's current refusal is an implementation/source correspondence observation, not authority to reject the source from the language.",
+  "dependencies": {
+    "crates/yu-hir/src/module.rs": "2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e",
+    "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
+    "crates/yu-hir/src/module/local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+    "crates/yu-hir/src/shadow.rs": "2dffd7fd6542eed9fd3346e0672e76197c248be9c84334f341c4d612234b7ee9",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "tools/inference-playground/src/lib.rs": "b65cfd7200e459c9448438ec979ffeb9eddb35c282600349cebe7ddf3b759bbb",
+    "crates/yu-solver/examples/research_source_registration.rs": "10ea5f2c6db7c9d093d86780dbeb217d7eca11332e99a4d1ec40f4753f544e7c",
+    "tasks/agent-loop/fixtures/20261017-receive-choose.yu": "969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0",
+    "notes/theory/2026-10-17-source-authentication-admission-correspondence.md": "fde662725830095f4ea28e902449c34bc89ebbc237cdc30fee5ee214fc135601",
+    "notes/progress/2026-10-17-source-authentication-admission-run.md": "089474cbe650ec779fa60578857f10b0ed99cacc261aaaaccd5e26ab4190f8cc",
+    "notes/progress/2026-10-17-source-authentication-admission-review.md": "504788c9a80804aadb90a8b784d4e1b1183c2cd8287076350ded8011f22f06b1",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-10-annotation-effect-hygiene-integration.md": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "notes/theory/2026-10-11-negative-formal-effect-source-proof.md": "262c2569935c30a369846f50fede295d7f024677dca203b5d11e56ed6484f856",
+    "notes/theory/2026-10-12-negative-formal-source-proof.md": "2db5d4763ddb7348cb3cb95acc42f492e3457d1773a149410171564c0a3f8081",
+    "notes/theory/2026-10-12-negative-annotation-license-source-proof.md": "999ee0c8064c2257182e6f9d6b667ca7761287ffabc12291066dc927cf7cf3de",
+    "crates/yu-solver/Cargo.toml": "7a599e95800c67ca4688b0f91917609345a252aae6d2ea6cd0f413eb1c07893c",
+    "notes/theory/2026-10-17-receive-negative-row-source-judgment.md": "3b24b17bfd8cec91e0182b1f417516bc9b6ad78aa248d3af108454c077ab33fb",
+    "tasks/agent-loop/inbox/20261017-receive-negative-row-source-judgment.md": "ed6df4086c8a968b9ce9a53a8db5b1db4c6a3d513cb706a43605c0ac7e6581e4",
+    "tasks/agent-loop/snapshots/20261017-receive-refusal-shadow-pre.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "tasks/agent-loop/snapshots/20261017-receive-refusal-candidate-source-pre.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "tasks/agent-loop/inbox/20261017-receive-first-refusal.md": "0302408c73177864032ca7b5346ce15a15fc49a5cc544161a8d864fc6655b373",
+    "notes/progress/2026-10-17-receive-first-refusal.md": "060e8b6122e9a2e0004c5e9aac265de642882e443b1aa8319ff6767346ac7586",
+    "tasks/agent-loop/snapshots/20261017-receive-refusal-shadow-instrumented.rs": "991fda3255b79d48b1d75613a00ea1cd6f76ba9b57d13079b9018a5ebfd965bc",
+    "tasks/agent-loop/snapshots/20261017-receive-refusal-candidate-source-instrumented.rs": "f63b20a676e1c8b952b9fcda7872f7e6c461bb881882209063041244b955bc43",
+    "notes/progress/2026-10-17-receive-negative-row-review.md": "52dd46b50eaae48a7ce74df771d67435088804ab6624dd133048d9a580c57cf6"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-receive-negative-row-source-judgment-20261017",
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "Construct the source-owned typing/effect derivation for the exact receive formal and its calls under approved annotation semantics, or identify the earliest missing premise; apply only that result to CHOOSE-SOURCE-2 and original Call/effect gates.",
+      "outputs": [
+        "notes/theory/2026-10-17-receive-negative-row-source-judgment.md",
+        "tasks/agent-loop/inbox/20261017-receive-negative-row-source-judgment.md"
+      ],
+      "budget": {
+        "active_seconds": 720,
+        "stages": 6,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Read-only source/proof construction first; freeze both outputs and STOP before implementation author starts. Do not repeat the reviewed candidate preflight audit or modify compiler sources. No new theorem assumption, source restriction or semantics selection.",
+      "state": "READY"
+    },
+    "implementation": {
+      "assignment_id": "assignment-receive-first-refusal-instrumentation-20261017",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "After proof author and descendants STOP and Luna acknowledges proof intake, add only temporary branch-label instrumentation immediately at existing CandidateInference source/local preflight refusal owners in the two leased solver files. Preserve branch ordering, every return, public APIs, fixture and candidate semantics. No preflight relaxation, diagnostic-ID special case or cleanup committed by the author.",
+      "outputs": [
+        "crates/yu-solver/src/shadow_apply.rs",
+        "crates/yu-solver/src/candidate_source.rs",
+        "tasks/agent-loop/inbox/20261017-receive-first-refusal.md"
+      ],
+      "budget": {
+        "active_seconds": 420,
+        "stages": 6,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Luna snapshots both exact source files before granting this lease. Author stops and freezes instrumented bytes. Luna runs exactly one Cargo invocation <=120s; afterward Luna restores exact snapshots and verifies both original hashes. A failed build/run still exhausts the one attempt. No second run, retry or source edit follows the result.",
+      "state": "RESTORED-AFTER-ONE-RUN",
+      "preserve_before_edit": {
+        "crates/yu-solver/src/shadow_apply.rs": "tasks/agent-loop/snapshots/20261017-receive-refusal-shadow-pre.rs",
+        "crates/yu-solver/src/candidate_source.rs": "tasks/agent-loop/snapshots/20261017-receive-refusal-candidate-source-pre.rs"
+      },
+      "instrumented_outputs": {
+        "crates/yu-solver/src/shadow_apply.rs": "991fda3255b79d48b1d75613a00ea1cd6f76ba9b57d13079b9018a5ebfd965bc",
+        "crates/yu-solver/src/candidate_source.rs": "f63b20a676e1c8b952b9fcda7872f7e6c461bb881882209063041244b955bc43",
+        "tasks/agent-loop/inbox/20261017-receive-first-refusal.md": "0302408c73177864032ca7b5346ce15a15fc49a5cc544161a8d864fc6655b373"
+      }
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-17-receive-negative-row-source-judgment.md",
+      "owner": "assignment-receive-negative-row-source-judgment-20261017",
+      "state": "HELD-AFTER-APPROVAL"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-receive-negative-row-source-judgment.md",
+      "owner": "assignment-receive-negative-row-source-judgment-20261017",
+      "state": "HELD-AFTER-APPROVAL"
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "owner": "assignment-receive-first-refusal-instrumentation-20261017",
+      "state": "HELD-AFTER-PROOF-STOP"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "owner": "assignment-receive-first-refusal-instrumentation-20261017",
+      "state": "HELD-AFTER-PROOF-STOP"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-receive-first-refusal.md",
+      "owner": "assignment-receive-first-refusal-instrumentation-20261017",
+      "state": "HELD-AFTER-PROOF-STOP"
+    }
+  ],
+  "resources": {
+    "fresh_cap_seconds": 1800,
+    "lane_budgets_seconds": {
+      "proof": 720,
+      "implementation": 420,
+      "review": 240,
+      "coordination": 120,
+      "single_execution": 120,
+      "reserve": 180
+    },
+    "unknown_reservations": 3,
+    "max_active_and_unknown_assignments": 6,
+    "astra_assignments": 1,
+    "heavy_process_peak": 1,
+    "lightweight_probes_max": 0,
+    "review": "Sequential fresh compiler_referee for the frozen proof and regression_auditor for frozen instrumentation/run/restoration; combined cap 240 seconds. No transfer from prior sprints.",
+    "run_result": "One Cargo run completed (exit 2) and reported candidate_source::preflight.lambda-formal-annotation before existing Unsupported. Both exact snapshots restored and verified; no further execution authorized."
+  },
+  "falsifiers": [
+    "Source derivation changes polarity, loses the concrete ctrl identity or symbolic tail, ignores an actual call, or conflates approved subtraction permission with automatic successful admission.",
+    "Instrumentation changes any preflight decision/order/return/API, adds behavior beyond branch labels at existing refusal owners, fixture bytes differ, or source snapshots cannot be exactly restored.",
+    "Any report claims solver acceptance, export, historical provenance, R_e equality, complete semantics, or production behavior from this bounded task."
+  ],
+  "non_goals": [
+    "No negative formal preflight relaxation or new source/API/semantic rule.",
+    "No source or fixture rewrite, tests, broad build, benchmark, second Cargo run, or retry.",
+    "No closure of F1/FK1/FIRST-RESULT-ADEQUACY/H1/H2/JOINT_DEC/F5/source-Generalize/public export/principality/production."
+  ],
+  "review": {
+    "proof": "Fresh compiler_referee verifies the exact source judgment, governing authority, full polarity and complete demand retention; no theorem closure is inferred.",
+    "implementation": "Fresh regression_auditor verifies the instrumentation-only diff, one actual run/branch result, exact source snapshot restoration and no admission change.",
+    "budget_seconds": 240,
+    "execution": "Both authors STOPPED. Luna completed one instrumented run and restored source bytes. Fresh compiler_referee reviews proof first; after STOP, regression_auditor reviews instrumentation/run/restoration.",
+    "proof_review": "CLEAN within bounded missing-premise outcome; 25/25 rev5 dependencies verified; STOPPED.",
+    "implementation_review": "CLEAN within bounded implementation/run scope; 27/27 rev6 dependencies, 16-label copies and exact restoration verified; STOPPED.",
+    "state": "CLEAN-BOUNDED"
+  },
+  "dispatcher_decision": "Selector proposed the exact fixture's original negative-row source judgment plus one branch-qualified refusal run; Luna accepts subject to direct-pin/hash reconciliation and actual runtime assignment acknowledgements.",
+  "next_consultation": "Source-law premise missing, any authority/dependency/lease change, contradictory source evidence, first refusal observed, restoration discrepancy, cap exhaustion, or sprint end.",
+  "primary_run_receipt": "notes/progress/2026-10-17-receive-first-refusal.md",
+  "review_receipt": "notes/progress/2026-10-17-receive-negative-row-review.md",
+  "review_receipt_sha256": "52dd46b50eaae48a7ce74df771d67435088804ab6624dd133048d9a580c57cf6"
+}
