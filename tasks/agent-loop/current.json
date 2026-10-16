@@ -8,13 +8,13 @@
     "contract": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
     "revision": 2,
     "sha256": "008ce2a77a0cc79483debd09f3f1e5f7a02691e27322d96b794c2e1f898d405d",
-    "state": "REVIEW-ARCHITECT-STOPPED-SPEC-NEXT",
+    "state": "REVIEW-RUNNING-SPEC-AUDITOR",
     "baseline": "7a281f6e4ecfc34dc9b9a722714d845e205e17bd",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Qualify stable complete read-only snapshot borrowing and evidence enumeration across InferenceSession, candidate_effect::State, candidate_context::State and GraphState; produce owner table/proposed interface and independent lifetime/completeness proof, or exact blocker.",
     "review": {
       "state": "ARCHITECT-STOPPED-SPEC-NEXT",
-      "current_reviewer": null,
+      "current_reviewer": "spec_auditor",
       "sequence": [
         "Luna readiness STOP",
         "Sol/high independent proof STOP",
@@ -31,8 +31,8 @@
       "coordination_seconds": 60,
       "reserve_seconds": 0,
       "charged_seconds": 660,
-      "active_authors": 0,
-      "status": "60s coordination +300s readiness +180s proof +60s compiler review +60s architect review charged; spec-auditor 60s is the final allocated review; no reserve.",
+      "active_authors": 1,
+      "status": "Authors and first two reviewers STOPPED. Final spec-auditor review live under 60s cap; 660s charged, 60s remaining, no reserve.",
       "proof_original_cap_seconds": 240,
       "proof_transfer_out_seconds": 60
     },
@@ -189,6 +189,19 @@
       "cap_seconds": 60,
       "elapsed_seconds_charged": 60,
       "receipt": "Fresh architect review STOPPED within 60s cap; all three compiler-referee findings dispositioned; amended Draft acceptable only as obstruction report."
+    },
+    {
+      "id": "/root/npair_snapshot_owner_spec_review",
+      "role": "spec_auditor, final revision-2 conformance review",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 60,
+      "elapsed_seconds_charged": 0,
+      "receipt": "Read-only final review launched sequentially after architect STOP; exact revision-2 artifacts and compiler findings supplied; model/effort telemetry unavailable."
     }
   ],
   "leases": [
@@ -273,9 +286,9 @@
     "coordination_seconds": 60,
     "reserve_seconds": 0,
     "charged_total_seconds": 660,
-    "active_authors": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "660s charged; final spec-auditor review is next under 60s allocation; cap720, reserve0.",
+    "status": "660s charged of 720s. Final spec-auditor review RUNNING under 60s; no reserve.",
     "proof_original_cap_seconds": 240,
     "proof_transfer_out_seconds": 60
   },
