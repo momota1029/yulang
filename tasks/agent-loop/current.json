@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 2,
     "sha256": "f926d774454e19b04a47077919b57cb407498856aa8192308284ca668f783d2a",
-    "state": "PROOF-VERSION-REPAIR-READY",
+    "state": "PROOF-VERSION-REPAIR-RUNNING",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "REPAIR-READY-NOT-RUNNING",
+      "state": "RUNNING",
       "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -39,7 +39,10 @@
       "repair_cap_seconds": 60,
       "original_v1_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
       "repair_handoff": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
-      "correction": "Pin precommit version; state equality only for valid same-version evaluations; handle changed-version as invalidation or equality-or-invalidation; revise dependent claims."
+      "correction": "Pin precommit version; state equality only for valid same-version evaluations; handle changed-version as invalidation or equality-or-invalidation; revise dependent claims.",
+      "repair_assignment": "NPAIR-M2-VERSION-REPAIR-20261017",
+      "repair_session": "current-session",
+      "repair_active_work_receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable."
     },
     "proposal": {
       "state": "BLOCKED-ON-PROOF-MAJOR",
@@ -118,24 +121,24 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Selector-approved revision 2 proof correction, old bytes snapshotted; primary prepares exact repair handoff and author reactivation."
+      "receipt": "Original prover accepted exact revision-2 correction lease; primary waiting for 60s repair and STOP."
     },
     {
       "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Original revision 1 STOPPED; revision 2 repair packet ready but fresh acknowledgment not yet received."
+      "session": "current-session",
+      "receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable."
     },
     {
       "id": "/root/local_use_map_version_delta_review",
@@ -245,7 +248,7 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-VERSION-REPAIR-READY",
+    "state": "PROOF-VERSION-REPAIR-RUNNING",
     "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
     "proof": "M2 v1 MAJOR; original artifact snapshot frozen. Repair only the version/invalidation quantifier.",
     "implementation": "Proposal outputs remain frozen and dependency-blocked until corrected proof is independently CLEAN."
@@ -259,10 +262,10 @@
     "coordination": 120,
     "reserve": 0,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
+    "active_authors": 1,
     "astra_assignments": 0,
     "charged_total_seconds": 480,
-    "status": "Original proof 360s and initial referee review 120s charged. Selector reallocates 60s from reserve to exact M2 repair and 60s to fresh delta review. 600s proposal lane remains blocked; no code.",
+    "status": "Rev1 proof/referee 480s charged; version repair assignment actually acknowledged and running at 60s cap; fresh 60s delta review waits.",
     "authors_spent_seconds": 360,
     "review_spent_seconds": 120,
     "architecture_spent_seconds": 0,
