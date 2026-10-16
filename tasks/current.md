@@ -277,6 +277,26 @@ Status: full objective remains active. Native extrusion now schedules current co
   The tests add no production code or semantic rule and close no source
   adequacy, general recursion, soundness, principality, F5 or production gate;
   the original parent gates remain OPEN/BLOCKED.
+  I27 changes only `Machine::begin_local`: it copies the initializer and
+  recursion flag before frame construction, retains the binding-ID clone only
+  on the recursive path, and moves the existing immutable block Arc into
+  `Frame::Local`. The frame consumer keeps the same Arc through cell completion,
+  later initializers and final-expression evaluation. Cell allocation,
+  environment extension, fields, initializer choice, errors and transitions
+  remain intact. This removes one temporary block Arc clone/drop pair per local
+  initializer; no replacement work or measured speedup is claimed. The initial
+  R40 pass found the binding-ID clone had moved onto nonrecursive paths; R1
+  restored recursive-only cloning, and R40-D1 is CLEAN for the complete change.
+  Both assigned focused runtime tests pass 1/1 without warnings (17 and 16
+  filtered); no tests were rerun during review or record integration, and the
+  benchmark budget was 0 processes / 0 samples. Frozen implementation and
+  finding/repair history are recorded in
+  [receipt037](agent-loop/inbox/20261016-loop-a-implementation-local-frame-arc-transfer-037.md)
+  and [receipt038](agent-loop/inbox/20261016-loop-a-implementation-local-frame-arc-transfer-repair-038.md).
+  Producer requested Luna/high and reviewer Sol/medium; observed settings are
+  UNKNOWN. The staged whitespace check has no findings in either receipt or
+  source diff. No runtime semantics, proof, F5 or production gate changed or
+  closed; original gates remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

@@ -1549,20 +1549,22 @@ impl Machine {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         };
         if let Some(binding) = bindings.get(ordinal) {
+            let initializer = binding.initializer;
+            let recursive = binding.recursive;
             let cell = self.cells.len();
             self.cells.push(None);
-            if binding.recursive {
+            if recursive {
                 environment = self.extend(environment, Binder::Local(binding.id.clone()), cell);
             }
             self.frames.push(Frame::Local {
-                block: block.clone(),
+                block,
                 next: ordinal + 1,
                 environment,
                 cell,
-                recursive: binding.recursive,
+                recursive,
             });
             self.state = State::Evaluate {
-                code: binding.initializer,
+                code: initializer,
                 environment,
             };
         } else {
