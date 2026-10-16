@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
   "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-  "state": "ARCHITECTURE-REVIEW-READY",
+  "state": "ARCHITECT-REVIEW-RUNNING",
   "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": {
@@ -101,7 +101,7 @@
   },
   "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained.",
   "review": {
-   "state": "ARCHITECT-REVIEW-READY",
+   "state": "ARCHITECT-RUNNING",
    "required": [
     "architect",
     "spec_auditor"
@@ -110,7 +110,22 @@
    "target_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
    "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
    "contract_sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-   "sequence": "architect first, then spec_auditor; stop on major/blocking finding"
+   "sequence": "architect first, then spec_auditor; stop on major/blocking finding",
+   "assignment": {
+    "id": "NPAIR-NATIVE-ARCHITECTURE-REVIEW-20261017",
+    "worker_id": "/root/npair_native_architecture_review",
+    "role": "architect",
+    "state": "RUNNING",
+    "session": "current-session",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "cap_seconds": 120,
+    "target_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
+    "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
+    "active_work_receipt": "Fresh read-only architect review launched after frozen candidate; exact pins fixed; no descendants."
+   }
   },
   "proof_adjudication": {
    "verdict": "CLEAN accepted only for conditional source-rule anchored J2 derivation and stated non-liftability boundary; whole native rho_u/parent remain OPEN.",
@@ -190,6 +205,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "Architecture candidate and handoff frozen at exact hashes; conservative full 600s author charge; no compiler edits."
+  },
+  {
+   "id": "/root/npair_native_architecture_review",
+   "role": "architect",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Fresh exact-target architecture feasibility review; 120s cap; read-only; no descendants."
   }
  ],
  "leases": [
@@ -251,15 +277,15 @@
   },
   {
    "id": "NPAIR-native-architecture-candidate independent review",
-   "state": "READY",
-   "owner": "architect then spec_auditor"
+   "state": "ARCHITECT-REVIEW-RUNNING",
+   "owner": "/root/npair_native_architecture_review"
   }
  ],
  "next_action": {
-  "state": "ARCHITECT-REVIEW-READY",
-  "dispatcher": "No new dispatch trigger: following frozen sprint sequence. Next consultation on material review finding, missing consumer decision, expanded lease or integration boundary.",
-  "proof": "Conditional anchored J2 source-rule lemma accepted CLEAN within scope. Full native rho_u, NPAIR/At generation and dependent replay remain OPEN.",
-  "implementation": "Concrete Draft representation candidate frozen; no code lease. Fresh architect and spec review, then user approval is required before any architecture implementation."
+  "state": "ARCHITECT-REVIEW-RUNNING",
+  "dispatcher": "Inside frozen sequence; architect review first, spec auditor after STOP.",
+  "proof": "Conditional anchored J2 result CLEAN-reviewed only within scope; full native rho_u remains OPEN.",
+  "implementation": "Draft concrete ledger architecture under read-only review; no code lease; user approval required before implementation."
  },
  "resource_accounting": {
   "current_sprint_id": "npair-whole-presentation-transport-architecture-20261017",
@@ -274,7 +300,7 @@
   "astra_assignments": 0,
   "charged_total_seconds": 1440,
   "review_reserved": 240,
-  "status": "Proof 600s + compiler-referee review 120s + architecture author conservatively charged 600s + coordination 120s; architecture reviews pending; 120s reserve retained.",
+  "status": "Astra proof 600s, proof review 120s, Luna architecture 600s and coordination 120s charged; architecture candidate frozen; architect review RUNNING, spec review waits.",
   "authors_spent_seconds": 600,
   "review_spent_seconds": 120,
   "architecture_spent_seconds": 600,
