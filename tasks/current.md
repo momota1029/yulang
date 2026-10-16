@@ -7,16 +7,20 @@ Status: full objective remains active. Native extrusion now schedules current co
 ## Current checkpoint (2026-10-16)
 
 - **Resident research loop (session `2026-10-16-loop-a`):** the dispatcher is
-  `/root/resident_dispatcher_loop_a`; the implementer
-  `/root/resident_implementer_idle`, prover
-  `/root/runtime_source_supplier_proof` and reviewer
-  `receiving_pair_referee` are all WAITING. The implementer has no code task or
-  output lease. R1/R2 review work and P1's bounded native leaf are integrated
-  at `58d1c22dd` and `6a1c5cfd1`, both pushed. The original source T,
-  ResultBind/context/MODEL, eligibility/generalization and production parents
-  remain OPEN; S2 and implementation N1 are BLOCKED. Consult the dispatcher
-  after this record sync before selecting further work. Full role, lease and
-  inbox state is in [the loop board](agent-loop/board.md).
+  `/root/resident_dispatcher_loop_a`; the existing implementer
+  `/root/resident_implementer_idle` remains WAITING with its historical
+  Sol/high request, observed runtime unknown, and no code task or output/inbox
+  lease. The latest remote policy pins implementation to Luna/high, so this
+  idle identity is preserved but is not treated as satisfying that pin. The
+  prover `/root/runtime_source_supplier_proof` remains WAITING with P1 frozen
+  and no ready successor. R1/R2 and P1 are integrated at `58d1c22dd` and
+  `6a1c5cfd1`; R3's bounded source-definition review is integrated at
+  `b86d228c5`; R4 returned a bounded CLEAN candidate review, with acceptance
+  being recorded in this checkpoint. Original source T, ResultBind/context/MODEL,
+  eligibility/generalization, W/Z and production parents remain OPEN; S2 and
+  implementation N1 remain blocked. The latest remote policy commit
+  `5e3b00dca` is integrated. Full role, lease and inbox state is in [the loop
+  board](agent-loop/board.md); consult the dispatcher after this record sync.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
@@ -128,7 +132,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   source-domain narrowing is selected. A bounded architecture review found
   no decision-ready W/Z alternatives and no supplier for the full contract;
   a source-owner audit is checking whether actual primitive constructors
-  define the missing fields before any design question is raised.
+  define the missing fields before any design question is raised. R3's
+  independent bounded source-definition review is CLEAN and integrated at
+  `b86d228c5`; it confirms no complete supplier in the inspected cone, with
+  the authentic Z declaration/telescope first unavailable and W plus
+  image-to-U actions independent. This does not establish global absence or
+  close the original universal A/B, principality, adoption or production gates.
 
 - **Choose caller registration boundary:** the reviewed
   [caller-registration construction](../notes/theory/2026-10-16-choose-bootstrap-caller-registration-construction.md)
@@ -146,11 +155,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   transitions. A read-only architecture pass found no concrete behavior change
   or mandatory user decision yet; the next authorized candidate must supply
   every original field at its scope without defining j0/a0 as its own premise.
-  A bounded candidate-construction proof is testing whether those original
-  fields have genuine source suppliers; no behavior-changing J-to-J_new
-  choice is established. This does not close registration, Sigma/world,
-  eventwise validity, Initial or full-f0. Checkpoints `ef44424fd` and
-  `46ce38136`/`3c65cfa9b`.
+  The bounded candidate-construction attempt is now independently CLEAN under
+  R4 at its obstruction scope: the complete original caller-world guard and
+  semantic action for `ins_(r0,q0)` remain unsupplied; the frozen derivation
+  assumes no `j0/a0`, equivalent witness, or behavior-changing J-to-J_new
+  choice. The review found no source-global absence, impossibility or new
+  semantic decision. Registration, Sigma/world, eventwise validity, Initial
+  and full-f0 remain OPEN. Checkpoints `ef44424fd`, `46ce38136`/`3c65cfa9b`;
+  R4's original reviewed artifact hash is
+  `b2a4be64b6e236d3a63cc3e0d0544bb57923c34b71102c206e8671412e0f83ba`.
 
 - **Callable execution-view source/VM handoff:** the bounded
   [construction and transport note](../notes/theory/2026-10-16-runtime-callable-view-construction-and-transport.md)
