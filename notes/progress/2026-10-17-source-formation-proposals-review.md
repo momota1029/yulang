@@ -71,3 +71,20 @@ sprint contract/current state and this receipt belong to this sprint. The
 pre-existing dirty `tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json`
 remains excluded and uncommitted. All approved sprint commits were pushed
 non-forced to `origin/research/simple-sub-intrusion`.
+
+## Sprint-end selector decision
+
+The selector recommends marking the sprint `ENDED—PROPOSALS REVIEWED, DRAFT
+ONLY`. The 2100 of 2400 seconds are charged; unused allocation retires without
+carryover. Preserve the three UNKNOWN reservations, quarantined board lease,
+frozen proposal hashes and this receipt.
+
+The next decision is explicit user adoption of each proposal separately, at the
+exact reviewed revisions above, with the listed obligations still open. If only
+one is adopted, continue only work whose dependencies that decision supplies.
+After adoption, prepare a fresh proof-backed contract: NPAIR targets the original
+lower/residual transport through both calls; Catch targets the independently
+typed outside-matcher entry and subsequent incidence. Adoption alone does not
+close these theorems, establish source/native correspondence, authorize a blanket
+implementation, or establish production readiness. No new worker, code lease,
+Astra reservation or execution is justified before that authority seam.

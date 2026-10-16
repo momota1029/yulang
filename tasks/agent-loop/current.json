@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
   "revision": 2,
   "sha256": "97c39c74400e3da5c615eb9d784a993077c77244850687eeb60808d7a23a6a34",
-  "state": "BOTH-PROPOSALS-REVIEWED-AWAITING-SELECTOR-CLOSEOUT",
+  "state": "ENDED-PROPOSALS-REVIEWED-DRAFT-ONLY",
   "baseline": "601e55cfaaf131644d770006532727da33e33059",
   "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
   "proof": {
@@ -32,7 +32,7 @@
     "compiler_referee",
     "spec_auditor"
    ],
-   "receipt": "Both proposal reviews CLEAN; P1 exact authority delta reviews CLOSED. Detailed receipt at notes/progress/2026-10-17-source-formation-proposals-review.md; no adoption or parent-gate closure."
+   "receipt": "Both proposals CLEAN within proposal scope; P1 exact authority delta reviews CLOSED. Selector: ENDED\u2014PROPOSALS REVIEWED, DRAFT ONLY; next outcome is separate explicit user adoption decisions. Full receipt notes/progress/2026-10-17-source-formation-proposals-review.md."
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "workers": [
@@ -82,16 +82,16 @@
    }
   ],
   "next_action": {
-   "state": "AWAITING-SPRINT-END-SELECTOR",
+   "state": "AWAITING-EXPLICIT-USER-ADOPTION-DECISIONS",
    "answers": {
     "NPAIR": "1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B",
     "CATCH-EXIT-INPUT-1": "e7c976b9284c372667f5cabd2c80156624905402, option B"
    },
-   "proposal": "Two source-definition proposals independently reviewed CLEAN within proposal scope; exact open premises and owner maps retained.",
-   "implementation": "No compiler code authority; wait for later explicit user adoption and a new exact proof-backed contract.",
-   "proof": "CHOOSE-SOURCE-2, CATCH-EXIT-INPUT-1 and all original parent gates remain OPEN."
+   "proposal": "Selector recommends separate explicit user adoption decisions for the exact reviewed NPAIR and Catch proposal revisions; if only one is adopted, proceed only within its dependency scope.",
+   "implementation": "WAITING. Adoption alone is not blanket code permission; any implementation requires a fresh proof-backed contract with exact producer/consumer paths.",
+   "proof": "After adoption, target original NPAIR lower/residual transport through both calls and Catch typed outside-matcher entry/subsequent incidence. All theorem/source/native/production gates stay OPEN."
   },
-  "current_checkpoint": "73b7df6af",
+  "current_checkpoint": "2469d9eec",
   "contract_revision": 2
  },
  "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -262,11 +262,11 @@
   }
  ],
  "next_action": {
-  "state": "AWAITING-SPRINT-END-SELECTOR",
-  "selector": "Consult next_action_selector at sprint end; do not expand code authority.",
-  "proof": "Both source-definition proposals are independently reviewed CLEAN within proposal scope; all formation and original parent gates remain OPEN.",
-  "implementation": "No code changes authorized. New explicit user adoption and a proof-backed contract are required.",
-  "limits": "Proposal-only work complete. Preserve three unknown reservations and quarantined board lease; do not touch excluded dirty contract."
+  "state": "AWAITING-EXPLICIT-USER-ADOPTION-DECISIONS",
+  "selector": "Sprint ended ENDED-PROPOSALS-REVIEWED-DRAFT-ONLY; separate explicit user adoption decision required for each exact reviewed proposal.",
+  "proof": "Following adoption, fresh contract must target original NPAIR transport or Catch typed outside-entry/incidence obligations without narrowing quantifiers.",
+  "implementation": "WAITING; adoption alone grants no blanket compiler-code permission. New exact proof-backed lease required.",
+  "limits": "No worker, code lease, Astra reservation or execution now. No budget carryover. Preserve three historical UNKNOWN reservations and quarantined board lease."
  },
  "resource_accounting": {
   "current_sprint_id": "source-formation-proposals-20261017",
@@ -281,18 +281,19 @@
   "heavy_process_peak": 0,
   "cargo_build_test_probe_invocations": 0,
   "review_reserved": 0,
-  "coordination_reserved": 180,
+  "coordination_reserved": 0,
   "pending_reviewers": 0,
   "charged_total_seconds": 2100,
-  "reviewed_closeout": "notes/progress/2026-10-17-source-formation-proposals-review.md#sha256-2f6f658b915fa88adcb8708daea1e68ee9e91e800cda8dcecdbc2c4adb67b746",
+  "reviewed_closeout": "notes/progress/2026-10-17-source-formation-proposals-review.md#sha256-a145b3f5dd51209064c90b26eb1493fc15a446b73dfc0512f9a6e2e5da331b99",
   "authors_spent_seconds": 1500,
   "review_spent_seconds": 540,
   "repair_cap_seconds": 60,
   "review_cap_seconds": 540,
   "repair_spent_seconds": 60,
-  "remaining_reserve_seconds": 120
+  "remaining_reserve_seconds": 0,
+  "unused_allocation_retired_seconds": 300
  },
- "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint. Current sprint review closeout receipt: notes/progress/2026-10-17-source-formation-proposals-review.md (SHA-256 2f6f658b915fa88adcb8708daea1e68ee9e91e800cda8dcecdbc2c4adb67b746).",
+ "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint. Current sprint review closeout receipt: notes/progress/2026-10-17-source-formation-proposals-review.md (SHA-256 a145b3f5dd51209064c90b26eb1493fc15a446b73dfc0512f9a6e2e5da331b99).",
  "checkpoint_commits": [
   "ffbf7679b14f833f86c05e01c45a376056aad895",
   "785a32375e78747d08beccafd0543fe5cb3552dc",
