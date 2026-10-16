@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
     "revision": 1,
     "sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
-    "state": "AUTHORS-ASSIGNED",
+    "state": "BOTH-LANES-RUNNING",
     "previous_sprint": "source-constructor-instantiation-and-export-cut-20261017 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-17-source-constructor-export-cut-review.md",
     "dispatcher": "Sprint-end proposal accepted with explicit source-authentication boundary; original F1 ForwardHandler case plus a newly materialized, non-historical source fixture/harness.",
     "proof": {
-      "state": "ASSIGNED-NOT-STARTED",
+      "state": "RUNNING",
       "assignment": "assignment-forward-handler-finite-action-20261017",
       "outputs": [
         "notes/theory/2026-10-17-forward-handler-finite-action.md",
@@ -25,10 +25,12 @@
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
       "contract_revision": 1,
-      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290"
+      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
+      "worker_id": "/root/forward_handler_finite_action",
+      "runtime_receipt": "Current-task acknowledgement accepted exact contract/leases/cap; all 27 pins verified; active work began after reads. Session ID UNKNOWN."
     },
     "implementation": {
-      "state": "ASSIGNED-NOT-STARTED",
+      "state": "RUNNING",
       "assignment": "assignment-receive-choose-source-authentication-20261017",
       "outputs": [
         "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
@@ -42,7 +44,9 @@
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 600,
       "contract_revision": 1,
-      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290"
+      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
+      "worker_id": "/root/receive_choose_source_authentication",
+      "runtime_receipt": "Current-task acknowledgement accepted exact contract/leases/cap before writes; 27 pins to verify before writes; no tests/builds/Cargo/Git/network/scratch/descendants. Session/model/effort UNKNOWN."
     },
     "review": {
       "state": "NOT-STARTED",
@@ -50,7 +54,9 @@
       "execution": "After both authors/descendants STOP, sequential proof then implementation review."
     },
     "open_parent": "F1 full frame inventory, FK1, FIRST-RESULT-ADEQUACY, H1/H2/JOINT_DEC/F5, source-Generalize/public-export, principality and production remain OPEN.",
-    "prior_sprint_receipt_sha256": "74c17d790575bdf2e66e45a72c6e5a53779d9382ef95468f28c3570d9a568a01"
+    "prior_sprint_receipt_sha256": "74c17d790575bdf2e66e45a72c6e5a53779d9382ef95468f28c3570d9a568a01",
+    "runtime_session": "UNKNOWN",
+    "runtime_note": "Both current workers acknowledged exact packets; host session identifiers are not exposed. No model/effort inferred from requested role."
   },
   "candidate": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
   "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
@@ -90,26 +96,26 @@
       "receipt": "Historical proof worker; current runtime does not expose identity or cessation. Preserve capacity reservation."
     },
     {
-      "id": "assignment-forward-handler-finite-action-20261017",
+      "id": "/root/forward_handler_finite_action",
       "role": "astra_prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Exact lease/contract assigned; await actual spawn and current-session active-work acknowledgement."
+      "session": "UNKNOWN",
+      "receipt": "Current-session worker acknowledgement: exact rev1 contract and two output leases; 27 pins match; Astra/medium requested, observed UNKNOWN; started 2026-10-17T15:26:50Z; no descendants/tests/builds/probes/Git."
     },
     {
-      "id": "assignment-receive-choose-source-authentication-20261017",
+      "id": "/root/receive_choose_source_authentication",
       "role": "implementer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Exact lease/contract assigned; await actual spawn and current-session active-work acknowledgement."
+      "session": "UNKNOWN",
+      "receipt": "Current-session worker acknowledgement: exact rev1 contract and three output leases; 27 pins will be verified before writes; Luna/high requested, observed identity/model/effort UNKNOWN; no descendants/tests/builds/Cargo/Git."
     }
   ],
   "leases": [
@@ -121,27 +127,27 @@
     },
     {
       "path": "notes/theory/2026-10-17-forward-handler-finite-action.md",
-      "owner": "assignment-forward-handler-finite-action-20261017",
+      "owner": "/root/forward_handler_finite_action",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-forward-handler-finite-action.md",
-      "owner": "assignment-forward-handler-finite-action-20261017",
+      "owner": "/root/forward_handler_finite_action",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "owner": "/root/receive_choose_source_authentication",
       "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "owner": "/root/receive_choose_source_authentication",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md",
-      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "owner": "/root/receive_choose_source_authentication",
       "state": "HELD"
     }
   ],
@@ -199,8 +205,8 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Fresh envelope; no work started.",
-    "status": "Two author lanes ASSIGNED; require actual launch receipts before RUNNING. Three UNKNOWN reservations retained. One review slot available after author STOP; no transfers.",
+    "spent_seconds": "Proof and implementation work started after acknowledgements; active charges not yet metered; caps remain 900s and 600s, no transfer.",
+    "status": "Both workers RUNNING on current-task acknowledgements; 27 pins each; three UNKNOWN reservations unchanged. No descendants. Reviews wait for both STOP.",
     "sequencing": "Proof and implementation may run in parallel on disjoint exact leases. Both STOP before sequential independent reviews. One primary-owned cargo run max 120s only after freeze; no tests."
   },
   "integration_outcome": "Proof artifact and handoff frozen under rev1 with exact SHA pins in rev2; conditional only and not semantically adopted.",
