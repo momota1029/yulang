@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "MAJOR-FINDING-PRIMARY-REPAIR-REQUIRED",
+      "state": "REPAIRED-DELTA-SPEC-REVIEW-PENDING",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -25,7 +25,7 @@
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
       "receipt": "STOPPED: frozen candidate and handoff; artifact 9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018; handoff 5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5; all 16 pins rechecked; six stages; full 900s conservatively charged; requested Astra/medium, observed UNKNOWN/UNKNOWN; no descendants or scratch paths.",
-      "artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
+      "artifact_sha256": "0a73aaf7016e86dd5babbdd5482b05a793764418bc003607207ef0375ee46006",
       "handoff_sha256": "5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5",
       "reviewer": "/root/negative_pair_proposal_referee",
       "reviewer_role": "compiler_referee",
@@ -37,10 +37,14 @@
       "compiler_referee": "CLEAN",
       "compiler_referee_receipt": "Fresh read-only review: useful conditional proposal; no BLOCKING/major/minor finding within assigned scope. Confirms J1/J2 and actual R1->install(g)->fresh use->J2 route, permission creates neither inflow nor {E} cap. Open P1 mixed/multiple-symbolic coverage, P3/P5 association completeness/late arrival, P4 transport and P6 residual consumer/native correspondence. Final target/contract/16 pins verified; full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, no descendants or execution.",
       "spec_auditor": "MAJOR",
-      "spec_auditor_receipt": "Major at proposal line 372: adoption authority is assigned to Luna, but approved option B reserves adoption for later explicit user approval. Closure: Luna prepares/routes the adoption request and records the user decision; require explicit approval before adoption/implementation. No other finding; 18 pins matched; full 120s charged; STOPPED."
+      "spec_auditor_receipt": "Major at proposal line 372: adoption authority is assigned to Luna, but approved option B reserves adoption for later explicit user approval. Closure: Luna prepares/routes the adoption request and records the user decision; require explicit approval before adoption/implementation. No other finding; 18 pins matched; full 120s charged; STOPPED.",
+      "original_artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
+      "snapshot_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
+      "compiler_delta_review": "CLEAN",
+      "compiler_delta_receipt": "Exact changed sentence reviewed against snapshot and approved answer; major closed for that sentence only; 30s full cap charged; UNKNOWN/UNKNOWN; STOPPED, no writes or descendants."
     },
     "implementation": {
-      "state": "WAITING-DURING-PRIMARY-REPAIR",
+      "state": "RUNNING-PROPOSAL-AUTHORING",
       "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
       "role": "primary proposal author",
       "outputs": [
@@ -52,16 +56,16 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 600,
-      "receipt": "Packet 2 remains authorized and independent; primary pauses authoring during exact P1 wording repair and 30s delta reviews, then resumes within the unchanged 600s cap."
+      "receipt": "Packet 2 resumed after primary repair freeze; independent and proposal-only; requested Luna/high, observed UNKNOWN/UNKNOWN; exact packet-2 outputs only."
     },
     "review": {
-      "state": "REPAIR-DELTA-REVIEW-PENDING",
+      "state": "RUNNING-DELTA-SPEC-REVIEW",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Allocate one reviewer at a time, 30s each, to exact authority-wording delta; old review receipts apply only to rev1 bytes."
+      "receipt": "Compiler_referee delta CLEAN/STOPPED; spec_auditor delta active on same one-sentence repair, 30s cap."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -119,7 +123,7 @@
       "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
       "implementation": "No compiler changes until reviewed proposals and a later explicit source-definition adoption; then issue a new proof-backed implementation contract."
     },
-    "current_checkpoint": "a3b22a487",
+    "current_checkpoint": "1c50a7c9b",
     "contract_revision": 2
   },
   "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -174,13 +178,13 @@
     {
       "id": "/root",
       "role": "primary proposal author and integration",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Packet 2 remains ready under exact lease; primary pauses writing while carrying out contract-rev2 P1 wording repair and delta reviews."
+      "receipt": "Packet 2 proposal authoring resumed after repair was frozen; exact packet-2 leases only; Luna/high requested, observed UNKNOWN/UNKNOWN."
     },
     {
       "id": "NPAIR-PROPOSAL-REFEREE-20261017",
@@ -191,7 +195,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "CLEAN old frozen bytes; full 120s charged; no descendants, edits or execution."
+      "receipt": "Prior frozen rev1 target CLEAN; 120s charged; no descendants."
     },
     {
       "id": "NPAIR-PROPOSAL-SPEC-REVIEW-20261017",
@@ -202,7 +206,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "One major authority wording finding; full 120s charged; UNKNOWN/UNKNOWN; read-only, no descendants, edits or execution."
+      "receipt": "Prior frozen rev1 target MAJOR; 120s charged; no descendants."
     }
   ],
   "leases": [
@@ -236,14 +240,16 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/snapshots/20261017-negative-formal-pair-proposal-pre-repair.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
       "path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "0a73aaf7016e86dd5babbdd5482b05a793764418bc003607207ef0375ee46006"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-negative-formal-pair-proposal-pre-repair.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018"
     }
   ],
   "pending": [
@@ -264,34 +270,34 @@
     }
   ],
   "next_action": {
-    "state": "PRIMARY-REPAIR-LEASE-FROZEN",
+    "state": "DELTA-REVIEW-THEN-CONTINUE-PACKET-2",
     "selector": "Selector recommendation accepted by Luna; exact leases/resources frozen before dispatch.",
-    "proof": "P1 review finding is exact authority wording; preserve old bytes, repair one sentence, delta review before accepting.",
-    "implementation": "Packet 2 proposal remains authorized but paused only during primary repair; resumes after delta review. No compiler code authority.",
+    "proof": "One-sentence authority repair frozen; compiler-referee delta CLEAN; spec-auditor delta pending; original candidate rules unchanged.",
+    "implementation": "Independent Catch proposal authoring resumed under existing 600s lease; no compiler code authority.",
     "limits": "No code/tests/Cargo/runtime. Preserve all original quantifiers and three unknown reservations."
   },
   "resource_accounting": {
     "current_sprint_id": "source-formation-proposals-20261017",
     "cap_seconds": 2400,
     "authors": 1500,
-    "review": 480,
+    "review": 540,
     "coordination": 180,
     "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
+    "active_authors": 1,
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 300,
+    "review_reserved": 270,
     "coordination_reserved": 180,
-    "pending_reviewers": 0,
-    "charged_total_seconds": 1140,
+    "pending_reviewers": 1,
+    "charged_total_seconds": 1230,
     "reviewed_closeout": null,
     "authors_spent_seconds": 900,
-    "review_spent_seconds": 240,
+    "review_spent_seconds": 270,
     "repair_cap_seconds": 60,
     "review_cap_seconds": 540,
-    "repair_spent_seconds": 0,
+    "repair_spent_seconds": 60,
     "remaining_reserve_seconds": 120
   },
   "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
