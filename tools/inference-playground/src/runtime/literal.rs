@@ -12,10 +12,9 @@ pub(super) fn integer(text: &str) -> Option<Box<str>> {
 /// escape targets drop the slash, matching the frozen source literal owner.
 pub(super) fn string(text: &str) -> Option<Box<str>> {
     let quotes = text.chars().take_while(|ch| *ch == '"').count();
-    let delimiter;
     let inner = if quotes >= 3 {
-        delimiter = "\"".repeat(quotes);
-        text.strip_prefix(&delimiter)?.strip_suffix(&delimiter)?
+        let delimiter = &text[..quotes];
+        text.strip_prefix(delimiter)?.strip_suffix(delimiter)?
     } else {
         text.strip_prefix('"')?.strip_suffix('"')?
     };
@@ -54,4 +53,23 @@ pub(super) fn string(text: &str) -> Option<Box<str>> {
         }
     }
     Some(result.into_boxed_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::string;
+
+    #[test]
+    fn heredoc_delimiter_borrow_preserves_decoding() {
+        for quote_count in [3, 4, 8] {
+            let delimiter = "\"".repeat(quote_count);
+            let source = format!("{delimiter}猫\\n{delimiter}");
+            assert_eq!(string(&source).as_deref(), Some("猫\n"));
+        }
+
+        let delimiter = "\"".repeat(3);
+        let insufficient_closer = format!("{delimiter}猫\\n\"\"");
+        assert_eq!(string(&insufficient_closer), None);
+        assert_eq!(string("\"\"").as_deref(), Some(""));
+    }
 }

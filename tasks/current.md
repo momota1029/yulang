@@ -30,8 +30,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   `d8ac997fea12927ab2fca0b5e2c4d7c8deaeb947e892807e3a0c7c9a57a740d8`.
   Primary-pinned source hashes and the passing focused test supply that
   integration evidence. I7 changes tests only and adds no inference rule or
-  accepted result. The original source/admission, soundness, principality, N1,
-  F5 and production gates remain OPEN/BLOCKED. Full role,
+  accepted result. I8 replaces the heredoc's temporary repeated-delimiter
+  allocation with a borrowed ASCII quote prefix and adds focused decoding
+  cases for quote counts 3/4/8, Unicode plus escaped newline, a short closer,
+  and an empty ordinary string. Both focused tests pass 1/1; R14's bounded M1
+  compiler-referee review is CLEAN and verified the byte-boundary/equivalence
+  argument. The implementation removes only O(quotes) temporary storage; the
+  quote scan remains O(quotes), with no timing claim. Code and frozen receipt
+  are integrated in this checkpoint. The original source/admission, soundness,
+  principality, N1, F5 and production gates remain OPEN/BLOCKED. Full role,
   lease and inbox state is in [the loop board](agent-loop/board.md); the next
   implementation is selected by the dispatcher after this push.
 
