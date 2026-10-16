@@ -247,11 +247,18 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-ACTIVE-IMPLEMENTATION-WAITING",
-    "sprint": "receive-negative-pair-construction-20261017",
-    "contract_sha256": "98b00634966c692f5c8f7ab0b3312b168688ce5a46694efee117a77854c07d8e",
-    "implementation": "NO_SAFE_CODE_SLICE until reviewed source/native paired construction; preserve prior refusal run limit.",
-    "consult_at": "Frozen proof/review seam, exact new source rule requirement, counterexample, or dependency/authority change."
+    "state": "WAITING-AUTHORITY-OR-INDEPENDENT-READY-SLICE",
+    "selector": "/root/next_action_selector STOPPED",
+    "proposal": "No new sprint lease until an authority answer supplies the paired negative-formal formation/consumer law or the complete typed MatchRequest_H input telescope, or Luna identifies another independently approved end-to-end source-to-consumer slice.",
+    "proof": "WAITING: NPAIR paired-interface formation and CATCH-EXIT-INPUT-1 matcher-entry judgment remain open at their source-definition owners.",
+    "implementation": "NO_SAFE_CODE_SLICE: negative-formal native constructors lack a source law; F5 successor export/restore lacks approved output schema and correspondence.",
+    "historical_pending_delta": {
+      "contract": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
+      "sha256": "5b811dbae3871512b42da55ab5700e6f499feaaece5dfcb6f674ab5fa35d5853",
+      "state": "ENDED-PARTIAL-REVIEW-PENDING-DELTA",
+      "note": "Do not treat its pending r2 receipt review as accepted authority."
+    },
+    "resources": "No new workers, Cargo, tests, or probes proposed; preserve three UNKNOWN reservations and the quarantined board lease."
   },
   "resource_accounting": {
     "current_sprint_id": "receive-negative-pair-construction-20261017",
@@ -272,7 +279,7 @@
     "charged_total_seconds": 780,
     "reviewed_closeout": "CLEAN_BOUNDED_EXACT_OBSTRUCTION"
   },
-  "history": "Previous partial-HIR milestone: notes/progress/2026-10-17-catch-call-bijection-postrun-review.md; current reviewed obstruction: notes/progress/2026-10-17-receive-negative-pair-review.md sha a699bbf5b9071e63c21dc24951d2f1dee1f2d6c6ece6f41c2e04ba90fc2335f7; all three UNKNOWN reservations and board quarantine preserved.",
+  "history": "Previous partial-HIR milestone: notes/progress/2026-10-17-catch-call-bijection-postrun-review.md; current reviewed obstruction: notes/progress/2026-10-17-receive-negative-pair-review.md sha a699bbf5b9071e63c21dc24951d2f1dee1f2d6c6ece6f41c2e04ba90fc2335f7; all three UNKNOWN reservations and board quarantine preserved. Historical sprint with pending receipt delta: tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json sha256 5b811dbae3871512b42da55ab5700e6f499feaaece5dfcb6f674ab5fa35d5853.",
   "checkpoint_commits": [
     "ffbf7679b14f833f86c05e01c45a376056aad895",
     "785a32375e78747d08beccafd0543fe5cb3552dc",
