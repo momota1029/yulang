@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
   "revision": 1,
   "sha256": "14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1",
-  "state": "REPAIR-FROZEN-PENDING-REVIEW",
+  "state": "REPAIR-ARCHITECT-DELTA-REVIEW",
   "baseline": "3df4e0e289173cc26af99655d0a1c670fb0d48df",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": "adopted-npair-construction-and-native-plan-20261017 ended PARTIAL—MAJOR REPAIR PENDING; proof result and original plan/reviews frozen; no budget carries over.",
@@ -48,7 +48,7 @@
    "writer_state": "STOPPED"
   },
   "review": {
-   "state": "SEQUENTIAL-DELTA-REVIEWS-TO-ASSIGN",
+   "state": "ARCHITECT-DELTA-REVIEW-RUNNING",
    "required": [
     "architect",
     "spec_auditor"
@@ -56,7 +56,36 @@
    "budget_seconds": 120,
    "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
    "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
-   "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4"
+   "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
+   "assignments": [
+    {
+     "id": "NATIVE-PLAN-REPAIR-ARCH-REVIEW-20261017",
+     "worker_id": "/root/native_plan_repair_arch_review",
+     "role": "architect",
+     "state": "RUNNING",
+     "session": "current-session",
+     "requested_model": "gpt-6.1-sol",
+     "requested_effort": "low",
+     "observed_model": "UNKNOWN",
+     "observed_effort": "UNKNOWN",
+     "cap_seconds": 60,
+     "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
+     "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029"
+    },
+    {
+     "id": "NATIVE-PLAN-REPAIR-SPEC-REVIEW-20261017",
+     "worker_id": null,
+     "role": "spec_auditor",
+     "state": "WAITING-FOR-ARCHITECT-STOP",
+     "requested_model": "gpt-6.1-sol",
+     "requested_effort": "low",
+     "observed_model": "UNKNOWN",
+     "observed_effort": "UNKNOWN",
+     "cap_seconds": 60,
+     "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
+     "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029"
+    }
+   ]
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; N-Transport, N-Subtract-Elim, full source/native correspondence, F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "resource_envelope_seconds": {
@@ -116,6 +145,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "Corrected artifact, repair handoff and prior-sprint closeout frozen; author STOPPED after full 60s conservative charge."
+  },
+  {
+   "id": "/root/native_plan_repair_arch_review",
+   "role": "architect",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Fresh read-only delta review launched against exact corrected artifact, handoff, snapshot and frozen repair contract; 60s cap; no descendants."
   }
  ],
  "leases": [
@@ -174,7 +214,7 @@
   }
  ],
  "next_action": {
-  "state": "REPAIR-FROZEN-AWAITING-ARCHITECT-DELTA-REVIEW",
+  "state": "ARCHITECT-DELTA-REVIEW-RUNNING-SPEC-WAITS",
   "dispatcher": "Selector recommends separate 240s correction sprint; no carryover; author60/reviews120/coord30/reserve30.",
   "proof": "No new proof work; preserve reviewed L1/L2/P3 result and J2 conditional boundary.",
   "implementation": "No code lease. Review only the exact frozen correction delta against snapshot, adopted scope and proof boundaries."
