@@ -368,6 +368,20 @@ Status: full objective remains active. Native extrusion now schedules current co
   scheduled condition test; no timing, general runtime theorem, semantic change
   or proof/production gate closure is claimed. Original gates remain
   OPEN/BLOCKED.
+  I32 changes only the Catch arm in `Machine::evaluate`: it copies the
+  scrutinee Label, then moves the existing Code Arc into `Frame::CatchReturn`.
+  Normal return and request propagation retain that handler, including its
+  saved continuation boundary. Counter overflow, installation owner,
+  environment, shallow removal, evidence checks, errors and transitions remain
+  unchanged. All three assigned runtime tests pass 1/1 (17, 17 and 12 filtered),
+  warning-free. R46's bounded M1 compiler review is CLEAN: all ten pins match,
+  and reversing the exact diff reproduces the baseline. No tests were rerun in
+  review or integration. Producer requested Luna/high and reviewer Sol/medium;
+  observed settings are UNKNOWN. Verification was exactly the three focused
+  Cargo commands; measurement budget was 0 processes / 0 samples. Receipt043
+  has no whitespace findings. This removes one temporary Arc clone/drop pair
+  per Catch entry, with no broader handler theorem, semantic change or proof/
+  production gate closure. Original gates remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

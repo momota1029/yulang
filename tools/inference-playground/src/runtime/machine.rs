@@ -543,6 +543,7 @@ impl Machine {
                 self.data(site, RuntimeValueKind::Operation(resolution.clone()), None)
             }
             Instruction::Catch { scrutinee, .. } => {
+                let scrutinee = *scrutinee;
                 let occurrence = self.next_handler;
                 self.next_handler = occurrence
                     .checked_add(1)
@@ -552,12 +553,12 @@ impl Machine {
                     owner: self.current_execution_owner(),
                 };
                 self.frames.push(Frame::CatchReturn {
-                    handler: code.clone(),
+                    handler: code,
                     environment,
                     installation,
                 });
                 self.state = State::Evaluate {
-                    code: *scrutinee,
+                    code: scrutinee,
                     environment,
                 };
             }
