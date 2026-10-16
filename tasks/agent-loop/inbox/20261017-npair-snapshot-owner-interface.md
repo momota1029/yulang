@@ -1,10 +1,10 @@
-# Frozen readiness handoff
+# Frozen readiness and sprint outcome handoff
 
 Sprint `npair-snapshot-owner-interface-20261017`, revision 2. Revision 1
 contract SHA-256 `243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5`.
 Revision 2 is the bounded Luna repair authorized after compiler-referee review;
 its current contract hash is recorded in `tasks/agent-loop/current.json`.
-Assignment `NPAIR-SNAPSHOT-OWNER-INTERFACE-20261017`, handoff revision 2.
+Assignment `NPAIR-SNAPSHOT-OWNER-INTERFACE-20261017`, handoff revision 3.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN.
 
 Author: Luna/high primary; current-session. Exact output leases are this handoff
@@ -43,3 +43,29 @@ admission has been implemented. Parent, validator, and production gates remain
 OPEN. After readiness STOP, architect and spec-auditor review the amended Draft
 and explicitly disposition all compiler-referee findings. No tests, builds,
 probes, Cargo, source/compiler execution or code edits.
+
+## Final review and sprint disposition
+
+The readiness repair STOPPED with all assigned outputs frozen. Fresh sequential
+review receipts:
+
+- `compiler_referee` STOPPED after finding two MAJOR Draft omissions and one
+  BLOCKING universal-mutation premise. Luna revised contract/design/handoff as
+  revision 2; no source expansion or code followed.
+- `architect` STOPPED: all three compiler findings are addressed as wording and
+  table repairs. The Draft is acceptable only as an obstruction report.
+- `spec_auditor` STOPPED CLEAN for revision-2 structural/readiness documentation;
+  each original concern remains a BLOCKING prerequisite before implementation.
+
+Final boundaries: no full evidence accessor, successful/quiescent route
+constructor, same-owner resolver or transitive mutation audit exists here.
+Unavailable antecedents require separate reviewed authentication or reject/Pend.
+Live physical slot resolution requires row-kind/lane/index/operand checks. The
+owner-interface and validator remain not implementation-ready. Parent and
+production gates remain OPEN. No tests, builds, probes, Cargo, code edits or
+source/compiler execution.
+
+Resource accounting: 720s charged against 720s total: coordination 60,
+readiness 300 (240 original + 60 repair), proof 180 (176 measured), and reviews
+180 (three 60s conservative charges). The repair allocation was authorized by
+contract revision 2 from the proof lane's certified unused 60s. No reserve.
