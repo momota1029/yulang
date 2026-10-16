@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
     "revision": 1,
     "sha256": "8d1bd53dab64ae049a04ca506bc75f469479de3b7b4a525d6f1c0900c9578cb4",
-    "state": "AUTHOR-RUNNING",
+    "state": "ENDED-USER-APPROVAL-PENDING",
     "baseline": "c9993c2b3",
     "source_baseline": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
     "previous_sprint": {
@@ -24,7 +24,7 @@
       "review": "CLEAN narrow M2 delta; valid pinned-v0 evaluations only; Invalid(v0) separate; parent OPEN."
     },
     "proposal": {
-      "state": "RUNNING",
+      "state": "REVIEWED-WAITING-USER-APPROVAL",
       "owner": "/root",
       "role": "Luna primary",
       "cap_seconds": 120,
@@ -34,10 +34,13 @@
       ],
       "input_snapshot_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
       "handoff_snapshot_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad",
-      "active_work_receipt": "Luna accepted selector delta and acknowledged new 120s repair packet; preserve LocalFreshRoute.rows, move other FreshUse maps once, account exact bytes, state memory/resource tradeoff; exact two output paths only."
+      "active_work_receipt": "Luna accepted selector delta and acknowledged new 120s repair packet; preserve LocalFreshRoute.rows, move other FreshUse maps once, account exact bytes, state memory/resource tradeoff; exact two output paths only.",
+      "artifact_sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a",
+      "handoff_sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d",
+      "receipt": "Luna repair author STOPPED; proposal and handoff frozen; full120s charged."
     },
     "review": {
-      "state": "WAITING-FOR-AUTHOR-STOP",
+      "state": "BOTH-CLEAN-STOPPED",
       "sequence": [
         "architect",
         "spec_auditor"
@@ -48,10 +51,34 @@
       ],
       "current_reviewer": null,
       "current_cap_seconds": null,
-      "verdict": "Prior architect MAJOR is frozen in previous sprint closeout; fresh reviews wait for corrected proposal."
+      "verdict": "CLEAN proposal readiness only. Explicit user approval of exact rows-preserving retention option and memory/resource tradeoff required before a separate compiler-code sprint.",
+      "proposal_sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a",
+      "proposal_handoff_sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d",
+      "architect_review": {
+        "owner": "/root/local_use_retention_arch_review_v2",
+        "state": "CLEAN/STOPPED",
+        "cap_seconds": 90,
+        "artifact_sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a",
+        "handoff_sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d",
+        "receipt": "All seven pins match. Nine FreshUse fields transferred exactly once: rows remains LocalFreshRoute.rows, other eight move into retained. shadow_apply/test consumers stay intact; route header/backing allocations counted once; commit remains infallible after reservation; rollback unchanged. Memory/acceptance limitation is stated. No M2 certification; parent OPEN."
+      },
+      "active_work_receipt": "Architect and spec reviewers both STOPPED CLEAN within assigned scopes; exact proposal/handoff bytes remain frozen. Sprint-end selector consultation pending.",
+      "spec_review": {
+        "owner": "/root/local_use_retention_spec_review",
+        "state": "CLEAN/STOPPED",
+        "cap_seconds": 90,
+        "artifact_sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a",
+        "handoff_sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d",
+        "receipt": "CLEAN within spec scope. Verified pins and revised patch preserves rows, separates invalidation, retains NPAIR authority boundaries, discloses resource tradeoff, and keeps explicit user approval before code. No source-applicability re-certification. STOPPED."
+      }
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure.",
-    "scope": "Repair only the unapplied code proposal for existing-map retention. No compiler/test edits, execution or language-semantic changes. User approval remains required before a code sprint."
+    "scope": "Repair only the unapplied code proposal for existing-map retention. No compiler/test edits, execution or language-semantic changes. User approval remains required before a code sprint.",
+    "closeout": {
+      "path": "notes/progress/2026-10-17-local-use-retention-proposal-repair-closeout.md",
+      "sha256": "af6b041c9d5de4c3315258da5ca0655f5777c422afa8c3f9cc6ad9bb23d3bda2",
+      "outcome": "PROPOSAL REVIEWED; IMPLEMENTATION APPROVAL PENDING"
+    }
   },
   "candidate": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
   "baseline": "c9993c2b3",
@@ -94,13 +121,24 @@
     {
       "id": "/root",
       "role": "Luna/high primary proposal author and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna accepted selector delta and acknowledged new 120s repair packet; preserve LocalFreshRoute.rows, move other FreshUse maps once, account exact bytes, state memory/resource tradeoff; exact two output paths only."
+      "receipt": "Sprint ended after CLEAN architect/spec proposal reviews; no code lease; waiting for exact user approval."
+    },
+    {
+      "id": "/root/local_use_retention_spec_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "CLEAN within spec scope. Verified pins and revised patch preserves rows, separates invalidation, retains NPAIR authority boundaries, discloses resource tradeoff, and keeps explicit user approval before code. No source-applicability re-certification. STOPPED."
     }
   ],
   "leases": [
@@ -142,17 +180,19 @@
     {
       "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal-repair.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d"
     },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -188,15 +228,15 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "PROOF CLEAN bounded; old proposal MAJOR; new source-applicable proposal correction RUNNING.",
-      "owner": "Luna; then fresh architect and spec reviewers; user approval before code"
+      "state": "PROOF M2 CLEAN bounded; proposal CLEAN under architect/spec review; exact user approval required before code.",
+      "owner": "User decision, then Luna if approved"
     }
   ],
   "next_action": {
-    "state": "AUTHOR-RUNNING",
+    "state": "WAITING-USER-APPROVAL",
     "dispatcher": "New correction sprint accepted from selector delta at MAJOR review boundary.",
     "proof": "M2 proof remains CLEAN only for valid same-version finite structural queries; parent OPEN.",
-    "implementation": "Preserve rows consumers while transferring each other map once; explicitly disclose possible earlier resource rejection."
+    "implementation": "Present frozen rows-preserving patch and memory tradeoff to user. No compiler edits until explicit approval; after approval, selector and a fresh exact implementation sprint are required."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-retention-proposal-repair-20261017",
@@ -206,12 +246,12 @@
     "spec_review": 90,
     "coordination": 30,
     "reserve": 30,
-    "charged_total_seconds": 0,
-    "active_authors": 1,
+    "charged_total_seconds": 330,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "New sprint started after prior sprint closed PARTIAL; no prior budget carried over."
+    "status": "Sprint ENDED. 330s charged; remaining30s retired. No carryover or active worker."
   },
-  "history": "Prior sprint closed PARTIAL at c93eaf4b94f7f5bc4580ad392687a8724a1e6b78248809341f27e5cd49d53199; its unused 240s retired. Foreign dirty JSON, three UNKNOWN reservations and board quarantine preserved.",
+  "history": "Prior sprint closed PARTIAL; proposal repair ended reviewed with implementation approval pending. Closeout af6b041c9d5de4c3315258da5ca0655f5777c422afa8c3f9cc6ad9bb23d3bda2. Foreign dirty JSON, three UNKNOWN reservations and board quarantine preserved.",
   "checkpoint_commits": [
     "c9993c2b3"
   ]
