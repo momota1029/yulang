@@ -618,6 +618,22 @@ Both are unapproved research; no preflight removal or production implementation.
 Review and explicit adoption follow a concrete contract and decisive invariant;
 global profile/Initial evidence cannot be silently assumed. Audit M1 one reviewer,
 eight dependency pins and static integrity only; zero executable measurements.
+The Draft and complementary later-lower artifact are now frozen at producers
+`cadffc96...98f3bde` and `d21d4e96...c8534`, with CLEAN independent mathematical
+`checked_result_semantics` and source `capture_source_review` reviews. This
+accepts bounded source equations/discriminators and conditional finite-key
+worklist only; central feasibility, costs, cycles, guard normalization,
+principality and implementation/adoption remain OPEN. Existing production
+effect-lower replay is not covered by cfg(test) FunctionPort-only support.
+Slot 65's full-scrutinee raw-k effect and arm forwarding also require the
+authentic remaining-suffix replacement; removing slot 51 is insufficient.
+`native_negative_formal` now owns the changed-owner 25-minute packet
+`notes/theory/2026-10-16-call-suffix-image-demand-construction.md`, constructing
+actual producer/Call/Catch source maps and once/twice pending interfaces before
+native discharge. It may not assume a complete interface from four scalar
+ports, drop raw-resumed requests, or claim current code emits proposed records.
+M2 two reviewers on the coherent bundle; static dependency/integrity only,
+zero executable processes/samples. No legacy edge is retired or preflight lifted.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new

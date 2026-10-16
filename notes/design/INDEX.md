@@ -185,6 +185,12 @@ This index is a navigation aid. The listed source document remains authoritative
   by reusing a closed cap. Retained source polarity alone performs no Catch
   subtraction. A replacement coupled constructor/consumer remains unapproved;
   native negative admission and all hygiene/F5 parents stay OPEN.
+  The [open negative-port/Catch-image Draft](../theory/2026-10-16-open-negative-formal-catch-image-design.md)
+  and [later-lower audit](../theory/2026-10-16-catch-image-later-lower-feasibility.md)
+  have CLEAN mathematical/source review of bounded claims. Joint source
+  Invoke/remaining-suffix-to-image consumption, complete effect-lower wakeups,
+  guarded discharge/copy/publication and central feasibility remain OPEN;
+  the new architecture is unapproved and unready for implementation/adoption.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

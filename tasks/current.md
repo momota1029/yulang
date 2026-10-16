@@ -61,6 +61,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   definition permission does not authorize its implementation. No native
   admission, hygiene, source MODEL or F5 gate closes. M1 one reviewer; zero
   executable checks/measurements.
+  The [open-port/Catch-image Draft](../notes/theory/2026-10-16-open-negative-formal-catch-image-design.md)
+  and [later-lower feasibility audit](../notes/theory/2026-10-16-catch-image-later-lower-feasibility.md)
+  now have CLEAN mathematical/source review of their bounded claims. They
+  establish neither central feasibility nor adoption readiness. Test-only
+  FunctionPort support invalidation misses ordinary later effect-lower wakeups;
+  pending eligibility cannot become an unconditional residual. Current slot 65
+  also feeds full scrutinee effects into raw-k returns, so deleting Catch's
+  direct forwarding alone fails the once/resume case. The exact joint source
+  Invoke/remaining-suffix-to-ImageDemand consumer is the next constructive
+  owner, with copying, guarded discharge and publication still OPEN.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)
