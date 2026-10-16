@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "NOT_STARTED",
-  "session": null,
+  "phase": "ACTIVE",
+  "session": "UNKNOWN",
   "active_sprint": {
     "id": "concrete-declaration-and-export-root-qualification-20261016",
     "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
     "revision": 1,
     "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ACTIVE-PROOF-READY",
+    "state": "ACTIVE-PROOF-RUNNING",
     "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
     "dispatcher": "next_action_selector proposed separate D_tail declaration and export-root qualifications; Luna added exact missing export/restoration owner pins and froze sequential lanes.",
     "proof": {
-      "state": "READY",
+      "state": "RUNNING",
       "assignment": "assignment-choose-phase-declaration-qualification",
       "outputs": [
         "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
@@ -26,7 +26,8 @@
       "charge_seconds_cap": 900,
       "contract_revision": 1,
       "contract_sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-      "receipt": "Exact output lease granted; worker not yet launched. Must acknowledge contract rev1 hash before any artifact write."
+      "receipt": "Worker /root/choose_phase_qualification acknowledged exact contract rev1 hash before writes, verified all 38 direct dependency hashes against current bytes, confirmed both leased outputs absent, and began source-remaining-root -> actual choose declaration/IF owner trace. Requested Astra/medium; observed model/effort UNKNOWN.",
+      "runtime_receipt": "Explicit spawn returned /root/choose_phase_qualification; live message reports active leaf, no descendants. Session ID UNKNOWN."
     },
     "implementation": {
       "state": "DEFERRED-UNTIL-PROOF-CESSATION",
@@ -97,6 +98,17 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
+    },
+    {
+      "id": "/root/choose_phase_qualification",
+      "role": "astra_prover",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "Acknowledged contract rev1 SHA before writes; all 38 direct dependency pins verified; output files absent at start; active source trace receipt received; no descendants."
     }
   ],
   "leases": [
@@ -105,9 +117,19 @@
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
       "reason": "Historical writer remains UNKNOWN; not visible in current runtime."
+    },
+    {
+      "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
+      "owner": "/root/choose_phase_qualification",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
+      "owner": "/root/choose_phase_qualification",
+      "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain. Proof author is next; implementation deferred until confirmed proof cessation. Preserve two assignment slots for sequential review/integration.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; one proof author RUNNING on exact leases; implementation deferred until proof cessation; two assignment slots reserved for review/integration.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -145,7 +167,7 @@
       "needs": "Review frozen D_tail qualification only in its exact scope."
     }
   ],
-  "next_action": "Proof lane is ready; primary will launch one author and require contract-hash acknowledgement before writes.",
+  "next_action": "Proof author is tracing the actual choose declaration and IF owner chain under contract rev1; implementation lease follows only after confirmed STOP.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -171,8 +193,8 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "0 assigned active seconds; coordination exact UNKNOWN",
-    "status": "Fresh envelope only; no prior seconds transferred. Proof author ready, not yet launched.",
+    "spent_seconds": "proof active; exact active seconds UNKNOWN; other lane and review work not started",
+    "status": "Fresh 1,800-second envelope. Proof author RUNNING after contract hash/dependency acknowledgement. No prior seconds transferred.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
   "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
