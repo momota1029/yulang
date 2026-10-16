@@ -4,111 +4,74 @@
  "phase": "ACTIVE",
  "session": "current-session",
  "active_sprint": {
-  "id": "native-plan-authority-boundary-correction-20261017",
-  "contract": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
+  "id": "npair-whole-presentation-transport-architecture-20261017",
+  "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
-  "sha256": "14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1",
-  "state": "CLOSED-PLAN-REPAIR-ACCEPTED",
-  "baseline": "3df4e0e289173cc26af99655d0a1c670fb0d48df",
+  "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
+  "state": "PROOF-READY",
+  "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
-  "previous_sprint": "adopted-npair-construction-and-native-plan-20261017 ended PARTIAL—MAJOR REPAIR PENDING; proof result and original plan/reviews frozen; no budget carries over.",
+  "previous_sprint": {
+   "id": "native-plan-authority-boundary-correction-20261017",
+   "outcome": "CLOSED; corrected native readiness plan accepted for planning scope after CLEAN architect and spec-auditor delta reviews; no code lease.",
+   "receipt": "notes/progress/2026-10-17-adopted-npair-native-plan-repair-closeout.md",
+   "sha256": "fe7aea7e501bca1ed90064ea4bf10f08bc3be7cb4ccefe7b869097e99b4bdf6b"
+  },
   "adoption_receipt": {
    "path": "notes/design/2026-10-17-source-formation-proposals-adoption.md",
    "sha256": "d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa"
   },
-  "proof_result": {
+  "proof_input": {
    "path": "notes/theory/2026-10-17-adopted-negative-pair-construction.md",
    "sha256": "6a3c6b5754448b38430ee368feb52d87ebd38c1b7050c3b33652132ead5f0fb2",
-   "review": "CLEAN for exact artifact; L1 graph P2 and local L2/P3 accepted; J2 conditional; parent open."
+   "review": "CLEAN within L1/L2 premises; J2 conditional on whole dependent map."
   },
-  "review_finding": {
-   "target_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
-   "architect": "CLEAN with minor later-code requirements",
-   "spec_auditor": "MAJOR: representation mechanisms mandated against unselected authority; repair means demote options, preserve invariants."
+  "implementation_input": {
+   "path": "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
+   "sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
+   "review": "CLEAN delta; planning authority only; representation and code remain unselected."
   },
-  "repair": {
-   "state": "ACCEPTED-PLANNING-SCOPE",
-   "author": "/root",
-   "outputs": [
-    "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
-    "tasks/agent-loop/inbox/20261017-negative-pair-native-plan-authority-repair.md",
-    "notes/progress/2026-10-17-adopted-npair-sprint-closeout.md"
-   ],
-   "snapshot": "tasks/agent-loop/snapshots/20261017-negative-pair-native-implementation-contract-pre-repair.md",
-   "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
-   "budget_seconds": 60,
-   "session": "current-session",
-   "receipt": "Revision 2 accepted for planning scope after CLEAN architect and spec-auditor delta reviews; no code or parent gate closed.",
-   "artifact": "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
-   "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
-   "handoff": "tasks/agent-loop/inbox/20261017-negative-pair-native-plan-authority-repair.md",
-   "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
-   "closeout": "notes/progress/2026-10-17-adopted-npair-sprint-closeout.md",
-   "closeout_sha256": "0f232e185fb4200274082406c71dc7f06761aed65ed1e22dbb245905c97c8cd2",
-   "writer_state": "STOPPED"
-  },
-  "review": {
-   "state": "BOTH-DELTA-REVIEWS-CLEAN-STOPPED",
-   "required": [
-    "architect",
-    "spec_auditor"
-   ],
-   "budget_seconds": 120,
-   "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
-   "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
-   "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
-   "assignments": [
-    {
-     "id": "NATIVE-PLAN-REPAIR-ARCH-REVIEW-20261017",
-     "worker_id": "/root/native_plan_repair_arch_review",
-     "role": "architect",
-     "state": "STOPPED",
-     "session": "current-session",
-     "requested_model": "gpt-6.1-sol",
-     "requested_effort": "low",
-     "observed_model": "UNKNOWN",
-     "observed_effort": "UNKNOWN",
-     "cap_seconds": 60,
-     "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
-     "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
-     "receipt": "CLEAN exact-target delta review completed read-only; reviewer STOPPED; observed model/effort UNKNOWN."
-    },
-    {
-     "id": "NATIVE-PLAN-REPAIR-SPEC-REVIEW-20261017",
-     "worker_id": "/root/native_plan_repair_spec_review",
-     "role": "spec_auditor",
-     "state": "STOPPED",
-     "requested_model": "gpt-6.1-sol",
-     "requested_effort": "low",
-     "observed_model": "UNKNOWN",
-     "observed_effort": "UNKNOWN",
-     "cap_seconds": 60,
-     "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
-     "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
-     "receipt": "CLEAN exact-target delta review completed read-only; reviewer STOPPED; observed model/effort UNKNOWN."
-    }
-   ],
-   "verdicts": {
-    "architect": "CLEAN exact corrected plan; STOPPED; requested low, observed UNKNOWN.",
-    "spec_auditor": "CLEAN complete snapshot-to-revision-2 delta; STOPPED; requested low, observed UNKNOWN."
+  "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; exact rho_u install/capture/fresh-use map and J2 application targeted; extrusion/intrusion, all-futures completeness, actual consumer, mixed symbolic coverage, F1/FK1, soundness, principality, F5 and production remain OPEN.",
+  "assignments": [
+   {
+    "id": "NPAIR-WHOLE-PRESENTATION-TRANSPORT-20261017",
+    "role": "astra_prover",
+    "worker_id": null,
+    "state": "READY",
+    "requested_model": "gpt-6-astra",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "cap_seconds": 1200,
+    "outputs": [
+     "notes/theory/2026-10-17-npair-whole-presentation-transport.md",
+     "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md"
+    ]
    }
+  ],
+  "architecture_lane": {
+   "owner": "/root",
+   "state": "WAITING-FOR-PROOF-REVIEW",
+   "cap_seconds": 600,
+   "outputs": [
+    "notes/design/2026-10-17-npair-native-architecture-candidate.md",
+    "tasks/agent-loop/inbox/20261017-npair-native-architecture-candidate.md"
+   ]
   },
-  "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; N-Transport, N-Subtract-Elim, full source/native correspondence, F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "resource_envelope_seconds": {
-   "total": 240,
-   "author": 60,
-   "review": 120,
-   "coordination": 30,
-   "reserve": 30
+   "total": 2400,
+   "proof": 1200,
+   "architecture": 600,
+   "review": 360,
+   "coordination": 120,
+   "reserve": 120
   },
-  "limits": "No carryover; three historical UNKNOWN reservations and board quarantine retained; no code/tests/Cargo/probes; reviews sequential.",
-  "closeout": "notes/progress/2026-10-17-adopted-npair-native-plan-repair-closeout.md",
-  "closeout_sha256": "fe7aea7e501bca1ed90064ea4bf10f08bc3be7cb4ccefe7b869097e99b4bdf6b"
+  "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained."
  },
- "candidate": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
- "baseline": "3df4e0e289173cc26af99655d0a1c670fb0d48df",
- "scope": "Correct only the implementation-readiness contract authority boundary; preserve adopted evidence invariants while making native representation choices explicitly unselected.",
- "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained; one author at a time; no Astra.",
+ "candidate": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
+ "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
+ "scope": "Construct the complete dependent install/capture/fresh-use map rho_u and apply it to J2; then produce and independently review one concrete but non-authoritative native architecture candidate.",
+ "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained; no new worker is RUNNING before launch acknowledgment.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -142,39 +105,6 @@
    "observed_effort": "UNKNOWN",
    "session": null,
    "receipt": "Historical identity/cessation unknown; reservation retained."
-  },
-  {
-   "id": "/root",
-   "role": "Luna repair author and primary",
-   "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "Repair artifact, handoff and closeout frozen; author STOPPED after full 60s conservative charge."
-  },
-  {
-   "id": "/root/native_plan_repair_arch_review",
-   "role": "architect",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "low",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "CLEAN exact-target delta review completed read-only; reviewer STOPPED; observed model/effort UNKNOWN."
-  },
-  {
-   "id": "/root/native_plan_repair_spec_review",
-   "role": "spec_auditor",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "low",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "CLEAN exact-target delta review completed read-only; reviewer STOPPED; observed model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -182,93 +112,58 @@
    "path": "tasks/agent-loop/board.md",
    "owner": "/root/resident_dispatcher_loop_a",
    "state": "QUARANTINED"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "revision": 1,
-   "sha256": "14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1"
-  },
-  {
-   "path": "tasks/agent-loop/snapshots/20261017-negative-pair-native-implementation-contract-pre-repair.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4"
-  },
-  {
-   "path": "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261017-negative-pair-native-plan-authority-repair.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029"
-  },
-  {
-   "path": "notes/progress/2026-10-17-adopted-npair-sprint-closeout.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "0f232e185fb4200274082406c71dc7f06761aed65ed1e22dbb245905c97c8cd2"
   }
  ],
  "pending": [
   {
    "id": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017",
    "state": "OPEN",
-   "owner": "formal annotation/Function source-definition authority and source/native constructor owners"
+   "owner": "formal annotation/Function source-definition and source/native constructor owners"
   },
   {
-   "id": "CATCH-EXIT-INPUT-1",
-   "state": "OPEN",
-   "owner": "outside matcher entry/transition source-definition authority"
+   "id": "NPAIR whole-presentation rho_u at install/capture/fresh use",
+   "state": "ACTIVE-PROOF-PACKET",
+   "owner": "Astra assignment after launch acknowledgment"
   },
   {
-   "id": "F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production",
+   "id": "N-Transport extrusion/intrusion and association completeness",
    "state": "OPEN",
-   "owner": "Original parent gates"
+   "owner": "Function propagation, extrusion/SCC and publication owners"
+  },
+  {
+   "id": "N-Subtract-Elim actual receive consumer",
+   "state": "OPEN",
+   "owner": "original effect-elimination source/native owner"
+  },
+  {
+   "id": "mixed/multiple-symbolic coverage; F1/FK1 and independent parent gates",
+   "state": "OPEN",
+   "owner": "original source signature / theorem owners"
   }
  ],
  "next_action": {
-  "state": "SPRINT-END-CONSULTATION",
-  "dispatcher": "Both independent delta reviews CLEAN and STOPPED; primary accepts only planning correction. Sprint-end recommendation pending.",
-  "proof": "Continue parent work only with an exact bounded packet for complete dependent ingress transport; J2 conditional, parent OPEN.",
-  "implementation": "No compiler lease until missing transport, symbolic coverage and actual residual consumer are resolved or separately authorized."
+  "state": "SPRINT-START-DISPATCH-ACCEPTED",
+  "dispatcher": "Selector recommends fresh 2400s proof+architecture sprint: prove rho_u then reviewed non-authoritative native architecture candidate; no compiler lease.",
+  "proof": "Construct complete dependent presentation fresh-use map and apply to actual J2; fresh compiler-referee review required.",
+  "implementation": "Luna prepares a concrete architecture candidate only after proof adjudication; actual consumer may remain an exact blocker; user approval needed before any new architecture is implemented."
  },
  "resource_accounting": {
-  "current_sprint_id": "native-plan-authority-boundary-correction-20261017",
-  "cap_seconds": 240,
-  "authors": 60,
-  "review": 120,
-  "coordination": 30,
-  "reserve": 30,
+  "current_sprint_id": "npair-whole-presentation-transport-architecture-20261017",
+  "cap_seconds": 2400,
+  "proof": 1200,
+  "architecture": 600,
+  "review": 360,
+  "coordination": 120,
+  "reserve": 120,
   "unknown_reservations_preserved": 3,
   "active_authors": 0,
   "astra_assignments": 0,
-  "charged_total_seconds": 210,
-  "review_reserved": 0,
-  "status": "Correction sprint closed after CLEAN delta reviews; 210/240 charged; reserve retired; no carryover.",
-  "authors_spent_seconds": 60,
-  "review_spent_seconds": 120,
-  "coordination_spent_seconds": 30,
-  "retired_reserve_seconds": 30
+  "charged_total_seconds": 0,
+  "review_reserved": 360,
+  "status": "Fresh envelope; selector recommendation accepted; proof launch not yet acknowledged."
  },
- "history": "Prior sprint commits pushed through 3df4e0e28. Exact original plan ff91cfa4 and handoff 4d5ea10e preserved; snapshot created. Proof 6a3c6b57 CLEAN-reviewed. Native plan architect CLEAN/minor; spec audit MAJOR. Prior authors1500s, reviews420s; coordination conservatively charged120s; total2040/2100; reserve60 retired. Catch/negative-pair adoption receipt and source review hashes are in prior sprint commits.",
+ "history": "Prior proof, proposal adoption and corrected readiness plan hashes are pinned in the sprint contract. Previous correction closeout fe7aea7e is archived and pushed in 12a7eae7d. Three UNKNOWN reservations remain quarantined; unrelated dirty sprint file preserved.",
  "checkpoint_commits": [
-  "ffbf7679b14f833f86c05e01c45a376056aad895",
-  "785a32375e78747d08beccafd0543fe5cb3552dc",
-  "e12e5aea7d9533ceaa3f877beada130d58c0b2e8",
-  "cad77b3525f752973df74c7230f1f61998dda317",
-  "05d283a86e395a8903b717c3cdef3c2884275c7b",
-  "45f011d7c",
-  "5309587c5",
-  "371fcb924",
-  "2b105a18a",
-  "922bb77cd",
-  "d6f11c53b",
-  "3df4e0e28"
+  "12a7eae7d386b521029be81fbaee689c05f81276"
  ]
 }
