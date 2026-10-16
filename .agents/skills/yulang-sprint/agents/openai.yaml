@@ -1,0 +1,6 @@
+interface:
+  display_name: "Yulang Goal-driven Sprint"
+  short_description: "Advance a parent proof and an end-to-end implementation"
+  default_prompt: "Use $yulang-sprint to run bounded multi-stage proof and implementation, with proactive Astra core work and independent review."
+policy:
+  allow_implicit_invocation: true

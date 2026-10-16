@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "mode": "UNAVAILABLE",
+  "phase": "RECONCILE",
+  "session": null,
+  "active_sprint": null,
+  "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
+  "baseline": "7336f290da53dc39cfc5be18dd492820d1b7451c",
+  "scope": "Workflow-maintenance snapshot; no compiler or subagent execution authorized by this file.",
+  "workers": [],
+  "leases": [],
+  "worker_inventory_scope": "No workers launched in the editing environment. This is NOT an assertion that earlier session workers stopped or their leases are free.",
+  "legacy_reconciliation": {
+    "required": true,
+    "reason": "No live runtime worker/process/lease inventory is exposed in the editing environment.",
+    "history": "tasks/agent-loop/history/board-7336f290.md",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
+    "action": "The live Luna primary must reconcile old identities, descendants, output paths and the former board writer before activation. Unknown writers retain quarantined leases."
+  },
+  "pending": [
+    {
+      "id": "LIVE-ADOPTION",
+      "state": "BLOCKED",
+      "owner": "live Luna primary",
+      "needs": "Reread new entrypoints, reconcile legacy writers and dependencies, resolve and grant the candidate sprint."
+    },
+    {
+      "id": "INDEPENDENT-REVIEW",
+      "state": "NOT_RUN",
+      "owner": "fresh isolated spec_auditor",
+      "needs": "Review the frozen orchestration/tooling diff independently; deterministic tests are not that review."
+    }
+  ],
+  "next_action": "Reconcile in the actual Codex runtime; do not infer running agents or restart budgets from this seed.",
+  "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md"
+}

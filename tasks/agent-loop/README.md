@@ -1,107 +1,130 @@
-# Resident-loop TODO exchange
+# Sprint state and assignment handoff protocol
 
-Contract: [2026-10-16 workflow decision](../../notes/design/2026-10-16-resident-research-loop.md).
-This directory stores scheduling and handoff state, not theorem authority.
-`tasks/current.md`, governing sources and adjudicated proof records retain their
-meaning. A task request cannot close a proof or authorize new semantics.
+Authority: [goal-driven-sprints.md](../../rules/goal-driven-sprints.md).
+This directory records scheduling evidence, not language meaning or theorem
+status. The new primary-owned snapshot supersedes the old dispatcher-owned
+append-only board after an acknowledged live writer reconciliation.
 
-## Ownership
+## Read and write ownership
 
-Luna leases `board.md` exclusively to the resident `next_action_selector`.
-Only that dispatcher writes it until an acknowledged freeze/handoff. Luna reads
-frozen board revisions, sends receipts and owns all actual dispatch and Git.
+Read current.json, the selected sprint contract and exact needed source locators.
+Read historical task/proof records only when a claim/owner requires them. Luna
+owns current.json and Git. A dispatcher normally returns a proposed delta; one
+explicit recorder lease is possible, never concurrent central writers. board.md
+is a small navigation card. Old board/inbox history is preserved without loading
+it all on startup. The baseline manifest records byte-preserved Git blobs.
 
-Each producer packet receives a unique exact path such as
-`tasks/agent-loop/inbox/sessionA-impl-001.md` or
-`tasks/agent-loop/inbox/sessionA-proof-001.md`. These are format examples, not
-current leases or running workers. Allocate the actual session/packet ID before
-dispatch. Both roles may submit multiple TODOs in their own assigned file; no
-worker edits another inbox, and no wildcard write permission is implied. The
-one-file-per-packet pattern also works for bounded proof leaves when Luna has
-preallocated their exact inbox leases.
+An assignment gets exact artifact and one exact handoff/inbox file lease for its
+whole multi-stage envelope. No directory-wide/wildcard lease or one-file-per-lemma
+rule. Workers never write another inbox or the central state. Existing inboxes
+remain valid immutable evidence; no migration rewrites their contents.
 
-A producer freezes its submitted revision and sends IDs plus its SHA-256 hash to
-Luna; Luna forwards that immutable snapshot/locator to the dispatcher. Intake
-acknowledgement records each ID/hash and canonical task ID. Only then may the
-producer append a new revision; preserve previously acknowledged content. Intake
-is idempotent for an identical ID/hash. A changed hash needs a new revision and
-acknowledgement, not a silent replacement. A worker unable to write its inbox
-returns the same fields in a message for Luna to relay; only the dispatcher
-writes the central board. Never read a producer's half-written submission.
+## Frozen assignment handoff
 
-## TODO template (one block per request)
+Use this compact content in the one assigned file, or return equivalent fields
+in a message when file writes are unavailable:
 
 ```text
-Request-ID: <session-packet-sequence, stable and unique>
-Revision: <positive integer>
-From: <implementer|prover|next_action_selector; actual worker ID or unknown>
-To: <implementer|prover>
-Parent-gate: <original gate ID and exact authoritative locator>
-Baseline: <commit SHA plus hashes of relevant uncommitted/frozen inputs>
-Kind: <proof|implementation|source-evidence|review-request|decision-request>
-Claim/task: <concrete construction or original theorem with quantifiers>
-Missing-evidence: <first missing premise and why it matters>
-Owners: <actual constructor/consumer paths and symbols>
-Depends-on: <canonical task IDs or none; necessary vs optional>
-Scope: <approved scope, exclusions, any explicit provisional boundary>
-Acceptance: <observable artifact/evidence and falsifier; tests are not proofs>
-Proposed-outputs: <exact paths; proposals, not leases>
-Checks/resources: <verification owner, bounded commands/CPU/process/time>
-Prior-work: <exact previous implementation/proof/test locators; reuse/adapt/reject rationale>
-Priority-reason: <what this unblocks; next implementation benefit>
-Stop/escalate: <specific obstruction/budget and evidence needed for Astra>
+Sprint-ID / contract revision and SHA-256:
+Assignment-ID / handoff revision (positive integer):
+Parent gate / original theorem and scope locator:
+Baseline / direct dependency hashes:
+Role / actual worker ID / current session / launch or resume receipt:
+Requested model and effort / observed model and effort (UNKNOWN if absent):
+Exact leased paths / all authors and contributing descendants:
+Outcome class: candidate | conditional | proof | source-qualified-counterexample
+               | source-native-evidence | implementation | provisional | probe
+Parent application: what follows now; exact remaining premise and owner:
+Source constructors -> generated constraints -> propagation -> consumer/native path:
+Artifact locators and byte hashes / frozen review snapshot:
+Checks, coverage, omitted cases and resource budget spent/remaining:
+Next related step inside the existing envelope, or exact boundary needing Luna:
+Mutual TODOs: stable request IDs, original parent, first missing evidence,
+             source owner, required inputs, proposed outputs and falsifier:
+Worker state / writes stopped receipt / unresolved descendant leases:
+Commit-ready milestone or explicit pending review/integration:
 ```
 
-Deduplicate by original parent, scope/quantifiers, missing evidence and owning
-construction; retain request aliases and distinguish materially different claims.
-The dispatcher may originate tasks from inspected progress. Producers can request
-either role, but neither assigns work directly to the other.
+Freeze the submitted revision and send its ID/revision/SHA-256. Luna may
+acknowledge intake directly; no mandatory dispatcher round. Identical ID/revision/
+hash is idempotent. Changed content requires a new sequential revision after
+acknowledgement; a changed same-revision hash is a conflict. Keep prior frozen
+receipts or immutable snapshots. The offline model hashes canonical JSON fixture
+payloads; real Markdown/artifact receipts hash actual frozen bytes.
 
-## Board and transitions
+A TODO requests evidence; it is not permission to write another lane's files,
+spend more resources, alter semantics or close its parent. Cross-lane dependency
+changes return through Luna. Autonomous continuation means related in-scope work
+under existing exact leases, not autonomous ownership or authority expansion.
 
-Keep one compact current board: session/provenance, the three role states,
-canonical task rows, recent intake receipts and the latest action decision.
-Detailed derivations stay in existing research artifacts. Each task row includes
-ID, original gate/locator, target, state, real dependencies, frozen input/output
-locators, acceptance evidence and next action. Put long packet details in the
-linked frozen inbox or primary dispatch packet rather than growing a second log.
+## Separate task, worker, review and parent status
 
-Task states: PROPOSED -> READY -> ASSIGNED -> RUNNING -> REVIEW -> DONE.
-BLOCKED and CANCELLED are explicit alternatives; a justified task needing no
-review still needs Luna's integration/completion receipt before DONE. READY
-requires authority and established required inputs. ASSIGNED is a selected packet
-with no confirmed execution yet. RUNNING requires a real launch/resume receipt
-for that packet, not merely a retained worker ID. REVIEW means the producer froze
-its artifact, not that a reviewer has passed it. DONE records the required
-independent review and Luna integration receipt, never a producer's self-report.
-Parent theorem/source/implementation/production gates stay separate.
+Tasks may be PROPOSED/READY/ASSIGNED/RUNNING/RESULT/REVIEW/DONE, with explicit
+BLOCKED/CANCELLED/FAILED/STALE alternatives. A multi-stage RESULT is not DONE.
+Worker observations are NOT_STARTED/RUNNING/WAITING/BLOCKED/STOPPED/UNKNOWN.
+A resident idle identity is WAITING. RUNNING requires a current-session actual
+launch/resume and active-work receipt, not a configured role or old worker ID.
+Known routing mismatch keeps the real returned identity and quarantined lease;
+it is not a nonexistent launch and cannot justify overlapping replacement.
 
-Worker states: NOT-STARTED, RUNNING, WAITING, BLOCKED, STOPPED, UNKNOWN.
-A worker may stay resident in WAITING after its packet returns. Record requested
-and observed model/effort separately; unreported actual settings are unknown.
-A restart requires runtime reconciliation, not copying old RUNNING states.
+A REVIEW target is frozen, not approved. DONE requires the necessary fresh
+independent review plus Luna's integration receipt. Mathematical, source/native,
+implementation and production parents are separate and never auto-close from
+packet completion, test counts or a conditional lemma. REFUTED is distinct from
+PROVED and cannot satisfy a production prerequisite; revoking a proved premise
+invalidates its dependent work and reviews, not unrelated lanes. A coauthor or a worker
+that supplied the proof's counterexample/repair cannot independently review it.
 
-Each new substantive packet includes bounded relevant historical evidence and
-exact reasons to reuse/adapt/reject it. Implementation packets target the pinned
-Luna/high implementer; a separate bounded Astra role requires primary-authorized
-handoff. No Sol implementation fallback is valid. The dispatcher may recommend
-primary-owned Git hygiene, but must preserve pending questions/unknown paths.
+Lease states are HELD, FROZEN or QUARANTINED. A frozen artifact cannot change under
+a review of those bytes. A stopped-writing receipt permits a primary-directed
+handoff only after all descendants and generated outputs are accounted for.
+An unknown writer retains its paths and resource reservation. Timeouts, a new
+board, STOP or session end do not themselves prove cessation.
 
-No implementation task is categorically blocked merely because N1/primitive
-image, full Call or global principality remains open. After two research-only
-checkpoints with idle implementation, the dispatcher must inspect at least two
-distinct approved code owners and supply a source-path/test-bound Luna/high
-implementation or ordinary approved-behavior verification packet. Otherwise
-record NO_SAFE_CODE_SLICE with actual per-owner blockers before more optional
-research. Focused new regressions expressing an existing contract are not new
-semantic decisions; changing existing expected output is protected.
-Primary Luna may execute an independent code-ready packet directly when an old
-Sol-requested worker is waiting without a lease. See
-[implementation-first dispatch](../../notes/design/2026-10-16-implementation-first-dispatch.md).
+## STOP, restart and compact history
 
-Every decision considers both lanes. Ready authorized implementation plus an idle
-implementer must produce an implementation packet; ready independent proof runs
-alongside it. A genuine dependency cycle gets a minimal evidence/construction
-route or exact blocker, not indefinite mutual waiting. Freeze the board and all
-included artifacts for Luna's coherent checkpoint; pending question bundles and
-unrelated files remain excluded.
+STOP is immediate and independent of dispatcher availability. Use actual runtime
+cancellation tools when supported. Clear stale RUNNING observations on pause/end;
+without write-cessation evidence record UNKNOWN and quarantine leases, not
+STOPPED. Preserve actual worker IDs, model observations, pending reviews,
+authorship, spent budget and exact resumption conditions.
+
+Resume with fresh session/active-work receipts and revalidated dependencies.
+Do not reset spent sprint/Astra budgets, resurrect old RUNNING states or take
+unknown leases. Reconcile legacy workers before activating this migration seed.
+No live tool support means explicit degraded serial work, not a fictional team.
+
+Keep current.json <=16 KiB with at most 32 pending items. At a substantial
+milestone freeze a uniquely named outcome receipt, verify its content hash and
+history locator, then remove only resolved entries from current state. Never
+remove active/unknown leases, pending reviews or unconsumed results to shrink it.
+Stop admissions if they cannot fit. The archive records original goals, before/
+after evidence, remaining premises, substantive implementation behavior, review,
+checks, Git outcome and limitations. Avoid duplicate micro-progress narratives
+in tasks/current.md, tasks/research-lab.md and the historical board.
+
+## Offline verification and its boundary
+
+```sh
+python tools/agent_sprint.py check
+python -m unittest discover -s tools -p 'test_agent_sprint.py'
+python tools/agent_sprint.py simulate
+```
+
+No command spawns a worker, writes repository state, runs a compiler or contacts
+a network. `check --inventory FILE` explicitly supports a connector-only partial
+snapshot: unchanged roles listed there receive existence/SHA-inventory checks,
+not local parsing; the output identifies that limitation. Use plain `check` in
+a full checkout. Simulated IDs and receipts are test fixtures, not live evidence.
+The model is not a full scheduler, runtime authenticator, OS lease enforcer,
+mathematical checker or independent reviewer. The live primary still owns those
+judgments and must reconcile actual acknowledgements before any action.
+
+## One-time migration review gate
+
+The checked-in migration snapshot records INDEPENDENT-REVIEW as NOT_RUN.
+Before live adoption of this policy/tooling revision, Luna must obtain a fresh
+isolated review of the frozen diff, adjudicate findings and record its receipt.
+Keep the snapshot in RECONCILE until both that review and legacy-worker/lease
+reconciliation finish. Static tests and the editing primary's reread do not lift
+this gate. This is one adoption boundary, not a new per-step review ritual.

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "sprint_id": "call-contextual-effects-candidate",
+  "status": "CANDIDATE",
+  "branch": "research/simple-sub-intrusion",
+  "inspected_baseline": "7336f290da53dc39cfc5be18dd492820d1b7451c",
+  "goal": "Establish original Call/contextual-effects source/native correspondence and advance the independently justified implementation path.",
+  "authority": "notes/design/2026-10-16-goal-driven-sprints.md authorizes orchestration only; pin the original semantic/theorem sources before activation.",
+  "original_obligations": [
+    "F1 finite Image/frame action in its original scope",
+    "FK1 opaque foreign-continuation quantifier (distinct from F1)",
+    "FIRST-RESULT-ADEQUACY in its original source/native scope"
+  ],
+  "original_status": "UNRESOLVED_INPUT: this candidate does not adjudicate historical theorem status.",
+  "non_goals": [
+    "No new language semantics or narrower source domain",
+    "No production inference change depending on an open A/B premise",
+    "No theorem promotion from tests or conditional notes"
+  ],
+  "lanes": {
+    "proof": {
+      "preferred_core_role": "astra_prover",
+      "complementary_role": "prover or researcher (Sol/high)",
+      "stages": [
+        "Pin original statements, source constructors and previously rejected constructions.",
+        "Construct the required finite Image/frame actions; preserve FK1 as a distinct case.",
+        "Check source/native obligations and adversarial counterexamples with exact shared premises.",
+        "Apply each established result to the parent and produce a coherent conclusion or precise reduced premise."
+      ],
+      "review": "Fresh isolated compiler_referee, not Astra author or Sol contributor."
+    },
+    "implementation": {
+      "role": "implementer",
+      "model_floor": "gpt-6-luna/high",
+      "stages": [
+        "Identify the largest safe source-to-execution slice under already approved semantics.",
+        "Trace and complete its actual constraint-generation/propagation/consumer path.",
+        "Run focused end-to-end verification for the established contract.",
+        "Freeze a substantial reviewed milestone; keep dependent unproved production cutover OPEN."
+      ],
+      "fallback": "Owner-specific NO_SAFE_CODE_SLICE after bounded inspection of at least two relevant approved owners; minimal provisional evidence only when authorized."
+    }
+  },
+  "resources": {
+    "agent_assignments": 6,
+    "global_ceiling": 12,
+    "reserved_review_slots": 2,
+    "astra_concurrent": 1,
+    "astra_assignments": 2,
+    "astra_stages_per_assignment": 8,
+    "astra_active_seconds_per_assignment": 1800,
+    "sprint_active_seconds": 7200,
+    "lightweight_probes": 4,
+    "heavy_builds": 1,
+    "probe_cpu": 1,
+    "probe_ram_mib": 1024,
+    "probe_seconds": 120
+  },
+  "unresolved_before_activation": [
+    "Exact original theorem statements/quantifiers and authoritative source locators with hashes",
+    "Live baseline/dependency and previous failed-route reconciliation",
+    "Concrete approved implementation owner symbols and source-to-execution acceptance cases",
+    "Exact exclusive file/handoff leases and actual worker/runtime capacity",
+    "Luna grant, independent review seam and verified resource availability"
+  ],
+  "leases": [],
+  "workers": [],
+  "activation": "Not executable until all unresolved inputs are pinned by the live Luna primary; no model or worker execution is claimed."
+}

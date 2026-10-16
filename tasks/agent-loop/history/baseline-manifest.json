@@ -1,0 +1,25 @@
+{
+  "source_commit": "7336f290da53dc39cfc5be18dd492820d1b7451c",
+  "archives": {
+    "AGENTS.pre-sprint.md": {
+      "source": "AGENTS.md",
+      "git_blob": "629ebaaaa6d7a7ead83df5d3039baad798341aa1"
+    },
+    "rules/agent-orchestration.pre-sprint.md": {
+      "source": "rules/agent-orchestration.md",
+      "git_blob": "9d7ab10a51cf5ed5e8b325305c6578fb3f04cd31"
+    },
+    "rules/research-lab.pre-sprint.md": {
+      "source": "rules/research-lab.md",
+      "git_blob": "c5d07e0091b48c103a7f27234c8dbc940a1373d0"
+    },
+    "rules/orchestration-budget.pre-sprint.md": {
+      "source": "rules/orchestration-budget.md",
+      "git_blob": "5f3378484e977b892d3f05ac6815f58596c4cf6d"
+    },
+    "tasks/agent-loop/history/board-7336f290.md": {
+      "source": "tasks/agent-loop/board.md",
+      "git_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+    }
+  }
+}

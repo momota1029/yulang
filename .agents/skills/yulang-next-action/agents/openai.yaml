@@ -1,6 +1,6 @@
 interface:
-  display_name: "Yulang Task Dispatch"
-  short_description: "Route the next proof and implementation work together"
-  default_prompt: "Use $yulang-next-action to consult the resident dispatcher on Luna's next action and both producer lanes, routing mutual TODOs from current evidence."
+  display_name: "Yulang Sprint Dispatch"
+  short_description: "Manage sprint goals, dependencies and resources"
+  default_prompt: "Use $yulang-next-action at a material sprint boundary to coordinate both lanes without per-lemma replanning."
 policy:
   allow_implicit_invocation: true

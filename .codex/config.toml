@@ -4,18 +4,19 @@ model_reasoning_effort = "high"
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 12
-# The proof/dispatcher roles inherit Sol/high; implementer explicitly pins
-# Luna/high and the optional implementation escalation pins Astra/low.
+# Sprint resources are stricter than this ceiling; all descendants count.
+# Implementer pins Luna/high; astra_prover pins Astra with explicit packet effort.
 default_subagent_model = "gpt-6.1-sol"
 default_subagent_reasoning_effort = "high"
 interrupt_message = true
 
 [agents.prover]
 config_file = "agents/prover.toml"
-description = "Resident constructive proof lane; submits implementation TODOs and returns exact proof evidence to the dispatcher."
+description = "Multi-stage constructive proof and source/native work inside a fixed sprint envelope; normally Sol/high."
 
-# Retain explicit registrations for clients using this format. Newer clients
-# also discover standalone role files; verify actual live role availability.
+[agents.astra_prover]
+config_file = "agents/astra-prover.toml"
+description = "Proactive bounded Astra core proof assignment spanning related lemmas, constructions and source/native bridges; no production rights."
 
 [agents.architect]
 config_file = "agents/architect.toml"
@@ -31,11 +32,11 @@ description = "Write-enabled public-documentation specialist for web/docs, READM
 
 [agents.implementer]
 config_file = "agents/implementer.toml"
-description = "Luna/high implementation lane; advances approved compiler slices and submits exact proof TODOs."
+description = "Luna/high implementation lane; completes approved end-to-end paths through multi-step sprint assignments."
 
 [agents.implementation_escalation]
 config_file = "agents/implementation-escalation.toml"
-description = "One-off Astra/low implementation escalation after explicit Luna lease handoff; not resident."
+description = "Bounded Astra implementation escalation after explicit Luna lease handoff; shares the sprint-wide Astra quota."
 
 [agents.performance_auditor]
 config_file = "agents/performance-auditor.toml"
@@ -55,11 +56,11 @@ description = "Read-only exact-conformance auditor for Authoritative designs, la
 
 [agents.task_decomposer]
 config_file = "agents/task-decomposer.toml"
-description = "Read-only dependency-aware decomposition into concrete proof, falsification, source-correspondence and implementation packets without taking primary coordination."
+description = "Read-only dependency-aware decomposition of a fixed sprint when needed; not a mandatory per-result planning step."
 
 [agents.next_action_selector]
 config_file = "agents/next-action-selector.toml"
-description = "Resident task dispatcher consulted by Luna at every action boundary; routes mutual TODOs and keeps safe implementation and proof lanes supplied."
+description = "Lightweight sprint dispatcher at material boundaries; proposes goals, dependencies, resource envelopes and both lane plans."
 
 [agents.theory_curator]
 config_file = "agents/theory-curator.toml"

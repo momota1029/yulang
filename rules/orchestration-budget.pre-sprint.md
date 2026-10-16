@@ -1,0 +1,228 @@
+# Orchestration budget and operating modes
+
+This file controls default reviewer activation, reviewer count, review
+convergence, delta-review scope, verification/measurement budgets, and progress-record
+ownership. Role responsibilities remain in `rules/agent-orchestration.md`.
+
+When an older routing table says several reviewers are mandatory, read it as a
+list of eligible risk specialists subject to this budget. A user-approved
+Authoritative design still controls behavior; this file controls how much
+process is needed to implement and verify it.
+
+## Default principle
+
+Use the lightest mode that covers the concrete changed risks. The existence of
+an agent role is not a reason to invoke it. Uncertainty must be tied to a named
+semantic, conformance, regression, performance, or public-surface risk before
+it raises the mode.
+
+## Research concurrency is a separate budget
+
+The user-directed small-laboratory policy is in [`research-lab.md`](research-lab.md).
+Independent research producers and experiments are not reviewers. The limits
+below govern review of one coherent artifact/repair dependency component, not
+all useful work in a multi-gate goal. Keep one writer/repair pass per leased
+file set; other independent file sets may progress concurrently under
+[`git-concurrency.md`](git-concurrency.md). Do not divide one inseparable change
+into artificial artifacts to bypass its review budget.
+
+Launch independent work once two useful packets are ready; sustained research
+normally targets four to six active assignments, bounded by runtime and compute
+capacity. A critical open gate should normally receive different proof,
+falsification, and source/implementation-conformance attacks before another
+serial round of similar probes. This does not require a larger review panel,
+more expensive models, or parallel heavyweight builds.
+
+`task_decomposer` supplies a bounded ready-packet proposal only when needed;
+it is not a reviewer or an automatic planning stage. `prover` construction and
+all leaves of a proof coordinator consume the same research budget, not a new
+quota. Use the bounded delegation rules in `agent-orchestration.md`.
+
+## Operating modes
+
+### M0 — mechanical / records
+
+Examples:
+
+- formatting, typo, link, index, metadata, commit locator;
+- progress/status updates;
+- a fully specified move or rename with no behavioral effect;
+- local repository-policy wording with no runtime consequence.
+
+Budget:
+
+- primary or one producer pass;
+- deterministic checks only;
+- zero reviewers by default, at most one when scope or reference integrity is
+  uncertain;
+- no architect and no repeat review without an accepted `BLOCKING` or `major`
+  finding; reclassify work if a new risk expands M0 scope.
+
+### M1 — local implementation
+
+Examples:
+
+- one-responsibility bug fix with already known intended behavior;
+- an implementation slice of an existing Authoritative gate;
+- a local refactor with bounded call sites;
+- a focused test addition without changing the contract.
+
+Budget:
+
+- one `implementer` pass per repair round;
+- one relevant reviewer;
+- one batched repair pass at a time;
+- a second reviewer only when the diff changes two genuinely independent risk
+  domains.
+
+Typical reviewer choice:
+
+- exact design conformance: `spec_auditor`;
+- semantic/root-cause correctness: `compiler_referee`;
+- sibling/public/test surface: `regression_auditor`;
+- material hot-path/resource effect: `performance_auditor`.
+
+### M2 — contract or cross-layer change
+
+Examples:
+
+- a change crossing parser/HIR/types/core boundaries;
+- public API or test-contract change;
+- a new cache/invalidation rule;
+- a broad module split or shared infrastructure extraction;
+- a behavioral change with several sibling entrypoints.
+
+Budget:
+
+- `architect` only when the decision is not already resolved;
+- one `implementer` pass per repair round;
+- at most two reviewers in one round.
+
+Choose the two reviewers that cover the changed risks. Do not add a third merely
+for reassurance.
+
+### M3 — critical certification
+
+Examples:
+
+- new language semantics or public grammar;
+- type soundness, ownership, effect, recovery, or IR invariants with broad
+  consequence;
+- security/authority boundaries;
+- persistence or migration correctness;
+- release/final-gate certification explicitly requested by the user.
+
+Budget:
+
+- reviewed design and user approval when a new decision exists;
+- one `implementer` pass per repair round;
+- at most three reviewers per round.
+
+Continue review and batched repair while the latest required review has an
+accepted `BLOCKING` or `major` finding and each round makes concrete progress.
+Return to the design or user decision only when a finding exposes missing
+authority or a missing decision, a semantic contradiction, a false premise, a
+required scope expansion, or a repair round that makes no material progress.
+Do not add reviewers or measurements merely for reassurance.
+
+## Routing reinterpretation
+
+The active matrix in `rules/agent-orchestration.md` is narrowed as follows.
+
+- **Existing Authoritative gate:** normally use `spec_auditor` *or*
+  `regression_auditor`, not both. Add the second only when exact conformance and
+  sibling/public behavior are both materially exposed.
+- **Pure refactor/module split:** normally use `regression_auditor`.
+  `spec_auditor` is added only when an Authoritative plan specifies an exact
+  topology or zero-change contract that cannot be checked by regression review
+  alone.
+- **Bug fix:** use `compiler_referee` when semantics, ownership, or root cause is
+  the risk; use `regression_auditor` when the cause is established and the risk
+  is sibling coverage. Use both only for cross-layer or public behavior.
+- **Parser/HIR/type/core work:** three reviewers are reserved for a new public
+  contract or M3 invariant. An ordinary implementation gate remains M1 or M2.
+- **Performance:** incidental local allocations, branches, or traversals require
+  the producer to account for cost, but do not automatically invoke
+  `performance_auditor`. The auditor is mandatory only under the risk trigger in
+  `rules/performance.md`.
+- **Expected output:** pre-write `spec_auditor` remains mandatory. Post-write,
+  use one relevant closure reviewer unless the approved contract change is M2
+  or M3.
+- **Internal progress records:** the primary owns synchronization under M0.
+  A `theory_curator` may own explicitly leased theory-map files and report
+  status/dependency changes; the primary adjudicates and integrates them.
+  Do not invoke `docs_writer`, a review panel, or broad tests for bookkeeping.
+  Do not block another research lane while a record-only update completes.
+
+## Delta review
+
+Fresh reviewer identity does not imply a fresh whole-repository audit.
+
+After a repair, review:
+
+- the accepted finding;
+- changed lines;
+- direct call sites and dependency cone;
+- affected tests, diagnostics, fixtures, or public exports.
+
+Carry forward previously clean areas with no dependency edge from the new diff.
+Expand to whole-artifact review only for global architecture, public contract,
+shared dispatch, soundness, or release certification.
+
+Every reviewer reports closure scope and uninspected scope. This makes a narrow
+review honest without paying for a complete reread.
+
+## Finding batching and convergence control
+
+- For the same frozen artifact, wait for its assigned reviewers, adjudicate
+  their findings, then send one repair bundle to one fresh producer. Use
+  `implementer` for confirmed code, `prover` for proof artifacts, and
+  `researcher` for complementary research experiments/source evidence.
+  This barrier is artifact-local: do not wait for unrelated lanes, experiments,
+  or reviews before starting their next safe work or integrating a ready slice.
+- Do not start one implementer session per finding.
+- Minor findings may be closed with a reason.
+- A minor-only textual/test-comment repair that changes no semantics can close
+  with primary diff inspection and focused deterministic checks.
+- Start another repair round only for an accepted `BLOCKING` or `major`
+  finding. Adjudicate a newly exposed concrete risk before it can trigger a
+  repair round.
+- Keep using delta review for the accepted finding, changed lines, and direct
+  dependency cone. Do not restart a whole-artifact review without a global
+  architecture, public-contract, soundness, or release-certification reason.
+- Continue only while each round closes or materially narrows concrete
+  findings. A repair round that makes no material progress requires root-cause
+  or design reconsideration, not another repair round.
+- Reviewer-count limits remain active. Adding a reviewer beyond the selected
+  mode requires a written statement of the independent risk the reviewer can
+  resolve.
+
+## Verification budget
+
+- Run focused checks per gate.
+- Run workspace-wide or otherwise broad checks once at the coherent phase/final
+  boundary, not after every small gate, unless shared infrastructure changed in
+  a way that specifically requires it.
+- Do not rerun an unchanged expensive suite after record-only or comment-only
+  updates.
+- `rules/testing.md` controls command safety; `rules/performance.md` controls
+  measurement counts and runtime budgets.
+
+## Progress-record ownership
+
+The primary agent owns repository-state synchronization. Before calling a
+coherent gate or task complete, it updates as applicable:
+
+- `tasks/current.md`: current objective, completed/active gate, immediate next
+  action, blockers, and known residuals;
+- `notes/progress/`: durable completion history for a phase or substantial
+  investigation;
+- the governing design record or design index when implementation status,
+  approval, or supersession changed;
+- review/finding records when the task has one.
+
+The producer should report the proposed record delta. The primary may delegate
+an explicitly leased record set to `theory_curator`, but must adjudicate status
+changes and ensure the files are actually synchronized. Record updates are M0 and do not trigger a
+new code-review panel or broad verification. If synchronization is intentionally
+deferred, the final report names the exact path and reason.
