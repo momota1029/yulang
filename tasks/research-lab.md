@@ -509,22 +509,32 @@ The concrete prefix proves no outer-U receipt of any genuinely fresh B view
 before the first request. Inherited profiles, full initial visibility,
 normal/default discharge, Covers/OpCompat and Catch remain OPEN. No
 hole-dependent carrier is assumed closed prematurely.
-The first-call annotation/receiving profile is now a distinct 18-minute
-`function_result_projection` prover packet at baseline `9394ef04e`, sole lease
-`notes/theory/2026-10-16-known-function-first-call-profile-construction.md`.
-The architect identifies an authorized missing constructor under existing
-definition permission: authentic complete invocation position/first use,
-receiver-relative default and original permission operands, with no provider
-backflow, fabricated directional seed, nested-path collapse or empty profile.
-Mathematical/source review precedes any selection. The full profile parent stays OPEN.
+The 18-minute `function_result_projection` packet is now frozen at
+`notes/theory/2026-10-16-known-function-first-call-profile-construction.md`,
+producer `5fd4f6e4...0120e9`, with CLEAN independent mathematical/source review.
+The [bounded constructor](../notes/design/2026-10-16-known-function-first-call-profile.md)
+is selected under existing definition permission. It emits the authentic outer
+complete-invocation component and first-use Name/Call correspondence, then uses
+the original Value-entry result/rebind path at actual receipt. It fabricates
+no directional seed, provider backflow, nested permission or empty full profile.
+Apply this result only to that first-call component; complete inventory,
+second-use, d0/Catch and native/runtime parents remain OPEN.
 The complementary full installed-support census produced no new artifact.
 Current Remaining's actual map eliminates its direct free-q path. The next
 owner is historical WholeContext: actual receive producer declaration AND
 original outer checked-view/Name-use map. The outer ReadInvoke view is not
 automatically receive's producer type. Historical maps cannot inherit the
 current Remaining substitution; no surviving free-q path or entire no-free
-theorem is authenticated. A bounded architect source-owner packet investigates
-that existing constructor. No solve-at-generation premise is introduced.
+theorem is authenticated. The architect identified the actual source formation
+owner, not a new R_whole meaning. `ordinary_carrier_proof` now owns a 20-minute
+packet at `86733d315`, sole lease
+`notes/theory/2026-10-16-choose-whole-context-reference-construction.md`,
+constructing receive's complete producer, independently formed outer checked
+view/check/Q/IF and actual original reference/use maps. Formation retains
+pending profile/check obligations and introduces no solve-at-generation gate.
+A complementary eight-minute initial-protection inventory audit examines the
+fresh original world, inherited profiles and other live prefix receivers;
+it may not replace missing source-world/primitive evidence with emptiness.
 M2 two reviewers on the frozen context artifact, 16 dependency pins and local
 integrity only; zero tests/builds/probes or benchmark samples/processes.
 Profile/native/runtime parents remain distinct OPEN gates.

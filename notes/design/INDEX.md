@@ -148,6 +148,11 @@ This index is a navigation aid. The listed source document remains authoritative
   fresh-boundary/no-outside-receipt result. Actual AnnotationProfile for the
   explicitly annotated Function formal is the first missing supplier;
   inherited profiles, admitted d0, full selection/OpCompat and Catch stay OPEN.
+  The [selected first-call profile constructor](2026-10-16-known-function-first-call-profile.md)
+  and [reviewed construction](../theory/2026-10-16-known-function-first-call-profile-construction.md)
+  now supply its outer complete-invocation component, first Name/Call
+  applicability and Value-entry result-path introduction. The full profile
+  inventory and concrete context/Catch/native parents remain OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

@@ -435,14 +435,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   no receipt of the freshly forked B view before the first request, conditional
   on a genuine fresh B; inherited profiles remain separate obligations.
   Full d0, initial visibility, normal/default discharge, Covers/OpCompat and
-  Catch remain OPEN. An architect identifies a legitimate missing first-call
-  annotation/receiving constructor under existing definition permission;
-  a disjoint prover packet is constructing it before independent review.
+  Catch remain OPEN. The [selected first-call profile constructor](../notes/design/2026-10-16-known-function-first-call-profile.md)
+  now has CLEAN mathematical/source review of its [actual construction](../notes/theory/2026-10-16-known-function-first-call-profile-construction.md).
+  It supplies the explicit formal's outer complete-invocation component and
+  actual first-use Name/Call applicability, including Value-entry result-path
+  introduction. The omitted outer row grants no concrete permission; nested
+  Ctrl, inherited packets and provider lowers retain their original paths.
+  This discharges that bounded missing component, not the whole profile
+  inventory, admitted d0, second-use or Catch/native parents.
   The complementary installed-support census resolves the current Remaining
   reference through its actual term map. Entire Mono(k) FIX still needs the
   HISTORICAL WholeContext root/use tuple: both receive's complete producer
   and the outer checked Function view, with their original historical maps.
   Neither result permits copying Remaining's current map onto saved evidence.
+  A separate source-formation prover packet now constructs that actual finite
+  producer/check/root/use tuple while retaining all open constraints.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,
