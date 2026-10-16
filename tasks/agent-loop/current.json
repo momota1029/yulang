@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
     "revision": 1,
     "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ACTIVE-PROOF-RESUMING-REV1",
+    "state": "ACTIVE-PROOF-FREEZING",
     "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
     "dispatcher": "At material dependency boundary, next_action_selector selected no rev2; freeze the exact missing original declaration under current rev1 pins. Two provenance locators are unconsumed; they do not provide the requested supplier.",
     "proof": {
-      "state": "WAITING-RESUME-REV1",
+      "state": "RUNNING-FREEZING",
       "assignment": "assignment-choose-phase-declaration-qualification",
       "outputs": [
         "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
@@ -26,7 +26,7 @@
       "charge_seconds_cap": 900,
       "contract_revision": 1,
       "contract_sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-      "receipt": "At exact missing-supplier boundary, author paused reads/writes pending Luna/dispatcher dependency decision. Dispatcher selected freeze under rev1 only; author may resume within 38 pinned inputs to record that the actual choose clause/address/Request-gluing law is not instantiated by supplied inputs. Not a global nonexistence claim. Conservative charge so far 240/900s; 660s remain.",
+      "receipt": "Author resumed under unchanged rev1 after dispatcher decision; all 38 pins rechecked. At stage 6/6, artifact frozen locally at SHA-256 cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478; sole handoff pending. Conservative total charge 360/900s; no new dependency reads or descendants.",
       "runtime_receipt": "Explicit spawn returned /root/choose_phase_qualification; live message reports active leaf, no descendants. Session ID UNKNOWN."
     },
     "implementation": {
@@ -102,13 +102,13 @@
     {
       "id": "/root/choose_phase_qualification",
       "role": "astra_prover",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Writes/reads paused at material dependency boundary; dispatcher selected exact obstruction under rev1. Resume authorized only within current 38 pins; 240/900s conservatively charged; no descendants."
+      "receipt": "Resumed rev1, rechecked all 38 pins; stage 6/6 artifact written and hashing; handoff/stop receipt pending. 360/900s conservative charge."
     }
   ],
   "leases": [
@@ -129,7 +129,7 @@
       "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; one proof author RUNNING on exact leases; implementation deferred until proof cessation; two assignment slots reserved for review/integration.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; one proof author RUNNING at freeze stage on exact leases; implementation deferred until confirmed STOP; two slots reserved.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -167,7 +167,7 @@
       "needs": "Review frozen D_tail qualification only in its exact scope."
     }
   ],
-  "next_action": "Proof author may resume under rev1 to freeze the exact missing supplier result; implementation remains deferred until proof writer STOP.",
+  "next_action": "Proof author is freezing the artifact and handoff; wait for confirmed write cessation, then review scheduling/capacity and open implementation source-root lane.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -193,8 +193,8 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof conservatively 240/900 so far; exact active sampling time UNKNOWN; 660s remain; implementation/review not started",
-    "status": "Proof author WAITING at dependency boundary; Luna/selector did not expand contract. Resume is authorized within existing pins only.",
+    "spent_seconds": "proof conservatively 360/900; exact active sampling time UNKNOWN; 540s remain; implementation/review not started",
+    "status": "Proof author RUNNING at stage 6/6 freeze under unchanged rev1; no additional dependencies or evidence scope.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
   "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
