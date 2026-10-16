@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
     "revision": 1,
     "sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
-    "state": "IMPLEMENTATION-RUNNING-PROOF-WAITING",
+    "state": "IMPLEMENTATION-RUNNING-PROOF-STOPPED-AT-DEPENDENCY",
     "previous_sprint": "source-constructor-instantiation-and-export-cut-20261017 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-17-source-constructor-export-cut-review.md",
     "dispatcher": "Sprint-end proposal accepted with explicit source-authentication boundary; original F1 ForwardHandler case plus a newly materialized, non-historical source fixture/harness.",
     "proof": {
-      "state": "WAITING-DEPENDENCY-BOUNDARY",
+      "state": "STOPPED-PENDING-PROOF-DEPENDENCY-REV2",
       "assignment": "assignment-forward-handler-finite-action-20261017",
       "outputs": [
         "notes/theory/2026-10-17-forward-handler-finite-action.md",
@@ -28,10 +28,12 @@
       "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
       "worker_id": "/root/forward_handler_finite_action",
       "runtime_receipt": "Current-task acknowledgement accepted exact contract/leases/cap; all 27 pins verified; active work began after reads. Session ID UNKNOWN.",
-      "receipt": "No writes. Read only current 27 pins; exact ForwardHandler entry/exit/value-arm text is in pinned typed-source owner, but finite selector/image and typed current-configuration maps need P2 and interaction-graph r2 not direct-pinned. Conservative charge <=180/900s; waiting for Luna dependency adjudication.",
+      "receipt": "Stopped before writes; both leased outputs absent; no descendants/processes. All 27 rev1 pins matched; two unpinned F1 action/map inputs identified and held for Luna revision. Two stages; conservative charge 180/900s; 720s remains, no reset/transfer. Resume only after implementation STOP, rev2 freeze and fresh acknowledgement.",
       "additional_dependencies_pending": {
         "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b",
-        "notes/design/2026-10-16-primitive-interaction-graph-proposal-r2.md": "a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e"
+        "notes/design/2026-10-16-primitive-interaction-graph-proposal-r2.md": "a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e",
+        "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+        "notes/theory/2026-10-16-primitive-interaction-graph-a2-r2-withdrawal.md": "f963405835082252abbbc54381bf08fdb6a760cf508ae34416d7960fe0a2e729"
       }
     },
     "implementation": {
@@ -51,7 +53,7 @@
       "contract_revision": 1,
       "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
       "worker_id": "/root/receive_choose_source_authentication",
-      "runtime_receipt": "Current-task acknowledgement accepted exact contract/leases/cap before writes; 27 pins to verify before writes; no tests/builds/Cargo/Git/network/scratch/descendants. Session/model/effort UNKNOWN."
+      "runtime_receipt": "Implementation lane remains authorized under unchanged rev1, all 27 pins, exact three leases and 600s cap; proof-only dependency proposal does not alter this lane."
     },
     "review": {
       "state": "NOT-STARTED",
@@ -62,7 +64,7 @@
     "prior_sprint_receipt_sha256": "74c17d790575bdf2e66e45a72c6e5a53779d9382ef95468f28c3570d9a568a01",
     "runtime_session": "UNKNOWN",
     "runtime_note": "Both current workers acknowledged exact packets; host session identifiers are not exposed. No model/effort inferred from requested role.",
-    "dependency_boundary": "next_action_selector consulted for a material dependency delta; proof author has no permission to rely on the two new files until Luna freezes a versioned contract or stops the lane."
+    "dependency_boundary": "Selector recommends proof-only dependency delta; do not mutate rev1 while the disjoint implementation author is still active. Resume same proof assignment only after implementation STOP and rev2 author ack."
   },
   "candidate": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
   "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
@@ -104,13 +106,13 @@
     {
       "id": "/root/forward_handler_finite_action",
       "role": "astra_prover",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Current pinned-source audit complete, no writes ever. <=180/900s conservatively charged. P2 and primitive interaction-graph r2 are not direct-pinned; exact dependency delta sent to dispatcher. Waiting for Luna."
+      "receipt": "STOPPED on Luna instruction; exact outputs absent; no writes/descendants/processes; 27/27 rev1 pins; two-stage audit, 180/900s charge, 720 remaining; no budget reset or transfer."
     },
     {
       "id": "/root/receive_choose_source_authentication",
@@ -184,9 +186,9 @@
     }
   ],
   "next_action": {
-    "state": "DEPENDENCY-DELTA-CONSULT-RUNNING",
+    "state": "REV2-DELTA-RECOMMENDED-DEFERRED",
     "selector": "/root/next_action_selector",
-    "proposal": "Proof lane requests two exact new F1 action/map dependencies; implementation lane continues independently on unchanged pins."
+    "proposal": "Add two F1 action/map source pins, common allowance operators, and A2 withdrawal guard to proof lane only. Keep implementation rev1 unchanged; do not mutate contract until implementation STOP."
   },
   "adoption_review": {
     "original_findings": [
@@ -211,9 +213,9 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Proof <=180/900s conservative audit, then WAITING; implementation active within 600s (not yet separately metered); no transfers.",
-    "status": "Implementation continues on its frozen 27 pins. Proof author WAITING with no writes at an exact dependency boundary; three UNKNOWN reservations unchanged.",
-    "sequencing": "Proof and implementation may run in parallel on disjoint exact leases. Both STOP before sequential independent reviews. One primary-owned cargo run max 120s only after freeze; no tests."
+    "spent_seconds": "Proof stopped at 180/900s before writes; implementation continues under unchanged rev1 (active charge pending); no transfers.",
+    "status": "Implementation RUNNING; proof STOPPED pending proof-only rev2 dependencies. Three UNKNOWN reservations unchanged. Reviewer/integration capacity preserved.",
+    "sequencing": "Implementation retains rev1 immutable assignment. After its STOP, Luna may freeze proof-only dependency rev2 and resume the same proof assignment with cumulative 180s charge and fresh acknowledgement; then sequential reviews."
   },
   "integration_outcome": "Proof artifact and handoff frozen under rev1 with exact SHA pins in rev2; conditional only and not semantically adopted.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
