@@ -64,13 +64,13 @@
    "review_receipt": "compiler_referee CLEAN within proposal scope; spec_auditor pending."
   },
   "review": {
-   "state": "CATCH-SPEC-REVIEW-PENDING",
+   "state": "CATCH-SPEC-REVIEW-RUNNING",
    "assignment": "CATCH-PROPOSAL-INDEPENDENT-REVIEW-20261017",
    "reviewers": [
     "compiler_referee",
     "spec_auditor"
    ],
-   "receipt": "Fresh compiler_referee review CLEAN for proposal scope only. Frozen target cd99aa19cfd301d0ad9f2396c6ef810fc0244f3f08e877ac3f8ce92dd307ba24, contract rev2 and all 15 applicable pins verified; parent gates remain OPEN. Full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, read-only, no descendants or execution. Fresh spec_auditor review remains."
+   "receipt": "Compiler referee CLEAN for proposal scope; frozen target and 15 pins verified. Spec auditor active receipt: read-only review started; no edits, execution, handoff reads or descendants; Sol/low requested, observed UNKNOWN/UNKNOWN; 120s cap."
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "workers": [
@@ -129,7 +129,7 @@
    "implementation": "No code authority. Proposals require later explicit user adoption followed by a new proof-backed contract.",
    "proof": "Neither proposal closes a parent theorem or source/native gate; CATCH-EXIT-INPUT-1 and original F1/FK1/F5 remain OPEN."
   },
-  "current_checkpoint": "35d96f84e",
+  "current_checkpoint": "e08b26f8a",
   "contract_revision": 2
  },
  "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -228,13 +228,13 @@
   {
    "id": "CATCH-PROPOSAL-SPEC-REVIEW-20261017",
    "role": "spec_auditor",
-   "state": "NOT_STARTED",
+   "state": "RUNNING",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": null,
-   "receipt": "Fresh read-only review of frozen CATCH proposal; dispatch after compiler_referee STOP."
+   "session": "current-session",
+   "receipt": "Active receipt: read-only review started; no edits, execution, handoff reads or descendants; one stage, 120s cap; observed UNKNOWN/UNKNOWN."
   }
  ],
  "leases": [
@@ -300,7 +300,7 @@
   }
  ],
  "next_action": {
-  "state": "CATCH-SPEC-REVIEW-PENDING",
+  "state": "CATCH-SPEC-REVIEW-RUNNING",
   "selector": "Sprint-end selector consultation follows completion of the remaining independent review.",
   "proof": "NPAIR proposal is reviewed clean after exact authority wording repair. CATCH proposal referee CLEAN; spec audit pending. Parent gates remain OPEN.",
   "implementation": "Proposal-only source/native mapping; no compiler-code authority.",
