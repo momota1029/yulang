@@ -1,6 +1,6 @@
 interface:
-  display_name: "Yulang Next Action"
-  short_description: "Choose the next executable Yulang task from evidence"
-  default_prompt: "Use $yulang-next-action to select the next executable task from Yulang's current gates and latest evidence."
+  display_name: "Yulang Task Dispatch"
+  short_description: "Route the next proof and implementation work together"
+  default_prompt: "Use $yulang-next-action to consult the resident dispatcher on Luna's next action and both producer lanes, routing mutual TODOs from current evidence."
 policy:
   allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Yulang Research Loop"
+  short_description: "Keep proof, implementation and dispatch coordinated"
+  default_prompt: "Use $yulang-research-loop to maintain Yulang's three resident roles, consult the dispatcher at every action boundary, and advance authorized implementation alongside proof."
+policy:
+  allow_implicit_invocation: true

@@ -1,73 +1,76 @@
 ---
 name: yulang-next-action
-description: Select Yulang's next executable work when the primary is unsure what to do next, resumes with conflicting records, or repeats a proof attempt at an unchanged premise. Use current authority and source owners to propose decisive evidence; already-ready work proceeds directly.
+description: Consult Yulang's resident task dispatcher at every next-action boundary during the active research loop, including ready work, results, blockers and restart. Route mutual proof/implementation TODOs and choose concrete progress; outside the loop use bounded selection when needed.
 ---
 
-# Select the next Yulang action
+# Consult the Yulang task dispatcher
 
-Use this skill in a Yulang checkout to identify the next productive action.
-The primary retains authority, scheduling, leases, independent review and Git.
-A request only to plan remains read-only; task authorization determines whether
-the primary may dispatch subsequent work.
+This invocation loop belongs to Luna. Delegated workers return evidence/TODOs
+to their delegator; they do not recursively invoke a dispatcher or start a trio.
 
-## Resolve the evidence
+Read `notes/design/2026-10-16-resident-research-loop.md` and
+`tasks/agent-loop/README.md`. For the authorized resident loop, this consultation
+is mandatory before every new substantive action/packet and after a result,
+blocker, review, changed decision/dependency or restart, including before a wait
+or finish decision. It is not limited to times when Luna is unsure. Routine tool
+calls inside an already selected bounded packet do not trigger another round.
+Outside that loop, use a bounded selection only when useful. A request only to
+plan remains read-only and does not authorize dispatching implementation.
 
-Read `AGENTS.md`, `rules/orchestration-budget.md`, `rules/design-authority.md`
-and `notes/design/2026-10-12-next-action-selection.md`. Resolve the active
-objective, branch, HEAD/status, latest result and existing running/ready packets.
-Follow applicable question-board freshness checks before dependent actions. For
-inference, read the governing top-level principles before older proof/recovery
-clauses.
+## Prepare one bounded evidence packet
 
-Read the opening summary of `tasks/current.md`, locate the exact gate and latest
-relevant sections with `rg -n`, then read only bounded sections and linked sources
-needed. Do not load the whole accumulated record. Confirm the original claim,
-authority and constructor/consumer owner; recency does not settle conflicting
-records. If evidence is insufficient, a bounded owner audit can be the next
-action.
+Read applicable authority, orchestration budgets and the original gate. Resolve
+branch/HEAD, dependency hashes, current objective, latest frozen result and actual
+running/ready assignments. Read summaries and precise bounded source sections;
+do not dump large task histories. Apply question-board freshness and top-level
+inference principles before older recovery or proof clauses.
 
-## Ask for one decisive action
+Read `.codex/agents/next-action-selector.toml` and its registration. Reuse the
+resident dispatcher identity through supported send/resume tools; do not spawn a
+fresh selector for every result. For first launch/replacement, use Sol/high and
+`fork_turns: "none"` when supported. Grant only the exact board file as a write
+lease, or no writes for a plan-only task. Actual role/model metadata must be
+reported separately from requested settings. Follow the canonical capacity and
+unsupported-interface fallback, without nested CLIs or fictional workers.
 
-Read `.codex/agents/next-action-selector.toml` and confirm its registration in
-`.codex/config.toml`. When available in the live spawn interface, dispatch
-`next_action_selector` with `fork_turns: "none"`, a pinned baseline, exact
-objective/gate, latest result locators, accepted authority, allowed reads,
-existing assignments, resource bounds and no writes. Use one bounded pass.
+Supply latest implementation and proof progress, immutable inbox IDs/hashes,
+current leases, actual review/integration receipts, resource bounds and prior
+attempts at unchanged premises. Ask what Luna should do next and what BOTH
+producer lanes should work on. The dispatcher may propose a new implementation
+task from inspected progress even when neither worker requested it.
 
-If the live interface lacks that custom role, use one supported read-only
-equivalent worker carrying the full role instructions and same packet. Apply the
-existing capacity retry policy; a confirmed unsupported route falls back
-immediately. Record actual identity and requested/observed settings separately.
-If no spawn is supported, apply the same contract in the primary. Configuration
-does not prove live registration. Do not launch a nested CLI, bypass runtime
-limits or change model policy to make the role appear available.
+## Require an executable routing decision
 
-Require one selected action with the original gate, first missing premise and
-owner, exact evidence locators, downstream consumer and a concrete proposed
-packet: role/method, frozen inputs, output paths, discriminating evidence,
-acceptance criterion, verification owner, resource bound and stop condition.
-Mark readiness and missing authority honestly. At most two genuinely independent
-ready alternatives are useful; they are optional.
+The answer states the next Luna action, both lane states, selected packet IDs,
+priority/dependencies and roles, original gate and first missing premise,
+source/consumer owners, frozen inputs and proposed output/inbox paths,
+discriminating evidence, acceptance criterion, verification/resource owner and
+stop condition. Proposed leases require Luna's validation. An existing safe
+running packet may CONTINUE while an idle lane receives a successor.
 
-Compare prior attempts at the same premise. Require a changed method, input or
-owning-construction investigation that can resolve it. Another conditional lemma
-or source reread without that change is not progress. Preserve theorem scope and
-approved semantics; missing construction is not source rejection. An open A/B
-invariant that could invalidate a mechanism gets original-scope proof and
-independent falsification/source correspondence before broad dependent
-implementation. Essential reversible source-evidence work stays provisional;
-independently justified work can proceed.
+An idle implementation lane plus authorized ready code work MUST yield an
+implementation assignment now, not another all-proof planning round. Run proof
+alongside it on independent stable inputs. Preserve genuine proof-dependent A/B
+gates; minimal reversible source-evidence construction stays explicitly
+provisional. Do not weaken accepted semantics, narrow quantifiers, or mistake
+conditional mathematics/tests for source/production closure.
 
-## Consume the recommendation
+For repeated unchanged premises, require a different method, input or owning
+construction that can supply missing evidence. Resolve dependency cycles with a
+bounded construction/proof/evidence task or an exact authority question. Do not
+invent work to keep a lane busy. Apply evidence-backed bounded Astra escalation
+only under the resident-loop contract.
 
-Validate authority, baseline/dependency stability, existing assignments and
-exclusive output ownership before dispatch. If ready and authorized, turn the
-recommendation into the actual role packet and proceed; use `task_decomposer`
-only when further dependency-aware splitting is needed. If a genuine decision
-is missing, use the existing authority path and keep independent work moving.
-Selection does not close any proof or production gate.
+## Consume and continue
 
-Do not rerun selection after every result. Revisit it when evidence, authority or
-the critical path materially changes, or an unchanged obstruction recurs.
-Capture a meaningful recommendation in the primary's existing queue/required
-records; do not create a per-probe planning ledger.
+Luna validates authority, stability, non-overlapping leases and resource bounds,
+then performs the chosen dispatch/review/integration. Return an unsafe proposal
+with its exact blocker and ask the dispatcher to revise it. Do not silently skip
+the dispatcher because work already looks ready. Use `task_decomposer` only when
+actual further splitting is needed, not as a mandatory planning pass.
+
+The dispatcher alone writes the leased scheduling board; workers submit TODOs
+only in their individual inbox files. Send actual launch, review and integration
+receipts back so PROPOSED is never confused with RUNNING or DONE. Keep records
+compact. Obtain the next consultation at the next boundary; do not stop the
+parent objective merely because one bounded worker finished.

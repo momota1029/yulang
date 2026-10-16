@@ -4,18 +4,18 @@ model_reasoning_effort = "high"
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 12
-# The prover role inherits these defaults so an explicit, bounded Astra spawn
-# can override them without changing the normal proof-worker model.
+# The three resident roles inherit Sol/high. Omitted role pins also permit
+# a supported, explicitly bounded Astra override; prose alone never routes it.
 default_subagent_model = "gpt-6.1-sol"
 default_subagent_reasoning_effort = "high"
 interrupt_message = true
 
 [agents.prover]
 config_file = "agents/prover.toml"
-description = "Construct bounded constructive proofs and exact source-to-proof bridges for Yulang."
+description = "Resident constructive proof lane; submits implementation TODOs and returns exact proof evidence to the dispatcher."
 
-# Explicit declarations make custom roles discoverable by Codex CLI; standalone
-# .codex/agents/*.toml files alone do not register tool-visible roles.
+# Retain explicit registrations for clients using this format. Newer clients
+# also discover standalone role files; verify actual live role availability.
 
 [agents.architect]
 config_file = "agents/architect.toml"
@@ -31,7 +31,7 @@ description = "Write-enabled public-documentation specialist for web/docs, READM
 
 [agents.implementer]
 config_file = "agents/implementer.toml"
-description = "Write-enabled compiler worker that implements a confirmed design gate or accepted review findings without inventing policy."
+description = "Resident implementation lane; advances approved compiler slices and submits exact proof TODOs to the dispatcher."
 
 [agents.performance_auditor]
 config_file = "agents/performance-auditor.toml"
@@ -39,7 +39,7 @@ description = "Read-only performance and resource auditor for traversals, alloca
 
 [agents.regression_auditor]
 config_file = "agents/regression-auditor.toml"
-description = "Read-only regression auditor for sibling cases, public call sites, fixtures, CST/AST parity, diagnostics, and unintended surface changes."
+description = "Read-only regression auditor for sibling paths, public surfaces, fixtures, CST/AST parity, diagnostics, and unintended surface changes."
 
 [agents.researcher]
 config_file = "agents/researcher.toml"
@@ -55,7 +55,7 @@ description = "Read-only dependency-aware decomposition into concrete proof, fal
 
 [agents.next_action_selector]
 config_file = "agents/next-action-selector.toml"
-description = "Read-only selection of the next executable evidence-producing action from current gates, owning constructors and prior attempts; primary retains scheduling and authority."
+description = "Resident task dispatcher consulted by Luna at every action boundary; routes mutual TODOs and keeps safe implementation and proof lanes supplied."
 
 [agents.theory_curator]
 config_file = "agents/theory-curator.toml"
