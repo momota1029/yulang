@@ -31,6 +31,14 @@ fn ordinary_function_application_returns_its_argument() {
 }
 
 #[test]
+fn public_execution_uses_the_original_mixed_source_schedule() {
+    assert_eq!(
+        run("later; 99; my later = { my value = 11; value }; later; my main = 7").unwrap(),
+        "7\n"
+    );
+}
+
+#[test]
 fn returned_closure_retains_its_lexical_capture() {
     let source = "my main = { my capture x = \\y -> x; my f = capture 7; f 9 }";
     assert_eq!(run(source).unwrap(), "7\n");

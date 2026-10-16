@@ -268,6 +268,14 @@ enum SavedFrame {
 }
 
 impl RuntimeProgram {
+    /// Starts from the original source-order schedule retained by this program.
+    pub(crate) fn start_source_schedule(
+        self: &Arc<Self>,
+        definition: &DefId,
+    ) -> Result<Machine, RuntimeUnavailable> {
+        self.start(definition, &self.source_schedule)
+    }
+
     /// The source interface owner supplies computation roots in source order.
     /// Value definitions materialize at first access. Successful definition
     /// materialization is cached; executing a delayed argument is never cached.

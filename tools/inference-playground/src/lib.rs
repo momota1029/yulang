@@ -151,8 +151,7 @@ pub fn execute(
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
     let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).map_err(unavailable)?;
     let selected = program.definition_named(definition).map_err(unavailable)?;
-    let roots = program.execution_roots().map_err(unavailable)?;
-    let mut machine = program.start(selected, &roots).map_err(unavailable)?;
+    let mut machine = program.start_source_schedule(selected).map_err(unavailable)?;
     let value = match machine.run(step_budget) {
         RuntimeOutcome::Completed(handle) => machine.value(handle)
             .ok_or_else(|| "runtime completed value unavailable".to_owned())?,
