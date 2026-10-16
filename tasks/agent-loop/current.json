@@ -63,13 +63,13 @@
       "handoff_sha256": "7ddbd63c90c37a2b14cdd4d019cc035f2ebdb84f9b0f3c122849a120098b54c8"
     },
     "review": {
-      "state": "READY-CATCH-PROPOSAL-REVIEWS",
+      "state": "CATCH-REFEREE-RUNNING",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "P1 proposal and exact delta are independently reviewed within scope; P2 candidate now frozen; fresh compiler_referee and spec_auditor reviews each capped at 120s, sequentially."
+      "receipt": "Active compiler_referee confirms exact target and contract hashes, all 15 applicable direct pins match; independent source/owner review in progress, no handoff read or execution."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -128,7 +128,7 @@
       "implementation": "Source/native maps are proposal artifacts only; compiler implementation awaits explicit user adoption and a new exact proof-backed contract.",
       "proof": "NPAIR is a reviewed candidate proposal with no parent theorem closure; CATCH proposal is frozen and awaits independent reviews."
     },
-    "current_checkpoint": "c84f60116",
+    "current_checkpoint": "e53eeb817",
     "contract_revision": 2
   },
   "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -216,13 +216,13 @@
     {
       "id": "CATCH-PROPOSAL-REFEREE-20261017",
       "role": "compiler_referee",
-      "state": "NOT_STARTED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
+      "state": "RUNNING",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Fresh read-only review of frozen CATCH proposal; awaiting sequential launch."
+      "session": "current-session",
+      "receipt": "Active-work receipt: target/contract/15 pins verified; independent source/owner review underway; read-only, no handoff read, edits, execution or descendants."
     },
     {
       "id": "CATCH-PROPOSAL-SPEC-REVIEW-20261017",
@@ -319,7 +319,7 @@
     "cargo_build_test_probe_invocations": 0,
     "review_reserved": 240,
     "coordination_reserved": 180,
-    "pending_reviewers": 0,
+    "pending_reviewers": 1,
     "charged_total_seconds": 1860,
     "reviewed_closeout": null,
     "authors_spent_seconds": 1500,
