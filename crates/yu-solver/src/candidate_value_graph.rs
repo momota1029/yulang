@@ -390,3 +390,58 @@ mod conditional_reference_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod scc_tests {
+    use super::{Association, Graph};
+
+    #[test]
+    fn sealed_partition_controls_qualification() {
+        let mut graph = Graph::default();
+        graph.edges.resize_with(8, Vec::new);
+        graph.reverse.resize_with(8, Vec::new);
+
+        for (from, to) in [
+            (0, 1),
+            (1, 2),
+            (2, 0),
+            (0, 1),
+            (2, 3),
+            (3, 4),
+            (4, 3),
+            (4, 6),
+            (6, 7),
+            (7, 6),
+            (5, 5),
+        ] {
+            graph.edge(from, to).unwrap();
+        }
+
+        for origin in 0..8 {
+            for receiver in 0..8 {
+                graph.events.push(Association { origin, receiver });
+            }
+        }
+        let expected_component = [0, 0, 0, 1, 1, 2, 3, 3];
+
+        graph.seal().unwrap();
+        for (event, association) in graph.events.iter().enumerate() {
+            assert_eq!(
+                graph.qualifies(event),
+                expected_component[association.origin] == expected_component[association.receiver],
+                "qualification for ordered pair ({}, {})",
+                association.origin,
+                association.receiver,
+            );
+        }
+
+        let before_reseal: Vec<_> = (0..graph.events.len())
+            .map(|event| graph.qualifies(event))
+            .collect();
+        graph.seal().unwrap();
+        let after_reseal: Vec<_> = (0..graph.events.len())
+            .map(|event| graph.qualifies(event))
+            .collect();
+        assert_eq!(before_reseal, after_reseal);
+    }
+}

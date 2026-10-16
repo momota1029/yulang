@@ -106,7 +106,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   prefetched prefix is rendered, and source traversal is not charged per node.
   No measured speedup, whole-diagnostic linearity, recovery guarantee, inference
   rule, accepted source result, theorem, F5 or production gate follows. I14's
-  code and both frozen receipts are integrated in this checkpoint.
+  code and both frozen receipts are integrated in this checkpoint. I15 adds
+  only a `cfg(test)` eight-vertex SCC partition regression in the native Value
+  graph: it checks all 64 ordered endpoint pairs against four independent
+  expected components, including duplicate edges, one-way bridges, a
+  disconnected vertex and a self-loop, then checks unchanged resealing. The
+  new unit and existing native intrusion-observation target pass (1 and 3
+  tests); R25 is CLEAN within this kernel test's scope. Source-event
+  construction, post-mutation resealing, general inference correctness,
+  principality, F5 and production readiness remain open.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
