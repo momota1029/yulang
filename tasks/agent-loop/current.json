@@ -83,6 +83,17 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Current collaboration tool reports completed; worker explicitly reports STOPPED WRITING and frozen handoff SHA-256 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Session ID and observed model/effort unavailable."
+    },
+    {
+      "id": "/root/implementation_review",
+      "role": "independent implementation review (compiler_referee)",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Live collaboration inventory reports RUNNING; fresh isolated reviewer is checking the frozen test/handoff against v2 and scoped pinned source. Session identifier unavailable; read-only review, no leased output file."
     }
   ],
   "leases": [
@@ -165,7 +176,7 @@
       "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
     }
   ],
-  "worker_inventory_scope": "Current live inventory includes root plus /root/astra_core and /root/sol_source_attack running; both session IDs unavailable, so states remain UNKNOWN and their exact output leases are quarantined. The collaboration tool reports /root/luna_implementation completed and its worker confirms STOPPED WRITING; its exact leases are FROZEN for independent review, not transferred. Historical legacy identities remain UNKNOWN/reserved as recorded. No protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Current live inventory includes root, Astra core, Sol source attack, and fresh implementation reviewer; all appear RUNNING but session IDs are unavailable, so states remain UNKNOWN. Astra and Sol acknowledged exact v2 hash and verified all pinned inputs. Luna implementation is STOPPED (collaboration tool reports completed; worker froze handoff); its exact leases are FROZEN for independent review, not transferred. Historical legacy identities remain UNKNOWN/reserved as recorded. No protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -197,9 +208,15 @@
       "state": "DONE",
       "owner": "Luna primary",
       "needs": "Astra and Sol each acknowledged exact active v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and verified all 26 dependency hashes. Typed-boundary Draft remains research-only."
+    },
+    {
+      "id": "IMPLEMENTATION-REVIEW",
+      "state": "OPEN",
+      "owner": "fresh compiler_referee",
+      "needs": "Determine whether source Apply/native Call/root-effect test and handoff form an accepted narrow end-to-end slice; report exact limitations and any mismatches."
     }
   ],
-  "next_action": "Continue Astra/Sol scoped proof and source attack; independently review Luna’s frozen test-only slice, then decide whether a follow-on implementation lease is justified by reviewed evidence.",
+  "next_action": "Complete fresh independent review of Luna’s frozen test-only slice; then determine whether a bounded, justified implementation follow-on fits the existing lease and sprint resources while Astra/Sol continue.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
