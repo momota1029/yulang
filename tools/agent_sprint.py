@@ -122,6 +122,8 @@ class SprintModel:
                dependencies: dict[str, str] | None = None,
                seconds: int = 1800, parent: str | None = None,
                implementation_evidence: str | None = None,
+               implementation_handoff_from: str | None = None,
+               implementation_handoff_receipt: str | None = None,
                coordinator: bool = False, leaf_paths: tuple[str, ...] = ()) -> None:
         self._contract()
         require(self.phase == "ACTIVE", "no active session")
@@ -141,8 +143,24 @@ class SprintModel:
         require(role != "implementer" or (lane == "implementation" and model == LUNA and effort == "high"), "Luna/high implementation floor")
         require(role != "astra_prover" or (lane == "proof" and model == ASTRA), "Astra proof role has no production rights")
         require(role != "implementation_escalation" or
-                (lane == "implementation" and model == ASTRA and bool(implementation_evidence)),
-                "Astra implementation needs prior Luna evidence")
+                (lane == "implementation" and model == ASTRA and
+                 bool(implementation_evidence) and
+                 bool(implementation_handoff_receipt) and
+                 implementation_handoff_from in self.jobs),
+                "Astra implementation needs Luna evidence and an acknowledged handoff")
+        if role == "implementation_escalation":
+            prior = self.jobs[implementation_handoff_from]
+            require(prior["lane"] == "implementation" and prior["role"] == "implementer" and
+                    prior["requested_model"] == LUNA and prior["requested_effort"] == "high",
+                    "Astra implementation handoff must originate from Luna/high")
+            require(prior["worker_state"] == "STOPPED" and bool(prior["stop_receipt"]) and
+                    prior["artifact"] is not None and prior["status"] in {"REVIEW", "DONE"},
+                    "Luna artifact must be frozen and writer cessation confirmed")
+            require(implementation_evidence ==
+                    f"{implementation_handoff_from}#artifact:sha256:{prior['artifact']['sha256']}",
+                    "Luna evidence must identify the frozen source artifact")
+            require(set(paths) <= set(prior["paths"]),
+                    "Astra implementation handoff cannot expand the Luna lease")
         require(lane != "implementation" or model in {LUNA, ASTRA}, "no Sol implementation fallback")
         deps = dict(dependencies or {})
         require(all(self.dependencies.get(k) == v for k, v in deps.items()), "stale dependency")

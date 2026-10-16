@@ -1,36 +1,98 @@
 {
   "schema_version": 1,
-  "mode": "UNAVAILABLE",
-  "phase": "RECONCILE",
+  "mode": "LIVE",
+  "phase": "ACTIVE",
   "session": null,
-  "active_sprint": null,
+  "active_sprint": {
+    "id": "call-contextual-effects-20261016",
+    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v1.json",
+    "revision": 1,
+    "sha256": "be26a76fcb2e4116d89d267f2cb8813dabefd14577aeb532f31b5ab8de154093",
+    "state": "ACTIVE",
+    "activation_receipt": "notes/progress/2026-10-16-call-contextual-effects-sprint-start.md",
+    "migration_review": "CLOSED-CLEAN (major/minor repaired and delta reviewed)",
+    "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna"
+  },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
-  "baseline": "7336f290da53dc39cfc5be18dd492820d1b7451c",
-  "scope": "Workflow-maintenance snapshot; no compiler or subagent execution authorized by this file.",
-  "workers": [],
-  "leases": [],
-  "worker_inventory_scope": "No workers launched in the editing environment. This is NOT an assertion that earlier session workers stopped or their leases are free.",
+  "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
+  "scope": "Active Call/contextual-effects proof and approved implementation sprint; source semantics remain unchanged.",
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Historical board reports resident WAITING and board-only lease frozen; current runtime does not expose the identity."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementation worker",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Historical board reports runtime RUNNING/lane WAITING, no task/output/inbox lease; current runtime does not expose the identity. Reserve one assignment slot."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/board.md",
+      "owner": "/root/resident_dispatcher_loop_a",
+      "state": "QUARANTINED",
+      "reason": "Former board writer is not visible in the current runtime; primary will not write this path."
+    }
+  ],
+  "worker_inventory_scope": "Live collaboration inventory contains only the current root plus completed adoption-review/dispatcher agents; historical legacy identities are absent, so their runtime cessation is UNKNOWN. Their known artifacts are frozen; the former board path remains quarantined. Unknown implementer consumes one of six sprint assignment reservations. No new lease overlaps these paths or the protected untracked question/inboxes.",
   "legacy_reconciliation": {
-    "required": true,
-    "reason": "No live runtime worker/process/lease inventory is exposed in the editing environment.",
+    "required": false,
+    "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
     "history": "tasks/agent-loop/history/board-7336f290.md",
     "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
-    "action": "The live Luna primary must reconcile old identities, descendants, output paths and the former board writer before activation. Unknown writers retain quarantined leases."
+    "action": "Luna checked the actual collaboration inventory, reviewed the latest scoped legacy identity/output receipts, reserved the legacy implementer slot, and quarantined the former board path. No old identity is marked STOPPED or its unknown capacity released."
   },
   "pending": [
     {
-      "id": "LIVE-ADOPTION",
-      "state": "BLOCKED",
-      "owner": "live Luna primary",
-      "needs": "Reread new entrypoints, reconcile legacy writers and dependencies, resolve and grant the candidate sprint."
+      "id": "F1-FULL",
+      "state": "OPEN",
+      "owner": "Astra core proof / Sol source check",
+      "needs": "Authentic remaining OriginalFrame actions and whole-grammar source evidence."
     },
     {
-      "id": "INDEPENDENT-REVIEW",
-      "state": "NOT_RUN",
-      "owner": "fresh isolated spec_auditor",
-      "needs": "Review the frozen orchestration/tooling diff independently; deterministic tests are not that review."
+      "id": "FK1-FOREIGN",
+      "state": "OPEN",
+      "owner": "Astra core proof / Sol source check",
+      "needs": "Distinct opaque foreign continuation application/transport relation."
+    },
+    {
+      "id": "FIRST-RESULT-ADEQUACY",
+      "state": "OPEN",
+      "owner": "Astra/Sol source-native bridge",
+      "needs": "Original first-Apply translation and reverse source/native implication."
     }
   ],
-  "next_action": "Reconcile in the actual Codex runtime; do not infer running agents or restart budgets from this seed.",
+  "next_action": "Launch the three granted continuation envelopes; require actual launch acknowledgements and preserve UNKNOWN metadata where the runtime omits it.",
+  "adoption_review": {
+    "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
+    "original_findings": ["MAJOR: implementation escalation handoff validation", "MINOR: design index entry"],
+    "adjudication": "Both repaired; second delta binds evidence to the frozen Luna artifact hash; fresh delta review CLEAN; tooling tests/static checker pass.",
+    "receipt": "collaboration messages in this turn; reviewer wrote no files; no semantic approval implied."
+  },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md"
 }

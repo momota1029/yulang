@@ -95,6 +95,32 @@ class SprintTransitions(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             self.m.assign("E", "implementation", ["impl.rs"], ["fix"],
                           role="implementation_escalation", model=ASTRA)
+        with self.assertRaises(ProtocolError):
+            self.m.assign("E", "implementation", ["impl.rs"], ["fix"],
+                          role="implementation_escalation", model=ASTRA,
+                          implementation_evidence="unlinked Luna note",
+                          implementation_handoff_from="missing",
+                          implementation_handoff_receipt="unlinked handoff")
+
+    def test_implementation_escalation_requires_frozen_stopped_luna_handoff(self) -> None:
+        self.m.assign("L", "implementation", ["impl.rs"], ["inspect and implement"],
+                      role="implementer", model=LUNA, effort="high")
+        self.m.launch("L", "fixture-luna", "fixture-launch-L", self.m.session)
+        self.m.step("L", "fixture Luna evidence", "exact implementation obstruction")
+        self.m.stopped("L", "fixture-luna", "fixture-luna-cessation")
+        self.m.freeze("L", "a" * 64, ["fixture-luna"], "fixture-luna-freeze")
+        with self.assertRaises(ProtocolError):
+            self.m.assign("E-bad", "implementation", ["impl.rs"], ["repair obstruction"],
+                          role="implementation_escalation", model=ASTRA,
+                          implementation_evidence="different artifact hash",
+                          implementation_handoff_from="L",
+                          implementation_handoff_receipt="fixture-primary-transfer")
+        self.m.assign("E", "implementation", ["impl.rs"], ["repair obstruction"],
+                      role="implementation_escalation", model=ASTRA,
+                      implementation_evidence="L#artifact:sha256:" + "a" * 64,
+                      implementation_handoff_from="L",
+                      implementation_handoff_receipt="fixture-primary-transfer")
+        self.assertEqual(self.m.leases["impl.rs"], "E")
 
     def test_astra_budget_persists_across_completed_workers_and_restart(self) -> None:
         for n in range(2):

@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "sprint_id": "call-contextual-effects-20261016",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "design_baseline": "7336f290da53dc39cfc5be18dd492820d1b7451c",
+  "inspected_baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
+  "goal": "Establish original Call/contextual-effects source/native correspondence and advance the independently justified implementation path.",
+  "authority": "notes/design/2026-10-16-goal-driven-sprints.md authorizes orchestration only. Semantic authority remains notes/design/2026-10-11-yulang-inference-top-level-principles.md and the cited original Call/effect definitions; no new semantics are granted.",
+  "original_claims": [
+    {
+      "id": "F1",
+      "locator": "notes/theory/2026-10-16-owner-completion-positive-frame-presentation.md §§1,5–6 and r2 §§1,6",
+      "status": "OPEN",
+      "quantifiers": "Preserve the complete original OriginalFrame_f action inventory, finite source/descriptor scope, same provider/world, all saved occurrences, live configurations, original joint histories, admitted responses and finite child/parent interactions. The local one-owner repair remains conditional and does not restrict the full inventory.",
+      "missing": "Authentic source action/interface and whole-grammar coverage for every remaining OriginalFrame case."
+    },
+    {
+      "id": "FK1",
+      "locator": "notes/theory/2026-10-16-owner-completion-positive-frame-presentation.md §6 and r2 §6",
+      "status": "OPEN",
+      "quantifiers": "Keep the opaque foreign-continuation application/transport obligation separately quantified over its original continuation and interface; no F1 frame action discharges it.",
+      "missing": "The original opaque foreign application relation and its source/native bridge."
+    },
+    {
+      "id": "FIRST-RESULT-ADEQUACY",
+      "locator": "notes/theory/2026-10-16-first-result-source-judgment-preservation.md §§1–2,5 and notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md §§1,3,5–6",
+      "status": "OPEN",
+      "quantifiers": "For the original `my receive (f: () -> 'a) = { my g = f(); g() }`, every original xi=(nu,K,D), and every original complete first-Call return witness z, preserve same provider, captures, scope/binders, whole Unit carrier, entry/current configuration, pending Bind/future obligations, and both tagged images. Do not add generated native constraints to the antecedent or assume successful comparison.",
+      "missing": "Original first-Apply obligation translation and the reverse source/native adequacy bridge."
+    }
+  ],
+  "accepted_meaning": {
+    "sources": [
+      "notes/design/2026-10-11-yulang-inference-top-level-principles.md §§1–5",
+      "notes/design/2026-10-07-original-call-formation-definition.md §§2–4,6",
+      "notes/design/2026-10-08-contextual-function-membership-definition.md §§2–4",
+      "notes/design/2026-10-07-complete-call-contribution-definition.md §§2–5",
+      "notes/design/2026-10-08-call-source-interface-definition.md §§2–4"
+    ],
+    "rule": "Keep the original joint Call/contextual-effect relation, source domain, complete and pending observations, actual provider, effect ownership/lineage and quantifiers. Tests or scalar constraints alone do not close a proof gate."
+  },
+  "dependency_hashes": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-08-contextual-function-membership-definition.md": "0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md": "a2662aff41d441295013d697ed730940cf0c4a820f9ebc62a1acbe53d6a66ed6",
+    "notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md": "726d6cabb6e1adb8941a4de582b48e4dbdf8a8ff561140967cdb344646851109",
+    "notes/theory/2026-10-16-first-result-source-judgment-preservation.md": "168075a1c6e5b77df844a258165cec1b1f383cc7f84f11843deb6c3e28853946",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-solver/src/candidate_context.rs": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6",
+    "crates/yu-solver/src/candidate_call.rs": "cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1",
+    "crates/yu-solver/tests/candidate_effect_annotation.rs": "3bba066cf6e5fc00aa0c6c06b21975849830ea65cd02a2bb1c56fac0c76c08b8",
+    "tools/inference-playground/tests/runtime.rs": "f8bebfd4eb4571e2814b83ea8473c035b429fe1eed4e07d26942a096143306ec"
+  },
+  "original_obligations": [
+    "F1 finite Image/frame action in its original scope",
+    "FK1 opaque foreign-continuation quantifier (distinct from F1)",
+    "FIRST-RESULT-ADEQUACY in its original source/native scope"
+  ],
+  "original_status": "OPEN: all three original parent obligations remain open; no result in this sprint candidate changes them until primary adjudication and independent review.",
+  "non_goals": [
+    "No new language semantics or narrower source domain",
+    "No production inference change depending on an open A/B premise",
+    "No theorem promotion from tests or conditional notes",
+    "No runtime/source restriction, annotation change, or altered observable effect meaning"
+  ],
+  "lanes": {
+    "proof": {
+      "preferred_core_role": "astra_prover",
+      "complementary_role": "prover or researcher (Sol/high)",
+      "stages": [
+        "Pin original statements, source constructors and previously rejected constructions.",
+        "Construct the required finite Image/frame actions; preserve FK1 as a distinct case.",
+        "Check source/native obligations and adversarial counterexamples with exact shared premises.",
+        "Apply each established result to the parent and produce a coherent conclusion or precise reduced premise."
+      ],
+      "review": "Fresh isolated compiler_referee, not Astra author or Sol contributor."
+    },
+    "implementation": {
+      "role": "implementer",
+      "model_floor": "gpt-6-luna/high",
+      "stages": [
+        "Identify the largest safe source-to-execution slice under already approved semantics.",
+        "Trace and complete its actual constraint-generation/propagation/consumer path.",
+        "Run focused end-to-end verification for the established contract.",
+        "Freeze a substantial reviewed milestone; keep dependent unproved production cutover OPEN."
+      ],
+      "owner_route": [
+        "crates/yu-solver/src/candidate_source.rs: source Apply/formal registration",
+        "crates/yu-solver/src/shadow_apply.rs: constraint generation, propagation and consumer dispatch",
+        "crates/yu-solver/src/candidate_call.rs: Call/native interface consumer",
+        "crates/yu-solver/src/candidate_effect.rs and candidate_context.rs: contextual effect construction and lineage",
+        "tools/inference-playground/tests/runtime.rs: existing public compile/execute path"
+      ],
+      "acceptance": "Trace one approved source Call with contextual effects through source owner, generated constraints, propagation and Call/effect consumer; add or preserve focused native and public runtime evidence. Do not claim full source coverage, theorem closure, semantic soundness, or production cutover from tests.",
+      "fallback": "Owner-specific NO_SAFE_CODE_SLICE after bounded inspection of at least two relevant approved owners; no provisional prototype unless its exact falsifier and rollback owner are recorded."
+    }
+  },
+  "success_evidence": [
+    "An original proof conclusion/refutation or a strictly reduced, precisely owned premise applied to F1, FK1, or FIRST-RESULT-ADEQUACY while all other quantifiers remain explicit.",
+    "An independently reviewed source/native correspondence slice naming source constructor, constraint generation, propagation, consumer and actual execution evidence.",
+    "A reviewed end-to-end compiler improvement under the accepted semantics, with focused checks and all original theorem/cutover limitations recorded."
+  ],
+  "open_premises_and_owners": [
+    {"id": "F1", "owner": "Astra core proof; Sol source coverage", "blocked_by": "missing authentic OriginalFrame actions and whole-grammar source evidence"},
+    {"id": "FK1", "owner": "Astra core proof; Sol independent counterexample/source audit", "blocked_by": "opaque foreign continuation application/transport relation not supplied"},
+    {"id": "FIRST-RESULT-ADEQUACY", "owner": "Astra/Sol proof bridge", "blocked_by": "first-Apply original obligation translation and reverse source/native implication"},
+    {"id": "implementation", "owner": "Luna/high implementer", "blocked_by": "only changes entailed by approved semantics and established prerequisites may enter code; dependent production remains blocked"}
+  ],
+  "resources": {
+    "agent_assignments": 6,
+    "global_ceiling": 12,
+    "reserved_review_slots": 2,
+    "astra_concurrent": 1,
+    "astra_assignments": 2,
+    "astra_stages_per_assignment": 8,
+    "astra_active_seconds_per_assignment": 1800,
+    "sprint_active_seconds": 7200,
+    "lightweight_probes": 4,
+    "heavy_builds": 1,
+    "probe_cpu": 1,
+    "probe_ram_mib": 1024,
+    "probe_seconds": 120
+  },
+  "leases": [
+    {
+      "assignment": "ASTRA-CORE",
+      "paths": [
+        "notes/theory/2026-10-16-call-contextual-effects-core.md",
+        "tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md"
+      ],
+      "generated_or_scratch_outputs": "none; all scratch must remain in memory"
+    },
+    {
+      "assignment": "SOL-SOURCE-ATTACK",
+      "paths": [
+        "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
+        "tasks/agent-loop/inbox/20261016-call-contextual-effects-source-attack.md"
+      ],
+      "generated_or_scratch_outputs": "none; all scratch must remain in memory"
+    },
+    {
+      "assignment": "LUNA-IMPLEMENTATION",
+      "paths": [
+        "crates/yu-solver/src/candidate_source.rs",
+        "crates/yu-solver/src/shadow_apply.rs",
+        "crates/yu-solver/src/candidate_call.rs",
+        "crates/yu-solver/src/candidate_effect.rs",
+        "crates/yu-solver/src/candidate_context.rs",
+        "crates/yu-solver/tests/candidate_effect_annotation.rs",
+        "tools/inference-playground/tests/runtime.rs",
+        "tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md"
+      ],
+      "generated_or_scratch_outputs": "none; exact source/test/handoff paths only"
+    }
+  ],
+  "workers": [],
+  "review_seam": "Fresh isolated compiler_referee/spec_auditor for proof/source claims as appropriate and fresh regression/compiler review for implementation; authors and Sol contributors are ineligible for their artifact.",
+  "stop_conditions": [
+    "Any dependency hash, approved meaning, source domain, lease or resource mismatch",
+    "A source-qualified counterexample, new semantic choice, or dependence on an unproved premise",
+    "No confirmed writer cessation before path transfer",
+    "Assignment or sprint work-time cap reached"
+  ],
+  "activation": "Activated by Luna after independent migration review findings closed and live legacy inventory reconciled with unknown identities/leases retained. Exact leases above are granted; dispatch acknowledgements and observed model/session metadata are recorded only after actual tool returns."
+}
