@@ -1,7 +1,7 @@
 # Sprint: qualify the NPAIR snapshot owner interface
 
 ID: `npair-snapshot-owner-interface-20261017`
-Status: CANDIDATE until Luna freezes this contract and starts the first lane.
+Status: ACTIVE; revision 2 is the current Luna-authorized bounded repair contract.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN.
 Primary and sole Git integrator: Luna.
 
@@ -123,3 +123,29 @@ No compiler lease, tests/builds/probes/Cargo/source execution, source admission,
 consumer or production change. A complete owner interface would establish
 readiness only; any executable contract, code or resource limits require a new
 reviewed gate. `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN.
+
+## Revision 2 — Luna bounded review repair
+
+Revision 1 remains preserved in Git history and governed all author/review work
+through compiler-referee STOP. On the compiler-referee findings and the
+selector's bounded recommendation, Luna revises this contract only to repair
+the leased readiness Draft and handoff. No new source owner, implementation,
+execution, or theorem claim is authorized.
+
+- Readiness remains Luna's exact two-file lease, with a total 300s ceiling:
+  the original 240s plus one 60s repair allocation.
+- The proof consumed 176s measured and was charged 180s within its 240s cap;
+  its recorded 60s unused capacity is the source of the repair allocation.
+  Sprint total remains 720s: coordination 60, readiness 300, proof 180,
+  compiler review 60, architect review 60, spec review 60. No reserve.
+- Repair only these compiler-referee findings: mark unavailable
+  OwnerEmission/ExtrusionLink/FreshUse antecedents as rejected/Pending unless
+  independently authenticated; include live `InferenceSession.bounds` and
+  `effect_bounds` plus checked physical-slot resolution; withdraw universal
+  mutation-exclusion/readiness claims and leave same-owner enforcement and
+  transitive `candidate_intrusion` mutation analysis as unresolved prerequisites.
+- Keep the proof artifact byte-frozen. No `candidate_intrusion` source read is
+  authorized by this revision.
+- After readiness STOP, the remaining architect and spec-auditor 60s reviews
+  inspect the amended readiness bytes and explicitly disposition all three
+  compiler-referee findings. The executable interface and parent remain OPEN.

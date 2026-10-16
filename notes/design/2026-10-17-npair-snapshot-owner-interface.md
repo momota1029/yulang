@@ -1,19 +1,27 @@
 # NPAIR snapshot owner interface: readiness audit
 
-Status: Draft, read-only design evidence only; no compiler-code authority.
-Sprint: `npair-snapshot-owner-interface-20261017`, revision 1.
+Status: Draft, read-only design evidence only; no compiler-code authority. Revision 2 is limited to compiler-referee repairs and does not establish implementation readiness.
+Sprint: `npair-snapshot-owner-interface-20261017`, revision 2.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN.
 
 ## Result
 
-The pinned owners contain the records needed in principle, but no existing
-single accessor exposes a complete structural snapshot. A private borrow rooted
-at `&InferenceSession` can prevent safe mutation while validation runs. The
-minimum proposed interface is an owner-local, unforgeable borrowed aggregate
-that retains that session borrow, a selected successful `GraphState` route,
-its Permission/domain/view inputs, all relevant context relations/dependencies
-and origins, and the complete admission/emission records. Its iterators must
-preserve distinct source occurrences and every relevant evidence alternative.
+The pinned owners retain several required record classes, but they do not
+contain or expose every premise needed to authenticate all evidence. In
+particular, `BoundEvidence::admit` records unavailable processing, ordinary-seed
+and FreshUse Replay antecedents; an accessor cannot create those premises. The
+validator must reject/Pend a case with such a missing antecedent unless a
+separately reviewed owner supplies independent authentication. The current
+physical bound slot is owned by session `bounds`/`effect_bounds`, not only by a
+captured graph. No existing single accessor exposes a complete structural
+snapshot. A shared `&InferenceSession` borrow excludes safe exclusive mutation
+of its ordinary descendants while used, subject to unresolved owner identity
+and transitive interior-mutation premises. The minimum proposed interface is
+an owner-local borrowed aggregate that retains that session borrow, a selected
+successful `GraphState` route, its Permission/domain/view inputs, live physical
+bound storage, all relevant context relations/dependencies and origins, and
+all inspectable admission/emission records. Its iterators must preserve
+distinct source occurrences and every relevant evidence alternative.
 
 This is feasible as a design shape, not yet a ready implementation. Existing
 `RetainedInput`/`CircuitEvidence` is useful precedent for borrowed owner-bound
@@ -28,9 +36,9 @@ closed.
 
 | Owner | Required evidence | Existing access | Mutation/lifetime owner | Gap |
 | --- | --- | --- | --- | --- |
-| `InferenceSession` (`lib.rs`) | Owning session identity; candidate graph; constraint store and endpoint canonicalization; active route/checkpoint state | `candidate_graph`, `store` and route journals are private fields. Canonicalization is read-only through `canonical_value`/`canonical_effect`. Existing owner code repeatedly obtains mutable graph access. | Session route transaction and `route_journal`; `rollback_route_transaction` restores the session and candidate graph together. An `&InferenceSession` borrow excludes safe `&mut self` mutation for its lifetime. | No snapshot constructor checks quiescence, selects one exact successful route or retains an owner-bound handle. The caller must not pass free-standing IDs from another session. |
+| `InferenceSession` (`lib.rs`) | Owning session identity; candidate graph; constraint store; live `bounds`/`effect_bounds` physical slot storage and endpoint canonicalization; active route/checkpoint state | `candidate_graph`, `store`, `bounds`, `effect_bounds` and route journals are private fields. Canonicalization is read-only through `canonical_value`/`canonical_effect`. Existing owner code repeatedly obtains mutable graph access. | Session route transaction and `route_journal`; `rollback_route_transaction` restores the session and candidate graph together. An `&InferenceSession` borrow excludes safe `&mut self` mutation for its lifetime. | No snapshot constructor checks quiescence, selects one exact successful route or retains an owner-bound handle. A resolver must verify row kind, lane, index and actual operand against the admission/emission BoundKey in these live vectors. Same lifetime alone does not prove session identity; the caller must not pass free-standing or foreign IDs. |
 | `candidate_effect::State` | `formal_domains`; full `FormalPermission` path/occurrence/owner; `View` plus `OperationOrigin`; retained `Contribution`; processing/route association | `formal_domains`, `views`, `contributions` and `processing` are visible to the parent. `formal_permissions` and its record/path types are private; only construction, rollback and accounting read them. There is no full immutable permission iterator. | `candidate_effect::State::checkpoint/rollback` removes domains and truncates permissions/views/contributions. The enclosing intrusion and session route rollback own those checkpoints. | Add a crate-private borrowed Permission view that preserves the raw typed path, source occurrence, owner and domain key; connect its view index to this exact route without cloning. |
-| `candidate_context::State` | Every relevant `Relation`, `Dependency` (including both ordered Replay inputs), `Origin`, BoundAdmission, BoundEmission and physical slot for the selected port | Relation/dependency/evidence stores are private. `evidence_snapshot` returns a small copy descriptor; current `CircuitEvidence<'a>` exposes a selected relation/context/view closure, not every bound admission/emission. `BoundEvidence` hides its arrays and group links. | `State::checkpoint/rollback` truncates relations, dependencies, origins, admissions/emissions and restores processing. Evidence IDs are meaningful only inside this owning live State. | Add a read-only owner-bound evidence view with complete group/admission/emission iterators and exact relation/dependency/origin access. Keep all IDs private to the view. |
+| `candidate_context::State` | Every relevant `Relation`, `Dependency` (including both ordered Replay inputs), `Origin`, BoundAdmission, BoundEmission and physical slot for the selected port | Relation/dependency/evidence stores are private. `evidence_snapshot` returns a small copy descriptor; current `CircuitEvidence<'a>` exposes a selected relation/context/view closure, not every bound admission/emission. `BoundEvidence` hides its arrays and group links. | `State::checkpoint/rollback` truncates relations, dependencies, origins, admissions/emissions and restores processing. Evidence IDs are meaningful only inside this owning live State. | Add a read-only owner-bound evidence view with complete group/admission/emission iterators and exact relation/dependency/origin access. Resolve physical slots through the session bounds/effect_bounds with checked row kind, lane, index and operand. Keep all IDs private to the view. Missing OwnerEmission, ExtrusionLink or FreshUse antecedents must fail/Pend unless separately authenticated. |
 | `candidate_scheme::GraphState` and selected `Graph` route | Route-local node/row/bound map and the bound-evidence references that tie the selected raw occurrence to candidate context records | `routes`, `graphs`, `local_routes`, `local_use` and `source` are held in one private session GraphState. `Graph` retains `bound_evidence`, nodes, rows, bounds and route root. There is no public snapshot identity or route borrow handle. | Session route journal truncates route vectors and rolls back intrusion/effect/context state. Intrusion has `generation`/`dirty`; those fields do not alone identify every graph/evidence mutation. | Add a route-scoped borrow created only after a successful quiescent route. Keep its route index and references owner-bound; do not treat a generation counter as sufficient identity. |
 
 Relevant locators in the pinned files: `InferenceSession` and its route journal
@@ -64,20 +72,26 @@ CandidateStructuralSnapshot<'a> {
 Creation is allowed only when the session has no active route journal; the
 candidate graph is clean; typed processing/drain and replay continuations are
 quiescent; and the exact selected route is retained. The API must establish
-these predicates from owner state rather than accept caller assertions. If the
-owners cannot identify the route selected by a formal Permission and its raw
-`q_perm` occurrence, this is an exact readiness blocker.
+these predicates from owner state rather than accept caller assertions. It must
+also resolve the current physical bound through session `bounds`/`effect_bounds`
+and check row kind, lane, index and actual operand against the evidence key. If
+the owners cannot identify the route selected by a formal Permission and its
+raw `q_perm` occurrence, this is an exact readiness blocker.
 
 The returned certificate keeps the private snapshot borrow, not merely a
 lifetime-erased `RouteId`, pointer, generation or vector index. It accepts no
 bare relation/admission/emission IDs from the caller. Owner-bound iterators
 resolve every index before returning a record and preserve the physical slot,
 raw endpoint, canonical representative, source owner/occurrence and provenance.
-The borrow excludes safe session/graph/effect/context mutation, so rollback,
-truncation and canonicalization changes cannot race the read. The certificate
-cannot outlive the borrow or be stored for later reuse. This addresses
-cross-session mixing only if all constructors remain private and the same
-`owner` borrow accompanies every returned record.
+A live shared borrow blocks safe exclusive session/graph/effect/context
+mutation while a certificate operation retains it, so ordinary rollback,
+truncation and canonicalization paths requiring `&mut` cannot interleave. This
+is conditional: same lifetime does not establish same-session identity, and
+the four-owner audit does not establish the absence of relevant transitive
+interior mutation in `candidate_intrusion`. A private resolver must enforce
+owner identity for every combined handle. The certificate cannot outlive its
+borrow or be stored for later reuse. Universal mutation exclusion and
+implementation readiness remain OPEN until those premises are reviewed.
 
 `CircuitEvidence<'a>` demonstrates a borrowed state plus checked iterators, but
 its selected closure is not this interface: it allocates masks from all
@@ -113,17 +127,23 @@ inconsistent, cyclic-unresolved, incomplete or over-budget evidence returns no
 partial certificate. Numeric execution ceilings require a separate reviewed
 implementation contract after the owners expose auditable size bounds.
 
-The current code supplies no `BoundEvidence` enumeration API and no
-FormalPermission iterator. The snapshot guard must also prove successful route
-quiescence; merely holding `&InferenceSession`, checking an intrusion
-generation, or borrowing `EvidenceSnapshot` descriptors is insufficient.
+The current code supplies no complete `BoundEvidence` enumeration API and no
+FormalPermission iterator; some antecedents are recorded as unavailable, so
+enumeration alone cannot authenticate them. The snapshot guard must also prove
+successful route quiescence; merely holding `&InferenceSession`, checking an
+intrusion generation, or borrowing `EvidenceSnapshot` descriptors is
+insufficient. Physical slot validation must resolve live session
+`bounds`/`effect_bounds`, with row kind, lane, index and operand checks. Same
+lifetime is not an owner brand; the four-owner audit also leaves transitive
+`candidate_intrusion` mutation behavior unexamined.
 These are the present owner-local tasks. No cloning of the solver and no new
 semantic identity is proposed.
 
 ## Frozen inputs and limitations
 
-- Sprint contract SHA-256
-  `243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5`.
+- Sprint contract revision 2 is recorded in the active current state; revision 1 SHA-256
+  `243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5` remains the
+  source of the original exact owner pins and non-goals.
 - Prior one-shot Draft SHA-256
   `2cf0d473f0c3a3f75474e54a99b5c1d4470ab338320272445eae0a5fe263e23f`.
 - Supplier-boundary proof SHA-256

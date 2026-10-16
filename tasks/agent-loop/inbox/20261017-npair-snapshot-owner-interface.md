@@ -1,32 +1,45 @@
 # Frozen readiness handoff
 
-Sprint `npair-snapshot-owner-interface-20261017`, revision 1, contract SHA-256
-`243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5`.
-Assignment `NPAIR-SNAPSHOT-OWNER-INTERFACE-20261017`, handoff revision 1.
+Sprint `npair-snapshot-owner-interface-20261017`, revision 2. Revision 1
+contract SHA-256 `243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5`.
+Revision 2 is the bounded Luna repair authorized after compiler-referee review;
+its current contract hash is recorded in `tasks/agent-loop/current.json`.
+Assignment `NPAIR-SNAPSHOT-OWNER-INTERFACE-20261017`, handoff revision 2.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN.
 
 Author: Luna/high primary; current-session. Exact output leases are this handoff
 and `notes/design/2026-10-17-npair-snapshot-owner-interface.md`. Requested
-model/effort Luna/high; observed settings UNKNOWN. Readiness cap 240s.
+model/effort Luna/high; observed settings UNKNOWN. Original readiness work used
+240s; revision 2 authorized a 60s repair funded from the proof lane's certified
+60s unused allocation. Total readiness charge ceiling: 300s. Proof artifact
+remains byte-frozen.
 
-Outcome class: read-only owner-interface readiness Draft. The complete relevant
-state is owned by `InferenceSession`/`GraphState`, `candidate_effect::State`,
-`candidate_context::State` and a selected route graph. Safe `&InferenceSession`
-borrowing can exclude `&mut` changes, but existing accessors do not expose all
-required evidence. `CircuitEvidence<'a>` is a selected partial relation closure;
-it omits full physical BoundEvidence and private FormalPermission records.
-BoundEvidence and formal-permission accessors, plus a successful route
-quiescence/selection gate, remain to be designed and independently proved.
+Compiler-referee repairs in the revised Draft:
 
-The design supplies an owner-bound private aggregate proposal, exact field and
-mutation table, complete-evidence enumeration, shared iterative witness DAG,
-cycle/failure handling, repeated-scan and capacity accounting requirements.
-Proposed access is not implemented; no compiler code, API, semantic or
-production authority is granted. The independent Sol/high proof lane must now
-verify borrow ownership, quiescence, mutation exclusion, full evidence and
-expiration before rollback/reuse. The proof must distinguish existing access
-from proposed access and may return an exact blocker.
+- `BoundEvidence::admit` records unavailable OwnerEmission/ExtrusionLink
+  processing and ordinary-seed antecedents, and unavailable FreshUse Replay
+  antecedents. Accessors cannot synthesize them; cases must reject/Pend unless
+  separately reviewed owner evidence authenticates each missing premise.
+- The field table now includes live `InferenceSession.bounds` and
+  `effect_bounds`. A physical-slot resolver must check row kind, lane, index and
+  actual operand against the evidence BoundKey; captured Graph bounds alone are
+  insufficient.
+- A shared session borrow conditionally excludes ordinary `&mut` descendants
+  while the borrow is used. Same lifetime does not establish owner identity, and
+  the four-owner packet does not establish absence of transitive
+  `candidate_intrusion` interior mutation. Universal mutation exclusion and
+  implementation readiness remain OPEN. No additional source pin/read is
+  authorized.
 
-Frozen design SHA-256: `45b789c89c81cf335b25e6ff79b622572cf5d6e4d58932023ab8fe7843225e27`. This readiness
-handoff does not close the parent or authorize validator implementation. No
-tests, builds, probes, Cargo or source/compiler execution.
+Frozen readiness design SHA-256:
+`92c8934820604f895958bf8b2af773128def4c0007f4fb1ec0146eb416eb55f8`.
+Independent proof remains unchanged at SHA-256
+`5c008735438e191d52c4255d6d4b91b5eb2f810deb661a85c27b0061d29e1cb7`; proof
+handoff SHA-256 `76807badddcf699c1105cc0b4c6041ceaefc3ad44d678a53f3d55be03b96be1c`.
+
+The revised Draft remains structural/readiness-only. No access API, successful
+quiescent-route constructor, owner-branded resolver, semantic fact or source
+admission has been implemented. Parent, validator, and production gates remain
+OPEN. After readiness STOP, architect and spec-auditor review the amended Draft
+and explicitly disposition all compiler-referee findings. No tests, builds,
+probes, Cargo, source/compiler execution or code edits.
