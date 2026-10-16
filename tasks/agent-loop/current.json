@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
   "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-  "state": "ARCHITECT-REVIEW-RUNNING",
+  "state": "ARCHITECT-REVIEW-MAJOR-REPAIR-REQUIRED",
   "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": {
@@ -101,7 +101,7 @@
   },
   "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained.",
   "review": {
-   "state": "ARCHITECT-RUNNING",
+   "state": "ARCHITECT-STOPPED-MAJOR-FINDING",
    "required": [
     "architect",
     "spec_auditor"
@@ -115,7 +115,7 @@
     "id": "NPAIR-NATIVE-ARCHITECTURE-REVIEW-20261017",
     "worker_id": "/root/npair_native_architecture_review",
     "role": "architect",
-    "state": "RUNNING",
+    "state": "STOPPED",
     "session": "current-session",
     "requested_model": "gpt-6.1-sol",
     "requested_effort": "medium",
@@ -124,7 +124,19 @@
     "cap_seconds": 120,
     "target_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
     "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
-    "active_work_receipt": "Fresh read-only architect review launched after frozen candidate; exact pins fixed; no descendants."
+    "active_work_receipt": "Fresh read-only architect review launched after frozen candidate; exact pins fixed; no descendants.",
+    "verdict": "MAJOR lifecycle owner gap plus MINOR pending progress owner and resource-bound requirements."
+   },
+   "verdict": {
+    "role": "architect",
+    "severity": "MAJOR",
+    "finding": "FreshUse construction maps are dropped by GraphState::commit_local_use; candidate must promote required identities/dependencies into committed Use ledger or retained route before final commit.",
+    "minor_findings": [
+     "Specify owner/event/completion contract for pending association progress.",
+     "Bound route/evidence storage with shared derivation DAG or equivalent and account references/indexes/undo/subscriptions."
+    ],
+    "reviewer_state": "STOPPED",
+    "observed_model_effort": "UNKNOWN/UNKNOWN"
    }
   },
   "proof_adjudication": {
@@ -209,13 +221,13 @@
   {
    "id": "/root/npair_native_architecture_review",
    "role": "architect",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Fresh exact-target architecture feasibility review; 120s cap; read-only; no descendants."
+   "receipt": "MAJOR: committed owner for FreshUse evidence missing; two MINOR findings on pending progress ownership and resource bound. Reviewer STOPPED; no writes."
   }
  ],
  "leases": [
@@ -277,15 +289,15 @@
   },
   {
    "id": "NPAIR-native-architecture-candidate independent review",
-   "state": "ARCHITECT-REVIEW-RUNNING",
-   "owner": "/root/npair_native_architecture_review"
+   "state": "MAJOR-REPAIR-REQUIRED",
+   "owner": "Luna/selector: versioned correction authority and fresh review/resource envelope"
   }
  ],
  "next_action": {
-  "state": "ARCHITECT-REVIEW-RUNNING",
-  "dispatcher": "Inside frozen sequence; architect review first, spec auditor after STOP.",
-  "proof": "Conditional anchored J2 result CLEAN-reviewed only within scope; full native rho_u remains OPEN.",
-  "implementation": "Draft concrete ledger architecture under read-only review; no code lease; user approval required before implementation."
+  "state": "MATERIAL-MAJOR-FINDING-DISPATCH",
+  "dispatcher": "Fresh selector consultation required after MAJOR lifecycle finding and resource/repair boundary.",
+  "proof": "Conditional anchored J2 remains CLEAN-reviewed only within scope.",
+  "implementation": "Frozen Draft candidate needs retained evidence owner, pending-progress interface and bounded DAG/accounting; no compiler lease."
  },
  "resource_accounting": {
   "current_sprint_id": "npair-whole-presentation-transport-architecture-20261017",
@@ -298,11 +310,11 @@
   "unknown_reservations_preserved": 3,
   "active_authors": 0,
   "astra_assignments": 0,
-  "charged_total_seconds": 1440,
-  "review_reserved": 240,
-  "status": "Astra proof 600s, proof review 120s, Luna architecture 600s and coordination 120s charged; architecture candidate frozen; architect review RUNNING, spec review waits.",
+  "charged_total_seconds": 1560,
+  "review_reserved": 120,
+  "status": "Architecture candidate received MAJOR + 2 MINOR; architect STOPPED at 120s. Spec review not launched pending repair. Initial sprint has 120s unused review + 120s reserve; architecture author cap spent; no edits authorized until boundary consultation.",
   "authors_spent_seconds": 600,
-  "review_spent_seconds": 120,
+  "review_spent_seconds": 240,
   "architecture_spent_seconds": 600,
   "coordination_spent_seconds": 120
  },
