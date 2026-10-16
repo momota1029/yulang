@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
   "revision": 1,
   "sha256": "14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1",
-  "state": "REPAIR-AUTHOR-RUNNING",
+  "state": "REPAIR-FROZEN-PENDING-REVIEW",
   "baseline": "3df4e0e289173cc26af99655d0a1c670fb0d48df",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": "adopted-npair-construction-and-native-plan-20261017 ended PARTIAL—MAJOR REPAIR PENDING; proof result and original plan/reviews frozen; no budget carries over.",
@@ -27,7 +27,7 @@
    "spec_auditor": "MAJOR: representation mechanisms mandated against unselected authority; repair means demote options, preserve invariants."
   },
   "repair": {
-   "state": "RUNNING",
+   "state": "FROZEN-PENDING-DELTA-REVIEW",
    "author": "/root",
    "outputs": [
     "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
@@ -38,15 +38,25 @@
    "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
    "budget_seconds": 60,
    "session": "current-session",
-   "receipt": "Frozen contract rev1 and pre-repair snapshot committed; Luna has begun exact-path wording repair."
+   "receipt": "Revision 2 demotes all representation mechanisms to unselected options; evidence invariants and proof obligations retained. Conservative 60s charged; writer STOPPED.",
+   "artifact": "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
+   "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
+   "handoff": "tasks/agent-loop/inbox/20261017-negative-pair-native-plan-authority-repair.md",
+   "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
+   "closeout": "notes/progress/2026-10-17-adopted-npair-sprint-closeout.md",
+   "closeout_sha256": "0f232e185fb4200274082406c71dc7f06761aed65ed1e22dbb245905c97c8cd2",
+   "writer_state": "STOPPED"
   },
   "review": {
-   "state": "NOT-ASSIGNED",
+   "state": "SEQUENTIAL-DELTA-REVIEWS-TO-ASSIGN",
    "required": [
-    "architect delta review",
-    "spec_auditor delta review"
+    "architect",
+    "spec_auditor"
    ],
-   "budget_seconds": 120
+   "budget_seconds": 120,
+   "artifact_sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064",
+   "handoff_sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029",
+   "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4"
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; N-Transport, N-Subtract-Elim, full source/native correspondence, F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "resource_envelope_seconds": {
@@ -99,13 +109,13 @@
   {
    "id": "/root",
    "role": "Luna repair author and primary",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "UNKNOWN",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Luna repair author active on the three exact leased output paths; no code lease."
+   "receipt": "Corrected artifact, repair handoff and prior-sprint closeout frozen; author STOPPED after full 60s conservative charge."
   }
  ],
  "leases": [
@@ -130,17 +140,20 @@
   {
    "path": "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "36d9792d7a5bb4d06beeb4a1c62df28d38ff171fc324783061c2219a970ce064"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-negative-pair-native-plan-authority-repair.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "932a353ba996f5a29a2d98bd6591c9e4ae423f3610d71aeae79373156bd16029"
   },
   {
    "path": "notes/progress/2026-10-17-adopted-npair-sprint-closeout.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "0f232e185fb4200274082406c71dc7f06761aed65ed1e22dbb245905c97c8cd2"
   }
  ],
  "pending": [
@@ -161,10 +174,10 @@
   }
  ],
  "next_action": {
-  "state": "REPAIR-AUTHOR-RUNNING",
+  "state": "REPAIR-FROZEN-AWAITING-ARCHITECT-DELTA-REVIEW",
   "dispatcher": "Selector recommends separate 240s correction sprint; no carryover; author60/reviews120/coord30/reserve30.",
   "proof": "No new proof work; preserve reviewed L1/L2/P3 result and J2 conditional boundary.",
-  "implementation": "Repair only wording so representation/storage/processing mechanisms are examples, not mandatory design. No compiler lease."
+  "implementation": "No code lease. Review only the exact frozen correction delta against snapshot, adopted scope and proof boundaries."
  },
  "resource_accounting": {
   "current_sprint_id": "native-plan-authority-boundary-correction-20261017",
@@ -174,11 +187,13 @@
   "coordination": 30,
   "reserve": 30,
   "unknown_reservations_preserved": 3,
-  "active_authors": 1,
+  "active_authors": 0,
   "astra_assignments": 0,
-  "charged_total_seconds": 0,
+  "charged_total_seconds": 60,
   "review_reserved": 120,
-  "status": "Fresh envelope; prior sprint charges retired, no carryover."
+  "status": "Fresh envelope; prior sprint charges retired, no carryover.",
+  "authors_spent_seconds": 60,
+  "review_spent_seconds": 0
  },
  "history": "Prior sprint commits pushed through 3df4e0e28. Exact original plan ff91cfa4 and handoff 4d5ea10e preserved; snapshot created. Proof 6a3c6b57 CLEAN-reviewed. Native plan architect CLEAN/minor; spec audit MAJOR. Prior authors1500s, reviews420s; coordination conservatively charged120s; total2040/2100; reserve60 retired. Catch/negative-pair adoption receipt and source review hashes are in prior sprint commits.",
  "checkpoint_commits": [

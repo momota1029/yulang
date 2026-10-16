@@ -1,9 +1,14 @@
 # Native implementation contract for adopted negative effect pairs
 
-Status: frozen Luna-authored implementation-readiness contract; no compiler
-code lease or semantic/production approval is granted.
-Sprint: `adopted-npair-construction-and-native-plan-20261017`, contract
-revision 2, SHA-256 `0e4544b0833d0b5f7bbe61783b67882a1af13d6bf3a5b5c41ad50615c36aa12e`.
+Status: corrected implementation-readiness contract, revision 2; independent
+delta review pending. No compiler code lease or semantic/production approval.
+Original authoring sprint: `adopted-npair-construction-and-native-plan-20261017`,
+contract revision 2, SHA-256 `0e4544b0833d0b5f7bbe61783b67882a1af13d6bf3a5b5c41ad50615c36aa12e`.
+Authority-boundary repair sprint: `native-plan-authority-boundary-correction-20261017`,
+contract revision 1, SHA-256 `14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1`.
+The pre-repair bytes are preserved at
+`tasks/agent-loop/snapshots/20261017-negative-pair-native-implementation-contract-pre-repair.md`
+(SHA-256 `ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4`).
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, unchanged original
 receive fixture and all original quantifiers. Mathematical/source-native/
 implementation/production gates remain separately OPEN.
@@ -41,12 +46,12 @@ not an execution result.
 | Owner | Existing producer/consumer | Required extension and present limit |
 |---|---|---|
 | `candidate_effect::candidate_formal_pair` / `candidate_formal_effect_port` | Recursively builds positive/negative Function terms. It accepts omitted and singleton symbolic ports, but the current negative-concrete guard returns `Unsupported` before pair creation. | For the adopted supported forms, create one shared flexible effect row and retain occurrence descriptor/permission metadata separately from row constraints. Preserve the singleton-symbolic identity. Do not encode permission as `Support`, a lower edge, a closed `Allowance`, or `EmptyNegative`. Mixed/multiple variables remain unavailable until their original `C_sym` contract is proved. |
-| `candidate_effect::candidate_formal_annotation` | Emits the paired ordinary formal value links at source slots 43 and 44 and records the negative domain. It runs under the route transaction. | Commit a complete recursive port registry atomically with both links, including undo/checkpoint/resource accounting. A partial pair or a permission record without both edges must not escape rollback. Keep root computation-effect and X/Y/Z ports distinct. |
-| `candidate_effect::candidate_constrain_live_effect` / `State::contributions` | Contributions carry effect family, source origin and allocated instance. Ordinary propagation and the `TypedPairKey`/constraint-origin machinery record some routes. | Attach `At(D,w,delta)` only from the actual lower derivation and the actual nested result-child comparison chain. Key it by contribution instance and descriptor identity plus derivation/use context, not family or canonical row equality. Include predecessor edge IDs so review can reconstruct delta. The current origins/bound receipts do not yet prove complete NPAIR incidence at every route. |
-| `candidate_context` bound evidence | `BoundAdmissionCause` records owner emission, extrusion link, fresh-use antecedent/source bound/use origin/mapped relation or transport. Coverage explicitly records missing relation/origin/antecedent gaps. Attachment bundles are inert. | Reuse these only as inputs. Add no claim that a `BoundAdmission` is an `At` proof. The NPAIR evidence needs its own validated typed ports, actual ingress derivation and complete dependencies; it must preserve evidence-coverage gaps and undo/duplicate semantics. |
+| `candidate_effect::candidate_formal_annotation` | Emits the paired ordinary formal value links at source slots 43 and 44 and records the negative domain. It runs under the route transaction. | Preserve the occurrence descriptor, both links and permission facts consistently across commit/rollback. A partial pair or permission fact without both edges must not escape. Keep root computation-effect and X/Y/Z ports distinct. A recursive registry is one possible representation; no registry shape or storage owner is selected here. |
+| `candidate_effect::candidate_constrain_live_effect` / `State::contributions` | Contributions carry effect family, source origin and allocated instance. Ordinary propagation and the `TypedPairKey`/constraint-origin machinery record some routes. | Establish `At(D,w,delta)` only from the actual lower derivation and actual nested result-child comparison chain. The evidence must distinguish contribution instance, descriptor identity, derivation/use context and independent same-family lineages, and let a reviewer reconstruct delta. Family or canonical-row equality cannot supply this evidence. Predecessor IDs or any other storage encoding are unselected options. Current origins/bound receipts do not yet prove complete NPAIR incidence at every route. |
+| `candidate_context` bound evidence | `BoundAdmissionCause` records owner emission, extrusion link, fresh-use antecedent/source bound/use origin/mapped relation or transport. Coverage explicitly records missing relation/origin/antecedent gaps. Attachment bundles are inert. | Reuse these only as inputs. A `BoundAdmission` is not an `At` proof. Any future native realization must validate the actual ports, ingress derivation and complete dependencies, while preserving coverage gaps and undo/duplicate behavior. Whether that evidence lives in this context, another owner, a graph, or an indexed store is unselected. |
 | `candidate_source` install/publication | `Work::Install` creates `Action::Install` or `Action::LocalAnnotation`; initializer computation effect is emitted once to the enclosing block. `Stage::PublishLocal` installs the exposed positive root and capture boundary. | Associate the formal descriptor with its actual source occurrence/path before local publication; carry the exposed R1 root and initializer fact as distinct. Publication must wait or remain pending when a required ingress/symbolic dependency is unresolved. Never replay initializer effect as a fresh function-call effect. |
-| `candidate_scheme` capture/use | `route_candidate_local_run` captures the installed root and prepares `FreshUse`; rows, Function terms, views, contribution endpoints, context relations, scopes and bound evidence get different remaps. FreshUse allocates distinct contribution instances for distinct processed contribution nodes, preserving family/source origin. It reconstructs captured bounds before publication. | Extend `Graph`/`FreshUse` with port-descriptor and incidence proof maps: old-to-new contribution instance; occurrence descriptor identity; relation/antecedent map; use ID; scope and receiver map; pending tail dependencies. Validate every mapping against the original capture frontier. L4 alone does not show captured complete identity, NPAIR evidence seeding, or universal remapping. Independent uses get independent use identities even when canonical rows are shared. |
-| `candidate_extrusion` and Function/context propagation | Copies polarity-selected rows, Function nodes, effect views and bounds; selected copies are linked by ordinary constraints. Existing generic transport/evidence can record a relation. | Supply an explicit old-proof/new-proof map for each extrusion copy and each actual Function result descent. Preserve descriptor, source lineage, use identity, tails and unresolved futures. Noninjective canonical row equality cannot recover which same-family contribution had the incidence. Qualifying intrusion must preserve the same typed proof object across the actual SCC/context route. No changed SCC criterion is permitted here. |
+| `candidate_scheme` capture/use | `route_candidate_local_run` captures the installed root and prepares `FreshUse`; rows, Function terms, views, contribution endpoints, context relations, scopes and bound evidence get different remaps. FreshUse allocates distinct contribution instances for distinct processed contribution nodes, preserving family/source origin. It reconstructs captured bounds before publication. | Capture/fresh use must preserve and validate the relation among each descriptor, actual contribution instance, derivation, use identity, receiver scope and pending tail dependency against the original frontier. L4 alone does not show complete identity, NPAIR evidence seeding, or universal remapping. Independent uses need distinct use identities even when canonical rows are shared. Whether this relation is stored in `Graph`/`FreshUse`, a registry, side table or another representation is unselected. |
+| `candidate_extrusion` and Function/context propagation | Copies polarity-selected rows, Function nodes, effect views and bounds; selected copies are linked by ordinary constraints. Existing generic transport/evidence can record a relation. | Preserve a reconstructible correspondence between actual source and copied ingress evidence through extrusion, each Function result descent and qualifying SCC/context route. Preserve descriptor, contribution lineage, use identity, tails and unresolved futures. Noninjective canonical row equality cannot recover which same-family contribution had the incidence. Explicit maps or proof objects are possible representations, not decisions made here. No changed SCC criterion is permitted. |
 | `shadow_apply::admit_candidate_fact` | Validates original Call operands and creates a separate invocation row for each source `Apply`; records a `NativeInterface` retaining callee, argument, demand, invocation and application effect. This can supply distinct J1/J2 demand endpoints. | Map the stored R1 graph's evidence to each actual `g` use and then to that use's fresh invocation row. Do not equate J1/J2 because their families or endpoint representatives compare equal. A successful shape comparison alone is not the full Call judgment. |
 | `candidate_receiver` / `candidate_catch_operation` | The bounded `ReceivingResidualExperiment` has a real but experiment-scoped suppress/forward consumer tied to a selected Catch operation and provider. `candidate_catch_operation` builds operation payload/continuation interfaces; it is not by itself an NPAIR subtractor. | The receive fixture has no Catch and provides no subtraction event. Identify and derive the actual original source/native consumer before invoking N-Subtract-Elim. The experiment's specialized outcome code is not blanket authority to delete a contribution or a proof of NPAIR lineage correspondence. |
 
@@ -55,6 +60,16 @@ ordinary tails; it is not a substitute for the new shared negative port. In
 particular, the current negative branch rejects nonempty concrete rows. Removing
 that guard alone is not an implementation: it would still lack permission vs.
 inflow separation, actual ingress, transport, scheduling and consumer evidence.
+
+**Representation boundary.** Binding here are the adopted, externally checkable
+evidence invariants: original typed occurrence and scope, one shared row, both
+ordinary edges, actual contribution derivation, independent lineage, complete
+dependencies, and valid correspondence through use/copy/consumer. Notation such
+as `rho_u` names a mathematical source-to-destination correspondence; it does
+not require a runtime map object. Registries, explicit graph fields, typed nodes,
+IDs, side tables, memory ownership, update order and invalidation encoding are
+unselected implementation options. Choosing among them requires its own
+architecture review and authority gate before a code contract makes one binding.
 
 ## Required implementation sequence for a later exact code sprint
 
@@ -70,28 +85,33 @@ are accepted.
    Preserve the supported source cases and return the existing unsupported
    result for genuinely unproved symbolic forms; do not rewrite source
    signatures or expected outputs.
-2. **Authentic derivation producer.** Add typed incidence nodes from actual
-   propagation work items when a particular contribution derivation composes
-   through the two result Function edges to the negative port. Store exact
-   predecessor derivations and ordinary occurrence/cause identity. If direct
+2. **Authentic derivation producer.** Establish `At(D,w,delta)` from actual
+   propagation work when a particular contribution derivation composes through
+   the two result Function edges to the negative port. The evidence must retain
+   exact derivation provenance and ordinary occurrence/cause identity. If direct
    propagation reaches the same demand before the annotated route, retain the
    same contribution identity and pending association instead of publishing a
-   family-wide match, empty row or prematurely finalized residual. Include
-   transaction rollback, allocation accounting, duplicate handling and
-   invalidation for every new node/map.
-3. **Capture and fresh use.** Capture only evidence attached to actual graph
-   nodes/bounds in the source frontier. During freshening, create one validated
-   remap for rows, contribution instances, descriptor occurrences, derivation
-   nodes, bound relations, use identities and scopes. Keep equal family atoms
+   family-wide match, empty row or prematurely finalized residual. A failed
+   attempt must not publish a partial pair or evidence, and any retained
+   continuation must stay consistent. The detailed rollback, allocation,
+   duplicate and invalidation mechanisms are left to the later design review.
+   Incidence nodes, registries, predecessor IDs and maps are examples only;
+   none is mandatory under this contract.
+3. **Capture and fresh use.** Capture only evidence justified by actual graph
+   nodes/bounds in the source frontier. Freshening must establish and validate
+   the source-to-destination correspondence for rows, contribution instances,
+   descriptor occurrences, derivations, bound relations, use identities and
+   scopes. Keep equal family atoms
    from independent providers or routes distinct. Map all tail/future
    dependencies and ordinary four-child Function constraints. Do not copy the
    old receiver scope into a new use without source-owned remap evidence.
-4. **Extrusion/intrusion.** Carry typed incidence proofs through the actual
+4. **Extrusion/intrusion.** Preserve the typed incidence relation through the actual
    selected bound and Function worklist edges. Preserve old/new endpoints,
-   derivation parents and annotation occurrence through extrusion copying and
-   qualifying SCC intrusion. Drop evidence only with an explicit invalidation
-   reason that returns the dependent proof to pending; never treat endpoint
-   canonicalization as proof transport.
+   derivation provenance and annotation occurrence through extrusion copying
+   and qualifying SCC intrusion. Drop evidence only with an explicit
+   invalidation reason that returns the dependent proof to pending; never treat
+   endpoint canonicalization as proof transport. The internal encoding is
+   unselected.
 5. **Actual second consumer.** At original `g ()`, use its own fresh
    `NativeInterface` and J2. First identify the actual downstream elimination
    consumer and provide its demand, actual input, permission, ingress and
@@ -123,9 +143,15 @@ stable TODOs are copied unchanged in its frozen handoff.
 This plan does not change source semantics beyond the adopted definitions,
 compiler code, tests, fixtures, expected output, gates or resource policy. It
 does not claim that the current compiler accepts the fixture or that the
-bounded receiver experiment is the general residual consumer. All choices about
-representation details not forced by the adopted rule remain explicit design
-inputs for the later code contract.
+bounded receiver experiment is the general residual consumer. The adopted
+contract requires preservation of complete typed positions, authentic ingress
+derivations, contribution identity, dependencies and coherent capture/fresh-use
+transport. It does not select their representation. Recursive port registries,
+typed-incidence nodes, predecessor-edge identifiers, explicit Graph/FreshUse
+maps, storage ownership and processing order are implementation options only.
+Their representation, allocation, processing and scheduling remain unselected
+pending a later architecture decision. No option is mandatory or authorized by
+this plan.
 
 ## Frozen native dependency hashes
 
