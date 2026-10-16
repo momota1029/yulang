@@ -61,7 +61,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current live collaboration reports RUNNING; acknowledged exact active contract v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and verified all 26 pinned dependency hashes. Continuing scoped proof; session/model/effort unavailable."
+      "receipt": "Live inventory reports RUNNING; acknowledged base v2 hash earlier. Continuation after test locator amendment is pending acknowledgement. Current session/model/effort unavailable; exact outputs remain quarantined."
     },
     {
       "id": "/root/sol_source_attack",
@@ -72,18 +72,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current collaboration tool reports completion; frozen research-only source attack handoff revision 1 note SHA-256 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and inbox SHA-256 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. Rechecked all 26 base v2 dependency pins; no source-qualified counterexample; all parent gates OPEN; pending independent review."
+      "receipt": "Current collaboration tool reports completion; frozen research-only note SHA-256 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and inbox SHA-256 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. All 26 base v2 pins rechecked; no source-qualified counterexample; all parent gates OPEN. Independent review assigned."
     },
     {
       "id": "/root/luna_implementation",
       "role": "Luna implementation (implementer)",
-      "state": "WAITING",
+      "state": "UNKNOWN",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Dispatcher authorized continuation revision 2 under same assignment ID. Original handoff remains frozen. Archived pre-edit test snapshot hash 91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56; exact test path reopened for bounded repair only. No continuation launch acknowledgement yet."
+      "receipt": "Dispatcher-approved continuation revision 2 was sent to the existing completed implementer; current collaboration inventory now reports RUNNING, but session ID remains unavailable and exact test lease is quarantined pending session evidence. Sole output path is crates/yu-solver/tests/candidate_effect_annotation.rs."
     },
     {
       "id": "/root/implementation_review",
@@ -95,6 +95,17 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Fresh compiler_referee completed a read-only review against exact v2 and artifact hashes; accepted as provisional candidate regression evidence only. Two MINOR findings: strengthen conflict operand attribution to tick::next operation/occurrence; frozen handoff references v1 and needs primary-owned v2 reconciliation receipt. No major compiler defect identified."
+    },
+    {
+      "id": "/root/source_review",
+      "role": "independent source/proof review (compiler_referee)",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Fresh isolated compiler_referee assigned read-only review of frozen Sol artifacts against base v2; live inventory reports RUNNING, session identifier unavailable."
     }
   ],
   "leases": [
@@ -137,8 +148,8 @@
     {
       "path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
       "owner": "/root/luna_implementation",
-      "state": "HELD",
-      "reason": "Dispatcher-approved bounded continuation revision 2 under same Luna assignment ID; only the named test may change. Worker not yet resumed; quarantine if current runtime/session is unavailable after launch."
+      "state": "QUARANTINED",
+      "reason": "Continuation r2 launched to existing implementer, but live session ID is unavailable. Preserve unknown-writer quarantine; no primary read/edit until completion receipt."
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
@@ -177,7 +188,7 @@
       "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
     }
   ],
-  "worker_inventory_scope": "Current inventory: root and Astra continue; Astra session metadata remains unavailable, so its state/lease are UNKNOWN/QUARANTINED. Sol has completed/STOPPED with frozen research-only note and handoff pending independent review. Luna is WAITING on dispatcher-approved same-assignment continuation r2; only candidate_effect_annotation.rs is reopened and held, with original test bytes archived at immutable r1 snapshot path. Luna runtime not yet resumed. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Current inventory: root, Astra, Luna continuation, and fresh Sol artifact reviewer are running but session IDs unavailable; their states remain UNKNOWN and exact output paths are quarantined. Sol original source attack completed/STOPPED with frozen outputs pending review. Luna r2 has only the candidate-effect test path reopened by dispatcher, now quarantined until current session evidence; all other Luna paths and original handoff remain FROZEN. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -227,9 +238,15 @@
       "state": "OPEN",
       "owner": "fresh independent reviewer",
       "needs": "Review frozen note/handoff against base v2 and report conditional constructions, counterexample coverage, original quantifier preservation and source/native limits."
+    },
+    {
+      "id": "IMPLEMENTATION-LOCATOR-ACK",
+      "state": "OPEN",
+      "owner": "Astra core proof",
+      "needs": "Acknowledge test input relocation from mutable path to immutable history snapshot SHA 91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56; semantic inputs unchanged."
     }
   ],
-  "next_action": "Resume Luna same-assignment continuation r2 after recording assignment acknowledgement; Astra continues scoped proof. Review Sol’s frozen evidence and Luna’s repaired test before integration.",
+  "next_action": "Receive Luna continuation receipt and freeze its amended test output; receive Astra changed-locator acknowledgement; finish independent Sol review. Keep all theorem/production gates OPEN.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
