@@ -633,7 +633,22 @@ actual producer/Call/Catch source maps and once/twice pending interfaces before
 native discharge. It may not assume a complete interface from four scalar
 ports, drop raw-resumed requests, or claim current code emits proposed records.
 M2 two reviewers on the coherent bundle; static dependency/integrity only,
-zero executable processes/samples. No legacy edge is retired or preflight lifted.
+zero build/test/probe/benchmark processes or samples. No legacy edge is retired
+or preflight lifted.
+The source-record/suffix artifact is now frozen at producer `fd72e7c2...3be4239`,
+with independently CLEAN mathematical `checked_result_semantics` and source
+`capture_source_review` reports. The proposed original emitter/entry/Argument/
+Replay chain constructs one provider/Call/Catch map; Request/Bind and raw
+selection construct the ordered remaining family and slot65 demand, separately
+from slot64 response Force. Once/twice/outside-arm equations are structural
+source sections, with all independent/opaque alternatives retained. This
+closes only that bounded proposed construction, with no native code or adoption.
+The next decisive owner is uniform image-demand discharge and guarded
+normalization under full alternatives, later inputs and copying, rather than
+another conditional source-diagonal lemma. Generic feasibility, termination,
+principality and production remain OPEN. A bounded read-only next-action pass
+is selecting the evidence-producing method for that changed critical path.
+Static hash/link/Markdown scripts are integrity checks, not semantic probes.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new

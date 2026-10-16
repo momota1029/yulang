@@ -68,9 +68,20 @@ Status: full objective remains active. Native extrusion now schedules current co
   FunctionPort support invalidation misses ordinary later effect-lower wakeups;
   pending eligibility cannot become an unconditional residual. Current slot 65
   also feeds full scrutinee effects into raw-k returns, so deleting Catch's
-  direct forwarding alone fails the once/resume case. The exact joint source
-  Invoke/remaining-suffix-to-ImageDemand consumer is the next constructive
-  owner, with copying, guarded discharge and publication still OPEN.
+  direct forwarding alone fails the once/resume case. The
+  [original Call/suffix construction](../notes/theory/2026-10-16-call-suffix-image-demand-construction.md)
+  now has CLEAN independent mathematical/source review: actual producer,
+  Read/Strict entry, Argument binding and ordered Replay construct one joint
+  provider/Call/Catch instance; Request/Bind constructs its original remaining
+  family. The proposed slot65 demand retains that family, while slot64 keeps
+  response-entry effects. Once/twice and independent outside-arm operations
+  have distinct structural derivations. Complete opaque/guarded alternatives
+  stay retained; these source sections do not prove a universal empty image.
+  This closes the bounded proposed source-record construction only. Generic
+  image discharge, guard truth, transport/copy, lifecycle, termination,
+  principality, implementation and explicit adoption remain OPEN. M2 two
+  reviewers; static pins/links/Markdown checks, zero builds/tests/probes or
+  benchmark processes/samples.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)

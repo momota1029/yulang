@@ -191,6 +191,13 @@ This index is a navigation aid. The listed source document remains authoritative
   Invoke/remaining-suffix-to-image consumption, complete effect-lower wakeups,
   guarded discharge/copy/publication and central feasibility remain OPEN;
   the new architecture is unapproved and unready for implementation/adoption.
+  The [original Call/raw-suffix construction](../theory/2026-10-16-call-suffix-image-demand-construction.md)
+  now has CLEAN mathematical/source review of the proposed joint producer/
+  entry/Argument/Replay map, original Request/Bind suffix and separate
+  response-entry/raw-family demands. Once/twice/outside-arm source equations
+  retain every other guarded/opaque alternative. Generic image discharge,
+  lifecycle, termination/principality and adoption remain OPEN; current native
+  slots and preflight are unchanged.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
