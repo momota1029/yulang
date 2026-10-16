@@ -4,71 +4,67 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "local-use-retention-implementation-20261017",
-    "contract": "tasks/agent-loop/sprints/local-use-retention-implementation-20261017.md",
+    "id": "npair-native-port-formation-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
     "revision": 1,
-    "sha256": "c6ed05c5ed10e16d97cfe4e367af5f2bc2a8e650f2169ec8e8d81b7df81e9935",
-    "state": "ENDED-REVIEWED-STRUCTURAL-RETENTION-IMPLEMENTED",
-    "baseline": "9a2c7d80826ae33493f2bcc4786bc06e450ae36a",
+    "sha256": "3af4ef163a3555d037fa559db8abd2b4c741605dac64453589b7cbd5b69898e9",
+    "state": "REVIEWED-CONDITIONAL-DRAFT-PARENT-OPEN",
+    "baseline": "9948ca23f7034dd67d878257db3df2237a7e66bd",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "FROZEN-REVIEW-PENDING",
-      "dependency": "M2 corrected pinned-v0 proof; exact scope in sprint contract",
-      "owner": "/root/local_use_retention_applied_proof",
-      "cap_seconds": 360,
-      "artifact": "notes/theory/2026-10-17-local-use-retention-applied-correspondence.md",
-      "artifact_sha256": "198046b6eb398734cf657ab03f05e171f8be568c1e8feb31115b9adc46d5f1ff",
-      "handoff": "tasks/agent-loop/inbox/20261017-local-use-retention-applied-correspondence.md",
-      "handoff_sha256": "edec4fc3252351f62235ed7caaed6844c720d17e6a3805fb9f9fa9dd310e7fa4"
+      "state": "STOPPED-FROZEN-RECEIPT",
+      "owner": "astra_prover",
+      "cap_seconds": 900,
+      "artifact": "notes/theory/2026-10-17-npair-native-port-formation.md",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-native-port-formation.md",
+      "milestone": "Astra STOPPED cleanly; concrete-only shared port and all Function children/formal links derived conditionally. Current guards still refuse. Universal C_sym, authentic At, transport and consumer remain open.",
+      "elapsed_seconds_charged": 900,
+      "artifact_sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f",
+      "handoff_sha256": "b2d420b0b528f1a6776d6f6372542de5f6304208220d65abc4d052ea22afed45"
     },
-    "implementation": {
-      "state": "STOPPED-FROZEN",
+    "code_contract": {
+      "state": "STOPPED-FROZEN-REVISION-3",
       "owner": "/root",
-      "role": "Luna/high primary",
-      "cap_seconds": 300,
-      "exact_source_lease": "crates/yu-solver/src/candidate_scheme.rs",
-      "handoff": "tasks/agent-loop/inbox/20261017-local-use-retention-implementation.md",
-      "proposal_sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a",
-      "handoff_sha256": "e78fd6cee9c1afeac740158b45084647dc495b963ddbafaad00f9f8f26b9b009",
-      "compile_check": {
-        "command": "cargo check -p yu-solver --features shadow-apply-candidate --tests",
-        "result": "PASSED; Finished dev profile in 9.12s; test targets compiled and no tests executed."
-      }
-    },
-    "approval": {
-      "state": "RECORDED",
-      "receipt": "notes/progress/2026-10-17-local-use-retention-implementation-approval.md",
-      "sha256": "356231ad001a02c5085119412af26534e56e38082aca747262e8873ffa67f13c",
-      "user_decision": "採択で構いません",
-      "accepted_tradeoff": "increased session memory; may cause earlier resource-limit rejection; practical envelope unmeasured"
+      "cap_seconds": 600,
+      "artifact": "notes/design/2026-10-17-npair-native-port-code-contract.md",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-native-port-code-contract.md",
+      "compiler_code_authority": false,
+      "started_after_proof_stop": true,
+      "elapsed_seconds_charged": 670,
+      "artifact_sha256": "a6b6f37218408b334922c19ff6065bd8bd607294201ec2b371f1376e800c41ce",
+      "handoff_sha256": "6ec84d409f261345ab682c1d37b6d41126fb7d69fff2577ab580bc92a295c3d1",
+      "receipt": "Luna appended only evaluation-order correction after compiler delta STOP; no compiler/test writes.",
+      "revision_1_artifact_sha256": "2ebb6e4c629e520a1017a20fc5cd52f4e0bbfcdb621456e0927e1a639760dc73",
+      "revision_1_handoff_sha256": "ebc6727e49d0d3f4146cef05274d29688bc46daad11949be68da5f89ef6a2533",
+      "revision_2_artifact_sha256": "14a7e2a3a876ef25de48a191eac88c4483b9fb69a82e3c434fbe115793b62754",
+      "revision_2_handoff_sha256": "74cfeb6c0fc8fff4177e66f86af57e720b52e60d933e88e28ea63e37a8fc3f0e"
     },
     "previous_sprint": {
-      "id": "local-use-retention-proposal-repair-20261017",
-      "state": "ENDED-USER-APPROVAL-PENDING",
-      "receipt": "notes/progress/2026-10-17-local-use-retention-proposal-repair-closeout.md",
-      "sha256": "af6b041c1d9d5e4c3315258da5ca0655f5777c422afa8c3f9cc6ad9bb23d3bda2"
+      "id": "local-use-retention-implementation-20261017",
+      "state": "ENDED-REVIEWED-STRUCTURAL-RETENTION-IMPLEMENTED",
+      "receipt": "notes/progress/2026-10-17-local-use-retention-implementation-closeout.md",
+      "sha256": "674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087",
+      "commit": "9948ca23f7034dd67d878257db3df2237a7e66bd"
     },
     "review": {
-      "state": "ALL-THREE-CLEAN-INTEGRATION-PENDING",
+      "state": "ALL-REVIEWS-STOPPED-CLEAN-CONDITIONAL",
       "sequence": [
         "compiler_referee:120s",
-        "architect:100s",
-        "spec_auditor:80s"
+        "architect:120s",
+        "spec_auditor:120s"
       ],
       "current_reviewer": null,
-      "sequence_results": {
-        "compiler_referee": "CLEAN within bounded structural-retention and ownership/accounting claim",
-        "architect": "CLEAN within bounded ownership/lifecycle/capacity accounting; memory limitation retained",
-        "spec_auditor": "CLEAN: approval, M2 boundary, adopted NPAIR limits and expected-output exclusions preserved"
-      }
-    },
-    "closeout": {
-      "path": "notes/progress/2026-10-17-local-use-retention-implementation-closeout.md",
-      "sha256": "674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087"
+      "dispatcher": "Preserve sprint revision 1; proceed through sequential independent review; 1620/2100s conservatively charged, no additional author allocation.",
+      "active_receipt": "Fresh revision-3 spec review active, read-only; no writes/descendants/tests/builds; observed model metadata UNKNOWN.",
+      "finding": "Revision-2 compiler delta review closed both majors and found minor evaluation-order contradiction. Luna made exact 10s correction and froze handoff revision 3; architect/spec remaining 115s each. Compiler review allocation not reopened.",
+      "architect_receipt": "CLEAN within Draft scope; all pins match; ownership/lifetime coherent; accounting remains conditional on stop-before-code gate; STOPPED read-only.",
+      "spec_receipt": "CLEAN within conditional unapplied Draft scope; all four assigned artifact/source pins match; no source/expected-output/compiler authority; STOPPED read-only.",
+      "adjudication": "All major and minor review findings closed in effective revision 3; compiler, architect and spec reviews STOPPED CLEAN within scope. Design remains conditional and unapplied; no code/test authority."
     }
   },
-  "candidate": "tasks/agent-loop/sprints/local-use-retention-implementation-20261017.md",
-  "baseline": "9a2c7d80826ae33493f2bcc4786bc06e450ae36a",
-  "scope": "Approved single-file structural retention implementation, then independent bounded proof; NPAIR parent remains OPEN.",
+  "candidate": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
+  "baseline": "9948ca23f7034dd67d878257db3df2237a7e66bd",
+  "scope": "Prove and specify readiness for the adopted native negative formal-pair producer; no source/code/test edits or preflight enabling.",
   "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No current worker is RUNNING before actual launch acknowledgment.",
   "workers": [
     {
@@ -107,72 +103,66 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole Git integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "All authors/reviewers STOPPED; closeout is frozen; Luna awaits sprint-end dispatcher delta before exact-path commit/push."
+      "receipt": "Luna Draft revision 2 STOPPED/frozen; awaiting fresh revision-2 delta compiler review followed sequentially by architect and spec review. No compiler-code lease."
     },
     {
-      "id": "/root/local_use_retention_spec_review",
-      "role": "spec_auditor",
+      "id": "/root/npair_native_port_proof",
+      "role": "astra_prover, bounded adopted NPAIR producer formation proof author",
       "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "CLEAN within spec scope. Verified pins and revised patch preserves rows, separates invalidation, retains NPAIR authority boundaries, discloses resource tradeoff, and keeps explicit user approval before code. No source-applicability re-certification. STOPPED."
-    },
-    {
-      "id": "/root/local_use_retention_applied_proof",
-      "role": "prover, independent applied-correspondence proof author",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 360,
-      "receipt": "Four-stage applied-correspondence proof frozen; full 360s conservatively charged; exact two outputs frozen; no descendants."
+      "cap_seconds": 900,
+      "receipt": "STOPPED; frozen proof/handoff hashes recorded. No descendants. Requested Astra/medium; observed UNKNOWN/UNKNOWN.",
+      "elapsed_seconds_charged": 900
     },
     {
-      "id": "/root/local_use_retention_compiler_review",
-      "role": "compiler_referee, fresh independent read-only reviewer",
+      "id": "/root/npair_native_port_compiler_review",
+      "role": "compiler_referee, fresh read-only reviewer",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 120,
-      "receipt": "CLEAN bounded structural-retention review; full 120s conservatively charged; read-only; no descendants."
+      "cap_seconds": 60,
+      "receipt": "Revision-2 delta review STOPPED. Prior two major findings closed; one minor ordering contradiction reported. No writes/children/tests/builds.",
+      "elapsed_seconds_charged": 60,
+      "assignment": "revision-2 delta review"
     },
     {
-      "id": "/root/local_use_retention_arch_review_v3",
-      "role": "architect, fresh independent read-only reviewer",
+      "id": "/root/npair_native_port_arch_review",
+      "role": "architect, fresh read-only revision-3 reviewer",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 100,
-      "receipt": "CLEAN bounded ownership/lifecycle/capacity review; full 100s conservatively charged; read-only; no descendants."
+      "cap_seconds": 115,
+      "receipt": "CLEAN bounded architect review; ownership and lifetime coherent; accounting conditional with explicit stop-before-code gate; all pins matched; STOPPED read-only.",
+      "elapsed_seconds_charged": 115
     },
     {
-      "id": "/root/local_use_retention_spec_review_v3",
-      "role": "spec_auditor, fresh independent read-only reviewer",
+      "id": "/root/npair_native_port_spec_review",
+      "role": "spec_auditor, fresh read-only revision-3 reviewer",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 80,
-      "receipt": "CLEAN bounded spec audit; full 80s conservatively charged; read-only; no descendants."
+      "cap_seconds": 115,
+      "receipt": "CLEAN bounded spec review, all assigned artifact/source hashes matched; parent gates remain open; STOPPED read-only.",
+      "elapsed_seconds_charged": 115
     }
   ],
   "leases": [
@@ -182,84 +172,27 @@
       "state": "QUARANTINED"
     },
     {
-      "path": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "8d1bd53dab64ae049a04ca506bc75f469479de3b7b4a525d6f1c0900c9578cb4"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049"
-    },
-    {
-      "path": "tasks/agent-loop/snapshots/20261017-local-use-retention-proposal-pre-repair.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55"
-    },
-    {
-      "path": "tasks/agent-loop/snapshots/20261017-local-use-retention-proposal-handoff-pre-repair.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
-    },
-    {
-      "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e"
-    },
-    {
-      "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "1dd2bab703624a51d50dca95e35ffbddd117b940bf95aca6b9b610f7d0425c2a"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal-repair.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "e2a0f6afafbb74785d2d5c7bc16753cbbfb0a9ef6d2b01b6b37897e808331c4d"
-    },
-    {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/local-use-retention-implementation-20261017.md",
+      "path": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "c6ed05c5ed10e16d97cfe4e367af5f2bc2a8e650f2169ec8e8d81b7df81e9935"
+      "sha256": "3af4ef163a3555d037fa559db8abd2b4c741605dac64453589b7cbd5b69898e9"
     },
     {
-      "path": "notes/progress/2026-10-17-local-use-retention-implementation-approval.md",
-      "owner": "/root",
+      "path": "notes/theory/2026-10-17-npair-native-port-formation.md",
+      "owner": "/root/npair_native_port_proof",
       "state": "FROZEN",
-      "sha256": "356231ad001a02c5085119412af26534e56e38082aca747262e8873ffa67f13c"
+      "sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f"
     },
     {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-implementation.md",
-      "owner": "/root",
+      "path": "tasks/agent-loop/inbox/20261017-npair-native-port-formation.md",
+      "owner": "/root/npair_native_port_proof",
       "state": "FROZEN",
-      "sha256": "e78fd6cee9c1afeac740158b45084647dc495b963ddbafaad00f9f8f26b9b009"
-    },
-    {
-      "path": "notes/theory/2026-10-17-local-use-retention-applied-correspondence.md",
-      "owner": "/root/local_use_retention_applied_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-applied-correspondence.md",
-      "owner": "/root/local_use_retention_applied_proof",
-      "state": "FROZEN"
+      "sha256": "b2d420b0b528f1a6776d6f6372542de5f6304208220d65abc4d052ea22afed45"
     }
   ],
   "pending": [
@@ -290,28 +223,26 @@
     }
   ],
   "next_action": {
-    "state": "READY-NEXT-SPRINT",
-    "dispatcher": "Sprint-end selector consulted; recommendation recorded in closeout.",
-    "proof": "Structural correspondence reviewed clean; parent OPEN at native formal-pair producer and authentic At/transport.",
-    "implementation": "Reviewed rows-preserving retention implemented; exact-path integration pending. Next sprint is a separate native NPAIR formation contract; no new code lease."
+    "state": "ACTIVE-SPRINT-READY",
+    "dispatcher": "Selector selected the formal-pair native formation contract outcome at prior sprint end.",
+    "proof": "Astra medium source-to-proof lowering packet first; exact outputs and 900s cap fixed.",
+    "implementation": "Luna/high Draft code contract only after proof author STOP; no compiler code lease."
   },
   "resource_accounting": {
-    "current_sprint_id": "local-use-retention-implementation-20261017",
-    "cap_seconds": 1200,
-    "implementation_cap_seconds": 300,
-    "proof_cap_seconds": 360,
-    "reviews_cap_seconds": 300,
-    "compile_only_cap_seconds": 120,
-    "coordination_seconds": 60,
-    "reserve_seconds": 60,
-    "charged_total_seconds": 1029,
+    "current_sprint_id": "npair-native-port-formation-20261017",
+    "cap_seconds": 2100,
+    "astra_proof_cap_seconds": 900,
+    "luna_contract_cap_seconds": 600,
+    "reviews_cap_seconds": 360,
+    "coordination_seconds": 120,
+    "reserve_seconds": 120,
+    "charged_total_seconds": 2100,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Sprint ENDED; 1029s charged of 1200s; unused 171s retired with no carryover. No active authors or reviewers.",
-    "unused_seconds_retired": 171
+    "status": "Full 2100s envelope conservatively charged: coordination120, Astra proof900, initial Luna Draft600, review1 compiler120, correction60, delta compiler60, order correction10, architect115, spec115. All writers/reviewers STOPPED; no budget remains."
   },
-  "history": "local-use-retention-implementation-20261017 closed REVIEWED—STRUCTURAL RETENTION IMPLEMENTED; receipt hash 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three fresh reviews CLEAN; compile-only check and static check passed. Parent gates remain OPEN. Selector recommends new native NPAIR formation contract sprint; no code lease. Foreign dirty JSON and three UNKNOWN reservations plus board quarantine preserved.",
+  "history": "NPAIR proof frozen and Draft producer contract revision 3 received CLEAN sequential compiler/architect/spec reviews within conditional scope. No code/test/source-admission authority; parent OPEN. Resolved previous-sprint worker receipts and leases compacted under hash-pinned local-use closeout 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Preserve three UNKNOWN reservations and board quarantine; unrelated modified JSON remains untouched.",
   "checkpoint_commits": [
-    "c9993c2b3"
+    "9948ca23f7034dd67d878257db3df2237a7e66bd"
   ]
 }
