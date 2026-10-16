@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "FROZEN-REVIEW-IN-PROGRESS",
+      "state": "MAJOR-FINDING-PRIMARY-REPAIR-REQUIRED",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -35,7 +35,9 @@
       "reviewer_observed_effort": "UNKNOWN",
       "review_receipt": "Active-work receipt confirms frozen target, contract and 16 direct pins; read-only source/consumer review in progress.",
       "compiler_referee": "CLEAN",
-      "compiler_referee_receipt": "Fresh read-only review: useful conditional proposal; no BLOCKING/major/minor finding within assigned scope. Confirms J1/J2 and actual R1->install(g)->fresh use->J2 route, permission creates neither inflow nor {E} cap. Open P1 mixed/multiple-symbolic coverage, P3/P5 association completeness/late arrival, P4 transport and P6 residual consumer/native correspondence. Final target/contract/16 pins verified; full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, no descendants or execution."
+      "compiler_referee_receipt": "Fresh read-only review: useful conditional proposal; no BLOCKING/major/minor finding within assigned scope. Confirms J1/J2 and actual R1->install(g)->fresh use->J2 route, permission creates neither inflow nor {E} cap. Open P1 mixed/multiple-symbolic coverage, P3/P5 association completeness/late arrival, P4 transport and P6 residual consumer/native correspondence. Final target/contract/16 pins verified; full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, no descendants or execution.",
+      "spec_auditor": "MAJOR",
+      "spec_auditor_receipt": "Major at proposal line 372: adoption authority is assigned to Luna, but approved option B reserves adoption for later explicit user approval. Closure: Luna prepares/routes the adoption request and records the user decision; require explicit approval before adoption/implementation. No other finding; 18 pins matched; full 120s charged; STOPPED."
     },
     "implementation": {
       "state": "RUNNING-PROPOSAL-AUTHORING",
@@ -53,13 +55,13 @@
       "receipt": "Packet 1 author STOPPED and frozen; primary begins independent proposal drafting under exact packet-2 leases. No compiler code authority."
     },
     "review": {
-      "state": "READY-NEXT-SPEC-AUDIT",
+      "state": "FINDING-ADJUDICATION",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Compiler referee STOPPED CLEAN within proposal scope; next sequential reviewer is spec_auditor, max 120s."
+      "receipt": "Compiler referee CLEAN on prior frozen bytes; spec auditor found one major authority-wording finding. Target delta required; prior review applies only to prior bytes. Both reviewers STOPPED."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -188,18 +190,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "CLEAN bounded review; full 120s charged; UNKNOWN/UNKNOWN; no descendants, writes, tests or probes."
+      "receipt": "CLEAN old frozen bytes; full 120s charged; no descendants, edits or execution."
     },
     {
       "id": "NPAIR-PROPOSAL-SPEC-REVIEW-20261017",
       "role": "spec_auditor",
-      "state": "NOT_STARTED",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Sequential fresh authority/scope audit follows referee STOP."
+      "receipt": "One major authority wording finding; full 120s charged; UNKNOWN/UNKNOWN; read-only, no descendants, edits or execution."
     }
   ],
   "leases": [
@@ -275,13 +277,13 @@
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 360,
+    "review_reserved": 240,
     "coordination_reserved": 180,
     "pending_reviewers": 0,
-    "charged_total_seconds": 1020,
+    "charged_total_seconds": 1140,
     "reviewed_closeout": null,
     "authors_spent_seconds": 900,
-    "review_spent_seconds": 120
+    "review_spent_seconds": 240
   },
   "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
   "checkpoint_commits": [
