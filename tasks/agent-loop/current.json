@@ -8,69 +8,31 @@
   "contract": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
   "revision": 2,
   "sha256": "97c39c74400e3da5c615eb9d784a993077c77244850687eeb60808d7a23a6a34",
-  "state": "ACTIVE-BOUNDED-REPAIR-THEN-PROPOSAL",
+  "state": "BOTH-PROPOSALS-REVIEWED-AWAITING-SELECTOR-CLOSEOUT",
   "baseline": "601e55cfaaf131644d770006532727da33e33059",
   "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
   "proof": {
    "state": "REVIEWED-DRAFT-CLEAN",
    "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
-   "role": "astra_prover",
-   "outputs": [
-    "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
-    "tasks/agent-loop/inbox/20261017-negative-formal-pair-formation-proposal.md"
-   ],
-   "requested_model": "gpt-6-astra",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "charge_seconds_cap": 900,
-   "receipt": "STOPPED: frozen candidate and handoff; artifact 9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018; handoff 5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5; all 16 pins rechecked; six stages; full 900s conservatively charged; requested Astra/medium, observed UNKNOWN/UNKNOWN; no descendants or scratch paths.",
    "artifact_sha256": "0a73aaf7016e86dd5babbdd5482b05a793764418bc003607207ef0375ee46006",
-   "handoff_sha256": "5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5",
-   "reviewer": "/root/negative_pair_proposal_referee",
-   "reviewer_role": "compiler_referee",
-   "reviewer_requested_model": "gpt-6.1-sol",
-   "reviewer_requested_effort": "medium",
-   "reviewer_observed_model": "UNKNOWN",
-   "reviewer_observed_effort": "UNKNOWN",
-   "review_receipt": "Active-work receipt confirms frozen target, contract and 16 direct pins; read-only source/consumer review in progress.",
-   "compiler_referee": "CLEAN",
-   "compiler_referee_receipt": "Fresh read-only review: useful conditional proposal; no BLOCKING/major/minor finding within assigned scope. Confirms J1/J2 and actual R1->install(g)->fresh use->J2 route, permission creates neither inflow nor {E} cap. Open P1 mixed/multiple-symbolic coverage, P3/P5 association completeness/late arrival, P4 transport and P6 residual consumer/native correspondence. Final target/contract/16 pins verified; full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, no descendants or execution.",
-   "spec_auditor": "MAJOR",
-   "spec_auditor_receipt": "Major at proposal line 372: adoption authority is assigned to Luna, but approved option B reserves adoption for later explicit user approval. Closure: Luna prepares/routes the adoption request and records the user decision; require explicit approval before adoption/implementation. No other finding; 18 pins matched; full 120s charged; STOPPED.",
-   "original_artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
    "snapshot_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
-   "compiler_delta_review": "CLEAN",
-   "compiler_delta_receipt": "Exact changed sentence reviewed against snapshot and approved answer; major closed for that sentence only; 30s full cap charged; UNKNOWN/UNKNOWN; STOPPED, no writes or descendants.",
-   "spec_delta_review": "CLOSED",
-   "spec_delta_receipt": "CLEAN exact delta; major closed for the changed sentence only; option-B explicit-user-approval scope confirmed; full 30s charged; UNKNOWN/UNKNOWN; STOPPED, no descendants."
+   "review_receipt": "Compiler referee CLEAN for proposal scope; adoption-authority major repaired by one sentence; both exact delta reviews closed. Full receipts: notes/progress/2026-10-17-source-formation-proposals-review.md#negative-formal-pair-formation."
   },
   "implementation": {
-   "state": "FROZEN-SPEC-REVIEW-PENDING",
+   "state": "REVIEWED-DRAFT-CLEAN-NO-CODE-AUTHORITY",
    "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
-   "role": "primary proposal author",
-   "outputs": [
-    "notes/design/2026-10-17-catch-matcher-input-formation-proposal.md",
-    "tasks/agent-loop/inbox/20261017-catch-matcher-input-formation-proposal.md"
-   ],
-   "requested_model": "gpt-6-luna",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "charge_seconds_cap": 600,
-   "receipt": "Primary proposal frozen; 15 applicable contract pins matched at entry/freeze; six stages; full 600s conservatively charged; requested Luna/high, observed UNKNOWN/UNKNOWN; no tests/builds/Cargo/runtime/descendants/scratch; parent OPEN.",
    "artifact_sha256": "cd99aa19cfd301d0ad9f2396c6ef810fc0244f3f08e877ac3f8ce92dd307ba24",
    "handoff_sha256": "7ddbd63c90c37a2b14cdd4d019cc035f2ebdb84f9b0f3c122849a120098b54c8",
-   "review_receipt": "compiler_referee CLEAN within proposal scope; spec_auditor pending."
+   "review_receipt": "Compiler referee CLEAN and spec auditor CLEAN for proposal scope; handoff hash not independently verified by spec auditor. Full receipt: notes/progress/2026-10-17-source-formation-proposals-review.md#outside-matcher-input-formation."
   },
   "review": {
-   "state": "CATCH-SPEC-REVIEW-RUNNING",
+   "state": "BOTH-PROPOSALS-CLEAN-PROPOSAL-SCOPE",
    "assignment": "CATCH-PROPOSAL-INDEPENDENT-REVIEW-20261017",
    "reviewers": [
     "compiler_referee",
     "spec_auditor"
    ],
-   "receipt": "Compiler referee CLEAN for proposal scope; frozen target and 15 pins verified. Spec auditor active receipt: read-only review started; no edits, execution, handoff reads or descendants; Sol/low requested, observed UNKNOWN/UNKNOWN; 120s cap."
+   "receipt": "Both proposal reviews CLEAN; P1 exact authority delta reviews CLOSED. Detailed receipt at notes/progress/2026-10-17-source-formation-proposals-review.md; no adoption or parent-gate closure."
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "workers": [
@@ -120,16 +82,16 @@
    }
   ],
   "next_action": {
-   "state": "CATCH-REFEREE-CLEAN-SPEC-REVIEW-PENDING",
+   "state": "AWAITING-SPRINT-END-SELECTOR",
    "answers": {
     "NPAIR": "1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B",
     "CATCH-EXIT-INPUT-1": "e7c976b9284c372667f5cabd2c80156624905402, option B"
    },
-   "proposal": "Both proposals are frozen; NPAIR review/repair/delta review closed, CATCH compiler_referee is CLEAN for proposal scope and spec_auditor review remains.",
-   "implementation": "No code authority. Proposals require later explicit user adoption followed by a new proof-backed contract.",
-   "proof": "Neither proposal closes a parent theorem or source/native gate; CATCH-EXIT-INPUT-1 and original F1/FK1/F5 remain OPEN."
+   "proposal": "Two source-definition proposals independently reviewed CLEAN within proposal scope; exact open premises and owner maps retained.",
+   "implementation": "No compiler code authority; wait for later explicit user adoption and a new exact proof-backed contract.",
+   "proof": "CHOOSE-SOURCE-2, CATCH-EXIT-INPUT-1 and all original parent gates remain OPEN."
   },
-  "current_checkpoint": "e08b26f8a",
+  "current_checkpoint": "73b7df6af",
   "contract_revision": 2
  },
  "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -228,13 +190,13 @@
   {
    "id": "CATCH-PROPOSAL-SPEC-REVIEW-20261017",
    "role": "spec_auditor",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Active receipt: read-only review started; no edits, execution, handoff reads or descendants; one stage, 120s cap; observed UNKNOWN/UNKNOWN."
+   "receipt": "STOPPED after CLEAN proposal-scope review; full 120s cap charged; requested Sol/low, observed UNKNOWN/UNKNOWN; no edits, Git, checks, execution, handoff reads or descendants."
   }
  ],
  "leases": [
@@ -300,11 +262,11 @@
   }
  ],
  "next_action": {
-  "state": "CATCH-SPEC-REVIEW-RUNNING",
-  "selector": "Sprint-end selector consultation follows completion of the remaining independent review.",
-  "proof": "NPAIR proposal is reviewed clean after exact authority wording repair. CATCH proposal referee CLEAN; spec audit pending. Parent gates remain OPEN.",
-  "implementation": "Proposal-only source/native mapping; no compiler-code authority.",
-  "limits": "No code/tests/Cargo/runtime. Preserve all original quantifiers and three unknown reservations."
+  "state": "AWAITING-SPRINT-END-SELECTOR",
+  "selector": "Consult next_action_selector at sprint end; do not expand code authority.",
+  "proof": "Both source-definition proposals are independently reviewed CLEAN within proposal scope; all formation and original parent gates remain OPEN.",
+  "implementation": "No code changes authorized. New explicit user adoption and a proof-backed contract are required.",
+  "limits": "Proposal-only work complete. Preserve three unknown reservations and quarantined board lease; do not touch excluded dirty contract."
  },
  "resource_accounting": {
   "current_sprint_id": "source-formation-proposals-20261017",
@@ -318,19 +280,19 @@
   "astra_assignments": 0,
   "heavy_process_peak": 0,
   "cargo_build_test_probe_invocations": 0,
-  "review_reserved": 120,
+  "review_reserved": 0,
   "coordination_reserved": 180,
-  "pending_reviewers": 1,
-  "charged_total_seconds": 1980,
-  "reviewed_closeout": null,
+  "pending_reviewers": 0,
+  "charged_total_seconds": 2100,
+  "reviewed_closeout": "notes/progress/2026-10-17-source-formation-proposals-review.md#sha256-2f6f658b915fa88adcb8708daea1e68ee9e91e800cda8dcecdbc2c4adb67b746",
   "authors_spent_seconds": 1500,
-  "review_spent_seconds": 420,
+  "review_spent_seconds": 540,
   "repair_cap_seconds": 60,
   "review_cap_seconds": 540,
   "repair_spent_seconds": 60,
   "remaining_reserve_seconds": 120
  },
- "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
+ "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint. Current sprint review closeout receipt: notes/progress/2026-10-17-source-formation-proposals-review.md (SHA-256 2f6f658b915fa88adcb8708daea1e68ee9e91e800cda8dcecdbc2c4adb67b746).",
  "checkpoint_commits": [
   "ffbf7679b14f833f86c05e01c45a376056aad895",
   "785a32375e78747d08beccafd0543fe5cb3552dc",
