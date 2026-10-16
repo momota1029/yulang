@@ -4,89 +4,63 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-snapshot-owner-interface-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
-    "revision": 2,
-    "sha256": "008ce2a77a0cc79483debd09f3f1e5f7a02691e27322d96b794c2e1f898d405d",
-    "state": "REVIEWED-PARTIAL",
-    "baseline": "7a281f6e4ecfc34dc9b9a722714d845e205e17bd",
+    "id": "npair-postsolve-snapshot-capability-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
+    "revision": 1,
+    "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637",
+    "state": "CONTRACT-FROZEN-PROOF-NOT-STARTED",
+    "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "fixed_outcome": "Qualify stable complete read-only snapshot borrowing and evidence enumeration across InferenceSession, candidate_effect::State, candidate_context::State and GraphState; produce owner table/proposed interface and independent lifetime/completeness proof, or exact blocker.",
+    "fixed_outcome": "Prove/refute a post-solve candidate snapshot capability and checked live physical-slot resolver, then produce an unapplied API contract or exact blocker; no code.",
     "review": {
-      "state": "ALL-REVIEWS-STOPPED",
+      "state": "AUTHORS-SEQUENTIAL",
       "current_reviewer": null,
       "sequence": [
-        "Luna readiness STOP",
-        "Sol/high independent proof STOP",
-        "compiler_referee:60s",
+        "Sol/high proof STOP",
+        "Luna/high API-readiness STOP",
+        "compiler_referee:120s",
         "architect:60s",
         "spec_auditor:60s"
       ]
     },
     "resources": {
-      "cap_seconds": 720,
+      "cap_seconds": 960,
+      "proof_cap_seconds": 300,
       "readiness_cap_seconds": 300,
-      "proof_cap_seconds": 180,
-      "reviews_cap_seconds": 180,
+      "reviews_cap_seconds": 240,
       "coordination_seconds": 60,
-      "reserve_seconds": 0,
-      "charged_seconds": 720,
-      "active_authors": 0,
-      "status": "720/720s charged: coordination60, readiness300, proof180, three reviews180. All authors/reviewers STOPPED; parent and implementation readiness remain open.",
-      "proof_original_cap_seconds": 240,
-      "proof_transfer_out_seconds": 60
+      "reserve_seconds": 60,
+      "charged_seconds": 60,
+      "active_authors": 1,
+      "status": "60s coordination charged; proof lane is next, exact leases frozen; readiness waits for proof STOP; no review or code started."
     },
     "lanes": {
+      "proof": {
+        "owner": "/root/npair_postsolve_snapshot_capability",
+        "role": "prover (Sol/high)",
+        "state": "NOT_STARTED",
+        "outputs": [
+          "notes/theory/2026-10-17-npair-postsolve-snapshot-capability.md",
+          "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-capability.md"
+        ],
+        "cap_seconds": 300
+      },
       "implementation_readiness": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "STOPPED-REVIEWED-PARTIAL",
+        "state": "WAITING-FOR-PROOF-STOP",
         "outputs": [
-          "notes/design/2026-10-17-npair-snapshot-owner-interface.md",
-          "tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md"
+          "notes/design/2026-10-17-npair-postsolve-snapshot-api-contract.md",
+          "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md"
         ],
         "compiler_lease": false,
-        "design_sha256": "92c8934820604f895958bf8b2af773128def4c0007f4fb1ec0146eb416eb55f8",
-        "handoff_sha256": "c4f15c09cb08facaf5ac836551dfb49d984c24c8abca60614fc2bd55816f79c2",
-        "repair_cap_seconds": 60,
-        "contract_revision": 2,
-        "repair_elapsed_seconds_charged": 60
-      },
-      "proof": {
-        "owner": "/root/npair_snapshot_borrow_enumeration",
-        "role": "prover (Sol/high)",
-        "state": "STOPPED-REVIEWED-PARTIAL",
-        "outputs": [
-          "notes/theory/2026-10-17-npair-snapshot-borrow-enumeration.md",
-          "tasks/agent-loop/inbox/20261017-npair-snapshot-borrow-enumeration.md"
-        ],
-        "artifact_sha256": "5c008735438e191d52c4255d6d4b91b5eb2f810deb661a85c27b0061d29e1cb7",
-        "handoff_sha256": "76807badddcf699c1105cc0b4c6041ceaefc3ad44d678a53f3d55be03b96be1c",
-        "cap_seconds": 180,
-        "original_cap_seconds": 240,
-        "transferred_seconds": 60
+        "cap_seconds": 300
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
-        "sha256": "008ce2a77a0cc79483debd09f3f1e5f7a02691e27322d96b794c2e1f898d405d"
-      },
-      {
-        "path": "notes/design/2026-10-17-npair-snapshot-owner-interface.md",
-        "sha256": "92c8934820604f895958bf8b2af773128def4c0007f4fb1ec0146eb416eb55f8"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md",
-        "sha256": "c4f15c09cb08facaf5ac836551dfb49d984c24c8abca60614fc2bd55816f79c2"
-      },
-      {
-        "path": "notes/theory/2026-10-17-npair-snapshot-borrow-enumeration.md",
-        "sha256": "5c008735438e191d52c4255d6d4b91b5eb2f810deb661a85c27b0061d29e1cb7"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-snapshot-borrow-enumeration.md",
-        "sha256": "76807badddcf699c1105cc0b4c6041ceaefc3ad44d678a53f3d55be03b96be1c"
+        "path": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
+        "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637"
       }
     ],
     "non_goals": [
@@ -100,12 +74,12 @@
       "receive consumer",
       "production"
     ],
-    "next_boundary": "Architect review STOP then spec-auditor review STOP; exact readiness remains Draft and implementation blocked."
+    "next_boundary": "Proof STOP or exact blocker; then Luna API-readiness lane; reviewers only after both STOP."
   },
-  "candidate": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
-  "baseline": "7a281f6e4ecfc34dc9b9a722714d845e205e17bd",
-  "scope": "Stable full-state read-only snapshot owner interface and independent completeness/lifetime proof for one-shot structural validation.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; current-session Astra/medium author has active receipt. Luna readiness begins after proof STOP; no compiler source lease.",
+  "candidate": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
+  "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
+  "scope": "Post-solve candidate snapshot capability and checked live physical-slot resolver; proof then unapplied API readiness, no code.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; proof NOT_STARTED until contract checkpoint; no compiler source lease.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -143,65 +117,26 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole Git integrator",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna readiness work and revision-2 repair STOPPED; output handoff revision 3 records final review receipts and sprint disposition."
+      "receipt": "Current-session Luna froze next sprint and current state; proof lane not yet launched."
     },
     {
-      "id": "/root/npair_snapshot_borrow_enumeration",
-      "role": "prover, Sol/high independent snapshot-borrow proof",
-      "state": "STOPPED",
+      "id": "/root/npair_postsolve_snapshot_capability",
+      "role": "prover, Sol/high post-solve capability proof",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 240,
-      "elapsed_seconds_charged": 180,
-      "receipt": "Proof STOPPED at 176s measured; 180s conservatively charged including closeout. Artifact/handoff hashes in active sprint artifacts; exact interface blocker returned."
-    },
-    {
-      "id": "/root/npair_snapshot_owner_compiler_review",
-      "role": "compiler_referee, fresh owner-correspondence review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Read-only compiler-referee review STOPPED within 60s cap. Two MAJOR readiness corrections; universal mutation-exclusion BLOCKING without owner-identity and transitive-owner audit. Findings returned to Luna/selector. Two MAJOR findings; proof remains conditionally valid only as a blocker report."
-    },
-    {
-      "id": "/root/npair_snapshot_owner_arch_review",
-      "role": "architect, fresh revision-2 readiness review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Fresh architect review STOPPED within 60s cap; all three compiler-referee findings dispositioned; amended Draft acceptable only as obstruction report."
-    },
-    {
-      "id": "/root/npair_snapshot_owner_spec_review",
-      "role": "spec_auditor, final revision-2 conformance review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Final spec-auditor review STOPPED CLEAN for structural/readiness documentation only. All three compiler findings addressed in Draft; the corresponding implementation prerequisites remain BLOCKING."
+      "session": null,
+      "cap_seconds": 300,
+      "elapsed_seconds_charged": 0,
+      "receipt": "Exact proof leases frozen; launch follows contract checkpoint."
     }
   ],
   "leases": [
@@ -216,29 +151,29 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
+      "path": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5"
+      "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637"
     },
     {
-      "path": "notes/design/2026-10-17-npair-snapshot-owner-interface.md",
+      "path": "notes/theory/2026-10-17-npair-postsolve-snapshot-capability.md",
+      "owner": "/root/npair_postsolve_snapshot_capability",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-capability.md",
+      "owner": "/root/npair_postsolve_snapshot_capability",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-17-npair-postsolve-snapshot-api-contract.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md",
+      "path": "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md",
       "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-17-npair-snapshot-borrow-enumeration.md",
-      "owner": "/root/npair_snapshot_borrow_enumeration",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-npair-snapshot-borrow-enumeration.md",
-      "owner": "/root/npair_snapshot_borrow_enumeration",
       "state": "HELD"
     }
   ],
@@ -270,29 +205,27 @@
     }
   ],
   "next_action": {
-    "state": "SPRINT-END-SELECTOR-NEXT",
-    "dispatcher": "Sprint outcome REVIEWED-PARTIAL: exact owner-interface blocker established; implementation readiness and parent remain OPEN. Selector to choose the next bounded outcome.",
-    "implementation": "Inspect four exact owners and define an audited borrowed evidence interface, deterministic qualifying enumeration, shared witness traversal and full repeated-work/storage accounting; identify blocker if absent.",
-    "proof": "After readiness STOP, independently prove mutation exclusion, complete evidence, owner identity separation and expiry before rollback/reuse.",
-    "source_authority": "Operation eta_op/realization_op remains WAITING for actual adopted source constructor; no new census or transport assignment.",
+    "state": "CONTRACT-FROZEN-PROOF-NOT-STARTED",
+    "dispatcher": "Selector chose post-solve candidate result capability proof, then Luna unapplied API-readiness proposal; 960s cap, sequential authors, no code.",
+    "implementation": "After proof STOP, propose owner-bound construction, complete retained-record enumeration, checked live-slot resolution, incomplete-evidence results and bounded traversal accounting.",
+    "proof": "Establish/refute post-solve immutability/quiescence, same-owner identity and current slot resolution, including candidate_intrusion paths.",
+    "source_authority": "Original Operation eta_op/realization_op remains WAITING; no source semantics authorized.",
     "workers_started": false
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-snapshot-owner-interface-20261017",
-    "cap_seconds": 720,
+    "current_sprint_id": "npair-postsolve-snapshot-capability-20261017",
+    "cap_seconds": 960,
+    "proof_cap_seconds": 300,
     "readiness_cap_seconds": 300,
-    "proof_cap_seconds": 180,
-    "reviews_cap_seconds": 180,
+    "reviews_cap_seconds": 240,
     "coordination_seconds": 60,
-    "reserve_seconds": 0,
-    "charged_total_seconds": 720,
-    "active_authors": 0,
+    "reserve_seconds": 60,
+    "charged_total_seconds": 60,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "720/720s charged. All authors/reviewers STOPPED; no reserve. Outcome REVIEWED-PARTIAL; parent OPEN.",
-    "proof_original_cap_seconds": 240,
-    "proof_transfer_out_seconds": 60
+    "status": "60s coordination charged; proof lane NOT_STARTED until committed contract; no code or reviews."
   },
-  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON.",
+  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -307,6 +240,7 @@
     "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
     "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
     "6843e917d4cf56a9a57b7da700c2778074ecf57d",
-    "a868fbe59334a90337e1a5daa8880c09440de70b"
+    "a868fbe59334a90337e1a5daa8880c09440de70b",
+    "ac838c252a6567cd92c186ebf928348565e8004e"
   ]
 }
