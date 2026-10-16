@@ -4,6 +4,11 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Resident Yulang orchestration (2026-10-16)
 
+- [Adoption of the reviewed source-formation proposals](2026-10-17-source-formation-proposals-adoption.md)
+  — Direct user adoption of the exact reviewed NPAIR and Catch source interfaces.
+  Their proof obligations, including N-Transport and source-derived M_exit,
+  remain open; adoption grants no compiler code lease or parent closure.
+
 - [Goal-driven research and implementation sprints](2026-10-16-goal-driven-sprints.md) — Authoritative workflow decision approved 2026-10-16; supersedes only the listed scheduling clauses, preserves semantic/proof/review/Git invariants, and requires one-time independent migration review plus live legacy-worker reconciliation before adoption.
 
 - [Implementation-first dispatch correction](2026-10-16-implementation-first-dispatch.md) — Mandatory multi-owner code-ready audit after research-only churn; normal focused checks, Luna/high implementer or explicit NO_SAFE_CODE_SLICE, without lifting dependent proof/cutover gates.
