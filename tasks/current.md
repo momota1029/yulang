@@ -254,6 +254,29 @@ Status: full objective remains active. Native extrusion now schedules current co
   not close source correspondence, effect-order adequacy, soundness,
   principality, F5 or production gates; original parent gates remain
   OPEN/BLOCKED.
+  I26 adds paired native and runtime coverage for a recursive local binding
+  inside an authentic discarded Expression root. The native test follows the
+  named-parameter initializer Lambda through its typed body child to the
+  original conditional, matches both original recursive/final callee Names to
+  the same local binding and both Apply occurrences to Calls under that owner,
+  and checks that the initializer Name stays open while the later Name receives
+  local Value/Effect FreshUse rows. The runtime test uses the existing bounded
+  helper for both Boolean starts and requires selected integer `7`. The initial
+  native attempt exposed that LocalSource wraps named parameters in Lambda. Its
+  incorrect direct-If assertion and failure are preserved in
+  [receipt035](agent-loop/inbox/20261016-loop-a-implementation-recursive-expression-owner-035.md).
+  R1 follows the Lambda's typed body index without weakening the recursion or
+  FreshUse assertions; both exact focused tests pass 1/1 (12 and 16 filtered),
+  warning-free. R39's single M1 regression review is CLEAN within this fixed
+  fixture. The two frozen attempts are recorded in
+  [receipt036](agent-loop/inbox/20261016-loop-a-implementation-recursive-expression-owner-repair-036.md).
+  Producer requested Luna/high and reviewer Sol/low; observed runtime settings
+  are UNKNOWN. No tests were rerun during review or record integration. The
+  staged whitespace check reports only the immutable empty diff-context markers
+  in receipts035 (lines 79, 208) and 036 (lines 93, 232), preserved byte-for-byte.
+  The tests add no production code or semantic rule and close no source
+  adequacy, general recursion, soundness, principality, F5 or production gate;
+  the original parent gates remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

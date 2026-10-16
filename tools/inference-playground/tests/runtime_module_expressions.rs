@@ -153,6 +153,16 @@ fn local_scheme_expression_results_are_discarded_before_selection() {
 }
 
 #[test]
+fn recursive_expression_completion_precedes_selected_definition() {
+    for start in ["true", "false"] {
+        let source = format!(
+            "{{ my loop condition = if condition: loop false else: 11; loop {start} }}; my main = 7"
+        );
+        assert_selected(&source, "7");
+    }
+}
+
+#[test]
 fn forward_alias_expression_calls_discard_results_before_selection() {
     assert_selected(
         r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7",
