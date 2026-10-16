@@ -7,7 +7,8 @@ safety rules, artifact conventions and language/semantic authorities still apply
 For authorized ongoing work on `research/simple-sub-intrusion` (and a worktree
 explicitly continuing that goal), read
 [the 2026-10-16 workflow decision](notes/design/2026-10-16-resident-research-loop.md),
-the [operational addendum](notes/design/2026-10-16-resident-loop-operations-addendum.md)
+the [operational addendum](notes/design/2026-10-16-resident-loop-operations-addendum.md),
+the [implementation-first dispatch correction](notes/design/2026-10-16-implementation-first-dispatch.md)
 and apply [.agents/skills/yulang-research-loop/SKILL.md](.agents/skills/yulang-research-loop/SKILL.md).
 This narrow user-approved decision supersedes conflicting older routing cadence,
 selector read-only status, shared-board ownership and three-role model pins.
@@ -36,6 +37,15 @@ answer is explicitly approved and independently questioner-validated, curate
 and commit **the entire** selected question directory—including previous trial
 and failed-attempt files and the validation receipt—in one atomic bundle. Never
 commit unfinished/unapproved questions to clean the tree.
+
+When implementation waits while research-only checkpoints accumulate, require
+the dispatcher to inspect multiple approved code owners and return an actual
+Luna/high code or focused regression packet, or a documented NO_SAFE_CODE_SLICE
+with owner-specific blockers. Already-approved focused tests/checks are normal
+implementation verification, not a new semantic decision. An unrelated open
+parent theorem does not block independent code; a genuine dependent proof gate
+still blocks its production cutover. Do not run another equivalent abstract
+research packet merely because the old implementer lacks a ready N1 task.
 
 Keep ready implementation moving while independent proofs run. Never occupy a
 lane with invented work, bypass a genuine proof prerequisite, or claim that

@@ -9,7 +9,8 @@ This invocation loop belongs to Luna. Delegated workers return evidence/TODOs
 to their delegator; they do not recursively invoke a dispatcher or start a trio.
 
 Read `notes/design/2026-10-16-resident-research-loop.md`,
-`notes/design/2026-10-16-resident-loop-operations-addendum.md` and
+`notes/design/2026-10-16-resident-loop-operations-addendum.md`,
+`notes/design/2026-10-16-implementation-first-dispatch.md` and
 `tasks/agent-loop/README.md`. For the authorized resident loop, this consultation
 is mandatory before every new substantive action/packet and after a result,
 blocker, review, changed decision/dependency or restart, including before a wait
@@ -63,6 +64,18 @@ construction that can supply missing evidence. Resolve dependency cycles with a
 bounded construction/proof/evidence task or an exact authority question. Do not
 invent work to keep a lane busy. Apply evidence-backed bounded Astra escalation
 only under the resident-loop contract.
+
+## Implementation-ready audit and research-only escape
+
+A blocked N1/source theorem is not a proof that every independent code target
+is blocked. When no implementation has run across two research-only checkpoints,
+inspect at least two distinct approved code owners and emit an executable
+Luna/high code/verification/provisional-evidence packet, or NO_SAFE_CODE_SLICE
+with a concrete reason at each inspected owner. Do not pick a third similar
+conditional proof by default. A new narrow test for already approved behavior
+does not require new semantic approval; altering test expectations or shipping
+proof-dependent mechanics does. Record concrete changed code/test evidence,
+not another "implementation should happen" TODO.
 
 ## Consume and continue
 

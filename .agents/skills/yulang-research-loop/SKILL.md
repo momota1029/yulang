@@ -5,7 +5,7 @@ description: Maintain Yulang's resident Luna implementation, Sol proof and Sol t
 
 # Run the resident Yulang research loop
 
-Read `AGENTS.md`, `notes/design/2026-10-16-resident-research-loop.md` and `notes/design/2026-10-16-resident-loop-operations-addendum.md`.
+Read `AGENTS.md`, `notes/design/2026-10-16-resident-research-loop.md`, `notes/design/2026-10-16-resident-loop-operations-addendum.md` and `notes/design/2026-10-16-implementation-first-dispatch.md`.
 The latter supersedes occasional next-action selection for this loop. Keep the
 user-selected Luna primary; do not silently switch the primary model. This
 skill is a primary-only workflow, not a background service. A delegated child
@@ -73,6 +73,22 @@ an unrelated open proof is not a reason to leave the implementer idle. Keep
 necessary A/B dependencies and production gates honest. Use only the smallest
 explicitly provisional evidence slice to break a real construction/proof cycle.
 Do not use more plans or conditional lemmas as a substitute for construction.
+
+## Ensure executable progress, not research-only circulation
+
+When the implementation lane is WAITING and two successive checkpoints contain
+only proofs, designs or bookkeeping, first demand a bounded audit of at least
+two distinct approved code owners rather than declaring all code blocked by N1.
+Identify one source-owner-local approved implementation slice, a focused
+approved-behavior regression/test, or minimal reversible source-evidence
+instrumentation and give Luna/high an executable packet with exact output and
+test command. A focused regression for already selected semantics is normal
+authorized implementation verification; changing an existing test expectation,
+spec or semantics still requires the established gate. If no code path is
+legitimate, return explicit NO_SAFE_CODE_SLICE with evidence and stop automatic
+similar research packets. Preserve original A/B proof-dependent production
+barriers. A legacy Sol-requested idle worker does not block Luna-primary code
+execution on an independent exact lease.
 
 ## Review, escalate and checkpoint
 

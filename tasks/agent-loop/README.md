@@ -87,6 +87,18 @@ Luna/high implementer; a separate bounded Astra role requires primary-authorized
 handoff. No Sol implementation fallback is valid. The dispatcher may recommend
 primary-owned Git hygiene, but must preserve pending questions/unknown paths.
 
+No implementation task is categorically blocked merely because N1/primitive
+image, full Call or global principality remains open. After two research-only
+checkpoints with idle implementation, the dispatcher must inspect at least two
+distinct approved code owners and supply a source-path/test-bound Luna/high
+implementation or ordinary approved-behavior verification packet. Otherwise
+record NO_SAFE_CODE_SLICE with actual per-owner blockers before more optional
+research. Focused new regressions expressing an existing contract are not new
+semantic decisions; changing existing expected output is protected.
+Primary Luna may execute an independent code-ready packet directly when an old
+Sol-requested worker is waiting without a lease. See
+[implementation-first dispatch](../../notes/design/2026-10-16-implementation-first-dispatch.md).
+
 Every decision considers both lanes. Ready authorized implementation plus an idle
 implementer must produce an implementation packet; ready independent proof runs
 alongside it. A genuine dependency cycle gets a minimal evidence/construction
