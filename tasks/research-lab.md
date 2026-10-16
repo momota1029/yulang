@@ -528,6 +528,16 @@ Positive interaction direction is not capture authority. The changed-method
 actual receipt/entry/result/capture/future-binder introductions and their
 exhaustive owner inversion for this finite source graph. No two-slot or empty
 inventory is selected; new source grammar needs independent review.
+That grammar is now frozen at producer `21170e39...53402d`, independently
+mathematical/source CLEAN. The [bounded source definition](../notes/design/2026-10-16-receiving-profile-introductions.md)
+is selected under existing permission: actual carrier entry, received and
+matching-result callables, deferred actual future entry and complete antecedent
+actions. Inversion is for these local constructors plus retained opaque action
+interfaces, not global primitive origin completeness. Both Call maps preserve
+the same-return packet inputs and original nested Ctrl permission/receiver.
+The current/future Comp-entry actions are handed to the declaration owner;
+foreign embeddings, Initial and native/global parents stay OPEN. M2 two
+reviewers, 13 dependency pins and static integrity; zero executable measurements.
 The complementary full installed-support census produced no new artifact.
 Current Remaining's actual map eliminates its direct free-q path. The next
 owner is historical WholeContext: actual receive producer declaration AND
@@ -575,6 +585,14 @@ authentic declaration Lambda0 and source bootstrap before caller/challenges,
 then attempting immediate guards and joint positive validity. Profile grammar
 is a separate lane; no live producer result or OriginalInitial is assumed.
 Audit M1 one reviewer, 32 dependency pins and static integrity only.
+The changed-method bootstrap is now frozen at producer `e305544a...844e04`,
+independently mathematical/source CLEAN for open Lambda0 phase/interface and
+inert-source-prefix control formation. Its complete carrier/native/delimiter/
+consumer/response/future graph remains open at Pi0's genuine entry/profile/
+permission/inherited-field application and original alternative coverage.
+No Sigma0/world/Initial validity or `S<=Phi(S)` is credited. The selected
+receiving grammar is the changed input for that exact application, before
+joint hereditary closure. M2 two reviewers, 32 dependency pins, static-only.
 M2 two reviewers on the frozen context artifact, 16 dependency pins and local
 integrity only; zero tests/builds/probes or benchmark samples/processes.
 Profile/native/runtime parents remain distinct OPEN gates.

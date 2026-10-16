@@ -459,6 +459,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   Ctrl, inherited packets and provider lowers retain their original paths.
   This discharges that bounded missing component, not the whole profile
   inventory, admitted d0, second-use or Catch/native parents.
+  The [receiving-action definition](../notes/design/2026-10-16-receiving-profile-introductions.md)
+  and its [reviewed grammar](../notes/theory/2026-10-16-receiving-profile-introduction-grammar.md)
+  now supply actual current-carrier entry, result-linked nested callable and
+  deferred future-input introductions with owner inversion and both Call maps.
+  This closes this component's source action construction, preserving complete
+  antecedent/opaque interfaces rather than choosing an exhaustive flat list.
+  Future entry uses its own actual receiver/annotation; older marks survive
+  their real maps. Foreign embedding and full admission remain OPEN.
   The complementary installed-support census resolves the current Remaining
   reference through its actual term map. Entire Mono(k) FIX still needs the
   HISTORICAL WholeContext root/use tuple: both receive's complete producer
@@ -490,6 +498,11 @@ Status: full objective remains active. Native extrusion now schedules current co
   constructor lane now builds that missing complete declaration/bootstrap,
   preserving all carrier, private profile and history fields. Initial and
   full source context admission remain OPEN.
+  Its [open Lambda0/bootstrap construction](../notes/theory/2026-10-16-choose-source-bootstrap-construction.md)
+  now has CLEAN mathematical/source review of phase/interface formation and
+  inert-prefix control facts. Complete Pi0 action/guard embedding and original
+  alternative coverage still precede hereditary Sigma0/world validity and
+  genuine Initial; the receiving grammar is handed to those exact operands.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

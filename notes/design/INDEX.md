@@ -153,6 +153,11 @@ This index is a navigation aid. The listed source document remains authoritative
   now supply its outer complete-invocation component, first Name/Call
   applicability and Value-entry result-path introduction. The full profile
   inventory and concrete context/Catch/native parents remain OPEN.
+  The [selected receiving-action grammar](2026-10-16-receiving-profile-introductions.md)
+  and [reviewed construction](../theory/2026-10-16-receiving-profile-introduction-grammar.md)
+  now supply actual current-carrier/result/future-entry cases and owner
+  inversion for this source component. Complete antecedent and opaque actions
+  remain; foreign/primitive/Initial/native parents stay OPEN.
   The [historical source-context constructor](2026-10-16-source-whole-context-constructor.md)
   and [reviewed formation](../theory/2026-10-16-choose-whole-context-reference-construction.md)
   now exhibit complete receive/outer-Call declarations, an independent checked
@@ -169,6 +174,10 @@ This index is a navigation aid. The listed source document remains authoritative
   the missing source owner. Sigma is an independent theorem parameter that
   a genuinely constructed source package may instantiate; empty environment
   and runtime activation do not prove OriginalInitial. Full admission stays OPEN.
+  The [open bootstrap construction](../theory/2026-10-16-choose-source-bootstrap-construction.md)
+  has CLEAN mathematical/source review of complete phase-expression and
+  inert-prefix formation. Pi0 embedding, alternative coverage, hereditary
+  Sigma0/world validity and Initial remain OPEN.
 
 - [Native negative-formal consumer audit](../progress/2026-10-16-native-negative-formal-consumer-audit.md)
   — Independently CLEAN bounded source evidence: existing tail/closed-weight
