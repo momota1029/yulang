@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 1,
     "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0",
-    "state": "PROOF-LEASE-READY",
+    "state": "PROOF-RUNNING",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "READY-NOT-RUNNING",
+      "state": "RUNNING",
       "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -30,7 +30,9 @@
       "outputs": [
         "notes/theory/2026-10-17-local-use-existing-map-retention.md",
         "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md"
-      ]
+      ],
+      "session": "current-session",
+      "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap."
     },
     "proposal": {
       "state": "WAITING-FOR-PROOF-STOP-AND-REVIEW",
@@ -103,18 +105,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed prior reviewed-partial sprint and opened fresh existing-map proof sprint; preparing proof launch."
+      "receipt": "Existing-map proof author actually launched; primary waiting on leased proof output."
     },
     {
       "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Exact two-path proof lease READY; do not mark RUNNING until actual spawn acknowledgment."
+      "session": "current-session",
+      "receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap."
     }
   ],
   "leases": [
@@ -195,7 +197,7 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-LEASE-READY",
+    "state": "PROOF-RUNNING",
     "dispatcher": "Selector proposes existing-map retention proof, then reviewed unapplied patch proposal; user approval gate before any compiler edit.",
     "proof": "Sol/high 360s: exact source-to-existing-map structural queries and referent lifetime.",
     "implementation": "Draft exact code contract/proposed diff only after proof review; no code writes or execution."
@@ -209,10 +211,10 @@
     "coordination": 120,
     "reserve": 120,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
+    "active_authors": 1,
     "astra_assignments": 0,
     "charged_total_seconds": 0,
-    "status": "Fresh sprint; proof not yet launched. Previous sprint 1080s charged/120s retired without carryover.",
+    "status": "Existing-map proof actually launched at 360s cap; proposal author and reviews wait for proof STOP/review.",
     "authors_spent_seconds": 0,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 0,
