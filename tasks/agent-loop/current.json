@@ -8,16 +8,16 @@
     "contract": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
     "revision": 2,
     "sha256": "9556556e771c4d8bb666b771eb61dba0b926fdfc824ab51a2782ee912121a73f",
-    "state": "ACTIVE-PROOF-WAITING-DEPENDENCY-ACK",
+    "state": "ACTIVE-PROOF-REV2-PINS-ACKNOWLEDGED",
     "baseline": "4685eef7efb59314dc9d96cfcae692d1e09000fe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "RUNNING-WAITING-REV2-PIN-ACK",
+      "state": "RUNNING-REV2-DEPENDENCIES-ACKNOWLEDGED",
       "owner": "astra_prover",
       "cap_seconds": 900,
       "artifact": "notes/theory/2026-10-17-npair-authentic-seed-antecedent.md",
       "handoff": "tasks/agent-loop/inbox/20261017-npair-authentic-seed-antecedent.md",
-      "receipt": "Author paused additional physical-emission source reliance pending Luna revision-2 pin receipt; continues only on previously pinned source skeleton. Same 900s total cap."
+      "receipt": "Author verified revision-2 contract SHA and all three added source pins. Same total 900s cap; now tracing actual OperationInterfaceMember/OperationOrigin seed."
     },
     "implementation_readiness": {
       "state": "SEQUENTIAL-AFTER-PROOF-STOP",
@@ -202,9 +202,9 @@
     "charged_total_seconds": 120,
     "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "120s coordination charged. Astra proof within the same 900s cap; additional source reliance waits for acknowledged revision-2 pins. No authority, writer, or budget changed."
+    "status": "120s coordination charged. Astra proof active within same 900s cap; revision-2 dependency pins acknowledged; actual seed tracing in progress. No other authority/budget change."
   },
-  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine. Fresh authenticated-seed proof sprint and active receipt pushed as 0aa192a88. Dispatcher authorized append-only sprint revision 2 for three read-only physical-emission/source-contribution dependencies; proof author paused reliance pending new-pin acknowledgement, same 900s cap. Revision-2 read-only dependency pins and waiting-for-ack state pushed as 77cf984a6.",
+  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine. Fresh authenticated-seed proof sprint and active receipt pushed as 0aa192a88. Dispatcher authorized append-only sprint revision 2 for three read-only physical-emission/source-contribution dependencies; proof author paused reliance pending new-pin acknowledgement, same 900s cap. Revision-2 read-only dependency pins and waiting-for-ack state pushed as 77cf984a6. Astra acknowledged revision-2 pins; source seed tracing corrected to actual OperationInterfaceMember/OperationOrigin Support(view), while Contribution is created only in FreshUse cloning.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
