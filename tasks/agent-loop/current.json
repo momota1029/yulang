@@ -182,9 +182,10 @@
     "unknown_reservations_preserved": 3,
     "status": "120s coordination charged. Astra proof active within 720s cap; implementation remains unleased pending explicit user approval."
   },
-  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved.",
+  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
-    "d1b706e83"
+    "d1b706e83",
+    "f17af2636"
   ]
 }
