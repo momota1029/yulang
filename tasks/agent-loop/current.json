@@ -5,10 +5,10 @@
  "session": "current-session",
  "active_sprint": {
   "id": "adopted-npair-construction-and-native-plan-20261017",
-  "contract": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017-r2.md",
-  "revision": 2,
-  "sha256": "0e4544b0833d0b5f7bbe61783b67882a1af13d6bf3a5b5c41ad50615c36aa12e",
-  "state": "NATIVE-PLAN-FROZEN-PENDING-REVIEW",
+  "contract": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017-r3.md",
+  "revision": 3,
+  "sha256": "a211872b32f8b5e8eb8af16f8fbca1e9e07578536788e6acf6b5c074ad321050",
+  "state": "NATIVE-PLAN-FROZEN-AWAITING-REVIEWS",
   "baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": "source-formation-proposals-20261017 ENDED-PROPOSALS-REVIEWED-DRAFT-ONLY; both exact reviewed proposals directly adopted by user; see adoption receipt.",
   "adoption_receipt": {
@@ -74,22 +74,8 @@
    "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e"
   },
   "review": {
-   "state": "NATIVE-PLAN-REVIEWS-TO-ASSIGN",
-   "assignments": [
-    {
-     "id": "ADOPTED-NPAIR-PROOF-REVIEW-20261017",
-     "worker_id": "/root/adopted_npair_proof_review",
-     "role": "compiler_referee",
-     "state": "STOPPED-CLEAN",
-     "session": "current-session",
-     "requested_effort": "medium",
-     "observed_model": "UNKNOWN",
-     "observed_effort": "UNKNOWN",
-     "cap_seconds": 180,
-     "target_sha256": "6a3c6b5754448b38430ee368feb52d87ebd38c1b7050c3b33652132ead5f0fb2"
-    }
-   ],
-   "budget_seconds": 360,
+   "state": "NATIVE-PLAN-REVIEWS-ASSIGNED-SEQUENTIALLY",
+   "budget_seconds": 420,
    "proof_review": {
     "state": "CLEAN-EXACT-FROZEN-ARTIFACT",
     "assignment": "ADOPTED-NPAIR-PROOF-REVIEW-20261017",
@@ -97,20 +83,56 @@
     "reviewer_role": "compiler_referee",
     "artifact_sha256": "6a3c6b5754448b38430ee368feb52d87ebd38c1b7050c3b33652132ead5f0fb2",
     "receipt": "L1 graph-level P2 and local derivation-indexed L2/P3 accepted; L3 J2 remains conditional; L4 is limited native map evidence. Full transport/scheduling/residual/source/native and parent gates remain OPEN. Two stages; 180s charged; reviewer STOPPED; observed model/effort UNKNOWN."
-   }
+   },
+   "assignments": [
+    {
+     "id": "ADOPTED-NPAIR-PROOF-REVIEW-20261017",
+     "worker_id": "/root/adopted_npair_proof_review",
+     "role": "compiler_referee",
+     "state": "STOPPED-CLEAN",
+     "spent_seconds": 180,
+     "target_sha256": "6a3c6b5754448b38430ee368feb52d87ebd38c1b7050c3b33652132ead5f0fb2"
+    },
+    {
+     "id": "ADOPTED-NPAIR-NATIVE-ARCHITECT-REVIEW-20261017",
+     "worker_id": null,
+     "role": "architect",
+     "state": "ASSIGNED-NOT-LAUNCHED",
+     "requested_model": "gpt-6.1-sol",
+     "requested_effort": "medium",
+     "observed_model": "UNKNOWN",
+     "observed_effort": "UNKNOWN",
+     "cap_seconds": 120,
+     "target_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
+     "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e"
+    },
+    {
+     "id": "ADOPTED-NPAIR-NATIVE-SPEC-REVIEW-20261017",
+     "worker_id": null,
+     "role": "spec_auditor",
+     "state": "WAITING-FOR-ARCHITECT-STOP",
+     "requested_model": "gpt-6.1-sol",
+     "requested_effort": "low",
+     "observed_model": "UNKNOWN",
+     "observed_effort": "UNKNOWN",
+     "cap_seconds": 120,
+     "target_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
+     "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e"
+    }
+   ]
   },
   "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1, N-Transport, N-Subtract-Elim, M_exit, F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
   "resource_envelope_seconds": {
    "total": 2100,
    "proof": 900,
    "native_plan": 600,
-   "review": 360,
+   "review": 420,
    "coordination": 120,
-   "reserve": 120
+   "reserve": 60
   },
   "limits": "Three historical UNKNOWN reservations and quarantined board lease retained; one author at a time; two review/integration slots reserved; no Cargo/tests/probes/code edits."
  },
- "candidate": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017-r2.md",
+ "candidate": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017-r3.md",
  "baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
  "scope": "Prove a useful original-parent sub-obligation for the adopted negative paired formal interface, then produce a reviewed actionable native producer-to-transport-to-consumer contract without changing compiler code.",
  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; one author at a time; two review/integration slots reserved.",
@@ -225,6 +247,13 @@
    "state": "FROZEN",
    "revision": 2,
    "sha256": "0e4544b0833d0b5f7bbe61783b67882a1af13d6bf3a5b5c41ad50615c36aa12e"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017-r3.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "revision": 3,
+   "sha256": "a211872b32f8b5e8eb8af16f8fbca1e9e07578536788e6acf6b5c074ad321050"
   }
  ],
  "pending": [
@@ -245,24 +274,24 @@
   }
  ],
  "next_action": {
-  "state": "NATIVE-PLAN-FROZEN-AWAITING-REVIEW-RESOURCE-ALLOCATION",
+  "state": "NATIVE-PLAN-FROZEN-AWAITING-SEQUENTIAL-REVIEWS",
   "proof": "Construct authentic shared-row ingress and two-call transport; apply to original receive gate. Do not assume adopted obligations.",
   "implementation": "Luna/high native readiness map follows proof writer STOP; no code lease.",
-  "dispatcher": "Selector confirms existing native-plan packet, unchanged budget/scope; J2 conditional; consult on material finding, new dependency/lease, missing choice or sprint end."
+  "dispatcher": "Selector delta transferred 60s from reserve to review: total 2100 unchanged; architect 120 then spec auditor 120; no extra compiler-referee review."
  },
  "resource_accounting": {
   "current_sprint_id": "adopted-npair-construction-and-native-plan-20261017",
   "cap_seconds": 2100,
   "authors": 1500,
-  "review": 360,
+  "review": 420,
   "coordination": 120,
-  "reserve": 120,
+  "reserve": 60,
   "unknown_reservations_preserved": 3,
   "active_authors": 0,
   "astra_assignments": 0,
   "heavy_process_peak": 0,
   "cargo_build_test_probe_invocations": 0,
-  "review_reserved": 180,
+  "review_reserved": 240,
   "charged_total_seconds": 1680,
   "status": "Fresh envelope; prior sprint budget not carried over.",
   "review_spent_seconds": 180,
@@ -290,5 +319,5 @@
    "bundle_commit": "e7c976b9284c372667f5cabd2c80156624905402"
   }
  },
- "contract_revision": 2
+ "contract_revision": 3
 }
