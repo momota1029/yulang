@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
     "revision": 1,
     "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637",
-    "state": "PROOF-RUNNING",
+    "state": "READINESS-RUNNING",
     "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Prove/refute a post-solve candidate snapshot capability and checked live physical-slot resolver, then produce an unapplied API contract or exact blocker; no code.",
@@ -30,25 +30,27 @@
       "reviews_cap_seconds": 240,
       "coordination_seconds": 60,
       "reserve_seconds": 60,
-      "charged_seconds": 60,
-      "active_authors": 2,
-      "status": "60s coordination charged; proof lane RUNNING under 300s cap; Luna owns integration and waits for proof STOP before readiness. No code lease."
+      "charged_seconds": 240,
+      "active_authors": 1,
+      "status": "60s coordination +180s proof charged; proof STOPPED at exact missing physical-storage blocker. Luna/high readiness RUNNING under 300s cap; reviews wait until Luna STOP; 60s reserve remains."
     },
     "lanes": {
       "proof": {
         "owner": "/root/npair_postsolve_snapshot_capability",
         "role": "prover (Sol/high)",
-        "state": "RUNNING",
+        "state": "STOPPED-BLOCKED",
         "outputs": [
           "notes/theory/2026-10-17-npair-postsolve-snapshot-capability.md",
           "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-capability.md"
         ],
-        "cap_seconds": 300
+        "cap_seconds": 300,
+        "artifact_sha256": "9e1ae6e71f095b89b09796e5da375d1f152427b658b6fe3bc045553632a4a3d6",
+        "handoff_sha256": "cb14c88835e0a8e17b95d394a0e8889c64502500df24cba41c3785f201e6849b"
       },
       "implementation_readiness": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "WAITING-FOR-PROOF-STOP",
+        "state": "RUNNING",
         "outputs": [
           "notes/design/2026-10-17-npair-postsolve-snapshot-api-contract.md",
           "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md"
@@ -61,6 +63,14 @@
       {
         "path": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
         "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637"
+      },
+      {
+        "path": "notes/theory/2026-10-17-npair-postsolve-snapshot-capability.md",
+        "sha256": "9e1ae6e71f095b89b09796e5da375d1f152427b658b6fe3bc045553632a4a3d6"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-capability.md",
+        "sha256": "cb14c88835e0a8e17b95d394a0e8889c64502500df24cba41c3785f201e6849b"
       }
     ],
     "non_goals": [
@@ -74,7 +84,7 @@
       "receive consumer",
       "production"
     ],
-    "next_boundary": "Proof STOP or exact blocker/cap; no readiness author starts before proof STOP."
+    "next_boundary": "Luna readiness STOP or 300s cap; exact physical-storage and quiescence blockers must remain explicit; no code lease."
   },
   "candidate": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
   "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
@@ -123,20 +133,20 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session Luna coordinating exact post-solve proof lane and retaining sole integration/Git duty; readiness waits for proof STOP."
+      "receipt": "Current-session Luna starts exact post-solve API-readiness lane after proof STOP and pinned blocker intake; no compiler source lease."
     },
     {
       "id": "/root/npair_postsolve_snapshot_capability",
       "role": "prover, Sol/high post-solve capability proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 300,
-      "elapsed_seconds_charged": 0,
-      "receipt": "Live prover launched through collaboration on exact two-file lease after contract checkpoint 3a813bf1c; observed model/effort telemetry unavailable."
+      "elapsed_seconds_charged": 180,
+      "receipt": "Proof STOPPED after 142s measured; 180s conservatively charged. Exact blocker: returned FrozenInferenceData drops live physical bounds/effect_bounds. Both outputs frozen; no code or execution."
     }
   ],
   "leases": [
@@ -205,8 +215,8 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-RUNNING",
-    "dispatcher": "Selector chose post-solve candidate result capability proof, then Luna unapplied API-readiness proposal; 960s cap, sequential authors, no code.",
+    "state": "READINESS-RUNNING",
+    "dispatcher": "Post-solve proof STOPPED with decisive retention blocker. Luna readiness proceeds under pre-issued exact lease; no new source owner.",
     "implementation": "After proof STOP, propose owner-bound construction, complete retained-record enumeration, checked live-slot resolution, incomplete-evidence results and bounded traversal accounting.",
     "proof": "Establish/refute post-solve immutability/quiescence, same-owner identity and current slot resolution, including candidate_intrusion paths.",
     "source_authority": "Original Operation eta_op/realization_op remains WAITING; no source semantics authorized.",
@@ -220,12 +230,12 @@
     "reviews_cap_seconds": 240,
     "coordination_seconds": 60,
     "reserve_seconds": 60,
-    "charged_total_seconds": 60,
-    "active_authors": 2,
+    "charged_total_seconds": 240,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "60s coordination charged; Sol/high proof RUNNING under 300s cap; readiness waits for STOP; 900s remain including reserve."
+    "status": "60s coordination +180s proof charged. Luna/high readiness RUNNING after proof STOP; 720s remain including 60s reserve."
   },
-  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover.",
+  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
