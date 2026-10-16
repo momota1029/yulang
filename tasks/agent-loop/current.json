@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
   "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-  "state": "PROOF-READY",
+  "state": "PROOF-RUNNING",
   "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": {
@@ -36,8 +36,8 @@
    {
     "id": "NPAIR-WHOLE-PRESENTATION-TRANSPORT-20261017",
     "role": "astra_prover",
-    "worker_id": null,
-    "state": "READY",
+    "worker_id": "/root/npair_whole_presentation_transport",
+    "state": "RUNNING",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
@@ -46,7 +46,9 @@
     "outputs": [
      "notes/theory/2026-10-17-npair-whole-presentation-transport.md",
      "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md"
-    ]
+    ],
+    "session": "current-session",
+    "active_work_receipt": "Supported collaboration spawn acknowledged in current session; exact proof leases frozen; one Astra author, no descendants."
    }
   ],
   "architecture_lane": {
@@ -105,6 +107,17 @@
    "observed_effort": "UNKNOWN",
    "session": null,
    "receipt": "Historical identity/cessation unknown; reservation retained."
+  },
+  {
+   "id": "/root/npair_whole_presentation_transport",
+   "role": "astra_prover",
+   "state": "RUNNING",
+   "requested_model": "gpt-6-astra",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Active proof assignment NPAIR-WHOLE-PRESENTATION-TRANSPORT-20261017; 1200s cap; exact two output leases; no descendants."
   }
  ],
  "leases": [
@@ -112,6 +125,16 @@
    "path": "tasks/agent-loop/board.md",
    "owner": "/root/resident_dispatcher_loop_a",
    "state": "QUARANTINED"
+  },
+  {
+   "path": "notes/theory/2026-10-17-npair-whole-presentation-transport.md",
+   "owner": "/root/npair_whole_presentation_transport",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md",
+   "owner": "/root/npair_whole_presentation_transport",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -122,8 +145,8 @@
   },
   {
    "id": "NPAIR whole-presentation rho_u at install/capture/fresh use",
-   "state": "ACTIVE-PROOF-PACKET",
-   "owner": "Astra assignment after launch acknowledgment"
+   "state": "RUNNING",
+   "owner": "/root/npair_whole_presentation_transport"
   },
   {
    "id": "N-Transport extrusion/intrusion and association completeness",
@@ -156,11 +179,11 @@
   "coordination": 120,
   "reserve": 120,
   "unknown_reservations_preserved": 3,
-  "active_authors": 0,
-  "astra_assignments": 0,
+  "active_authors": 1,
+  "astra_assignments": 1,
   "charged_total_seconds": 0,
   "review_reserved": 360,
-  "status": "Fresh envelope; selector recommendation accepted; proof launch not yet acknowledged."
+  "status": "Astra proof assignment RUNNING after current-session launch acknowledgment; 1200s cap, active time not yet charged."
  },
  "history": "Prior proof, proposal adoption and corrected readiness plan hashes are pinned in the sprint contract. Previous correction closeout fe7aea7e is archived and pushed in 12a7eae7d. Three UNKNOWN reservations remain quarantined; unrelated dirty sprint file preserved.",
  "checkpoint_commits": [
