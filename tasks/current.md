@@ -20,8 +20,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   focused tests pass 1/1 and the single bounded R12 M1 review is CLEAN. This is
   a diagnostic-owner correction under the approved module-expression contract;
   no inference rule or accepted result changed. The I6 code, tests and receipt
-  are integrated in this checkpoint. The original source/admission, soundness,
-  principality, N1, F5 and production gates remain OPEN/BLOCKED. Full role,
+  are integrated in this checkpoint. I7 adds six executable CLI calls across
+  both source orders and the inference, `--intrusion`, and `--run main` modes;
+  the focused test passed (1 passed, 20 filtered) at test SHA-256
+  `ad2fbb6524a02cf351173adfa1f522c817fd2526c251497369b9890b2d63fd25`.
+  R13's bounded M1 regression review is CLEAN for the supplied diff and caller
+  preservation; it did not independently read stdin plumbing, dispatch code or
+  the receipt, whose frozen SHA-256 is
+  `d8ac997fea12927ab2fca0b5e2c4d7c8deaeb947e892807e3a0c7c9a57a740d8`.
+  Primary-pinned source hashes and the passing focused test supply that
+  integration evidence. I7 changes tests only and adds no inference rule or
+  accepted result. The original source/admission, soundness, principality, N1,
+  F5 and production gates remain OPEN/BLOCKED. Full role,
   lease and inbox state is in [the loop board](agent-loop/board.md); the next
   implementation is selected by the dispatcher after this push.
 

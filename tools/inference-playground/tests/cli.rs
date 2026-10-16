@@ -5,7 +5,12 @@ use std::{
 use yu_playground::{INPUT_CAP, infer, infer_with_intrusion, location, read_source};
 
 fn cli(source: &str) -> std::process::Output {
+    cli_with_args(source, &[])
+}
+
+fn cli_with_args(source: &str, args: &[&str]) -> std::process::Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_yu-playground"))
+        .args(args)
         .arg("-")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -166,6 +171,60 @@ fn conditional_conflicts_withhold_all_cli_observations() {
     let error = String::from_utf8(result.stderr).unwrap();
     assert!(error.contains("candidate type conflicts"));
     assert!(!error.contains("Retained intrusion state"));
+}
+
+#[test]
+fn discarded_expression_conflicts_withhold_all_cli_modes() {
+    for (source, location, conditional) in [
+        (
+            "if 1: 1 else: 2;\nmy main = 7",
+            " at 1:",
+            "if 1: 1 else: 2;",
+        ),
+        (
+            "my main = 7;\nif 1: 1 else: 2",
+            " at 2:",
+            "if 1: 1 else: 2",
+        ),
+    ] {
+        for args in [&[][..], &["--intrusion"][..], &["--run", "main"][..]] {
+            let result = cli_with_args(source, args);
+            assert!(
+                !result.status.success(),
+                "CLI mode {args:?} accepted: {source}"
+            );
+            assert!(
+                result.stdout.is_empty(),
+                "CLI mode {args:?} exposed stdout: {source}"
+            );
+            let error = String::from_utf8(result.stderr).unwrap();
+            assert!(
+                error.contains("candidate type conflicts"),
+                "CLI mode {args:?}: {error}"
+            );
+            assert!(error.contains(location), "CLI mode {args:?}: {error}");
+            assert!(
+                error.contains(&format!("\n  {conditional}")),
+                "CLI mode {args:?}: {error}"
+            );
+            assert!(
+                !error.contains("source span unavailable"),
+                "CLI mode {args:?}: {error}"
+            );
+            assert!(
+                !error.contains("unsupported source"),
+                "CLI mode {args:?}: {error}"
+            );
+            assert!(
+                !error.contains("Retained intrusion state"),
+                "CLI mode {args:?}: {error}"
+            );
+            assert!(
+                !error.contains("definition main:"),
+                "CLI mode {args:?}: {error}"
+            );
+        }
+    }
 }
 
 #[test]
