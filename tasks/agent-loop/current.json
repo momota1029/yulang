@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
     "revision": 1,
     "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ACTIVE-PROOF-FREEZING",
+    "state": "ACTIVE-IMPLEMENTATION-RUNNING",
     "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
     "dispatcher": "At material dependency boundary, next_action_selector selected no rev2; freeze the exact missing original declaration under current rev1 pins. Two provenance locators are unconsumed; they do not provide the requested supplier.",
     "proof": {
-      "state": "RUNNING-FREEZING",
+      "state": "FROZEN-PENDING-REVIEW",
       "assignment": "assignment-choose-phase-declaration-qualification",
       "outputs": [
         "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
@@ -26,11 +26,13 @@
       "charge_seconds_cap": 900,
       "contract_revision": 1,
       "contract_sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-      "receipt": "Author resumed under unchanged rev1 after dispatcher decision; all 38 pins rechecked. At stage 6/6, artifact frozen locally at SHA-256 cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478; sole handoff pending. Conservative total charge 360/900s; no new dependency reads or descendants.",
-      "runtime_receipt": "Explicit spawn returned /root/choose_phase_qualification; live message reports active leaf, no descendants. Session ID UNKNOWN."
+      "receipt": "Six stages; conservative charge 360/900s. All 38 direct pins match. Exact obstruction: pinned inputs identify structural choose consumer cut but no actual original choose clause/IF address, complete telescope, Request gluing or lawful future action. No parent closure, tests/probes/code/Git, descendants or scratch paths. Writer STOPPED.",
+      "runtime_receipt": "Explicit spawn returned /root/choose_phase_qualification; live message reports active leaf, no descendants. Session ID UNKNOWN.",
+      "artifact_sha256": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
+      "handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
     },
     "implementation": {
-      "state": "DEFERRED-UNTIL-PROOF-CESSATION",
+      "state": "RUNNING-READ-ONLY",
       "assignment": "assignment-source-final-root-export-law",
       "outputs": [
         "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
@@ -41,23 +43,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 360,
-      "receipt": "Read-only source-owner audit; lease and launch deferred until proof author STOPPED and capacity rechecked."
+      "receipt": "Worker /root/source_final_root_export_law acknowledged contract rev1 SHA before writes and independently verified all 38 dependency pins plus proof artifact/handoff hashes. Read-only source audit is active; only assigned inbox may be written.",
+      "runtime_receipt": "Explicit spawn returned /root/source_final_root_export_law; live acknowledgement received; session ID UNKNOWN; no descendants."
     },
     "review": {
       "state": "NOT_STARTED",
       "budget_seconds": 300,
-      "execution": "All authors and descendants STOP before sequential fresh compiler_referee proof review then architect/regression_auditor implementation review."
+      "execution": "Both authors stop before review; proof review first, then implementation review sequentially."
     },
     "open_parent": "D_tail remains to be qualified against an actual original choose declaration; one authentic detached export root and its field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
     "leases": [
       {
         "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
         "owner": "assignment-choose-phase-declaration-qualification",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
         "owner": "assignment-choose-phase-declaration-qualification",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
+        "owner": "assignment-source-final-root-export-law",
         "state": "HELD"
       }
     ]
@@ -102,13 +110,24 @@
     {
       "id": "/root/choose_phase_qualification",
       "role": "astra_prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Resumed rev1, rechecked all 38 pins; stage 6/6 artifact written and hashing; handoff/stop receipt pending. 360/900s conservative charge."
+      "receipt": "Frozen artifact cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478 and handoff 167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1; all 38 pins match; six stages, conservative 360/900s; no descendants/scratch."
+    },
+    {
+      "id": "/root/source_final_root_export_law",
+      "role": "implementer",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "Acknowledged exact contract hash before writes; all 38 dependency pins and proof hashes independently verified; one exact inbox lease; read-only source audit active; no descendants."
     }
   ],
   "leases": [
@@ -127,9 +146,14 @@
       "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
       "owner": "/root/choose_phase_qualification",
       "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
+      "owner": "/root/source_final_root_export_law",
+      "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; one proof author RUNNING at freeze stage on exact leases; implementation deferred until confirmed STOP; two slots reserved.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; proof author STOPPED; one Luna/high implementation author RUNNING read-only; two slots reserved for review/integration.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -163,11 +187,11 @@
     {
       "id": "PROOF-REVIEW",
       "state": "PENDING",
-      "owner": "fresh compiler_referee after all writers stop",
-      "needs": "Review frozen D_tail qualification only in its exact scope."
+      "owner": "fresh compiler_referee after all authors stop",
+      "needs": "Review exact declaration obstruction in frozen artifact; preserve OPEN parent gates."
     }
   ],
-  "next_action": "Proof author is freezing the artifact and handoff; wait for confirmed write cessation, then review scheduling/capacity and open implementation source-root lane.",
+  "next_action": "Read-only source-root/export audit active through the two pinned restoration owners. Review begins only after implementation author STOPPED.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -193,8 +217,8 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof conservatively 360/900; exact active sampling time UNKNOWN; 540s remain; implementation/review not started",
-    "status": "Proof author RUNNING at stage 6/6 freeze under unchanged rev1; no additional dependencies or evidence scope.",
+    "spent_seconds": "proof conservatively 360/900; implementation active, exact seconds UNKNOWN; review not started",
+    "status": "Implementation author RUNNING after exact contract/pin acknowledgement; no code writes or test/build/probe processes.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
   "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
