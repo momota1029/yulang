@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "FROZEN-REVIEW-PENDING",
+      "state": "RUNNING-INDEPENDENT-REVIEW",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -26,10 +26,17 @@
       "charge_seconds_cap": 900,
       "receipt": "STOPPED: frozen candidate and handoff; artifact 9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018; handoff 5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5; all 16 pins rechecked; six stages; full 900s conservatively charged; requested Astra/medium, observed UNKNOWN/UNKNOWN; no descendants or scratch paths.",
       "artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
-      "handoff_sha256": "5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5"
+      "handoff_sha256": "5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5",
+      "reviewer": "/root/negative_pair_proposal_referee",
+      "reviewer_role": "compiler_referee",
+      "reviewer_requested_model": "gpt-6.1-sol",
+      "reviewer_requested_effort": "medium",
+      "reviewer_observed_model": "UNKNOWN",
+      "reviewer_observed_effort": "UNKNOWN",
+      "review_receipt": "Active-work receipt confirms frozen target, contract and 16 direct pins; read-only source/consumer review in progress."
     },
     "implementation": {
-      "state": "READY-AFTER-PACKET-1-STOP",
+      "state": "RUNNING-PROPOSAL-AUTHORING",
       "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
       "role": "primary proposal author",
       "outputs": [
@@ -41,16 +48,16 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 600,
-      "receipt": "Packet 2 may start while Packet 1 independent reviews run; it remains a separate proposal-only source/native map with no compiler code authority."
+      "receipt": "Packet 1 author STOPPED and frozen; primary begins independent proposal drafting under exact packet-2 leases. No compiler code authority."
     },
     "review": {
-      "state": "READY",
+      "state": "RUNNING",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Frozen bytes recorded; compiler_referee and spec_auditor reviews required, one reviewer at a time alongside packet 2."
+      "receipt": "Fresh compiler_referee review active; spec_auditor follows sequentially. Each capped at 120s."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -108,7 +115,7 @@
       "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
       "implementation": "No compiler changes until reviewed proposals and a later explicit source-definition adoption; then issue a new proof-backed implementation contract."
     },
-    "current_checkpoint": "aa9535458b15ae576529fc4df410ec1e7d8a6d3e"
+    "current_checkpoint": "0364a844d"
   },
   "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
   "baseline": "601e55cfaaf131644d770006532727da33e33059",
@@ -162,24 +169,24 @@
     {
       "id": "/root",
       "role": "primary proposal author and integration",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Packet 2 proposal author is ready after packet 1 STOP; review may run alongside it; no new output written yet."
+      "receipt": "Primary began packet 2 after packet 1 STOP; exact packet-2 outputs only; requested Luna/high, observed UNKNOWN/UNKNOWN; no authority expansion."
     },
     {
       "id": "NPAIR-PROPOSAL-REFEREE-20261017",
       "role": "compiler_referee",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Fresh read-only review of frozen artifact; awaiting launch."
+      "session": "current-session",
+      "receipt": "Active review receipt: target, contract and 16 direct pins verified; source/consumer review in progress; requested model/effort not supplied in packet, observed UNKNOWN/UNKNOWN; no execution or descendants."
     },
     {
       "id": "NPAIR-PROPOSAL-SPEC-REVIEW-20261017",
@@ -190,7 +197,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Fresh read-only review of frozen artifact; awaiting launch."
+      "receipt": "Sequential review after referee and packet-2 author seam allows."
     }
   ],
   "leases": [
@@ -262,13 +269,13 @@
     "coordination": 180,
     "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
+    "active_authors": 1,
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
     "review_reserved": 480,
     "coordination_reserved": 180,
-    "pending_reviewers": 0,
+    "pending_reviewers": 1,
     "charged_total_seconds": 900,
     "reviewed_closeout": null,
     "authors_spent_seconds": 900
