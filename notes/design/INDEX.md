@@ -209,6 +209,11 @@ This index is a navigation aid. The listed source document remains authoritative
   needs its own `G ∧ Z ∧ Image ⇒ target` demand rule, and W needs its complete
   shared local action. Typed-core §8 supplies neither rule. No collision or
   generic impossibility was established; native discharge remains OPEN.
+  The [original primitive-leaf analysis](../theory/2026-10-16-image-demand-original-alternative-discharge.md)
+  has CLEAN mathematical/specification review. It localizes missing executable
+  image-to-upper discharge at the original unanchored `Prim_alpha` clause;
+  no concrete W/Z operation is selected, no impossibility/counterexample is
+  claimed, and the original generic native A/B gate remains OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

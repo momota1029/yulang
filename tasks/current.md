@@ -91,6 +91,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   No representation collision, generic impossibility, source invalidity or
   native adoption follows. The native discharge producer is investigating the
   actual first declaration-local law that could make this sequent executable.
+  The [original primitive-leaf analysis](../notes/theory/2026-10-16-image-demand-original-alternative-discharge.md)
+  now has CLEAN mathematical and specification reviews. It pins the unanchored
+  Z branch at its original `Prim_alpha` declaration and derives the exact
+  guarded shallow-image-to-upper obligation with the same provider, world,
+  response and future witnesses. IF placement, the original typing contract,
+  typed-core §8 comparison and §5.3 finite certificates do not give an
+  executable action for that transformed obligation. Concrete W/Z meanings
+  remain unselected, so this is an absent-contract result: no impossibility,
+  invalid source or counterexample. Generic discharge, principality, adoption
+  and cutover stay OPEN.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)

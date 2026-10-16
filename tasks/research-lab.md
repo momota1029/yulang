@@ -665,6 +665,14 @@ same-component support comparisons and leaves outside-grammar predicates
 identical; it supplies no image-demand action. This is not a representation
 collision or a generic impossibility result. The original all-alternative
 native gate remains OPEN pending the effective local law/consumer.
+The independent [primitive-leaf discharge audit](../notes/theory/2026-10-16-image-demand-original-alternative-discharge.md)
+now has CLEAN semantic and specification reviews. At the original `Prim_alpha`
+Z clause it states the exact same-tuple guarded continuation/future image
+obligation under U. The actual IF and typed-core§8/source-contract§5.3 checkers
+do not supply this new preimage action; declaration placement and original
+typing alone are insufficient. This locates the first missing contract but
+claims no unrepresentability or source counterexample. Concrete W/Z operations,
+generic solution preservation, adoption and principal inference remain OPEN.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new
