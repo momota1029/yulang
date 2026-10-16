@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
     "revision": 1,
     "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ACTIVE-PROOF-REVIEW",
+    "state": "ENDED-PARTIAL-REVIEWED",
     "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
-    "dispatcher": "At material dependency boundary, next_action_selector selected no rev2; freeze the exact missing original declaration under current rev1 pins. Two provenance locators are unconsumed; they do not provide the requested supplier.",
+    "dispatcher": "Sprint-end selector kept proof and source/export results independent; recommended applying the concrete operation source construction to an authentic HIR source instance, then attempting the export cut at that authenticated internal root.",
     "proof": {
-      "state": "FROZEN-PENDING-REVIEW",
+      "state": "STOPPED-CLEAN-BOUNDED",
       "assignment": "assignment-choose-phase-declaration-qualification",
       "outputs": [
         "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
@@ -32,7 +32,7 @@
       "handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
     },
     "implementation": {
-      "state": "FROZEN-PENDING-REVIEW",
+      "state": "STOPPED-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
       "assignment": "assignment-source-final-root-export-law",
       "outputs": [
         "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
@@ -49,22 +49,24 @@
       "worker_state": "STOPPED; model/effort UNKNOWN"
     },
     "review": {
-      "state": "RUNNING-PROOF-REVIEW",
+      "state": "STOPPED-CLEAN-BOUNDED",
       "budget_seconds": 300,
-      "execution": "Both authors STOPPED and all outputs frozen. First fresh compiler_referee reviews D_tail proof; implementation source/export review follows only after proof reviewer STOP.",
+      "execution": "Both authors STOPPED. Proof and implementation reviews STOPPED; proof CLEAN bounded; implementation CLEAN bounded with two low wording findings recorded in progress receipt.",
       "implementation_review": {
-        "state": "PENDING",
-        "reviewer": "fresh architect/regression_auditor after proof review",
-        "target_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000"
+        "state": "STOPPED-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
+        "reviewer": "/root/export_root_review",
+        "target_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
+        "receipt": "CLEAN for bounded source-path/obstruction; 38/38 pins and all frozen artifact hashes match. Two low wording findings: emit_candidate_source is implemented in candidate_source.rs:551 (collector lib.rs:1182); falsifier should specify discarded exporter-session registries and not ban caller-environment infrastructure for live anchors. No substantive contradiction; STOPPED."
       },
       "proof_review": {
-        "state": "RUNNING",
+        "state": "STOPPED-CLEAN",
         "reviewer": "/root/choose_phase_review",
         "target_artifact_sha256": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
-        "target_handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
+        "target_handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1",
+        "receipt": "Fresh compiler_referee CLEAN for bounded exact-obstruction claim. Contract 8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961; artifact cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478; handoff 167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1; all 38 pins matched. No theorem parent closed."
       }
     },
-    "open_parent": "D_tail remains to be qualified against an actual original choose declaration; one authentic detached export root and its field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
+    "open_parent": "D_tail remains to be instantiated from an actual original choose declaration; one authenticated selected root and detached export field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
     "leases": [
       {
         "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
@@ -81,7 +83,8 @@
         "owner": "assignment-source-final-root-export-law",
         "state": "FROZEN"
       }
-    ]
+    ],
+    "next_action": "Ended partial-reviewed. Successor sprint applies the operation source constructor to a selected HIR instance and attempts the export cut at an authenticated internal root; no code slice authorized."
   },
   "candidate": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
   "baseline": "46ea212940f3ec3afba5cd87e12d765fa606a342",
@@ -145,13 +148,24 @@
     {
       "id": "/root/choose_phase_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Fresh read-only review of frozen D_tail exact-obstruction result after both authors stopped; no writes/tests/builds/probes/delegation."
+      "receipt": "Fresh compiler_referee review STOPPED CLEAN for bounded missing-declaration result; 38 pins matched; no writes/tests/builds/probes/Git/delegation."
+    },
+    {
+      "id": "/root/export_root_review",
+      "role": "architect",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "Fresh architect review STOPPED CLEAN bounded with two low wording findings; 38 pins matched; no edits/tests/builds/probes/Git/descendants."
     }
   ],
   "leases": [
@@ -164,12 +178,12 @@
     {
       "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
       "owner": "/root/choose_phase_qualification",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
       "owner": "/root/choose_phase_qualification",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
@@ -177,7 +191,7 @@
       "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; both authors STOPPED; one proof reviewer RUNNING; implementation reviewer waits; sequential reviews preserved.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; proof and implementation authors STOPPED; both fresh sequential reviewers STOPPED; no live assigned work.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -192,9 +206,9 @@
     },
     {
       "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
-      "state": "ASSIGNED",
-      "owner": "assignment-choose-phase-declaration-qualification",
-      "needs": "Actual declaration, IF address, complete telescope, guard producers, Request gluing, lawful action/future and demand transport or exact missing field."
+      "state": "DONE-CLEAN-BOUNDED",
+      "owner": "/root/choose_phase_review",
+      "needs": "Actual original choose declaration/IF address, Request gluing/action and demand transport remain open."
     },
     {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
@@ -203,19 +217,19 @@
       "needs": "Retain distinct; no closure follows from this assignment."
     },
     {
-      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
-      "state": "FROZEN-PENDING-REVIEW",
-      "owner": "assignment-source-final-root-export-law",
-      "needs": "Review actual root association gap, same-state restoration evidence, detached extractor/consumer absence, exact pins and policy limits."
+      "id": "PROOF-REVIEW",
+      "state": "DONE-CLEAN-BOUNDED",
+      "owner": "/root/choose_phase_review",
+      "needs": "No pinned input supplies concrete choose clause/IF address; parents remain open."
     },
     {
-      "id": "PROOF-REVIEW",
-      "state": "RUNNING",
-      "owner": "fresh compiler_referee",
-      "needs": "Review frozen D_tail exact-obstruction result; no parent closure."
+      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
+      "state": "DONE-CLEAN-BOUNDED-WITH-LOW-WORDING-FINDINGS",
+      "owner": "/root/export_root_review",
+      "needs": "Selected-root association, detached extractor/schema, package-only consumer and field law remain open; wording findings are recorded in notes/progress/2026-10-16-concrete-declaration-export-root-review.md."
     }
   ],
-  "next_action": "Fresh compiler_referee reviews the exact D_tail obstruction; implementation review waits until proof reviewer STOP.",
+  "next_action": "Architect reviews the frozen source/export handoff; after STOP, adjudicate both results and consult selector at sprint end.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -241,10 +255,10 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof conservative 360/900; implementation conservative 300/360; review active; exact review time UNKNOWN",
-    "status": "Both authors STOPPED; proof review RUNNING. Implementation review is sequential and not yet started.",
+    "spent_seconds": "proof 360/900; implementation 300/360; review exact time UNKNOWN; all lanes stopped.",
+    "status": "Authors and both reviewers STOPPED; no remaining lane budget or capacity transferred.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
-  "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
-  "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md"
+  "integration_outcome": "Sprint ended partial-reviewed; proof and implementation results plus bounded review receipts recorded in notes/progress/2026-10-16-concrete-declaration-export-root-review.md. Frozen author outputs unchanged. No gate promoted.",
+  "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
 }
