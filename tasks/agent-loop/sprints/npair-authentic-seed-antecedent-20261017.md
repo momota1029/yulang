@@ -84,3 +84,27 @@ authentic descriptor association, admission completeness, N-Transport, whole
 completeness, actual receive consumer/subtraction, F1/FK1, all other parent
 quantifiers and production OPEN. Next consultation follows a material finding,
 approval/dependency change, or sprint-end adjudication.
+
+## Revision 2 — append-only read dependencies
+
+Revision 1 SHA-256: `41d4c4c47fc9a8eaecb4f4e34c5669d08656b6d645bc394f1e778a04e18b949c`.
+This amendment preserves revision 1 and baseline `4685eef7efb59314dc9d96cfcae692d1e09000fe`.
+The dependency snapshot for the three additions is commit
+`ecc3b46241203ec6779803e10907a30b80f1ef4d`. The proof author must verify and
+acknowledge these pins before relying on their contents:
+
+- `crates/yu-solver/src/candidate_extrusion.rs`:
+  `2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b`
+- `crates/yu-solver/src/candidate_scheme.rs`:
+  `52b7281946de755003ee8f3b3d18cbc2df6cc6db5566b4e5ecf391b74a92640a`
+- `crates/yu-solver/src/shadow_apply.rs`:
+  `bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf`
+
+These are read-only inputs needed to trace the physical lower emission owner
+and source-owned Contribution producer. No write paths, worker, execution
+authority or resource allocation changes. The original exact proof artifact
+and handoff leases remain unchanged; the same 900-second total cap includes
+all work already spent. Existing retained origin/source structures may be
+reconstruction evidence but cannot authenticate a seed solely by their
+presence. If the trace exceeds the remaining cap, freeze the precise obstruction
+and uninspected dependencies.
