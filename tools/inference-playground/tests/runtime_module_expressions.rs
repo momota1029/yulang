@@ -232,6 +232,88 @@ fn repeated_permitted_resume_returns_before_the_next_expression_root() {
 }
 
 #[test]
+fn budgeted_resume_preserves_module_root_cursor_and_result() {
+    let source = format!(
+        "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), k -> {{ my first = k 11; k 23 }} }}; relay (io::tick 7); relay (io::tick 9); my main = 5"
+    );
+
+    let mut uninterrupted = opt_in_machine(&source);
+    let outcome = uninterrupted.run(30_000);
+    let RuntimeOutcome::Completed(expected) = outcome else {
+        panic!("uninterrupted execution must complete, got {outcome:?}");
+    };
+    let uninterrupted_steps = uninterrupted.steps();
+    assert!(uninterrupted_steps > 0);
+    let RuntimeValueKind::Integer(expected_value) = &uninterrupted.value(expected).unwrap().kind
+    else {
+        panic!("uninterrupted result must be an integer");
+    };
+    assert_eq!(expected_value.as_ref(), "5");
+    assert!(matches!(
+        uninterrupted.run(0),
+        RuntimeOutcome::Completed(value) if value == expected
+    ));
+    assert_eq!(uninterrupted.steps(), uninterrupted_steps);
+    assert!(matches!(
+        uninterrupted.run(1),
+        RuntimeOutcome::Completed(value) if value == expected
+    ));
+    assert_eq!(uninterrupted.steps(), uninterrupted_steps);
+
+    for chunk in [1, 2, 7] {
+        let mut resumed = opt_in_machine(&source);
+        assert_eq!(resumed.steps(), 0);
+        assert!(matches!(
+            resumed.run(0),
+            RuntimeOutcome::ResourceExhausted { steps: 0 }
+        ));
+        assert_eq!(resumed.steps(), 0);
+
+        let mut completed = None;
+        for _ in 0..30_000 {
+            let before = resumed.steps();
+            assert!(before + chunk <= 30_000, "chunked execution exceeded its step cap");
+            match resumed.run(chunk) {
+                RuntimeOutcome::ResourceExhausted { steps } => {
+                    assert_eq!(steps, resumed.steps());
+                    assert_eq!(steps, before + chunk);
+
+                    let paused_steps = resumed.steps();
+                    assert!(matches!(
+                        resumed.run(0),
+                        RuntimeOutcome::ResourceExhausted { steps } if steps == paused_steps
+                    ));
+                    assert_eq!(resumed.steps(), paused_steps);
+                }
+                RuntimeOutcome::Completed(value) => {
+                    completed = Some(value);
+                    break;
+                }
+                outcome => panic!("chunked execution escaped with {outcome:?}"),
+            }
+        }
+
+        let actual = completed.expect("chunked execution completes within 30,000 steps");
+        let actual_steps = resumed.steps();
+        assert_eq!(actual_steps, uninterrupted_steps);
+        let RuntimeValueKind::Integer(actual_value) = &resumed.value(actual).unwrap().kind else {
+            panic!("chunked result must be an integer");
+        };
+        assert_eq!(actual_value.as_ref(), "5");
+        assert!(matches!(
+            resumed.run(0),
+            RuntimeOutcome::Completed(value) if value == actual
+        ));
+        assert_eq!(resumed.steps(), actual_steps);
+        assert!(matches!(
+            resumed.run(1),
+            RuntimeOutcome::Completed(value) if value == actual
+        ));
+        assert_eq!(resumed.steps(), actual_steps);
+    }
+}
+
+#[test]
 fn expression_request_retains_original_provenance_and_pending_suffix() {
     let mut machine = opt_in_machine(&format!("{IO}io::tick 99; my main = 7"));
     let RuntimeOutcome::UnhandledRequest {
