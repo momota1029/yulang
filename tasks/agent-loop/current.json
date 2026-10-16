@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 3,
     "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049",
-    "state": "PROPOSAL-AUTHOR-RUNNING",
+    "state": "ARCHITECT-REVIEW-RUNNING",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -46,17 +46,19 @@
       "repair_receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
     },
     "proposal": {
-      "state": "RUNNING",
+      "state": "FROZEN-WAITING-ARCHITECT-REVIEW",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
         "notes/design/2026-10-17-local-use-retention-code-contract.md",
         "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md"
       ],
-      "active_work_receipt": "Luna acknowledged the existing 600s proposal-author packet after CLEAN M2 delta review; v2 proof, repair handoff and rev3 contract hashes pinned; exact two output paths only; unapplied patch proposal."
+      "active_work_receipt": "Luna completed the existing 600s author packet; both exact outputs frozen. Proposed move-only FreshUse retention patch, no compiler edits. Writer STOPPED.",
+      "artifact_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
+      "handoff_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
     },
     "review": {
-      "state": "CLEAN-DELTA",
+      "state": "RUNNING-ARCHITECT",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -69,16 +71,18 @@
       ],
       "proof_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
       "proof_handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
-      "current_reviewer": null,
-      "current_cap_seconds": null,
+      "current_reviewer": "/root/local_use_retention_arch_review",
+      "current_cap_seconds": 120,
       "session": "current-session",
-      "active_work_receipt": "Fresh compiler_referee delta review completed in one stage within 60s cap; read-only receipt; reviewer STOPPED.",
-      "verdict": "CLEAN within corrected M2 delta: valid pinned-v0 evaluations preserve answers; Invalid(v0) is separate; no current-code version/checking claim. Verified exact artifact, handoff, contract, snapshot, R1 and candidate_scheme pins. Parent remains OPEN.",
+      "active_work_receipt": "Actual architect worker launched and acknowledged current-session review; exact artifact, handoff, proof, source and rev3 contract pins supplied; read-only one-stage 120s cap; spec review waits for STOP.",
+      "verdict": "PENDING: code proposal frozen; architect review running. Spec audit waits for architect STOP.",
       "reviewer": "/root/local_use_map_version_delta_review",
       "review_state": "STOPPED",
       "delta_cap_seconds": 60,
       "delta_reviewer": "/root/local_use_map_version_delta_review",
-      "original_v1_review": "MAJOR; reviewer STOPPED; superseded bytes preserved in snapshot."
+      "original_v1_review": "MAJOR; reviewer STOPPED; superseded bytes preserved in snapshot.",
+      "proposal_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
+      "proposal_handoff_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
@@ -123,13 +127,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna acknowledged the existing 600s proposal-author packet after CLEAN M2 delta review; v2 proof, repair handoff and rev3 contract hashes pinned; exact two output paths only; unapplied patch proposal."
+      "receipt": "Luna completed the existing 600s author packet; both exact outputs frozen. Proposed move-only FreshUse retention patch, no compiler edits. Writer STOPPED."
     },
     {
       "id": "/root/local_use_existing_map_retention",
@@ -141,6 +145,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
+    },
+    {
+      "id": "/root/local_use_retention_arch_review",
+      "role": "architect",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual architect worker launched and acknowledged current-session review; exact artifact, handoff, proof, source and rev3 contract pins supplied; read-only one-stage 120s cap; spec review waits for STOP."
     }
   ],
   "leases": [
@@ -176,12 +191,14 @@
     {
       "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
     },
     {
       "path": "notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md",
@@ -235,15 +252,15 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "CLEAN-DELTA-REVIEWED; design proposal lane next; parent OPEN.",
-      "owner": "Luna"
+      "state": "PROOF M2 CLEAN; CODE PROPOSAL FROZEN; ARCHITECT REVIEW RUNNING; USER APPROVAL REQUIRED BEFORE CODE.",
+      "owner": "Luna / independent architect and spec reviewers / user approval"
     }
   ],
   "next_action": {
-    "state": "PROPOSAL-AUTHOR-RUNNING",
+    "state": "ARCHITECT-REVIEW-RUNNING",
     "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
     "proof": "M2 v2 CLEAN within the corrected finite-query conditional scope; parent remains OPEN.",
-    "implementation": "Luna writing reviewed unapplied retention code contract/proposal under existing 600s packet; compiler code remains unauthorized pending exact user approval."
+    "implementation": "Exact unapplied FreshUse move proposal frozen; architect then spec review sequentially; no code authority."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
@@ -254,11 +271,11 @@
     "coordination": 120,
     "reserve": 0,
     "unknown_reservations_preserved": 3,
-    "active_authors": 1,
+    "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 600,
-    "status": "Proof 420s plus reviews 180s charged; Luna acknowledged existing 600s proposal author cap; architect/spec reviews 240s and coordination 120s remain.",
-    "authors_spent_seconds": 420,
+    "charged_total_seconds": 1200,
+    "status": "Proof author 420s and proposal author 600s plus proof reviews 180s charged; proposal architect review 120s and spec review 120s remain; 120s coordination remains.",
+    "authors_spent_seconds": 1020,
     "review_spent_seconds": 180,
     "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
