@@ -137,6 +137,133 @@ fn expression_origin_uses_freshen_one_definition_at_distinct_value_shapes() {
 }
 
 #[test]
+fn conditional_expression_branches_keep_distinct_fresh_instances() {
+    for condition in ["true", "false"] {
+        let text = format!(
+            r"my id x = x; if {condition}: id 1 else: id (\y -> y); my main = 7"
+        );
+        let hir = module(&text);
+        let candidate = CandidateInference::solve(hir.clone())
+            .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+        assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+
+        let bindings: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(bindings.len(), 2, "no synthetic definitions: {text}");
+        let definition = bindings
+            .iter()
+            .find(|binding| binding.name().spelling() == "id")
+            .expect("the genuine id definition");
+        assert!(bindings.iter().any(|binding| binding.name().spelling() == "main"));
+
+        let expressions: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Expression(expression) => Some(expression),
+                _ => None,
+            })
+            .collect();
+        let [expression] = expressions.as_slice() else {
+            panic!("the conditional is one genuine expression root: {text}");
+        };
+        let root = hir
+            .expression_root(expression.occurrence())
+            .unwrap()
+            .expect("the original conditional expression root");
+        let owner = SourceRootId::Expression(root.clone());
+        let local = hir
+            .local_source_for(&owner)
+            .unwrap()
+            .expect("the authentic expression root retains its local source");
+        assert_eq!(root.occurrence(), expression.occurrence());
+
+        let conditionals: Vec<_> = local
+            .expressions()
+            .iter()
+            .filter(|expression| matches!(&expression.form, LocalSourceForm::If { .. }))
+            .collect();
+        let [conditional] = conditionals.as_slice() else {
+            panic!("one original conditional is retained: {text}");
+        };
+        let LocalSourceForm::If { arms, else_branch } = &conditional.form else {
+            unreachable!();
+        };
+        assert_eq!(arms.len(), 1);
+        assert!(else_branch.is_some());
+
+        let applications: Vec<_> = local
+            .expressions()
+            .iter()
+            .filter(|expression| matches!(&expression.form, LocalSourceForm::Apply { .. }))
+            .collect();
+        assert_eq!(applications.len(), 2, "both constant branches are retained: {text}");
+        assert_eq!(candidate.source_call_count(), 2, "both branch Calls are retained: {text}");
+        let calls: Vec<_> = (0..candidate.source_call_count())
+            .map(|index| candidate.source_call(index).unwrap())
+            .collect();
+        assert!(calls.iter().all(|call| call.owner() == &owner));
+        for application in &applications {
+            assert!(calls.iter().any(|call| {
+                &call.source().occurrence == &application.occurrence
+            }), "each Call keeps its actual branch Apply occurrence");
+        }
+
+        let mut name_occurrences = Vec::with_capacity(2);
+        let mut local_rows_by_use = Vec::with_capacity(2);
+        for application in applications {
+            let LocalSourceForm::Apply { callee, .. } = &application.form else {
+                unreachable!();
+            };
+            let callee = &local.expressions()[callee.ordinal() as usize];
+            let LocalSourceForm::Name {
+                spelling,
+                resolution: LocalSourceResolution::ModuleDef(resolved),
+            } = &callee.form
+            else {
+                panic!("each branch Call follows its actual callee to a resolved Name");
+            };
+            assert_eq!(spelling.as_ref(), "id");
+            assert_eq!(resolved, definition.id());
+
+            let fresh_use = candidate
+                .fresh_use(&callee.occurrence)
+                .expect("the original branch Name occurrence has a FreshUse route");
+            assert_eq!(fresh_use.occurrence(), &callee.occurrence);
+            name_occurrences.push(callee.occurrence.clone());
+
+            let local_rows: Vec<_> = fresh_use
+                .rows()
+                .filter(|row| row.source_row().is_local())
+                .collect();
+            for kind in [ComponentKind::Value, ComponentKind::Effect] {
+                assert!(
+                    local_rows.iter().any(|row| row.kind() == kind),
+                    "each branch FreshUse retains a local {kind:?} row"
+                );
+            }
+            local_rows_by_use.push(local_rows);
+        }
+        assert_ne!(name_occurrences[0], name_occurrences[1]);
+        let [first, second] = local_rows_by_use.as_slice() else {
+            panic!("the two authentic branch Name uses have separate FreshUse routes");
+        };
+        for row in first {
+            assert!(
+                second.iter().all(|other| !row.same_identity(other)),
+                "distinct branch FreshUse images do not share local row identity"
+            );
+        }
+    }
+}
+
+#[test]
 fn forward_alias_expression_uses_keep_distinct_fresh_instances() {
     let hir = module(r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7");
     let candidate = CandidateInference::solve(hir.clone()).unwrap();

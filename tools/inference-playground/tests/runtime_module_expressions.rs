@@ -138,6 +138,16 @@ fn polymorphic_expression_results_are_discarded_before_selected_definition() {
 }
 
 #[test]
+fn conditional_expression_results_are_discarded_before_selection() {
+    for condition in ["true", "false"] {
+        let source = format!(
+            r"my id x = x; if {condition}: id 1 else: id (\y -> y); my main = 7"
+        );
+        assert_selected(&source, "7");
+    }
+}
+
+#[test]
 fn forward_alias_expression_calls_discard_results_before_selection() {
     assert_selected(
         r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7",

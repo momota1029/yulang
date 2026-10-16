@@ -192,6 +192,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   Measurement budget: 0 processes / 0 samples. No inference/runtime semantics,
   theorem, F5 or production gate changed or closed; original proof and cutover
   gates remain OPEN/BLOCKED.
+  I22 adds paired regressions for differently shaped uses under one genuine
+  conditional expression root. The native test retains both static Calls for
+  both constant conditions, checks their authentic shared owner and distinct
+  original Name/FreshUse routes with disjoint local Value/Effect images, and
+  observes no conflicts. The runtime test runs both fixed conditions through
+  the existing bounded helper and requires selected `main` to be integer `7`;
+  runtime completion alone does not establish which intermediate branch ran.
+  Both focused tests pass 1/1. R35's single M1 regression review is CLEAN for
+  the exact frozen diff and preservation of existing assertions. This test-only
+  slice adds no semantics and establishes no general source correspondence,
+  soundness, principality, F5 or production closure; those original gates remain
+  OPEN/BLOCKED. No tests were rerun during review or record integration.
+  The scoped cached whitespace check reported only two trailing-space unified-
+  diff context markers in frozen receipt031 (lines 35 and 173). They encode empty
+  context lines and were preserved as part of the reviewed literal diff.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
