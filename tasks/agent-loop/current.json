@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
     "revision": 1,
     "sha256": "bdb5f6fb16d7dba84fca79c0197775e2ea23bb3bd49856b324fcd2152b13a6ee",
-    "state": "PROOF-LEASE-READY",
+    "state": "PROOF-RUNNING",
     "baseline": "ab32591e91d0759620a2b9d3d0d54513fb4a0f73",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "8f2d4a449e1fffe5dbef905d5f2bac00c4ad95f0505121a0976c6998fa49dbed"
     },
     "proof": {
-      "state": "READY-NOT-RUNNING",
+      "state": "RUNNING",
       "owner": "/root/npair_use_certificate_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -30,7 +30,9 @@
       "outputs": [
         "notes/theory/2026-10-17-npair-use-certificate-retention.md",
         "tasks/agent-loop/inbox/20261017-npair-use-certificate-retention.md"
-      ]
+      ],
+      "session": "current-session",
+      "active_work_receipt": "Actual prover spawn acknowledged by collaboration runtime; exact two output leases, frozen contract pin and 240s/four-stage cap supplied."
     },
     "architecture": {
       "state": "WAITING-FOR-PROOF-STOP",
@@ -104,13 +106,13 @@
     {
       "id": "/root/npair_use_certificate_retention",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Exact lease READY; do not mark RUNNING until actual spawn acknowledgment."
+      "session": "current-session",
+      "receipt": "Actual prover spawn acknowledged by collaboration runtime; exact two output leases, frozen contract pin and 240s/four-stage cap supplied."
     }
   ],
   "leases": [
@@ -186,7 +188,7 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-LEASE-READY",
+    "state": "PROOF-RUNNING",
     "dispatcher": "Correction sprint adopted after selector proposal; next consultation at material boundary.",
     "proof": "Sol/high 240s retention projection across commit; whole native rho_u remains OPEN.",
     "implementation": "After proof STOP, repair Draft candidate lifecycle/progress/resource contract; no code authority."
@@ -200,10 +202,10 @@
     "coordination": 60,
     "reserve": 60,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
+    "active_authors": 1,
     "astra_assignments": 0,
     "charged_total_seconds": 0,
-    "status": "Fresh sprint; proof not yet launched. Prior sprint 1560s charged/840s retired with no carryover.",
+    "status": "Proof assignment actually launched; budget cap 240s; observed model/effort UNKNOWN; architecture waits for confirmed STOP.",
     "authors_spent_seconds": 0,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 0,
