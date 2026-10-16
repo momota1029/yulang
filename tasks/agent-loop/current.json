@@ -53,7 +53,7 @@
       "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
     },
     "review": {
-      "state": "READY-SPEC-AUDITOR",
+      "state": "RUNNING-SPEC-AUDITOR",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -68,10 +68,10 @@
       "allocation_reason": "Selector delta adds a distinct proof review for authored R1 and splits existing review budget evenly; no total envelope increase or author restart.",
       "candidate_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
       "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
-      "current_reviewer": null,
-      "current_cap_seconds": null,
+      "current_reviewer": "spec_auditor",
+      "current_cap_seconds": 80,
       "session": "current-session",
-      "active_work_receipt": "Architect confirmed STOPPED and CLEAN in bounded scope; spec_auditor is next.",
+      "active_work_receipt": "Actual fresh spec_auditor spawn acknowledged after compiler_referee and architect STOP/CLEAN receipts; exact pins supplied; read-only cap 80s.",
       "proof_verdict": "CLEAN within conditional finite-query R1 scope; no native/parent promotion.",
       "proof_reviewer": "/root/npair_retention_proof_review",
       "proof_review_state": "STOPPED",
@@ -122,13 +122,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Architect STOPPED/CLEAN in scope; primary records adjudication and prepares final spec review."
+      "receipt": "Spec review running on frozen candidate after prior reviewers STOPPED/CLEAN within scope; primary waiting for STOP."
     },
     {
       "id": "/root/npair_use_certificate_retention",
@@ -155,13 +155,13 @@
     {
       "id": "/root/npair_retention_spec_review",
       "role": "spec_auditor",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Third sequential review; 80s; waits for architect STOP and primary adjudication."
+      "session": "current-session",
+      "receipt": "Actual fresh spec_auditor spawn acknowledged after compiler_referee and architect STOP/CLEAN receipts; exact pins supplied; read-only cap 80s."
     },
     {
       "id": "/root/npair_retention_proof_review",
@@ -252,7 +252,7 @@
     }
   ],
   "next_action": {
-    "state": "READY-SPEC-AUDITOR",
+    "state": "SPEC-AUDITOR-RUNNING",
     "dispatcher": "Selector allocated three sequential fresh 80s reviews within the existing 240s review budget; Luna records rev2 and grants each launch.",
     "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
     "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
@@ -269,7 +269,7 @@
     "active_authors": 0,
     "astra_assignments": 0,
     "charged_total_seconds": 1000,
-    "status": "Compiler-referee CLEAN in R1 scope; architect CLEAN in Draft finite-query scope and STOPPED. Spec-auditor is next at 80s cap.",
+    "status": "Compiler-referee and architect STOPPED/CLEAN within exact scopes; final spec_auditor review actually launched at 80s cap.",
     "authors_spent_seconds": 840,
     "review_spent_seconds": 160,
     "architecture_spent_seconds": 600,
