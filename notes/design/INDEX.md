@@ -116,8 +116,8 @@ This index is a navigation aid. The listed source document remains authoritative
   eligibility and production remain OPEN; no response-arrow default is chosen.
   The [explicit-alpha application](../theory/2026-10-16-explicit-alpha-response-callable-construction.md)
   has CLEAN correction review: retained zero+ and Call(k,zero+) at the original
-  result are established under the same independent premises. Full h+/open-arm
-  membership still needs the original R_e/J_raw's complete output inclusion;
+  result are established under the same independent premises. The initial
+  h+/open-arm attempt left the complete R_e/J_raw output inclusion unsupplied;
   actual saved-source behavior is not every hypothetical realizer's guarantee.
   Negative ctrl permission is not an incoming effect cap. This alternate source
   instance narrows no parent and supplies no source-qualified counterexample.
@@ -127,6 +127,16 @@ This index is a navigation aid. The listed source document remains authoritative
   that graph; authentic current-map and direct support closure are withdrawn.
   The missing owner is source remaining-root formation before reference use,
   with original constraints, scopes, alternatives and inherited maps intact.
+  The [selected remaining-root constructor](2026-10-16-source-remaining-root-constructor.md)
+  and [independently CLEAN construction](../theory/2026-10-16-source-remaining-root-contract-construction.md)
+  now supply that missing SOURCE graph/declaration/maps and universal readout,
+  preserving all complete constituent alternatives. Its same-port declaration
+  derivative and g ReadInvoke prove Phi_e for the explicit source slice; h+/
+  open-arm checking follows under the original complete independent premises.
+  This selects a missing source kernel under existing permission, with no
+  foreign rewrite, whole-k input cap or runtime implementation. Concrete
+  context/Catch admission, full installed support and native/global parents
+  remain OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

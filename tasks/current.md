@@ -392,7 +392,7 @@ Status: full objective remains active. Native extrusion now schedules current co
   handling permission while incoming effects stay OPEN; it cannot bound effects
   forced by the original Value-entry providers. A distinct retained-entry zero+
   has full alpha+ membership, and Call(k,zero+) has its original complete result.
-  Full h+/open-arm checking remains OPEN: actual saved S typing does not prove
+  The initial h+/open-arm attempt remained OPEN: actual saved S typing does not prove
   every hypothetical J_raw realizer satisfies alpha+'s output. The exact local
   finite inclusion Phi_e must follow from original R_e/J_raw constraints and all
   alternatives, without tightening them or adding a target-success guard. This
@@ -405,12 +405,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   formal-occurrence graph and registration are not constructed by local T_e or
   IF incidence. Authentic current-map/direct-q closure is withdrawn; conditional
   algebra is retained, every established contract keeps its actual map.
-  An architectural audit identifies a legitimate missing source remaining-root
-  constructor under existing definition permission, with no separately fixed
-  R_e kernel found. New bounded construction and independent constituent audit
-  now build/attack the ordered complete phase-contract graph, its authentic
-  telescope/maps and universal readout together. They preserve every may-bound
-  and original guard; selection and any Phi_e application require fresh review.
+  The [remaining-root source constructor](../notes/design/2026-10-16-source-remaining-root-constructor.md)
+  is now selected under existing definition permission after CLEAN independent
+  mathematical/source reviews of its [actual construction](../notes/theory/2026-10-16-source-remaining-root-contract-construction.md).
+  It defines the previously absent complete phase-contract graph, derives the
+  authentic declaration/current maps, and proves introduction AND universal
+  elimination while retaining every original alternative/guard. The complete
+  declaration's SAME-port pending-family derivative and g ReadInvoke supply
+  Phi_e for the explicit source slice; raw response-carrier Force stays outside.
+  This closes graph/current-reference construction and, by composition, h+/
+  open-arm checking for that selected source kernel under the original complete
+  Γ/d0/full-f/phase/map premises. Whole context/primitive supply, actual-k
+  discharge, Catch/OpCompat and the ENTIRE installed support remain OPEN.
+  The independent constituent audit found no authenticated separating tuple;
+  it is supporting evidence, not proof certification. A new bounded supplier
+  lane now constructs the actual ordinary choose producer's full f certificate,
+  preserving all admitted effectful/divergent/non-source carriers.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

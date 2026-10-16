@@ -458,6 +458,31 @@ readout; no assumption that actual-S typing exhausts descriptor observations.
 Raw k's open Value-entry Force stays outside this remaining suffix. No fixed
 foreign kernel or established contract may be tightened; independent review
 and explicit source-constructor selection precede any application/cutover.
+The remaining-root construction is now independently mathematical/source CLEAN
+at producer `2106a3cf...da820`; the primary selects the exact source kernel in
+`notes/design/2026-10-16-source-remaining-root-constructor.md` under existing
+definition permission. A narrow source-conformance review of that selection
+is also CLEAN. This supplies an actual complete graph/declaration/use map,
+typed introduction and universal elimination, rather than another actual-S
+trace. D_tail keeps the operation declaration's full pending-family/gluing
+witness at its SAME guaranteed result port; first-f E1 stays historical and
+raw k's arbitrary incoming Force stays outside. The full explicit Phi_e now
+composes with the repaired alpha derivation to give h+/open-arm checking for
+this kernel under ORIGINAL complete Γ/d0/f/phase/map premises. Whole-source
+supplier, context inhabitance, actual-k/Catch/OpCompat, full installed support
+and global/native parents remain OPEN. M2 two reviewers; M0 selection check;
+14 dependency pins and local integrity only, zero executable measurements.
+The independent 15-minute constituent audit finished in about nine minutes,
+empty artifact packet: no source-qualified separating tuple or fixed off-Ctrl
+phase was authenticated. It identifies complete same-port derivative coverage
+as the decisive owner; the proof's independent reviews discharge that bounded
+claim. It also distinguishes the original TWO shared E_A/E_R inlet ports and
+the actual E_t<=E_A formula from negative literal permission. Source-hole Desc
+ownership is required before selecting any terms; native row freshness alone
+does not prove it. A new independent 20-minute prover packet owns
+`notes/theory/2026-10-16-choose-producer-full-source-certificate.md`, constructing
+the ordinary f Value-entry full certificate and finite source description
+choices without assuming f membership, actual k, h/Catch admission or MODEL.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new
