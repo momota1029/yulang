@@ -1,116 +1,116 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ENDED",
+  "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "receive-negative-pair-construction-20261017",
-    "contract": "tasks/agent-loop/sprints/receive-negative-pair-construction-20261017.json",
-    "revision": 2,
-    "sha256": "98b00634966c692f5c8f7ab0b3312b168688ce5a46694efee117a77854c07d8e",
-    "state": "ENDED-REVIEWED-EXACT-OBSTRUCTION",
-    "baseline": "e0fa94e509d28eea9aa7d5884b5fa2b060363ca4",
-    "previous_sprint": "catch-bijection-postrun-receipt-review-20261017 ENDED-REVIEWED-LIMITED; contract rev2 sha cd137992b57e52057607bad975fd711a18c84f19025bbfa93965c7f1eadb30cf",
+    "id": "source-formation-proposals-20261017",
+    "contract": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
+    "revision": 1,
+    "sha256": "bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612",
+    "state": "ACTIVE-DRAFT-ONLY",
+    "baseline": "601e55cfaaf131644d770006532727da33e33059",
+    "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "STOPPED-PARTIAL-CLEAN-REVIEW",
-      "assignment": "/root/receive_negative_pair_construction",
-      "role": "prover",
+      "state": "ASSIGNED-NOT-LAUNCHED",
+      "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
+      "role": "astra_prover",
       "outputs": [
-        "notes/theory/2026-10-17-receive-negative-pair-construction.md",
-        "tasks/agent-loop/inbox/20261017-receive-negative-pair-construction.md"
+        "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
+        "tasks/agent-loop/inbox/20261017-negative-formal-pair-formation-proposal.md"
       ],
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 600,
-      "receipt": "Frozen artifact 2b526b92ef78b8514a81592b303e4db2310dedd13483c74bcfb4bd53798f0a8f and handoff c74308096bfd0be1be7a39a21dea0e91bba43f9e0273975bd33ad0c8a1c93a81; 22/22 contract rev2 pins matched. Full 600s conservatively charged; zero descendants; writer stopped."
+      "charge_seconds_cap": 900,
+      "receipt": "Contract frozen and exact direct pins verified; awaiting supported launch acknowledgement."
     },
     "implementation": {
-      "state": "WAITING-NO-SAFE-CODE-SLICE",
-      "assignment": null,
-      "role": "implementer",
-      "outputs": [],
+      "state": "WAITING-NO-CODE-AUTHORITY",
+      "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
+      "role": "primary proposal author",
+      "outputs": [
+        "notes/design/2026-10-17-catch-matcher-input-formation-proposal.md",
+        "tasks/agent-loop/inbox/20261017-catch-matcher-input-formation-proposal.md"
+      ],
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 0,
-      "receipt": "Fresh architect audit inspected HIR source annotation/local-source, candidate_source preflight/emission, candidate_effect paired/effect-port/signature constructors, candidate_scheme capture/fresh-use, Function propagation and shadow_apply application consumers. Prior one-run refusal evidence is exhausted; no safe code output path."
+      "charge_seconds_cap": 600,
+      "receipt": "Sequential proposal-only owner mapping starts after packet 1 writer STOP; compiler code remains unauthorized."
     },
     "review": {
-      "state": "CLEAN",
-      "assignment": "/root/receive_negative_pair_review",
-      "role": "compiler_referee",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 120,
-      "receipt": "notes/progress/2026-10-17-receive-negative-pair-review.md",
-      "receipt_sha256": "a699bbf5b9071e63c21dc24951d2f1dee1f2d6c6ece6f41c2e04ba90fc2335f7"
+      "state": "NOT-STARTED",
+      "assignment": null,
+      "reviewers": [
+        "compiler_referee",
+        "spec_auditor"
+      ],
+      "receipt": "Fresh isolated review after both author packets are frozen; 480 seconds reserved."
     },
-    "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and all F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production gates remain OPEN.",
+    "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
       {
-        "id": "/root/receive_negative_pair_construction",
-        "role": "prover",
-        "state": "STOPPED",
+        "id": "/root/resident_dispatcher_loop_a",
+        "role": "legacy dispatcher",
+        "state": "UNKNOWN",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen rev2 outputs; 22/22 pins matched; full 600s conservatively charged; no descendants."
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; quarantined board lease and reservation retained."
       },
       {
-        "id": "/root/receive_negative_pair_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
+        "id": "/root/resident_implementer_idle",
+        "role": "legacy implementation worker",
+        "state": "UNKNOWN",
         "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; reservation retained."
+      },
+      {
+        "id": "/root/runtime_source_supplier_proof",
+        "role": "legacy proof worker",
+        "state": "UNKNOWN",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; reservation retained."
+      },
+      {
+        "id": "NPAIR-FORMATION-PROPOSAL-20261017",
+        "role": "astra_prover",
+        "state": "NOT_STARTED",
+        "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "CLEAN within exact obstruction scope; verified 22 pins and frozen outputs; full 120s conservatively charged; read-only/no descendants."
-      },
-      {
-        "id": "/root/receive_negative_pair_sprint_end_selector",
-        "role": "next_action_selector",
-        "state": "STOPPED",
-        "requested_model": "UNKNOWN",
-        "requested_effort": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Sprint-end selector recommends source-formation authority question; no workers, code paths or resources added."
-      },
-      {
-        "id": "/root",
-        "role": "primary recorder and integration",
-        "state": "WAITING",
-        "requested_model": "gpt-6-luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Wrote review receipt and synchronized closeout; no code or question paths staged."
+        "session": null,
+        "receipt": "Exact lease granted in frozen contract; no live launch receipt yet."
       }
     ],
     "next_action": {
-      "state": "ANSWERED-PROPOSAL-DRAFTING-AUTHORIZED",
+      "state": "READY-TO-LAUNCH-PACKET-1",
       "answers": {
-        "NPAIR": "question bundle 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B only",
-        "CATCH-EXIT-INPUT-1": "question bundle e7c976b9284c372667f5cabd2c80156624905402, option B only"
+        "NPAIR": "1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B",
+        "CATCH-EXIT-INPUT-1": "e7c976b9284c372667f5cabd2c80156624905402, option B"
       },
-      "proposal": "Prepare narrowly scoped source-definition drafts for paired negative formal formation including a -> b -> [e] c, and the typed MatchRequest_H input/entry judgment at C_out. Independent review and later explicit user approval remain required.",
-      "implementation": "WAITING: no compiler changes until both relevant source proposals are independently reviewed and explicitly adopted; F5 successor export/restore remains separately open."
+      "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
+      "implementation": "No compiler changes until reviewed proposals and a later explicit source-definition adoption; then issue a new proof-backed implementation contract."
     }
   },
-  "candidate": "tasks/agent-loop/sprints/receive-negative-pair-construction-20261017.json",
-  "baseline": "e0fa94e509d28eea9aa7d5884b5fa2b060363ca4",
-  "scope": "Construct or precisely obstruct the approved negative annotation paired interface and its authentic returned-function/local-use transport for CHOOSE-SOURCE-2; implementation is waiting for that evidence and review.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease remain; no capacity released. One author at a time.",
+  "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
+  "baseline": "601e55cfaaf131644d770006532727da33e33059",
+  "scope": "Advance the original inference/F5 goal by producing independently reviewed source-definition proposals for the approved negative paired formal interface and outside matcher input formation, with exact proof obligations and source/native producer-consumer maps.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; one author at a time; two review/integration slots reserved.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -146,59 +146,26 @@
       "receipt": "Historical identity/cessation unknown; reservation retained."
     },
     {
-      "id": "/root/receive_negative_pair_construction",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen rev2 outputs; 22/22 pins matched; full 600s charged conservatively; no descendants."
-    },
-    {
-      "id": "/root/receive_negative_pair_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
+      "id": "NPAIR-FORMATION-PROPOSAL-20261017",
+      "role": "astra_prover",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN bounded obstruction review; 22 pins verified; full 120s charged conservatively; read-only/no descendants."
-    },
-    {
-      "id": "/root/receive_negative_pair_sprint_end_selector",
-      "role": "next_action_selector",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Sprint-end decision: source-definition authority question; no new lease or code work."
-    },
-    {
-      "id": "/root/implementation_slice_audit",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Read-only NO_SAFE_CODE_SLICE audit across actual HIR/source/native owners; no code/test/build/Cargo."
+      "session": null,
+      "receipt": "Exact lease granted in frozen contract; no live launch receipt yet."
     },
     {
       "id": "/root",
-      "role": "primary recorder and integration",
+      "role": "primary proposal author and integration",
       "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Sprint closeout synchronized; staging only exact reviewed milestone paths; pending questions excluded."
+      "receipt": "Primary holds the sequential packet-2 proposal lease and all review/Git duties; not writing until packet 1 STOP."
     }
   ],
   "leases": [
@@ -209,24 +176,44 @@
       "reason": "Historical writer identity/cessation UNKNOWN."
     },
     {
-      "path": "tasks/agent-loop/sprints/receive-negative-pair-construction-20261017.json",
+      "path": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
       "owner": "/root",
       "state": "FROZEN",
-      "revision": 2,
-      "sha256": "98b00634966c692f5c8f7ab0b3312b168688ce5a46694efee117a77854c07d8e"
+      "revision": 1,
+      "sha256": "bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612"
     },
     {
-      "path": "notes/theory/2026-10-17-receive-negative-pair-construction.md",
-      "owner": "/root/receive_negative_pair_construction",
-      "state": "FROZEN"
+      "path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
+      "owner": "NPAIR-FORMATION-PROPOSAL-20261017",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-receive-negative-pair-construction.md",
-      "owner": "/root/receive_negative_pair_construction",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261017-negative-formal-pair-formation-proposal.md",
+      "owner": "NPAIR-FORMATION-PROPOSAL-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-17-catch-matcher-input-formation-proposal.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-catch-matcher-input-formation-proposal.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
+    {
+      "id": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017",
+      "state": "OPEN",
+      "owner": "formal annotation/Function source-definition authority and source/native constructor owners"
+    },
+    {
+      "id": "CATCH-EXIT-INPUT-1",
+      "state": "OPEN",
+      "owner": "outside matcher entry/transition source-definition authority"
+    },
     {
       "id": "F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production",
       "state": "OPEN",
@@ -234,32 +221,31 @@
     }
   ],
   "next_action": {
-    "state": "READY-FOR-BOUNDED-PROPOSAL-SPRINT",
-    "selector": "Next-action selector consultation required at this authority boundary.",
-    "proof": "Draft the two authorized source-definition proposals without claiming proof or adoption; preserve NPAIR and CATCH quantifiers and all exact invariants.",
-    "implementation": "WAITING-NO_SAFE_CODE_SLICE until source definitions are reviewed and explicitly adopted; F5 export/restore schema remains open.",
-    "limits": "No compiler code or runtime changes are authorized by these answers."
+    "state": "FROZEN-PROPOSAL-SPRINT",
+    "selector": "Selector recommendation accepted by Luna; exact leases/resources frozen before dispatch.",
+    "proof": "Packet 1 constructs and maps proposed paired negative formal rules with explicit proof obligations; no theorem closure.",
+    "implementation": "Packet 2 supplies matcher source/native entry map only; compiler implementation is WAITING for reviewed proposal and later explicit adoption.",
+    "limits": "No code/tests/Cargo/runtime. Preserve all original quantifiers and three unknown reservations."
   },
   "resource_accounting": {
-    "current_sprint_id": "receive-negative-pair-construction-20261017",
-    "cap_seconds": 780,
-    "proof": 600,
-    "review": 120,
-    "coordination": 60,
-    "reserve": 0,
+    "current_sprint_id": "source-formation-proposals-20261017",
+    "cap_seconds": 2400,
+    "authors": 1500,
+    "review": 480,
+    "coordination": 180,
+    "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "carry_over": "No prior sprint budget transfer; three UNKNOWN reservations and board quarantine retained.",
     "active_authors": 0,
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 120,
-    "coordination_reserved": 60,
+    "review_reserved": 480,
+    "coordination_reserved": 180,
     "pending_reviewers": 0,
-    "charged_total_seconds": 780,
-    "reviewed_closeout": "CLEAN_BOUNDED_EXACT_OBSTRUCTION"
+    "charged_total_seconds": 0,
+    "reviewed_closeout": null
   },
-  "history": "Previous partial-HIR milestone: notes/progress/2026-10-17-catch-call-bijection-postrun-review.md; current reviewed obstruction: notes/progress/2026-10-17-receive-negative-pair-review.md sha a699bbf5b9071e63c21dc24951d2f1dee1f2d6c6ece6f41c2e04ba90fc2335f7; all three UNKNOWN reservations and board quarantine preserved. Historical sprint with pending receipt delta: tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json sha256 5b811dbae3871512b42da55ab5700e6f499feaaece5dfcb6f674ab5fa35d5853. Consumed option-B answer bundles: NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9; CATCH  e7c976b9284c372667f5cabd2c80156624905402. Both authorize proposal drafting only.",
+  "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
   "checkpoint_commits": [
     "ffbf7679b14f833f86c05e01c45a376056aad895",
     "785a32375e78747d08beccafd0543fe5cb3552dc",
