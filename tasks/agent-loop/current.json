@@ -5,13 +5,14 @@
   "session": null,
   "active_sprint": {
     "id": "call-contextual-effects-20261016",
-    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v1.json",
-    "revision": 1,
-    "sha256": "be26a76fcb2e4116d89d267f2cb8813dabefd14577aeb532f31b5ab8de154093",
+    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2.json",
+    "revision": 2,
+    "sha256": "b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862",
     "state": "ACTIVE",
     "activation_receipt": "notes/progress/2026-10-16-call-contextual-effects-sprint-start.md",
     "migration_review": "CLOSED-CLEAN (major/minor repaired and delta reviewed)",
-    "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna"
+    "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna",
+    "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md"
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
   "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
@@ -49,6 +50,39 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
+    },
+    {
+      "id": "/root/astra_core",
+      "role": "Astra core proof (astra_prover)",
+      "state": "UNKNOWN",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Current live collaboration reports RUNNING; acknowledged exact active contract v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and verified all 26 pinned dependency hashes. Continuing scoped proof; session/model/effort unavailable."
+    },
+    {
+      "id": "/root/sol_source_attack",
+      "role": "Sol source attack (researcher)",
+      "state": "UNKNOWN",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Current live collaboration reports RUNNING; acknowledged exact active contract v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and independently verified all 26 pinned dependency hashes. Continuing scoped source/counterexample audit; session/model/effort unavailable."
+    },
+    {
+      "id": "/root/luna_implementation",
+      "role": "Luna implementation (implementer)",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Current collaboration tool reports completed; worker explicitly reports STOPPED WRITING and frozen handoff SHA-256 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Session ID and observed model/effort unavailable."
     }
   ],
   "leases": [
@@ -57,9 +91,81 @@
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
       "reason": "Former board writer is not visible in the current runtime; primary will not write this path."
+    },
+    {
+      "path": "notes/theory/2026-10-16-call-contextual-effects-core.md",
+      "owner": "/root/astra_core",
+      "state": "QUARANTINED",
+      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md",
+      "owner": "/root/astra_core",
+      "state": "QUARANTINED",
+      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+    },
+    {
+      "path": "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
+      "owner": "/root/sol_source_attack",
+      "state": "QUARANTINED",
+      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-source-attack.md",
+      "owner": "/root/sol_source_attack",
+      "state": "QUARANTINED",
+      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+    },
+    {
+      "path": "tools/inference-playground/tests/runtime.rs",
+      "owner": "/root/luna_implementation",
+      "state": "FROZEN",
+      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
     }
   ],
-  "worker_inventory_scope": "Live collaboration inventory contains only the current root plus completed adoption-review/dispatcher agents; historical legacy identities are absent, so their runtime cessation is UNKNOWN. Their known artifacts are frozen; the former board path remains quarantined. Unknown implementer consumes one of six sprint assignment reservations. No new lease overlaps these paths or the protected untracked question/inboxes.",
+  "worker_inventory_scope": "Current live inventory includes root plus /root/astra_core and /root/sol_source_attack running; both session IDs unavailable, so states remain UNKNOWN and their exact output leases are quarantined. The collaboration tool reports /root/luna_implementation completed and its worker confirms STOPPED WRITING; its exact leases are FROZEN for independent review, not transferred. Historical legacy identities remain UNKNOWN/reserved as recorded. No protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -85,12 +191,21 @@
       "state": "OPEN",
       "owner": "Astra/Sol source-native bridge",
       "needs": "Original first-Apply translation and reverse source/native implication."
+    },
+    {
+      "id": "DEPENDENCY-REVISION-ACK",
+      "state": "DONE",
+      "owner": "Luna primary",
+      "needs": "Astra and Sol each acknowledged exact active v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and verified all 26 dependency hashes. Typed-boundary Draft remains research-only."
     }
   ],
-  "next_action": "Launch the three granted continuation envelopes; require actual launch acknowledgements and preserve UNKNOWN metadata where the runtime omits it.",
+  "next_action": "Continue Astra/Sol scoped proof and source attack; independently review Luna’s frozen test-only slice, then decide whether a follow-on implementation lease is justified by reviewed evidence.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
-    "original_findings": ["MAJOR: implementation escalation handoff validation", "MINOR: design index entry"],
+    "original_findings": [
+      "MAJOR: implementation escalation handoff validation",
+      "MINOR: design index entry"
+    ],
     "adjudication": "Both repaired; second delta binds evidence to the frozen Luna artifact hash; fresh delta review CLEAN; tooling tests/static checker pass.",
     "receipt": "collaboration messages in this turn; reviewer wrote no files; no semantic approval implied."
   },
