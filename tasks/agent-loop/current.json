@@ -8,12 +8,12 @@
     "contract": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
     "revision": 1,
     "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637",
-    "state": "READINESS-RUNNING",
+    "state": "REVIEW-WAITING-COMPILER-REFEREE",
     "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Prove/refute a post-solve candidate snapshot capability and checked live physical-slot resolver, then produce an unapplied API contract or exact blocker; no code.",
     "review": {
-      "state": "AUTHORS-SEQUENTIAL",
+      "state": "AUTHORS-STOPPED-REVIEWS-NOT-STARTED",
       "current_reviewer": null,
       "sequence": [
         "Sol/high proof STOP",
@@ -30,9 +30,9 @@
       "reviews_cap_seconds": 240,
       "coordination_seconds": 60,
       "reserve_seconds": 60,
-      "charged_seconds": 240,
-      "active_authors": 1,
-      "status": "60s coordination +180s proof charged; proof STOPPED at exact missing physical-storage blocker. Luna/high readiness RUNNING under 300s cap; reviews wait until Luna STOP; 60s reserve remains."
+      "charged_seconds": 540,
+      "active_authors": 0,
+      "status": "60s coordination +180s proof +300s readiness conservatively charged. Both authors STOPPED; compiler_referee 120s review next, then architect/spec 60s each. 60s reserve remains; 120s proof capacity unused."
     },
     "lanes": {
       "proof": {
@@ -50,13 +50,15 @@
       "implementation_readiness": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "RUNNING",
+        "state": "STOPPED-REVIEW-READY",
         "outputs": [
           "notes/design/2026-10-17-npair-postsolve-snapshot-api-contract.md",
           "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md"
         ],
         "compiler_lease": false,
-        "cap_seconds": 300
+        "cap_seconds": 300,
+        "design_sha256": "ee0cf9823b0cb7e44e512f535ec0dc4980df73fa69cf83aed0e0b4d4739f7488",
+        "handoff_sha256": "c8ec825a1de264146bec8ec09d4fcb78f6ba7d38a35df852f7540b03827039e3"
       }
     },
     "artifacts": [
@@ -71,6 +73,14 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-capability.md",
         "sha256": "cb14c88835e0a8e17b95d394a0e8889c64502500df24cba41c3785f201e6849b"
+      },
+      {
+        "path": "notes/design/2026-10-17-npair-postsolve-snapshot-api-contract.md",
+        "sha256": "ee0cf9823b0cb7e44e512f535ec0dc4980df73fa69cf83aed0e0b4d4739f7488"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md",
+        "sha256": "c8ec825a1de264146bec8ec09d4fcb78f6ba7d38a35df852f7540b03827039e3"
       }
     ],
     "non_goals": [
@@ -84,7 +94,7 @@
       "receive consumer",
       "production"
     ],
-    "next_boundary": "Luna readiness STOP or 300s cap; exact physical-storage and quiescence blockers must remain explicit; no code lease."
+    "next_boundary": "Fresh sequential compiler_referee review (120s), architect (60s), spec_auditor (60s); no code authorization."
   },
   "candidate": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
   "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
@@ -127,13 +137,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole Git integrator",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session Luna starts exact post-solve API-readiness lane after proof STOP and pinned blocker intake; no compiler source lease."
+      "receipt": "Luna/high post-solve API-readiness proposal STOPPED. Full 300s readiness cap conservatively charged; proposal is not implementation-ready and no source lease exists."
     },
     {
       "id": "/root/npair_postsolve_snapshot_capability",
@@ -215,12 +225,12 @@
     }
   ],
   "next_action": {
-    "state": "READINESS-RUNNING",
+    "state": "READINESS-STOPPED-COMPILER-REVIEW-NEXT",
     "dispatcher": "Post-solve proof STOPPED with decisive retention blocker. Luna readiness proceeds under pre-issued exact lease; no new source owner.",
     "implementation": "After proof STOP, propose owner-bound construction, complete retained-record enumeration, checked live-slot resolution, incomplete-evidence results and bounded traversal accounting.",
     "proof": "Establish/refute post-solve immutability/quiescence, same-owner identity and current slot resolution, including candidate_intrusion paths.",
     "source_authority": "Original Operation eta_op/realization_op remains WAITING; no source semantics authorized.",
-    "workers_started": true
+    "workers_started": false
   },
   "resource_accounting": {
     "current_sprint_id": "npair-postsolve-snapshot-capability-20261017",
@@ -230,12 +240,12 @@
     "reviews_cap_seconds": 240,
     "coordination_seconds": 60,
     "reserve_seconds": 60,
-    "charged_total_seconds": 240,
-    "active_authors": 1,
+    "charged_total_seconds": 540,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "60s coordination +180s proof charged. Luna/high readiness RUNNING after proof STOP; 720s remain including 60s reserve."
+    "status": "540s charged: coordination60, proof180, readiness300. Reviews240 and reserve60 remain; proof unused120 is retired, no carry-over."
   },
-  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN.",
+  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN. Post-solve readiness STOPPED with unapplied move-only retention/API proposal; exact blocker is missing live physical bounds in FrozenInferenceData, and quiescence/antecedent authentication remain open. Design ee0cf98; handoff hash updated in artifact manifest. No code.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
