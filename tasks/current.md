@@ -316,6 +316,23 @@ Status: full objective remains active. Native extrusion now schedules current co
   preserved empty diff-context markers in receipt039 (lines 81 and 123). No
   output or inference semantics, proof, F5, or production gate changed or
   closed; original gates remain OPEN/BLOCKED.
+  I29 adds native and runtime regressions for one authentic expression that
+  contains a local recursive loop, leaves the initializer's recursive Name
+  open, then uses the binding at distinct integer and string types. The native
+  test checks both later Names retain separate local Value/Effect FreshUse row
+  identities; the runtime test confirms expression results are discarded and
+  selected `main` remains integer `7`. Both focused tests pass 1/1 (13 and 17
+  filtered). R43's single M1 regression review is CLEAN; R43-D1 closed only a
+  minor typo in receipt040's source pin through append-only revision 2, with
+  the original 13,162-byte prefix preserved. No tests were rerun in review,
+  delta review, or integration. Producer requested Luna/high and reviewer
+  Sol/low; observed settings are UNKNOWN. Verification budget was exactly the
+  two focused Cargo commands; measurement budget 0 processes / 0 samples. The
+  scoped whitespace findings are only preserved blank diff-context markers in
+  receipt040 (lines 83 and 244). This is regression coverage only: no
+  production implementation, semantics, theorem or proof gate changes; source
+  adequacy, recursion, soundness, principality, F5 and production gates remain
+  OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

@@ -654,6 +654,156 @@ fn recursive_expression_uses_open_initializer_then_fresh_scheme() {
 }
 
 #[test]
+fn recursive_expression_later_uses_have_distinct_fresh_instances() {
+    let text = r#"{ my loop x = if true: x else: loop x; my first = loop 1; loop "str" }; my main = 7"#;
+    let hir = module(text);
+    let candidate = CandidateInference::solve(hir.clone())
+        .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+    assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+
+    let module_bindings: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(module_bindings.len(), 1, "no synthetic module binding: {text}");
+    assert_eq!(module_bindings[0].name().spelling(), "main");
+
+    let expressions: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Expression(expression) => Some(expression),
+            _ => None,
+        })
+        .collect();
+    let [expression] = expressions.as_slice() else {
+        panic!("the local recursive block remains one Expression root: {text}");
+    };
+    let root = hir
+        .expression_root(expression.occurrence())
+        .unwrap()
+        .expect("the original recursive expression root");
+    let owner = SourceRootId::Expression(root.clone());
+    let local = hir
+        .local_source_for(&owner)
+        .unwrap()
+        .expect("the authentic Expression owner retains LocalSource");
+    assert_eq!(root.occurrence(), expression.occurrence());
+
+    let loop_binding = local
+        .bindings()
+        .iter()
+        .find(|binding| binding.spelling.as_ref() == "loop")
+        .expect("the genuine local recursive loop binding");
+    let first_binding = local
+        .bindings()
+        .iter()
+        .find(|binding| binding.spelling.as_ref() == "first")
+        .expect("the genuine local first binding");
+    let source_root = local
+        .expressions()
+        .iter()
+        .find(|source_expression| &source_expression.occurrence == expression.occurrence())
+        .expect("LocalSource retains the original root occurrence");
+    let LocalSourceForm::Block { final_expression, .. } = &source_root.form else {
+        panic!("the original expression source is the block: {text}");
+    };
+    let LocalSourceForm::Lambda { parameter, body } =
+        &local.expressions()[loop_binding.initializer.ordinal() as usize].form
+    else {
+        panic!("the loop initializer retains its named parameter Lambda: {text}");
+    };
+    let [binding_parameter] = loop_binding.parameters.as_slice() else {
+        panic!("the loop binding has its one original parameter: {text}");
+    };
+    assert_eq!(parameter.id, binding_parameter.id);
+    assert_eq!(parameter.spelling, binding_parameter.spelling);
+    let LocalSourceForm::If { arms, else_branch } =
+        &local.expressions()[body.ordinal() as usize].form
+    else {
+        panic!("the named loop body is the original conditional: {text}");
+    };
+    assert_eq!(arms.len(), 1);
+    let recursive_call_index = else_branch
+        .as_ref()
+        .expect("the recursive application is in the original else branch");
+    let recursive_call = &local.expressions()[recursive_call_index.ordinal() as usize];
+    let first_call = &local.expressions()[first_binding.initializer.ordinal() as usize];
+    let final_call = &local.expressions()[final_expression.ordinal() as usize];
+    let LocalSourceForm::Apply { callee: recursive_callee_index, .. } = &recursive_call.form else {
+        panic!("the recursive else branch retains its Apply: {text}");
+    };
+    let LocalSourceForm::Apply { callee: first_callee_index, .. } = &first_call.form else {
+        panic!("the first later local use retains its Apply: {text}");
+    };
+    let LocalSourceForm::Apply { callee: final_callee_index, .. } = &final_call.form else {
+        panic!("the block-final later use retains its Apply: {text}");
+    };
+    let recursive_callee = &local.expressions()[recursive_callee_index.ordinal() as usize];
+    let first_callee = &local.expressions()[first_callee_index.ordinal() as usize];
+    let final_callee = &local.expressions()[final_callee_index.ordinal() as usize];
+    for callee in [recursive_callee, first_callee, final_callee] {
+        assert!(matches!(
+            &callee.form,
+            LocalSourceForm::Name {
+                spelling,
+                resolution: LocalSourceResolution::Local(resolved),
+            } if spelling.as_ref() == "loop" && resolved == &loop_binding.id
+        ), "all original loop Names resolve to the genuine local binding: {text}");
+    }
+    assert_ne!(recursive_callee.occurrence, first_callee.occurrence);
+    assert_ne!(first_callee.occurrence, final_callee.occurrence);
+    assert_ne!(recursive_callee.occurrence, final_callee.occurrence);
+
+    let applications = [recursive_call, first_call, final_call];
+    assert_eq!(candidate.source_call_count(), applications.len());
+    let calls: Vec<_> = (0..candidate.source_call_count())
+        .map(|index| candidate.source_call(index).unwrap())
+        .collect();
+    assert!(calls.iter().all(|call| call.owner() == &owner));
+    for application in applications {
+        assert!(calls.iter().any(|call| {
+            &call.source().occurrence == &application.occurrence
+        }), "each original Apply occurrence retains its Call: {text}");
+    }
+
+    assert!(
+        candidate.fresh_use(&recursive_callee.occurrence).is_none(),
+        "the recursive initializer Name remains open: {text}"
+    );
+    let mut later_local_rows = Vec::with_capacity(2);
+    for callee in [first_callee, final_callee] {
+        let fresh_use = candidate
+            .fresh_use(&callee.occurrence)
+            .expect("each later original local Name retains its FreshUse route");
+        assert_eq!(fresh_use.occurrence(), &callee.occurrence);
+        let local_rows: Vec<_> = fresh_use
+            .rows()
+            .filter(|row| row.source_row().is_local())
+            .collect();
+        assert!(!local_rows.is_empty(), "each later FreshUse has local rows: {text}");
+        for kind in [ComponentKind::Value, ComponentKind::Effect] {
+            assert!(local_rows.iter().any(|row| row.kind() == kind),
+                "each later FreshUse has a local {kind:?} row: {text}");
+        }
+        later_local_rows.push(local_rows);
+    }
+    let [first_rows, final_rows] = later_local_rows.as_slice() else {
+        panic!("both later local uses retain their own FreshUse routes");
+    };
+    for row in first_rows {
+        assert!(
+            final_rows.iter().all(|other| !row.same_identity(other)),
+            "later local uses have distinct local row identities: {text}"
+        );
+    }
+}
+
+#[test]
 fn forward_alias_expression_uses_keep_distinct_fresh_instances() {
     let hir = module(r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7");
     let candidate = CandidateInference::solve(hir.clone()).unwrap();

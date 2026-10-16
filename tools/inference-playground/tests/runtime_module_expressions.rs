@@ -163,6 +163,14 @@ fn recursive_expression_completion_precedes_selected_definition() {
 }
 
 #[test]
+fn recursive_polymorphic_expression_results_are_discarded() {
+    assert_selected(
+        r#"{ my loop x = if true: x else: loop x; my first = loop 1; loop "str" }; my main = 7"#,
+        "7",
+    );
+}
+
+#[test]
 fn forward_alias_expression_calls_discard_results_before_selection() {
     assert_selected(
         r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7",
