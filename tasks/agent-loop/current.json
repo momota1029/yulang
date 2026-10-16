@@ -51,9 +51,11 @@
       "artifact_sha256": "6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5"
     },
     "review": {
-      "state": "FROZEN-READY-SEQUENTIAL",
+      "state": "PROOF-REVIEW-RUNNING",
       "budget_seconds": 300,
-      "execution": "Authors and descendants confirmed STOPPED from completed runtime receipts; fresh isolated proof review first, then implementation review after proof reviewer STOP."
+      "execution": "Authors and descendants confirmed STOPPED from completed runtime receipts; fresh isolated proof review first, then implementation review after proof reviewer STOP.",
+      "current_assignment": "/root/choose_operation_instantiation_review_fresh",
+      "receipt": "Fresh isolated compiler_referee spawned for frozen proof rev1 target; read-only, max 150s; implementation review waits for proof reviewer STOP."
     },
     "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open.",
     "baseline_reconciliation": {
@@ -129,6 +131,17 @@
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
       "receipt": "Completed runtime reports frozen exact handoff 6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5; sole output; no descendants/scratch; charge 360/360s including 60s preflight; zero tests/builds/probes/code/Git."
+    },
+    {
+      "id": "/root/choose_operation_instantiation_review_fresh",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "Fresh reviewer spawned for proof rev1; exact artifact/handoff/contract hashes supplied; read-only review; 150s cap; no descendants."
     }
   ],
   "leases": [
