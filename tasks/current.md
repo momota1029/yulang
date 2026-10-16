@@ -46,6 +46,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   together with the default-feature solver check. No source MODEL, general
   extrusion/context semantic adequacy, H2/U or F5 gate follows.
 
+- **Native negative-formal consumer boundary audited:** the [actual constructor/consumer audit](../notes/progress/2026-10-16-native-negative-formal-consumer-audit.md)
+  has CLEAN independent semantic review. Existing view validation couples
+  absent tails to closed Allowance filtering, independently of source
+  polarity; copying/FreshUse enforces that contract. Negative local permission
+  cannot reuse that closed cap, inject Support inflow, or arise from a fresh
+  row alone. Source polarity/scope metadata can be retained, but current
+  Catch performs no permission-qualified subtraction. The constructive
+  native pass confirms the existing missing coupled operation and writes
+  no duplicate proof. Preflight remains unchanged. A new architecture/proof
+  Draft examines an open annotation constructor coupled to the actual shallow
+  Catch image, with independent later-lower falsification. This native
+  relation/lifecycle needs independent review and explicit adoption; source
+  definition permission does not authorize its implementation. No native
+  admission, hygiene, source MODEL or F5 gate closes. M1 one reviewer; zero
+  executable checks/measurements.
+
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)
   and its [actual matcher handoff](../notes/progress/2026-10-16-playground-primitive-root-receiving.md)

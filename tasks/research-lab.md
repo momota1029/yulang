@@ -543,6 +543,28 @@ it may not replace missing source-world/primitive evidence with emptiness.
 M2 two reviewers on the frozen context artifact, 16 dependency pins and local
 integrity only; zero tests/builds/probes or benchmark samples/processes.
 Profile/native/runtime parents remain distinct OPEN gates.
+The post-profile selector identified native negative concrete-formal construction
+as a necessary A/B owner, before the successful paired-root/capture window.
+The normal prover pass found the same missing coupled permission/Catch operation
+as the prior October 12/13 work and stopped with an empty artifact rather than
+repeat that conditional proof. The complementary [consumer audit](../notes/progress/2026-10-16-native-negative-formal-consumer-audit.md)
+is frozen at producer `03ce2a99...527a70` and independently semantic CLEAN.
+New exact evidence: closed_weight must equal source_weight iff tail is absent,
+including payload validation/copy/FreshUse; live consumers do not turn retained
+negative polarity into permission/subtraction. Approved signal+write falsifies
+the closed-Allowance shortcut, not an executed current-compiler route.
+The architect identifies a genuinely new native relation/lifecycle decision;
+old Oracle PUSH/POP/concrete-upper-Row routes are not universal prerequisites,
+while selected contextual attachment/provenance/lineage contracts remain.
+`native_negative_formal` now owns a 25-minute Draft/proof packet, sole lease
+`notes/theory/2026-10-16-open-negative-formal-catch-image-design.md`.
+`native_correlation_consumer` independently attacks later-lower/unknown-eligibility
+feasibility, sole optional lease
+`notes/theory/2026-10-16-catch-image-later-lower-feasibility.md`, 15 minutes.
+Both are unapproved research; no preflight removal or production implementation.
+Review and explicit adoption follow a concrete contract and decisive invariant;
+global profile/Initial evidence cannot be silently assumed. Audit M1 one reviewer,
+eight dependency pins and static integrity only; zero executable measurements.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new

@@ -160,6 +160,13 @@ This index is a navigation aid. The listed source document remains authoritative
   closes; satisfaction, original specialization, generalized/native maps and
   complete installed support remain OPEN.
 
+- [Native negative-formal consumer audit](../progress/2026-10-16-native-negative-formal-consumer-audit.md)
+  — Independently CLEAN bounded source evidence: existing tail/closed-weight
+  validation and Allowance consumers cannot implement open local permission
+  by reusing a closed cap. Retained source polarity alone performs no Catch
+  subtraction. A replacement coupled constructor/consumer remains unapproved;
+  native negative admission and all hygiene/F5 parents stay OPEN.
+
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
   consumed as whole-Value extrusion certificates. The causal repair and
