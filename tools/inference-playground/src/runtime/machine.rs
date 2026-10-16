@@ -450,13 +450,19 @@ impl Machine {
                         self.program.definition_indices.get(id).copied()
                     }
                     LocalSourceResolution::Parameter(id) => {
-                        self.lookup(environment, &Binder::Parameter(id.clone()))
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Parameter(candidate) if candidate == id)
+                        })
                     }
                     LocalSourceResolution::Local(id) => {
-                        self.lookup(environment, &Binder::Local(id.clone()))
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Local(candidate) if candidate == id)
+                        })
                     }
                     LocalSourceResolution::CatchBinder(id) => {
-                        self.lookup(environment, &Binder::Catch(id.clone()))
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Catch(candidate) if candidate == id)
+                        })
                     }
                     LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous => None,
                 }
@@ -1178,7 +1184,9 @@ impl Machine {
         else {
             return None;
         };
-        let cell = self.lookup(environment, &Binder::Parameter(parameter.clone()))?;
+        let cell = self.lookup(environment, |binder| {
+            matches!(binder, Binder::Parameter(candidate) if candidate == parameter)
+        })?;
         let received = self.cells.get(cell).copied().flatten()?;
         (received.interface == ParameterRole::Computation).then_some(received.view)
     }
@@ -1596,11 +1604,11 @@ impl Machine {
             _ => Err(RuntimeUnavailable::ExpectedComputation(site.clone())),
         }
     }
-    fn lookup(&self, mut environment: usize, binder: &Binder) -> Option<usize> {
+    fn lookup(&self, mut environment: usize, matches: impl Fn(&Binder) -> bool) -> Option<usize> {
         loop {
             let frame = self.environments.get(environment)?;
             if let Some((candidate, cell)) = &frame.binder {
-                if candidate == binder {
+                if matches(candidate) {
                     return Some(*cell);
                 }
             }

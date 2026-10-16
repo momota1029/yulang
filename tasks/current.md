@@ -223,6 +223,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   No tests were rerun during review or record integration. The scoped cached
   whitespace check reported only two trailing-space unified-diff context markers
   in frozen receipt032 (lines 37 and 171), preserved as empty context lines.
+  I24 changes the private runtime binder lookup to compare borrowed IDs through
+  a variant-specific predicate at the three Name branches and direct-formal
+  root. It preserves full Binder-variant/ID equality, nearest-frame traversal,
+  missing-binding behavior and direct-formal permission/interface checks while
+  removing temporary lookup-key clones. All three existing focused runtime
+  tests pass 1/1 without warnings; R37's single M1 compiler review is CLEAN for
+  the bounded refactor. Static cost remains O(environment depth), with no new
+  persistent storage or predicate heap allocation; no measured-speed or whole-
+  machine allocation claim follows. No runtime semantics or proof/production
+  gate changed or closed. No tests were rerun during review or record
+  integration. The scoped cached whitespace check reported no findings in
+  frozen receipt033 or the source diff.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
