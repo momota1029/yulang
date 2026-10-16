@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
     "revision": 1,
     "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
-    "state": "ACTIVE-IMPLEMENTATION-RUNNING",
+    "state": "ACTIVE-PROOF-REVIEW",
     "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
     "dispatcher": "At material dependency boundary, next_action_selector selected no rev2; freeze the exact missing original declaration under current rev1 pins. Two provenance locators are unconsumed; they do not provide the requested supplier.",
     "proof": {
@@ -32,7 +32,7 @@
       "handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
     },
     "implementation": {
-      "state": "RUNNING-READ-ONLY",
+      "state": "FROZEN-PENDING-REVIEW",
       "assignment": "assignment-source-final-root-export-law",
       "outputs": [
         "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
@@ -43,13 +43,26 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 360,
-      "receipt": "Worker /root/source_final_root_export_law acknowledged contract rev1 SHA before writes and independently verified all 38 dependency pins plus proof artifact/handoff hashes. Read-only source audit is active; only assigned inbox may be written.",
-      "runtime_receipt": "Explicit spawn returned /root/source_final_root_export_law; live acknowledgement received; session ID UNKNOWN; no descendants."
+      "receipt": "Six stages; conservative charge 300/360s. All 38 pins and proof hashes match. Direct code chain reaches concrete candidate root registration/capture/fresh-use/same-state restoration, but no binding from formal R_e to actual HIR/root/use and no detached displayed-scheme extractor/consumer. No tests/builds/probes/code/Git, descendants or scratch. Writer STOPPED.",
+      "runtime_receipt": "Explicit spawn returned /root/source_final_root_export_law; live acknowledgement received; session ID UNKNOWN; no descendants.",
+      "handoff_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
+      "worker_state": "STOPPED; model/effort UNKNOWN"
     },
     "review": {
-      "state": "NOT_STARTED",
+      "state": "RUNNING-PROOF-REVIEW",
       "budget_seconds": 300,
-      "execution": "Both authors stop before review; proof review first, then implementation review sequentially."
+      "execution": "Both authors STOPPED and all outputs frozen. First fresh compiler_referee reviews D_tail proof; implementation source/export review follows only after proof reviewer STOP.",
+      "implementation_review": {
+        "state": "PENDING",
+        "reviewer": "fresh architect/regression_auditor after proof review",
+        "target_sha256": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000"
+      },
+      "proof_review": {
+        "state": "RUNNING",
+        "reviewer": "/root/choose_phase_review",
+        "target_artifact_sha256": "cd03ed21dbda0be64c928bf0b09803b768e1cf0336315a1534dc44e0148fc478",
+        "target_handoff_sha256": "167cd06664cbbaae2eef135404f02525e10e6c3b5cd7656a9551496590aa79e1"
+      }
     },
     "open_parent": "D_tail remains to be qualified against an actual original choose declaration; one authentic detached export root and its field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
     "leases": [
@@ -66,7 +79,7 @@
       {
         "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
         "owner": "assignment-source-final-root-export-law",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ]
   },
@@ -121,13 +134,24 @@
     {
       "id": "/root/source_final_root_export_law",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Acknowledged exact contract hash before writes; all 38 dependency pins and proof hashes independently verified; one exact inbox lease; read-only source audit active; no descendants."
+      "receipt": "Frozen implementation handoff 7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000; six stages, conservative 300/360s; no tests/builds/probes/Git/descendants/scratch."
+    },
+    {
+      "id": "/root/choose_phase_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "Fresh read-only review of frozen D_tail exact-obstruction result after both authors stopped; no writes/tests/builds/probes/delegation."
     }
   ],
   "leases": [
@@ -150,10 +174,10 @@
     {
       "path": "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md",
       "owner": "/root/source_final_root_export_law",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; proof author STOPPED; one Luna/high implementation author RUNNING read-only; two slots reserved for review/integration.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; both authors STOPPED; one proof reviewer RUNNING; implementation reviewer waits; sequential reviews preserved.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -173,25 +197,25 @@
       "needs": "Actual declaration, IF address, complete telescope, guard producers, Request gluing, lawful action/future and demand transport or exact missing field."
     },
     {
-      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
-      "state": "READY-DEFERRED",
-      "owner": "assignment-source-final-root-export-law",
-      "needs": "After proof writer cessation, directly qualify one authentic root and inspect candidate_extrusion.rs / shadow_apply.rs; derive detached field-law or exact blocker."
-    },
-    {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
       "state": "OPEN",
       "owner": "Original parents",
       "needs": "Retain distinct; no closure follows from this assignment."
     },
     {
+      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
+      "state": "FROZEN-PENDING-REVIEW",
+      "owner": "assignment-source-final-root-export-law",
+      "needs": "Review actual root association gap, same-state restoration evidence, detached extractor/consumer absence, exact pins and policy limits."
+    },
+    {
       "id": "PROOF-REVIEW",
-      "state": "PENDING",
-      "owner": "fresh compiler_referee after all authors stop",
-      "needs": "Review exact declaration obstruction in frozen artifact; preserve OPEN parent gates."
+      "state": "RUNNING",
+      "owner": "fresh compiler_referee",
+      "needs": "Review frozen D_tail exact-obstruction result; no parent closure."
     }
   ],
-  "next_action": "Read-only source-root/export audit active through the two pinned restoration owners. Review begins only after implementation author STOPPED.",
+  "next_action": "Fresh compiler_referee reviews the exact D_tail obstruction; implementation review waits until proof reviewer STOP.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -217,8 +241,8 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof conservatively 360/900; implementation active, exact seconds UNKNOWN; review not started",
-    "status": "Implementation author RUNNING after exact contract/pin acknowledgement; no code writes or test/build/probe processes.",
+    "spent_seconds": "proof conservative 360/900; implementation conservative 300/360; review active; exact review time UNKNOWN",
+    "status": "Both authors STOPPED; proof review RUNNING. Implementation review is sequential and not yet started.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
   "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
