@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "RUNNING-INDEPENDENT-REVIEW",
+      "state": "FROZEN-REVIEW-IN-PROGRESS",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -33,7 +33,9 @@
       "reviewer_requested_effort": "medium",
       "reviewer_observed_model": "UNKNOWN",
       "reviewer_observed_effort": "UNKNOWN",
-      "review_receipt": "Active-work receipt confirms frozen target, contract and 16 direct pins; read-only source/consumer review in progress."
+      "review_receipt": "Active-work receipt confirms frozen target, contract and 16 direct pins; read-only source/consumer review in progress.",
+      "compiler_referee": "CLEAN",
+      "compiler_referee_receipt": "Fresh read-only review: useful conditional proposal; no BLOCKING/major/minor finding within assigned scope. Confirms J1/J2 and actual R1->install(g)->fresh use->J2 route, permission creates neither inflow nor {E} cap. Open P1 mixed/multiple-symbolic coverage, P3/P5 association completeness/late arrival, P4 transport and P6 residual consumer/native correspondence. Final target/contract/16 pins verified; full 120s charged; requested/observed UNKNOWN/UNKNOWN; STOPPED, no descendants or execution."
     },
     "implementation": {
       "state": "RUNNING-PROPOSAL-AUTHORING",
@@ -51,13 +53,13 @@
       "receipt": "Packet 1 author STOPPED and frozen; primary begins independent proposal drafting under exact packet-2 leases. No compiler code authority."
     },
     "review": {
-      "state": "RUNNING",
+      "state": "READY-NEXT-SPEC-AUDIT",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Fresh compiler_referee review active; spec_auditor follows sequentially. Each capped at 120s."
+      "receipt": "Compiler referee STOPPED CLEAN within proposal scope; next sequential reviewer is spec_auditor, max 120s."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -180,13 +182,13 @@
     {
       "id": "NPAIR-PROPOSAL-REFEREE-20261017",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active review receipt: target, contract and 16 direct pins verified; source/consumer review in progress; requested model/effort not supplied in packet, observed UNKNOWN/UNKNOWN; no execution or descendants."
+      "receipt": "CLEAN bounded review; full 120s charged; UNKNOWN/UNKNOWN; no descendants, writes, tests or probes."
     },
     {
       "id": "NPAIR-PROPOSAL-SPEC-REVIEW-20261017",
@@ -197,7 +199,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Sequential review after referee and packet-2 author seam allows."
+      "receipt": "Sequential fresh authority/scope audit follows referee STOP."
     }
   ],
   "leases": [
@@ -273,12 +275,13 @@
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 480,
+    "review_reserved": 360,
     "coordination_reserved": 180,
-    "pending_reviewers": 1,
-    "charged_total_seconds": 900,
+    "pending_reviewers": 0,
+    "charged_total_seconds": 1020,
     "reviewed_closeout": null,
-    "authors_spent_seconds": 900
+    "authors_spent_seconds": 900,
+    "review_spent_seconds": 120
   },
   "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
   "checkpoint_commits": [
