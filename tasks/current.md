@@ -235,6 +235,25 @@ Status: full objective remains active. Native extrusion now schedules current co
   gate changed or closed. No tests were rerun during review or record
   integration. The scoped cached whitespace check reported no findings in
   frozen receipt033 or the source diff.
+  I25 adds a native solver and playground/runtime regression for local `keep`
+  uses under a captured expression root. The native test checks the original
+  Expression/LocalSource owner, captured Parameter identity, both genuine local
+  `keep` Name resolutions, all three Apply/Call occurrence links, local
+  Value/Effect FreshUse rows for Boolean captures, and a source-owned conflict
+  for the integer capture without querying FreshUse after conflict. The runtime
+  test requires both Boolean cases to return integer `7` and the integer case
+  to be rejected as a candidate type conflict before execution. Both assigned focused
+  tests pass 1/1 without warnings. R38's single M1 regression review is CLEAN
+  for the frozen test additions and preserved helpers/assertions. Producer
+  requested Luna/high and reviewer Sol/low; runtime-observed settings are
+  UNKNOWN. The staged whitespace check reports only the two trailing-space
+  unified-diff context markers in frozen receipt034 at lines 93 and 243; they
+  encode empty context lines and remain unchanged. No tests were rerun during
+  review or record integration. This fixture-specific test slice changes no
+  production code or semantics and does
+  not close source correspondence, effect-order adequacy, soundness,
+  principality, F5 or production gates; original parent gates remain
+  OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

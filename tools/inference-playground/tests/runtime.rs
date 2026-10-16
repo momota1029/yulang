@@ -163,6 +163,23 @@ fn discarded_expression_type_conflicts_keep_source_locations() {
 }
 
 #[test]
+fn captured_local_expression_conflicts_withhold_execution() {
+    let template = r#"{ my outer x = { my keep ignored = x; my first = keep 1; if keep "str": 11 else: 13 }; outer CAPTURE }; my main = 7"#;
+    for capture in ["true", "false"] {
+        let source = template.replace("CAPTURE", capture);
+        assert_eq!(run(&source).unwrap(), "7\n", "{source}");
+    }
+
+    let source = template.replace("CAPTURE", "1");
+    let error = run(&source).expect_err("the integer capture must be rejected before execution");
+    assert!(
+        error.starts_with("candidate type conflicts"),
+        "unexpected error category: {error}"
+    );
+    assert!(!error.contains("unsupported source"), "{error}");
+}
+
+#[test]
 fn cli_resource_exhaustion_withholds_runtime_output() {
     let source = "my main = { my loop x = loop x; my ignore x = 7; ignore (loop ()) }";
     let result = cli(source, "1000");

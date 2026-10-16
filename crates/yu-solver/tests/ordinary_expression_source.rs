@@ -387,6 +387,145 @@ fn local_scheme_expression_uses_keep_distinct_fresh_instances() {
 }
 
 #[test]
+fn captured_local_expression_values_keep_original_constraints() {
+    let template = r#"{ my outer x = { my keep ignored = x; my first = keep 1; if keep "str": 11 else: 13 }; outer CAPTURE }; my main = 7"#;
+
+    for (capture, expect_conflict) in [("true", false), ("false", false), ("1", true)] {
+        let text = template.replace("CAPTURE", capture);
+        let hir = module(&text);
+        let candidate = CandidateInference::solve(hir.clone())
+            .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+
+        let module_bindings: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(module_bindings.len(), 1, "no synthetic module binding: {text}");
+        assert_eq!(module_bindings[0].name().spelling(), "main");
+
+        let expressions: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Expression(expression) => Some(expression),
+                _ => None,
+            })
+            .collect();
+        let [expression] = expressions.as_slice() else {
+            panic!("the block remains one original Expression root: {text}");
+        };
+        let root = hir
+            .expression_root(expression.occurrence())
+            .unwrap()
+            .expect("the original block expression root");
+        let owner = SourceRootId::Expression(root.clone());
+        let local = hir
+            .local_source_for(&owner)
+            .unwrap()
+            .expect("the authentic expression root retains LocalSource");
+        assert_eq!(root.occurrence(), expression.occurrence());
+
+        let outer = local
+            .bindings()
+            .iter()
+            .find(|binding| binding.spelling.as_ref() == "outer")
+            .expect("the genuine local outer binding");
+        let keep = local
+            .bindings()
+            .iter()
+            .find(|binding| binding.spelling.as_ref() == "keep")
+            .expect("the genuine local keep binding");
+        assert!(local.bindings().iter().any(|binding| binding.spelling.as_ref() == "first"));
+        let parameter = outer
+            .parameters
+            .iter()
+            .find(|parameter| parameter.spelling.as_ref() == "x")
+            .expect("the genuine outer parameter x");
+        assert!(local.expressions().iter().any(|source_expression| matches!(
+            &source_expression.form,
+            LocalSourceForm::Name {
+                spelling,
+                resolution: LocalSourceResolution::Parameter(resolved),
+            } if spelling.as_ref() == "x" && resolved == &parameter.id
+        )), "the captured x Name keeps its original Parameter identity: {text}");
+
+        let keep_names: Vec<_> = local
+            .expressions()
+            .iter()
+            .filter(|source_expression| matches!(
+                &source_expression.form,
+                LocalSourceForm::Name {
+                    spelling,
+                    resolution: LocalSourceResolution::Local(resolved),
+                } if spelling.as_ref() == "keep" && resolved == &keep.id
+            ))
+            .collect();
+        assert_eq!(keep_names.len(), 2, "both original keep Names resolve locally: {text}");
+        assert_ne!(keep_names[0].occurrence, keep_names[1].occurrence);
+
+        let applications: Vec<_> = local
+            .expressions()
+            .iter()
+            .filter(|source_expression| matches!(&source_expression.form, LocalSourceForm::Apply { .. }))
+            .collect();
+        assert_eq!(applications.len(), 3, "the source retains all actual applications: {text}");
+        assert_eq!(candidate.source_call_count(), 3, "all three Calls are retained: {text}");
+        let calls: Vec<_> = (0..candidate.source_call_count())
+            .map(|index| candidate.source_call(index).unwrap())
+            .collect();
+        assert!(calls.iter().all(|call| call.owner() == &owner));
+        for application in &applications {
+            assert!(calls.iter().any(|call| {
+                &call.source().occurrence == &application.occurrence
+            }), "each Call retains its authentic Apply occurrence: {text}");
+            let LocalSourceForm::Apply { callee, .. } = &application.form else {
+                unreachable!();
+            };
+            let callee = &local.expressions()[callee.ordinal() as usize];
+            assert!(matches!(
+                &callee.form,
+                LocalSourceForm::Name {
+                    spelling,
+                    resolution: LocalSourceResolution::Local(resolved),
+                } if (spelling.as_ref() == "keep" && resolved == &keep.id)
+                    || (spelling.as_ref() == "outer" && resolved == &outer.id)
+            ), "each actual Apply follows an authentic local callee: {text}");
+        }
+
+        if expect_conflict {
+            assert!(!candidate.candidate_conflicts().is_empty(), "integer capture must conflict: {text}");
+            assert!(candidate.candidate_conflicts().iter().any(|conflict| {
+                local.expressions().iter().any(|source_expression| {
+                    conflict.occurrence().occurrence() == &source_expression.occurrence
+                })
+            }), "a conflict is owned by the original expression LocalSource: {text}");
+            continue;
+        }
+
+        assert!(candidate.candidate_conflicts().is_empty(), "boolean capture must solve: {text}");
+        for name in keep_names {
+            let fresh_use = candidate
+                .fresh_use(&name.occurrence)
+                .expect("each original local keep Name retains its FreshUse route");
+            assert_eq!(fresh_use.occurrence(), &name.occurrence);
+            let local_rows: Vec<_> = fresh_use
+                .rows()
+                .filter(|row| row.source_row().is_local())
+                .collect();
+            assert!(!local_rows.is_empty(), "each FreshUse retains local rows: {text}");
+            for kind in [ComponentKind::Value, ComponentKind::Effect] {
+                assert!(local_rows.iter().any(|row| row.kind() == kind),
+                    "each local FreshUse image contains a {kind:?} row: {text}");
+            }
+        }
+    }
+}
+
+#[test]
 fn forward_alias_expression_uses_keep_distinct_fresh_instances() {
     let hir = module(r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7");
     let candidate = CandidateInference::solve(hir.clone()).unwrap();
