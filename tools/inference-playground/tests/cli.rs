@@ -382,6 +382,48 @@ fn intrusion_flag_observes_actual_source_associations() {
 }
 
 #[test]
+fn intrusion_expression_calls_keep_original_spans_and_local_names() {
+    let cases = [
+        (
+            "id 1; my id x = x; my main = 7",
+            "id 1",
+            "module id",
+        ),
+        (
+            "{ my helper x = x; helper 1 }; my main = 7",
+            "helper 1",
+            "local helper",
+        ),
+    ];
+
+    for (source, call, expected_label) in cases {
+        let output = infer_with_intrusion(source, "expression-intrusion.yu", true).unwrap();
+        assert!(output.contains("Retained intrusion state (not a chronological trace)"));
+        assert!(output.contains("  event "), "retained event missing: {output}");
+        assert!(output.contains("origin=v"), "expression origin missing: {output}");
+        assert!(
+            output.contains("(expression value, SCC "),
+            "expression-origin label missing: {output}"
+        );
+        assert!(
+            output.contains(expected_label),
+            "receiver source label missing: {output}"
+        );
+        assert!(!output.contains("source span unavailable"));
+
+        let start = source.find(call).unwrap();
+        let expected_location = format!(
+            "at retained call-tail occurrence {}\n",
+            location(source, &(start + call.len() - 1..start + call.len()))
+        );
+        assert!(
+            output.contains(&expected_location),
+            "original call-tail location missing: {expected_location:?}\n{output}"
+        );
+    }
+}
+
+#[test]
 fn conflicts_also_withhold_intrusion_observations() {
     let error = infer_with_intrusion(
         include_str!("../examples/type-error.yu"),

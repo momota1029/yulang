@@ -133,6 +133,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   merged-key regression gap only: no production code, inference semantics,
   theorem, F5 or production gate changed; source correspondence and the
   original proof/cutover gates remain OPEN.
+  I18 extends the playground's two existing binding-only intrusion-rendering
+  lookups to authentic Definition and Expression source roots for retained
+  event spans and local names, preserving item order and fallback. The first
+  regression expectation used the whole call span; the observed retained
+  occurrence is the final call-tail argument, so I18-R1 corrected only the
+  test expectation and asserted the expression-origin label. Both the new
+  expression-call regression and existing binding/nested-recursion CLI
+  control pass 1/1 (22 filtered each); R28 is CLEAN at this bounded scope.
+  No inference/runtime semantics changed. Recovered-carrier behavior, whole
+  typed-source adequacy, source correspondence and original proof/F5/
+  production gates remain OPEN.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

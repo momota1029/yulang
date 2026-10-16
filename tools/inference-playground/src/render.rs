@@ -1,13 +1,26 @@
 //! Finite observations of the existing private candidate graph.
 use std::collections::HashMap;
 use std::fmt::Write;
-use yu_hir::{HirItem, HirModule};
+use yu_hir::{HirItem, HirModule, LocalSource, SourceRootId};
 use yu_solver::shadow_apply::{CandidateGraphExport, CandidateGraphNode, CandidateGraphRow};
 use yu_solver::shadow_apply::{CandidateInference, CandidateSourceValueIdentity};
 
 use crate::output::{Output, cap};
 
 pub const OUTPUT_CAP: usize = 4096;
+
+fn local_source_for_item<'hir>(hir: &'hir HirModule, item: &HirItem) -> Option<&'hir LocalSource> {
+    let root = match item {
+        HirItem::Binding(binding) => {
+            SourceRootId::Definition(binding.definition_root().clone())
+        }
+        HirItem::Expression(expression) => SourceRootId::Expression(
+            hir.expression_root(expression.occurrence()).ok().flatten()?.clone(),
+        ),
+        HirItem::Error { .. } => return None,
+    };
+    hir.local_source_for(&root).ok().flatten()
+}
 
 fn intern<'a>(
     nodes: &mut Vec<CandidateGraphNode<'a>>,
@@ -203,10 +216,7 @@ pub(crate) fn intrusion_into(
         output.observe(1)?;
         let occurrence = event.checking.occurrence();
         let range = hir.items().iter().find_map(|item| {
-            let HirItem::Binding(binding) = item else {
-                return None;
-            };
-            let local = hir.local_source(binding.definition_root()).ok().flatten()?;
+            let local = local_source_for_item(hir, item)?;
             local
                 .expressions()
                 .iter()
@@ -286,10 +296,7 @@ fn source_value_into(
         }
         CandidateSourceValueIdentity::Local(id) => {
             let name = hir.items().iter().find_map(|item| {
-                let HirItem::Binding(binding) = item else {
-                    return None;
-                };
-                let local = hir.local_source(binding.definition_root()).ok().flatten()?;
+                let local = local_source_for_item(hir, item)?;
                 local
                     .bindings()
                     .iter()
