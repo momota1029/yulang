@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "ASSIGNED-NOT-LAUNCHED",
+      "state": "RUNNING",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -24,7 +24,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
-      "receipt": "Contract frozen and exact direct pins verified; awaiting supported launch acknowledgement."
+      "receipt": "Active-work receipt: first-stage authority/pin reconciliation complete; contract SHA bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612 matches; 16 applicable authority/answer/packet pins match; exact two output leases acknowledged; no writes yet; requested gpt-6-astra/medium, observed UNKNOWN/UNKNOWN; no descendants."
     },
     "implementation": {
       "state": "WAITING-NO-CODE-AUTHORITY",
@@ -148,13 +148,13 @@
     {
       "id": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Exact lease granted in frozen contract; no live launch receipt yet."
+      "session": "current-session",
+      "receipt": "Active-work receipt: first-stage authority/pin reconciliation complete; contract SHA bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612 matches; 16 applicable authority/answer/packet pins match; exact two output leases acknowledged; no writes yet; requested gpt-6-astra/medium, observed UNKNOWN/UNKNOWN; no descendants."
     },
     {
       "id": "/root",
@@ -235,8 +235,8 @@
     "coordination": 180,
     "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
-    "astra_assignments": 0,
+    "active_authors": 1,
+    "astra_assignments": 1,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
     "review_reserved": 480,
