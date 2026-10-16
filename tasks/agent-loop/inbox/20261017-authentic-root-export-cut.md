@@ -1,0 +1,52 @@
+# Authentic source root and conditional export cut
+
+Date: 2026-10-17
+Status: source-owner correspondence attempt; authentication unavailable; all parents remain OPEN
+Sprint: `source-constructor-instantiation-and-export-cut-20261017`, contract revision 2
+Contract SHA-256: `e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2`
+Assignment: `assignment-authentic-root-export-cut-20261017`; handoff revision 1
+Parent gate: Original Call/effect H1/H2/JOINT_DEC and source-Generalize/public-export correspondence; F5 withdrawal remains downstream
+
+## Runtime, baseline, and intake
+
+Worker: `/root/authentic_root_export_cut`; no descendants were spawned. Requested model/effort: `gpt-6-luna` / `high`; observed model/effort: `UNKNOWN` in this worker runtime. The 60-second conservative preflight charge is accepted; this work used no more than the remaining 300-second envelope and no budget transfer/reset. Exact source-input baseline remains `cba9d794d1f0498262b3668f9d5cc055c16749e9`. I accept Luna's adjudicated distinction: current administrative HEAD `bf27abe79c46e61463d788607a0b350a83345f4d` is provenance, while the frozen baseline and direct dependency pins authenticate source inputs.
+
+Revalidation before writing: contract revision/hash match; all 54 direct dependency hashes match; proof artifact and proof handoff match `6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110` and `658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81`. The output path was absent before this write. The proof inputs are consumed as conditional source/IF/gluing claims only.
+
+## Parent application and result
+
+The requested path is the same selected choose occurrence from the proof handoff: the declaration-derived result consumer inside `f0`, at its choose request after native invocation return and before choose response. It remains distinct from the first `f` call and the later `g` future call. I found no authentic registration or candidate root for this occurrence in the supplied proof inputs: the proof artifact §1 expressly lacks its concrete source file/CST, `ModuleId`, `SourceNodeKey`, and semantic registered-root value. No substitute program, fixture, or invented key was used.
+
+The owner code defines how such an instance would be authenticated, but cannot authenticate this mathematical occurrence without those source inputs:
+
+- `crates/yu-hir/src/module.rs::lower_module_with_counters` (around line 1052) runs `source_annotation::declarations` before root planning when local-source capture is active. It projects source node keys and creates definition/expression roots from the parsed artifact. `HirModule::{definition_source_key,expression_source_key,source_root_source_key,occurrence_source_key}` return keys only for roots/occurrences owned by that artifact; these APIs do not create the missing source identity.
+- `crates/yu-hir/src/module/local_source.rs` retains each expression's source key, scope, occurrence, and operation resolution. The operation declaration owner in `source_annotation.rs` retains its family/member identities and signature. The proof handoff's symbolic `E`, `p`, `t_choose`, and `v_op` are conditional projections, not emitted values from this example.
+- The solver entrypoint in `crates/yu-solver/src/lib.rs` obtains `local_source_for` the exact HIR source root and passes it to `emit_candidate_source`. That collector checks pointer identity against the HIR-owned source, checks the receiver/root pairing, checks occurrence ownership, records `source_owners`, and creates source-region/component positions and per-root schedules (`candidate_source.rs` around lines 551–690). Thus a detached or substituted `LocalSource` cannot establish this association.
+- Candidate preflight is an actual gate: `shadow_apply.rs` invokes `candidate_source::preflight` before planning (around line 292). For an operation expression, preflight accepts only a resolved declaration whose signature has no top-level effects, has Function shape, and passes annotation checks (`candidate_source.rs` around lines 401–450); otherwise it returns `CandidateError::Unsupported`. Collector-side unresolved/other operation resolutions also fail (`candidate_source.rs` around line 941). A refusal would be evidence about this entrypoint; there is no bypass in this handoff and no refusal is claimed for the absent example.
+- With a successfully collected source, `candidate_scheme.rs::execute_candidate_graph_plan` runs the member's source schedule while its SCC root/use set is active, captures candidate graphs only after the member work, then clears the active set. `capture_candidate_graph[_owned]` supplies an implementation-internal graph root. Incoming uses route through the stored graph and `instantiate_candidate_graph`/`freshen_candidate_graph`. `candidate_source.rs` emits an `Action::Operation` for the resolved operation occurrence. This establishes an owner-path correspondence conditional on successful, exact HIR registration and preflight; it is not evidence that the selected choose instance reached that root or export/use.
+
+## Exact missing source-owner evidence
+
+The source/HIR owner must supply, for the *same* original example, an immutable parsed-source/CST artifact and source revision, its `FileId`/`ModuleId`/`ModuleIdentity`, the original family header/member declaration and choose-use nodes with their actual `SourceNodeKey`s, and the surrounding definition/use nodes (including `f0`, the choose occurrence, first-`f` call, `Bind`/`g` future, and catch context). From that artifact, supply the resulting HIR artifact identity, original definition/expression roots, source-key lookup results, and `LocalSource` record proving the use resolves to that exact declaration. Then supply the candidate entrypoint outcome for that same source owner: preflight pass or exact refusal, the `source_owners` mapping and action/schedule position for the choose occurrence, the owning SCC candidate root and captured `Graph.root`, and the matching export/use association through candidate graph routing. This is evidence request `CHOOSE-SOURCE-2` from the proof handoff; it grants no lease to construct another program or change the source domain.
+
+If preflight refuses, record the precise criterion and stop this association at that gate. Do not manufacture an authenticated root by calling a lower-level collector, bypassing the HIR owner check, or using a test-only synthetic source.
+
+## Conditional abstraction attempt and remaining public cut
+
+No authentic implementation-internal root for this selected source instance is available, so §11 cannot be instantiated at a concrete indexed root. The conditional attempt stops before claiming any `R_r -> g_r` root relation. At the abstract interface level only, §11.3 requires (1) a finite source-derived local cut, (2) scoped extension/restriction maps, (3) an independently interpreted full actual-root certificate, (4) forward and inverse proof-translation cases, and (5) recognition of those cases by the ordinary query consumer. The registered candidate graph/captured internal root is not itself the public cut or a selected public representation.
+
+The exact public-cut clause still open is a concrete finite constructor cut that produces the approved displayable scheme plus necessary use-time information while preserving the source-root/candidate-root/export operands, with complete admission/membership and provider/future/role/entry/arm laws at each changed root (§11.3 items 1 and 3), proof translation and its inverse over the claimed envelope (item 4), and effective ordinary-query recognition at `(g_r,V)` (item 5). The q1/a1 choice of public interpretation and necessary information is the governing semantic boundary; this packet selects no representation, schema, field law, or query rule. §11 is conditional research, not an adopted constructor or cutover.
+
+## Correspondence, scope, and evidence limits
+
+Conditional source path: original parse/source keys -> HIR declaration and local-source resolution -> exact HIR-owned `SourceRootId`/`LocalSource` -> preflight -> candidate source owner/action schedule -> SCC candidate graph capture -> stored internal graph and routed/fresh use. The general code path has these owner seams, but the selected example is not authenticated at any of them. No generated constraints, propagation result, runtime execution, or source-to-public-cut theorem is claimed from these reads.
+
+Prior evidence reused: the proof artifact's selected choose occurrence and explicit missing-source warning; pinned HIR registration/local-source owners and candidate source/preflight/schedule/capture/routing; `generalize-export-constructor-bridge.md` §11's conditional certificate and exact open public suppliers. Rejected as evidence: symbolic names as concrete keys, code-path availability as proof of one source occurrence, unrelated fixture/test roots, preflight bypass, detached schema packaging, successful internal-root query as a query at a changed public root, or green tests as theorem/cutover evidence.
+
+Original Call/effect H1/H2/JOINT_DEC, F1/FK1, first-result adequacy, source-Generalize correspondence, principality, F5 replacement, semantic selection, implementation, and production/cutover remain OPEN. This owner packet neither certifies the proof result nor changes source domains, diagnostics, expected behavior, or natural inference.
+
+## Checks, changed paths, and stop receipt
+
+Static read-only checks only: direct pins and proof-output hashes revalidated; the source-owner and §11 locations above were inspected. Zero tests, builds, executable probes, code/API writes, Git operations, network, nested CLI, scratch paths, or generated artifacts. Time was not instrumented by a process timer; the 60-second conservative preflight charge remains counted and the work stayed inside the stated <=300-second remainder. Seven-stage maximum not exceeded. Exact changed path: this one leased inbox file. Disposable scratch: none.
+
+Writer STOP receipt: this handoff is frozen after its hash is reported; no descendants, child outputs, processes, or unresolved descendant leases exist. Review/integration and all parent gates remain with Luna. No next work is authorized from this artifact alone; the related in-envelope successor is to consume the requested exact source-owner data if Luna supplies it under the existing assignment and authority, otherwise retain this precise authentication blocker.
