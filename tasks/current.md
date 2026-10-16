@@ -426,9 +426,23 @@ Status: full objective remains active. Native extrusion now schedules current co
   closes f, worlds and carriers together, including carriers that capture the
   tested f; no closed plugged carrier is assumed during membership. This
   supplies actual full f for this case under independent complete Sigma/maps,
-  not a generic Gamma scheme or native MODEL. A new source-context lane now
-  constructs punctured d0, initial receiver/receipt/profile flow and Catch/
-  OpCompat in the noncircular order: open arm first, actual T_e/k only afterward.
+  not a generic Gamma scheme or native MODEL. The [context construction](../notes/theory/2026-10-16-choose-context-and-catch-source-construction.md)
+  now has CLEAN mathematical/source review: root elimination checks the open
+  arm before actual T_e/k, and source generation forms an OPEN seed, not an
+  admitted d0. The first missing output is the explicitly annotated Function
+  formal's actual AnnotationProfile/applicability constructor. OmittedFormal
+  and RootCompSchema do not apply. Its finite prefix proves that outer U has
+  no receipt of the freshly forked B view before the first request, conditional
+  on a genuine fresh B; inherited profiles remain separate obligations.
+  Full d0, initial visibility, normal/default discharge, Covers/OpCompat and
+  Catch remain OPEN. An architect identifies a legitimate missing first-call
+  annotation/receiving constructor under existing definition permission;
+  a disjoint prover packet is constructing it before independent review.
+  The complementary installed-support census resolves the current Remaining
+  reference through its actual term map. Entire Mono(k) FIX still needs the
+  HISTORICAL WholeContext root/use tuple: both receive's complete producer
+  and the outer checked Function view, with their original historical maps.
+  Neither result permits copying Remaining's current map onto saved evidence.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

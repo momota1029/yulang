@@ -499,13 +499,35 @@ Authenticating that exact prefix can exclude B protection against U even while
 receive is live, without claiming an empty profile. Original default applicability,
 all inherited profiles, Covers/activity, full OpCompat and normal-return/default
 branches still need their actual construction. Source RootCompGrant is absent.
-Prover `ordinary_carrier_proof` now owns the 25-minute disjoint packet
-`notes/theory/2026-10-16-choose-context-and-catch-source-construction.md`.
-Its order is independently formed root/open arm/Phi_B^H/d0, then selection/
-OpCompat and full f(d0), actual T_e/k and complete Catch. Actual T_e may not be
-used to type the arm needed for that same d0. New declared-value introductions
-must reuse the positive relative kernel; none may assume closed hole-dependent
-carriers prematurely. Profile/native/runtime parents remain distinct OPEN gates.
+The 25-minute `ordinary_carrier_proof` packet is now frozen at
+`notes/theory/2026-10-16-choose-context-and-catch-source-construction.md`,
+producer `11a432f0...ede3046`, with CLEAN mathematical/source review. It
+constructs the noncircular open arm and whole-tuple OPEN seed; it does not
+admit d0. First missing output is the explicit Value(Function) formal's
+AnnotationProfile/applicability, not an OmittedFormal or RootComp seed.
+The concrete prefix proves no outer-U receipt of any genuinely fresh B view
+before the first request. Inherited profiles, full initial visibility,
+normal/default discharge, Covers/OpCompat and Catch remain OPEN. No
+hole-dependent carrier is assumed closed prematurely.
+The first-call annotation/receiving profile is now a distinct 18-minute
+`function_result_projection` prover packet at baseline `9394ef04e`, sole lease
+`notes/theory/2026-10-16-known-function-first-call-profile-construction.md`.
+The architect identifies an authorized missing constructor under existing
+definition permission: authentic complete invocation position/first use,
+receiver-relative default and original permission operands, with no provider
+backflow, fabricated directional seed, nested-path collapse or empty profile.
+Mathematical/source review precedes any selection. The full profile parent stays OPEN.
+The complementary full installed-support census produced no new artifact.
+Current Remaining's actual map eliminates its direct free-q path. The next
+owner is historical WholeContext: actual receive producer declaration AND
+original outer checked-view/Name-use map. The outer ReadInvoke view is not
+automatically receive's producer type. Historical maps cannot inherit the
+current Remaining substitution; no surviving free-q path or entire no-free
+theorem is authenticated. A bounded architect source-owner packet investigates
+that existing constructor. No solve-at-generation premise is introduced.
+M2 two reviewers on the frozen context artifact, 16 dependency pins and local
+integrity only; zero tests/builds/probes or benchmark samples/processes.
+Profile/native/runtime parents remain distinct OPEN gates.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new

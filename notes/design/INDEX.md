@@ -143,6 +143,11 @@ This index is a navigation aid. The listed source document remains authoritative
   during membership, retaining carriers which capture the tested f. This
   discharges that case's full-f supplier under independent complete primitive/
   world/map inputs; concrete context/Catch, schemes and native parents stay OPEN.
+  The [context construction](../theory/2026-10-16-choose-context-and-catch-source-construction.md)
+  has CLEAN mathematical/source review of its open seed and conditional
+  fresh-boundary/no-outside-receipt result. Actual AnnotationProfile for the
+  explicitly annotated Function formal is the first missing supplier;
+  inherited profiles, admitted d0, full selection/OpCompat and Catch stay OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
