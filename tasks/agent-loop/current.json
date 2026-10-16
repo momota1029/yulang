@@ -7,8 +7,8 @@
     "id": "source-formation-proposals-20261017",
     "contract": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
     "revision": 1,
-    "sha256": "bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612",
-    "state": "ACTIVE-DRAFT-ONLY",
+    "sha256": "97c39c74400e3da5c615eb9d784a993077c77244850687eeb60808d7a23a6a34",
+    "state": "ACTIVE-BOUNDED-REPAIR-THEN-PROPOSAL",
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
@@ -40,7 +40,7 @@
       "spec_auditor_receipt": "Major at proposal line 372: adoption authority is assigned to Luna, but approved option B reserves adoption for later explicit user approval. Closure: Luna prepares/routes the adoption request and records the user decision; require explicit approval before adoption/implementation. No other finding; 18 pins matched; full 120s charged; STOPPED."
     },
     "implementation": {
-      "state": "RUNNING-PROPOSAL-AUTHORING",
+      "state": "WAITING-DURING-PRIMARY-REPAIR",
       "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
       "role": "primary proposal author",
       "outputs": [
@@ -52,16 +52,16 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 600,
-      "receipt": "Packet 1 author STOPPED and frozen; primary begins independent proposal drafting under exact packet-2 leases. No compiler code authority."
+      "receipt": "Packet 2 remains authorized and independent; primary pauses authoring during exact P1 wording repair and 30s delta reviews, then resumes within the unchanged 600s cap."
     },
     "review": {
-      "state": "FINDING-ADJUDICATION",
+      "state": "REPAIR-DELTA-REVIEW-PENDING",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Compiler referee CLEAN on prior frozen bytes; spec auditor found one major authority-wording finding. Target delta required; prior review applies only to prior bytes. Both reviewers STOPPED."
+      "receipt": "Allocate one reviewer at a time, 30s each, to exact authority-wording delta; old review receipts apply only to rev1 bytes."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -119,7 +119,8 @@
       "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
       "implementation": "No compiler changes until reviewed proposals and a later explicit source-definition adoption; then issue a new proof-backed implementation contract."
     },
-    "current_checkpoint": "0364a844d"
+    "current_checkpoint": "a3b22a487",
+    "contract_revision": 2
   },
   "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
   "baseline": "601e55cfaaf131644d770006532727da33e33059",
@@ -173,13 +174,13 @@
     {
       "id": "/root",
       "role": "primary proposal author and integration",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary began packet 2 after packet 1 STOP; exact packet-2 outputs only; requested Luna/high, observed UNKNOWN/UNKNOWN; no authority expansion."
+      "receipt": "Packet 2 remains ready under exact lease; primary pauses writing while carrying out contract-rev2 P1 wording repair and delta reviews."
     },
     {
       "id": "NPAIR-PROPOSAL-REFEREE-20261017",
@@ -215,14 +216,8 @@
       "path": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
       "owner": "/root",
       "state": "FROZEN",
-      "revision": 1,
-      "sha256": "bd2cb5723a31ca7335d0e8d96b14296f5af9254bf6bd8e1156bd648e6b419612"
-    },
-    {
-      "path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
-      "owner": "NPAIR-FORMATION-PROPOSAL-20261017",
-      "state": "FROZEN",
-      "sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018"
+      "revision": 2,
+      "sha256": "97c39c74400e3da5c615eb9d784a993077c77244850687eeb60808d7a23a6a34"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-negative-formal-pair-formation-proposal.md",
@@ -237,6 +232,16 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-catch-matcher-input-formation-proposal.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-negative-formal-pair-proposal-pre-repair.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
       "owner": "/root",
       "state": "HELD"
     }
@@ -259,10 +264,10 @@
     }
   ],
   "next_action": {
-    "state": "PACKET-1-FROZEN-REVIEW-PENDING-PACKET-2-READY",
+    "state": "PRIMARY-REPAIR-LEASE-FROZEN",
     "selector": "Selector recommendation accepted by Luna; exact leases/resources frozen before dispatch.",
-    "proof": "NPAIR candidate source-definition proposal frozen; exact remaining P1-P6 premises in artifact/handoff; parent OPEN.",
-    "implementation": "Packet 2 proposal-only owner mapping may proceed after packet 1 STOP while one independent reviewer at a time runs. No code authority.",
+    "proof": "P1 review finding is exact authority wording; preserve old bytes, repair one sentence, delta review before accepting.",
+    "implementation": "Packet 2 proposal remains authorized but paused only during primary repair; resumes after delta review. No compiler code authority.",
     "limits": "No code/tests/Cargo/runtime. Preserve all original quantifiers and three unknown reservations."
   },
   "resource_accounting": {
@@ -273,17 +278,21 @@
     "coordination": 180,
     "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "active_authors": 1,
+    "active_authors": 0,
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 240,
+    "review_reserved": 300,
     "coordination_reserved": 180,
     "pending_reviewers": 0,
     "charged_total_seconds": 1140,
     "reviewed_closeout": null,
     "authors_spent_seconds": 900,
-    "review_spent_seconds": 240
+    "review_spent_seconds": 240,
+    "repair_cap_seconds": 60,
+    "review_cap_seconds": 540,
+    "repair_spent_seconds": 0,
+    "remaining_reserve_seconds": 120
   },
   "history": "Previous sprint receive-negative-pair-construction-20261017 ended reviewed exact obstruction; consumed option-B proposal-only answer bundles NPAIR 1ba10aabc1a3b7fb76b6423a1423b5220e4291f9 and CATCH e7c976b9284c372667f5cabd2c80156624905402. Historical dirty ForwardHandler contract remains partial/pending delta review and excluded from this sprint.",
   "checkpoint_commits": [

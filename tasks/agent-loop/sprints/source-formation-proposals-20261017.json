@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "id": "source-formation-proposals-20261017",
-  "revision": 1,
-  "state": "FROZEN-AUTHORIZED-DRAFT-ONLY",
+  "revision": 2,
+  "state": "FROZEN-AUTHORIZED-DRAFT-ONLY-PLUS-NARROW-PRIMARY-REPAIR",
   "branch": "research/simple-sub-intrusion",
   "baseline": "601e55cfaaf131644d770006532727da33e33059",
   "primary": "/root",
@@ -87,8 +87,12 @@
         "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
         "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186"
       },
-      "review": ["compiler_referee", "spec_auditor"],
-      "stop": "Freeze outputs and stop writer before review; stop on changed authority/dependency, required code/test execution, or 900 seconds."
+      "review": [
+        "compiler_referee",
+        "spec_auditor"
+      ],
+      "stop": "Freeze outputs and stop writer before review; stop on changed authority/dependency, required code/test execution, or 900 seconds.",
+      "review_repair_note": "Revision 1 remains immutable as the review target; revision 2 adds only the exact primary wording repair and dedicated snapshot/delta-review leases."
     },
     {
       "id": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
@@ -116,21 +120,28 @@
         "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b",
         "notes/theory/2026-10-16-primitive-interaction-graph-a2-r2-withdrawal.md": "f963405835082252abbbc54381bf08fdb6a760cf508ae34416d7960fe0a2e729"
       },
-      "review": ["compiler_referee", "spec_auditor"],
+      "review": [
+        "compiler_referee",
+        "spec_auditor"
+      ],
       "stop": "Freeze outputs and stop writer before review; stop on changed authority/dependency, required code/test execution, or 600 seconds."
     }
   ],
   "resources": {
     "fresh_budget_seconds": 2400,
     "authors_seconds": 1500,
-    "independent_review_seconds": 480,
+    "independent_review_seconds": 540,
     "coordination_seconds": 180,
     "reserve_seconds": 240,
     "active_authors_max": 1,
     "astra_assignments_max": 1,
     "unknown_reservations_preserved": 3,
     "review_and_integration_slots_reserved": 2,
-    "carry_over": "None; preserve all prior unknown reservations and quarantined board lease."
+    "carry_over": "None; preserve all prior unknown reservations and quarantined board lease.",
+    "repair_from_reserve_seconds": 60,
+    "aggregate_review_seconds": 540,
+    "remaining_reserve_seconds": 120,
+    "allocation_note": "Use 120 seconds of original reserve for this exact primary repair and two 30-second delta reviews. Preserve 240 seconds of remaining review allocation for packet 2; author caps and total sprint cap remain unchanged."
   },
   "reviews": {
     "snapshot_rule": "Review only frozen exact bytes and pinned dependencies; authors have STOPPED and may not self-review.",
@@ -147,9 +158,24 @@
   },
   "review_gate": "Fresh compiler_referee and spec_auditor independently review both proposals; proposal success does not close CHOOSE-SOURCE-2, CATCH-EXIT-INPUT-1, F1/FK1/FIRST-RESULT, F5, soundness, principality or production.",
   "unknown_writers": [
-    {"id":"/root/resident_dispatcher_loop_a","state":"UNKNOWN","lease":"tasks/agent-loop/board.md","reservation":"preserved"},
-    {"id":"/root/resident_implementer_idle","state":"UNKNOWN","lease":"unknown historical implementation lease","reservation":"preserved"},
-    {"id":"/root/runtime_source_supplier_proof","state":"UNKNOWN","lease":"unknown historical proof lease","reservation":"preserved"}
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "state": "UNKNOWN",
+      "lease": "tasks/agent-loop/board.md",
+      "reservation": "preserved"
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "state": "UNKNOWN",
+      "lease": "unknown historical implementation lease",
+      "reservation": "preserved"
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "state": "UNKNOWN",
+      "lease": "unknown historical proof lease",
+      "reservation": "preserved"
+    }
   ],
   "dirty_foreign_work": {
     "path": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
@@ -157,5 +183,26 @@
     "disposition": "Preserve uncommitted, unaccepted historical contract delta with pending receipt review; excluded from this sprint and all commits."
   },
   "next_consultation": "Sprint end, material authority/dependency/lease/resource change, a concrete counterexample, or the review/integration seam.",
-  "commit_policy": "Luna checkpoints this frozen contract/current-state pair before dispatch, then checkpoints each coherent reviewed proposal and receipt promptly; inspect the complete outbound range and push non-forced only when coherent."
+  "commit_policy": "Luna checkpoints this frozen contract/current-state pair before dispatch, then checkpoints each coherent reviewed proposal and receipt promptly; inspect the complete outbound range and push non-forced only when coherent.",
+  "repair_allocation": {
+    "id": "NPAIR-ADOPTION-AUTHORITY-WORDING-REPAIR-20261017",
+    "trigger": "Spec auditor major finding on revision-1 proposal sentence assigning adoption decision to Luna, contrary to approved option B reserving later explicit user approval.",
+    "owner": "/root primary only",
+    "max_active_seconds": 60,
+    "stage_cap": 1,
+    "input_artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
+    "input_handoff_sha256": "5e96c2b22420d293354cdf5cd022828d2d9b28f87077fa8afebc2f2d86727bd5",
+    "snapshot_path": "tasks/agent-loop/snapshots/20261017-negative-formal-pair-proposal-pre-repair.md",
+    "edited_path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
+    "scope": "Change only the sentence that assigns adoption authority to Luna so it says Luna routes and records a later explicit user decision; adoption and dependent implementation require that explicit user approval. No semantic, proof, or design content edits.",
+    "delta_review": {
+      "roles": [
+        "compiler_referee",
+        "spec_auditor"
+      ],
+      "seconds_each": 30,
+      "scope": "Review only the exact changed sentence and its approval-scope compliance."
+    },
+    "stop": "Stop if the exact correction cannot close the finding within the 60-second repair cap or if either delta reviewer finds a substantive change."
+  }
 }
