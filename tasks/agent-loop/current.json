@@ -1,87 +1,62 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ENDED",
+  "phase": "ACTIVE",
   "session": null,
   "active_sprint": {
-    "id": "source-check-provenance-20261016",
-    "contract": "tasks/agent-loop/sprints/source-check-provenance-20261016.json",
-    "revision": 1,
-    "sha256": "ee70f6ae3e0f8318c6c1dcbc7eb4f8248259a232bd58f37cec228059762c81c4",
-    "state": "ENDED-PARTIAL-REVIEWED",
-    "previous_sprint": "app-target-model-application-20261016 rev3 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-app-target-model-application-review.md",
-    "dispatcher": "next_action_selector proposed a method change to exact original Apply/annotation rule provenance after the already reviewed finite-check-normalization attempt, plus an independently leased delta repair for the checker P2. Luna grants these exact lanes and the fresh 1800-second envelope.",
-    "activation_receipt": "User authorized continued proof and implementation; primary froze contract, exact leases and fresh envelope before dispatch.",
+    "id": "residual-and-public-export-correspondence-20261016",
+    "contract": "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json",
+    "revision": 3,
+    "sha256": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab",
+    "state": "ACTIVE-PROOF-WAITING-REV3-ACK",
+    "previous_sprint": "catch-consumer-and-f5-migration-readiness-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md",
+    "dispatcher": "next_action_selector proposed GCIN-RESIDUAL-1 and read-only successor independent-use/public-export correspondence; Luna validated direct source pins and exact leases.",
     "proof": {
-      "state": "REVIEWED-CLEAN-PARENT-OPEN",
-      "assignment": "/root/source_check_provenance_proof",
+      "state": "FROZEN-PENDING-REVIEW",
+      "assignment": "assignment-dependent-phase-residual-interpretation",
       "outputs": [
-        "notes/theory/2026-10-16-first-apply-check-provenance.md",
-        "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md"
+        "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
+        "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md"
       ],
+      "role": "astra_prover",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
-      "receipt": "Six stages; original Check provenance obstruction; current candidate_effect source excluded from conclusions because hash differed from pinned historical note. Writes stopped; independent review pending.",
-      "artifact_sha256": "3890c26e1d9e53b29d7e6168b0bc3253dbe36954411592362eeebaf070cb969c",
-      "handoff_sha256": "1e65a5de1c60bb1446518407deab5d0c30be763effb5fca2300a11fba6f24d7f",
-      "charge_seconds_conservative": 900,
-      "reviewer": "/root/first_apply_check_provenance_review",
-      "review": "CLEAN; 26/26 direct dependency pins matched independently",
-      "review_receipt": "Fresh compiler_referee found no blocking, major or minor finding; model/effort/session UNKNOWN."
+      "receipt": "Exact missing supplier/law at primitive declaration -> Request observation/action -> effective residual lowering; IF placement explicitly does not provide it. Six stages, conservative 600/900s; writer stopped; no parent closure.",
+      "runtime_receipt": "Existing author acknowledged exact contract rev3 and new dependency hash before writing; active assignment resumed in current session.",
+      "contract_revision": 3,
+      "contract_sha256": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab",
+      "artifact_sha256": "76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f",
+      "handoff_sha256": "c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef",
+      "worker_state": "STOPPED; model/effort UNKNOWN"
     },
     "implementation": {
-      "state": "FROZEN-REVIEWED-CLEAN",
-      "assignment": "/root/entrypoint_checker_p2_repair",
+      "state": "RUNNING-READ-ONLY",
+      "assignment": "assignment-successor-independent-use-correspondence",
       "outputs": [
-        "tools/agent_sprint.py",
-        "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md"
+        "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md"
       ],
+      "role": "implementer",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 180,
-      "receipt": "Writes stopped; no descendants.",
-      "artifact_sha256": "b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67",
-      "handoff_sha256": "7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44",
-      "static_check": "python3 tools/agent_sprint.py check: PASS once",
-      "charge_seconds": "within 180-second lane cap; exact active time UNKNOWN",
-      "p2": "CLOSED"
+      "charge_seconds_cap": 600,
+      "receipt": "Proof writer cessation confirmed. Luna capacity recheck: three UNKNOWN reservations + one implementer = four producer assignments; two slots remain reserved for review/integration. Implementation lease now granted.",
+      "runtime_receipt": "Spawn returned /root/successor_independent_use_correspondence; current runtime reports RUNNING."
     },
     "review": {
-      "state": "COMPLETE-CLEAN",
+      "state": "NOT_STARTED",
       "budget_seconds": 360,
-      "sequence": "proof and implementation reviews run sequentially",
-      "reviewer": "/root/entrypoint_checker_p2_delta_review",
-      "receipt": "Both independent reviews completed; all producers/reviewers stopped. No runtime model/session observations available.",
-      "implementation_reviewer": "/root/entrypoint_checker_p2_delta_review",
-      "proof_review": "CLEAN",
-      "proof_reviewer": "/root/first_apply_check_provenance_review",
-      "implementation_review": "CLEAN; P2 CLOSED"
+      "execution": "No review assignment until all sprint authors stop; proof then implementation, sequentially."
     },
-    "snapshot": {
-      "path": "tasks/agent-loop/history/20261016-entrypoint-checker-pre-p2.py",
-      "sha256": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010"
-    },
-    "open_parent": "FIRST-RESULT-ADEQUACY / AM-MODEL-1; all other gates retained OPEN",
-    "implementation_review": {
-      "state": "CLEAN-ADJUDICATED",
-      "reviewer": "/root/entrypoint_checker_p2_delta_review",
-      "checker_sha256": "b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67",
-      "snapshot_sha256": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010",
-      "handoff_sha256": "7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44",
-      "finding": "No BLOCKING, major or minor findings; P2 closes. Snapshot delta limited to optional override presence predicate and local variable. Static-check receipt inspected; runtime claim not independently authenticated."
-    },
-    "closeout_receipt": "notes/progress/2026-10-16-source-check-provenance-review.md",
-    "closeout_sha256": "94eaf45694810cce608b3c64cd73481b692289a06b41c12d5552474420e78b76",
-    "native_source_discrepancy": "Current candidate_effect.rs hash 44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9 differed from historical pinned note a330100b418f14be1c8f600c62970efdb4859818b603190846796de39fa8cef2; excluded from conclusions; no equivalence/correspondence/regression inference."
+    "open_parent": "GCIN-RESIDUAL-1 and successor graph-to-closed/public scheme independent-use correspondence; all original parent/production gates open."
   },
-  "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
+  "candidate": "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json",
   "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
-  "scope": "Continue Call/contextual-effects; settle first-Apply authority gap. Semantics unchanged.",
+  "scope": "Continue complete type-inference/F5 replacement Goal through original residual interpretation and post-session independent-use publication evidence.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -117,48 +92,26 @@
       "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
     },
     {
-      "id": "/root/source_check_provenance_proof",
+      "id": "assignment-dependent-phase-residual-interpretation",
       "role": "astra_prover",
       "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Writes stopped; six stages completed; conservative 900-second lane charge within cap; artifact 3890c26e1d9e53b29d7e6168b0bc3253dbe36954411592362eeebaf070cb969c; handoff 1e65a5de1c60bb1446518407deab5d0c30be763effb5fca2300a11fba6f24d7f; all 26 direct pins reverified; no descendants."
+      "session": "current collaboration session; explicit spawn and live runtime receipt",
+      "receipt": "Artifact 76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f, handoff c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef; 600/900 conservative; writer stopped, no descendants."
     },
     {
-      "id": "/root/entrypoint_checker_p2_repair",
+      "id": "assignment-successor-independent-use-correspondence",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Writes stopped; handoff r1 frozen at 7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44; checker SHA b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67; static checker PASS once; no descendants."
-    },
-    {
-      "id": "/root/entrypoint_checker_p2_delta_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Fresh independent spec_auditor review CLEAN on fixed contract/checker/snapshot/handoff hashes; no writes or descendants. Effective model/effort/session UNKNOWN."
-    },
-    {
-      "id": "/root/first_apply_check_provenance_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Fresh compiler_referee review CLEAN; 26/26 direct pins matched; no writes, tests, builds, probes, delegation or descendants; session/model/effort UNKNOWN."
+      "session": "current collaboration session; explicit spawn and live runtime receipt",
+      "receipt": "Primary launch returned /root/successor_independent_use_correspondence; current runtime reports RUNNING; no compiler writes authorized."
     }
   ],
   "leases": [
@@ -166,76 +119,63 @@
       "path": "tasks/agent-loop/board.md",
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
-      "reason": "Former board writer is not visible in the current runtime; primary will not write this path."
+      "reason": "Historical writer remains UNKNOWN; not visible in current runtime."
     },
     {
-      "path": "notes/theory/2026-10-16-first-apply-check-provenance.md",
-      "owner": "/root/source_check_provenance_proof",
+      "path": "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
+      "owner": "assignment-dependent-phase-residual-interpretation",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md",
-      "owner": "/root/source_check_provenance_proof",
+      "path": "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md",
+      "owner": "assignment-dependent-phase-residual-interpretation",
       "state": "FROZEN"
     },
     {
-      "path": "tools/agent_sprint.py",
-      "owner": "/root/entrypoint_checker_p2_repair",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md",
-      "owner": "/root/entrypoint_checker_p2_repair",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md",
+      "owner": "assignment-successor-independent-use-correspondence",
+      "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "All sprint producers and reviewers stopped; outputs frozen. Three historical UNKNOWN identities and quarantined board.md lease retained; no current workers active.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; proof STOPPED; one implementation author RUNNING; two slots reserved for review/integration.",
   "legacy_reconciliation": {
     "required": false,
-    "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
     "history": "tasks/agent-loop/history/board-7336f290.md",
-    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
-    "action": "Luna checked the actual collaboration inventory, reviewed the latest scoped legacy identity/output receipts, reserved the legacy implementer slot, and quarantined the former board path. No old identity is marked STOPPED or its unknown capacity released."
+    "action": "Prior Luna reconciliation preserved three UNKNOWN identities and quarantined board writer; no capacity released."
   },
   "pending": [
     {
-      "id": "F1-FULL",
-      "state": "OPEN",
-      "owner": "Luna primary / next proof packet",
-      "needs": "Conditional local View action discharged. Still need other authentic OriginalFrame actions, whole-grammar source coverage and lawful composition in original scope."
-    },
-    {
-      "id": "FK1-FOREIGN",
-      "state": "OPEN",
-      "owner": "Original parent / source law owner",
-      "needs": "Original opaque foreign-continuation application and transport law over same continuation/provider/future interface."
-    },
-    {
-      "id": "IMPLEMENTATION-E2E",
-      "state": "OPEN",
-      "owner": "Luna implementation",
-      "needs": "Current accepted change is a native regression test only. No production change or contextual-effect public execution bridge is justified until original Call/first-result obligations supply an owner-local safe path."
-    },
-    {
-      "id": "FIRST-RESULT-ADEQUACY",
+      "id": "FIRST-RESULT-ADEQUACY / AM-MODEL-1",
       "state": "OPEN",
       "owner": "Original Call/effect parent",
-      "needs": "Current sprint attempts original source obligations to anchored joint MODEL implication using selected AppTarget introduction; no gate closes until the exact universal direction is established."
+      "needs": "No repeat without new discriminator."
     },
     {
-      "id": "ENTRYPOINT-CHECKER-REVIEW",
-      "state": "DONE",
-      "owner": "Luna primary",
-      "needs": "P2 CLOSED after fresh independent review; checker SHA b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67."
+      "id": "GCIN-RESIDUAL-1",
+      "state": "ASSIGNED",
+      "owner": "assignment-dependent-phase-residual-interpretation",
+      "needs": "Effective sound/complete interpretation of OriginalPhaseSuffix under original guards, telescope, future and later admissions."
     },
     {
-      "id": "AM-MODEL-1",
+      "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
       "state": "OPEN",
-      "owner": "Luna / original Apply-Check rule owner",
-      "needs": "SCP-SOURCE-1: authenticate original retained predicate q with endpoints/direction/telescope/same-object meaning, or derive uniform VIncl(alpha,A1) from original coupled premises. Then separately prove declared-support and context/scoped flows."
+      "owner": "Original parents",
+      "needs": "Retain distinct; no closure follows from assignment."
+    },
+    {
+      "id": "SUCCESSOR-INDEPENDENT-USE-CORRESPONDENCE",
+      "state": "ASSIGNED",
+      "owner": "assignment-successor-independent-use-correspondence",
+      "needs": "Trace fresh-use dependencies, aliases/anchors and post-session exported scheme information under approved publication policy."
+    },
+    {
+      "id": "DEPENDENT-PHASE-PROOF-REVIEW",
+      "state": "PENDING",
+      "owner": "fresh compiler_referee after all writers stop",
+      "needs": "Review frozen proof after implementation writer cessation; sequential review order."
     }
   ],
-  "next_action": "Sprint ended partial-reviewed. Next exact owner/input: SCP-SOURCE-1 / AM-MODEL-1; no repeated finite-reflection or provenance audit without new discriminating source rule evidence.",
+  "next_action": "Implementation correspondence handoff is active; both proof and implementation reviews follow only after writer cessation.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -243,33 +183,28 @@
       "MINOR: design index entry"
     ],
     "adjudication": "Both repaired; second delta binds evidence to the frozen Luna artifact hash; fresh delta review CLEAN; tooling tests/static checker pass.",
-    "receipt": "collaboration messages in this turn; reviewer wrote no files; no semantic approval implied."
+    "receipt": "Prior current-state receipt and collaboration review; no semantic approval implied."
   },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
   "resource_accounting": {
-    "historical_unknown": "Prior call-contextual-effects and first-apply sprint unknown time remains unknown and is not reset.",
-    "current_sprint_id": "source-check-provenance-20261016",
-    "current_sprint_cap_seconds": 1800,
-    "proof_active_seconds_cap": 900,
-    "implementation_active_seconds_cap": 180,
-    "review_reserve_seconds": 360,
-    "coordination_and_integration_seconds": 180,
-    "reserve_seconds": 180,
+    "historical_unknown": "Three old unknown identities and reservations remain; prior sprint time is not reset or transferred.",
+    "previous_sprint": "Ended partial-reviewed; proof conservatively 600/900, implementation within cap exact cumulative UNKNOWN, reviewers/coordination UNKNOWN; no remaining time transfers.",
+    "current_sprint_id": "residual-and-public-export-correspondence-20261016",
+    "current_sprint_cap_seconds": 2100,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 600,
+      "review": 360,
+      "coordination_and_integration": 120,
+      "reserve": 120
+    },
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "implementation <=180 reported, exact active seconds UNKNOWN; review/coordination durations UNKNOWN",
-    "status": "No breach evidenced. Do not transfer ended-sprint budget; stop at fresh 1800-second cap.",
-    "implementation_state": "FROZEN-REVIEWED-CLEAN",
-    "proof_state": "active; exact aggregate remaining capacity not certified yet",
-    "proof_spent_seconds_conservative": 900,
-    "proof_cap_seconds": 900,
-    "implementation_spent_seconds": "upper bound <=180/180; exact active time UNKNOWN",
-    "reviewer_durations": "UNKNOWN within 360-second review reserve",
-    "coordination_primary_duration": "UNKNOWN within 180-second coordination allocation",
-    "aggregate_remaining": "UNKNOWN; not certified or transferred",
-    "cap_status": "No breach evidenced. Sprint ENDED-PARTIAL-REVIEWED; no budget, seconds, or assignments carry forward.",
-    "admission_status": "Closed after both reviews; next proof requires new discriminating input and a fresh finite envelope."
+    "spent_seconds": "0 active seconds assigned observed; coordination exact UNKNOWN",
+    "status": "Fresh envelope only; no previous seconds or lane remainder transferred.",
+    "sequencing": "Proof first alone; implementation only after confirmed proof stop. Three UNKNOWN reservations retained; leave two assignment slots during author work and sequential reviews."
   },
-  "integration_outcome": "Partial, independently reviewed and Luna-adjudicated: source-rule provenance obstruction CLEAN; FIRST-RESULT-ADEQUACY remains OPEN; optional override P2 CLOSED by exact reviewed checker delta; no compiler behavior, theorem parent, or production gate closed."
+  "integration_outcome": "Previous sprint partial-reviewed with conditional proof and reviewed NO_SAFE_CODE_SLICE; new sprint contract issued, no new proof or correspondence result yet.",
+  "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md"
 }

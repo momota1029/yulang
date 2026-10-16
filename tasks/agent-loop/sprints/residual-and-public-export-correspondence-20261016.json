@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "sprint_id": "residual-and-public-export-correspondence-20261016",
+  "contract_revision": 3,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
+  "goal": "Advance the full inference/F5 objective by interpreting the first retained dependent phase/guard suffix against the original complete upper interface, and deriving the minimal independent-use information required for a public successor export after solver-session destruction.",
+  "authority": "Preserve original Simple-sub A/B claims, quantifiers, source domains, annotation hygiene, full Call and future obligations. The guarded-image and successor-public-export designs remain candidates. The approved root-publication policy favors displayed scheme plus justified necessary information; it does not approve retaining the full source relation, a new public representation, or compiler cutover.",
+  "original_parent": {
+    "id": "Call/effect H1/H2/JOINT_DEC plus complete source-generalization/public-export correspondence and F5 legacy withdrawal",
+    "source": "Start from the first OriginalPhaseSuffix demand in guarded Catch-image normalization §4; separately inspect candidate_scheme::prepare_candidate_fresh_use and public-root generalization policy.",
+    "quantifiers": "Retain the same original source graph, complete guard-family telescope, shared assignment/evidence strategy, provider, pending continuation/future witnesses and every current/later lawful upper/lower admission. For independent uses retain actual levels, metadata, older anchors, outer environment and bound dependencies; do not collapse aliases or independent generic instances.",
+    "required_direction": "Give an effective sound and complete interpretation of original dependent phase/guard obligations into supported residual operations, or identify a source-qualified representational falsifier. Separately derive an abstraction/restoration argument from current fresh-use machinery to displayed scheme plus necessary additional information that remains valid when the solving session is gone; expose exact missing field-law if insufficient. Apply each result to original H1/H2/JOINT_DEC and complete source generalization. No semantic or public-API adoption follows.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Retrieve the first OriginalPhaseSuffix family’s complete telescope, guard producers, observation contract, future action and source owner; derive its interpretation against the original upper interface while preserving joint witnesses.",
+    "Establish soundness, completeness and extension behavior for each proposed residual operation; distinguish unresolved constraints from completed discharge. Apply result to reviewed once/twice clauses and original H1/H2/JOINT_DEC; never treat a retained reference or guard oracle as solved normalization.",
+    "Trace every level/metadata, older-anchor, bound/evidence, attachment/scope/capture dependency read by candidate_scheme::prepare_candidate_fresh_use and restoration. State the minimal data an exported scheme must preserve after session destruction, and prove a restoration/abstraction argument or exact missing field-law.",
+    "Apply approved displayed-scheme-plus-necessary-information policy: public use must not require replay through the original source definition or retain the whole source relation under another name. No public representation or compiler change is authorized.",
+    "Freeze one proof artifact/handoff and one successor-use correspondence handoff with exact current source pins, writer-stop receipts and independent reviews."
+  ],
+  "accepted_meaning": "Original Call, effect, guard/phase, source generalization, F5 withdrawal and top-level Simple-sub requirements remain fixed. Guarded Catch-image and successor export are conditional research candidates only.",
+  "dependencies": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-10-annotation-effect-hygiene-integration.md": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "notes/design/2026-10-10-simple-sub-legacy-withdrawal.md": "93c2bf1c425522fdb41d0f4120d8430597a6091014741a64546e9fedb7bcf79a",
+    "notes/theory/2026-10-16-guarded-catch-image-normalization.md": "4a92452cf91ee06a5bf55bb07a5f92cce664866c56716b642bf17ad0c92a19d8",
+    "tasks/agent-loop/inbox/20261016-f5-consumer-migration-boundary.md": "62439df2322cc688eb83abf442261721b4e4b282b4fc81be0deaa0c7967c1981",
+    "questions/2026-10-08-successor-generalize-root-policy/approved-answer.md": "e358a5d796f0a26b2d7dbe5891b3d1f21d0ac9089ab655796fa0b696a13194e5",
+    "crates/yu-solver/src/candidate_scheme.rs": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
+    "crates/yu-solver/src/shadow_initialization.rs": "6ea0914a11a4a05d6dde8d63c413cfd42fb887596b3315d998848d502a91715a",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/candidate_context.rs": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f",
+    "notes/theory/2026-10-16-call-suffix-image-demand-construction.md": "11a058d90ca46c9cb58fdff38d532efe3401f0a0131e8ba8567e91af89d689b4",
+    "notes/theory/2026-10-16-catch-image-later-lower-feasibility.md": "63ace8b183386737f4b328a2840a4e1585dc6ede22d9df7ec88a37ea92070e67",
+    "notes/theory/2026-10-16-open-negative-formal-catch-image-design.md": "639b0282ef08d8e3657dde8ee5654333480f5ce194981dbdfa55c546e25334ff",
+    "notes/theory/2026-10-15-call-native-correspondence-construction.md": "9a6bf7a37ec1ead4571422e8216e419ba2a377aee321e80d42905623ef42ba02",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-08-source-generalize-definition.md": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+    "notes/design/2026-10-02-ordinary-computation-semantics-package.md": "ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917",
+    "notes/design/2026-10-02-typed-source-owner-realization.md": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa",
+    "notes/theory/successor-proof-obligations.md": "e192f63930adea325f1be5fc92766fc9b58b938217176cb87d4678e4edd68092",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-dependent-phase-residual-interpretation",
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "Interpret the first retained OriginalPhaseSuffix demand from the original Call/effect parent into effective residual operations, preserving the whole original guards/telescope/futures and lawful later additions.",
+      "method": "Start at reviewed artifact §4, not structural unfolding. Recover original phase-family observation and future action from pinned authoritative source; define only operations justified by that source; establish soundness/completeness/extension for each; apply to once/twice. If it stops, expose the missing primitive law or original-qualified representational counterexample. Retain recursion, FK1 and general source scope as open. Read IF definition §§2–4 only to retrieve the authoritative complete interface/telescope and identify its limits; if the primitive Request/phase owner remains unsupplied, state that exact boundary without treating IF placement as the missing law.",
+      "outputs": [
+        "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
+        "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md"
+      ],
+      "budget": {
+        "active_seconds": 900,
+        "stages": 8,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "First author. Start alone while three historical UNKNOWN reservations remain; after confirmed cessation freeze both outputs."
+    },
+    "implementation": {
+      "assignment_id": "assignment-successor-independent-use-correspondence",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Read-only implementation correspondence packet. Trace every state/metadata/level, bound/evidence, attachment, scope, alias, source capture and older anchor used by candidate_scheme::prepare_candidate_fresh_use and bound restoration, including what is session-local and what is available after solver destruction. Apply the approved root publication policy and determine minimum public scheme-plus-additional-information abstraction. Return a proof/abstraction argument or exact missing field-law. No code edits, public API proposal adoption or cutover.",
+      "outputs": [
+        "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md"
+      ],
+      "budget": {
+        "active_seconds": 600,
+        "stages": 7,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Second author in the same sprint, only after proof writer cessation and descendant reconciliation. Until Luna grants the lease, its output path is planned and no assignment/agent slot is reserved.",
+      "lease_state": "DEFERRED-UNTIL-PROOF-CESSATION-AND-CAPACITY-CHECK"
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
+      "owner": "assignment-dependent-phase-residual-interpretation",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md",
+      "owner": "assignment-dependent-phase-residual-interpretation",
+      "state": "HELD"
+    }
+  ],
+  "review": {
+    "proof": "Fresh isolated compiler_referee not a proof author; assess original full witness, effective residual semantics, soundness/completeness/extension and exact remaining parent.",
+    "implementation": "Fresh isolated architect or regression_auditor not an inventory author; assess source owner reads, lifetime/alias/bound invariants and conformity with approved publication policy.",
+    "budget_seconds": 360,
+    "execution": "After both writers have confirmed cessation: fresh proof review then fresh implementation review, sequentially. Preserve two slots during every author phase and one additional review/integration reservation during each review."
+  },
+  "resource_accounting": {
+    "previous_sprint": "ENDED-PARTIAL-REVIEWED; receipt notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md. No prior seconds or lane remainder transfer.",
+    "historical_unknown": "Three UNKNOWN historical identities/reservations and quarantined tasks/agent-loop/board.md lease remain unchanged.",
+    "fresh_cap_seconds": 2100,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 600,
+      "review": 360,
+      "coordination_and_integration": 120,
+      "reserve": 120
+    },
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "stop": "Stop at exact obstruction/counterexample, any authority/dependency/lease mismatch, lane/aggregate cap, or STOP/session end. No descendants or budget transfer.",
+    "sequencing": "Proof author only first; implementation author only after confirmed proof cessation and capacity recheck; both independent reviews after confirmed cessation of all writers. At most four active/reserved/unknown producers, leaving two sprint slots."
+  },
+  "preserved_open_gates": [
+    "FIRST-RESULT-ADEQUACY",
+    "F1-FULL",
+    "FK1-FOREIGN",
+    "H1/H2/U",
+    "JOINT_DEC",
+    "implementation F5 consumer migration",
+    "source/native soundness",
+    "principality",
+    "production"
+  ],
+  "non_goals": [
+    "No first-Apply/provenance rerun, finite structural unfolding repetition, or synthetic guard oracle.",
+    "No semantic redesign/adoption, source restriction, unresolved-equals-closed shortcut, or public API/compiler changes.",
+    "No code lease; no tests/builds/probes; no editing current state/board/questions, Git, nested CLI, or transfer of remaining time.",
+    "No retention of full source definitions/relations under another name as a proposed public-use shortcut."
+  ],
+  "dispatcher_decision": "next_action_selector proposed this two-author fixed outcome; Luna resource audit found three UNKNOWN reservations and enforced sequential author admission. Selector confirmed proof first, implementation only after confirmed proof cessation, then sequential reviews; no capacity or budget is inferred from elapsed time. Dependency-only rev3 adds the existing authoritative IF definition §§2–4 after a material dependency consultation; it does not grant phase/guard semantics beyond IF-Insert/IF-Use placement.",
+  "next_consultation": "A source-qualified counterexample, exact residual correspondence boundary, newly safe code seam, material authority/dependency/lease/resource change, or sprint end."
+}
