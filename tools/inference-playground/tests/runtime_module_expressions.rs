@@ -148,6 +148,11 @@ fn conditional_expression_results_are_discarded_before_selection() {
 }
 
 #[test]
+fn local_scheme_expression_results_are_discarded_before_selection() {
+    assert_selected(r#"{ my id x = x; my first = id 1; id "str" }; my main = 7"#, "7");
+}
+
+#[test]
 fn forward_alias_expression_calls_discard_results_before_selection() {
     assert_selected(
         r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7",

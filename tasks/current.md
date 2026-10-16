@@ -207,6 +207,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   The scoped cached whitespace check reported only two trailing-space unified-
   diff context markers in frozen receipt031 (lines 35 and 173). They encode empty
   context lines and were preserved as part of the reviewed literal diff.
+  I23 adds paired local-scheme regressions for two `id` uses inside one
+  discarded block expression. The native test retains one module `main` binding
+  and one authentic Expression owner, follows both local Name occurrences to
+  the same `HirLocalId`, matches their original Apply occurrences to the two
+  owner Calls, and checks separate local Value/Effect FreshUse images with no
+  shared row identities or conflicts. The runtime test uses the same source and
+  existing bounded helper, requiring selected `main` to be integer `7`. Both
+  focused tests pass 1/1; R36's M1 regression review is CLEAN for this diff and
+  preservation of prior helpers/assertions. The producer reverified all eleven
+  launch pins; the reviewer matched the three outputs and inspected the manifest
+  but did not independently repeat all eleven input hashes. This fixture-specific
+  test slice adds no semantics or general source/effect-order proof; original
+  source, soundness, principality, F5 and production gates remain OPEN/BLOCKED.
+  No tests were rerun during review or record integration. The scoped cached
+  whitespace check reported only two trailing-space unified-diff context markers
+  in frozen receipt032 (lines 37 and 171), preserved as empty context lines.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

@@ -264,6 +264,129 @@ fn conditional_expression_branches_keep_distinct_fresh_instances() {
 }
 
 #[test]
+fn local_scheme_expression_uses_keep_distinct_fresh_instances() {
+    let text = r#"{ my id x = x; my first = id 1; id "str" }; my main = 7"#;
+    let hir = module(text);
+    let candidate = CandidateInference::solve(hir.clone())
+        .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+    assert!(candidate.candidate_conflicts().is_empty(), "{text}");
+
+    let module_bindings: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(module_bindings.len(), 1, "no synthetic module definition");
+    assert_eq!(module_bindings[0].name().spelling(), "main");
+
+    let expressions: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Expression(expression) => Some(expression),
+            _ => None,
+        })
+        .collect();
+    let [expression] = expressions.as_slice() else {
+        panic!("the block remains one original Expression root");
+    };
+    let root = hir
+        .expression_root(expression.occurrence())
+        .unwrap()
+        .expect("the original block expression root");
+    let owner = SourceRootId::Expression(root.clone());
+    let local = hir
+        .local_source_for(&owner)
+        .unwrap()
+        .expect("the authentic expression root retains its LocalSource");
+    assert_eq!(root.occurrence(), expression.occurrence());
+
+    let local_id = local
+        .bindings()
+        .iter()
+        .find(|binding| binding.spelling.as_ref() == "id")
+        .expect("the genuine local id binding");
+    let name_uses: Vec<_> = local
+        .expressions()
+        .iter()
+        .filter(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name {
+                spelling,
+                resolution: LocalSourceResolution::Local(resolved),
+            } if spelling.as_ref() == "id" && resolved == &local_id.id
+        ))
+        .collect();
+    assert_eq!(name_uses.len(), 2, "both original local id uses are retained");
+    assert_ne!(name_uses[0].occurrence, name_uses[1].occurrence);
+
+    let applications: Vec<_> = local
+        .expressions()
+        .iter()
+        .filter(|expression| matches!(&expression.form, LocalSourceForm::Apply { .. }))
+        .collect();
+    assert_eq!(applications.len(), 2);
+    assert_eq!(candidate.source_call_count(), 2);
+    let calls: Vec<_> = (0..candidate.source_call_count())
+        .map(|index| candidate.source_call(index).unwrap())
+        .collect();
+    assert!(calls.iter().all(|call| call.owner() == &owner));
+    for application in &applications {
+        assert!(calls.iter().any(|call| {
+            &call.source().occurrence == &application.occurrence
+        }), "each Apply Call retains its authentic source occurrence");
+    }
+
+    let mut fresh_rows_by_use = Vec::with_capacity(2);
+    for application in applications {
+        let LocalSourceForm::Apply { callee, .. } = &application.form else {
+            unreachable!();
+        };
+        let callee = &local.expressions()[callee.ordinal() as usize];
+        assert!(name_uses.iter().any(|name| name.occurrence == callee.occurrence));
+        let LocalSourceForm::Name {
+            spelling,
+            resolution: LocalSourceResolution::Local(resolved),
+        } = &callee.form
+        else {
+            panic!("each actual Apply callee is a local Name");
+        };
+        assert_eq!(spelling.as_ref(), "id");
+        assert_eq!(resolved, &local_id.id);
+
+        let fresh_use = candidate
+            .fresh_use(&callee.occurrence)
+            .expect("each original local Name occurrence has its FreshUse route");
+        assert_eq!(fresh_use.occurrence(), &callee.occurrence);
+        let local_rows: Vec<_> = fresh_use
+            .rows()
+            .filter(|row| row.source_row().is_local())
+            .collect();
+        assert!(!local_rows.is_empty(), "each FreshUse has a local row image");
+        for kind in [ComponentKind::Value, ComponentKind::Effect] {
+            assert!(
+                local_rows.iter().any(|row| row.kind() == kind),
+                "each local FreshUse image contains a {kind:?} row"
+            );
+        }
+        fresh_rows_by_use.push(local_rows);
+    }
+
+    let [first, second] = fresh_rows_by_use.as_slice() else {
+        panic!("the two local Name occurrences have distinct FreshUse images");
+    };
+    for row in first {
+        assert!(
+            second.iter().all(|other| !row.same_identity(other)),
+            "independent local Name uses do not share local row identity"
+        );
+    }
+}
+
+#[test]
 fn forward_alias_expression_uses_keep_distinct_fresh_instances() {
     let hir = module(r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7");
     let candidate = CandidateInference::solve(hir.clone()).unwrap();
