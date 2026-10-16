@@ -53,7 +53,7 @@
       "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
     },
     "review": {
-      "state": "READY-COMPILER-REFEREE",
+      "state": "RUNNING-COMPILER-REFEREE",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -67,7 +67,11 @@
       "cap_each_seconds": 80,
       "allocation_reason": "Selector delta adds a distinct proof review for authored R1 and splits existing review budget evenly; no total envelope increase or author restart.",
       "candidate_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
-      "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21"
+      "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
+      "current_reviewer": "compiler_referee",
+      "current_cap_seconds": 80,
+      "session": "current-session",
+      "active_work_receipt": "Actual fresh compiler_referee spawn acknowledged; exact R1/candidate/contract hashes supplied; read-only cap 80s."
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; whole native rho_u, actual consumer, source/native, implementation and production remain OPEN."
   },
@@ -112,13 +116,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Candidate and R1 frozen; primary records rev2 review allocation before first fresh reviewer launch."
+      "receipt": "First sequential reviewer launched and is independently reviewing frozen R1; primary waiting for reviewer STOP."
     },
     {
       "id": "/root/npair_use_certificate_retention",
@@ -156,13 +160,13 @@
     {
       "id": "/root/npair_retention_proof_review",
       "role": "compiler_referee",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "First of three sequential 80s reviews; exact R1/candidate pins recorded; launch not yet acknowledged."
+      "session": "current-session",
+      "receipt": "Actual fresh compiler_referee spawn acknowledged; exact R1/candidate/contract hashes supplied; read-only cap 80s."
     }
   ],
   "leases": [
@@ -242,7 +246,7 @@
     }
   ],
   "next_action": {
-    "state": "READY-COMPILER-REFEREE",
+    "state": "COMPILER-REFEREE-RUNNING",
     "dispatcher": "Selector allocated three sequential fresh 80s reviews within the existing 240s review budget; Luna records rev2 and grants each launch.",
     "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
     "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
@@ -259,7 +263,7 @@
     "active_authors": 0,
     "astra_assignments": 0,
     "charged_total_seconds": 840,
-    "status": "Writers STOPPED; proof and architecture charged 840s; selector assigned existing 240s review budget as three sequential 80s reviews. First reviewer not yet launched.",
+    "status": "First of three sequential reviews actually launched: compiler_referee cap 80s; architect/spec wait for STOP and adjudication.",
     "authors_spent_seconds": 840,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 600,
