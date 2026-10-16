@@ -144,6 +144,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   No inference/runtime semantics changed. Recovered-carrier behavior, whole
   typed-source adequacy, source correspondence and original proof/F5/
   production gates remain OPEN.
+  I19 adds a private event-ordinal-to-checking-identity vector to the native
+  source-reference graph. Lookup validates the unchanged forward map so a
+  repeated source's overwritten occurrence still returns None at the old event
+  ordinal. Fallible reservation precedes registration, and checked capacity
+  accounting includes the extra O(E) fixed-size Arc-backed identity slots. The
+  new inverse-scan comparison/overwrite/byte-accounting unit, native
+  intrusion-observation target, and I18 expression-render CLI control pass 1,
+  3, and 1 tests; R29 and R30 are CLEAN. Checking lookup is expected O(1), with
+  hash-collision worst case O(E); descriptor scans remain, so full iteration
+  is expected O(E*V+E), worst O(E*(V+E)). Measurement budget: 0 processes / 0
+  samples. No source inference semantics, theorem, F5 or production gate
+  changed or closed; all original proof and cutover gates remain OPEN.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

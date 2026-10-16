@@ -14,6 +14,7 @@ pub(super) struct Graph {
     reverse: Vec<Vec<usize>>,
     pub events: Vec<Association>,
     pub checking: HashMap<ConstraintOccurrenceId, usize>,
+    checking_by_event: Vec<ConstraintOccurrenceId>,
     components: Vec<usize>,
     edge_bytes: usize,
     identity_bytes: usize,
@@ -28,7 +29,8 @@ impl Graph {
         Some((value, *self.components.get(ordinal)?))
     }
     pub fn observed_checking(&self, event: usize) -> Option<&ConstraintOccurrenceId> {
-        self.checking.iter().find_map(|(checking, &id)| (id == event).then_some(checking))
+        let checking = self.checking_by_event.get(event)?;
+        (self.checking.get(checking) == Some(&event)).then_some(checking)
     }
     pub fn register_module(&mut self, root: DefinitionRootId, id: DefId) -> Result<(), CollectionAvailabilityError> {
         self.modules.try_reserve(1).map_err(|_| unavailable())?;
@@ -172,7 +174,11 @@ impl Graph {
             let receiver = self.intern(Self::expression_value(source, callee.ordinal() as usize))?;
             self.events.try_reserve(1).map_err(|_| unavailable())?;
             self.checking.try_reserve(1).map_err(|_| unavailable())?;
-            self.checking.insert(ConstraintOccurrenceId::new(expr.occurrence.clone(), 0), self.events.len());
+            self.checking_by_event.try_reserve(1).map_err(|_| unavailable())?;
+            let event = self.events.len();
+            let checking = ConstraintOccurrenceId::new(expr.occurrence.clone(), 0);
+            self.checking.insert(checking.clone(), event);
+            self.checking_by_event.push(checking);
             self.events.push(Association { origin: owners[index], receiver });
         }
         let scratch = checked_usize_sum([
@@ -220,6 +226,7 @@ impl Graph {
             self.identity_bytes,
             checked_capacity_bytes::<Association>(self.events.capacity(), "extrusion associations"),
             checked_capacity_bytes::<(ConstraintOccurrenceId, usize)>(self.checking.capacity(), "source associations"),
+            checked_capacity_bytes::<ConstraintOccurrenceId>(self.checking_by_event.capacity(), "source checking event index"),
             checked_capacity_bytes::<usize>(self.components.capacity(), "Value SCCs"),
         ], "source Value graph")
     }
@@ -279,6 +286,44 @@ mod conditional_reference_tests {
 
     fn expected(source: &LocalSource, names: &[&str]) -> std::collections::HashSet<Value> {
         names.iter().map(|name| named(source, name)).collect()
+    }
+
+    #[test]
+    fn checking_event_lookup_matches_forward_index() {
+        let (mut graph, source) = fixture("my id x = x; my client x = id x");
+        assert!(!graph.events.is_empty());
+        assert_eq!(graph.checking_by_event.len(), graph.events.len());
+
+        let assert_matches_forward_index = |graph: &Graph| {
+            for event in 0..=graph.events.len() {
+                let expected = graph.checking.iter().find_map(|(checking, &index)| {
+                    (index == event).then_some(checking)
+                });
+                assert_eq!(graph.observed_checking(event), expected, "event {event}");
+            }
+        };
+        assert_matches_forward_index(&graph);
+
+        let first_count = graph.events.len();
+        let original = graph.checking_by_event[0].clone();
+        graph.retain_source(&source).unwrap();
+        assert_eq!(graph.checking_by_event.len(), graph.events.len());
+        let newest = graph.events.len() - 1;
+        assert_ne!(newest, 0);
+        assert_eq!(graph.observed_checking(0), None);
+        assert_eq!(graph.observed_checking(newest), Some(&original));
+        assert_eq!(graph.checking.get(&original), Some(&newest));
+        assert!(graph.observed_checking(first_count).is_some());
+        assert_matches_forward_index(&graph);
+
+        let indexed = std::mem::take(&mut graph.checking_by_event);
+        let without_index_bytes = graph.bytes();
+        graph.checking_by_event = indexed;
+        let added_bytes = checked_capacity_bytes::<ConstraintOccurrenceId>(
+            graph.checking_by_event.capacity(),
+            "source checking event index test",
+        );
+        assert_eq!(graph.bytes() - without_index_bytes, added_bytes);
     }
 
     #[test]

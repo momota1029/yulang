@@ -145,8 +145,10 @@ impl<'a> CandidateIntrusionObservation<'a> {
         };
         CandidateSourceValue { ordinal, component, identity }
     }
-    /// Ordered by retained event ordinal. Descriptor lookup scans existing maps;
-    /// a complete event iteration costs O(E * (V + E)), with no allocation.
+    /// Ordered by retained event ordinal. Checking lookup is expected O(1) per
+    /// event (HashMap collision worst case O(E)); descriptor lookup scans the
+    /// Value map. Full iteration is expected O(E * V + E), worst case
+    /// O(E * (V + E)), with no allocation.
     /// Auxiliary fragment nodes are deliberately absent from these endpoints.
     pub fn events(&self) -> impl Iterator<Item = CandidateIntrusionEvent<'a>> + '_ {
         self.references.events.iter().enumerate().map(|(ordinal, event)| CandidateIntrusionEvent {
