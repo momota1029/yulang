@@ -74,7 +74,7 @@
    "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e"
   },
   "review": {
-   "state": "NATIVE-PLAN-REVIEWS-ASSIGNED-SEQUENTIALLY",
+   "state": "NATIVE-ARCHITECT-REVIEW-RUNNING; SPEC-WAITING",
    "budget_seconds": 420,
    "proof_review": {
     "state": "CLEAN-EXACT-FROZEN-ARTIFACT",
@@ -95,16 +95,18 @@
     },
     {
      "id": "ADOPTED-NPAIR-NATIVE-ARCHITECT-REVIEW-20261017",
-     "worker_id": null,
+     "worker_id": "/root/adopted_npair_native_arch_review",
      "role": "architect",
-     "state": "ASSIGNED-NOT-LAUNCHED",
+     "state": "RUNNING",
      "requested_model": "gpt-6.1-sol",
      "requested_effort": "medium",
      "observed_model": "UNKNOWN",
      "observed_effort": "UNKNOWN",
      "cap_seconds": 120,
      "target_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
-     "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e"
+     "handoff_sha256": "4d5ea10e103f275ee00435d90a56e3ef09e34a4b227e0f40b313686726a1321e",
+     "session": "current-session",
+     "acknowledged_contract": "revision 3 / a211872b32f8b5e8eb8af16f8fbca1e9e07578536788e6acf6b5c074ad321050"
     },
     {
      "id": "ADOPTED-NPAIR-NATIVE-SPEC-REVIEW-20261017",
@@ -202,6 +204,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "CLEAN on exact frozen artifact; two stages, full 180s charged; observed model/effort UNKNOWN; no edits/Git/tests/probes/descendants."
+  },
+  {
+   "id": "/root/adopted_npair_native_arch_review",
+   "role": "architect",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Read-only feasibility review acknowledged exact contract rev3 and frozen native plan/handoff hashes; 120s cap; no descendants."
   }
  ],
  "leases": [
@@ -274,7 +287,7 @@
   }
  ],
  "next_action": {
-  "state": "NATIVE-PLAN-FROZEN-AWAITING-SEQUENTIAL-REVIEWS",
+  "state": "NATIVE-ARCHITECT-REVIEW-RUNNING-SPEC-WAITS",
   "proof": "Construct authentic shared-row ingress and two-call transport; apply to original receive gate. Do not assume adopted obligations.",
   "implementation": "Luna/high native readiness map follows proof writer STOP; no code lease.",
   "dispatcher": "Selector delta transferred 60s from reserve to review: total 2100 unchanged; architect 120 then spec auditor 120; no extra compiler-referee review."
