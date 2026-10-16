@@ -176,6 +176,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   budget: 0 processes / 0 samples. No inference semantics, theorem, F5 or
   production gate changed or closed; original proof and cutover gates remain
   OPEN/BLOCKED.
+  I21 replaces `intrusion_into`'s per-event carrier walk and cloned source
+  range with the existing borrowed `conflict_ranges_for` index, initialized
+  lazily only after the first successful event charge. It requests only the
+  first K=min(E,16,384) event occurrences and keeps event order, first-match,
+  fallback, formatting, and output caps. Its three existing CLI controls for
+  expression spans/names, retained source associations, and aggregate output
+  withholding pass 1/1/1; R33 compiler-referee and R34 resource reviews are
+  CLEAN. The bounded prefetch can scan K events and source carriers even if a
+  later work/byte cap renders fewer rows; those scans and allocations are not
+  charged, and the existing helper's infallible allocation behavior remains.
+  Storage is O(U), U<=K, with expected O(K+T) prefetch plus carrier/hash work;
+  rendered lookup is expected O(1). Source-name/excerpt scans remain. No
+  resource-equivalence, whole-renderer linearity, or measured-speed claim.
+  Measurement budget: 0 processes / 0 samples. No inference/runtime semantics,
+  theorem, F5 or production gate changed or closed; original proof and cutover
+  gates remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

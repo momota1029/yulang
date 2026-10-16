@@ -212,17 +212,20 @@ pub(crate) fn intrusion_into(
         observation.pending_total()
     )
     .map_err(cap)?;
+    let mut conflict_ranges = None;
     for event in observation.events() {
         output.observe(1)?;
         let occurrence = event.checking.occurrence();
-        let range = hir.items().iter().find_map(|item| {
-            let local = local_source_for_item(hir, item)?;
-            local
-                .expressions()
-                .iter()
-                .find(|expression| &expression.occurrence == occurrence)
-                .map(|expression| expression.range.clone())
+        let conflict_ranges = conflict_ranges.get_or_insert_with(|| {
+            crate::conflict_ranges_for(
+                hir,
+                observation
+                    .events()
+                    .take(crate::output::WORK_CAP)
+                    .map(|event| event.checking.occurrence()),
+            )
         });
+        let range = conflict_ranges.get(occurrence).copied().flatten();
         write!(
             output,
             "  event {}: origin=v{} (",
@@ -244,7 +247,7 @@ pub(crate) fn intrusion_into(
         )
         .map_err(cap)?;
         if let Some(range) = range {
-            crate::location_into(source, &range, output)?;
+            crate::location_into(source, range, output)?;
         } else {
             output.write_str("source span unavailable").map_err(cap)?;
         }
