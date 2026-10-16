@@ -4,68 +4,52 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-native-port-formation-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
+    "id": "npair-concrete-producer-realization-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
     "revision": 1,
-    "sha256": "3af4ef163a3555d037fa559db8abd2b4c741605dac64453589b7cbd5b69898e9",
-    "state": "REVIEWED-CONDITIONAL-DRAFT-PARENT-OPEN",
-    "baseline": "9948ca23f7034dd67d878257db3df2237a7e66bd",
+    "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
+    "state": "ACTIVE-ASTRA-PROOF-IMPLEMENTATION-WAITING-APPROVAL",
+    "baseline": "d1b706e83",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "STOPPED-FROZEN-RECEIPT",
+      "state": "RUNNING-ACTIVE-RECEIPT-RECEIVED",
       "owner": "astra_prover",
-      "cap_seconds": 900,
-      "artifact": "notes/theory/2026-10-17-npair-native-port-formation.md",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-native-port-formation.md",
-      "milestone": "Astra STOPPED cleanly; concrete-only shared port and all Function children/formal links derived conditionally. Current guards still refuse. Universal C_sym, authentic At, transport and consumer remain open.",
-      "elapsed_seconds_charged": 900,
-      "artifact_sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f",
-      "handoff_sha256": "b2d420b0b528f1a6776d6f6372542de5f6304208220d65abc4d052ea22afed45"
+      "cap_seconds": 720,
+      "artifact": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
+      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 720s/five-stage bound; no descendants/compiler execution."
     },
-    "code_contract": {
-      "state": "STOPPED-FROZEN-REVISION-3",
+    "implementation": {
+      "state": "WAITING-EXPLICIT-USER-APPROVAL",
       "owner": "/root",
-      "cap_seconds": 600,
-      "artifact": "notes/design/2026-10-17-npair-native-port-code-contract.md",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-native-port-code-contract.md",
+      "cap_seconds": 1080,
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md",
       "compiler_code_authority": false,
-      "started_after_proof_stop": true,
-      "elapsed_seconds_charged": 670,
-      "artifact_sha256": "a6b6f37218408b334922c19ff6065bd8bd607294201ec2b371f1376e800c41ce",
-      "handoff_sha256": "6ec84d409f261345ab682c1d37b6d41126fb7d69fff2577ab580bc92a295c3d1",
-      "receipt": "Luna appended only evaluation-order correction after compiler delta STOP; no compiler/test writes.",
-      "revision_1_artifact_sha256": "2ebb6e4c629e520a1017a20fc5cd52f4e0bbfcdb621456e0927e1a639760dc73",
-      "revision_1_handoff_sha256": "ebc6727e49d0d3f4146cef05274d29688bc46daad11949be68da5f89ef6a2533",
-      "revision_2_artifact_sha256": "14a7e2a3a876ef25de48a191eac88c4483b9fb69a82e3c434fbe115793b62754",
-      "revision_2_handoff_sha256": "74cfeb6c0fc8fff4177e66f86af57e720b52e60d933e88e28ea63e37a8fc3f0e"
-    },
-    "previous_sprint": {
-      "id": "local-use-retention-implementation-20261017",
-      "state": "ENDED-REVIEWED-STRUCTURAL-RETENTION-IMPLEMENTED",
-      "receipt": "notes/progress/2026-10-17-local-use-retention-implementation-closeout.md",
-      "sha256": "674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087",
-      "commit": "9948ca23f7034dd67d878257db3df2237a7e66bd"
+      "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
     },
     "review": {
-      "state": "ALL-REVIEWS-STOPPED-CLEAN-CONDITIONAL",
+      "state": "NOT-STARTED",
       "sequence": [
         "compiler_referee:120s",
         "architect:120s",
         "spec_auditor:120s"
       ],
-      "current_reviewer": null,
-      "dispatcher": "Preserve sprint revision 1; proceed through sequential independent review; 1620/2100s conservatively charged, no additional author allocation.",
-      "active_receipt": "Fresh revision-3 spec review active, read-only; no writes/descendants/tests/builds; observed model metadata UNKNOWN.",
-      "finding": "Revision-2 compiler delta review closed both majors and found minor evaluation-order contradiction. Luna made exact 10s correction and froze handoff revision 3; architect/spec remaining 115s each. Compiler review allocation not reopened.",
-      "architect_receipt": "CLEAN within Draft scope; all pins match; ownership/lifetime coherent; accounting remains conditional on stop-before-code gate; STOPPED read-only.",
-      "spec_receipt": "CLEAN within conditional unapplied Draft scope; all four assigned artifact/source pins match; no source/expected-output/compiler authority; STOPPED read-only.",
-      "adjudication": "All major and minor review findings closed in effective revision 3; compiler, architect and spec reviews STOPPED CLEAN within scope. Design remains conditional and unapplied; no code/test authority."
+      "current_reviewer": null
+    },
+    "predecessor": {
+      "id": "npair-native-port-formation-20261017",
+      "state": "REVIEWED-CONDITIONAL-DRAFT-PARENT-OPEN",
+      "commit": "d1b706e83",
+      "design_sha256": "a6b6f37218408b334922c19ff6065bd8bd607294201ec2b371f1376e800c41ce",
+      "handoff_sha256": "6ec84d409f261345ab682c1d37b6d41126fb7d69fff2577ab580bc92a295c3d1",
+      "proof_sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f"
     }
   },
-  "candidate": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
-  "baseline": "9948ca23f7034dd67d878257db3df2237a7e66bd",
-  "scope": "Prove and specify readiness for the adopted native negative formal-pair producer; no source/code/test edits or preflight enabling.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No current worker is RUNNING before actual launch acknowledgment.",
+  "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
+  "baseline": "d1b706e83",
+  "scope": "Prove the reviewed concrete-only producer refinement and locate the authentic At obstruction; implement candidate_effect.rs only after explicit approval. Preserve source preflight and all open parent gates.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No new worker is RUNNING before current-session active receipt.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -109,60 +93,19 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna Draft revision 2 STOPPED/frozen; awaiting fresh revision-2 delta compiler review followed sequentially by architect and spec review. No compiler-code lease."
+      "receipt": "Prior NPAIR evidence sprint integrated and pushed as d1b706e83. New proof-first sprint opened; implementation lane waits for explicit approval of exact reviewed candidate_effect.rs proposal."
     },
     {
-      "id": "/root/npair_native_port_proof",
-      "role": "astra_prover, bounded adopted NPAIR producer formation proof author",
-      "state": "STOPPED",
+      "id": "/root/npair_concrete_producer_refinement",
+      "role": "astra_prover, bounded concrete-only producer refinement proof author",
+      "state": "RUNNING",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 900,
-      "receipt": "STOPPED; frozen proof/handoff hashes recorded. No descendants. Requested Astra/medium; observed UNKNOWN/UNKNOWN.",
-      "elapsed_seconds_charged": 900
-    },
-    {
-      "id": "/root/npair_native_port_compiler_review",
-      "role": "compiler_referee, fresh read-only reviewer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "receipt": "Revision-2 delta review STOPPED. Prior two major findings closed; one minor ordering contradiction reported. No writes/children/tests/builds.",
-      "elapsed_seconds_charged": 60,
-      "assignment": "revision-2 delta review"
-    },
-    {
-      "id": "/root/npair_native_port_arch_review",
-      "role": "architect, fresh read-only revision-3 reviewer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 115,
-      "receipt": "CLEAN bounded architect review; ownership and lifetime coherent; accounting conditional with explicit stop-before-code gate; all pins matched; STOPPED read-only.",
-      "elapsed_seconds_charged": 115
-    },
-    {
-      "id": "/root/npair_native_port_spec_review",
-      "role": "spec_auditor, fresh read-only revision-3 reviewer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 115,
-      "receipt": "CLEAN bounded spec review, all assigned artifact/source hashes matched; parent gates remain open; STOPPED read-only.",
-      "elapsed_seconds_charged": 115
+      "cap_seconds": 720,
+      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 720s/five-stage bound; no descendants/compiler execution."
     }
   ],
   "leases": [
@@ -177,22 +120,20 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-native-port-formation-20261017.md",
+      "path": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "3af4ef163a3555d037fa559db8abd2b4c741605dac64453589b7cbd5b69898e9"
+      "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf"
     },
     {
-      "path": "notes/theory/2026-10-17-npair-native-port-formation.md",
-      "owner": "/root/npair_native_port_proof",
-      "state": "FROZEN",
-      "sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f"
+      "path": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
+      "owner": "/root/npair_concrete_producer_refinement",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-native-port-formation.md",
-      "owner": "/root/npair_native_port_proof",
-      "state": "FROZEN",
-      "sha256": "b2d420b0b528f1a6776d6f6372542de5f6304208220d65abc4d052ea22afed45"
+      "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
+      "owner": "/root/npair_concrete_producer_refinement",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -223,26 +164,27 @@
     }
   ],
   "next_action": {
-    "state": "ACTIVE-SPRINT-READY",
-    "dispatcher": "Selector selected the formal-pair native formation contract outcome at prior sprint end.",
-    "proof": "Astra medium source-to-proof lowering packet first; exact outputs and 900s cap fixed.",
-    "implementation": "Luna/high Draft code contract only after proof author STOP; no compiler code lease."
+    "state": "PROOF-ACTIVE-WAITING-APPROVAL-FOR-CODE",
+    "dispatcher": "At sprint start, selector fixed proof + concrete-only implementation outcome; implementation authority remains conditional on explicit approval.",
+    "proof": "Astra/medium bounded refinement proof 720s, five substantive stages max.",
+    "implementation": "Luna/high candidate_effect.rs exact lease only after approval; no source preflight or test edits."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-native-port-formation-20261017",
-    "cap_seconds": 2100,
-    "astra_proof_cap_seconds": 900,
-    "luna_contract_cap_seconds": 600,
+    "current_sprint_id": "npair-concrete-producer-realization-20261017",
+    "cap_seconds": 2400,
+    "astra_proof_cap_seconds": 720,
+    "luna_implementation_cap_seconds": 1080,
     "reviews_cap_seconds": 360,
     "coordination_seconds": 120,
     "reserve_seconds": 120,
-    "charged_total_seconds": 2100,
-    "active_authors": 0,
+    "charged_total_seconds": 120,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Full 2100s envelope conservatively charged: coordination120, Astra proof900, initial Luna Draft600, review1 compiler120, correction60, delta compiler60, order correction10, architect115, spec115. All writers/reviewers STOPPED; no budget remains."
+    "status": "120s coordination charged. Astra proof active within 720s cap; implementation remains unleased pending explicit user approval."
   },
-  "history": "NPAIR proof frozen and Draft producer contract revision 3 received CLEAN sequential compiler/architect/spec reviews within conditional scope. No code/test/source-admission authority; parent OPEN. Resolved previous-sprint worker receipts and leases compacted under hash-pinned local-use closeout 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Preserve three UNKNOWN reservations and board quarantine; unrelated modified JSON remains untouched.",
+  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved.",
   "checkpoint_commits": [
-    "9948ca23f7034dd67d878257db3df2237a7e66bd"
+    "9948ca23f7034dd67d878257db3df2237a7e66bd",
+    "d1b706e83"
   ]
 }
