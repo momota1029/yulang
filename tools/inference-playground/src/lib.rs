@@ -6,7 +6,7 @@ use output::{Output, cap};
 use std::fmt::Write;
 use std::{io::Read, ops::Range, sync::Arc};
 use yu_hir::shadow::lower_module_with_local_source;
-use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports};
+use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
 use yu_solver::shadow_apply::{CandidateError, CandidateInference};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
@@ -232,10 +232,19 @@ fn prepare(
             output.observe(1)?;
             let occurrence = error.occurrence().occurrence();
             let range = hir.items().iter().find_map(|item| {
-                let HirItem::Binding(binding) = item else {
-                    return None;
+                let source_root = match item {
+                    HirItem::Binding(binding) => {
+                        SourceRootId::Definition(binding.definition_root().clone())
+                    }
+                    HirItem::Expression(expression) => SourceRootId::Expression(
+                        hir.expression_root(expression.occurrence())
+                            .ok()
+                            .flatten()?
+                            .clone(),
+                    ),
+                    _ => return None,
                 };
-                let local = hir.local_source(binding.definition_root()).ok().flatten()?;
+                let local = hir.local_source_for(&source_root).ok().flatten()?;
                 local
                     .expressions()
                     .iter()

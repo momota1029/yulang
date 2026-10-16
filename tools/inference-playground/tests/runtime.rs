@@ -134,6 +134,35 @@ fn cli_type_conflicts_withhold_runtime_output() {
 }
 
 #[test]
+fn discarded_expression_type_conflicts_keep_source_locations() {
+    for (source, line, conditional) in [
+        (
+            "if 1: 1 else: 2;\nmy main = 7",
+            " at 1:",
+            "if 1: 1 else: 2;",
+        ),
+        (
+            "my main = 7;\nif 1: 1 else: 2",
+            " at 2:",
+            "if 1: 1 else: 2",
+        ),
+    ] {
+        let error = run(source).expect_err("a type-conflicting expression must block runtime");
+        assert!(
+            error.starts_with("candidate type conflicts"),
+            "unexpected error category: {error}"
+        );
+        assert!(error.contains(line), "missing original source location: {error}");
+        assert!(
+            error.contains(&format!("\n  {conditional}")),
+            "missing original conditional line: {error}"
+        );
+        assert!(!error.contains("source span unavailable"), "{error}");
+        assert!(!error.contains("unsupported source"), "{error}");
+    }
+}
+
+#[test]
 fn cli_resource_exhaustion_withholds_runtime_output() {
     let source = "my main = { my loop x = loop x; my ignore x = 7; ignore (loop ()) }";
     let result = cli(source, "1000");

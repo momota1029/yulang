@@ -7,20 +7,23 @@ Status: full objective remains active. Native extrusion now schedules current co
 ## Current checkpoint (2026-10-16)
 
 - **Resident research loop (session `2026-10-16-loop-a`):** the dispatcher is
-  `/root/resident_dispatcher_loop_a`; the existing implementer
-  `/root/resident_implementer_idle` remains WAITING with its historical
-  Sol/high request, observed runtime unknown, and no code task or output/inbox
-  lease. The latest remote policy pins implementation to Luna/high, so this
-  idle identity is preserved but is not treated as satisfying that pin. The
-  prover `/root/runtime_source_supplier_proof` remains WAITING with P1 frozen
-  and no ready successor. R1/R2 and P1 are integrated at `58d1c22dd` and
-  `6a1c5cfd1`; R3's bounded source-definition review is integrated at
-  `b86d228c5`; R4 returned a bounded CLEAN candidate review, with acceptance
-  being recorded in this checkpoint. Original source T, ResultBind/context/MODEL,
-  eligibility/generalization, W/Z and production parents remain OPEN; S2 and
-  implementation N1 remain blocked. The latest remote policy commit
-  `5e3b00dca` is integrated. Full role, lease and inbox state is in [the loop
-  board](agent-loop/board.md); consult the dispatcher after this record sync.
+  `/root/resident_dispatcher_loop_a`; implementation stays on the primary at
+  configured Luna/high (runtime-observed settings unknown). The legacy
+  `/root/resident_implementer_idle` remains parked WAITING with its historical
+  Sol/high request and no code lease; the prover `/root/runtime_source_supplier_proof`
+  remains WAITING with P3-R1 frozen and independent review deferred. I2–I5 are
+  pushed as bounded implementation checkpoints: `342f27633` covers expression
+  FreshUse/execution regressions, `e8eadbd69` budgeted runtime resume,
+  `df7bcadf9` borrowed source scheduling, and `902065188` reuse of the program
+  definition index. I6 adds authentic Expression-root source locations for
+  discarded-expression conflicts, with native and public regressions; both
+  focused tests pass 1/1 and the single bounded R12 M1 review is CLEAN. This is
+  a diagnostic-owner correction under the approved module-expression contract;
+  no inference rule or accepted result changed. The I6 code, tests and receipt
+  are integrated in this checkpoint. The original source/admission, soundness,
+  principality, N1, F5 and production gates remain OPEN/BLOCKED. Full role,
+  lease and inbox state is in [the loop board](agent-loop/board.md); the next
+  implementation is selected by the dispatcher after this push.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

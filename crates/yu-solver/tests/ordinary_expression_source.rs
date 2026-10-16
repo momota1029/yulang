@@ -137,6 +137,55 @@ fn expression_origin_uses_freshen_one_definition_at_distinct_value_shapes() {
 }
 
 #[test]
+fn discarded_expression_conditions_still_contribute_type_conflicts() {
+    for text in [
+        "if 1: 1 else: 2;\nmy main = 7",
+        "my main = 7;\nif 1: 1 else: 2",
+    ] {
+        let hir = module(text);
+        let candidate = CandidateInference::solve(hir.clone())
+            .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+        assert!(!candidate.candidate_conflicts().is_empty(), "{text}");
+
+        let expression = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Expression(expression) => Some(expression),
+                _ => None,
+            })
+            .expect("the conditional remains an authentic expression item");
+        let root = hir
+            .expression_root(expression.occurrence())
+            .unwrap()
+            .expect("the original expression root remains available");
+        let owner = SourceRootId::Expression(root.clone());
+        let local = hir
+            .local_source_for(&owner)
+            .unwrap()
+            .expect("the authentic expression root retains local source");
+        assert_eq!(root.occurrence(), expression.occurrence());
+        assert!(candidate.candidate_conflicts().iter().any(|error| {
+            local
+                .expressions()
+                .iter()
+                .any(|expression| &expression.occurrence == error.occurrence().occurrence())
+        }));
+
+        let bindings: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(bindings.len(), 1, "no synthetic definition is introduced");
+        assert_eq!(bindings[0].name().spelling(), "main");
+    }
+}
+
+#[test]
 fn expression_receivers_reuse_supported_nested_constructors() {
     for body in [
         r"(\x -> x) 1",
