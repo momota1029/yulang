@@ -4,89 +4,61 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-commit-retention-repair-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
-    "revision": 2,
-    "sha256": "5816b68d1cfdf2e51e519ba2864154055fe6efbffb2f02037e38b59f7d8b6fc3",
-    "state": "CLEAN-REVIEWS-PENDING-SPRINT-END-RECONCILIATION",
-    "baseline": "ab32591e91d0759620a2b9d3d0d54513fb4a0f73",
+    "id": "local-use-existing-map-retention-20261017",
+    "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
+    "revision": 1,
+    "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0",
+    "state": "PROOF-LEASE-READY",
+    "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
-      "id": "npair-whole-presentation-transport-architecture-20261017",
-      "outcome": "PARTIAL—ARCHITECTURE MAJOR; 1560s charged, 840s retired, no carryover.",
-      "receipt": "notes/progress/2026-10-17-npair-native-architecture-major-closeout.md",
-      "sha256": "8f2d4a449e1fffe5dbef905d5f2bac00c4ad95f0505121a0976c6998fa49dbed"
+      "id": "npair-commit-retention-repair-20261017",
+      "outcome": "REVIEWED-PARTIAL; R1 and repaired Draft accepted only within bounded scopes; no code permission; 1080s charged/120 retired.",
+      "receipt": "notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md",
+      "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "STOPPED",
-      "owner": "/root/npair_use_certificate_retention",
+      "state": "READY-NOT-RUNNING",
+      "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "cap_seconds": 240,
-      "max_stages": 4,
+      "cap_seconds": 360,
+      "max_stages": 6,
       "outputs": [
-        "notes/theory/2026-10-17-npair-use-certificate-retention.md",
-        "tasks/agent-loop/inbox/20261017-npair-use-certificate-retention.md"
-      ],
-      "session": "current-session",
-      "active_work_receipt": "Actual prover spawn acknowledged by collaboration runtime; exact two output leases, frozen contract pin and 240s/four-stage cap supplied.",
-      "artifact_sha256": "c5c069798cd5822918e09438ac7e82e627d562ba0b13f8233ca5709e43f9c922",
-      "handoff_sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514",
-      "receipt": "Four substantive stages; full 240s conservatively charged; writer STOPPED; conditional finite-query R1; current code does not implement retention."
+        "notes/theory/2026-10-17-local-use-existing-map-retention.md",
+        "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md"
+      ]
     },
-    "architecture": {
-      "state": "STOPPED",
+    "proposal": {
+      "state": "WAITING-FOR-PROOF-STOP-AND-REVIEW",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
-        "notes/design/2026-10-17-npair-native-architecture-candidate.md",
-        "tasks/agent-loop/inbox/20261017-npair-commit-retention-architecture-repair.md",
-        "tasks/agent-loop/snapshots/20261017-npair-native-architecture-pre-commit-repair.md"
-      ],
-      "session": "current-session",
-      "active_work_receipt": "Proof writer confirmed STOPPED with frozen R1; Luna starts exact leased Draft-candidate repair within 600s cap.",
-      "artifact_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
-      "handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
-      "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
+        "notes/design/2026-10-17-local-use-retention-code-contract.md",
+        "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md"
+      ]
     },
     "review": {
-      "state": "CLEAN-ALL-REVIEWS",
+      "state": "NOT-LAUNCHED",
       "sequence": [
         "compiler_referee",
         "architect",
         "spec_auditor"
       ],
-      "cap_seconds": 240,
-      "target_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
-      "handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
-      "proof_sha256": "c5c069798cd5822918e09438ac7e82e627d562ba0b13f8233ca5709e43f9c922",
-      "proof_handoff_sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514",
-      "cap_each_seconds": 80,
-      "allocation_reason": "Selector delta adds a distinct proof review for authored R1 and splits existing review budget evenly; no total envelope increase or author restart.",
-      "candidate_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
-      "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
-      "current_reviewer": null,
-      "current_cap_seconds": null,
-      "session": "current-session",
-      "active_work_receipt": "Spec auditor confirmed STOPPED/CLEAN; all three sequential reviewers are stopped. Proof remains conditionally scoped; architecture Draft only.",
-      "proof_verdict": "CLEAN within conditional finite-query R1 scope; no native/parent promotion.",
-      "proof_reviewer": "/root/npair_retention_proof_review",
-      "proof_review_state": "STOPPED",
-      "architect_verdict": "CLEAN within repaired Draft finite registered-query scope; scheduling completeness and future copied-image production remain OPEN.",
-      "architect_reviewer": "/root/npair_retention_architecture_review",
-      "architect_review_state": "STOPPED",
-      "spec_verdict": "CLEAN within repaired Draft finite-query scope; representation remains a proposal requiring user approval; no parent/native/production promotion.",
-      "spec_reviewer": "/root/npair_retention_spec_review",
-      "spec_review_state": "STOPPED"
+      "caps_seconds": [
+        120,
+        120,
+        120
+      ]
     },
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; whole native rho_u, actual consumer, source/native, implementation and production remain OPEN."
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
-  "candidate": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
-  "baseline": "ab32591e91d0759620a2b9d3d0d54513fb4a0f73",
-  "scope": "Prove the retention projection required across FreshUse destruction and final commit, repair the Draft native architecture candidate, and obtain fresh independent architect/spec review; no compiler changes.",
+  "candidate": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
+  "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
+  "scope": "Prove retention only for existing FreshUse structural maps, then prepare a reviewed unapplied code proposal. No compiler source edits or execution; exact implementation representation still awaits user approval.",
   "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No current worker is RUNNING before actual launch acknowledgment.",
   "workers": [
     {
@@ -131,51 +103,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "All three fresh reviewers STOPPED; proof/architecture/spec verdicts recorded for sprint-end reconciliation."
+      "receipt": "Closed prior reviewed-partial sprint and opened fresh existing-map proof sprint; preparing proof launch."
     },
     {
-      "id": "/root/npair_use_certificate_retention",
+      "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Writer STOPPED; four stages; 240s conservatively charged; frozen conditional R1, hashes pinned in active_sprint."
-    },
-    {
-      "id": "/root/npair_retention_architecture_review",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN within repaired Draft finite-query scope; 80s cap; pins verified; STOPPED with no writes/descendants."
-    },
-    {
-      "id": "/root/npair_retention_spec_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN within repaired Draft finite-query scope; 80s cap; all pins verified; STOPPED with no writes/descendants."
-    },
-    {
-      "id": "/root/npair_retention_proof_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN within conditional R1 scope; 80s cap; verified exact pins; STOPPED with no writes/descendants."
+      "session": null,
+      "receipt": "Exact two-path proof lease READY; do not mark RUNNING until actual spawn acknowledgment."
     }
   ],
   "leases": [
@@ -185,46 +124,42 @@
       "state": "QUARANTINED"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
+      "path": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "bdb5f6fb16d7dba84fca79c0197775e2ea23bb3bd49856b324fcd2152b13a6ee"
+      "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0"
     },
     {
-      "path": "notes/theory/2026-10-17-npair-use-certificate-retention.md",
-      "owner": "/root/npair_use_certificate_retention",
-      "state": "FROZEN",
-      "sha256": "c5c069798cd5822918e09438ac7e82e627d562ba0b13f8233ca5709e43f9c922"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-npair-use-certificate-retention.md",
-      "owner": "/root/npair_use_certificate_retention",
-      "state": "FROZEN",
-      "sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514"
-    },
-    {
-      "path": "notes/design/2026-10-17-npair-native-architecture-candidate.md",
+      "path": "tasks/agent-loop/snapshots/20261017-candidate_scheme-pre-local-use-retention.rs",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d"
+      "sha256": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-commit-retention-architecture-repair.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21"
+      "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
+      "owner": "/root/local_use_existing_map_retention",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/snapshots/20261017-npair-native-architecture-pre-commit-repair.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6"
+      "path": "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md",
+      "owner": "/root/local_use_existing_map_retention",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-17-npair-native-architecture-major-closeout.md",
+      "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "8f2d4a449e1fffe5dbef905d5f2bac00c4ad95f0505121a0976c6998fa49dbed"
+      "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     }
   ],
   "pending": [
@@ -234,12 +169,12 @@
       "owner": "formal annotation/Function source-definition and source/native constructor owners"
     },
     {
-      "id": "NPAIR native rho_u: install/capture/fresh-use/commit retention",
-      "state": "OPEN; local conditional J2 only is CLEAN-reviewed",
+      "id": "NPAIR native rho_u and authentic formation/replay",
+      "state": "OPEN; finite-query R1 CLEAN conditionally; current code drops FreshUse maps",
       "owner": "Luna plus exact source/native owners"
     },
     {
-      "id": "N-Transport extrusion/intrusion and association completeness",
+      "id": "N-Transport extrusion/intrusion and future association completeness",
       "state": "OPEN",
       "owner": "Function propagation, extrusion/SCC and publication owners"
     },
@@ -252,34 +187,39 @@
       "id": "mixed/multiple-symbolic coverage; F1/FK1 and independent parent gates",
       "state": "OPEN",
       "owner": "original source signature / theorem owners"
+    },
+    {
+      "id": "user approval for exact internal retention representation/code contract",
+      "state": "OPEN; no compiler code lease",
+      "owner": "Luna to present reviewed exact proposal; user decision required before code"
     }
   ],
   "next_action": {
-    "state": "SPRINT-END-SELECTOR-REQUIRED",
-    "dispatcher": "Fresh sprint-end consultation required after proof/architecture/spec CLEAN within exact bounded scope.",
-    "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
-    "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
+    "state": "PROOF-LEASE-READY",
+    "dispatcher": "Selector proposes existing-map retention proof, then reviewed unapplied patch proposal; user approval gate before any compiler edit.",
+    "proof": "Sol/high 360s: exact source-to-existing-map structural queries and referent lifetime.",
+    "implementation": "Draft exact code contract/proposed diff only after proof review; no code writes or execution."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-commit-retention-repair-20261017",
-    "cap_seconds": 1200,
-    "proof": 240,
+    "current_sprint_id": "local-use-existing-map-retention-20261017",
+    "cap_seconds": 1560,
+    "proof": 360,
     "architecture": 600,
-    "review": 240,
-    "coordination": 60,
-    "reserve": 60,
+    "review": 360,
+    "coordination": 120,
+    "reserve": 120,
     "unknown_reservations_preserved": 3,
     "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 1080,
-    "status": "Proof and architecture author STOPPED; three independent reviews STOPPED with CLEAN bounded-scope verdicts. 1080s charged; unused 120s coordination/reserve to retire at closeout.",
-    "authors_spent_seconds": 840,
-    "review_spent_seconds": 240,
-    "architecture_spent_seconds": 600,
+    "charged_total_seconds": 0,
+    "status": "Fresh sprint; proof not yet launched. Previous sprint 1080s charged/120s retired without carryover.",
+    "authors_spent_seconds": 0,
+    "review_spent_seconds": 0,
+    "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
   },
-  "history": "Prior sprint PARTIAL—ARCHITECTURE MAJOR is archived at notes/progress/2026-10-17-npair-native-architecture-major-closeout.md. CLEAN bounded proof and candidate hashes are in that receipt and the new contract. Three UNKNOWN reservations, board quarantine, and unrelated dirty file are preserved.",
+  "history": "Previous correction sprint closeout records proof/architect/spec CLEAN within bounded conditional/Draft scopes. Three UNKNOWN reservations, board quarantine and unrelated modified JSON are preserved.",
   "checkpoint_commits": [
-    "ab32591e91d0759620a2b9d3d0d54513fb4a0f73"
+    "c2ca891da23d791dfa661c7745864ef3613a32df"
   ]
 }
