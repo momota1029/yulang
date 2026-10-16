@@ -369,7 +369,7 @@ or proof closure.
   review to these frozen bytes and pins. Output: adjudicated P1–P6 and unresolved
   choices; falsifier: any introduced cap, fabricated inflow, lost source case,
   witness conflation or assumption of automatic handler evidence.
-- **NPAIR-SOURCE-ADOPTION-20261017** — Luna owns a later explicit adoption decision.
+- **NPAIR-SOURCE-ADOPTION-20261017** — Luna routes the proposal for a later explicit user decision and records that decision; no adoption or dependent implementation proceeds without the user’s explicit approval.
   Inputs: reviewed proposal, remaining symbolic/consumer choices and original
   source signature. Output: exact adopted rule or retained OPEN decision.
 - **NPAIR-NATIVE-TODO-20261017**, conditional only — after adoption and a new
