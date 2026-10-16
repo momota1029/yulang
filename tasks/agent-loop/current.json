@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 1,
     "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0",
-    "state": "PROOF-FROZEN-PENDING-REVIEW",
+    "state": "PROOF-REPAIR-REQUIRED",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -38,7 +38,7 @@
       "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows."
     },
     "proposal": {
-      "state": "WAITING-FOR-PROOF-REVIEW",
+      "state": "BLOCKED-ON-PROOF-MAJOR",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
@@ -47,7 +47,7 @@
       ]
     },
     "review": {
-      "state": "RUNNING-COMPILER-REFEREE",
+      "state": "MAJOR-PROOF-FINDING",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -60,10 +60,13 @@
       ],
       "proof_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
       "proof_handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
-      "current_reviewer": "compiler_referee",
-      "current_cap_seconds": 120,
+      "current_reviewer": null,
+      "current_cap_seconds": null,
       "session": "current-session",
-      "active_work_receipt": "Actual fresh compiler_referee spawn acknowledged; exact source snapshot, proof/handoff and contract pins supplied; read-only cap 120s."
+      "active_work_receipt": "Compiler-referee STOPPED at 120s cap; major M2 statement defect; current proof bytes frozen pending material-boundary consultation.",
+      "verdict": "MAJOR: M2 equality conclusion contradicts permitted version invalidation; exact finding in reviewer receipt/message. M1/source inventory otherwise accepted in scope.",
+      "reviewer": "/root/local_use_map_retention_review",
+      "review_state": "STOPPED"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
@@ -108,13 +111,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Compiler-referee review running on frozen M1/M2 and exact candidate_scheme snapshot; primary waiting for STOP."
+      "receipt": "Proof reviewer STOPPED with MAJOR; primary records exact finding and consults selector."
     },
     {
       "id": "/root/local_use_existing_map_retention",
@@ -205,13 +208,18 @@
       "id": "user approval for exact internal retention representation/code contract",
       "state": "OPEN; no compiler code lease",
       "owner": "Luna to present reviewed exact proposal; user decision required before code"
+    },
+    {
+      "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
+      "state": "MAJOR-FINDING; equal-answer conclusion must be valid-same-version only or explicit invalidation alternative",
+      "owner": "Luna/selector: versioned proof correction and fresh delta review"
     }
   ],
   "next_action": {
-    "state": "COMPILER-REFEREE-RUNNING",
-    "dispatcher": "Selector proposes existing-map retention proof, then reviewed unapplied patch proposal; user approval gate before any compiler edit.",
-    "proof": "M1/M2 frozen, bounded to actual structural Qmap; independent proof review required. Whole native rho_u remains OPEN.",
-    "implementation": "Unapplied code-contract proposal waits for fresh compiler_referee review; no code writes or execution."
+    "state": "MATERIAL-PROOF-MAJOR-DISPATCH",
+    "dispatcher": "Fresh selector consultation required for MAJOR proof finding and repair authority/resource boundary.",
+    "proof": "M1/source inventory otherwise supported; M2 not accepted until version/invalidation conclusion is repaired and freshly reviewed.",
+    "implementation": "Unapplied proposal blocked on proof repair; no code or compiler source writes."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
@@ -224,10 +232,10 @@
     "unknown_reservations_preserved": 3,
     "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 360,
-    "status": "Proof author STOPPED; fresh compiler_referee review actually launched at 120s cap. Proposal author remains held until review STOP/adjudication.",
+    "charged_total_seconds": 480,
+    "status": "Proof author STOPPED at 360s; compiler_referee STOPPED at 120s with MAJOR M2 version/invalidation mismatch. Proposal remains blocked; material selector consultation required.",
     "authors_spent_seconds": 360,
-    "review_spent_seconds": 0,
+    "review_spent_seconds": 120,
     "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
   },
