@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
     "revision": 2,
     "sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-    "state": "IMPLEMENTATION-RESUME-AUTHORIZED-PENDING-ACK",
+    "state": "ACTIVE-IMPLEMENTATION-RESUMED",
     "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
     "dispatcher": "Cross-lane selector chose dependency-only rev2: add frozen proof artifact/handoff hashes for implementation consumption. Proof remains rev1 conditional evidence; no semantic authority or budget transfer.",
     "proof": {
@@ -33,7 +33,7 @@
       "handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81"
     },
     "implementation": {
-      "state": "RESUME-AUTHORIZED-WAITING-ACK",
+      "state": "RUNNING",
       "assignment": "assignment-authentic-root-export-cut-20261017",
       "outputs": [
         "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
@@ -46,9 +46,9 @@
       "charge_seconds_cap": 360,
       "contract_revision": 2,
       "contract_sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-      "receipt": "Same assignment and exact rev2 output path retained. Baseline reconciliation passed; previous worker stopped before writes. Conservative preflight charge 60/360s; resume cap 300s. Require fresh runtime and explicit acknowledgement of baseline-vs-administrative-HEAD distinction before writing.",
+      "receipt": "Resumed same assignment only after baseline reconciliation. No writes preceded fresh acknowledgement.",
       "worker_id": "/root/authentic_root_export_cut",
-      "runtime_receipt": "Prior runtime stopped before writes with no descendants. Fresh resume receipt pending; same assignment, rev2 hash and sole output path."
+      "runtime_receipt": "Fresh post-stop acknowledgement accepts frozen source baseline cba9d79 and administrative HEAD bf27abe79; rev2 and all 54 pins plus both proof pins verified; sole output accepted; no descendants; 60s preflight charge accepted, remaining cap 300s."
     },
     "review": {
       "state": "NOT-STARTED",
@@ -122,13 +122,13 @@
     {
       "id": "/root/authentic_root_export_cut",
       "role": "implementer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Prior runtime STOPPED before writes. Luna reconciliation: frozen baseline cba9d79 retained; HEAD 5a17109 differs only via current.json and sprint contract administration; source owners unchanged and 54 pins/proof hashes match. Resume awaits fresh ack; no write authority until ack."
+      "receipt": "Fresh resume ack: rev2 and 54/54 pins plus both proof hashes verified; frozen baseline/admin HEAD distinction accepted; exact output accepted; no descendants; remaining cap 300s after 60s charge."
     }
   ],
   "leases": [
@@ -147,9 +147,14 @@
       "path": "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md",
       "owner": "/root/choose_operation_instantiation",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md",
+      "owner": "/root/authentic_root_export_cut",
+      "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author STOPPED. Implementation prior runtime STOPPED pre-write; resume authorized on same assignment after reconciliation, awaiting fresh acknowledgement.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author STOPPED. Implementation author /root/authentic_root_export_cut resumed RUNNING under rev2 after reconciliation; no reviewer active.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -176,12 +181,12 @@
     },
     {
       "id": "SOURCE-FINAL-ROOT-EXPORT-CUT",
-      "state": "RESUME-AUTHORIZED-WAITING-ACK",
+      "state": "RUNNING",
       "owner": "assignment-authentic-root-export-cut-20261017",
-      "needs": "Same rev2 lease. Reconciled source baseline versus administrative HEAD; fresh author acknowledgement required before writing."
+      "needs": "Fresh resume acknowledgement verified before any write; bounded source-owner audit active under rev2."
     }
   ],
-  "next_action": "Resume the same Luna/high assignment under rev2 after the worker acknowledges the frozen-source-baseline reconciliation; preserve 300s remaining and 300s review cap.",
+  "next_action": "Implementation continues within the remaining 300s under the same exact rev2 lease; then STOP/freeze and launch sequential fresh reviews.",
   "adoption_review": {
     "original_findings": [
       "MAJOR: implementation escalation handoff validation",
@@ -205,9 +210,9 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Proof 480/900 under rev1; implementation conservative preflight charge 60/360, resume cap 300; review 0/300; no transfer.",
-    "status": "Source baseline reconciled against administrative HEAD; prior implementation runtime STOPPED pre-write; resume authorized, fresh ack pending.",
-    "sequencing": "No budget reset; exact rev2 and source baseline retained. Resume same implementation assignment after acknowledgement; review only after final STOP. Three UNKNOWN reservations retained."
+    "spent_seconds": "Proof 480/900 under rev1; implementation 60s conservative preflight charge, resumed cap 300/360; review 0/300.",
+    "status": "Proof STOPPED. Implementation resumed after baseline reconciliation and explicit acknowledgement; max 300s remain; review not started.",
+    "sequencing": "Same assignment resumed after STOP, baseline reconciliation and fresh ack. Review only after implementation STOP. Three UNKNOWN reservations retained."
   },
   "integration_outcome": "Proof artifact and handoff frozen under rev1 with exact SHA pins in rev2; conditional only and not semantically adopted.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
