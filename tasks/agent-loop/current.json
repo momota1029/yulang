@@ -15,7 +15,8 @@
     "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md",
     "amendment_revision": 1,
     "implementation_reconciliation_receipt": "notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md",
-    "source_attack_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-source-review.md"
+    "source_attack_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-source-review.md",
+    "core_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-core-review.md"
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
   "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
@@ -121,13 +122,13 @@
       "path": "notes/theory/2026-10-16-call-contextual-effects-core.md",
       "owner": "/root/astra_core",
       "state": "FROZEN",
-      "reason": "Astra assignment completed/STOPPED; exact candidate artifact and handoff hashes frozen awaiting independent review."
+      "reason": "Astra assignment complete and independently reviewed; exact artifact/handoff hashes frozen."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md",
       "owner": "/root/astra_core",
       "state": "FROZEN",
-      "reason": "Astra assignment completed/STOPPED; exact candidate artifact and handoff hashes frozen awaiting independent review."
+      "reason": "Astra assignment complete and independently reviewed; exact artifact/handoff hashes frozen."
     },
     {
       "path": "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
@@ -190,7 +191,7 @@
       "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
     }
   ],
-  "worker_inventory_scope": "Current inventory: only fresh Astra core reviewer reports RUNNING; its session ID is unavailable, so state UNKNOWN and no output write lease. Astra core, Sol source attack, Luna implementation, and both prior reviewers are completed/STOPPED with frozen artifacts and receipts. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Current inventory has no active writers. Astra core, Sol source attack, Luna implementation and all assigned reviewers are completed/STOPPED with frozen, reviewed outputs. Historical legacy identities remain UNKNOWN/reserved. Current contracts/receipts and exact dependency snapshots are retained; no protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -249,12 +250,18 @@
     },
     {
       "id": "ASTRA-CORE-REVIEW",
-      "state": "OPEN",
+      "state": "DONE",
       "owner": "fresh compiler_referee",
-      "needs": "Adversarially review local conditional View case, source/native trace and residual original F1/FK1/FIRST-RESULT obligations; preserve full quantifiers."
+      "needs": "Independent review accepted only the conditional local View constructor and bounded native trace; full F1/FK1/FIRST-RESULT remain OPEN."
+    },
+    {
+      "id": "RESOURCE-ACCOUNTING",
+      "state": "OPEN",
+      "owner": "Luna primary / dispatcher",
+      "needs": "Clarify accounting of five serialized Luna Cargo invocations against four-probe/one-heavy-build caps; preserve spent budgets and do not reset before any next dispatch."
     }
   ],
-  "next_action": "Complete fresh independent review of Astra conditional View derivation; then adjudicate exactly which original local action it discharges while preserving full F1/FK1/FIRST-RESULT OPEN.",
+  "next_action": "Adjudicate resource accounting with dispatcher before authorizing additional work; preserve all conditional proof outcomes and open parent gates.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
