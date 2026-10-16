@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "sprint_id": "concrete-declaration-and-export-root-qualification-20261016",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "46ea212940f3ec3afba5cd87e12d765fa606a342",
+  "goal": "Advance the original inference/F5 goal by qualifying one actual retained choose-phase declaration and one authentic source-selected final export root, keeping their proof obligations independent.",
+  "authority": "Preserve original Simple-sub A/B claims, quantifiers, source domains, complete Call/provider/guard/future obligations, source-Generalize and annotation hygiene. The prior residual proof and fresh-use inventory are bounded inputs only. Approved publication policy remains displayed scheme plus justified necessary information. No semantic redesign, public representation, compiler write or cutover is authorized.",
+  "primary_approval": "Luna validated the next_action_selector sprint-end proposal and review findings, froze exact direct-source pins, and granted sequential proof then read-only source-owner leases. Three historical UNKNOWN identities and the quarantined board lease remain reserved.",
+  "original_parent": {
+    "id": "Call/effect H1/H2/JOINT_DEC and source-Generalize/public-export correspondence; F5 withdrawal remains downstream.",
+    "source": "Qualify D_tail through the original choose declaration at the selected Request/response cut; separately qualify one authentic final root through the existing public-export consumer and current fresh-use route.",
+    "quantifiers": "Keep the original source graph, full guard-family telescope, shared assignment/evidence strategy, provider, pending continuations/futures, foreign alternatives, and every current/later lawful bound/admission. Export correspondence preserves generic/fixed coordinates, alias partitions, live older anchors and lawful independent uses.",
+    "required_direction": "Either identify the exact original declaration with full source/IF interface and derive its observation/action and demand transport, or record the precise missing field/owner. Independently identify one authentic source-selected final root and trace it through capture/fresh-use/restoration under direct source pins; attempt but do not assume the detached export/restore law. No generic residual closure, API adoption or production follows.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "For D_tail, establish the actual original choose declaration, exact IF address, source owner/scope, full dependent telescope, guard producers, Request gluing, lawful response/current-world/future action; derive introduction/elimination and demand transport or return its exact unsupplied field.",
+    "For one source-selected final root, establish its source judgment and registration, candidate root association, generic/fixed partition, older-anchor behavior, and the exact capture -> fresh-use -> bound restoration route through candidate_extrusion.rs and shadow_apply.rs.",
+    "Attempt the standalone abstraction/restoration field law for displayed scheme plus justified finite necessary information, distinguishing independent uses from aliases and live anchors. Do not repeat the internal field inventory or retain the full source relation under another name.",
+    "Keep D_tail qualification and export-root qualification as independent results. Apply each only to its corresponding original parent; list exact remaining premises and falsifiers. Preserve H1/H2/JOINT_DEC, F1/FK1 and production OPEN."
+  ],
+  "accepted_meaning": "Original Call, effects, guards, source-Generalize, F5 withdrawal and top-level Simple-sub obligations are fixed. The D_tail and export abstraction remain research candidates until independently reviewed; approved root policy grants no new public representation or cutover.",
+  "dependencies": {
+    "crates/yu-solver/src/candidate_context.rs": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-solver/src/candidate_extrusion.rs": "2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b",
+    "crates/yu-solver/src/candidate_scheme.rs": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/shadow_initialization.rs": "6ea0914a11a4a05d6dde8d63c413cfd42fb887596b3315d998848d502a91715a",
+    "notes/design/2026-10-02-ordinary-computation-semantics-package.md": "ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917",
+    "notes/design/2026-10-02-typed-computation-core-elaboration.md": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
+    "notes/design/2026-10-02-typed-source-owner-realization.md": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa",
+    "notes/design/2026-10-05-inferred-function-call-views.md": "4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1",
+    "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/design/2026-10-08-source-generalize-definition.md": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+    "notes/design/2026-10-10-annotation-effect-hygiene-integration.md": "a95e048e66465e3be3417f2ce0170aabaa3582bd4aebd5ef00ad2ae5ba65fc18",
+    "notes/design/2026-10-10-simple-sub-legacy-withdrawal.md": "93c2bf1c425522fdb41d0f4120d8430597a6091014741a64546e9fedb7bcf79a",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-16-source-remaining-root-constructor.md": "4f9c483b6f3ca7a41ba3af622f91c17446823724269f2f1473b844b9f534cbd5",
+    "notes/progress/2026-10-16-residual-public-export-review.md": "a65090ec2b1fc200d98c951a5a0c85bbebb4a71f3847d91bde4c332ea3341f0f",
+    "notes/theory/2026-10-15-call-native-correspondence-construction.md": "9a6bf7a37ec1ead4571422e8216e419ba2a377aee321e80d42905623ef42ba02",
+    "notes/theory/2026-10-16-call-suffix-image-demand-construction.md": "11a058d90ca46c9cb58fdff38d532efe3401f0a0131e8ba8567e91af89d689b4",
+    "notes/theory/2026-10-16-catch-image-later-lower-feasibility.md": "63ace8b183386737f4b328a2840a4e1585dc6ede22d9df7ec88a37ea92070e67",
+    "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md": "76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f",
+    "notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md": "9d5ec6a410c2b358187c1fcf105ba9efe5b2f5f9f4ede37ea2bb5364801ff46b",
+    "notes/theory/2026-10-16-guarded-catch-image-normalization.md": "4a92452cf91ee06a5bf55bb07a5f92cce664866c56716b642bf17ad0c92a19d8",
+    "notes/theory/2026-10-16-open-negative-formal-catch-image-design.md": "639b0282ef08d8e3657dde8ee5654333480f5ce194981dbdfa55c546e25334ff",
+    "notes/theory/2026-10-16-source-remaining-root-contract-construction.md": "058c6606ece58867587b20fbb7dcf3ed9de1171b7eb4bb1e071489276c72781a",
+    "notes/theory/successor-proof-obligations.md": "e192f63930adea325f1be5fc92766fc9b58b938217176cb87d4678e4edd68092",
+    "questions/2026-10-08-successor-generalize-root-policy/approved-answer.md": "e358a5d796f0a26b2d7dbe5891b3d1f21d0ac9089ab655796fa0b696a13194e5",
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md": "c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef",
+    "tasks/agent-loop/inbox/20261016-f5-consumer-migration-boundary.md": "62439df2322cc688eb83abf442261721b4e4b282b4fc81be0deaa0c7967c1981",
+    "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md": "2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0",
+    "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-choose-phase-declaration-qualification",
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "Qualify D_tail against one actual original choose declaration and derive that family’s Request/action and supported demand transport, or isolate the exact missing original field.",
+      "method": "Start from pinned source-remaining-root contract as locator evidence only. Trace to the authoritative complete declaration, its IF insertion/use address and the exact consumer/response cut. Check original scope, ordered telescope, guards, Request constructor/eliminator, lawful action and future. If present, derive two-sided demand transport on the same original witness; otherwise return the precise field, owner and missing authority. Do not generalize one qualified clause to all alternatives or to generic GCIN/H1/H2/FK1.",
+      "outputs": [
+        "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
+        "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md"
+      ],
+      "budget": {
+        "active_seconds": 900,
+        "stages": 8,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "First author alone. Freeze both outputs and reconcile descendants before the implementation lease."
+    },
+    "implementation": {
+      "assignment_id": "assignment-source-final-root-export-law",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Read-only source-owner audit for one authentic source-selected final root. Trace the source judgment/registration, candidate root association, generic/fixed partition and older anchors through capture, fresh-use and bound restoration. Inspect both newly pinned direct owners. Then attempt the detached displayed-scheme-plus-necessary-information field law; if the authentic root or abstraction map is missing, state the exact blocker. No code/API changes.",
+      "outputs": [
+        "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
+      ],
+      "budget": {
+        "active_seconds": 360,
+        "stages": 6,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Only after confirmed proof-author cessation and capacity check. The source-root result need not await D_tail success, but may not close any unresolved phase obligation."
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
+      "owner": "assignment-choose-phase-declaration-qualification",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
+      "owner": "assignment-choose-phase-declaration-qualification",
+      "state": "HELD"
+    }
+  ],
+  "review": {
+    "proof": "Fresh isolated compiler_referee, not proof author; assess exact declaration address, full witness/telescope, Request/action and any demand transport; bind to frozen proof artifact and direct dependencies.",
+    "implementation": "Fresh architect/regression_auditor, not inventory author; directly inspect both added source owners and qualified root chain; assess actual export ownership and policy boundary.",
+    "budget_seconds": 300,
+    "execution": "After both authors and descendants STOP, sequential proof then implementation review. Reserve two assignment slots during author phases and one additional review/integration slot during each review."
+  },
+  "resource_accounting": {
+    "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; receipt notes/progress/2026-10-16-residual-public-export-review.md. No time or lane remainder transfers.",
+    "historical_unknown": "Three UNKNOWN historical identities/reservations and quarantined tasks/agent-loop/board.md lease remain unchanged.",
+    "fresh_cap_seconds": 1800,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 360,
+      "review": 300,
+      "coordination": 120,
+      "reserve": 120
+    },
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; leave two assignment slots during author work and review."
+  },
+  "falsifiers": [
+    "A substituted choose declaration/address, omitted original alternative or future, reordered dependent telescope, or changed shared witness refutes D_tail qualification.",
+    "A source-selected root that cannot be associated with the actual source judgment, collapses independent generic frames, splits aliases, freezes a live older anchor, or omits a lawful bound/context/evidence dependency falsifies the proposed export field law."
+  ],
+  "non_goals": [
+    "No compiler/public API edits, semantic adoption, new public representation or production cutover.",
+    "No generic residual solver closure, H1/H2/JOINT_DEC, F1/FK1, first-result adequacy, soundness, principality or F5 gate closure from one clause/root.",
+    "No tests/builds/probes, code writes, external dependency additions, nested CLI, Git by workers, or budget transfer."
+  ],
+  "dispatcher_decision": "At sprint end, next_action_selector proposed this fixed outcome and kept proof/export proof boundaries independent. Luna added the two direct export/restoration owner pins required by the review finding, retained three UNKNOWN reservations, and authorized sequential proof then implementation work. No workers are authorized to modify the contract or broaden dependencies.",
+  "next_consultation": "A newly qualified declaration/root that changes dependencies or authority, a source-qualified counterexample, exact missing supplier, lease/resource boundary, cross-lane integration seam, or sprint end."
+}

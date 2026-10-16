@@ -1,22 +1,22 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "READY",
+  "phase": "NOT_STARTED",
   "session": null,
   "active_sprint": {
-    "id": "residual-and-public-export-correspondence-20261016",
-    "contract": "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json",
-    "revision": 3,
-    "sha256": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab",
-    "state": "ENDED-PARTIAL-REVIEWED",
-    "previous_sprint": "catch-consumer-and-f5-migration-readiness-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md",
-    "dispatcher": "next_action_selector proposed GCIN-RESIDUAL-1 and read-only successor independent-use/public-export correspondence; Luna validated direct source pins and exact leases.",
+    "id": "concrete-declaration-and-export-root-qualification-20261016",
+    "contract": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
+    "revision": 1,
+    "sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
+    "state": "ACTIVE-PROOF-READY",
+    "previous_sprint": "residual-and-public-export-correspondence-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-residual-public-export-review.md",
+    "dispatcher": "next_action_selector proposed separate D_tail declaration and export-root qualifications; Luna added exact missing export/restoration owner pins and froze sequential lanes.",
     "proof": {
-      "state": "FROZEN-PENDING-REVIEW",
-      "assignment": "assignment-dependent-phase-residual-interpretation",
+      "state": "READY",
+      "assignment": "assignment-choose-phase-declaration-qualification",
       "outputs": [
-        "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
-        "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md"
+        "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
+        "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md"
       ],
       "role": "astra_prover",
       "requested_model": "gpt-6-astra",
@@ -24,70 +24,46 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
-      "receipt": "Exact missing supplier/law at primitive declaration -> Request observation/action -> effective residual lowering; IF placement explicitly does not provide it. Six stages, conservative 600/900s; writer stopped; no parent closure.",
-      "runtime_receipt": "Existing author acknowledged exact contract rev3 and new dependency hash before writing; active assignment resumed in current session.",
-      "contract_revision": 3,
-      "contract_sha256": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab",
-      "artifact_sha256": "76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f",
-      "handoff_sha256": "c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef",
-      "worker_state": "STOPPED; model/effort UNKNOWN"
+      "contract_revision": 1,
+      "contract_sha256": "8ebeca77cdc1b3d651f613cfc5d44b8120252d9e95ff1592593a3d25cab0b961",
+      "receipt": "Exact output lease granted; worker not yet launched. Must acknowledge contract rev1 hash before any artifact write."
     },
     "implementation": {
-      "state": "RESULT-REVIEWED-PARTIAL",
-      "assignment": "assignment-successor-independent-use-correspondence",
+      "state": "DEFERRED-UNTIL-PROOF-CESSATION",
+      "assignment": "assignment-source-final-root-export-law",
       "outputs": [
-        "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md"
+        "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md"
       ],
       "role": "implementer",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 600,
-      "receipt": "Author STOPPED after seven stages; conservative charge 600/600s. Handoff rev1 SHA-256 2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0. All 25 contract dependency pins and proof artifact/handoff hashes verified; no descendants, scratch paths, tests, builds, probes, compiler edits or Git operations.",
-      "runtime_receipt": "Spawn returned /root/successor_independent_use_correspondence; current runtime reports RUNNING.",
-      "artifact_sha256": "2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0",
-      "handoff_sha256": "2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0",
-      "worker_state": "STOPPED; model/effort UNKNOWN"
+      "charge_seconds_cap": 360,
+      "receipt": "Read-only source-owner audit; lease and launch deferred until proof author STOPPED and capacity rechecked."
     },
     "review": {
-      "state": "STOPPED-PARTIAL-ADJUDICATED",
-      "budget_seconds": 360,
-      "execution": "Both sequential independent reviews have stopped. Proof review CLEAN. Implementation review found one medium unpinned direct-owner evidence gap and one low wording imprecision. Luna adjudication and sprint-end dispatcher consult pending.",
-      "proof_review": {
-        "reviewer": "/root/residual_proof_review",
-        "state": "STOPPED-CLEAN",
-        "receipt": "Fresh compiler_referee CLEAN for exact missing-input/law result; no substantive findings. Bound to contract 378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab, artifact 76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f, actual handoff c415965efd049fe7ee5255a2c5821b57d371818ba7516548654b9920a1d9bef. All 25 dependency pins matched. No theorem parent closed."
-      },
-      "implementation_review": {
-        "reviewer": "/root/successor_use_review",
-        "state": "STOPPED-WITH-FINDINGS",
-        "receipt": "One medium evidence gap: direct export/restoration owners shadow_apply.rs and candidate_extrusion.rs were hashed but not inspected/pinned by contract rev3; complete owner trace not independently verified. One low factual imprecision: RowKey stores Value/Effect identity; endpoint/node carries polarity. No semantic contradiction or unauthorized API/proof adoption. Frozen handoff 2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0; all 25 existing pins match. Reviewer stopped without writes/tests/builds/probes/Git/delegation.",
-        "finding": "Complete export/restoration owner trace is not independently verified because shadow_apply.rs and candidate_extrusion.rs were absent from contract rev3. Low correction: RowKey=Value/Effect; endpoint/node carries polarity. No semantic contradiction; handoff remains frozen unchanged."
-      }
+      "state": "NOT_STARTED",
+      "budget_seconds": 300,
+      "execution": "All authors and descendants STOP before sequential fresh compiler_referee proof review then architect/regression_auditor implementation review."
     },
-    "open_parent": "GCIN-RESIDUAL-1 and successor graph-to-closed/public scheme independent-use correspondence remain open; direct export/restoration owner trace needs scoped pinned review; all original parent/production gates open.",
+    "open_parent": "D_tail remains to be qualified against an actual original choose declaration; one authentic detached export root and its field law remain open; H1/H2/JOINT_DEC/F1/FK1/F5/principality/production remain open.",
     "leases": [
       {
-        "path": "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
-        "owner": "assignment-dependent-phase-residual-interpretation",
-        "state": "FROZEN"
+        "path": "notes/theory/2026-10-16-choose-phase-declaration-qualification.md",
+        "owner": "assignment-choose-phase-declaration-qualification",
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md",
-        "owner": "assignment-dependent-phase-residual-interpretation",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md",
-        "owner": "assignment-successor-independent-use-correspondence",
-        "state": "FROZEN"
+        "path": "tasks/agent-loop/inbox/20261016-choose-phase-declaration-qualification.md",
+        "owner": "assignment-choose-phase-declaration-qualification",
+        "state": "HELD"
       }
     ]
   },
-  "candidate": "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json",
-  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
-  "scope": "Continue complete type-inference/F5 replacement Goal through original residual interpretation and post-session independent-use publication evidence.",
+  "candidate": "tasks/agent-loop/sprints/concrete-declaration-and-export-root-qualification-20261016.json",
+  "baseline": "46ea212940f3ec3afba5cd87e12d765fa606a342",
+  "scope": "Continue original inference/F5 goal through concrete original-phase declaration qualification and independent source-selected export-root correspondence.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -121,50 +97,6 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
-    },
-    {
-      "id": "assignment-dependent-phase-residual-interpretation",
-      "role": "astra_prover",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current collaboration session; explicit spawn and live runtime receipt",
-      "receipt": "Artifact 76484ee88efeee862b0eb8a128dfb44d17f7e8d0c9caafcc0fb92066189b169f, handoff c415965efd049fe7ee5255a52c5821b57d371818ba7516548654b9920a1d9bef; 600/900 conservative; writer stopped, no descendants."
-    },
-    {
-      "id": "assignment-successor-independent-use-correspondence",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current collaboration session; explicit spawn and live runtime receipt",
-      "receipt": "Handoff SHA-256 2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0; seven stages, conservative charge 600/600s; no descendants or scratch paths."
-    },
-    {
-      "id": "/root/residual_proof_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current collaboration session; explicit spawn receipt",
-      "receipt": "Fresh compiler_referee review STOPPED CLEAN for exact missing-input/law result; no substantive findings; all 25 pins matched; no writes, tests, builds, probes, Git or delegation."
-    },
-    {
-      "id": "/root/successor_use_review",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current collaboration session; explicit spawn receipt",
-      "receipt": "Review stopped with one medium direct-source-pin evidence gap and one low RowKey polarity imprecision; no semantic contradiction; no writes/tests/builds/probes/Git/delegation."
     }
   ],
   "leases": [
@@ -173,24 +105,9 @@
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
       "reason": "Historical writer remains UNKNOWN; not visible in current runtime."
-    },
-    {
-      "path": "notes/theory/2026-10-16-dependent-phase-residual-interpretation.md",
-      "owner": "assignment-dependent-phase-residual-interpretation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-dependent-phase-residual-interpretation.md",
-      "owner": "assignment-dependent-phase-residual-interpretation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md",
-      "owner": "assignment-successor-independent-use-correspondence",
-      "state": "HELD"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; current proof/implementation authors and both sequential reviewers STOPPED. Board lease remains quarantined; no capacity released.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain. Proof author is next; implementation deferred until confirmed proof cessation. Preserve two assignment slots for sequential review/integration.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -204,37 +121,31 @@
       "needs": "No repeat without new discriminator."
     },
     {
-      "id": "GCIN-RESIDUAL-1",
+      "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
       "state": "ASSIGNED",
-      "owner": "assignment-dependent-phase-residual-interpretation",
-      "needs": "Effective sound/complete interpretation of OriginalPhaseSuffix under original guards, telescope, future and later admissions."
+      "owner": "assignment-choose-phase-declaration-qualification",
+      "needs": "Actual declaration, IF address, complete telescope, guard producers, Request gluing, lawful action/future and demand transport or exact missing field."
+    },
+    {
+      "id": "SOURCE-FINAL-ROOT-EXPORT-LAW",
+      "state": "READY-DEFERRED",
+      "owner": "assignment-source-final-root-export-law",
+      "needs": "After proof writer cessation, directly qualify one authentic root and inspect candidate_extrusion.rs / shadow_apply.rs; derive detached field-law or exact blocker."
     },
     {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
       "state": "OPEN",
       "owner": "Original parents",
-      "needs": "Retain distinct; no closure follows from assignment."
+      "needs": "Retain distinct; no closure follows from this assignment."
     },
     {
-      "id": "DEPENDENT-PHASE-PROOF-REVIEW",
-      "state": "DONE-CLEAN-BOUNDED",
-      "owner": "/root/residual_proof_review",
-      "needs": "Exact missing-input/law result reviewed CLEAN; theorem parents remain open."
-    },
-    {
-      "id": "SUCCESSOR-INDEPENDENT-USE-CORRESPONDENCE-REVIEW",
-      "state": "PARTIAL-MEDIUM-FINDING",
-      "owner": "/root/successor_use_review",
-      "needs": "Direct source owners shadow_apply.rs and candidate_extrusion.rs need pinned review; frozen handoff has one low RowKey polarity wording correction."
-    },
-    {
-      "id": "DPRI-DECL-1 / SOURCE-FINAL-ROOT-QUALIFICATION",
-      "state": "READY-PROPOSED",
-      "owner": "Original declaration/source-Generalize owners",
-      "needs": "Qualify one actual D_tail choose declaration and one authentic source-selected export root with exact direct source pins; keep proof obligations independent."
+      "id": "PROOF-REVIEW",
+      "state": "PENDING",
+      "owner": "fresh compiler_referee after all writers stop",
+      "needs": "Review frozen D_tail qualification only in its exact scope."
     }
   ],
-  "next_action": "Current sprint ended partial-reviewed. Selector proposes concrete-declaration-and-export-root-qualification-20261016; Luna must freeze exact pins and leases before launch.",
+  "next_action": "Proof lane is ready; primary will launch one author and require contract-hash acknowledgement before writes.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -246,24 +157,24 @@
   },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
   "resource_accounting": {
-    "historical_unknown": "Three old unknown identities and reservations remain; prior sprint time is not reset or transferred.",
-    "previous_sprint": "Ended partial-reviewed; proof conservatively 600/900, implementation within cap exact cumulative UNKNOWN, reviewers/coordination UNKNOWN; no remaining time transfers.",
-    "current_sprint_id": "residual-and-public-export-correspondence-20261016",
-    "current_sprint_cap_seconds": 2100,
+    "historical_unknown": "Three old unknown identities and reservations remain; no capacity released.",
+    "previous_sprint": "Prior sprint partial-reviewed; no seconds or lane remainder transfer.",
+    "current_sprint_id": "concrete-declaration-and-export-root-qualification-20261016",
+    "current_sprint_cap_seconds": 1800,
     "lane_budgets_seconds": {
       "proof": 900,
-      "implementation": 600,
-      "review": 360,
+      "implementation": 360,
+      "review": 300,
       "coordination_and_integration": 120,
       "reserve": 120
     },
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "proof conservative 600/900; implementation conservative 600/600; review/coordination exact UNKNOWN",
-    "status": "Current sprint authors and reviewers stopped; no budget transfer. Three historical UNKNOWN reservations and board quarantine retained.",
-    "sequencing": "Proof first alone; implementation only after confirmed proof stop. Three UNKNOWN reservations retained; leave two assignment slots during author work and sequential reviews."
+    "spent_seconds": "0 assigned active seconds; coordination exact UNKNOWN",
+    "status": "Fresh envelope only; no prior seconds transferred. Proof author ready, not yet launched.",
+    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; two slots reserved."
   },
-  "integration_outcome": "Partial-reviewed result frozen at notes/progress/2026-10-16-residual-public-export-review.md. Proof obstruction CLEAN; implementation direct-owner trace remains partly unverified; original parent gates open.",
+  "integration_outcome": "Previous sprint partial-reviewed and pushed at 46ea212940f3ec3afba5cd87e12d765fa606a342. New contract rev1 frozen with 38 verified dependency pins; no new author result yet.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md"
 }
