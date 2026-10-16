@@ -1672,7 +1672,7 @@ mod module_expression_tests {
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
-    fn machine(source: &str, opt_in_source: bool) -> Machine {
+    fn runtime_program(source: &str, opt_in_source: bool) -> Arc<RuntimeProgram> {
         let source: Arc<SourceText> = Arc::from(source);
         let parsed = parse_file(
             source.clone(),
@@ -1693,14 +1693,54 @@ mod module_expression_tests {
             )
             .unwrap(),
         );
-        let program =
-            RuntimeProgram::from_hir(hir, super::super::RuntimeEvidence::default()).unwrap();
-        program
-            .start(
-                program.definition_named("main").unwrap(),
-                &program.execution_roots().unwrap(),
-            )
-            .unwrap()
+        RuntimeProgram::from_hir(hir, super::super::RuntimeEvidence::default()).unwrap()
+    }
+
+    fn start(program: &Arc<RuntimeProgram>) -> Machine {
+        let definition = program.definition_named("main").unwrap().clone();
+        let roots = program.execution_roots().unwrap();
+        program.start(&definition, &roots).unwrap()
+    }
+
+    fn machine(source: &str, opt_in_source: bool) -> Machine {
+        start(&runtime_program(source, opt_in_source))
+    }
+
+    fn cache_snapshot(
+        machine: &Machine,
+    ) -> Vec<Option<(ValueHandle, ParameterRole, ViewHandle)>> {
+        machine
+            .cells
+            .iter()
+            .map(|cell| {
+                cell.as_ref().map(|received| {
+                    (received.value, received.interface, received.view)
+                })
+            })
+            .collect()
+    }
+
+    fn integer_count(machine: &Machine, expected: &str) -> usize {
+        machine
+            .values
+            .iter()
+            .filter(|value| {
+                matches!(
+                    &value.kind,
+                    RuntimeValueKind::Integer(text) if text.as_ref() == expected
+                )
+            })
+            .count()
+    }
+
+    fn assert_completed_integer(machine: &Machine, outcome: RuntimeOutcome, expected: &str) {
+        let RuntimeOutcome::Completed(handle) = outcome else {
+            panic!("expected completion with integer {expected}, got {outcome:?}");
+        };
+        assert!(matches!(
+            machine.value(handle).map(|value| &value.kind),
+            Some(RuntimeValueKind::Integer(text)) if text.as_ref() == expected
+        ));
     }
 
     #[test]
@@ -1731,6 +1771,39 @@ mod module_expression_tests {
         );
         assert_eq!(machine.cells.len(), 3); // Two globals and the actual local.
         assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn shared_program_machines_keep_module_root_caches_and_progress_private() {
+        let program = runtime_program(
+            "later; 99; my later = { my value = 11; value }; later; my main = 7",
+            false,
+        );
+        let mut first = start(&program);
+        let mut second = start(&program);
+        assert!(Arc::ptr_eq(&first.program, &second.program));
+
+        assert!(matches!(first.step(), RuntimeOutcome::Running));
+        let first_steps = first.steps();
+        let first_cells = cache_snapshot(&first);
+        let first_frame_depth = first.frames.len();
+
+        let second_outcome = second.run(10_000);
+        assert_completed_integer(&second, second_outcome, "7");
+        assert_eq!(first.steps(), first_steps);
+        assert_eq!(cache_snapshot(&first), first_cells);
+        assert_eq!(first.frames.len(), first_frame_depth);
+
+        let first_outcome = first.run(10_000);
+        assert_completed_integer(&first, first_outcome, "7");
+        assert_eq!(first.steps(), second.steps());
+        assert_eq!(integer_count(&first, "11"), 1);
+        assert_eq!(integer_count(&second, "11"), 1);
+
+        let third = start(&program);
+        assert!(Arc::ptr_eq(&first.program, &third.program));
+        assert!(third.cells.iter().all(Option::is_none));
+        assert_eq!(third.steps(), 0);
     }
 
     #[test]

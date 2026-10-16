@@ -37,7 +37,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   compiler-referee review is CLEAN and verified the byte-boundary/equivalence
   argument. The implementation removes only O(quotes) temporary storage; the
   quote scan remains O(quotes), with no timing claim. Code and frozen receipt
-  are integrated in this checkpoint. The original source/admission, soundness,
+  are integrated in this checkpoint. I9 adds a private regression showing two
+  machines sharing one immutable program keep progress and definition caches
+  separate on the approved forward-reference/discarded-expression fixture.
+  Its focused test passes 1/1; R15's bounded M1 regression review is CLEAN.
+  The test checks owner-local results, equal transition counts, independent
+  materialization and a fresh third machine. It snapshots cache tuples, steps
+  and frame depth only, so it remains fixture-specific evidence. No production
+  code or runtime behavior changed. The original source/admission, soundness,
   principality, N1, F5 and production gates remain OPEN/BLOCKED. Full role,
   lease and inbox state is in [the loop board](agent-loop/board.md); the next
   implementation is selected by the dispatcher after this push.

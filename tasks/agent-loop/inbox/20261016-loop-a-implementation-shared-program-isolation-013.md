@@ -1,0 +1,20 @@
+Request-ID: 20261016-loop-a-implementation-shared-program-isolation-013
+Revision: 1
+From: next_action_selector / resident_dispatcher_loop_a; implementation executed by Luna primary
+To: next_action_selector
+Parent-gate: I9 fixture-specific runtime cache/progress isolation for machines sharing one immutable module-expression program; whole typed-source root adequacy and original Simple-sub/F5 proof and production gates remain OPEN separately.
+Baseline: `6b1cabb64703226abbeb4a783913f97cc0e8d0d9`; direct source and authority pins are recorded in the frozen dispatcher packet.
+Kind: implementation
+Claim/task: Add a private runtime regression showing two machines created from the same `Arc<RuntimeProgram>` keep module-root caches and execution progress private while completing the same existing source fixture.
+Missing-evidence: This fixture does not prove general runtime correctness, typed-source/root adequacy, inference behavior, source/VM correspondence, soundness, principality, or Simple-sub/F5 production readiness.
+Owners: `tools/inference-playground/src/runtime/machine.rs::module_expression_tests`; read-only program ownership and start boundaries are `RuntimeProgram` in `runtime/program.rs` and the approved module-expression runtime contract.
+Depends-on: Authoritative `notes/design/2026-10-16-module-expression-source-owner.md` and reviewed `notes/theory/2026-10-16-runtime-module-expression-roots.md`. Test only; no production code, API, source behavior, or existing expected result changes.
+Scope: Exact `machine.rs` private test module plus this unique receipt. Reuse the existing forward-reference/discarded-expression fixture. Pause the first machine after one transition, complete a second machine sharing the same program, check the first machine's steps/cache/frame depth are unchanged, then complete the first and check both return 7 with equal transition counts and one independently materialized integer 11 each. A third machine started afterward must have empty definition cells. Read handles only through their owning machine.
+Acceptance: Frozen source diff and hashes; the one exact focused Cargo command passes; one independent bounded M1 regression review; primary integrates exact authorized paths. This establishes only the described fixture-specific isolation behavior.
+Proposed-outputs: `tools/inference-playground/src/runtime/machine.rs` and this unique inbox receipt. Dispatcher owns `tasks/agent-loop/board.md`.
+Inputs: `tools/inference-playground/src/runtime/machine.rs` baseline SHA-256 `1cefddf906c3ee99041b4a59229906d07c60dceed358dee820eeb8f4793d1d73`; `tools/inference-playground/src/runtime/program.rs` SHA-256 `b9798ac4c5d93e761582d712114615defa913f858d70e91f170471c8b8912748`; approved module-expression design SHA-256 `ab12b442f4f3d3d11565c89cda82c1cb25b17e943c2851b6bc937252410311e5`; runtime module-expression correspondence SHA-256 `915f99eb5cbd9734c3d1e4e0b778682bf1dbb3a8044ea21d5d77cee9d7250694`.
+Checks/resources: One Cargo process, `CARGO_BUILD_JOBS=2`, timeout 180 seconds, test threads 1, packet <=20 minutes. Each machine is limited to 10,000 transitions. `timeout 180s env CARGO_BUILD_JOBS=2 cargo test -p yu-playground --lib runtime::machine::module_expression_tests::shared_program_machines_keep_module_root_caches_and_progress_private -- --exact --test-threads=1` => exit 0, 1 passed, 0 failed, 14 filtered. `git diff --check` => exit 0. No broader suite, benchmark or extra machine run.
+Prior-work: Extends existing private machine tests for definition-only caches and ordered/discarded expression roots using the same fixture; does not reopen the G4 construction or correspondence gate.
+Stop/escalate: Any pin/lease mismatch, unexpected state/result, changed existing expectation, failed discovery, or timeout stops the packet. Preserve existing behavior and assertions.
+
+Result: The private shared-program isolation regression is implemented and its focused test passes. Independent review, shared-record synchronization, commit and push remain pending.
