@@ -159,6 +159,11 @@ This index is a navigation aid. The listed source document remains authoritative
   view and actual historical reference maps. Original monomorphic formation
   closes; satisfaction, original specialization, generalized/native maps and
   complete installed support remain OPEN.
+  The [source-action/support theorem](../theory/2026-10-16-choose-installed-support-source-substitution.md)
+  now has CLEAN mathematical/source review: one authentic original TERM frame
+  eliminates free this-frame q_c through the entire installed k/h Mono TYPE
+  closure, using actual historical/current maps. Capture/context existence,
+  other assignments, generalized clients and universal/native parents stay OPEN.
   The [declaration/Initial audit](../theory/2026-10-16-choose-source-declaration-initial-installation.md)
   has bounded semantic review: full typed operation Lambda/bootstrap remains
   the missing source owner. Sigma is an independent theorem parameter that

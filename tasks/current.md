@@ -471,6 +471,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   satisfaction. This closes formation for the original monomorphic use only;
   actual source specialization, generalized/native maps and the entire FIX
   walk remain OPEN. No historical dependency is erased by formation alone.
+  The [actual source-action/support proof](../notes/theory/2026-10-16-choose-installed-support-source-substitution.md)
+  now has CLEAN mathematical/source review: it constructs the original scoped
+  TERM allocation before challenges, then follows that same action through
+  historical and current maps with distinct captured fields. The complete
+  installed k/h Mono TYPE census has no free THIS-frame q_c; source IDs,
+  private contracts, guard/alternative/future references and all FIX traversal
+  remain. This closes the structural support gate for that one original
+  monomorphic frame and genuine captures, not capture existence, generalized
+  clients, other assignments, universal eligibility or native correspondence.
   The [declaration/Initial owner audit](../notes/theory/2026-10-16-choose-source-declaration-initial-installation.md)
   has CLEAN bounded semantic review after a minor quantifier correction:
   Sigma_choose is an independent theorem parameter, not an exhibited sealed

@@ -546,6 +546,19 @@ registration/use/capture maps, retaining every open profile/check clause.
 Original monomorphic-use formation is not generalized/native correspondence;
 actual historical eta and full installed FIX remain OPEN. No solve-at-generation
 gate or automatic Remaining-map transport is introduced.
+The follow-on `ordinary_carrier_proof` packet is frozen at
+`notes/theory/2026-10-16-choose-installed-support-source-substitution.md`,
+producer `ed095243...c27f74`, independently mathematical/source CLEAN.
+It constructs the ORIGINAL source TERM action at the real description regions
+before challenge histories and propagates it through the exhibited historical/
+current maps, keeping their captured-field substitutions distinct. The ENTIRE
+installed k/h Mono TYPE closure has no free this-frame q_c, including opaque
+private, world, proof, alternative and future references. No semantic layer,
+new Scope/Generalize or logical-field exemption is introduced. This closes
+only the single-original-allocation structural support gate for genuine
+captures. Existence/admission, generalized clients, other assignments,
+universal eligibility and native/global parents remain OPEN. M2 two reviewers,
+14 dependency pins and static integrity; zero executable measurements.
 A complementary eight-minute inventory audit returned no artifact: all fresh
 prefix boundaries have no B-bearing transport back to U; inherited inactivity
 still needs genuine original Initial evidence. Empty environment/runtime
