@@ -2164,6 +2164,77 @@ mod tests {
     }
 
     #[test]
+    fn candidate_graph_row_hashing_uses_merged_representatives() {
+        use crate::candidate_scheme::{Graph, Row};
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let hir = crate::candidate_lifecycle_retirement::hir(
+            "my loop x = { my helper y = loop y; helper x }",
+        );
+        let candidate = CandidateInference::solve(hir).unwrap();
+        let observation = candidate.intrusion_observation().unwrap();
+        let events: Vec<_> = observation.events().collect();
+        let parents: Vec<_> = observation.parents().collect();
+        let selected = parents
+            .iter()
+            .find(|parent| {
+                parent.copy.ordinal != parent.parent.ordinal
+                    && parent.copy.kind == parent.parent.kind
+                    && parent.copy.representative == parent.parent.representative
+                    && parent.source_events.iter().any(|&event| {
+                        events.get(event).is_some_and(|event| event.same_scc)
+                    })
+            })
+            .expect("nested recursion retains a same-SCC parent/copy merge");
+        let state = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let retained = state.intrusion.parents[selected.ordinal];
+        let copy_key = retained.copy;
+        let parent_key = retained.parent;
+        assert_ne!(copy_key, parent_key, "selected raw parent/copy keys differ");
+        assert_eq!(state.intrusion.rep(copy_key), state.intrusion.rep(parent_key));
+
+        let graph = Graph {
+            source_frontier: Vec::new(),
+            owned_regions: Vec::new(),
+            negative_functions: HashMap::new(),
+            nodes: Vec::new(),
+            rows: vec![
+                Row { key: copy_key, local: false },
+                Row { key: parent_key, local: true },
+            ],
+            bounds: Vec::new(),
+            bound_evidence: Vec::new(),
+            attachment_bundles: Vec::new(),
+            attachment_spans: HashMap::new(),
+            context_views: Vec::new(),
+            root: 0,
+            live_root: 0,
+            boundary: 0,
+        };
+        let first = CandidateGraphRow { state, graph: &graph, index: 0 };
+        let second = CandidateGraphRow { state, graph: &graph, index: 1 };
+        assert_eq!(first.same_identity(second), first == second);
+        assert!(first.same_identity(second));
+
+        let mut first_hasher = DefaultHasher::new();
+        first.hash(&mut first_hasher);
+        let mut second_hasher = DefaultHasher::new();
+        second.hash(&mut second_hasher);
+        assert_eq!(first_hasher.finish(), second_hasher.finish());
+
+        let mut indices = HashMap::new();
+        indices.insert(first, 0);
+        assert_eq!(indices.get(&second), Some(&0));
+        indices.entry(second).or_insert(1);
+        assert_eq!(indices.len(), 1, "merged rows share one index");
+        let (stored, index) = indices.get_key_value(&second).unwrap();
+        assert_eq!(*index, 0);
+        assert_eq!(stored.index, 0);
+        assert!(!graph.rows[stored.index].local);
+    }
+
+    #[test]
     fn candidate_graph_fresh_use_refuses_conflicts_and_preserves_valid_use() {
         for (source, conflicted) in [
             ("my apply f = f 1; my bad = apply 1", true),

@@ -123,6 +123,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   filtered, and R26's M1 review is CLEAN. No production defect, new semantic
   rule, proof closure, F5 completion or production readiness follows; the
   original proof and cutover gates remain OPEN.
+  I17 adds a native regression that selects an actual retained same-SCC
+  parent/copy pair with distinct raw RowKeys and equal canonical
+  representatives, then checks CandidateGraphRow Eq/Hash identity, map
+  deduplication, and retention of the first row's locality. The native test
+  and existing recursive-graph CLI test pass 1/1 each (714 and 21 filtered).
+  R27 and its one-import R27-D1 follow-up are CLEAN; the unused-import warning
+  was removed and the native test rerun warning-free. This fills I12's direct
+  merged-key regression gap only: no production code, inference semantics,
+  theorem, F5 or production gate changed; source correspondence and the
+  original proof/cutover gates remain OPEN.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
