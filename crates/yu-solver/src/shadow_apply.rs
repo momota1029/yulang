@@ -1,5 +1,6 @@
 //! Experimental value projection only; no source Apply typing or admission.
 use crate::*;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
 pub use crate::candidate_call::{CandidateComputationSourcePlan, CandidateDirectionalIntroduction, CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
@@ -525,6 +526,18 @@ impl<'a> CandidateGraphNode<'a> {
             }),
             _ => None,
         }
+    }
+}
+impl PartialEq for CandidateGraphNode<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.graph, other.graph) && self.index == other.index
+    }
+}
+impl Eq for CandidateGraphNode<'_> {}
+impl Hash for CandidateGraphNode<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::from_ref(self.graph).hash(state);
+        self.index.hash(state);
     }
 }
 #[derive(Clone, Copy)]
@@ -1715,6 +1728,7 @@ impl InferenceSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     fn module(text: &str) -> Arc<HirModule> {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(
@@ -2015,6 +2029,44 @@ mod tests {
         assert!(candidate.candidate_conflicts().is_empty());
         assert!(candidate.export(root).is_ok());
     }
+
+    #[test]
+    fn candidate_graph_node_hashing_matches_identity() {
+        let hir = crate::candidate_lifecycle_retirement::hir("my first = 1; my second = 2");
+        let roots: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding.definition_root()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(roots.len(), 2);
+
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let first_graph = candidate.export(roots[0]).unwrap();
+        let first = first_graph.root();
+        let same = first_graph.root();
+        assert_eq!(first == same, first.same_identity(same));
+        assert!(first == same);
+
+        let second = candidate.export(roots[1]).unwrap().root();
+        assert_eq!(first == second, first.same_identity(second));
+        assert!(first != second);
+
+        let independent = CandidateInference::solve(hir.clone()).unwrap();
+        let independent = independent.export(roots[0]).unwrap().root();
+        assert_eq!(first == independent, first.same_identity(independent));
+        assert!(first != independent);
+
+        let mut indices = HashMap::new();
+        indices.insert(first, 0);
+        indices.insert(second, 1);
+        indices.insert(independent, 2);
+        assert_eq!(indices.get(&same), Some(&0));
+        assert_eq!(indices.len(), 3);
+    }
+
     #[test]
     fn candidate_graph_fresh_use_refuses_conflicts_and_preserves_valid_use() {
         for (source, conflicted) in [

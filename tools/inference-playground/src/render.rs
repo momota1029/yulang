@@ -1,4 +1,5 @@
 //! Finite observations of the existing private candidate graph.
+use std::collections::HashMap;
 use std::fmt::Write;
 use yu_hir::{HirItem, HirModule};
 use yu_solver::shadow_apply::{CandidateGraphExport, CandidateGraphNode, CandidateGraphRow};
@@ -10,20 +11,23 @@ pub const OUTPUT_CAP: usize = 4096;
 
 fn intern<'a>(
     nodes: &mut Vec<CandidateGraphNode<'a>>,
+    node_indices: &mut HashMap<CandidateGraphNode<'a>, usize>,
     node: CandidateGraphNode<'a>,
     output: &mut Output,
 ) -> Result<usize, String> {
     output.observe(1)?;
-    if let Some(index) = nodes.iter().position(|prior| prior.same_identity(node)) {
-        return Ok(index);
+    if let Some(index) = node_indices.get(&node) {
+        return Ok(*index);
     }
     if nodes.len() == OUTPUT_CAP {
         return Err(format!(
             "tool output cap exceeded: more than {OUTPUT_CAP} observed nodes"
         ));
     }
+    let index = nodes.len();
     nodes.push(node);
-    Ok(nodes.len() - 1)
+    node_indices.insert(node, index);
+    Ok(index)
 }
 
 pub fn graph(graph: &CandidateGraphExport<'_>) -> Result<String, String> {
@@ -37,7 +41,8 @@ pub(crate) fn graph_into(
     output: &mut Output,
 ) -> Result<(), String> {
     let mut nodes = Vec::new();
-    let root = intern(&mut nodes, graph.root(), output)?;
+    let mut node_indices = HashMap::new();
+    let root = intern(&mut nodes, &mut node_indices, graph.root(), output)?;
     let mut rows: Vec<CandidateGraphRow<'_>> = Vec::new();
     for row in graph.rows() {
         output.observe(1)?;
@@ -60,8 +65,8 @@ pub(crate) fn graph_into(
         }
         bounds.push((
             bound.kind(),
-            intern(&mut nodes, bound.lower(), output)?,
-            intern(&mut nodes, bound.upper(), output)?,
+            intern(&mut nodes, &mut node_indices, bound.lower(), output)?,
+            intern(&mut nodes, &mut node_indices, bound.upper(), output)?,
         ));
     }
     let mut cursor = 0;
@@ -69,7 +74,7 @@ pub(crate) fn graph_into(
         output.observe(1)?;
         if let Some(children) = nodes[cursor].children() {
             for child in children {
-                intern(&mut nodes, child, output)?;
+                intern(&mut nodes, &mut node_indices, child, output)?;
             }
         }
         cursor += 1;
@@ -94,12 +99,7 @@ pub(crate) fn graph_into(
             write!(output, "row r{row_index}").map_err(cap)?;
         } else if let Some(children) = node.children() {
             output.observe(children.len())?;
-            let ids = children.map(|child| {
-                nodes
-                    .iter()
-                    .position(|prior| prior.same_identity(child))
-                    .unwrap()
-            });
+            let ids = children.map(|child| node_indices.get(&child).copied().unwrap());
             write!(
                 output,
                 "Function(argument=n{}, argument-effect=n{}, result-effect=n{}, result=n{})",

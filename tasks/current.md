@@ -52,10 +52,20 @@ Status: full objective remains active. Native extrusion now schedules current co
   pass 1/1. R16's bounded M1 review and R16-C1 exact-diff follow-up are CLEAN;
   C1 confirms the additions preserve all prior assertions and helpers. This
   test-only slice adds no production code or semantics and does not close
-  general inference or proof obligations. The original source/admission,
-  soundness, principality, N1, F5 and production gates remain OPEN/BLOCKED.
-  Full role, lease and inbox state is in [the loop board](agent-loop/board.md);
-  the next implementation is selected by the dispatcher after this push.
+  general inference or proof obligations. I11 gives `CandidateGraphNode` Eq/Hash
+  matching its existing graph-address/index identity and indexes renderer
+  interning and child references with one graph-local map. The node identity
+  test passes 1/1 (711 filtered), and the recursive graph CLI determinism test
+  passes 1/1 (21 filtered). R17's bounded M2 compiler-referee review and R18's
+  performance audit are CLEAN/no major findings. Expected node-index work is
+  O(N+B+F) per graph render with one O(N) map and N≤4096; rendered order still
+  follows the Vec. Existing row scans remain O(R²) and O(N_row R), so this does
+  not claim whole-renderer linearity or measured speedup. Benchmark budget is
+  0 processes/0 samples; no allocation-recovery guarantee was added. The
+  original source/admission, soundness, principality, N1, F5 and production
+  gates remain OPEN/BLOCKED. Full role, lease and inbox state is in
+  [the loop board](agent-loop/board.md); the next implementation is selected
+  by the dispatcher after this push.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
