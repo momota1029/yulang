@@ -138,6 +138,14 @@ fn polymorphic_expression_results_are_discarded_before_selected_definition() {
 }
 
 #[test]
+fn forward_alias_expression_calls_discard_results_before_selection() {
+    assert_selected(
+        r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7",
+        "7",
+    );
+}
+
+#[test]
 fn a_returned_expression_closure_is_discarded_without_invocation() {
     opt_in_assert_selected(&format!("{IO}\\ignored -> io::tick 99; my main = 7"), "7");
 }

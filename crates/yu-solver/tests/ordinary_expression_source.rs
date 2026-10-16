@@ -137,6 +137,95 @@ fn expression_origin_uses_freshen_one_definition_at_distinct_value_shapes() {
 }
 
 #[test]
+fn forward_alias_expression_uses_keep_distinct_fresh_instances() {
+    let hir = module(r"alias 1; alias (\x -> x); my alias = id; my id x = x; my main = 7");
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.source_call_count(), 2);
+
+    let definitions: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(definitions.len(), 3, "no synthetic binder is introduced");
+    let alias = definitions
+        .iter()
+        .find(|binding| binding.name().spelling() == "alias")
+        .expect("the source alias definition");
+    assert!(definitions.iter().any(|binding| binding.name().spelling() == "id"));
+    assert!(definitions
+        .iter()
+        .any(|binding| binding.name().spelling() == "main"));
+
+    let expressions: Vec<_> = hir
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            HirItem::Expression(expression) => Some(expression),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(expressions.len(), 2);
+
+    let mut local_rows_by_use = Vec::with_capacity(expressions.len());
+    for expression in expressions {
+        let root = hir
+            .expression_root(expression.occurrence())
+            .unwrap()
+            .expect("the expression keeps its authentic root");
+        let owner = SourceRootId::Expression(root.clone());
+        let call = (0..candidate.source_call_count())
+            .map(|index| candidate.source_call(index).unwrap())
+            .find(|call| call.owner() == &owner)
+            .expect("each expression retains its authentic Call owner");
+        assert_eq!(&call.source().occurrence, expression.occurrence());
+
+        let source = hir.local_source_for(&owner).unwrap().unwrap();
+        let name_use = source
+            .expressions()
+            .iter()
+            .find(|expression| matches!(
+                &expression.form,
+                LocalSourceForm::Name {
+                    spelling,
+                    resolution: LocalSourceResolution::ModuleDef(resolved),
+                } if spelling.as_ref() == "alias" && resolved == alias.id()
+            ))
+            .expect("the original resolved forward-alias Name");
+        let fresh_use = candidate
+            .fresh_use(&name_use.occurrence)
+            .expect("the original Name occurrence retains its FreshUse route");
+        assert_eq!(fresh_use.occurrence(), &name_use.occurrence);
+
+        let local_rows: Vec<_> = fresh_use
+            .rows()
+            .filter(|row| row.source_row().is_local())
+            .collect();
+        for kind in [ComponentKind::Value, ComponentKind::Effect] {
+            assert!(
+                local_rows.iter().any(|row| row.kind() == kind),
+                "each FreshUse image retains a local {kind:?} row"
+            );
+        }
+        local_rows_by_use.push(local_rows);
+    }
+
+    let [first, second] = local_rows_by_use.as_slice() else {
+        panic!("exactly two expression-origin FreshUse images");
+    };
+    for row in first {
+        assert!(
+            second.iter().all(|other| !row.same_identity(other)),
+            "distinct expression-origin FreshUse images do not share local row identity"
+        );
+    }
+}
+
+#[test]
 fn discarded_expression_conditions_still_contribute_type_conflicts() {
     for text in [
         "if 1: 1 else: 2;\nmy main = 7",
