@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 1,
     "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0",
-    "state": "PROOF-RUNNING",
+    "state": "PROOF-FROZEN-PENDING-REVIEW",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "RUNNING",
+      "state": "STOPPED",
       "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -32,10 +32,13 @@
         "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md"
       ],
       "session": "current-session",
-      "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap."
+      "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap.",
+      "artifact_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
+      "handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
+      "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows."
     },
     "proposal": {
-      "state": "WAITING-FOR-PROOF-STOP-AND-REVIEW",
+      "state": "WAITING-FOR-PROOF-REVIEW",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
@@ -44,7 +47,7 @@
       ]
     },
     "review": {
-      "state": "NOT-LAUNCHED",
+      "state": "READY-COMPILER-REFEREE",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -54,7 +57,9 @@
         120,
         120,
         120
-      ]
+      ],
+      "proof_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
+      "proof_handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
@@ -105,18 +110,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Existing-map proof author actually launched; primary waiting on leased proof output."
+      "receipt": "Proof author STOPPED and frozen; primary preparing fresh independent compiler_referee review."
     },
     {
       "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap."
+      "receipt": "Six stages; full 360s conservatively charged; frozen M1/M2 result; hashes pinned in active_sprint."
     }
   ],
   "leases": [
@@ -140,12 +145,14 @@
     {
       "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
       "owner": "/root/local_use_existing_map_retention",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md",
       "owner": "/root/local_use_existing_map_retention",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c"
     },
     {
       "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
@@ -197,10 +204,10 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-RUNNING",
+    "state": "READY-COMPILER-REFEREE",
     "dispatcher": "Selector proposes existing-map retention proof, then reviewed unapplied patch proposal; user approval gate before any compiler edit.",
-    "proof": "Sol/high 360s: exact source-to-existing-map structural queries and referent lifetime.",
-    "implementation": "Draft exact code contract/proposed diff only after proof review; no code writes or execution."
+    "proof": "M1/M2 frozen, bounded to actual structural Qmap; independent proof review required. Whole native rho_u remains OPEN.",
+    "implementation": "Unapplied code-contract proposal waits for fresh compiler_referee review; no code writes or execution."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
@@ -211,11 +218,11 @@
     "coordination": 120,
     "reserve": 120,
     "unknown_reservations_preserved": 3,
-    "active_authors": 1,
+    "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 0,
-    "status": "Existing-map proof actually launched at 360s cap; proposal author and reviews wait for proof STOP/review.",
-    "authors_spent_seconds": 0,
+    "charged_total_seconds": 360,
+    "status": "Existing-map proof writer STOPPED at full 360s conservative charge; compiler_referee review is next; no compiler files changed.",
+    "authors_spent_seconds": 360,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
