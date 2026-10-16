@@ -356,6 +356,79 @@ fn foreign_expression_plan_cannot_enter_another_artifact() {
 }
 
 #[test]
+fn definition_root_validation_preserves_program_ownership() {
+    let source = "my first = { my value = 11; value }; 99; my main = 7";
+    let local = program(source);
+    let source_text: Arc<SourceText> = Arc::from(source);
+    let parsed = parse_file(
+        source_text.clone(),
+        Arc::new(scan_header(source_text)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let foreign_hir = lower_module(
+        ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "runtime-module-expressions-foreign",
+            "test.yu",
+        ))),
+        &parsed,
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let foreign = RuntimeProgram::from_hir(Arc::new(foreign_hir), RuntimeEvidence::default())
+        .unwrap();
+    assert_ne!(
+        local.definition_named("main").unwrap(),
+        foreign.definition_named("main").unwrap()
+    );
+    assert_ne!(
+        local.definition_named("first").unwrap(),
+        foreign.definition_named("first").unwrap()
+    );
+    let roots = local.execution_roots().unwrap();
+
+    assert_eq!(roots.len(), 2);
+    assert!(matches!(
+        &roots[0],
+        ExecutionRoot::Definition(id) if id == local.definition_named("first").unwrap()
+    ));
+    assert!(matches!(&roots[1], ExecutionRoot::Expression(_)));
+
+    match local.start(foreign.definition_named("main").unwrap(), &roots) {
+        Err(RuntimeUnavailable::MissingDefinition) => {}
+        Err(error) => panic!("unexpected foreign selected-definition error: {error:?}"),
+        Ok(_) => panic!("foreign selected definition was unexpectedly accepted"),
+    }
+
+    let mut foreign_first = roots.clone();
+    foreign_first[0] = ExecutionRoot::Definition(foreign.definition_named("first").unwrap().clone());
+    match local.start(local.definition_named("main").unwrap(), &foreign_first) {
+        Err(RuntimeUnavailable::MissingDefinition) => {}
+        Err(error) => panic!("unexpected foreign scheduled-definition error: {error:?}"),
+        Ok(_) => panic!("foreign scheduled definition was unexpectedly accepted"),
+    }
+
+    let mut duplicate_first = roots.clone();
+    duplicate_first.push(ExecutionRoot::Definition(
+        local.definition_named("first").unwrap().clone(),
+    ));
+    assert!(matches!(
+        local.start(local.definition_named("main").unwrap(), &duplicate_first),
+        Err(RuntimeUnavailable::ModuleInitializationOrder)
+    ));
+
+    let mut machine = local
+        .start(local.definition_named("main").unwrap(), &roots)
+        .unwrap();
+    let RuntimeOutcome::Completed(value) = machine.run(30_000) else {
+        panic!("expected selected definition to complete");
+    };
+    let RuntimeValueKind::Integer(value) = &machine.value(value).unwrap().kind else {
+        panic!("expected integer selection");
+    };
+    assert_eq!(value.as_ref(), "7");
+}
+
+#[test]
 fn unavailable_or_recovered_expression_source_is_never_skipped() {
     for source in ["(1, 2); my main = 7", "f(@missing); my main = 7"] {
         assert!(matches!(

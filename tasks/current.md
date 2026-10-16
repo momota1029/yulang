@@ -115,6 +115,14 @@ Status: full objective remains active. Native extrusion now schedules current co
   tests); R25 is CLEAN within this kernel test's scope. Source-event
   construction, post-mutation resealing, general inference correctness,
   principality, F5 and production readiness remain open.
+  I16 adds a runtime regression for foreign selected/scheduled Definition IDs,
+  duplicate local Definition roots and successful execution of the original
+  plan. The first attempt used identical FileKeys and failed because stable
+  DefIds from the same module are equal; a bounded test-only repair lowers the
+  foreign program under a distinct FileKey. The focused test passes 1/1 with 13
+  filtered, and R26's M1 review is CLEAN. No production defect, new semantic
+  rule, proof closure, F5 completion or production readiness follows; the
+  original proof and cutover gates remain OPEN.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
