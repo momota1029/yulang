@@ -1,8 +1,8 @@
-# Post-solve snapshot API readiness handoff
+# Post-solve snapshot API sprint outcome and readiness handoff
 
 Sprint `npair-postsolve-snapshot-capability-20261017`, revision 1; contract
 SHA-256 `3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637`.
-Assignment `NPAIR-POSTSOLVE-SNAPSHOT-API-CONTRACT-20261017`, handoff revision 1.
+Assignment `NPAIR-POSTSOLVE-SNAPSHOT-API-CONTRACT-20261017`, handoff revision 2.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN.
 
 Author Luna/high primary; exact outputs are this handoff and
@@ -46,3 +46,29 @@ measured 142s and charged 180s; readiness conservatively charged at its full 300
 transfer, resource retention, owner identity, unproved quiescence, incomplete
 evidence, and exact separation from source semantics. No code follows without a
 new implementation gate.
+
+## Final review disposition
+
+All authors and reviewers STOPPED. Fresh sequential receipts:
+
+- `compiler_referee` STOPPED with no correctness defect in the conditional
+  ownership/API direction. It confirmed the physical-storage and
+  quiescence/evidence prerequisites remain BLOCKING before code, and noted the
+  resource-probe path must transfer accounting before its explicit drops.
+- `architect` STOPPED: retain only as candidate architecture. Before code,
+  specify candidate-only transfer placement, probe accounting transfer, nested
+  capacities and release on candidate owner destruction. Quiescence and
+  evidence completeness remain open.
+- `spec_auditor` STOPPED CLEAN for structural proposal only. It confirms the
+  probe and final-drop details are blocking before code, but can remain deferred
+  in this explicitly non-ready proposal. No adopted semantics or parent closure.
+
+Final result: the post-solve physical vectors are absent from the returned
+owner. A move-only retention direction is specified, but the exact resource
+lifecycle contract, successful quiescence predicate, complete evidence and
+antecedent authentication are not closed. Implementation remains WAITING; no
+source-code lease. Parent and production remain OPEN.
+
+Accounting: 780s charged of 960s: coordination60, proof180, readiness300,
+reviews240. Proof lane measured142s; its unused120s was not transferred. The
+60s reserve remains. No tests, builds, probes, Cargo or compiler execution.
