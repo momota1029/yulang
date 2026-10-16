@@ -53,7 +53,7 @@
       "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
     },
     "review": {
-      "state": "RUNNING-ARCHITECT",
+      "state": "READY-SPEC-AUDITOR",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -68,13 +68,16 @@
       "allocation_reason": "Selector delta adds a distinct proof review for authored R1 and splits existing review budget evenly; no total envelope increase or author restart.",
       "candidate_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
       "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
-      "current_reviewer": "architect",
-      "current_cap_seconds": 80,
+      "current_reviewer": null,
+      "current_cap_seconds": null,
       "session": "current-session",
-      "active_work_receipt": "Actual fresh architect spawn acknowledged after compiler_referee STOP/CLEAN; candidate and R1 hashes supplied; read-only cap 80s.",
+      "active_work_receipt": "Architect confirmed STOPPED and CLEAN in bounded scope; spec_auditor is next.",
       "proof_verdict": "CLEAN within conditional finite-query R1 scope; no native/parent promotion.",
       "proof_reviewer": "/root/npair_retention_proof_review",
-      "proof_review_state": "STOPPED"
+      "proof_review_state": "STOPPED",
+      "architect_verdict": "CLEAN within repaired Draft finite registered-query scope; scheduling completeness and future copied-image production remain OPEN.",
+      "architect_reviewer": "/root/npair_retention_architecture_review",
+      "architect_review_state": "STOPPED"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; whole native rho_u, actual consumer, source/native, implementation and production remain OPEN."
   },
@@ -119,13 +122,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Architect review running on frozen candidate and R1 after proof review STOP/CLEAN; primary waiting for STOP."
+      "receipt": "Architect STOPPED/CLEAN in scope; primary records adjudication and prepares final spec review."
     },
     {
       "id": "/root/npair_use_certificate_retention",
@@ -141,13 +144,13 @@
     {
       "id": "/root/npair_retention_architecture_review",
       "role": "architect",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual fresh architect spawn acknowledged after compiler_referee STOP/CLEAN; candidate and R1 hashes supplied; read-only cap 80s."
+      "receipt": "CLEAN within repaired Draft finite-query scope; 80s cap; pins verified; STOPPED with no writes/descendants."
     },
     {
       "id": "/root/npair_retention_spec_review",
@@ -249,7 +252,7 @@
     }
   ],
   "next_action": {
-    "state": "ARCHITECT-RUNNING",
+    "state": "READY-SPEC-AUDITOR",
     "dispatcher": "Selector allocated three sequential fresh 80s reviews within the existing 240s review budget; Luna records rev2 and grants each launch.",
     "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
     "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
@@ -265,10 +268,10 @@
     "unknown_reservations_preserved": 3,
     "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 920,
-    "status": "Compiler-referee STOPPED/CLEAN within conditional scope; architect review actually launched at 80s cap; spec waits for STOP/adjudication.",
+    "charged_total_seconds": 1000,
+    "status": "Compiler-referee CLEAN in R1 scope; architect CLEAN in Draft finite-query scope and STOPPED. Spec-auditor is next at 80s cap.",
     "authors_spent_seconds": 840,
-    "review_spent_seconds": 80,
+    "review_spent_seconds": 160,
     "architecture_spent_seconds": 600,
     "coordination_spent_seconds": 0
   },
