@@ -63,6 +63,20 @@ fn explicit_else_returns_the_selected_branch_value() {
 }
 
 #[test]
+fn multi_arm_conditionals_preserve_selected_values_and_unit() {
+    for (body, expected) in [
+        ("if true: 11 elsif true: 13 else: 9", "11\n"),
+        ("if false: 11 elsif false: 13 elsif true: 7 else: 9", "7\n"),
+        ("if false: 11 elsif false: 13 elsif false: 7 else: 9", "9\n"),
+        ("if false: 11 elsif true: 7", "()\n"),
+        ("if false: 11 elsif false: 7", "()\n"),
+    ] {
+        let source = format!("my main = {body}");
+        assert_eq!(run(&source).unwrap(), expected, "{source}");
+    }
+}
+
+#[test]
 fn positive_integer_display_preserves_arbitrary_precision() {
     let digits = "1234567890123456789012345678901234567890123456789012345678901234567890";
     assert_eq!(

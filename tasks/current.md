@@ -350,6 +350,24 @@ Status: full objective remains active. Native extrusion now schedules current co
   This behavior-preserving ownership transfer changes no semantics, theorem or
   proof gate; original source, soundness, principality, F5 and production gates
   remain OPEN/BLOCKED.
+  I31 transfers the conditional Code Arc at the first and subsequent test
+  scheduling points into the existing `Frame::Condition`, copying the selected
+  test Label before each move. Test/body order, arm indices, environments,
+  Boolean errors, branch/else selection, omitted-else discard/Unit behavior,
+  and transitions remain intact. The new runtime regression covers first arm,
+  later arm, else, and both taken/untaken omitted-else cases; prior assertions
+  remain unchanged. Both assigned tests pass 1/1 (18 and 17 filtered), with no
+  warnings. R45-C1's bounded M1 compiler review is CLEAN: after correcting only
+  a typo in the review message's `runtime.rs` baseline pin, it verified both
+  transfers, all five cases, and exact baseline reconstruction. No tests were
+  rerun in review or integration. Producer requested Luna/high and reviewer
+  Sol/medium; observed settings are UNKNOWN. Verification was exactly two
+  focused Cargo commands; measurement budget was 0 processes / 0 samples. The
+  scoped whitespace finding is the preserved single-space diff-context marker
+  in receipt042 (line 104). This removes one temporary Arc clone/drop pair per
+  scheduled condition test; no timing, general runtime theorem, semantic change
+  or proof/production gate closure is claimed. Original gates remain
+  OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

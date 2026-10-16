@@ -520,13 +520,14 @@ impl Machine {
             Instruction::Block { .. } => self.begin_local(code, 0, environment)?,
             Instruction::If { arms, else_branch } => {
                 if let Some((test, _)) = arms.first() {
+                    let test = *test;
                     self.frames.push(Frame::Condition {
-                        conditional: code.clone(),
+                        conditional: code,
                         arm: 0,
                         environment,
                     });
                     self.state = State::Evaluate {
-                        code: *test,
+                        code: test,
                         environment,
                     };
                 } else if let Some(branch) = else_branch {
@@ -884,12 +885,13 @@ impl Machine {
                         environment,
                     };
                 } else if let Some((test, _)) = arms.get(arm + 1) {
+                    let test = *test;
                     self.state = State::Evaluate {
-                        code: *test,
+                        code: test,
                         environment,
                     };
                     self.frames.push(Frame::Condition {
-                        conditional: conditional.clone(),
+                        conditional,
                         arm: arm + 1,
                         environment,
                     });
