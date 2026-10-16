@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
   "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-  "state": "PROOF-RUNNING",
+  "state": "PROOF-REVIEW-READY",
   "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": {
@@ -37,7 +37,7 @@
     "id": "NPAIR-WHOLE-PRESENTATION-TRANSPORT-20261017",
     "role": "astra_prover",
     "worker_id": "/root/npair_whole_presentation_transport",
-    "state": "RUNNING",
+    "state": "STOPPED",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
@@ -48,7 +48,9 @@
      "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md"
     ],
     "session": "current-session",
-    "active_work_receipt": "Constructive conditional source-rule anchor lemma explicit: X/Y/Z and adopted x form at beta=1; g boundary beta; freshening preserves x/Z when supplied current representatives are classified <=beta. Inner+ rebuilds over Unit/Int and anchors; actual stored Inner+ <: R1 is captured+restored or remains live/shared. Composing g published link with its second negative Function demand derives Q+ <: J2, retaining ambient At/provider/dependencies/lexical scope and adding use u/gamma_u without conflating cloned contributions. Conditional on actual NPAIR/At and representative correspondence; not whole native rho_u or source emission."
+    "active_work_receipt": "Writer STOPPED after freeze; seven stages; 516s observed, 600s conservatively charged; unused 600 retired. Conditional source-rule anchored J2 result; whole native rho_u OPEN.",
+    "artifact_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
+    "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3"
    }
   ],
   "architecture_lane": {
@@ -68,7 +70,16 @@
    "coordination": 120,
    "reserve": 120
   },
-  "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained."
+  "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained.",
+  "review": {
+   "state": "COMPILER-REFEREE-READY",
+   "required": [
+    "compiler_referee"
+   ],
+   "budget_seconds": 120,
+   "target_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
+   "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3"
+  }
  },
  "candidate": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
  "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
@@ -111,13 +122,13 @@
   {
    "id": "/root/npair_whole_presentation_transport",
    "role": "astra_prover",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Conditional source-rule anchor lemma derived to Q+ <: J2; whole native rho_u, actual native NPAIR/At emission, non-anchor replay and representative correspondence remain open. Author freezing exact proof and handoff."
+   "receipt": "Writer STOPPED after freeze; seven stages; 516s observed, 600s conservatively charged. Conditional anchor/J2 derivation; full native rho_u OPEN."
   }
  ],
  "leases": [
@@ -129,12 +140,14 @@
   {
    "path": "notes/theory/2026-10-17-npair-whole-presentation-transport.md",
    "owner": "/root/npair_whole_presentation_transport",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md",
    "owner": "/root/npair_whole_presentation_transport",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719"
   }
  ],
  "pending": [
@@ -145,8 +158,8 @@
   },
   {
    "id": "NPAIR whole-presentation rho_u at install/capture/fresh use",
-   "state": "RUNNING",
-   "owner": "/root/npair_whole_presentation_transport"
+   "state": "PENDING-INDEPENDENT-REVIEW",
+   "owner": "fresh compiler_referee"
   },
   {
    "id": "N-Transport extrusion/intrusion and association completeness",
@@ -165,10 +178,10 @@
   }
  ],
  "next_action": {
-  "state": "SPRINT-START-DISPATCH-ACCEPTED",
-  "dispatcher": "Selector recommends fresh 2400s proof+architecture sprint: prove rho_u then reviewed non-authoritative native architecture candidate; no compiler lease.",
-  "proof": "Construct complete dependent presentation fresh-use map and apply to actual J2; fresh compiler-referee review required.",
-  "implementation": "Luna prepares a concrete architecture candidate only after proof adjudication; actual consumer may remain an exact blocker; user approval needed before any new architecture is implemented."
+  "state": "PROOF-REVIEW-READY",
+  "dispatcher": "Current sprint proceeds under frozen selector plan; proof author STOPPED at 600/1200s, exact review target frozen.",
+  "proof": "Conditional anchored source-rule route gives Q+ <: J2 under actual NPAIR/At, stored-bound and representative premises; fresh independent compiler-referee review required.",
+  "implementation": "Luna architecture lane remains WAITING until primary adjudicates proof review; compiler lease still absent."
  },
  "resource_accounting": {
   "current_sprint_id": "npair-whole-presentation-transport-architecture-20261017",
@@ -179,11 +192,12 @@
   "coordination": 120,
   "reserve": 120,
   "unknown_reservations_preserved": 3,
-  "active_authors": 1,
-  "astra_assignments": 1,
-  "charged_total_seconds": 0,
+  "active_authors": 0,
+  "astra_assignments": 0,
+  "charged_total_seconds": 600,
   "review_reserved": 360,
-  "status": "Astra proof assignment RUNNING after current-session launch acknowledgment; 1200s cap, active time not yet charged."
+  "status": "Proof author STOPPED at 600/1200s; proof referee review ready; architecture author waits for adjudication.",
+  "authors_spent_seconds": 600
  },
  "history": "Prior proof, proposal adoption and corrected readiness plan hashes are pinned in the sprint contract. Previous correction closeout fe7aea7e is archived and pushed in 12a7eae7d. Three UNKNOWN reservations remain quarantined; unrelated dirty sprint file preserved.",
  "checkpoint_commits": [
