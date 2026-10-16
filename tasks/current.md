@@ -333,6 +333,23 @@ Status: full objective remains active. Native extrusion now schedules current co
   production implementation, semantics, theorem or proof gate changes; source
   adequacy, recursion, soundness, principality, F5 and production gates remain
   OPEN/BLOCKED.
+  I30 changes only the `Instruction::Block` arm in `Machine::evaluate` to move
+  its already-owned Code Arc into `begin_local`. The accepted `Frame::Local`
+  consumer keeps it through local initialization, later bindings, and the final
+  expression; cell allocation, environments, stored binding-ID clones, errors
+  and transitions remain unchanged. This removes one temporary Arc clone/drop
+  pair per Block entry, without a measured-speed claim. The two assigned runtime
+  tests pass 1/1 each (17 filtered), warning-free. R44-C1's bounded M1 compiler
+  review is CLEAN. Its first packet stopped only because the primary message
+  omitted `f` in the `runtime.rs` pin; the corrected message matched receipt041
+  and the file, and the reviewer completed the behavioral review without code
+  or receipt repair. No tests were rerun in review or integration. Producer
+  requested Luna/high and reviewer Sol/medium; observed settings are UNKNOWN.
+  Verification was exactly the two focused Cargo commands; measurement budget
+  was 0 processes / 0 samples. Source and receipt are recorded in receipt041.
+  This behavior-preserving ownership transfer changes no semantics, theorem or
+  proof gate; original source, soundness, principality, F5 and production gates
+  remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

@@ -517,7 +517,7 @@ impl Machine {
                     environment,
                 };
             }
-            Instruction::Block { .. } => self.begin_local(code.clone(), 0, environment)?,
+            Instruction::Block { .. } => self.begin_local(code, 0, environment)?,
             Instruction::If { arms, else_branch } => {
                 if let Some((test, _)) = arms.first() {
                     self.frames.push(Frame::Condition {
