@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
   "revision": 1,
   "sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
-  "state": "ARCHITECTURE-RUNNING",
+  "state": "ARCHITECTURE-REVIEW-READY",
   "baseline": "12a7eae7d386b521029be81fbaee689c05f81276",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": {
@@ -51,11 +51,26 @@
     "active_work_receipt": "Writer STOPPED after freeze; seven stages; 516s observed, 600s conservatively charged; unused 600 retired. Conditional source-rule anchored J2 result; whole native rho_u OPEN.",
     "artifact_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
     "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3"
+   },
+   {
+    "id": "NPAIR-NATIVE-ARCHITECTURE-CANDIDATE-20261017",
+    "role": "Luna/high primary author",
+    "worker_id": "/root",
+    "state": "STOPPED",
+    "session": "current-session",
+    "requested_model": "gpt-6-luna",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "cap_seconds": 600,
+    "artifact_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
+    "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
+    "receipt": "Sole author STOPPED; architecture choice is Draft candidate only; no code lease."
    }
   ],
   "architecture_lane": {
    "owner": "/root",
-   "state": "RUNNING",
+   "state": "FROZEN-PENDING-INDEPENDENT-REVIEW",
    "cap_seconds": 600,
    "outputs": [
     "notes/design/2026-10-17-npair-native-architecture-candidate.md",
@@ -68,7 +83,13 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "active_work_receipt": "Proof author STOPPED and fresh compiler-referee CLEAN adjudicated by primary within exact scope; Luna now begins candidate-only architecture mapping under 600s lease.",
-   "budget_spent_seconds": 0
+   "budget_spent_seconds": 600,
+   "artifact": "notes/design/2026-10-17-npair-native-architecture-candidate.md",
+   "artifact_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
+   "handoff": "tasks/agent-loop/inbox/20261017-npair-native-architecture-candidate.md",
+   "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
+   "writer_state": "STOPPED",
+   "receipt": "Draft architecture candidate frozen; actual consumer and native proof gaps remain explicit; no compiler edits. Conservative full 600s author charge."
   },
   "resource_envelope_seconds": {
    "total": 2400,
@@ -80,28 +101,16 @@
   },
   "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained.",
   "review": {
-   "state": "PROOF-CLEAN-STOPPED",
+   "state": "ARCHITECT-REVIEW-READY",
    "required": [
-    "compiler_referee"
+    "architect",
+    "spec_auditor"
    ],
-   "budget_seconds": 120,
-   "target_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
-   "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3",
-   "assignment": {
-    "id": "NPAIR-TRANSPORT-PROOF-REVIEW-20261017",
-    "worker_id": "/root/npair_transport_proof_review",
-    "role": "compiler_referee",
-    "state": "STOPPED",
-    "session": "current-session",
-    "requested_model": "gpt-6.1-sol",
-    "requested_effort": "medium",
-    "observed_model": "UNKNOWN",
-    "observed_effort": "UNKNOWN",
-    "cap_seconds": 120,
-    "verdict": "CLEAN within bounded conditional source-rule scope; whole native rho_u and parent remain OPEN.",
-    "target_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
-    "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3"
-   }
+   "budget_seconds": 240,
+   "target_sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6",
+   "handoff_sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e",
+   "contract_sha256": "bb5ba6e065afcd611472c83ff4af0240707adeaa7b8a5b821f975040b23c94a3",
+   "sequence": "architect first, then spec_auditor; stop on major/blocking finding"
   },
   "proof_adjudication": {
    "verdict": "CLEAN accepted only for conditional source-rule anchored J2 derivation and stated non-liftability boundary; whole native rho_u/parent remain OPEN.",
@@ -174,13 +183,13 @@
   {
    "id": "/root",
    "role": "Luna/high architecture-candidate author and primary",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Fresh architecture-candidate-only lease after proof STOP and CLEAN independent review; 600s cap; no compiler edits."
+   "receipt": "Architecture candidate and handoff frozen at exact hashes; conservative full 600s author charge; no compiler edits."
   }
  ],
  "leases": [
@@ -204,12 +213,14 @@
   {
    "path": "notes/design/2026-10-17-npair-native-architecture-candidate.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "278e1de992421fc237468a266eb3051388ea3c7e5019ca4f95daf9fe72ff96e6"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-npair-native-architecture-candidate.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "5b86a5d8983d311715774368d2d1542e55d35c9d0672e310617b621efff4714e"
   }
  ],
  "pending": [
@@ -220,8 +231,8 @@
   },
   {
    "id": "NPAIR whole-presentation rho_u at install/capture/fresh use",
-   "state": "CONDITIONAL-LEMMA-REVIEWED",
-   "owner": "Luna architecture-candidate lane; native whole rho_u remains OPEN"
+   "state": "CONDITIONAL-LEMMA-CLEAN-REVIEWED",
+   "owner": "Luna; whole native rho_u remains OPEN"
   },
   {
    "id": "N-Transport extrusion/intrusion and association completeness",
@@ -237,13 +248,18 @@
    "id": "mixed/multiple-symbolic coverage; F1/FK1 and independent parent gates",
    "state": "OPEN",
    "owner": "original source signature / theorem owners"
+  },
+  {
+   "id": "NPAIR-native-architecture-candidate independent review",
+   "state": "READY",
+   "owner": "architect then spec_auditor"
   }
  ],
  "next_action": {
-  "state": "ARCHITECTURE-CANDIDATE-RUNNING",
-  "dispatcher": "Inside frozen sprint sequence; next consultation at material authority/consumer/lease blocker or review boundary.",
-  "proof": "Bounded source-rule anchor/J2 result CLEAN-reviewed; full native rho_u still open due actual formation, representative and dependent replay gaps.",
-  "implementation": "Luna is preparing one non-authoritative concrete representation candidate and exact consumer blocker; no compiler code authorized."
+  "state": "ARCHITECT-REVIEW-READY",
+  "dispatcher": "No new dispatch trigger: following frozen sprint sequence. Next consultation on material review finding, missing consumer decision, expanded lease or integration boundary.",
+  "proof": "Conditional anchored J2 source-rule lemma accepted CLEAN within scope. Full native rho_u, NPAIR/At generation and dependent replay remain OPEN.",
+  "implementation": "Concrete Draft representation candidate frozen; no code lease. Fresh architect and spec review, then user approval is required before any architecture implementation."
  },
  "resource_accounting": {
   "current_sprint_id": "npair-whole-presentation-transport-architecture-20261017",
@@ -254,13 +270,15 @@
   "coordination": 120,
   "reserve": 120,
   "unknown_reservations_preserved": 3,
-  "active_authors": 1,
+  "active_authors": 0,
   "astra_assignments": 0,
-  "charged_total_seconds": 720,
+  "charged_total_seconds": 1440,
   "review_reserved": 240,
-  "status": "Astra proof STOPPED at 600s; compiler-referee CLEAN; Luna architecture candidate RUNNING under 600s cap; no code lease.",
+  "status": "Proof 600s + compiler-referee review 120s + architecture author conservatively charged 600s + coordination 120s; architecture reviews pending; 120s reserve retained.",
   "authors_spent_seconds": 600,
-  "review_spent_seconds": 120
+  "review_spent_seconds": 120,
+  "architecture_spent_seconds": 600,
+  "coordination_spent_seconds": 120
  },
  "history": "Prior proof, proposal adoption and corrected readiness plan hashes are pinned in the sprint contract. Previous correction closeout fe7aea7e is archived and pushed in 12a7eae7d. Three UNKNOWN reservations remain quarantined; unrelated dirty sprint file preserved.",
  "checkpoint_commits": [
