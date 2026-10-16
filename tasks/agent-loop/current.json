@@ -8,12 +8,12 @@
     "contract": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
     "revision": 1,
     "sha256": "f3e55f3f8e0dc95658e69b85e0deb443265e9e5e1916fb5b90f4e688167309ef",
-    "state": "PROOF-LANE-RUNNING",
+    "state": "WAITING-RECORD-ONLY-HEAD-RECONCILIATION",
     "baseline": "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Carry the original complete Operation witness w forward through actual source/native seed, emission/admission, FunctionPort/ordered Replay and recovered Permission port; establish adopted At(D,w,delta) or exact missing source premise; apply to parent.",
     "review": {
-      "state": "PROOF-AUTHOR-RUNNING",
+      "state": "PROOF-WAITING-BASELINE-ACK",
       "current_reviewer": null,
       "sequence": [
         "compiler_referee:120s",
@@ -30,13 +30,13 @@
       "coordination_seconds": 120,
       "reserve_seconds": 120,
       "charged_seconds": 30,
-      "active_authors": 1,
-      "status": "30s coordination charged. Astra/medium proof author active within 900s/six-stage cap; readiness after STOP; three fresh reviews reserved; 120s reserve remains."
+      "active_authors": 0,
+      "status": "30s coordination charged. Proof author paused at freeze check because HEAD advanced by the primary; primary confirmed record-only descendant 8f920780c and source pins unchanged. Awaiting author acknowledgement; no budget reset."
     },
     "lanes": {
       "proof": {
         "owner": "/root/npair_forward_source_witness_realization",
-        "state": "RUNNING",
+        "state": "WAITING-PRIMARY-BASELINE-RECONCILIATION",
         "outputs": [
           "notes/theory/2026-10-17-npair-forward-source-witness-realization.md",
           "tasks/agent-loop/inbox/20261017-npair-forward-source-witness-realization.md"
@@ -119,14 +119,14 @@
     {
       "id": "/root/npair_forward_source_witness_realization",
       "role": "astra_prover, forward source-witness proof author",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 900,
-      "receipt": "ACTIVE receipt: exact contract hash f3e55f3f…7309ef, baseline ad2fbba0…4a874a, outputs and scope acknowledged; supplied pins being verified; no descendants/source execution."
+      "receipt": "Paused substantive work at freeze because current HEAD advanced to 8f920780c4fc3d199454e554f66cf78c2a485f58; primary confirms intended record-only contract/current commit, no source changes. Awaiting author resumption ack; cap not reset."
     }
   ],
   "leases": [
@@ -285,7 +285,7 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-ACTIVE",
+    "state": "PROOF-WAITING-RECORD-ONLY-BASELINE-ACK",
     "dispatcher": "Selector selected forward realization from original source witness w; Luna validated pins, exact leases and 2100s envelope.",
     "proof": "Astra/medium 900s, six stages: construct original w, link to Operation seed/emission/admission, carry through actual FunctionPort/Replay to recovered Permission, classify At versus structural incidence or exact missing premise, apply parent.",
     "implementation": "Luna/high 600s after proof STOP: bounded executable-gate readiness design separating structure, semantic witness/At and source admission. No compiler source or preflight lease."
@@ -299,9 +299,9 @@
     "coordination_seconds": 120,
     "reserve_seconds": 120,
     "charged_total_seconds": 30,
-    "active_authors": 1,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "30s coordination charged; Astra/medium proof active under exact receipt; readiness waits for STOP; 3 historical UNKNOWN reservations preserved."
+    "status": "30s coordination charged; proof author WAITING on primary reconciliation of record-only HEAD descendant; 3 historical UNKNOWN reservations preserved."
   },
   "history": "Checkpoint ad2fbba08: frozen prior producer-seed bridge and readiness Draft, both independently CLEAN; current review receipt and progress artifact preserved. New 2100s forward-source-witness sprint pinned at f3e55f3f…7309ef, baseline ad2fbba0871ea96a9e6dadca92354cfb094a874a; Astra/medium proof RUNNING with current receipt. Parent OPEN; source admission/N-Ingress unresolved. Preserve 3 historical UNKNOWN reservations, board quarantine and foreign dirty JSON.",
   "checkpoint_commits": [
