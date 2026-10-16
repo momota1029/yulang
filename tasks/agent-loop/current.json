@@ -4,57 +4,47 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-concrete-producer-realization-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
+    "id": "npair-authentic-seed-antecedent-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
     "revision": 1,
-    "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
-    "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
-    "baseline": "d1b706e83",
+    "sha256": "41d4c4c47fc9a8eaecb4f4e34c5669d08656b6d645bc394f1e778a04e18b949c",
+    "state": "ACTIVE-ASTRA-PROOF",
+    "baseline": "4685eef7efb59314dc9d96cfcae692d1e09000fe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "RESULT-PENDING-REVIEW",
+      "state": "RUNNING-ACTIVE-RECEIPT-RECEIVED",
       "owner": "astra_prover",
-      "cap_seconds": 720,
-      "artifact": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
-      "receipt": "Astra STOPPED after five stages; all pins matched; no source edits/execution/descendants. First authentic At gap is authenticated ordinary seed plus processing antecedents tied to Permission descriptor.",
-      "elapsed_seconds_charged": 720,
-      "artifact_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
-      "handoff_sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103"
+      "cap_seconds": 900,
+      "artifact": "notes/theory/2026-10-17-npair-authentic-seed-antecedent.md",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-authentic-seed-antecedent.md",
+      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 900s/six-stage bound; no descendants or source execution."
     },
-    "implementation": {
-      "state": "WAITING-EXPLICIT-USER-APPROVAL",
+    "implementation_readiness": {
+      "state": "SEQUENTIAL-AFTER-PROOF-STOP",
       "owner": "/root",
-      "cap_seconds": 1080,
-      "path": "crates/yu-solver/src/candidate_effect.rs",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md",
-      "compiler_code_authority": false,
-      "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
+      "cap_seconds": 240,
+      "artifact": "notes/design/2026-10-17-npair-authenticated-seed-code-contract.md",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-authenticated-seed-code-contract.md"
     },
     "review": {
-      "state": "PROOF-REVIEW-CLEAN-STOPPED",
+      "state": "NOT-STARTED",
       "sequence": [
-        "compiler_referee:120s now",
-        "architect:120s after proof review if warranted",
-        "spec_auditor:120s after proof review if warranted",
-        "compiler_referee:120s code-correspondence delta only if approval and implementation snapshot exist"
+        "compiler_referee:120s",
+        "architect:60s"
       ],
-      "current_reviewer": null,
-      "dispatcher": "At proof result boundary: preserve sprint; spend 120s existing review budget on fresh read-only compiler review of conditional proof and first missing antecedent; retain 240s arch/spec and 120s reserve for future code delta if authorized.",
-      "compiler_receipt": "CLEAN within conditional proof scope; all pins match; first missing authenticated ordinary seed/processing evidence confirmed; does not certify implementation or source acceptance; STOPPED read-only."
+      "current_reviewer": null
     },
     "predecessor": {
-      "id": "npair-native-port-formation-20261017",
-      "state": "REVIEWED-CONDITIONAL-DRAFT-PARENT-OPEN",
-      "commit": "d1b706e83",
-      "design_sha256": "a6b6f37218408b334922c19ff6065bd8bd607294201ec2b371f1376e800c41ce",
-      "handoff_sha256": "6ec84d409f261345ab682c1d37b6d41126fb7d69fff2577ab580bc92a295c3d1",
-      "proof_sha256": "a7be614af3b432e785fb64d2580ee30de30c448ba5d332e5c40162cb4578ce4f"
+      "id": "npair-concrete-producer-realization-20261017",
+      "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
+      "contract_sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
+      "proof_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
+      "proof_review": "CLEAN conditional compiler review; all pins matched; no implementation/source admission certified."
     }
   },
-  "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
-  "baseline": "d1b706e83",
-  "scope": "Prove the reviewed concrete-only producer refinement and locate the authentic At obstruction; implement candidate_effect.rs only after explicit approval. Preserve source preflight and all open parent gates.",
+  "candidate": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
+  "baseline": "4685eef7efb59314dc9d96cfcae692d1e09000fe",
+  "scope": "Reconstruct one authentic ordinary source seed and processing antecedents through actual FunctionPort dependencies, or prove the precise information loss; keep producer implementation separately approval-gated.",
   "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No new worker is RUNNING before current-session active receipt.",
   "workers": [
     {
@@ -99,7 +89,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Prior NPAIR evidence sprint integrated and pushed as d1b706e83. New proof-first sprint opened; implementation lane waits for explicit approval of exact reviewed candidate_effect.rs proposal."
+      "receipt": "New authenticated-seed proof sprint opened with fresh 1440s grant. Concrete producer code sprint remains WAITING for exact user approval; no source lease."
     },
     {
       "id": "/root/npair_concrete_producer_refinement",
@@ -126,6 +116,18 @@
       "cap_seconds": 120,
       "receipt": "CLEAN conditional proof review; all pins match; actual At gap confirmed; full 120s charged; STOPPED read-only.",
       "elapsed_seconds_charged": 120
+    },
+    {
+      "id": "/root/npair_authentic_seed_antecedent",
+      "role": "astra_prover, bounded authentic source seed/antecedent proof author",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 900,
+      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 900s/six-stage bound; no descendants or source execution."
     }
   ],
   "leases": [
@@ -140,22 +142,19 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
+      "path": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf"
+      "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
-      "owner": "/root/npair_concrete_producer_refinement",
-      "state": "FROZEN",
-      "sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389"
+      "path": "notes/theory/2026-10-17-npair-authentic-seed-antecedent.md",
+      "owner": "/root/npair_authentic_seed_antecedent",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
-      "owner": "/root/npair_concrete_producer_refinement",
-      "state": "FROZEN",
-      "sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103"
+      "path": "tasks/agent-loop/inbox/20261017-npair-authentic-seed-antecedent.md",
+      "owner": "/root/npair_authentic_seed_antecedent",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -186,30 +185,53 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-ACTIVE-WAITING-APPROVAL-FOR-CODE",
-    "dispatcher": "At sprint start, selector fixed proof + concrete-only implementation outcome; implementation authority remains conditional on explicit approval.",
-    "proof": "Astra/medium bounded refinement proof 720s, five substantive stages max.",
-    "implementation": "Luna/high candidate_effect.rs exact lease only after approval; no source preflight or test edits."
+    "state": "AUTHENTIC-SEED-PROOF-ACTIVE",
+    "dispatcher": "Opened a fresh bounded 1440s proof/readiness sprint; no transfer from prior 2400s envelope.",
+    "proof": "Astra/medium 900s, trace a real ordinary seed through lower emission, admission and FunctionPort dependencies; associate with exact Permission descriptor or show information-loss witness.",
+    "implementation": "Luna readiness contract after proof STOP. Separate concrete producer compiler code remains WAITING for exact user approval."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-concrete-producer-realization-20261017",
-    "cap_seconds": 2400,
-    "astra_proof_cap_seconds": 720,
-    "luna_implementation_cap_seconds": 1080,
-    "reviews_cap_seconds": 360,
+    "current_sprint_id": "npair-authentic-seed-antecedent-20261017",
+    "cap_seconds": 1440,
+    "astra_proof_cap_seconds": 900,
+    "luna_contract_cap_seconds": 240,
+    "reviews_cap_seconds": 180,
     "coordination_seconds": 120,
-    "reserve_seconds": 120,
-    "charged_total_seconds": 960,
-    "active_authors": 0,
+    "reserve_seconds": 0,
+    "charged_total_seconds": 120,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "120s coordination + 720s proof + 120s compiler proof review charged. 240s arch/spec review, 1080s conditional code, and 120s reserve remain; implementation has no lease pending user approval."
+    "status": "120s coordination charged. Astra proof active within 900s cap. No resources transferred from prior sprint; concrete producer compiler edit remains separately approval-gated."
   },
-  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased. Astra concrete-producer refinement proof frozen (720s charged) at ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389; handoff bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103. Authenticated-At frontier remains open at ordinary seed/processing antecedents. Frozen proof and review-pending state pushed as 3572e40c6; code lane remains unleased pending user approval. Fresh compiler_referee proof review STOPPED CLEAN (120s), confirming the first missing authentic-At premise is authenticated ordinary seed/processing evidence associated with the descriptor; no source acceptance or implementation certification. CLEAN-reviewed conditional proof checkpoint pushed as 2bed9df18. Selector keeps implementation WAITING for approval and reserves remaining budget for implementation/reviews; no allocation remains for a new proof packet.",
+  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
     "f17af2636",
+    "e9444f067",
     "3572e40c6",
-    "2bed9df18"
-  ]
+    "49ce68f2a",
+    "2bed9df18",
+    "4685eef7e"
+  ],
+  "waiting_sprint": {
+    "id": "npair-concrete-producer-realization-20261017",
+    "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
+    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
+    "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
+    "baseline": "d1b706e83",
+    "proof_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
+    "proof_handoff_sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103",
+    "review": "Fresh compiler_referee CLEAN within conditional proof scope; authentic ordinary seed/processing evidence tied to descriptor remains missing.",
+    "implementation": {
+      "state": "WAITING-EXPLICIT-USER-APPROVAL",
+      "owner": "/root",
+      "cap_seconds": 1080,
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md",
+      "compiler_code_authority": false,
+      "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
+    },
+    "next": "resume only after exact code approval; no new code worker or lease"
+  }
 }
