@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "local-use-existing-map-retention-20261017",
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
-    "revision": 2,
-    "sha256": "f926d774454e19b04a47077919b57cb407498856aa8192308284ca668f783d2a",
-    "state": "PROOF-VERSION-REPAIR-RUNNING",
+    "revision": 3,
+    "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049",
+    "state": "PROPOSAL-AUTHOR-RUNNING",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "RUNNING",
+      "state": "STOPPED",
       "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -33,8 +33,8 @@
       ],
       "session": "current-session",
       "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap.",
-      "artifact_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
-      "handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
+      "artifact_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
+      "handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
       "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows.",
       "repair_cap_seconds": 60,
       "original_v1_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
@@ -42,19 +42,21 @@
       "correction": "Pin precommit version; state equality only for valid same-version evaluations; handle changed-version as invalidation or equality-or-invalidation; revise dependent claims.",
       "repair_assignment": "NPAIR-M2-VERSION-REPAIR-20261017",
       "repair_session": "current-session",
-      "repair_active_work_receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable."
+      "repair_active_work_receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable.",
+      "repair_receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
     },
     "proposal": {
-      "state": "BLOCKED-ON-PROOF-MAJOR",
+      "state": "RUNNING",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
         "notes/design/2026-10-17-local-use-retention-code-contract.md",
         "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md"
-      ]
+      ],
+      "active_work_receipt": "Luna acknowledged the existing 600s proposal-author packet after CLEAN M2 delta review; v2 proof, repair handoff and rev3 contract hashes pinned; exact two output paths only; unapplied patch proposal."
     },
     "review": {
-      "state": "WAITING-FOR-PROOF-REPAIR",
+      "state": "CLEAN-DELTA",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -65,14 +67,14 @@
         120,
         120
       ],
-      "proof_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
-      "proof_handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
+      "proof_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
+      "proof_handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
       "current_reviewer": null,
       "current_cap_seconds": null,
       "session": "current-session",
-      "active_work_receipt": "Compiler-referee STOPPED at 120s cap; major M2 statement defect; current proof bytes frozen pending material-boundary consultation.",
-      "verdict": "MAJOR: M2 equality conclusion contradicts permitted version invalidation; exact finding in reviewer receipt/message. M1/source inventory otherwise accepted in scope.",
-      "reviewer": "/root/local_use_map_retention_review",
+      "active_work_receipt": "Fresh compiler_referee delta review completed in one stage within 60s cap; read-only receipt; reviewer STOPPED.",
+      "verdict": "CLEAN within corrected M2 delta: valid pinned-v0 evaluations preserve answers; Invalid(v0) is separate; no current-code version/checking claim. Verified exact artifact, handoff, contract, snapshot, R1 and candidate_scheme pins. Parent remains OPEN.",
+      "reviewer": "/root/local_use_map_version_delta_review",
       "review_state": "STOPPED",
       "delta_cap_seconds": 60,
       "delta_reviewer": "/root/local_use_map_version_delta_review",
@@ -121,35 +123,24 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Original prover accepted exact revision-2 correction lease; primary waiting for 60s repair and STOP."
+      "receipt": "Luna acknowledged the existing 600s proposal-author packet after CLEAN M2 delta review; v2 proof, repair handoff and rev3 contract hashes pinned; exact two output paths only; unapplied patch proposal."
     },
     {
       "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable."
-    },
-    {
-      "id": "/root/local_use_map_version_delta_review",
-      "role": "compiler_referee",
-      "state": "NOT_STARTED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "Fresh 60s delta review of corrected M2 only; await proof freeze."
+      "receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
     }
   ],
   "leases": [
@@ -162,7 +153,7 @@
       "path": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "f926d774454e19b04a47077919b57cb407498856aa8192308284ca668f783d2a"
+      "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049"
     },
     {
       "path": "tasks/agent-loop/snapshots/20261017-candidate_scheme-pre-local-use-retention.rs",
@@ -173,8 +164,8 @@
     {
       "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
       "owner": "/root/local_use_existing_map_retention",
-      "state": "HELD",
-      "sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245"
+      "state": "FROZEN",
+      "sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md",
@@ -207,7 +198,8 @@
     {
       "path": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
       "owner": "/root/local_use_existing_map_retention",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2"
     }
   ],
   "pending": [
@@ -243,15 +235,15 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "REVISION2-REPAIR-READY; correct M2 equal-answer vs version invalidation; proof author not RUNNING until fresh ack.",
-      "owner": "Luna/selector: versioned proof correction and fresh delta review"
+      "state": "CLEAN-DELTA-REVIEWED; design proposal lane next; parent OPEN.",
+      "owner": "Luna"
     }
   ],
   "next_action": {
-    "state": "PROOF-VERSION-REPAIR-RUNNING",
+    "state": "PROPOSAL-AUTHOR-RUNNING",
     "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
-    "proof": "M2 v1 MAJOR; original artifact snapshot frozen. Repair only the version/invalidation quantifier.",
-    "implementation": "Proposal outputs remain frozen and dependency-blocked until corrected proof is independently CLEAN."
+    "proof": "M2 v2 CLEAN within the corrected finite-query conditional scope; parent remains OPEN.",
+    "implementation": "Luna writing reviewed unapplied retention code contract/proposal under existing 600s packet; compiler code remains unauthorized pending exact user approval."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
@@ -264,10 +256,10 @@
     "unknown_reservations_preserved": 3,
     "active_authors": 1,
     "astra_assignments": 0,
-    "charged_total_seconds": 480,
-    "status": "Rev1 proof/referee 480s charged; version repair assignment actually acknowledged and running at 60s cap; fresh 60s delta review waits.",
-    "authors_spent_seconds": 360,
-    "review_spent_seconds": 120,
+    "charged_total_seconds": 600,
+    "status": "Proof 420s plus reviews 180s charged; Luna acknowledged existing 600s proposal author cap; architect/spec reviews 240s and coordination 120s remain.",
+    "authors_spent_seconds": 420,
+    "review_spent_seconds": 180,
     "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
   },

@@ -1,9 +1,10 @@
 # Sprint local-use-existing-map-retention-20261017
 
-Status: adopted by Luna after sprint-end selector delta; revision 2 supersedes
-revision 1 only for the exact M2 correction, immutable snapshot and bounded
-repair/delta-review allocation. Parent claim, Qmap scope, proposal boundary and
-total envelope remain unchanged.
+Status: adopted by Luna after proof-to-proposal selector seam; revision 3 adds
+only frozen corrected-proof/review pins for the existing proposal-author packet.
+Revision 2 remains authoritative for the exact M2 correction, immutable snapshot
+and bounded repair/delta-review allocation. Parent claim, Qmap scope, proposal
+boundary and total envelope remain unchanged.
 Branch: `research/simple-sub-intrusion`.
 Administrative baseline: `c2ca891da23d791dfa661c7745864ef3613a32df`.
 Compiler baseline: source `candidate_scheme.rs` SHA-256
@@ -146,6 +147,12 @@ approval, new dependency/lease, review finding or sprint end.
   `9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c`.
 - The exact compiler-referee MAJOR receipt is recorded in `current.json`; the
   reviewer STOPPED and the selector delta is applied here.
+- Corrected proof revision 2: `notes/theory/2026-10-17-local-use-existing-map-retention.md`,
+  SHA-256 `f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e`;
+  correction handoff `tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md`,
+  SHA-256 `2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2`.
+  Fresh compiler_referee delta review is CLEAN within corrected M2 scope; exact
+  receipt and STOP state are recorded in `current.json`.
 - Current source baseline exact bytes were verified against the contract pin
   before the primary wrote the snapshot. Only these paths are leased: source
   snapshot, proof artifact, original proof inbox, pre-version-repair snapshot,
