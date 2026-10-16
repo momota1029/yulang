@@ -469,11 +469,16 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
             require(role.get("model") == ASTRA and "model_reasoning_effort" not in role, "Astra override path/pin drift")
         checked.append(f"{name}: parsed")
     require("astra_prover" in agents and "implementation_escalation" in agents, "both Astra roles must share policy")
-    active = ["AGENTS.md", "AGENTS.override.md", "rules/agent-orchestration.md",
+    entrypoint = root / "AGENTS.md"
+    require(entrypoint.is_file(), "missing required repository entrypoint: AGENTS.md")
+    active = ["AGENTS.md", "rules/agent-orchestration.md",
               "rules/research-lab.md", "rules/orchestration-budget.md",
               ".codex/agents/prover.toml", ".codex/agents/astra-prover.toml",
               ".codex/agents/implementer.toml", ".codex/agents/next-action-selector.toml",
               ".codex/agents/implementation-escalation.toml"]
+    override = root / "AGENTS.override.md"
+    if override.exists() or override.is_symlink():
+        active.insert(1, "AGENTS.override.md")
     for path in active:
         text = (root / path).read_text()
         require("goal-driven-sprints.md" in text, f"missing active policy route: {path}")

@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "sprint_id": "source-check-provenance-20261016",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
+  "goal": "Continue FIRST-RESULT-ADEQUACY by retrieving the authentic original Function annotation/check provenance needed to connect source obligations to the selected AppTarget MODEL; independently close the reviewed P2 in integrated repository-entrypoint validation.",
+  "authority": "Preserve original source semantics, quantifiers, source domain, provider, contexts and tagged images. No reverse use of a sufficient theorem, no assumed check inversion, and no compiler semantic or production-authority changes. The optional AGENTS.override.md path is checked whenever a filesystem object occupies it; malformed present paths must fail visibly.",
+  "original_parent": {
+    "id": "FIRST-RESULT-ADEQUACY",
+    "source": "my receive (f: () -> 'a) = { my g = f(); g() }",
+    "quantifiers": "Every original xi=(nu,K,D), same actual provider and captures, original A1/E1 and first Call, every compatible context and whole Unit carrier, every original complete return witness z, pending Bind/future obligations and both tagged images M_W* W_z union_tagged M_res* F_R,z.",
+    "required_direction": "Derive the anchored joint native MODEL required by the reviewed local forward theorem from the original source obligations at the same xi/z and source owner, or isolate the earliest precise unmet premise. Never assume generated native children, reverse a sufficient forward theorem, choose convenient coordinates, or omit incident predicates/contexts.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Trace the exact source rule that introduces the first Apply callee Function annotation/check; identify endpoints, direction, full telescope and predicate identities, and whether it supplies uniform VIncl(alpha,A1) at the original coordinates.",
+    "Apply any established atomic-result-row consequence to AM-MODEL-1; otherwise isolate the first exact missing owner/input. Keep support inclusion and all context/scoped-flow obligations separate and retain all original quantifiers.",
+    "Repair optional override path presence detection in tools/agent_sprint.py so absence is optional but any present directory, dangling symlink or malformed file cannot be silently omitted; preserve the AGENTS.md integrated entrypoint path and every other check. Run the static checker once."
+  ],
+  "accepted_meaning": "Original Call/contextual-effect semantics, selected authentic AppTarget source interpretation, same provider/witness, whole carrier, actual effect ownership/lineage, source-generation/propagation rules and all original unresolved obligations remain fixed.",
+  "dependencies": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "tasks/agent-loop/sprints/first-apply-owner-elimination-20261016-amendment-1.json": "8ff567e9584bc51fc4b06da3e806fe3541000b119aba24ab062766db9e226a20",
+    "notes/design/2026-10-16-source-application-checked-result.md": "c9207625887d78aaccef988324e8505f6dd08fdfe076e0f564f8b7dca3c54076",
+    "notes/theory/2026-10-16-first-call-checked-result-construction.md": "89fb62b1fe9e10d6972a79f17399d4a0332cf57817bb06a07f5e054ecb4b9dfa",
+    "notes/theory/2026-10-16-first-call-joint-forward-preservation.md": "f71cc442bcccb23f7e6f1aa6221b089abb8c24d1c4ce01fecef37995541c16b6",
+    "notes/theory/2026-10-16-neutral-result-row-source-interpretation.md": "4504612fb8cc7abd5ca47408545519e4708663d2a4666f9f68cc0669f9968ded",
+    "notes/theory/2026-10-16-first-result-source-judgment-preservation.md": "168075a1c6e5b77df844a258165cec1b1f383cc7f84f11843deb6c3e28853946",
+    "notes/theory/2026-10-16-first-apply-owner-elimination.md": "5bce831b4a25455e371e0500bdd9192bdeb133b2aeaa7c11732ba79161054839",
+    "tasks/agent-loop/inbox/20261016-first-apply-owner-elimination.md": "b3b27f9bf2009901bbbe6adfaf17dea2acb7fc3de7793d219c5b494e17a620ba",
+    "notes/progress/2026-10-16-first-apply-owner-elimination-review.md": "4bcc747970a4efc925bc3e22403ef667920777b38dd0bacd80e3654e25aabcae",
+    "notes/theory/2026-10-16-app-target-model-application.md": "be9dcc215a008c7153ab2251067f58e1700d70b98d6defec44b509d47e549a84",
+    "tasks/agent-loop/inbox/20261016-app-target-model-application.md": "83c67efe308403fafc83e9215ec32a660ff53c5d20e0eaa7be88d5d314b975e2",
+    "notes/progress/2026-10-16-app-target-model-application-review.md": "031bc6425da14b810bbbe0c4e7dc49c7850907f65d9d9f8a2081412323219a5d",
+    "notes/theory/2026-10-16-first-call-finite-function-check-normalization.md": "9a51a42fb1cb5853aa1811383bb0a295a588ca45600d170036fe3e07cc15c761",
+    "notes/theory/2026-10-15-callback-result-exposure-classification.md": "6f2bc05137e451c38391655bb2d45e9224f12eebf7d58c7f5a78c8abd69c93f4",
+    "notes/theory/2026-10-16-native-annotation-flow-correspondence.md": "b1ba2a9520903e5ca122ff279dc3cd76fffd44aee889e579c9179288a1606cea",
+    "notes/design/2026-10-10-concrete-effect-annotation-implementation.md": "3a3186723cd93edd2f767a7e4a481cb6dbed701fc749502e640071f65a4d89ae",
+    "questions/2026-10-05-source-annotation-boundaries/approved-answer.md": "e1e2ff77b181fe42edd404ee0d69cfc6d3bb0fbc99ba7e7f092710025d11fb12",
+    "notes/design/2026-10-08-source-generalize-definition.md": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+    "notes/theory/2026-10-08-source-generalize-definition-and-proof.md": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
+    "notes/design/2026-10-02-typed-computation-core-elaboration.md": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/theory/2026-10-08-call-semantic-input-realization.md": "fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a",
+    "AGENTS.md": "69e24ca7bc987f0fa646145751e966f740f6774ef357082078a20030c50c89ae"
+  },
+  "lanes": {
+    "proof": {
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "At the original first Apply and same xi/z, does the actual source Function annotation/check rule provide uniform VIncl(alpha,A1), with exact source/native predicate correspondence? If yes apply the accepted atomic-row implication; do not infer whole support or contextual obligations from that result.",
+      "method": "Original constructor and rule-provenance retrieval. Treat the finite-check-normalization note as prior negative evidence; do not repeat port reflection or assume arbitrary-alpha callable introduction.",
+      "stages": [
+        "Trace the classification statement that A1 is constrained to alpha to the actual introducing source rule and source coordinates.",
+        "Recover the precise source judgment, direction, telescope, endpoints and predicate identity; separate a retained Check from explanatory shorthand.",
+        "Inspect the original Function annotation boundary and its admitted introduction/checking rule plus accepted realization evidence.",
+        "Decide whether that exact evidence supplies uniform VIncl(alpha,A1) at the original Apply; an annotation-target export alone is insufficient.",
+        "If supplied, apply the atomic-result-row theorem then preserve separate declared-support, contexts and scoped-flow obligations; otherwise identify the exact unretrieved owner/input.",
+        "Apply result to AM-MODEL-1 and freeze one handoff without promoting a conditional lemma or changing the parent."
+      ],
+      "outputs": [
+        "notes/theory/2026-10-16-first-apply-check-provenance.md",
+        "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md"
+      ],
+      "budget": {
+        "active_seconds": 900,
+        "stages": 6,
+        "heavy_processes": 0,
+        "lightweight_probes": 0
+      }
+    },
+    "implementation": {
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Repair only optional AGENTS.override.md path presence detection in tools/agent_sprint.py. Detect filesystem presence with exists() or is_symlink(); retain read_text route validation so malformed present objects fail. Required AGENTS.md behavior and all other checks stay intact. Do not edit tests or compiler code. Run `python3 tools/agent_sprint.py check` exactly once after the repair, with a 120-second command limit.",
+      "outputs": [
+        "tools/agent_sprint.py",
+        "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md"
+      ],
+      "baseline_inputs": {
+        "tools/agent_sprint.py": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010",
+        "tasks/agent-loop/history/20261016-entrypoint-checker-pre-p2.py": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010",
+        "tools/test_agent_sprint.py": "8f4ec45421a78c462a576d9c2f940cb3eb4ac3ae82d9036e1750cb6528fb1463"
+      },
+      "budget": {
+        "active_seconds": 180,
+        "stages": 3,
+        "static_check_seconds": 120,
+        "heavy_processes": 0,
+        "tests": 0
+      }
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-16-first-apply-check-provenance.md",
+      "owner": "assignment-source-check-proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md",
+      "owner": "assignment-source-check-proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tools/agent_sprint.py",
+      "owner": "assignment-entrypoint-repair-implementation",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md",
+      "owner": "assignment-entrypoint-repair-implementation",
+      "state": "HELD"
+    }
+  ],
+  "review": {
+    "proof": "fresh isolated compiler_referee; verify frozen artifact, direct dependencies and original theorem application",
+    "implementation": "fresh isolated regression_auditor or spec_auditor; verify exact pre-P2 snapshot and code delta",
+    "budget_seconds": 360,
+    "execution": "sequential; retain two review/integration slots and all legacy UNKNOWN reservations"
+  },
+  "resource_accounting": {
+    "previous_sprint": "Ended partial-reviewed; exact remaining implementation/reviewer/coordination capacity was not certifiable. No prior seconds transferred.",
+    "historical_unknown": "Three legacy UNKNOWN identities, their reservations and quarantined board lease remain unchanged.",
+    "fresh_cap_seconds": 1800,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 180,
+      "review": 360,
+      "coordination_and_integration": 180,
+      "reserve": 180
+    },
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "stop": "Stop at meaningful parent application or exact owner/input obstruction, tooling repair plus one bounded static-check result, any dependency/authority/lease mismatch, per-lane bound or 1800-second cap. No descendants and no budget reset."
+  },
+  "preserved_open_gates": [
+    "FIRST-RESULT-ADEQUACY",
+    "F1-FULL",
+    "FK1-FOREIGN",
+    "IMPLEMENTATION-E2E",
+    "production cutover"
+  ],
+  "non_goals": [
+    "No semantic change or source-domain narrowing.",
+    "No assumed reverse implication from MODEL/L_V/L_E.",
+    "No compiler or test changes; no tests/builds/probes.",
+    "No editing frozen proof outputs, pending questions, board lease or unleased paths.",
+    "No Git staging/commit by workers."
+  ],
+  "dispatcher_decision": "next_action_selector proposed a method change to exact original Apply/annotation rule provenance after the already reviewed finite-check-normalization attempt, plus an independently leased delta repair for the checker P2. Luna grants these exact lanes and the fresh 1800-second envelope.",
+  "next_consultation": "Sprint end, source-qualified counterexample, material authority/dependency/lease/resource change, or coherent review/integration seam."
+}

@@ -4,25 +4,84 @@
   "phase": "ENDED",
   "session": null,
   "active_sprint": {
-    "id": "call-contextual-effects-20261016",
-    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2-amendment-1.json",
-    "revision": 2,
-    "sha256": "37ba82bee8e5c7e0da71ad5f78671ce5bf1b08cdf870bc001f7f95e0b5c5519a",
-    "state": "ENDED-PARTIAL",
-    "activation_receipt": "notes/progress/2026-10-16-call-contextual-effects-sprint-start.md",
-    "migration_review": "CLOSED-CLEAN (major/minor repaired and delta reviewed)",
-    "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna",
-    "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md",
-    "amendment_revision": 1,
-    "implementation_reconciliation_receipt": "notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md",
-    "source_attack_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-source-review.md",
-    "core_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-core-review.md",
-    "closeout_receipt": "tasks/agent-loop/history/20261016-call-contextual-effects-reviewed-milestone.md",
-    "closeout_sha256": "760bdb0f5b32e36764a976c6630b8209e47774e85aecdd2f20794f5d4b5a7988"
+    "id": "source-check-provenance-20261016",
+    "contract": "tasks/agent-loop/sprints/source-check-provenance-20261016.json",
+    "revision": 1,
+    "sha256": "ee70f6ae3e0f8318c6c1dcbc7eb4f8248259a232bd58f37cec228059762c81c4",
+    "state": "ENDED-PARTIAL-REVIEWED",
+    "previous_sprint": "app-target-model-application-20261016 rev3 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-app-target-model-application-review.md",
+    "dispatcher": "next_action_selector proposed a method change to exact original Apply/annotation rule provenance after the already reviewed finite-check-normalization attempt, plus an independently leased delta repair for the checker P2. Luna grants these exact lanes and the fresh 1800-second envelope.",
+    "activation_receipt": "User authorized continued proof and implementation; primary froze contract, exact leases and fresh envelope before dispatch.",
+    "proof": {
+      "state": "REVIEWED-CLEAN-PARENT-OPEN",
+      "assignment": "/root/source_check_provenance_proof",
+      "outputs": [
+        "notes/theory/2026-10-16-first-apply-check-provenance.md",
+        "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md"
+      ],
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "charge_seconds_cap": 900,
+      "receipt": "Six stages; original Check provenance obstruction; current candidate_effect source excluded from conclusions because hash differed from pinned historical note. Writes stopped; independent review pending.",
+      "artifact_sha256": "3890c26e1d9e53b29d7e6168b0bc3253dbe36954411592362eeebaf070cb969c",
+      "handoff_sha256": "1e65a5de1c60bb1446518407deab5d0c30be763effb5fca2300a11fba6f24d7f",
+      "charge_seconds_conservative": 900,
+      "reviewer": "/root/first_apply_check_provenance_review",
+      "review": "CLEAN; 26/26 direct dependency pins matched independently",
+      "review_receipt": "Fresh compiler_referee found no blocking, major or minor finding; model/effort/session UNKNOWN."
+    },
+    "implementation": {
+      "state": "FROZEN-REVIEWED-CLEAN",
+      "assignment": "/root/entrypoint_checker_p2_repair",
+      "outputs": [
+        "tools/agent_sprint.py",
+        "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md"
+      ],
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "charge_seconds_cap": 180,
+      "receipt": "Writes stopped; no descendants.",
+      "artifact_sha256": "b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67",
+      "handoff_sha256": "7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44",
+      "static_check": "python3 tools/agent_sprint.py check: PASS once",
+      "charge_seconds": "within 180-second lane cap; exact active time UNKNOWN",
+      "p2": "CLOSED"
+    },
+    "review": {
+      "state": "COMPLETE-CLEAN",
+      "budget_seconds": 360,
+      "sequence": "proof and implementation reviews run sequentially",
+      "reviewer": "/root/entrypoint_checker_p2_delta_review",
+      "receipt": "Both independent reviews completed; all producers/reviewers stopped. No runtime model/session observations available.",
+      "implementation_reviewer": "/root/entrypoint_checker_p2_delta_review",
+      "proof_review": "CLEAN",
+      "proof_reviewer": "/root/first_apply_check_provenance_review",
+      "implementation_review": "CLEAN; P2 CLOSED"
+    },
+    "snapshot": {
+      "path": "tasks/agent-loop/history/20261016-entrypoint-checker-pre-p2.py",
+      "sha256": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010"
+    },
+    "open_parent": "FIRST-RESULT-ADEQUACY / AM-MODEL-1; all other gates retained OPEN",
+    "implementation_review": {
+      "state": "CLEAN-ADJUDICATED",
+      "reviewer": "/root/entrypoint_checker_p2_delta_review",
+      "checker_sha256": "b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67",
+      "snapshot_sha256": "74a3e0ef3d41b425e8e156cbeed0304ccf8ea21a33ac0a9b1a8c1f656f50c010",
+      "handoff_sha256": "7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44",
+      "finding": "No BLOCKING, major or minor findings; P2 closes. Snapshot delta limited to optional override presence predicate and local variable. Static-check receipt inspected; runtime claim not independently authenticated."
+    },
+    "closeout_receipt": "notes/progress/2026-10-16-source-check-provenance-review.md",
+    "closeout_sha256": "94eaf45694810cce608b3c64cd73481b692289a06b41c12d5552474420e78b76",
+    "native_source_discrepancy": "Current candidate_effect.rs hash 44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9 differed from historical pinned note a330100b418f14be1c8f600c62970efdb4859818b603190846796de39fa8cef2; excluded from conclusions; no equivalence/correspondence/regression inference."
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
-  "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
-  "scope": "Active Call/contextual-effects proof and approved implementation sprint; source semantics remain unchanged.",
+  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
+  "scope": "Continue Call/contextual-effects; settle first-Apply authority gap. Semantics unchanged.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -58,70 +117,48 @@
       "receipt": "Historical board reports P2 output frozen and worker resident WAITING; current runtime does not expose the identity. No successor output lease is granted."
     },
     {
-      "id": "/root/astra_core",
-      "role": "Astra core proof (astra_prover)",
+      "id": "/root/source_check_provenance_proof",
+      "role": "astra_prover",
       "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "STOPPED; core artifact 83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f and handoff 672b2e060722a5d38c2925094832e75e247aad4e5a48e4fbf4dcad5c019ba1ad. Local conditional View constructor accepted by independent review; full gates open. 7 stages/900 sec; model/session UNKNOWN."
+      "receipt": "Writes stopped; six stages completed; conservative 900-second lane charge within cap; artifact 3890c26e1d9e53b29d7e6168b0bc3253dbe36954411592362eeebaf070cb969c; handoff 1e65a5de1c60bb1446518407deab5d0c30be763effb5fca2300a11fba6f24d7f; all 26 direct pins reverified; no descendants."
     },
     {
-      "id": "/root/sol_source_attack",
-      "role": "Sol source attack (researcher)",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "STOPPED; source attack 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and handoff 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. Independent review accepted conditional static evidence only; all gates open. 504.5 sec incl wait; model/session UNKNOWN."
-    },
-    {
-      "id": "/root/luna_implementation",
-      "role": "Luna implementation (implementer)",
+      "id": "/root/entrypoint_checker_p2_repair",
+      "role": "implementer",
       "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "STOPPED; test-only output 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, handoff 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Focused test reported 1/1; independent delta review closed both minor findings. No production change. Model/session UNKNOWN."
+      "receipt": "Writes stopped; handoff r1 frozen at 7647f372ea837f5bd70d6e11b430ce7d4213864e9bdb2db8d820a1f35007cc44; checker SHA b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67; static checker PASS once; no descendants."
     },
     {
-      "id": "/root/implementation_review",
-      "role": "independent implementation review (compiler_referee)",
+      "id": "/root/entrypoint_checker_p2_delta_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Fresh independent spec_auditor review CLEAN on fixed contract/checker/snapshot/handoff hashes; no writes or descendants. Effective model/effort/session UNKNOWN."
+    },
+    {
+      "id": "/root/first_apply_check_provenance_review",
+      "role": "compiler_referee",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "STOPPED; independent delta review accepted repaired test as provisional regression only; both findings closed. Receipt notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md."
-    },
-    {
-      "id": "/root/source_review",
-      "role": "independent source/proof review (compiler_referee)",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "STOPPED; independent source review accepted Sol output as conditional static evidence only. Receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md."
-    },
-    {
-      "id": "/root/core_review",
-      "role": "independent Astra core review (compiler_referee)",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": null,
-      "receipt": "STOPPED; independent review accepted local conditional View lemma/native trace only; all original gates remain open. Receipt notes/progress/2026-10-16-call-contextual-effects-core-review.md."
+      "receipt": "Fresh compiler_referee review CLEAN; 26/26 direct pins matched; no writes, tests, builds, probes, delegation or descendants; session/model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -132,79 +169,27 @@
       "reason": "Former board writer is not visible in the current runtime; primary will not write this path."
     },
     {
-      "path": "notes/theory/2026-10-16-call-contextual-effects-core.md",
-      "owner": "/root/astra_core",
-      "state": "FROZEN",
-      "reason": "Astra assignment complete and independently reviewed; exact artifact/handoff hashes frozen."
+      "path": "notes/theory/2026-10-16-first-apply-check-provenance.md",
+      "owner": "/root/source_check_provenance_proof",
+      "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md",
-      "owner": "/root/astra_core",
-      "state": "FROZEN",
-      "reason": "Astra assignment complete and independently reviewed; exact artifact/handoff hashes frozen."
+      "path": "tasks/agent-loop/inbox/20261016-first-apply-check-provenance.md",
+      "owner": "/root/source_check_provenance_proof",
+      "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
-      "owner": "/root/sol_source_attack",
-      "state": "FROZEN",
-      "reason": "Sol assignment completed and independently reviewed; frozen source attack note and handoff retained."
+      "path": "tools/agent_sprint.py",
+      "owner": "/root/entrypoint_checker_p2_repair",
+      "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-source-attack.md",
-      "owner": "/root/sol_source_attack",
-      "state": "FROZEN",
-      "reason": "Sol assignment completed and independently reviewed; frozen source attack note and handoff retained."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_call.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_effect.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_context.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
-    },
-    {
-      "path": "tools/inference-playground/tests/runtime.rs",
-      "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
+      "path": "tasks/agent-loop/inbox/20261016-entrypoint-checker-p2-repair.md",
+      "owner": "/root/entrypoint_checker_p2_repair",
+      "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Sprint ended with all current workers STOPPED/completed and all outputs FROZEN. Historical legacy identities remain UNKNOWN with prior reservations/quarantines. End status grants no lease transfer. No protected untracked question/inbox paths were leased.",
+  "worker_inventory_scope": "All sprint producers and reviewers stopped; outputs frozen. Three historical UNKNOWN identities and quarantined board.md lease retained; no current workers active.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -226,19 +211,31 @@
       "needs": "Original opaque foreign-continuation application and transport law over same continuation/provider/future interface."
     },
     {
-      "id": "FIRST-RESULT-ADEQUACY",
-      "state": "OPEN",
-      "owner": "Original Call/effect parent",
-      "needs": "Original fixed-xi/z/provider first-Apply obligation-to-native implication and reverse adequacy; no generated antecedent or assumed successful comparison."
-    },
-    {
       "id": "IMPLEMENTATION-E2E",
       "state": "OPEN",
       "owner": "Luna implementation",
       "needs": "Current accepted change is a native regression test only. No production change or contextual-effect public execution bridge is justified until original Call/first-result obligations supply an owner-local safe path."
+    },
+    {
+      "id": "FIRST-RESULT-ADEQUACY",
+      "state": "OPEN",
+      "owner": "Original Call/effect parent",
+      "needs": "Current sprint attempts original source obligations to anchored joint MODEL implication using selected AppTarget introduction; no gate closes until the exact universal direction is established."
+    },
+    {
+      "id": "ENTRYPOINT-CHECKER-REVIEW",
+      "state": "DONE",
+      "owner": "Luna primary",
+      "needs": "P2 CLOSED after fresh independent review; checker SHA b519df4b80eb6bf978ed40594f1554c5352bbeeff6245e194077586a1c67aa67."
+    },
+    {
+      "id": "AM-MODEL-1",
+      "state": "OPEN",
+      "owner": "Luna / original Apply-Check rule owner",
+      "needs": "SCP-SOURCE-1: authenticate original retained predicate q with endpoints/direction/telescope/same-object meaning, or derive uniform VIncl(alpha,A1) from original coupled premises. Then separately prove declared-support and context/scoped flows."
     }
   ],
-  "next_action": "Sprint ended partial. Preserve the original user goal. Continuation candidates are unassigned; before any new dispatch, reconcile remaining sprint time and pin the next discriminating original premise, outputs, review seam and finite budget.",
+  "next_action": "Sprint ended partial-reviewed. Next exact owner/input: SCP-SOURCE-1 / AM-MODEL-1; no repeated finite-reflection or provenance audit without new discriminating source rule evidence.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
@@ -250,19 +247,29 @@
   },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
   "resource_accounting": {
-    "policy": "rules/research-lab.pre-sprint.md § Parallel calculations without resource multiplication",
-    "policy_sha256": "3f70daf755fd6af59959fa48a35aa2d5153639621cc18edc58934246f2aabb69",
-    "classification": "concurrent occupancy",
-    "lightweight_probes_reported": 0,
-    "cargo_attempts": 5,
-    "heavy_verification_peak": 1,
-    "astra_active_seconds": 900,
-    "sol_elapsed_seconds": 504.5,
-    "luna_verification_upper_bound_seconds": 600,
-    "identified_subtotal_seconds": 2004.5,
-    "sprint_cap_seconds": 7200,
-    "remaining_time": "UNKNOWN; editing/analysis, reviews, primary coordination and other activity not reconciled",
-    "cap_status": "No breach evidenced; full aggregate remaining budget cannot be certified. No reset."
+    "historical_unknown": "Prior call-contextual-effects and first-apply sprint unknown time remains unknown and is not reset.",
+    "current_sprint_id": "source-check-provenance-20261016",
+    "current_sprint_cap_seconds": 1800,
+    "proof_active_seconds_cap": 900,
+    "implementation_active_seconds_cap": 180,
+    "review_reserve_seconds": 360,
+    "coordination_and_integration_seconds": 180,
+    "reserve_seconds": 180,
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "spent_seconds": "implementation <=180 reported, exact active seconds UNKNOWN; review/coordination durations UNKNOWN",
+    "status": "No breach evidenced. Do not transfer ended-sprint budget; stop at fresh 1800-second cap.",
+    "implementation_state": "FROZEN-REVIEWED-CLEAN",
+    "proof_state": "active; exact aggregate remaining capacity not certified yet",
+    "proof_spent_seconds_conservative": 900,
+    "proof_cap_seconds": 900,
+    "implementation_spent_seconds": "upper bound <=180/180; exact active time UNKNOWN",
+    "reviewer_durations": "UNKNOWN within 360-second review reserve",
+    "coordination_primary_duration": "UNKNOWN within 180-second coordination allocation",
+    "aggregate_remaining": "UNKNOWN; not certified or transferred",
+    "cap_status": "No breach evidenced. Sprint ENDED-PARTIAL-REVIEWED; no budget, seconds, or assignments carry forward.",
+    "admission_status": "Closed after both reviews; next proof requires new discriminating input and a fresh finite envelope."
   },
-  "integration_outcome": "Partial: conditional local View constructor/native trace, conditional Sol source attack, and independently reviewed test-only endpoint-attributed regression. No source-to-public contextual-effect execution bridge. F1/FK1/FIRST-RESULT/implementation E2E remain OPEN."
+  "integration_outcome": "Partial, independently reviewed and Luna-adjudicated: source-rule provenance obstruction CLEAN; FIRST-RESULT-ADEQUACY remains OPEN; optional override P2 CLOSED by exact reviewed checker delta; no compiler behavior, theorem parent, or production gate closed."
 }

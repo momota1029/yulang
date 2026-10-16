@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "sprint_id": "app-target-model-application-20261016",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
+  "goal": "Continue the original Call/contextual-effects Goal through a new source-to-native MODEL derivation attempt and repair sprint validation for the AGENTS.md-integrated repository layout.",
+  "authority": "Preserve the original source semantics and theorem quantifiers. Apply the already selected bounded AppTarget interpretation only at its authentic source owner. The tool repair does not alter compiler semantics, source eligibility, theorem gates or production authority.",
+  "original_parent": {
+    "id": "FIRST-RESULT-ADEQUACY",
+    "source": "my receive (f: () -> 'a) = { my g = f(); g() }",
+    "quantifiers": "Every original xi=(nu,K,D), same actual provider and captures, original A1/E1 and first Call, every compatible context and whole Unit carrier, every original complete return witness z, pending Bind/future obligations and both tagged images M_W* W_z union_tagged M_res* F_R,z.",
+    "required_direction": "Derive the anchored joint native MODEL required by the reviewed local forward theorem from the original source obligations at the same xi/z and source owner, or isolate the earliest precise unmet premise. Never assume generated native children, reverse a sufficient forward theorem, choose convenient coordinates, or omit incident predicates/contexts.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Construct or refute the original-source-obligations to anchored-joint-MODEL implication using the selected AppTarget checked-result introduction and its actual application owners, with all original coordinates and source domains retained.",
+    "Apply any result to FIRST-RESULT-ADEQUACY and retain F1-FULL, FK1-FOREIGN and production as separate OPEN gates unless independently discharged.",
+    "Repair tools/agent_sprint.py so an integrated AGENTS.md is a valid repository entrypoint when AGENTS.override.md is absent, while validating the override route when that file exists; run only the static checker, not the test suite."
+  ],
+  "accepted_meaning": "Original Call/contextual-effect semantics, selected authentic AppTarget source interpretation, same provider/witness, whole carrier, actual effect ownership/lineage, source-generation/propagation rules and all original unresolved obligations remain fixed.",
+  "dependencies": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "tasks/agent-loop/current.json": "66d464057bf2fce4aea80c23bc7e19d19df9c1432a73e824c5b493fafa88ffbe",
+    "tasks/agent-loop/sprints/first-apply-owner-elimination-20261016-amendment-1.json": "8ff567e9584bc51fc4b06da3e806fe3541000b119aba24ab062766db9e226a20",
+    "notes/design/2026-10-16-source-application-checked-result.md": "c9207625887d78aaccef988324e8505f6dd08fdfe076e0f564f8b7dca3c54076",
+    "notes/theory/2026-10-16-first-call-checked-result-construction.md": "89fb62b1fe9e10d6972a79f17399d4a0332cf57817bb06a07f5e054ecb4b9dfa",
+    "notes/theory/2026-10-16-first-call-joint-forward-preservation.md": "f71cc442bcccb23f7e6f1aa6221b089abb8c24d1c4ce01fecef37995541c16b6",
+    "notes/theory/2026-10-16-neutral-result-row-source-interpretation.md": "4504612fb8cc7abd5ca47408545519e4708663d2a4666f9f68cc0669f9968ded",
+    "notes/theory/2026-10-16-first-result-source-judgment-preservation.md": "168075a1c6e5b77df844a258165cec1b1f383cc7f84f11843deb6c3e28853946",
+    "notes/theory/2026-10-16-first-apply-owner-elimination.md": "5bce831b4a25455e371e0500bdd9192bdeb133b2aeaa7c11732ba79161054839",
+    "notes/progress/2026-10-16-first-apply-owner-elimination-review.md": "4bcc747970a4efc925bc3e22403ef667920777b38dd0bacd80e3654e25aabcae",
+    "AGENTS.md": "69e24ca7bc987f0fa646145751e966f740f6774ef357082078a20030c50c89ae",
+    "tools/agent_sprint.py": "e33c3d17813cd3305ad4b636f2945c37d05a4af250ff05efd5b7e86c487d6427",
+    "tools/test_agent_sprint.py": "8f4ec45421a78c462a576d9c2f940cb3eb4ac3ae82d9036e1750cb6528fb1463"
+  },
+  "lanes": {
+    "proof": {
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "question": "Does the selected authentic AppTarget checked-result introduction and the original Call obligations construct the one anchored native MODEL required at the same xi/z, including original child contexts and predicates?",
+      "stages": [
+        "recover the selected AppTarget introduction and accepted actual-branch proof with exact review scope",
+        "instantiate both at the original receive first Apply while preserving xi/z, A1/E1, provider and tagged images",
+        "derive each anchored MODEL field from the original source obligations, including all post-check/scoped contexts",
+        "separate source guards already established from MODEL-dependent guards and expose any cycle",
+        "construct the required extension or a source-qualified failing anchor; otherwise identify the earliest precise premise and owner",
+        "apply the evidence to FIRST-RESULT-ADEQUACY and freeze one handoff"
+      ],
+      "outputs": [
+        "notes/theory/2026-10-16-app-target-model-application.md",
+        "tasks/agent-loop/inbox/20261016-app-target-model-application.md"
+      ],
+      "budget": {"active_seconds": 1200, "stages": 6, "heavy_processes": 0}
+    },
+    "implementation": {
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Repair tools/agent_sprint.py repository entrypoint selection: require and inspect AGENTS.md, include AGENTS.override.md in active route checks only when present, and preserve all other required policy checks. Read tools/test_agent_sprint.py but do not edit or run tests. Run the static `python3 tools/agent_sprint.py check` command once after the change. This tooling repair changes no compiler semantics or production authority.",
+      "output": "tasks/agent-loop/inbox/20261016-integrated-entrypoint-checker.md",
+      "budget": {"active_seconds": 480, "stages": 4, "heavy_processes": 0}
+    }
+  },
+  "leases": [
+    {"path": "notes/theory/2026-10-16-app-target-model-application.md", "owner": "astra_prover", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261016-app-target-model-application.md", "owner": "astra_prover", "state": "HELD"},
+    {"path": "tools/agent_sprint.py", "owner": "implementer", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261016-integrated-entrypoint-checker.md", "owner": "implementer", "state": "HELD"}
+  ],
+  "review": {
+    "reviewer": "fresh isolated compiler_referee for proof; regression_auditor or spec_auditor for tooling fix",
+    "budget_seconds": 360,
+    "reserve": "included in the fresh aggregate cap; reviewers must be independent from each lane's authors"
+  },
+  "resource_accounting": {
+    "prior_sprint": "The ended first-apply-owner-elimination sprint has uninstrumented reviewer/coordination time; its unknown residual is unchanged and not reused.",
+    "previous_goal_sprint": "call-contextual-effects-20261016 retains its original unreconciled time; no budget reset or transfer.",
+    "this_sprint_cap_seconds": 2400,
+    "lane_budgets_seconds": {"proof": 1200, "implementation": 480, "review": 360, "coordination_and_integration": 180, "reserve": 180},
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "stop": "Stop at parent application or exact missing premise, tooling fix plus static-check outcome, 2,400-second aggregate cap, lane stage/wall bounds, dependency/authority/lease mismatch, or user STOP. No previous budget is reset."
+  },
+  "preserved_open_gates": ["FIRST-RESULT-ADEQUACY", "F1-FULL", "FK1-FOREIGN", "IMPLEMENTATION-E2E", "production cutover"],
+  "non_goals": [
+    "No semantic changes or new source rule beyond the selected AppTarget constructor",
+    "No original quantifier/source-domain weakening",
+    "No production promotion based on the proof lane or static checker",
+    "No test additions or test-suite execution in this sprint",
+    "No edits to quarantined or frozen paths",
+    "No Git staging or commit by workers"
+  ],
+  "next_consultation": "Sprint end, genuine source-qualified counterexample, material authority/dependency/lease/resource change, or coherent review/integration seam.",
+  "dispatcher_decision": "next_action_selector proposed app-target-model-application-20261016 as a materially new proof input and independent tooling implementation. Luna grants the bounded, disjoint leases and resource envelope in this contract."
+}

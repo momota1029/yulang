@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "sprint_id": "first-apply-owner-elimination-20261016",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "eeb7826a238848d219058f4f14e0948c115ae6ac",
+  "goal": "Continue the original Call/contextual-effects goal by resolving the first-Apply owner elimination premise and finding any prerequisite-independent implementation path.",
+  "authority": "The 2026-10-16 sprint decision authorizes workflow only. Preserve the original source semantics and theorem scope; no production change is authorized by this contract.",
+  "original_parent": {
+    "id": "FIRST-RESULT-ADEQUACY",
+    "source": "my receive (f: () -> 'a) = { my g = f(); g() }",
+    "quantifiers": "Every original xi=(nu,K,D) and every original complete first-Call return witness z; same provider, captures, scopes/binders, whole Unit carrier, entry/current configuration, pending Bind/future obligations, and both tagged images M_W* W_z union_tagged M_res* F_R,z.",
+    "required_direction": "From the original source obligations at fixed xi and z to the actual incident native Result/RE/entry/context predicates. Do not add generated native constraints or assume successful comparison to the antecedent.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Derive the actual first-Apply Argument, ArgumentEffect, ResultEffect and Result predicates from an independently governing source Apply/check/ExecuteCallable elimination rule, preserving original coordinates and retained parent contexts; or identify the exact missing owner/input that prevents this derivation.",
+    "Apply any valid reduction to FIRST-RESULT-ADEQUACY without changing its quantifiers or conflating source, native, and production gates.",
+    "Implementation lane identifies a prerequisite-independent approved code path with exact source-to-consumer owners, or records owner-specific NO_SAFE_CODE_SLICE after inspecting at least two owners."
+  ],
+  "accepted_meaning": "Retain the original Call/contextual-effect relation, same provider and witness, whole carrier, actual effect ownership/lineage, and original unsolved obligations. Preserve ordinary Simple-sub generation, accumulation, propagation, levels, extrusion, intrusion and generalization.",
+  "dependencies": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-08-contextual-function-membership-definition.md": "0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/theory/2026-10-16-first-result-source-judgment-preservation.md": "168075a1c6e5b77df844a258165cec1b1f383cc7f84f11843deb6c3e28853946",
+    "notes/theory/2026-10-16-call-contextual-effects-core.md": "83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f",
+    "notes/progress/2026-10-16-call-contextual-effects-source-attack.md": "7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/candidate_call.rs": "cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f"
+  },
+  "lanes": {
+    "proof": {
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "question": "Which independently governing source Apply/check/ExecuteCallable elimination rule, if any, derives the actual native Function children with original fixed xi/z coordinates and parent contexts?",
+      "stages": ["locate the exact governing rule and distinguish semantic containment from generated abstract judgment", "derive each of the four actual children or show the missing owner/input", "apply the result to the unchanged parent and freeze a conditional/proof/refutation handoff"],
+      "outputs": ["notes/theory/2026-10-16-first-apply-owner-elimination.md", "tasks/agent-loop/inbox/20261016-first-apply-owner-elimination.md"],
+      "budget": {"active_seconds": 900, "stages": 6, "heavy_processes": 0}
+    },
+    "implementation": {
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Inspect candidate_source.rs, candidate_call.rs, shadow_apply.rs and lib.rs owners. Identify an approved prerequisite-independent implementation path or provide a concrete owner-specific NO_SAFE_CODE_SLICE. No compiler/test/expectation writes are leased in this sprint.",
+      "output": "tasks/agent-loop/inbox/20261016-first-apply-implementation-path.md",
+      "budget": {"active_seconds": 600, "stages": 4, "heavy_processes": 0}
+    }
+  },
+  "leases": [
+    {"path": "notes/theory/2026-10-16-first-apply-owner-elimination.md", "owner": "astra_prover", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261016-first-apply-owner-elimination.md", "owner": "astra_prover", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261016-first-apply-implementation-path.md", "owner": "implementer", "state": "HELD"}
+  ],
+  "review": {"reviewer": "fresh isolated compiler_referee", "budget_seconds": 300, "reserve": "review and integration are reserved within the 2,100-second cap; authors cannot certify their own work"},
+  "resource_accounting": {
+    "prior_sprint": "call-contextual-effects-20261016 remains ended with 2,004.5 seconds identified and other time unreconciled; its budget is not reset or altered.",
+    "this_sprint_cap_seconds": 2100,
+    "lane_budgets_seconds": {"proof": 900, "implementation": 600, "review": 300, "coordination_and_integration": 120, "reserve": 180},
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "astra_assignments": 1,
+    "stop": "Stop at parent application or exact missing premise, NO_SAFE_CODE_SLICE, 2,100-second aggregate cap, 6/4 stage bounds, changed authority/dependencies/leases, or user STOP. No budget extension or reset."
+  },
+  "preserved_open_gates": ["F1-FULL", "FK1-FOREIGN", "FIRST-RESULT-ADEQUACY", "IMPLEMENTATION-E2E", "production cutover"],
+  "non_goals": ["No semantic changes", "No quantifier/source-domain weakening", "No production promotion", "No broad test/build run", "No edits to quarantined or frozen paths", "No Git staging or commit by workers"],
+  "next_consultation": "Sprint end, a genuine counterexample, an authority/dependency/lease/resource change, or a coherent review/integration seam."
+}

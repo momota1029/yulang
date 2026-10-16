@@ -741,6 +741,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   Those native research checkpoints changed no production inference behavior;
   the separate module-expression extension above changes source ownership and
   scheduling only. Original FIRST-RESULT-ADEQUACY, B and production remain OPEN.
+  The independently reviewed [first-Apply provenance audit](../notes/theory/2026-10-16-first-apply-check-provenance.md)
+  traces “A1 constrained to alpha” to the complete invocation constraint,
+  without identifying an original `Check(Value(alpha), Value(A1))`. The accepted
+  atomic Result theorem still applies if that uniform check is authenticated;
+  its source owner remains `SCP-SOURCE-1 / AM-MODEL-1`. Declared-support and
+  contextual/scoped-flow obligations remain separate and open. The audit is a
+  bounded provenance gap, not non-entailment or a source-qualified counterexample.
+  In parallel, the integrated-entrypoint checker now validates any present
+  `AGENTS.override.md` path, including directories and dangling symlinks. Its
+  P2 delta review is clean and the one static-check receipt passes. See the
+  [sprint review](../notes/progress/2026-10-16-source-check-provenance-review.md).
   The active direct predicate proof must cover whole declared Support members,
   actual contributions and symbolic tails under the same xi, together with
   same-provider Result/RE/entry and reached post-check discharge. No inverse
