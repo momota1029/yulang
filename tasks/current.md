@@ -145,6 +145,22 @@ Status: full objective remains active. Native extrusion now schedules current co
   `80e22d2e` records the unsuccessful attempt and routes declaration/local-rule
   construction back to the primitive-contract authority.
 
+  The later A2 interaction-graph proposal was not adopted: R5 found local
+  construction gaps; M2 conjunction and M3 prefix rules were accepted only
+  within that proposed grammar, while A2-R2 explicitly withdrew its finite
+  image-construction claim. P2's [parameterized shallow-image core](../notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md)
+  now has a bounded CLEAN R6 review. It supplies conditional positive
+  I/O/RI/RO/Append/Resume and B_H/B_O equations, typed dynamic continuations,
+  finite O(S) emission when all referenced bodies/maps are supplied, and local
+  constructor interpretation. The full candidate remains BLOCKED at F1: the
+  original `OriginalFrame_f` action has no supplied Return/Request/Pending
+  body; FK1, opaque foreign continuation application, remains a separate
+  unresolved case. Neither case is treated as empty. This does not prove full
+  original-alternative coverage, admission preservation, exact-U/A-B discharge,
+  source correspondence, implementation, approval or production readiness.
+  All original parent gates remain OPEN; the proof note and inbox are accepted
+  only at this conditional scope.
+
 - **Choose caller registration boundary:** the reviewed
   [caller-registration construction](../notes/theory/2026-10-16-choose-bootstrap-caller-registration-construction.md)
   preserves the actual declaration, full instance, catalogue/root insertion

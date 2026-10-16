@@ -1,0 +1,22 @@
+# P2 frozen missing-rule request
+
+Request-ID: P2-FRAME-ACTION-003
+Revision: 1
+From: prover; actual worker /root/runtime_source_supplier_proof
+To: prover
+Parent-gate: P2 proposed finite-image feasibility, notes/theory/2026-10-16-primitive-interaction-graph-a2-r2-withdrawal.md missing-artifact list. Original N1/Z1 A/B target in notes/theory/2026-10-16-image-demand-original-alternative-discharge.md §§1,3 remains OPEN.
+Baseline: 0814021eb287edbd65ca6c1b25096ff91691f901; eight exact dependency hashes in P2 note §9; r2 a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e; withdrawal f963405835082252abbbc54381bf08fdb6a760cf508ae34416d7960fe0a2e729. Board packet snapshot 642a90cb2851fc0d9a77b17ab2cdc140ce565207712fc9847878f37bfd85148a was checked at intake; later scheduling-only delta reported separately.
+Kind: source-evidence
+Claim/task: At ONE actual declared original consumer/owner/phase frame f, supply finite typed positive Return/Request/Pending transition equations at its original dependent telescope and complete pending suffix. Establish the body needed by RI/RO(z,OriginalFrame_f(ef,k),...) from its genuine owner, with current-configuration/evidence maps and original provider/future. Appending a frame tag is not executing it. No FrameImage primitive or new semantics is authorized by this request.
+Missing-evidence: r2 names OriginalFrame_f but gives no complete frame inventory, frame-return body or lawful request/prefix/environment action. P2 constructs direct positive image-core and B_H/B_O observation/suffix equations with dynamic Kont and original pre-suffix common-y Join, then stops at that return-dispatch case. FixedForeign continuation application is another undeclared case, retained unchanged rather than recoded as a source closure or foreign-image oracle.
+Owners: Original consumer/owner/phase frame constructor and Return/Request/Pending consumers; candidate r2's OriginalFrame case. Operation source construction notes/theory/2026-10-16-operation-primitive-image-contract-construction.md §§3–5 gives concrete k0/ordered S but not all opaque S actions.
+Depends-on: Necessary: one genuinely declared original frame with its actual typed local action, not only its tag/environment. Full P2 closure still requires every permitted frame/foreign action; this one-case evidence cannot close original universal parents. Canonical successor ID unassigned.
+Scope: Exact original frame, scopes/binders/current C/complete suffix/provider/future and all original outcomes. No source-domain narrowing, old-Z reconstruction prerequisite, private witness selection, assumed Image, arbitrary relation-application sort, compiler code/tests or architecture adoption.
+Acceptance: Concrete finite positive local bodies and two-way local interpretation using actual owning premises. Falsifiers: identity-pop changes activity/consumer execution; Request or Pending disappears; old C or H restored; suffix shortened; unsupported type/primitive added; transition assumed from desired image. If the original action is unspecified, report the exact declaration gap without impossibility claim.
+Proposed-outputs: notes/theory/2026-10-16-original-frame-positive-transition-presentation.md (proposal only, no lease); Luna allocates any future inbox.
+Checks/resources: Luna verification/review owner; proposed static owner/equation derivation only, <=20 minutes, <=2 lightweight reads; no builds/tests/probes/network/Git/delegation. Independent review remains primary-assigned.
+Prior-work: Reuse r2 dynamic Kont/live-Cnow/outside-H raw resume, local M2/M3, operation k0/ordered suffix and P2 conditional core equations. Reject A2-R2 finite-Run-implies-finite-Image and another full-image closure claim without a frame body. Original T_alpha/admission/exact-U scope unchanged.
+Priority-reason: Supplies the first exact missing defining equation in candidate image return dispatch, changing feasibility evidence without inventing an original Z law or implementing an unproved mechanism.
+Stop/escalate: Stop at absent original local law or any provider/world/prefix/suffix change. An unchanged frame tag is not new evidence. No Astra requested; escalation requires primary authorization, new localized decisive question and prior evidence.
+
+Frozen revision 1; dispatcher intake/canonical assignment pending. This request grants no lease, selects no successor and authorizes no implementation. Full finite-image feasibility remains BLOCKED; original parents remain OPEN.
