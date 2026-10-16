@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
     "revision": 3,
     "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049",
-    "state": "ARCHITECT-REVIEW-RUNNING",
+    "state": "PROPOSAL-MAJOR-REPAIR-NEEDED",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -46,7 +46,7 @@
       "repair_receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
     },
     "proposal": {
-      "state": "FROZEN-WAITING-ARCHITECT-REVIEW",
+      "state": "MAJOR-REPAIR-NEEDED",
       "owner": "/root",
       "cap_seconds": 600,
       "outputs": [
@@ -58,7 +58,7 @@
       "handoff_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
     },
     "review": {
-      "state": "RUNNING-ARCHITECT",
+      "state": "MAJOR-ARCHITECT-REVIEW",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -71,11 +71,11 @@
       ],
       "proof_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
       "proof_handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
-      "current_reviewer": "/root/local_use_retention_arch_review",
-      "current_cap_seconds": 120,
+      "current_reviewer": null,
+      "current_cap_seconds": null,
       "session": "current-session",
-      "active_work_receipt": "Actual architect worker launched and acknowledged current-session review; exact artifact, handoff, proof, source and rev3 contract pins supplied; read-only one-stage 120s cap; spec review waits for STOP.",
-      "verdict": "PENDING: code proposal frozen; architect review running. Spec audit waits for architect STOP.",
+      "active_work_receipt": "Independent architect completed one-stage read-only review within 120s cap; exact seven pins verified; STOPPED.",
+      "verdict": "MAJOR: proposed removal of LocalFreshRoute.rows breaks shadow_apply.rs local route adapter and tests; FreshUse.rows is private across module boundary. All-map retention also increases memory and may shift resource-limit acceptance earlier; practical envelope unmeasured. Architect STOPPED; spec review blocked pending repair/reconciliation.",
       "reviewer": "/root/local_use_map_version_delta_review",
       "review_state": "STOPPED",
       "delta_cap_seconds": 60,
@@ -133,7 +133,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna completed the existing 600s author packet; both exact outputs frozen. Proposed move-only FreshUse retention patch, no compiler edits. Writer STOPPED."
+      "receipt": "Proposal is blocked on MAJOR source-applicability finding; awaiting selector delta and budget reconciliation."
     },
     {
       "id": "/root/local_use_existing_map_retention",
@@ -149,13 +149,13 @@
     {
       "id": "/root/local_use_retention_arch_review",
       "role": "architect",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual architect worker launched and acknowledged current-session review; exact artifact, handoff, proof, source and rev3 contract pins supplied; read-only one-stage 120s cap; spec review waits for STOP."
+      "receipt": "MAJOR: proposed removal of LocalFreshRoute.rows breaks shadow_apply.rs local route adapter and tests; FreshUse.rows is private across module boundary. All-map retention also increases memory and may shift resource-limit acceptance earlier; practical envelope unmeasured. Architect STOPPED; spec review blocked pending repair/reconciliation."
     }
   ],
   "leases": [
@@ -252,15 +252,15 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "PROOF M2 CLEAN; CODE PROPOSAL FROZEN; ARCHITECT REVIEW RUNNING; USER APPROVAL REQUIRED BEFORE CODE.",
-      "owner": "Luna / independent architect and spec reviewers / user approval"
+      "state": "PROOF M2 CLEAN; PROPOSAL MAJOR: update existing rows consumer/test API and account memory tradeoff; spec review not launched.",
+      "owner": "Luna/selector; exact code scope still awaits user approval"
     }
   ],
   "next_action": {
-    "state": "ARCHITECT-REVIEW-RUNNING",
+    "state": "PROPOSAL-MAJOR-REPAIR-NEEDED",
     "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
     "proof": "M2 v2 CLEAN within the corrected finite-query conditional scope; parent remains OPEN.",
-    "implementation": "Exact unapplied FreshUse move proposal frozen; architect then spec review sequentially; no code authority."
+    "implementation": "Architect found removed LocalFreshRoute.rows breaks shadow_apply adapter/tests and sibling access; all-map retention memory acceptance change needs explicit treatment. No code edits."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
@@ -273,10 +273,10 @@
     "unknown_reservations_preserved": 3,
     "active_authors": 0,
     "astra_assignments": 0,
-    "charged_total_seconds": 1200,
-    "status": "Proof author 420s and proposal author 600s plus proof reviews 180s charged; proposal architect review 120s and spec review 120s remain; 120s coordination remains.",
+    "charged_total_seconds": 1320,
+    "status": "Proof authors 420s + proposal author 600s + proof/architect reviews 300s charged; remaining only spec120 and coordination120; reserve0; major proposal repair needs reconciliation.",
     "authors_spent_seconds": 1020,
-    "review_spent_seconds": 180,
+    "review_spent_seconds": 300,
     "architecture_spent_seconds": 0,
     "coordination_spent_seconds": 0
   },
