@@ -29,7 +29,6 @@ pub struct Machine {
     executables: HashMap<usize, ExecutableValue>,
     environments: Vec<Environment>,
     cells: Vec<Option<ReceivedValue>>,
-    globals: HashMap<DefId, usize>,
     execution_roots: Vec<ScheduledRoot>,
     initializing_globals: HashSet<usize>,
     selected: usize,
@@ -321,12 +320,6 @@ impl RuntimeProgram {
                 }
             }
         }
-        let globals = self
-            .definitions
-            .iter()
-            .enumerate()
-            .map(|(index, definition)| (definition.id.clone(), index))
-            .collect();
         let mut machine = Machine {
             program: self.clone(),
             state: State::Stopped(RuntimeOutcome::Running),
@@ -338,7 +331,6 @@ impl RuntimeProgram {
                 binder: None,
             }],
             cells: vec![None; self.definitions.len()],
-            globals,
             execution_roots: roots,
             initializing_globals: HashSet::new(),
             selected,
@@ -454,7 +446,9 @@ impl Machine {
                 consumption,
             } => {
                 let cell = match resolution {
-                    LocalSourceResolution::ModuleDef(id) => self.globals.get(id).copied(),
+                    LocalSourceResolution::ModuleDef(id) => {
+                        self.program.definition_indices.get(id).copied()
+                    }
                     LocalSourceResolution::Parameter(id) => {
                         self.lookup(environment, &Binder::Parameter(id.clone()))
                     }
@@ -1716,7 +1710,7 @@ mod module_expression_tests {
             false,
         );
         assert_eq!(machine.cells.len(), 2);
-        assert_eq!(machine.globals.len(), 2);
+        assert_eq!(machine.program.definition_indices.len(), 2);
         assert!(machine.initializing_globals.is_empty());
         assert!(matches!(
             machine.frames.last(),
