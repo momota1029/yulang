@@ -399,9 +399,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   is a missing witness check, not a new general inference prerequisite.
   The independent support census found no authenticated free-q path: the first
   missing actual field is Remaining's Ref(t,m), with the current source/capture
-  substitution. An architectural audit identifies existing reference naturality
-  as its owner; a bounded constructive lane now builds the actual map, preserving
-  all installed contracts, original scopes and provenance identities.
+  substitution. The [map-construction correction](../notes/theory/2026-10-16-raw-continuation-current-reference-map.md)
+  has CLEAN mathematical delta review after one accepted MAJOR: reference
+  naturality composes a supplied declaration/map, but the original R_e body,
+  formal-occurrence graph and registration are not constructed by local T_e or
+  IF incidence. Authentic current-map/direct-q closure is withdrawn; conditional
+  algebra is retained, every established contract keeps its actual map.
+  An architectural audit identifies a legitimate missing source remaining-root
+  constructor under existing definition permission, with no separately fixed
+  R_e kernel found. New bounded construction and independent constituent audit
+  now build/attack the ordered complete phase-contract graph, its authentic
+  telescope/maps and universal readout together. They preserve every may-bound
+  and original guard; selection and any Phi_e application require fresh review.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

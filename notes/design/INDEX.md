@@ -121,6 +121,12 @@ This index is a navigation aid. The listed source document remains authoritative
   actual saved-source behavior is not every hypothetical realizer's guarantee.
   Negative ctrl permission is not an incoming effect cap. This alternate source
   instance narrows no parent and supplies no source-qualified counterexample.
+  The [current-reference boundary](../theory/2026-10-16-raw-continuation-current-reference-map.md)
+  has CLEAN correction review: map composition is conditional on the original
+  root's actual declaration/body graph. Local T_e and IF incidence do not supply
+  that graph; authentic current-map and direct support closure are withdrawn.
+  The missing owner is source remaining-root formation before reference use,
+  with original constraints, scopes, alternatives and inherited maps intact.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

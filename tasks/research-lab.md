@@ -435,6 +435,29 @@ as the first missing field. Existing naturality requires current
 `mcap(a)=(m0(a)[delta])[sigma_cap]`; provenance IDs and historical maps remain.
 Prover `ordinary_carrier_proof` now owns the disjoint 15-minute constructor
 packet `notes/theory/2026-10-16-raw-continuation-current-reference-map.md`.
+That attempt received source CLEAN and one accepted mathematical MAJOR:
+local T_e's semantic R_e is not its registered predicate body/formal routing.
+One batched correction is now mathematical-delta CLEAN at
+`1530621d...6bad0f`. Authentic registration/current-map/direct-support closure
+is WITHDRAWN; composition remains conditional on actual RemainingBody_e.
+The exact unconsumed owner output is the original root's finite clause graph,
+binders/sharing/term occurrences, primitive/reference maps and defining equation.
+IF slots or source execution are insufficient. No new general inference gate
+or source restriction is introduced by this missing local constructor.
+After the changed-method architectural audit, the primary dispatches the
+actual missing source remaining-root definition under existing permission:
+prover `ordinary_carrier_proof`, 25 minutes,
+`notes/theory/2026-10-16-source-remaining-root-contract-construction.md`;
+researcher `native_correlation_consumer`, 15 minutes,
+`notes/progress/2026-10-16-source-remaining-root-contract-audit.md` (empty
+artifact without new evidence). Their independent methods construct versus
+attack ordered COMPLETE phase-contract composition, preserving joint tuples,
+all declared alternatives/guards and original scopes. Acceptance requires
+graph/telescope/actual maps, typed introduction AND descriptor-level universal
+readout; no assumption that actual-S typing exhausts descriptor observations.
+Raw k's open Value-entry Force stays outside this remaining suffix. No fixed
+foreign kernel or established contract may be tightened; independent review
+and explicit source-constructor selection precede any application/cutover.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new
