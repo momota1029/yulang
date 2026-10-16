@@ -6,6 +6,18 @@ Status: full objective remains active. Native extrusion now schedules current co
 
 ## Current checkpoint (2026-10-16)
 
+- **Resident research loop (session `2026-10-16-loop-a`):** the dispatcher is
+  `/root/resident_dispatcher_loop_a`; the implementer
+  `/root/resident_implementer_idle`, prover
+  `/root/runtime_source_supplier_proof` and reviewer
+  `receiving_pair_referee` are all WAITING. The implementer has no code task or
+  output lease. R1/R2 review work and P1's bounded native leaf are integrated
+  at `58d1c22dd` and `6a1c5cfd1`, both pushed. The original source T,
+  ResultBind/context/MODEL, eligibility/generalization and production parents
+  remain OPEN; S2 and implementation N1 are BLOCKED. Consult the dispatcher
+  after this record sync before selecting further work. Full role, lease and
+  inbox state is in [the loop board](agent-loop/board.md).
+
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
   [governing design](../notes/design/2026-10-16-module-expression-source-owner.md)
@@ -157,9 +169,27 @@ Status: full objective remains active. Native extrusion now schedules current co
   formal. The native Catch result coordinates are not imported as the
   continuation answer interface. This pinpoints separate semantic supplier
   and runtime importer obligations; it selects neither. Separate bounded
-  constructive and source-owner lanes are testing whether the original
-  Value(Function) formal and both Calls have a checked T supplier. Checkpoint
-  `eb4de2ff9` and source audit `fae7be0c6`.
+  [supplier derivation](../notes/theory/2026-10-16-runtime-receiving-formal-source-supplier.md)
+  and [source-owner audit](../notes/progress/2026-10-16-runtime-receiving-formal-source-supplier-audit.md)
+  have now returned bounded results. For the exact annotated formal, native
+  preflight rejects the negative nested `[ctrl]Int` row before collection;
+  this is an implementation coverage fact, not source rejection. The
+  complementary source audit maps the
+  two Calls and complete ResultBind obligations to their original owners. R1
+  independently reviewed that pair CLEAN; its review metadata is integrated
+  at `58d1c22dd`.
+
+  P1's [native correspondence](../notes/theory/2026-10-16-receiving-local-install-freshuse-correspondence.md)
+  then derived the conditional ordinary-mode local Install/FreshUse path:
+  the same root and one coherent native map are retained, captured-bound
+  restorations and delivered children finish before Name linking, and only a
+  successful transaction publishes `LocalFreshRoute`. R2 independently
+  reviewed that bounded correspondence CLEAN; it is integrated at `6a1c5cfd1`.
+  Neither result establishes reachability of the currently rejected source,
+  actual ResultBind witnesses, source T, context/MODEL, eligibility,
+  generalization or VM import. S2 is BLOCKED on those original source inputs;
+  the callable source/VM, source-plan and production gates remain OPEN.
+  Checkpoints `eb4de2ff9`, `fae7be0c6`, `58d1c22dd` and `6a1c5cfd1`.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)
