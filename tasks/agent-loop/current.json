@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
     "revision": 1,
     "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
-    "state": "PROOF-RESULT-FROZEN-WAITING-REVIEW-AND-CODE-APPROVAL",
+    "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
     "baseline": "d1b706e83",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "STOPPED-FROZEN",
+      "state": "RESULT-PENDING-REVIEW",
       "owner": "astra_prover",
       "cap_seconds": 720,
       "artifact": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
@@ -32,13 +32,16 @@
       "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
     },
     "review": {
-      "state": "WAITING-FOR-APPROVAL-AND-PROOF-REVIEW-PLAN",
+      "state": "PROOF-REVIEW-CLEAN-STOPPED",
       "sequence": [
-        "compiler_referee:120s",
-        "architect:120s",
-        "spec_auditor:120s"
+        "compiler_referee:120s now",
+        "architect:120s after proof review if warranted",
+        "spec_auditor:120s after proof review if warranted",
+        "compiler_referee:120s code-correspondence delta only if approval and implementation snapshot exist"
       ],
-      "current_reviewer": null
+      "current_reviewer": null,
+      "dispatcher": "At proof result boundary: preserve sprint; spend 120s existing review budget on fresh read-only compiler review of conditional proof and first missing antecedent; retain 240s arch/spec and 120s reserve for future code delta if authorized.",
+      "compiler_receipt": "CLEAN within conditional proof scope; all pins match; first missing authenticated ordinary seed/processing evidence confirmed; does not certify implementation or source acceptance; STOPPED read-only."
     },
     "predecessor": {
       "id": "npair-native-port-formation-20261017",
@@ -110,6 +113,19 @@
       "cap_seconds": 720,
       "receipt": "STOPPED; frozen exact proof/handoff hashes; no descendants. Conditional producer correspondence and precise authenticated-At obstruction.",
       "elapsed_seconds_charged": 720
+    },
+    {
+      "id": "/root/npair_concrete_producer_compiler_review",
+      "role": "compiler_referee, fresh read-only proof reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 120,
+      "receipt": "CLEAN conditional proof review; all pins match; actual At gap confirmed; full 120s charged; STOPPED read-only.",
+      "elapsed_seconds_charged": 120
     }
   ],
   "leases": [
@@ -183,12 +199,12 @@
     "reviews_cap_seconds": 360,
     "coordination_seconds": 120,
     "reserve_seconds": 120,
-    "charged_total_seconds": 840,
+    "charged_total_seconds": 960,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "120s coordination + full 720s proof envelope charged. Proof STOPPED; implementation remains unleased pending approval; review allocations unused."
+    "status": "120s coordination + 720s proof + 120s compiler proof review charged. 240s arch/spec review, 1080s conditional code, and 120s reserve remain; implementation has no lease pending user approval."
   },
-  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased. Astra concrete-producer refinement proof frozen (720s charged) at ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389; handoff bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103. Authenticated-At frontier remains open at ordinary seed/processing antecedents. Frozen proof and review-pending state pushed as 3572e40c6; code lane remains unleased pending user approval.",
+  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased. Astra concrete-producer refinement proof frozen (720s charged) at ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389; handoff bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103. Authenticated-At frontier remains open at ordinary seed/processing antecedents. Frozen proof and review-pending state pushed as 3572e40c6; code lane remains unleased pending user approval. Fresh compiler_referee proof review STOPPED CLEAN (120s), confirming the first missing authentic-At premise is authenticated ordinary seed/processing evidence associated with the descriptor; no source acceptance or implementation certification.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
