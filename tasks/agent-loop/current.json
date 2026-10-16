@@ -14,7 +14,8 @@
     "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna",
     "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md",
     "amendment_revision": 1,
-    "implementation_reconciliation_receipt": "notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md"
+    "implementation_reconciliation_receipt": "notes/progress/2026-10-16-call-contextual-effects-implementation-reconciliation.md",
+    "source_attack_review_receipt": "notes/progress/2026-10-16-call-contextual-effects-source-review.md"
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
   "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
@@ -56,13 +57,13 @@
     {
       "id": "/root/astra_core",
       "role": "Astra core proof (astra_prover)",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Live inventory reports RUNNING; acknowledged base v2 hash earlier. Continuation after test locator amendment is pending acknowledgement. Current session/model/effort unavailable; exact outputs remain quarantined."
+      "receipt": "Astra assignment completed/STOPPED; artifact `notes/theory/2026-10-16-call-contextual-effects-core.md` SHA-256 83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f, handoff `tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md` SHA-256 672b2e060722a5d38c2925094832e75e247aad4e5a48e4fbf4dcad5c019ba1ad. Claims a conditional local View case for F1; remaining full F1/FK1/FIRST-RESULT gates open. Seven stages/900 sec charged of cap; model/session unknown. Pending fresh independent review."
     },
     {
       "id": "/root/sol_source_attack",
@@ -73,7 +74,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current collaboration tool reports completion; frozen research-only note SHA-256 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and inbox SHA-256 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. All 26 base v2 pins rechecked; no source-qualified counterexample; all parent gates OPEN. Independent review assigned."
+      "receipt": "Sol assignment completed/STOPPED with independent review accepted as static source-owner evidence and conditional separators; receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md."
     },
     {
       "id": "/root/luna_implementation",
@@ -100,13 +101,13 @@
     {
       "id": "/root/source_review",
       "role": "independent source/proof review (compiler_referee)",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Independent source review acknowledged amendment 1 and immutable test snapshot; review is continuing against immutable v2 inputs. Preliminary read confirms separators remain conditional and F1/FK1/first-Apply remain open; session ID unavailable."
+      "receipt": "Fresh compiler_referee completed independent review of frozen Sol output; accepted as conditional static evidence only, no theorem/source-qualified counterexample promotion."
     }
   ],
   "leases": [
@@ -119,26 +120,26 @@
     {
       "path": "notes/theory/2026-10-16-call-contextual-effects-core.md",
       "owner": "/root/astra_core",
-      "state": "QUARANTINED",
-      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+      "state": "FROZEN",
+      "reason": "Astra assignment completed/STOPPED; exact candidate artifact and handoff hashes frozen awaiting independent review."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-core.md",
       "owner": "/root/astra_core",
-      "state": "QUARANTINED",
-      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+      "state": "FROZEN",
+      "reason": "Astra assignment completed/STOPPED; exact candidate artifact and handoff hashes frozen awaiting independent review."
     },
     {
       "path": "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
       "owner": "/root/sol_source_attack",
       "state": "FROZEN",
-      "reason": "Source attack completed; note and handoff are frozen awaiting independent review."
+      "reason": "Sol assignment completed and independently reviewed; frozen source attack note and handoff retained."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-source-attack.md",
       "owner": "/root/sol_source_attack",
       "state": "FROZEN",
-      "reason": "Source attack completed; note and handoff are frozen awaiting independent review."
+      "reason": "Sol assignment completed and independently reviewed; frozen source attack note and handoff retained."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md",
@@ -189,7 +190,7 @@
       "reason": "Continuation revision 2 completed; immutable handoff unchanged, repaired test frozen at SHA-256 2f887b805465720caaa3786077a7039f19a2ee064785883ed46e693cc5d9907d, archived r1 snapshot retained, primary reconciliation receipt recorded."
     }
   ],
-  "worker_inventory_scope": "Current inventory: Astra, source reviewer, and implementation reviewer final receipt-check are reported RUNNING with session IDs unavailable; states UNKNOWN, exact writer leases quarantined. Sol source attack and Luna continuation are completed/STOPPED with frozen artifacts. The Luna repaired test and original handoff are frozen; r1 test snapshot and primary reconciliation receipt are recorded. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Current inventory: only fresh Astra core reviewer reports RUNNING; its session ID is unavailable, so state UNKNOWN and no output write lease. Astra core, Sol source attack, Luna implementation, and both prior reviewers are completed/STOPPED with frozen artifacts and receipts. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -236,18 +237,24 @@
     },
     {
       "id": "SOL-SOURCE-ATTACK-REVIEW",
-      "state": "OPEN",
+      "state": "DONE",
       "owner": "fresh independent reviewer",
-      "needs": "Review frozen note/handoff against base v2 and report conditional constructions, counterexample coverage, original quantifier preservation and source/native limits."
+      "needs": "Independent source review accepted only static evidence/conditional separators; source review receipt notes/progress/2026-10-16-call-contextual-effects-source-review.md. Parent gates remain OPEN."
     },
     {
       "id": "IMPLEMENTATION-LOCATOR-ACK",
       "state": "OPEN",
       "owner": "Astra core proof",
       "needs": "Acknowledge test input relocation from mutable path to immutable history snapshot SHA 91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56; semantic inputs unchanged."
+    },
+    {
+      "id": "ASTRA-CORE-REVIEW",
+      "state": "OPEN",
+      "owner": "fresh compiler_referee",
+      "needs": "Adversarially review local conditional View case, source/native trace and residual original F1/FK1/FIRST-RESULT obligations; preserve full quantifiers."
     }
   ],
-  "next_action": "Commit and push the independently reviewed narrow implementation packet; continue awaiting Astra proof and Sol source review before deciding the next justified implementation step.",
+  "next_action": "Complete fresh independent review of Astra conditional View derivation; then adjudicate exactly which original local action it discharges while preserving full F1/FK1/FIRST-RESULT OPEN.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [
