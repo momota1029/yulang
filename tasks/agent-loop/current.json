@@ -26,9 +26,9 @@
       "charge_seconds_cap": 900,
       "contract_revision": 1,
       "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-      "receipt": "Active proof work under exact rev1 output leases; initial contract acknowledgement pending.",
+      "receipt": "Contract acknowledged before writing; all 52 direct dependency hashes MATCH; exact two output paths accepted absent-before-write. Active work began 2026-10-16T15:03:13Z (2026-10-17 00:03:13 JST), after initial reads. Six? Eight stages authorized; no descendants; no writes yet. Requested Astra/medium; observed model/effort UNKNOWN.",
       "worker_id": "/root/choose_operation_instantiation",
-      "runtime_receipt": "spawn_agent returned /root/choose_operation_instantiation; collaboration inventory reports RUNNING. Session ID and observed model/effort UNKNOWN."
+      "runtime_receipt": "Explicit spawn returned /root/choose_operation_instantiation; worker acknowledgement confirms active work and STOP protocol. Session ID UNKNOWN."
     },
     "implementation": {
       "state": "SEQUENTIAL-DEFERRED",
@@ -99,7 +99,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "spawn_agent returned this actual worker ID; collaboration inventory reports RUNNING on the exact proof packet."
+      "receipt": "Worker acknowledged rev1 contract and 52/52 dependency hashes before writing; active work began 2026-10-16T15:03:13Z; no writes/descendants yet; observed model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -176,7 +176,7 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "0 this sprint; proof not yet started.",
+    "spent_seconds": "Proof active from 2026-10-16T15:03:13Z; exact billed seconds UNKNOWN, cap 900. Implementation and reviews not started.",
     "status": "Proof author RUNNING; implementation sequentially deferred; no reviewer active.",
     "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; one assignment slot plus two reserved."
   },
