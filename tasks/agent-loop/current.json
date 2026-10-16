@@ -31,8 +31,8 @@
       "coordination_seconds": 60,
       "reserve_seconds": 0,
       "charged_seconds": 600,
-      "active_authors": 0,
-      "status": "60s coordination +300s readiness (including full 60s repair allocation) +180s proof +60s compiler review charged. Readiness STOPPED; architect review running, spec-auditor follows; no reserve.",
+      "active_authors": 1,
+      "status": "Authors STOPPED. Fresh architect review live under 60s cap; spec-auditor follows. 600s charged; 120s review allocation remains.",
       "proof_original_cap_seconds": 240,
       "proof_transfer_out_seconds": 60
     },
@@ -176,6 +176,19 @@
       "cap_seconds": 60,
       "elapsed_seconds_charged": 60,
       "receipt": "Read-only compiler-referee review STOPPED within 60s cap. Two MAJOR readiness corrections; universal mutation-exclusion BLOCKING without owner-identity and transitive-owner audit. Findings returned to Luna/selector. Two MAJOR findings; proof remains conditionally valid only as a blocker report."
+    },
+    {
+      "id": "/root/npair_snapshot_owner_arch_review",
+      "role": "architect, fresh revision-2 readiness review",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 60,
+      "elapsed_seconds_charged": 0,
+      "receipt": "Read-only revision-2 review launched sequentially after readiness repair STOP; exact amended artifact hashes supplied; model/effort telemetry unavailable."
     }
   ],
   "leases": [
@@ -260,9 +273,9 @@
     "coordination_seconds": 60,
     "reserve_seconds": 0,
     "charged_total_seconds": 600,
-    "active_authors": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "60s coordination +300s readiness +180s proof +60s compiler review charged. Architect review RUNNING; spec-auditor remains next; total cap720, reserve0.",
+    "status": "600s charged of 720s. Architect review RUNNING under 60s; spec-auditor follows under 60s; no reserve.",
     "proof_original_cap_seconds": 240,
     "proof_transfer_out_seconds": 60
   },
