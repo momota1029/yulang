@@ -1,7 +1,9 @@
 # Sprint npair-commit-retention-repair-20261017
 
-Status: adopted by Luna after the sprint-end selector delta and the user's
-acceptance of that proposal. Revision 1.
+Status: adopted by Luna after selector deltas and the user's acceptance of the
+repair proposal. Revision 2 supersedes revision 1 only for review sequencing and
+caps; the outcome, authority, source scope, author leases and total 1200-second
+envelope are unchanged.
 Branch: `research/simple-sub-intrusion`.
 Administrative baseline: `ab32591e91d0759620a2b9d3d0d54513fb4a0f73`.
 Compiler baseline: `74bfaa6a8ce0a60051e40e531c54576516d6c151`; source-owner pins
@@ -61,14 +63,25 @@ closure from this local lifecycle result.
    Bound duplicate/path growth with a shared derivation DAG or equivalent and
    account for records, indexes, references, undo state and subscriptions.
    Keep all unproved native/source gates explicit. No code lease.
-3. After Luna freezes the corrected candidate and handoff, fresh architect
-   review (120s) then fresh spec-auditor review (120s), exact bytes and inputs.
-   Stop on any major/blocking result. A substantive new proof claim that exceeds
-   the bounded retention argument returns for reconciliation; do not silently
-   widen proof authority.
+3. After Luna freezes the corrected candidate, handoff and R1, sequential fresh
+   independent review uses the existing 240-second review budget:
+   - compiler_referee (80s): R1's conditional finite-query retention proof,
+     premises, factorization argument and stated limits;
+   - architect (80s): pre-commit projection, committed ownership, atomic
+     transfer, lifetime/invalidation, pending event/progress contract and
+     resource accounting;
+   - spec_auditor (80s): adopted NPAIR conformance, dependency/pending behavior
+     and authority boundary.
+   Luna confirms each reviewer STOPPED before launching the next. A blocking
+   proof finding pauses dependent architecture acceptance. No review promotes
+   R1 to whole native rho_u, source/native adequacy or parent closure. Findings
+   or incomplete coverage stop at each cap; no automatic extension. This
+   revision adds the distinct proof referee required for an authored lemma and
+   splits the unchanged review budget evenly; no envelope or author lease grows.
 
 Fresh envelope: 1200 seconds total — proof 240, architecture author 600,
-reviews 240, coordination 60, reserve 60. One author at a time, no Astra,
+reviews 240 (three sequential reviews of 80 seconds each), coordination 60,
+reserve 60. One author at a time, no Astra,
 descendants, code, tests, Cargo, builds or execution. No previous budget carries.
 Preserve three historical UNKNOWN reservations and the quarantined
 `tasks/agent-loop/board.md` lease. Unknown identities keep their reservations.

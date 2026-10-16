@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-commit-retention-repair-20261017",
     "contract": "tasks/agent-loop/sprints/npair-commit-retention-repair-20261017.md",
-    "revision": 1,
-    "sha256": "bdb5f6fb16d7dba84fca79c0197775e2ea23bb3bd49856b324fcd2152b13a6ee",
+    "revision": 2,
+    "sha256": "5816b68d1cfdf2e51e519ba2864154055fe6efbffb2f02037e38b59f7d8b6fc3",
     "state": "FROZEN-PENDING-INDEPENDENT-REVIEW",
     "baseline": "ab32591e91d0759620a2b9d3d0d54513fb4a0f73",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
@@ -53,8 +53,9 @@
       "receipt": "Candidate repair frozen; primary STOPPED; full 600s conservative author charge; no code or execution."
     },
     "review": {
-      "state": "WAITING-REVIEW-ALLOCATION-ADJUDICATION",
+      "state": "READY-COMPILER-REFEREE",
       "sequence": [
+        "compiler_referee",
         "architect",
         "spec_auditor"
       ],
@@ -62,7 +63,11 @@
       "target_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
       "handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21",
       "proof_sha256": "c5c069798cd5822918e09438ac7e82e627d562ba0b13f8233ca5709e43f9c922",
-      "proof_handoff_sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514"
+      "proof_handoff_sha256": "4ef908c919d1e94b1c65960d31df730b0620980382f725a5c6bab75585099514",
+      "cap_each_seconds": 80,
+      "allocation_reason": "Selector delta adds a distinct proof review for authored R1 and splits existing review budget evenly; no total envelope increase or author restart.",
+      "candidate_sha256": "1d2a4d0f603d0548d3aa6cd6938e4795714aabc4d72eb11b785dcd2c8858b13d",
+      "candidate_handoff_sha256": "ccbd92cd8b6c0185de5c23d7ab7b9a2ba51510cf33609092559945639f2cbd21"
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; whole native rho_u, actual consumer, source/native, implementation and production remain OPEN."
   },
@@ -107,13 +112,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Candidate repair frozen and proof/architecture writers STOPPED; primary preparing fresh review allocation."
+      "receipt": "Candidate and R1 frozen; primary records rev2 review allocation before first fresh reviewer launch."
     },
     {
       "id": "/root/npair_use_certificate_retention",
@@ -135,7 +140,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Awaiting primary review assignment; candidate and conditional R1 frozen."
+      "receipt": "Second sequential review; 80s; waits for compiler_referee STOP and primary adjudication."
     },
     {
       "id": "/root/npair_retention_spec_review",
@@ -146,7 +151,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Awaiting architect outcome and primary review assignment."
+      "receipt": "Third sequential review; 80s; waits for architect STOP and primary adjudication."
+    },
+    {
+      "id": "/root/npair_retention_proof_review",
+      "role": "compiler_referee",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "First of three sequential 80s reviews; exact R1/candidate pins recorded; launch not yet acknowledged."
     }
   ],
   "leases": [
@@ -226,8 +242,8 @@
     }
   ],
   "next_action": {
-    "state": "REVIEW-ALLOCATION-BOUNDARY",
-    "dispatcher": "Correction sprint adopted after selector proposal; next consultation at material boundary.",
+    "state": "READY-COMPILER-REFEREE",
+    "dispatcher": "Selector allocated three sequential fresh 80s reviews within the existing 240s review budget; Luna records rev2 and grants each launch.",
     "proof": "R1 frozen and integrated as a conditional finite-query retention invariant; whole native rho_u remains OPEN.",
     "implementation": "Draft architecture repair frozen; compiler code remains unauthorized; awaiting exact fresh review allocation."
   },
@@ -243,7 +259,7 @@
     "active_authors": 0,
     "astra_assignments": 0,
     "charged_total_seconds": 840,
-    "status": "Proof and architecture writers STOPPED; 840s of 1200s charged conservatively; 240s reviews remain, pending review assignment.",
+    "status": "Writers STOPPED; proof and architecture charged 840s; selector assigned existing 240s review budget as three sequential 80s reviews. First reviewer not yet launched.",
     "authors_spent_seconds": 840,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 600,
