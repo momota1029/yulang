@@ -8,11 +8,11 @@
     "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
     "revision": 1,
     "sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-    "state": "ACTIVE-PROOF",
+    "state": "PROOF-STOPPED-CROSS-LANE-REVIEW",
     "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
     "dispatcher": "At sprint end, selector proposed applying the operation source constructor to the selected choose instance and attempting the conditional export cut at its authenticated internal root. Compiler changes remain unauthorized.",
     "proof": {
-      "state": "RUNNING",
+      "state": "STOPPED-FROZEN-PENDING-SEQUENTIAL-IMPLEMENTATION",
       "assignment": "assignment-choose-operation-source-instantiation-20261017",
       "outputs": [
         "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
@@ -26,12 +26,14 @@
       "charge_seconds_cap": 900,
       "contract_revision": 1,
       "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-      "receipt": "Contract acknowledged before writing; all 52 direct dependency hashes MATCH; exact two output paths accepted absent-before-write. Active work began 2026-10-16T15:03:13Z (2026-10-17 00:03:13 JST), after initial reads. Six? Eight stages authorized; no descendants; no writes yet. Requested Astra/medium; observed model/effort UNKNOWN.",
+      "receipt": "Seven stages; conservative active charge 480/900s, 420s unspent/no transfer. Conditional choose declaration/IF placement, Request/response gluing and structural D_tail specialization. Complete Sigma_choose.Lambda, independent G/Z/W, concrete source authentication and native demand transport remain open. All 52 pins match. Zero tests/builds/probes; no descendants/scratch. STOPPED.",
       "worker_id": "/root/choose_operation_instantiation",
-      "runtime_receipt": "Explicit spawn returned /root/choose_operation_instantiation; worker acknowledgement confirms active work and STOP protocol. Session ID UNKNOWN."
+      "runtime_receipt": "Explicit spawn returned /root/choose_operation_instantiation; worker acknowledgement confirms active work and STOP protocol. Session ID UNKNOWN.",
+      "artifact_sha256": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
+      "handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81"
     },
     "implementation": {
-      "state": "SEQUENTIAL-DEFERRED",
+      "state": "AWAITING-CROSS-LANE-DISPATCH",
       "assignment": "assignment-authentic-root-export-cut-20261017",
       "outputs": [
         "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
@@ -44,12 +46,12 @@
       "charge_seconds_cap": 360,
       "contract_revision": 1,
       "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-      "receipt": "No write lease or launch until proof author cessation and primary capacity recheck."
+      "receipt": "Proof author STOPPED and result frozen. Selector consultation pending to add direct proof artifact/handoff dependency pins in a sequential contract revision before implementation launch."
     },
     "review": {
       "state": "NOT-STARTED",
       "budget_seconds": 300,
-      "execution": "After both authors and descendants STOP, fresh sequential proof then implementation reviews."
+      "execution": "After both authors and descendants STOP, sequential fresh proof then implementation reviews."
     },
     "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open."
   },
@@ -93,13 +95,13 @@
     {
       "id": "/root/choose_operation_instantiation",
       "role": "astra_prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Worker acknowledged rev1 contract and 52/52 dependency hashes before writing; active work began 2026-10-16T15:03:13Z; no writes/descendants yet; observed model/effort UNKNOWN."
+      "receipt": "STOPPED; artifact 6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110; handoff 658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81; 52 pins matched; seven stages, 480/900s; no descendants/scratch."
     }
   ],
   "leases": [
@@ -112,15 +114,15 @@
     {
       "path": "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
       "owner": "/root/choose_operation_instantiation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md",
       "owner": "/root/choose_operation_instantiation",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author /root/choose_operation_instantiation is RUNNING; implementation remains sequentially deferred.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author /root/choose_operation_instantiation STOPPED; implementation awaits cross-lane dependency revision; no reviewer active.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -135,9 +137,9 @@
     },
     {
       "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
-      "state": "ASSIGNED",
+      "state": "RESULT-REVIEW-PENDING",
       "owner": "assignment-choose-operation-source-instantiation-20261017",
-      "needs": "Instantiate selected source with exact declaration/use/IF telescope, Request/response gluing, lawful action and demand transport or identify the exact concrete missing definition field."
+      "needs": "Proof handoff frozen; add direct artifact and handoff pins before successor implementation consumes it; proof review is sequential after authors STOP."
     },
     {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
@@ -152,7 +154,7 @@
       "needs": "After proof author STOP, establish HIR registration to authenticated candidate root/use and attempt conditional public export cut at internal root."
     }
   ],
-  "next_action": "Proof author continues within rev1; after confirmed STOP and capacity recheck, start Luna/high source-owner lane. Review sequentially after all authors stop.",
+  "next_action": "Consult next_action_selector at the proof-to-implementation seam; pin proof outputs in rev2, then launch implementation after authority/capacity recheck.",
   "adoption_review": {
     "original_findings": [
       "MAJOR: implementation escalation handoff validation",
@@ -176,9 +178,9 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Proof active from 2026-10-16T15:03:13Z; exact billed seconds UNKNOWN, cap 900. Implementation and reviews not started.",
-    "status": "Proof author RUNNING; implementation sequentially deferred; no reviewer active.",
-    "sequencing": "Proof first alone; implementation only after confirmed proof cessation. Three UNKNOWN reservations retained; one assignment slot plus two reserved."
+    "spent_seconds": "Proof 480/900s; implementation 0/360; reviews not started; 420 proof seconds remain but do not transfer.",
+    "status": "Proof author STOPPED; cross-lane dependency review pending; implementation not started.",
+    "sequencing": "Proof author ceased; implementation waits for sequential contract revision and Luna lease grant. Three UNKNOWN reservations retained; two capacity slots."
   },
   "integration_outcome": "Previous sprint receipt committed and pushed at cba9d794d1f0498262b3668f9d5cc055c16749e9. New rev1 contract is pinned and ready for first author launch.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
