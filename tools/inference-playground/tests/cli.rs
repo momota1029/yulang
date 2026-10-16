@@ -228,6 +228,45 @@ fn discarded_expression_conflicts_withhold_all_cli_modes() {
 }
 
 #[test]
+fn expression_only_modules_are_checked_before_no_binding_output() {
+    let valid = r"(\x -> x) 1;
+if true: true else: false";
+    let invalid = r"(\x -> x) 1;
+if 1: true else: false";
+
+    for args in [&[][..], &["--intrusion"][..]] {
+        let result = cli_with_args(valid, args);
+        assert!(
+            result.status.success(),
+            "CLI mode {args:?}: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let output = String::from_utf8(result.stdout).unwrap();
+        assert!(
+            output.contains("No binding exports in this source."),
+            "CLI mode {args:?}: {output}"
+        );
+        assert!(
+            !output.contains("definition "),
+            "CLI mode {args:?}: {output}"
+        );
+
+        let result = cli_with_args(invalid, args);
+        assert!(!result.status.success(), "CLI mode {args:?} accepted conflict");
+        assert!(result.stdout.is_empty(), "CLI mode {args:?} exposed stdout");
+        let error = String::from_utf8(result.stderr).unwrap();
+        assert!(error.contains("candidate type conflicts"), "{error}");
+        assert!(error.contains(" at 2:"), "{error}");
+        assert!(
+            error.contains("\n  if 1: true else: false"),
+            "{error}"
+        );
+        assert!(!error.contains("unsupported source"), "{error}");
+        assert!(!error.contains("No binding exports"), "{error}");
+    }
+}
+
+#[test]
 fn boolean_and_string_consumers_accept_matching_literals() {
     let result = cli("my bool_id (x:bool) = x; my str_id (x:str) = x; \
          my boolean = bool_id false; my string = str_id \"str\"");

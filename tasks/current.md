@@ -44,10 +44,18 @@ Status: full objective remains active. Native extrusion now schedules current co
   The test checks owner-local results, equal transition counts, independent
   materialization and a fresh third machine. It snapshots cache tuples, steps
   and frame depth only, so it remains fixture-specific evidence. No production
-  code or runtime behavior changed. The original source/admission, soundness,
-  principality, N1, F5 and production gates remain OPEN/BLOCKED. Full role,
-  lease and inbox state is in [the loop board](agent-loop/board.md); the next
-  implementation is selected by the dispatcher after this push.
+  code or runtime behavior changed. I10 adds native and CLI regressions for
+  expression-only modules: the solver test preserves two authentic owners and
+  verifies the first Call owner plus valid/invalid constraint outcomes; the
+  CLI test checks normal and `--intrusion` modes across four invocations,
+  including conflict output before the no-binding message. Both focused tests
+  pass 1/1. R16's bounded M1 review and R16-C1 exact-diff follow-up are CLEAN;
+  C1 confirms the additions preserve all prior assertions and helpers. This
+  test-only slice adds no production code or semantics and does not close
+  general inference or proof obligations. The original source/admission,
+  soundness, principality, N1, F5 and production gates remain OPEN/BLOCKED.
+  Full role, lease and inbox state is in [the loop board](agent-loop/board.md);
+  the next implementation is selected by the dispatcher after this push.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

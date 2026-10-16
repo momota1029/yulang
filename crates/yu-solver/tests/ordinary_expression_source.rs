@@ -204,6 +204,74 @@ fn expression_receivers_reuse_supported_nested_constructors() {
 }
 
 #[test]
+fn expression_only_modules_keep_authentic_owners_and_constraints() {
+    for (text, has_conflict) in [
+        (r"(\x -> x) 1; if true: true else: false", false),
+        (r"(\x -> x) 1; if 1: true else: false", true),
+    ] {
+        let hir = module(text);
+        assert_eq!(
+            hir.items()
+                .iter()
+                .filter(|item| matches!(item, HirItem::Binding(_)))
+                .count(),
+            0,
+            "expression-only input must not invent a binding"
+        );
+        let expressions: Vec<_> = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Expression(expression) => Some(expression),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(expressions.len(), 2);
+
+        let owners: Vec<_> = expressions
+            .iter()
+            .map(|expression| {
+                let root = hir
+                    .expression_root(expression.occurrence())
+                    .unwrap()
+                    .unwrap()
+                    .clone();
+                assert_eq!(root.occurrence(), expression.occurrence());
+                let owner = SourceRootId::Expression(root);
+                let local = hir.local_source_for(&owner).unwrap().unwrap();
+                assert!(local.expressions().iter().any(|local_expression| {
+                    &local_expression.occurrence == expression.occurrence()
+                }));
+                owner
+            })
+            .collect();
+        let [first_owner, second_owner] = owners.as_slice() else {
+            panic!("both expression roots retain authentic owners");
+        };
+        let second_local = hir.local_source_for(second_owner).unwrap().unwrap();
+
+        let candidate = CandidateInference::solve(hir.clone())
+            .unwrap_or_else(|error| panic!("{text}: {error:?}"));
+        assert_eq!(candidate.source_call_count(), 1);
+        let call = candidate.source_call(0).unwrap();
+        assert_eq!(call.owner(), first_owner);
+        assert_eq!(&call.source().occurrence, expressions[0].occurrence());
+
+        let conflicts = candidate.candidate_conflicts();
+        if has_conflict {
+            assert!(!conflicts.is_empty(), "{text}");
+            assert!(conflicts.iter().all(|error| {
+                second_local.expressions().iter().any(|expression| {
+                    &expression.occurrence == error.occurrence().occurrence()
+                })
+            }));
+        } else {
+            assert!(conflicts.is_empty(), "{text}");
+        }
+    }
+}
+
+#[test]
 fn unresolved_and_recovered_expression_roots_keep_explicit_refusal() {
     for text in ["missing; my selected = 1", "@; my selected = 1"] {
         assert!(matches!(CandidateInference::solve(module(text)), Err(CandidateError::Unsupported)));
