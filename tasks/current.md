@@ -90,7 +90,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   production code, semantics, theorem, F5 or production gate changed. R21's
   CLEAN review is accepted only for the conditional P3-R1 generated-wrapper
   dispatch repair; its separate archival integration remains pending, and no
-  original proof or production gate closes.
+  original proof or production gate closes. I14 replaces repeated conflict
+  diagnostic carrier rescans and cloned ranges with a conflict-only index keyed
+  by borrowed authentic occurrence IDs and retaining first-match HIR order.
+  The caller prefetches at most K=min(E, 16,384) error records before indexing;
+  the generic helper and complete diagnostic loop remain unchanged. Its unit
+  tests cover authentic Definition/Expression ranges, deduplicated and foreign
+  requests, an empty request, and the bounded prefix with an unforced tail.
+  All three selected focused tests pass (2, 1, and 1 tests); R23 and R24 delta
+  reviews are CLEAN at their bounded diagnostic/resource scopes. Expected
+  prefetch work is O(K+I+P) plus key/carrier lookup costs, with O(U) borrowed
+  entries, U<=K; byte-cap failure can still stop output before the whole
+  prefetched prefix is rendered, and source traversal is not charged per node.
+  No measured speedup, whole-diagnostic linearity, recovery guarantee, inference
+  rule, accepted source result, theorem, F5 or production gate follows. I14's
+  code and both frozen receipts are integrated in this checkpoint.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The

@@ -3,10 +3,11 @@ mod output;
 pub mod render;
 pub mod runtime;
 use output::{Output, cap};
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::{io::Read, ops::Range, sync::Arc};
 use yu_hir::shadow::lower_module_with_local_source;
-use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
+use yu_hir::{FileId, FileKey, HirItem, HirModule, HirOccurrenceId, ModuleIdentity, SemanticImports, SourceRootId};
 use yu_solver::shadow_apply::{CandidateError, CandidateInference};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
@@ -225,32 +226,23 @@ fn prepare(
         other => bounded_message(format_args!("candidate inference unavailable: {other:?}")),
     })?;
     if !candidate.candidate_conflicts().is_empty() {
+        let conflict_ranges = conflict_ranges_for(
+            &hir,
+            candidate
+                .candidate_conflicts()
+                .iter()
+                // Only this prefix can pass one observe(1) charge per report row.
+                // Keep the diagnostic loop below complete so it preserves the cap error.
+                .take(output::WORK_CAP)
+                .map(|error| error.occurrence().occurrence()),
+        );
         output
             .write_str("candidate type conflicts (experimental; graph export withheld):\n")
             .map_err(cap)?;
         for error in candidate.candidate_conflicts() {
             output.observe(1)?;
             let occurrence = error.occurrence().occurrence();
-            let range = hir.items().iter().find_map(|item| {
-                let source_root = match item {
-                    HirItem::Binding(binding) => {
-                        SourceRootId::Definition(binding.definition_root().clone())
-                    }
-                    HirItem::Expression(expression) => SourceRootId::Expression(
-                        hir.expression_root(expression.occurrence())
-                            .ok()
-                            .flatten()?
-                            .clone(),
-                    ),
-                    _ => return None,
-                };
-                let local = hir.local_source_for(&source_root).ok().flatten()?;
-                local
-                    .expressions()
-                    .iter()
-                    .find(|expression| &expression.occurrence == occurrence)
-                    .map(|expression| expression.range.clone())
-            });
+            let range = conflict_ranges.get(occurrence).copied().flatten();
             write!(output, "  {:?} at ", error.kind()).map_err(cap)?;
             if let Some(range) = range {
                 location_into(source, &range, &mut output)?;
@@ -264,10 +256,242 @@ fn prepare(
     Ok((hir, candidate))
 }
 
+fn conflict_ranges_for<'requested, 'hir>(
+    hir: &'hir HirModule,
+    requested: impl IntoIterator<Item = &'requested HirOccurrenceId>,
+) -> HashMap<&'requested HirOccurrenceId, Option<&'hir Range<usize>>> {
+    let mut ranges = HashMap::new();
+    for occurrence in requested {
+        ranges.entry(occurrence).or_insert(None);
+    }
+    if ranges.is_empty() {
+        return ranges;
+    }
+
+    let mut unresolved = ranges.len();
+    for item in hir.items() {
+        let source_root = match item {
+            HirItem::Binding(binding) => {
+                SourceRootId::Definition(binding.definition_root().clone())
+            }
+            HirItem::Expression(expression) => {
+                let Some(root) = hir
+                    .expression_root(expression.occurrence())
+                    .ok()
+                    .flatten()
+                else {
+                    continue;
+                };
+                SourceRootId::Expression(root.clone())
+            }
+            HirItem::Error { .. } => continue,
+        };
+        let Some(local) = hir.local_source_for(&source_root).ok().flatten() else {
+            continue;
+        };
+        for expression in local.expressions() {
+            let Some(range) = ranges.get_mut(&expression.occurrence) else {
+                continue;
+            };
+            if range.is_some() {
+                continue;
+            }
+            *range = Some(&expression.range);
+            unresolved -= 1;
+            if unresolved == 0 {
+                return ranges;
+            }
+        }
+    }
+    ranges
+}
+
 fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
     let mut output = Output::new();
     if output.write_fmt(arguments).is_err() {
         return output::CAP_ERROR.to_owned();
     }
     output.finish().unwrap_or_else(|error| error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{conflict_ranges_for, prepare};
+    use super::output;
+    use yu_hir::shadow::LocalSourceForm;
+    use yu_hir::{HirItem, HirOccurrenceId, HirModule, SourceRootId};
+
+    fn integer_expression<'hir>(
+        hir: &'hir HirModule,
+        root: &SourceRootId,
+        spelling: &str,
+    ) -> &'hir yu_hir::shadow::LocalSourceExpr {
+        hir.local_source_for(root)
+            .unwrap()
+            .unwrap()
+            .expressions()
+            .iter()
+            .find(|expression| matches!(
+                &expression.form,
+                LocalSourceForm::Integer(value) if value.as_ref() == spelling
+            ))
+            .expect("the requested original integer expression")
+    }
+
+    #[test]
+    fn conflict_range_index_keeps_authentic_roots_and_missing_occurrences() {
+        let (hir, _) = prepare("1; my main = 2", "range-index", false).unwrap();
+        let direct_root = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Expression(expression) => Some(
+                    hir.expression_root(expression.occurrence())
+                        .unwrap()
+                        .unwrap()
+                        .clone(),
+                ),
+                _ => None,
+            })
+            .expect("the original direct expression root");
+        let direct = integer_expression(
+            &hir,
+            &SourceRootId::Expression(direct_root),
+            "1",
+        );
+
+        let main = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == "main" => Some(binding),
+                _ => None,
+            })
+            .expect("the original main definition");
+        let initializer = integer_expression(
+            &hir,
+            &SourceRootId::Definition(main.definition_root().clone()),
+            "2",
+        );
+
+        let (foreign_hir, _) = prepare("3; my main = 4", "range-index-foreign", false).unwrap();
+        let foreign_root = foreign_hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Expression(expression) => Some(
+                    foreign_hir
+                        .expression_root(expression.occurrence())
+                        .unwrap()
+                        .unwrap()
+                        .clone(),
+                ),
+                _ => None,
+            })
+            .expect("the separate artifact's direct expression root");
+        let foreign = integer_expression(
+            &foreign_hir,
+            &SourceRootId::Expression(foreign_root),
+            "3",
+        );
+
+        let empty = conflict_ranges_for(&hir, std::iter::empty::<&HirOccurrenceId>());
+        assert!(empty.is_empty());
+
+        let authentic = conflict_ranges_for(
+            &hir,
+            [&direct.occurrence, &initializer.occurrence],
+        );
+        assert_eq!(authentic.len(), 2);
+        assert!(std::ptr::eq(
+            authentic
+                .get(&direct.occurrence)
+                .copied()
+                .flatten()
+                .unwrap(),
+            &direct.range,
+        ));
+        assert!(std::ptr::eq(
+            authentic
+                .get(&initializer.occurrence)
+                .copied()
+                .flatten()
+                .unwrap(),
+            &initializer.range,
+        ));
+
+        let requests = [
+            &direct.occurrence,
+            &initializer.occurrence,
+            &direct.occurrence,
+            &foreign.occurrence,
+        ];
+        let indexed = conflict_ranges_for(&hir, requests);
+        assert_eq!(indexed.len(), 3, "duplicate requested keys are deduplicated");
+        assert!(std::ptr::eq(
+            indexed
+                .get(&direct.occurrence)
+                .copied()
+                .flatten()
+                .unwrap(),
+            &direct.range,
+        ));
+        assert!(std::ptr::eq(
+            indexed
+                .get(&initializer.occurrence)
+                .copied()
+                .flatten()
+                .unwrap(),
+            &initializer.range,
+        ));
+        assert!(indexed
+            .get(&foreign.occurrence)
+            .is_some_and(Option::is_none));
+    }
+
+    #[test]
+    fn conflict_range_index_limits_prefetch_to_observable_prefix() {
+        let (hir, _) = prepare("1; my main = 2", "range-index-prefix", false).unwrap();
+        let direct_root = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Expression(expression) => Some(
+                    hir.expression_root(expression.occurrence())
+                        .unwrap()
+                        .unwrap()
+                        .clone(),
+                ),
+                _ => None,
+            })
+            .expect("the original direct expression root");
+        let direct = integer_expression(
+            &hir,
+            &SourceRootId::Expression(direct_root),
+            "1",
+        );
+
+        let mut consumed = 0;
+        let requested = std::iter::repeat_with(|| {
+            consumed += 1;
+            &direct.occurrence
+        })
+        .take(output::WORK_CAP)
+        .chain(std::iter::once_with(|| {
+            panic!("the prefetch adapter must not inspect records beyond WORK_CAP")
+        }))
+        .take(output::WORK_CAP);
+        let indexed = conflict_ranges_for(&hir, requested);
+
+        assert_eq!(consumed, output::WORK_CAP);
+        assert_eq!(indexed.len(), 1, "repeated records share one authentic key");
+        assert!(std::ptr::eq(
+            indexed
+                .get(&direct.occurrence)
+                .copied()
+                .flatten()
+                .unwrap(),
+            &direct.range,
+        ));
+    }
 }
